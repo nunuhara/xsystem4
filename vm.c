@@ -154,6 +154,9 @@ static void function_return(void)
 static void system_call(int32_t code)
 {
 	switch (code) {
+	case 0x0: // system.Exit(int nResult)
+		sys_exit(stack_pop());
+		break;
 	case 0x6: // system.Output(string szText)
 		sys_message("%s", stack_peek_string()->str);
 		// XXX: caller S_POPs
@@ -314,12 +317,17 @@ void vm_execute(struct ain *program)
 	stack = xmalloc(stack_size);
 	ain = program;
 
-	// jump to main and begin fetch-decode-execute cycle
-	//instr_ptr = ain->functions[ain->main].address;
+	// Jump to main. We set up a stack frame so that when main returns,
+	// the first instruction past the end of the code section is executed.
+	// ()When we read the AIN file, CALLSYS 0x0 was placed there.)
+	frame_stack[FRAME_IP_OFF] = ain->code_size;
+	frame_stack[FRAME_FP_OFF] = 0;
 	function_call(ain->main);
-	for ( ; instr_ptr < ain->code_size; )
+
+	// fetch/decode/execute loop
+	for (;;)
 	{
-		if (instr_ptr >= ain->code_size) {
+		if (instr_ptr >= ain->code_size + 6) {
 			ERROR("Illegal instruction pointer: 0x%lX", instr_ptr);
 		}
 		int16_t opcode = get_opcode(instr_ptr);

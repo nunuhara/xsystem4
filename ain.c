@@ -56,10 +56,13 @@ static int32_t read_int32(struct ain_reader *r)
 	return v;
 }
 
-static uint8_t *read_bytes(struct ain_reader *r, size_t len)
+static uint8_t *read_code(struct ain_reader *r, size_t len)
 {
-	uint8_t *bytes = xmalloc(len);
+	uint8_t *bytes = xmalloc(len + 6);
 	memcpy(bytes, r->buf + r->index, len);
+	// XXX: main() returns to CALLSYS 0x0 (system.Exit)
+	LittleEndian_putW(bytes, len, CALLSYS);
+	LittleEndian_putDW(bytes, len + 2, 0);
 	r->index += len;
 	return bytes;
 }
@@ -243,7 +246,7 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		ain->keycode = read_int32(r);
 	} else if (TAG_EQ("CODE")) {
 		ain->code_size = read_int32(r);
-		ain->code = read_bytes(r, ain->code_size);
+		ain->code = read_code(r, ain->code_size);
 	} else if (TAG_EQ("FUNC")) {
 		int32_t count = read_int32(r);
 		ain->functions = read_functions(r, count, ain);

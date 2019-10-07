@@ -61,4 +61,10 @@ static inline void LittleEndian_putDW(uint8_t *dst, int i, uint32_t dword)
 	dst[i+3] = (uint8_t)(dword >> 24);
 }
 
+static inline void LittleEndian_putW(uint8_t *dst, int i, uint16_t word)
+{
+	dst[i]   = word & 0xFF;
+	dst[i+1] = word >> 8;
+}
+
 #endif /* LITTLE_ENDIAN_H */
