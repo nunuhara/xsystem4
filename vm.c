@@ -333,6 +333,57 @@ static void execute_instruction(int16_t opcode)
 		a = stack_pop();
 		stack_push(a == b ? 1 : 0);
 		break;
+	// +=, -=, etc.
+	case PLUSA:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] += v;
+		break;
+	case MINUSA:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] -= v;
+		break;
+	case MULA:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] *= v;
+		break;
+	case DIVA:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] /= v;
+		break;
+	case MODA:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] %= v;
+		break;
+	case ANDA:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] &= v;
+		break;
+	case ORA:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] |= v;
+		break;
+	case XORA:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] ^= v;
+		break;
+	case LSHIFTA:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] <<= v;
+		break;
+	case RSHIFTA:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] >>= v;
+		break;
 	//
 	// --- Strings ---
 	//
