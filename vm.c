@@ -173,7 +173,7 @@ static void system_call(int32_t code)
 
 static void execute_instruction(int16_t opcode)
 {
-	int32_t index, a, b;
+	int32_t index, a, b, v;
 	struct string sa, sb;
 	const char *opcode_name = "UNKNOWN";
 	switch (opcode) {
@@ -198,6 +198,11 @@ static void execute_instruction(int16_t opcode)
 		break;
 	case PUSHLOCALPAGE:
 		stack_push(frame_ptr);
+		break;
+	case ASSIGN:
+		v = stack_pop();
+		index = stack_pop_ref();
+		frame_stack[index] = v;
 		break;
 	case SH_LOCALREF: // VARNO
 		// Push the value of VARNO to the stack
@@ -248,6 +253,56 @@ static void execute_instruction(int16_t opcode)
 	//
 	// --- Arithmetic ---
 	//
+	case INV:
+		stack[stack_ptr-1] = -stack[stack_ptr-1];
+		break;
+	case NOT:
+		stack[stack_ptr-1] = !stack[stack_ptr-1];
+		break;
+	case COMPL:
+		stack[stack_ptr-1] = ~stack[stack_ptr-1];
+		break;
+	case ADD:
+		stack[stack_ptr-2] += stack[stack_ptr-1];
+		stack_ptr--;
+		break;
+	case SUB:
+		stack[stack_ptr-2] -= stack[stack_ptr-1];
+		stack_ptr--;
+		break;
+	case MUL:
+		stack[stack_ptr-2] *= stack[stack_ptr-1];
+		stack_ptr--;
+		break;
+	case DIV:
+		stack[stack_ptr-2] /= stack[stack_ptr-1];
+		stack_ptr--;
+		break;
+	case MOD:
+		stack[stack_ptr-2] %= stack[stack_ptr-1];
+		stack_ptr--;
+		break;
+	case AND:
+		stack[stack_ptr-2] &= stack[stack_ptr-1];
+		stack_ptr--;
+		break;
+	case OR:
+		stack[stack_ptr-2] |= stack[stack_ptr-1];
+		stack_ptr--;
+		break;
+	case XOR:
+		stack[stack_ptr-2] ^= stack[stack_ptr-1];
+		stack_ptr--;
+		break;
+	case LSHIFT:
+		stack[stack_ptr-2] <<= stack[stack_ptr-1];
+		stack_ptr--;
+		break;
+	case RSHIFT:
+		stack[stack_ptr-2] >>= stack[stack_ptr-1];
+		stack_ptr--;
+		break;
+	// Numeric Comparisons
 	case LT:
 		b = stack_pop();
 		a = stack_pop();
@@ -320,8 +375,7 @@ void vm_execute(struct ain *program)
 	// Jump to main. We set up a stack frame so that when main returns,
 	// the first instruction past the end of the code section is executed.
 	// ()When we read the AIN file, CALLSYS 0x0 was placed there.)
-	frame_stack[FRAME_IP_OFF] = ain->code_size;
-	frame_stack[FRAME_FP_OFF] = 0;
+	instr_ptr = ain->code_size - instruction_width(CALLFUNC);
 	function_call(ain->main);
 
 	// fetch/decode/execute loop
