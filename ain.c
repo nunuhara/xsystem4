@@ -28,6 +28,7 @@
 #include "ain.h"
 #include "little_endian.h"
 #include "instructions.h"
+#include "vm_string.h"
 
 static const char *errtab[AIN_MAX_ERROR] = {
 	[AIN_SUCCESS]             = "Success",
@@ -82,6 +83,24 @@ static char **read_strings(struct ain_reader *r, int count)
 	char **strings = calloc(count, sizeof(char*));
 	for (int i = 0; i < count; i++) {
 		strings[i] = read_string(r);
+	}
+	return strings;
+}
+
+static struct string *read_vm_string(struct ain_reader *r)
+{
+	size_t len = strlen((char*)r->buf + r->index);
+	struct string *s = make_string((char*)r->buf + r->index, len);
+	s->literal = true;
+	r->index += len + 1;
+	return s;
+}
+
+static struct string **read_vm_strings(struct ain_reader *r, int count)
+{
+	struct string **strings = calloc(count, sizeof(struct string*));
+	for (int i = 0; i < count; i++) {
+		strings[i] = read_vm_string(r);
 	}
 	return strings;
 }
@@ -260,7 +279,7 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		int32_t count = read_int32(r);
 		ain->structures = read_structures(r, count);
 	} else if (TAG_EQ("MSG0")) {
-		ain->messages = read_strings(r, read_int32(r));
+		ain->messages = read_vm_strings(r, read_int32(r));
 	} else if (TAG_EQ("MAIN")) {
 		ain->main = read_int32(r);
 	} else if (TAG_EQ("MSGF")) {
@@ -274,7 +293,7 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 	} else if (TAG_EQ("GVER")) {
 		ain->game_version = read_int32(r);
 	} else if (TAG_EQ("STR0")) {
-		ain->strings = read_strings(r, read_int32(r));
+		ain->strings = read_vm_strings(r, read_int32(r));
 	} else if (TAG_EQ("FNAM")) {
 		ain->filenames = read_strings(r, read_int32(r));
 	} else if (TAG_EQ("OJMP")) {

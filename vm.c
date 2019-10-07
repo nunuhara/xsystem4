@@ -18,7 +18,7 @@
 #include <string.h>
 
 #include "system4.h"
-#include "sys4_string.h"
+#include "vm_string.h"
 #include "ain.h"
 #include "instructions.h"
 #include "little_endian.h"
@@ -35,7 +35,7 @@ static int stack_ptr = 0;
 // Separate stack for strings
 // Not sure exactly how System40.exe handles strings.
 // Further testing required to ensure this approach doesn't break anything.
-static struct string string_stack[1024];
+static struct string *string_stack[1024];
 static int string_stack_ptr = 0;
 
 //static struct frame *frame_stack[1024];
@@ -93,16 +93,15 @@ static int32_t stack_pop_ref(void)
 
 static void stack_push_string_literal(int32_t no)
 {
-	// FIXME: should store string length when reading AIN
-	string_stack[string_stack_ptr++] = make_string(ain->strings[no], strlen(ain->strings[no]));
+	string_stack[string_stack_ptr++] = ain->strings[no];
 }
 
 static void stack_push_string(struct string *str)
 {
-	string_stack[string_stack_ptr++] = *str;
+	string_stack[string_stack_ptr++] = str;
 }
 
-static struct string stack_pop_string(void)
+static struct string *stack_pop_string(void)
 {
 	string_stack_ptr--;
 	return string_stack[string_stack_ptr];
@@ -111,12 +110,12 @@ static struct string stack_pop_string(void)
 static void stack_toss_string(void)
 {
 	string_stack_ptr--;
-	free_string(&string_stack[string_stack_ptr]);
+	free_string(string_stack[string_stack_ptr]);
 }
 
 static struct string *stack_peek_string(void)
 {
-	return &string_stack[string_stack_ptr-1];
+	return string_stack[string_stack_ptr-1];
 }
 
 /*
@@ -158,7 +157,7 @@ static void system_call(int32_t code)
 		sys_exit(stack_pop());
 		break;
 	case 0x6: // system.Output(string szText)
-		sys_message("%s", stack_peek_string()->str);
+		sys_message("%s", stack_peek_string()->text);
 		// XXX: caller S_POPs
 		break;
 	case 0x14: // system.Peek()
@@ -174,7 +173,7 @@ static void system_call(int32_t code)
 static void execute_instruction(int16_t opcode)
 {
 	int32_t index, a, b, v;
-	struct string sa, sb;
+	struct string *sa, *sb;
 	const char *opcode_name = "UNKNOWN";
 	switch (opcode) {
 	//
@@ -396,12 +395,11 @@ static void execute_instruction(int16_t opcode)
 	case S_ADD:
 		sb = stack_pop_string();
 		sa = stack_pop_string();
-		string_add(&sa, &sb);
-		stack_push_string(&sa);
+		sa = string_append(sa, sb);
+		stack_push_string(sa);
 		break;
 	case I_STRING:
-		sa = integer_to_string(stack_pop());
-		stack_push_string(&sa);
+		stack_push_string(integer_to_string(stack_pop()));
 		break;
 	// -- NOOPs ---
 	case FUNC:

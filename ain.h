@@ -21,6 +21,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "vm_string.h"
+
 struct ain;
 
 enum ain_error {
@@ -160,13 +162,13 @@ struct ain {
 	struct ain_global *globals;
 	struct ain_initval *global_initvals;
 	struct ain_struct *structures;
-	char **messages;
+	struct string **messages;
 	int32_t main;
 	int32_t msgf;
 	struct ain_library *libraries;
 	struct ain_switch *switches;
 	int32_t game_version;
-	char **strings;
+	struct string **strings;
 	char **filenames;
 	int32_t ojmp;
 	struct ain_function_type *function_types;

@@ -21,14 +21,14 @@
 #include <stddef.h>
 
 struct string {
-	char *str;
-	size_t len;
-	bool mutable;
+	unsigned int size;
+	bool literal;
+	char text[];
 };
 
-struct string make_string(char *str, size_t len);
+struct string *make_string(const char *str, unsigned int len);
 void free_string(struct string *str);
-void string_add(struct string *a, struct string *b);
-struct string integer_to_string(int n);
+struct string *string_append(struct string *a, struct string *b);
+struct string *integer_to_string(int n);
 
 #endif

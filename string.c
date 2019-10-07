@@ -18,45 +18,42 @@
 #include <stdio.h>
 #include <string.h>
 #include "system4.h"
-#include "sys4_string.h"
+#include "vm_string.h"
 
-struct string make_string(char *str, size_t len)
+struct string *make_string(const char *str, unsigned int len)
 {
-	return (struct string) {
-		.str = str,
-		.len = len,
-		.mutable = false
-	};
+	struct string *s = xmalloc(sizeof(struct string) + len + 1);
+	s->size = len;
+	s->literal = false;
+	memcpy(s->text, str, len);
+	s->text[len] = '\0';
+	return s;
 }
 
 void free_string(struct string *str)
 {
-	if (str->mutable)
-		free(str->str);
+	if (!str->literal)
+		free(str);
 }
 
-void string_add(struct string *a, struct string *b)
+struct string *string_append(struct string *a, struct string *b)
 {
-	if (a->mutable) {
-		a->str = xrealloc(a->str, a->len + b->len + 1);
+	if (!a->literal) {
+		a = xrealloc(a, sizeof(struct string) + a->size + b->size + 1);
 	} else {
-		char *literal = a->str;
-		a->str = xmalloc(a->len + b->len + 1);
-		memcpy(a->str, literal, a->len + 1);
+		struct string *tmp = xmalloc(sizeof(struct string) + a->size + b->size + 1);
+		memcpy(tmp, a, sizeof(struct string) + a->size);
+		a = tmp;
 	}
-	memcpy(a->str + a->len, b->str, b->len + 1);
-	a->len = a->len + b->len;
+	memcpy(a->text + a->size, b->text, b->size + 1);
+	a->size = a->size + b->size;
+	return a;
 }
 
-struct string integer_to_string(int n)
+struct string *integer_to_string(int n)
 {
 	char buf[513];
 	int len = snprintf(buf, 512, "%d" ,n);
 	buf[512] = '\0';
-
-	return (struct string) {
-		.str = xstrdup(buf),
-		.len = len,
-		.mutable = true
-	};
+	return make_string(buf, len);
 }
