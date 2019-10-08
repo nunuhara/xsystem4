@@ -25,7 +25,7 @@
 
 union vm_value {
 	int32_t i;
-	int64_t l;
+	int64_t i64;
 	float f;
 	struct string *s;
 };
@@ -39,7 +39,7 @@ static union vm_value *stack = NULL;
 static size_t stack_size;
 static int stack_ptr = 0;
 
-static int32_t frame_stack[4096];
+static union vm_value frame_stack[4096];
 static int frame_ptr = 0;
 
 #define FRAME_FN_OFF  0 // offset to function number
@@ -52,12 +52,12 @@ static size_t instr_ptr = 0;
 
 static int32_t local_ref(int varno)
 {
-	return frame_stack[frame_ptr + FRAME_VAR_OFF + varno];
+	return frame_stack[frame_ptr + FRAME_VAR_OFF + varno].i;
 }
 
 static void local_set(int varno, int32_t value)
 {
-	frame_stack[frame_ptr + FRAME_VAR_OFF + varno] = value;
+	frame_stack[frame_ptr + FRAME_VAR_OFF + varno].i = value;
 }
 
 // Read the opcode at ADDR.
@@ -77,17 +77,17 @@ static void stack_push(int32_t v)
 	stack[stack_ptr++].i = v;
 }
 
-static int32_t stack_pop(void)
+static union vm_value stack_pop(void)
 {
 	stack_ptr--;
-	return stack[stack_ptr].i;
+	return stack[stack_ptr];
 }
 
 // Pop a reference off the stack, returning the address of the referenced object.
 static int32_t stack_pop_ref(void)
 {
-	int32_t index = stack_pop();
-	int32_t frame = stack_pop();
+	int32_t index = stack_pop().i;
+	int32_t frame = stack_pop().i;
 	return frame + FRAME_VAR_OFF + index;
 }
 
@@ -128,13 +128,13 @@ static struct string *stack_peek_string(void)
 
 static void function_call(int32_t no)
 {
-	int32_t cur_fno = frame_stack[frame_ptr + FRAME_FN_OFF];
+	int32_t cur_fno = frame_stack[frame_ptr + FRAME_FN_OFF].i;
 	int32_t new_fp = frame_ptr + FRAME_VAR_OFF + ain->functions[cur_fno].nr_vars;
 
 	// create new stack frame
-	frame_stack[new_fp + FRAME_FN_OFF] = no;
-	frame_stack[new_fp + FRAME_IP_OFF] = instr_ptr + instruction_width(CALLFUNC);
-	frame_stack[new_fp + FRAME_FP_OFF] = frame_ptr;
+	frame_stack[new_fp + FRAME_FN_OFF].i = no;
+	frame_stack[new_fp + FRAME_IP_OFF].i = instr_ptr + instruction_width(CALLFUNC);
+	frame_stack[new_fp + FRAME_FP_OFF].i = frame_ptr;
 	for (int i = ain->functions[no].nr_args - 1; i >= 0; i--) {
 		frame_stack[new_fp + FRAME_VAR_OFF + i] = stack_pop();
 	}
@@ -146,15 +146,15 @@ static void function_call(int32_t no)
 
 static void function_return(void)
 {
-	instr_ptr  = frame_stack[frame_ptr + FRAME_IP_OFF];
-	frame_ptr  = frame_stack[frame_ptr + FRAME_FP_OFF];
+	instr_ptr  = frame_stack[frame_ptr + FRAME_IP_OFF].i;
+	frame_ptr  = frame_stack[frame_ptr + FRAME_FP_OFF].i;
 }
 
 static void system_call(int32_t code)
 {
 	switch (code) {
 	case 0x0: // system.Exit(int nResult)
-		sys_exit(stack_pop());
+		sys_exit(stack_pop().i);
 		break;
 	case 0x6: // system.Output(string szText)
 		sys_message("%s", stack_peek_string()->text);
@@ -182,26 +182,36 @@ static void execute_instruction(int16_t opcode)
 	case PUSH:
 		stack_push(get_argument(0));
 		break;
+	case S_PUSH:
+		stack_push_string_literal(get_argument(0));
+		break;
 	case POP:
 		stack_pop();
 		break;
+	case S_POP:
+		stack_toss_string();
+		break;
 	case REF:
 		// Dereference a reference to a value.
-		stack_push(frame_stack[stack_pop_ref()]);
+		stack_push(frame_stack[stack_pop_ref()].i);
+		break;
+	case S_REF:
+		// Dereference a reference to a string
+		stack_push_string(frame_stack[stack_pop_ref()].s);
 		break;
 	case REFREF:
 		// Dereference a reference to a reference.
 		index = stack_pop_ref();
-		stack_push(frame_stack[index]);
-		stack_push(frame_stack[index + 1]);
+		stack_push(frame_stack[index].i);
+		stack_push(frame_stack[index + 1].i);
 		break;
 	case PUSHLOCALPAGE:
 		stack_push(frame_ptr);
 		break;
 	case ASSIGN:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] = v;
+		frame_stack[index].i = v;
 		break;
 	case SH_LOCALREF: // VARNO
 		// Push the value of VARNO to the stack
@@ -238,13 +248,13 @@ static void execute_instruction(int16_t opcode)
 		instr_ptr = get_argument(0);
 		break;
 	case IFZ: // ADDR
-		if (!stack_pop())
+		if (!stack_pop().i)
 			instr_ptr = get_argument(0);
 		else
 			instr_ptr += instruction_width(IFZ);
 		break;
 	case IFNZ: // ADDR
-		if (stack_pop())
+		if (stack_pop().i)
 			instr_ptr = get_argument(0);
 		else
 			instr_ptr += instruction_width(IFNZ);
@@ -303,95 +313,89 @@ static void execute_instruction(int16_t opcode)
 		break;
 	// Numeric Comparisons
 	case LT:
-		b = stack_pop();
-		a = stack_pop();
+		b = stack_pop().i;
+		a = stack_pop().i;
 		stack_push(a < b ? 1 : 0);
 		break;
 	case GT:
-		b = stack_pop();
-		a = stack_pop();
+		b = stack_pop().i;
+		a = stack_pop().i;
 		stack_push(a > b ? 1 : 0);
 		break;
 	case LTE:
-		b = stack_pop();
-		a = stack_pop();
+		b = stack_pop().i;
+		a = stack_pop().i;
 		stack_push(a <= b ? 1 : 0);
 		break;
 	case GTE:
-		b = stack_pop();
-		a = stack_pop();
+		b = stack_pop().i;
+		a = stack_pop().i;
 		stack_push(a >= b ? 1 : 0);
 		break;
 	case NOTE:
-		b = stack_pop();
-		a = stack_pop();
+		b = stack_pop().i;
+		a = stack_pop().i;
 		stack_push(a != b ? 1 : 0);
 		break;
 	case EQUALE:
-		b = stack_pop();
-		a = stack_pop();
+		b = stack_pop().i;
+		a = stack_pop().i;
 		stack_push(a == b ? 1 : 0);
 		break;
 	// +=, -=, etc.
 	case PLUSA:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] += v;
+		frame_stack[index].i += v;
 		break;
 	case MINUSA:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] -= v;
+		frame_stack[index].i -= v;
 		break;
 	case MULA:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] *= v;
+		frame_stack[index].i *= v;
 		break;
 	case DIVA:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] /= v;
+		frame_stack[index].i /= v;
 		break;
 	case MODA:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] %= v;
+		frame_stack[index].i %= v;
 		break;
 	case ANDA:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] &= v;
+		frame_stack[index].i &= v;
 		break;
 	case ORA:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] |= v;
+		frame_stack[index].i |= v;
 		break;
 	case XORA:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] ^= v;
+		frame_stack[index].i ^= v;
 		break;
 	case LSHIFTA:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] <<= v;
+		frame_stack[index].i <<= v;
 		break;
 	case RSHIFTA:
-		v = stack_pop();
+		v = stack_pop().i;
 		index = stack_pop_ref();
-		frame_stack[index] >>= v;
+		frame_stack[index].i >>= v;
 		break;
 	//
 	// --- Strings ---
 	//
-	case S_PUSH:
-		stack_push_string_literal(get_argument(0));
-		break;
-	case S_POP:
-		stack_toss_string();
-		break;
 	case S_ADD:
 		sb = stack_pop_string();
 		sa = stack_pop_string();
@@ -399,7 +403,7 @@ static void execute_instruction(int16_t opcode)
 		stack_push_string(sa);
 		break;
 	case I_STRING:
-		stack_push_string(integer_to_string(stack_pop()));
+		stack_push_string(integer_to_string(stack_pop().i));
 		break;
 	// -- NOOPs ---
 	case FUNC:
