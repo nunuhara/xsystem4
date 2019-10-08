@@ -23,22 +23,22 @@
 #include "instructions.h"
 #include "little_endian.h"
 
+union vm_value {
+	int32_t i;
+	int64_t l;
+	float f;
+	struct string *s;
+};
+
 /*
  * NOTE: The current implementation is a simple bytecode interpreter.
  *       System40.exe uses a JIT compiler, and we should too.
  */
 
-static int32_t *stack = NULL;
+static union vm_value *stack = NULL;
 static size_t stack_size;
 static int stack_ptr = 0;
 
-// Separate stack for strings
-// Not sure exactly how System40.exe handles strings.
-// Further testing required to ensure this approach doesn't break anything.
-static struct string *string_stack[1024];
-static int string_stack_ptr = 0;
-
-//static struct frame *frame_stack[1024];
 static int32_t frame_stack[4096];
 static int frame_ptr = 0;
 
@@ -74,13 +74,13 @@ static int32_t get_argument(int n)
 
 static void stack_push(int32_t v)
 {
-	stack[stack_ptr++] = v;
+	stack[stack_ptr++].i = v;
 }
 
 static int32_t stack_pop(void)
 {
 	stack_ptr--;
-	return stack[stack_ptr];
+	return stack[stack_ptr].i;
 }
 
 // Pop a reference off the stack, returning the address of the referenced object.
@@ -93,29 +93,29 @@ static int32_t stack_pop_ref(void)
 
 static void stack_push_string_literal(int32_t no)
 {
-	string_stack[string_stack_ptr++] = ain->strings[no];
+	stack[stack_ptr++].s = ain->strings[no];
 }
 
 static void stack_push_string(struct string *str)
 {
-	string_stack[string_stack_ptr++] = str;
+	stack[stack_ptr++].s = str;
 }
 
 static struct string *stack_pop_string(void)
 {
-	string_stack_ptr--;
-	return string_stack[string_stack_ptr];
+	stack_ptr--;
+	return stack[stack_ptr].s;
 }
 
 static void stack_toss_string(void)
 {
-	string_stack_ptr--;
-	free_string(string_stack[string_stack_ptr]);
+	stack_ptr--;
+	free_string(stack[stack_ptr].s);
 }
 
 static struct string *stack_peek_string(void)
 {
-	return string_stack[string_stack_ptr-1];
+	return stack[stack_ptr-1].s;
 }
 
 /*
@@ -253,52 +253,52 @@ static void execute_instruction(int16_t opcode)
 	// --- Arithmetic ---
 	//
 	case INV:
-		stack[stack_ptr-1] = -stack[stack_ptr-1];
+		stack[stack_ptr-1].i = -stack[stack_ptr-1].i;
 		break;
 	case NOT:
-		stack[stack_ptr-1] = !stack[stack_ptr-1];
+		stack[stack_ptr-1].i = !stack[stack_ptr-1].i;
 		break;
 	case COMPL:
-		stack[stack_ptr-1] = ~stack[stack_ptr-1];
+		stack[stack_ptr-1].i = ~stack[stack_ptr-1].i;
 		break;
 	case ADD:
-		stack[stack_ptr-2] += stack[stack_ptr-1];
+		stack[stack_ptr-2].i += stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
 	case SUB:
-		stack[stack_ptr-2] -= stack[stack_ptr-1];
+		stack[stack_ptr-2].i -= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
 	case MUL:
-		stack[stack_ptr-2] *= stack[stack_ptr-1];
+		stack[stack_ptr-2].i *= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
 	case DIV:
-		stack[stack_ptr-2] /= stack[stack_ptr-1];
+		stack[stack_ptr-2].i /= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
 	case MOD:
-		stack[stack_ptr-2] %= stack[stack_ptr-1];
+		stack[stack_ptr-2].i %= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
 	case AND:
-		stack[stack_ptr-2] &= stack[stack_ptr-1];
+		stack[stack_ptr-2].i &= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
 	case OR:
-		stack[stack_ptr-2] |= stack[stack_ptr-1];
+		stack[stack_ptr-2].i |= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
 	case XOR:
-		stack[stack_ptr-2] ^= stack[stack_ptr-1];
+		stack[stack_ptr-2].i ^= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
 	case LSHIFT:
-		stack[stack_ptr-2] <<= stack[stack_ptr-1];
+		stack[stack_ptr-2].i <<= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
 	case RSHIFT:
-		stack[stack_ptr-2] >>= stack[stack_ptr-1];
+		stack[stack_ptr-2].i >>= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
 	// Numeric Comparisons
