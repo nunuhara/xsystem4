@@ -23,17 +23,17 @@
 #include "instructions.h"
 #include "little_endian.h"
 
+/*
+ * NOTE: The current implementation is a simple bytecode interpreter.
+ *       System40.exe uses a JIT compiler, and we should too.
+ */
+
 union vm_value {
 	int32_t i;
 	int64_t i64;
 	float f;
 	struct string *s;
 };
-
-/*
- * NOTE: The current implementation is a simple bytecode interpreter.
- *       System40.exe uses a JIT compiler, and we should too.
- */
 
 static union vm_value *stack = NULL;
 static size_t stack_size;
@@ -49,6 +49,38 @@ static int frame_ptr = 0;
 
 static struct ain *ain;
 static size_t instr_ptr = 0;
+
+static union vm_value _vm_id(union vm_value v)
+{
+	return v;
+}
+
+static union vm_value vm_int(int32_t v)
+{
+	return (union vm_value) { .i = v };
+}
+
+static union vm_value vm_long(int64_t v)
+{
+	return (union vm_value) { .i64 = v };
+}
+
+static union vm_value vm_float(float v)
+{
+	return (union vm_value) { .f = v };
+}
+
+static union vm_value vm_string(struct string *v)
+{
+	return (union vm_value) { .s = v };
+}
+
+#define vm_value_cast(v) _Generic((v),				\
+				  union vm_value: _vm_id,	\
+				  int32_t: vm_int,		\
+				  int64_t: vm_long,		\
+				  float: vm_float,		\
+				  struct string*: vm_string)(v)
 
 static int32_t local_ref(int varno)
 {
@@ -72,10 +104,15 @@ static int32_t get_argument(int n)
 	return LittleEndian_getDW(ain->code, instr_ptr + 2 + n*4);
 }
 
-static void stack_push(int32_t v)
+static union vm_value stack_peek(int n)
 {
-	stack[stack_ptr++].i = v;
+	return stack[stack_ptr - (1 + n)];
 }
+
+// Set the Nth value from the top of the stack to V.
+#define stack_set(n, v) (stack[stack_ptr - (1 + (n))] = vm_value_cast(v))
+
+#define stack_push(v) (stack[stack_ptr++] = vm_value_cast(v))
 
 static union vm_value stack_pop(void)
 {
@@ -172,7 +209,7 @@ static void system_call(int32_t code)
 
 static void execute_instruction(int16_t opcode)
 {
-	int32_t index, a, b, v;
+	int32_t index, a, b, c, v;
 	struct string *sa, *sb;
 	const char *opcode_name = "UNKNOWN";
 	switch (opcode) {
@@ -204,6 +241,38 @@ static void execute_instruction(int16_t opcode)
 		index = stack_pop_ref();
 		stack_push(frame_stack[index].i);
 		stack_push(frame_stack[index + 1].i);
+		break;
+	case DUP:
+		// A -> AA
+		stack_push(stack_peek(0).i);
+		break;
+	case DUP2:
+		// AB -> ABAB
+		a = stack_peek(1).i;
+		b = stack_peek(0).i;
+		stack_push(a);
+		stack_push(b);
+		break;
+	case DUP_X2:
+		// ABC -> CABC
+		a = stack_peek(2).i;
+		b = stack_peek(1).i;
+		c = stack_peek(0).i;
+		stack_set(2, c);
+		stack_set(1, a);
+		stack_set(0, b);
+		stack_push(c);
+		break;
+	case DUP2_X1:
+		// ABC -> BCABC
+		a = stack_peek(2).i;
+		b = stack_peek(1).i;
+		c = stack_peek(0).i;
+		stack_set(2, b);
+		stack_set(1, c);
+		stack_set(0, a);
+		stack_push(b);
+		stack_push(c);
 		break;
 	case PUSHLOCALPAGE:
 		stack_push(frame_ptr);
@@ -392,6 +461,14 @@ static void execute_instruction(int16_t opcode)
 		v = stack_pop().i;
 		index = stack_pop_ref();
 		frame_stack[index].i >>= v;
+		break;
+	case INC:
+		index = stack_pop_ref();
+		frame_stack[index].i++;
+		break;
+	case DEC:
+		index = stack_pop_ref();
+		frame_stack[index].i--;
 		break;
 	//
 	// --- Strings ---
