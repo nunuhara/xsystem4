@@ -23,11 +23,25 @@
 
 // JMP = instruction that modifies the instruction pointer
 // OP  = everything else
-#define OP(code, args)  [code] = { .opcode = code, .name = #code , .nr_args = args, .ip_inc = 2 + args * 4 }
-#define JMP(code, args) [code] = { .opcode = code, .name = #code , .nr_args = args, .ip_inc = 0 }
+#define OP(code, nargs, ...)			\
+	[code] = {				\
+		.opcode = code,			\
+		.name = #code ,			\
+		.nr_args = nargs,		\
+		.ip_inc = 2 + nargs * 4,	\
+		.args = { __VA_ARGS__ }		\
+	}
+#define JMP(code, nargs, ...)			\
+	[code] = {				\
+		.opcode = code,			\
+		.name = #code ,			\
+		.nr_args = nargs,		\
+		.ip_inc = 0,			\
+		.args = { __VA_ARGS__ }		\
+	}
 
 const struct instruction instructions[NR_OPCODES] = {
-	OP(PUSH, 1),
+	OP(PUSH, 1, INSTR_INT),
         OP(POP, 0),
         OP(REF, 0),
         OP(REFREF, 0),
@@ -75,11 +89,11 @@ const struct instruction instructions[NR_OPCODES] = {
 
         OP(CMP, 0),
 
-        JMP(JUMP, 1),
-        JMP(IFZ, 1),
-        JMP(IFNZ, 1),
+        JMP(JUMP, 1, INSTR_PTR),
+        JMP(IFZ, 1, INSTR_PTR),
+        JMP(IFNZ, 1, INSTR_PTR),
         JMP(RETURN, 0),
-        JMP(CALLFUNC, 1),
+        JMP(CALLFUNC, 1, INSTR_FUN),
         OP(INC, 0),
         OP(DEC, 0),
         OP(FTOI, 0),
@@ -96,7 +110,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(F_NOTE, 0),
         OP(F_EQUALE, 0),
         OP(F_PUSH, 0),
-        OP(S_PUSH, 1),
+        OP(S_PUSH, 1, INSTR_STR),
         OP(S_POP, 0),
         OP(S_ADD, 0),
         OP(S_ASSIGN, 0),
@@ -125,13 +139,13 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(CALLHLL, 0),
         OP(PUSHSTRUCTPAGE, 0),
         OP(CALLMETHOD, 0),
-        OP(SH_GLOBALREF, 1),
-        OP(SH_LOCALREF, 1),
+        OP(SH_GLOBALREF, 1, INSTR_INT),
+        OP(SH_LOCALREF, 1, INSTR_INT),
         OP(SWITCH, 0),
         OP(STRSWITCH, 0),
-        OP(FUNC, 1),
-        OP(_EOF, 1),
-        OP(CALLSYS, 1),
+        OP(FUNC, 1, INSTR_FUN),
+        OP(_EOF, 1, INSTR_FILE),
+        OP(CALLSYS, 1, INSTR_INT),
         OP(SJUMP, 0),
         OP(CALLONJUMP, 0),
         OP(SWAP, 0),
@@ -158,7 +172,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(DUP_U2, 0),
         OP(SP_INC, 0),
         OP(SP_DEC, 0),
-        OP(ENDFUNC, 1),
+        OP(ENDFUNC, 1, INSTR_FUN),
         OP(R_EQUALE, 0),
         OP(R_NOTE, 0),
         OP(SH_LOCALCREATE, 0),
@@ -170,9 +184,9 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(A_EMPTY, 0),
         OP(A_ERASE, 0),
         OP(A_INSERT, 0),
-        OP(SH_LOCALINC, 1),
-        OP(SH_LOCALDEC, 1),
-        OP(SH_LOCALASSIGN, 2),
+        OP(SH_LOCALINC, 1, INSTR_INT),
+        OP(SH_LOCALDEC, 1, INSTR_INT),
+        OP(SH_LOCALASSIGN, 2, INSTR_INT, INSTR_INT),
         OP(ITOB, 0),
         OP(S_FIND, 0),
         OP(S_GETPART, 0),

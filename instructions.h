@@ -22,6 +22,8 @@
 #include <stdint.h>
 #include "system4.h"
 
+#define INSTRUCTION_MAX_ARGS 4 // FIXME: determine the real maximum
+
 enum opcode
 {
         PUSH           = 0x00,
@@ -287,11 +289,20 @@ enum opcode
 	NR_OPCODES
 };
 
+enum instruction_argtype {
+	INSTR_INT = 0,
+	INSTR_PTR,
+	INSTR_FUN,
+	INSTR_STR,
+	INSTR_FILE
+};
+
 struct instruction {
 	const enum opcode opcode; // the opcode
 	const char * const name;  // assembler name
 	const int nr_args;        // number of arguments (???: always 1 or 0?)
 	const int ip_inc;         // amount to increment instruction pointer after instruction
+	const int args[INSTRUCTION_MAX_ARGS]; // argument data types
 };
 
 const struct instruction instructions[NR_OPCODES];
