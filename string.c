@@ -43,6 +43,7 @@ struct string *string_append(struct string *a, struct string *b)
 	} else {
 		struct string *tmp = xmalloc(sizeof(struct string) + a->size + b->size + 1);
 		memcpy(tmp, a, sizeof(struct string) + a->size);
+		tmp->literal = false;
 		a = tmp;
 	}
 	memcpy(a->text + a->size, b->text, b->size + 1);

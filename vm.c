@@ -37,10 +37,10 @@ union vm_value {
 
 static union vm_value *stack = NULL;
 static size_t stack_size;
-static int stack_ptr = 0;
+static int32_t stack_ptr = 0;
 
 static union vm_value frame_stack[4096];
-static int frame_ptr = 0;
+static int32_t frame_ptr = 0;
 
 #define FRAME_FN_OFF  0 // offset to function number
 #define FRAME_IP_OFF  1 // offset to return address
@@ -82,14 +82,25 @@ static union vm_value vm_string(struct string *v)
 				  float: vm_float,		\
 				  struct string*: vm_string)(v)
 
-static int32_t local_ref(int varno)
+static int32_t local_get(int varno)
 {
 	return frame_stack[frame_ptr + FRAME_VAR_OFF + varno].i;
+}
+
+static int32_t local_ref(int varno)
+{
+	return frame_ptr + FRAME_VAR_OFF + varno;
 }
 
 static void local_set(int varno, int32_t value)
 {
 	frame_stack[frame_ptr + FRAME_VAR_OFF + varno].i = value;
+}
+
+static enum ain_data_type local_type(int varno)
+{
+	int32_t fno = frame_stack[frame_ptr + FRAME_FN_OFF].i;
+	return ain->functions[fno].vars[varno].data_type;
 }
 
 // Read the opcode at ADDR.
@@ -165,6 +176,7 @@ static struct string *stack_peek_string(void)
 
 static void function_call(int32_t no)
 {
+	struct ain_function *f = &ain->functions[no];
 	int32_t cur_fno = frame_stack[frame_ptr + FRAME_FN_OFF].i;
 	int32_t new_fp = frame_ptr + FRAME_VAR_OFF + ain->functions[cur_fno].nr_vars;
 
@@ -172,7 +184,7 @@ static void function_call(int32_t no)
 	frame_stack[new_fp + FRAME_FN_OFF].i = no;
 	frame_stack[new_fp + FRAME_IP_OFF].i = instr_ptr + instruction_width(CALLFUNC);
 	frame_stack[new_fp + FRAME_FP_OFF].i = frame_ptr;
-	for (int i = ain->functions[no].nr_args - 1; i >= 0; i--) {
+	for (int i = f->nr_args - 1; i >= 0; i--) {
 		frame_stack[new_fp + FRAME_VAR_OFF + i] = stack_pop();
 	}
 
@@ -210,6 +222,7 @@ static void system_call(int32_t code)
 static void execute_instruction(int16_t opcode)
 {
 	int32_t index, a, b, c, v;
+	union vm_value val;
 	struct string *sa, *sb;
 	const char *opcode_name = "UNKNOWN";
 	switch (opcode) {
@@ -283,8 +296,19 @@ static void execute_instruction(int16_t opcode)
 		frame_stack[index].i = v;
 		break;
 	case SH_LOCALREF: // VARNO
-		// Push the value of VARNO to the stack
-		stack_push(local_ref(get_argument(0)));
+		// XXX: This instruction does different things depending on the
+		//      type of the local variable.
+		a = get_argument(0);
+		switch (local_type(a)) {
+		case AIN_STRING:
+			// push a pointer to the stack (assignable)
+			stack_push(local_ref(a));
+			break;
+		default:
+			// push the value to the stack (immediate)
+			stack_push(local_get(a));
+			break;
+		}
 		break;
 	case SH_LOCALASSIGN: // VARNO, VALUE
 		// Assign VALUE to local VARNO
@@ -292,11 +316,11 @@ static void execute_instruction(int16_t opcode)
 		break;
 	case SH_LOCALINC: // VARNO
 		index = get_argument(0);
-		local_set(index, local_ref(index)+1);
+		local_set(index, local_get(index)+1);
 		break;
 	case SH_LOCALDEC: // VARNO
 		index = get_argument(0);
-		local_set(index, local_ref(index)-1);
+		local_set(index, local_get(index)-1);
 		break;
 	//
 	// --- Function Calls ---
@@ -473,6 +497,12 @@ static void execute_instruction(int16_t opcode)
 	//
 	// --- Strings ---
 	//
+	case S_ASSIGN:
+		sa = stack_pop_string();
+		val = stack_pop();
+		frame_stack[val.i].s = sa;
+		stack_push_string(sa);
+		break;
 	case S_ADD:
 		sb = stack_pop_string();
 		sa = stack_pop_string();
