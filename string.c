@@ -36,7 +36,7 @@ void free_string(struct string *str)
 		free(str);
 }
 
-struct string *string_dup(struct string *in)
+struct string *string_dup(const struct string *in)
 {
 	struct string *out = xmalloc(sizeof(struct string) + in->size + 1);
 	out->size = in->size;
@@ -45,7 +45,24 @@ struct string *string_dup(struct string *in)
 	return out;
 }
 
-struct string *string_append(struct string *a, struct string *b)
+void string_append(struct string **_a, const struct string *b)
+{
+	struct string *a = *_a;
+	size_t a_size = a->size;
+
+	if (a->literal) {
+		a = xmalloc(sizeof(struct string) + a->size + b->size + 1);
+		a->literal = false;
+		memcpy(a->text, (*_a)->text, a_size+1);
+	} else {
+		a = xrealloc(a, sizeof(struct string) + a->size + b->size + 1);
+	}
+	a->size = a_size + b->size;
+	memcpy(a->text + a_size, b->text, b->size + 1);
+	*_a = a;
+}
+
+struct string *string_concatenate(const struct string *a, const struct string *b)
 {
 	struct string *s = xmalloc(sizeof(struct string) + a->size + b->size + 1);
 	s->size = a->size + b->size;
@@ -53,6 +70,47 @@ struct string *string_append(struct string *a, struct string *b)
 	memcpy(s->text, a->text, a->size);
 	memcpy(s->text + a->size, b->text, b->size + 1);
 	return s;
+}
+
+struct string *string_copy(const struct string *s, int index, int len)
+{
+	if (index < 0)
+		index = 0;
+	if (index >= s->size || len <= 0)
+		return make_string("", 0);
+	if (index + len > s->size)
+		len = s->size - index;
+	return make_string(s->text + index, len);
+}
+
+int string_find(const struct string *haystack, const struct string *needle)
+{
+	char *r = strstr(haystack->text, needle->text);
+	if (!r)
+		return -1;
+	return r - haystack->text;
+}
+
+void string_push_back(struct string **s, int c)
+{
+	*s = xrealloc(*s, sizeof(struct string) + (*s)->size + 2);
+	(*s)->text[(*s)->size++] = c & 0xFF;
+	(*s)->text[(*s)->size] = '\0';
+}
+
+void string_pop_back(struct string *s)
+{
+	s->text[--s->size] = '\0';
+}
+
+void string_erase(struct string *s, int index)
+{
+	if (index < 0)
+		index = 0;
+	if (index >= s->size)
+		return;
+	memcpy(s->text + index, s->text + index + 1, s->size - index - 1);
+	s->text[--s->size] = '\0';
 }
 
 struct string *integer_to_string(int n)

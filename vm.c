@@ -223,9 +223,9 @@ static void stack_push_string(struct string *s)
 	stack[stack_ptr++].i = heap_slot;
 }
 
-static struct string *stack_peek_string(void)
+static struct string *stack_peek_string(int n)
 {
-	return heap[stack_peek(0).i].s;
+	return heap[stack_peek(n).i].s;
 }
 
 /*
@@ -253,9 +253,21 @@ static void function_call(int32_t no)
 	// create local page
 	heap[page_slot].page = page_stack + new_pp;
 	for (int i = f->nr_args - 1; i >= 0; i--) {
-		page_stack[new_pp + i] = stack_pop();
+		int32_t slot;
+		switch (f->vars[i].data_type) {
+		case AIN_STRING:
+			slot = heap_alloc_slot(VM_STRING);
+			heap[slot].s = string_dup(heap[stack_pop().i].s);
+			page_stack[new_pp + i].i = slot;
+			break;
+		default:
+			page_stack[new_pp + i] = stack_pop();
+			break;
+		}
+		// TODO: when argument is heap-backed, and not a reference
+		//       need to either copy or set some kind of COW flag
 	}
-	// heap-backed variables need a allocate a slot
+	// heap-backed variables need to allocate a slot
 	for (int i = f->nr_args; i < f->nr_vars; i++) {
 		int32_t slot;
 		switch (f->vars[i].data_type) {
@@ -280,7 +292,7 @@ static void function_return(void)
 
 	// unref slots for heap-backed variables
 	struct ain_function *f = &ain->functions[call_stack[call_stack_ptr].fno];
-	for (int i = f->nr_args; i < f->nr_vars; i++) {
+	for (int i = 0; i < f->nr_vars; i++) {
 		switch (f->vars[i].data_type) {
 		case AIN_STRING:
 			heap_unref(local_get(i));
@@ -304,7 +316,7 @@ static void system_call(int32_t code)
 		sys_exit(stack_pop().i);
 		break;
 	case 0x6: // system.Output(string szText)
-		sys_message("%s", stack_peek_string()->text);
+		sys_message("%s", stack_peek_string(0)->text);
 		// XXX: caller S_POPs
 		break;
 	case 0x14: // system.Peek()
@@ -321,6 +333,7 @@ static void execute_instruction(int16_t opcode)
 {
 	int32_t index, a, b, c, v;
 	float f;
+	struct string *s;
 	union vm_value val;
 	union vm_value *ref;
 	const char *opcode_name = "UNKNOWN";
@@ -348,17 +361,18 @@ static void execute_instruction(int16_t opcode)
 		// Dereference a reference to a value.
 		stack_push(stack_pop_ref()[0]);
 		break;
+	case REFREF:
+	//case S_REFREF: // ???
+		// Dereference a reference to a reference.
+		ref = stack_pop_ref();
+		stack_push(ref[0].i);
+		stack_push(ref[1].i);
+		break;
 	case S_REF:
 		// Dereference a reference to a string
 		index = stack_pop_ref()->i;
 		heap_ref(index);
 		stack_push(index);
-		break;
-	case REFREF:
-		// Dereference a reference to a reference.
-		ref = stack_pop_ref();
-		stack_push(ref[0].i);
-		stack_push(ref[1].i);
 		break;
 	case DUP:
 		// A -> AA
@@ -662,12 +676,95 @@ static void execute_instruction(int16_t opcode)
 		heap[a].s = string_dup(heap[b].s);
 		heap_unref(b);
 		break;
+	case S_PLUSA2:
+		b = stack_pop().i;
+		a = stack_peek(0).i;
+		string_append(&heap[a].s, heap[b].s);
+		heap_unref(b);
+		break;
 	case S_ADD:
 		b = stack_pop().i;
 		a = stack_pop().i;
-		stack_push_string(string_append(heap[a].s, heap[b].s));
+		stack_push_string(string_concatenate(heap[a].s, heap[b].s));
 		heap_unref(a);
 		heap_unref(b);
+		break;
+	case S_LT:
+		v = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) < 0;
+		heap_unref(stack_pop().i);
+		heap_unref(stack_pop().i);
+		stack_push(v);
+		break;
+	case S_GT:
+		v = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) > 0;
+		heap_unref(stack_pop().i);
+		heap_unref(stack_pop().i);
+		stack_push(v);
+		break;
+	case S_LTE:
+		v = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) <= 0;
+		heap_unref(stack_pop().i);
+		heap_unref(stack_pop().i);
+		stack_push(v);
+		break;
+	case S_GTE:
+		v = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) >= 0;
+		heap_unref(stack_pop().i);
+		heap_unref(stack_pop().i);
+		stack_push(v);
+		break;
+	case S_NOTE:
+		v = !!strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text);
+		heap_unref(stack_pop().i);
+		heap_unref(stack_pop().i);
+		stack_push(v);
+		break;
+	case S_EQUALE:
+		v = !strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text);
+		heap_unref(stack_pop().i);
+		heap_unref(stack_pop().i);
+		stack_push(v);
+		break;
+	case S_LENGTH:
+		// TODO: handle sjis
+	case S_LENGTHBYTE:
+		a = stack_pop_ref()->i;
+		stack_push((int32_t)heap[a].s->size);
+		break;
+	case S_EMPTY:
+		v = !stack_peek_string(0)->size;
+		heap_unref(stack_pop().i);
+		stack_push(v);
+		break;
+	case S_FIND:
+		v = string_find(stack_peek_string(1), stack_peek_string(0));
+		heap_unref(stack_pop().i);
+		stack_push(v);
+		break;
+	case S_GETPART:
+		b = stack_pop().i; // length
+		a = stack_pop().i; // index
+		s = string_copy(stack_peek_string(0), a, b);
+		heap_unref(stack_pop().i);
+		stack_push_string(s);
+		break;
+	//case S_PUSHBACK: // ???
+	case S_PUSHBACK2:
+		v = stack_pop().i;
+		string_push_back(&heap[stack_peek(0).i].s, v);
+		heap_unref(stack_pop().i);
+		break;
+	//case S_POPBACK: // ???
+	case S_POPBACK2:
+		string_pop_back(stack_peek_string(0));
+		heap_unref(stack_pop().i);
+		break;
+	//case S_ERASE: // ???
+	case S_ERASE2:
+		b = stack_pop().i; // ???
+		a = stack_pop().i; // index
+		string_erase(stack_peek_string(0), a);
+		heap_unref(stack_pop().i);
 		break;
 	case I_STRING:
 		stack_push_string(integer_to_string(stack_pop().i));
