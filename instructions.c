@@ -109,7 +109,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(F_GTE, 0),
         OP(F_NOTE, 0),
         OP(F_EQUALE, 0),
-        OP(F_PUSH, 0),
+        OP(F_PUSH, 1, INSTR_FLO),
         OP(S_PUSH, 1, INSTR_STR),
         OP(S_POP, 0),
         OP(S_ADD, 0),

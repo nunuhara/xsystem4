@@ -291,6 +291,7 @@ enum opcode
 
 enum instruction_argtype {
 	INSTR_INT = 0,
+	INSTR_FLO,
 	INSTR_PTR,
 	INSTR_FUN,
 	INSTR_STR,

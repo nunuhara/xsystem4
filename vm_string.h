@@ -31,5 +31,6 @@ void free_string(struct string *str);
 struct string *string_dup(struct string *in);
 struct string *string_append(struct string *a, struct string *b);
 struct string *integer_to_string(int n);
+struct string *float_to_string(float f, int precision);
 
 #endif

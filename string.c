@@ -57,8 +57,21 @@ struct string *string_append(struct string *a, struct string *b)
 
 struct string *integer_to_string(int n)
 {
-	char buf[513];
-	int len = snprintf(buf, 512, "%d" ,n);
-	buf[512] = '\0';
+	char buf[512];
+	int len = snprintf(buf, 512, "%d", n);
+	return make_string(buf, len);
+}
+
+struct string *float_to_string(float f, int precision)
+{
+	char buf[512];
+	int len;
+
+	// System40.exe pushes -1, defaults to 6
+	if (precision < 0) {
+		precision = 6;
+	}
+
+	len = snprintf(buf, 512, "%.*f", precision, f);
 	return make_string(buf, len);
 }

@@ -184,6 +184,14 @@ static int32_t get_argument(int n)
 	return LittleEndian_getDW(ain->code, instr_ptr + 2 + n*4);
 }
 
+// XXX: not strictly portable
+static float get_argument_float(int n)
+{
+	union vm_value v;
+	v.i = LittleEndian_getDW(ain->code, instr_ptr + 2 + n*4);
+	return v.f;
+}
+
 static union vm_value stack_peek(int n)
 {
 	return stack[stack_ptr - (1 + n)];
@@ -312,6 +320,7 @@ static void system_call(int32_t code)
 static void execute_instruction(int16_t opcode)
 {
 	int32_t index, a, b, c, v;
+	float f;
 	union vm_value val;
 	union vm_value *ref;
 	const char *opcode_name = "UNKNOWN";
@@ -322,11 +331,14 @@ static void execute_instruction(int16_t opcode)
 	case PUSH:
 		stack_push(get_argument(0));
 		break;
-	case S_PUSH:
-		stack_push_string(ain->strings[get_argument(0)]);
-		break;
 	case POP:
 		stack_pop();
+		break;
+	case F_PUSH:
+		stack_push(get_argument_float(0));
+		break;
+	case S_PUSH:
+		stack_push_string(ain->strings[get_argument(0)]);
 		break;
 	case S_POP:
 		index = stack_pop().i;
@@ -387,6 +399,7 @@ static void execute_instruction(int16_t opcode)
 		stack_push(call_stack[call_stack_ptr-1].page_slot);
 		break;
 	case ASSIGN:
+	case F_ASSIGN:
 		val = stack_pop();
 		stack_pop_ref()[0] = val;
 		break;
@@ -585,6 +598,59 @@ static void execute_instruction(int16_t opcode)
 		stack_pop_ref()[0].i--;
 		break;
 	//
+	// --- Floating Point Arithmetic ---
+	//
+	case FTOI:
+		stack_set(0, (int32_t)stack_peek(0).f);
+		break;
+	case ITOF:
+		stack_set(0, (float)stack_peek(0).i);
+		break;
+	case F_INV:
+		stack_set(0, -stack_peek(0).f);
+		break;
+	case F_ADD:
+		f = stack_pop().f;
+		stack_set(0, stack_peek(0).f + f);
+		break;
+	case F_SUB:
+		f = stack_pop().f;
+		stack_set(0, stack_peek(0).f - f);
+		break;
+	case F_MUL:
+		f = stack_pop().f;
+		stack_set(0, stack_peek(0).f * f);
+		break;
+	case F_DIV:
+		f = stack_pop().f;
+		stack_set(0, stack_peek(0).f / f);
+		break;
+	// floating point comparison
+	case F_LT:
+		f = stack_pop().f;
+		stack_set(0, stack_peek(0).f < f ? 1 : 0);
+		break;
+	case F_GT:
+		f = stack_pop().f;
+		stack_set(0, stack_peek(0).f > f ? 1 : 0);
+		break;
+	case F_LTE:
+		f = stack_pop().f;
+		stack_set(0, stack_peek(0).f <= f ? 1 : 0);
+		break;
+	case F_GTE:
+		f = stack_pop().f;
+		stack_set(0, stack_peek(0).f >= f ? 1 : 0);
+		break;
+	case F_NOTE:
+		f = stack_pop().f;
+		stack_set(0, stack_peek(0).f != f ? 1 : 0);
+		break;
+	case F_EQUALE:
+		f = stack_pop().f;
+		stack_set(0, stack_peek(0).f == f ? 1 : 0);
+		break;
+	//
 	// --- Strings ---
 	//
 	case S_ASSIGN: // A = B
@@ -605,6 +671,10 @@ static void execute_instruction(int16_t opcode)
 		break;
 	case I_STRING:
 		stack_push_string(integer_to_string(stack_pop().i));
+		break;
+	case FTOS:
+		v = stack_pop().i; // precision
+		stack_push_string(float_to_string(stack_pop().f, v));
 		break;
 	// -- NOOPs ---
 	case FUNC:
