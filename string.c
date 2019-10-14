@@ -36,19 +36,23 @@ void free_string(struct string *str)
 		free(str);
 }
 
+struct string *string_dup(struct string *in)
+{
+	struct string *out = xmalloc(sizeof(struct string) + in->size + 1);
+	out->size = in->size;
+	out->literal = false;
+	memcpy(out->text, in->text, in->size + 1);
+	return out;
+}
+
 struct string *string_append(struct string *a, struct string *b)
 {
-	if (!a->literal) {
-		a = xrealloc(a, sizeof(struct string) + a->size + b->size + 1);
-	} else {
-		struct string *tmp = xmalloc(sizeof(struct string) + a->size + b->size + 1);
-		memcpy(tmp, a, sizeof(struct string) + a->size);
-		tmp->literal = false;
-		a = tmp;
-	}
-	memcpy(a->text + a->size, b->text, b->size + 1);
-	a->size = a->size + b->size;
-	return a;
+	struct string *s = xmalloc(sizeof(struct string) + a->size + b->size + 1);
+	s->size = a->size + b->size;
+	s->literal = false;
+	memcpy(s->text, a->text, a->size);
+	memcpy(s->text + a->size, b->text, b->size + 1);
+	return s;
 }
 
 struct string *integer_to_string(int n)

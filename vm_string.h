@@ -28,6 +28,7 @@ struct string {
 
 struct string *make_string(const char *str, unsigned int len);
 void free_string(struct string *str);
+struct string *string_dup(struct string *in);
 struct string *string_append(struct string *a, struct string *b);
 struct string *integer_to_string(int n);
 

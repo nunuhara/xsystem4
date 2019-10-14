@@ -23,32 +23,102 @@
 #include "instructions.h"
 #include "little_endian.h"
 
+#define INITIAL_STACK_SIZE 1024
+#define INITIAL_HEAP_SIZE  4096
+#define INITIAL_PAGES_SIZE 4096
+
 /*
  * NOTE: The current implementation is a simple bytecode interpreter.
  *       System40.exe uses a JIT compiler, and we should too.
  */
 
+// Non-heap values. Stored in pages and on the stack.
 union vm_value {
 	int32_t i;
 	int64_t i64;
 	float f;
-	struct string *s;
 };
 
-static union vm_value *stack = NULL;
-static size_t stack_size;
-static int32_t stack_ptr = 0;
+enum vm_pointer_type {
+	VM_PAGE,
+	VM_STRING
+};
 
-static union vm_value frame_stack[4096];
-static int32_t frame_ptr = 0;
+// Heap-backed objects. Reference counted.
+struct vm_pointer {
+	int ref;
+	enum vm_pointer_type type;
+	union {
+		struct string *s;
+		union vm_value *page;
+	};
+};
 
-#define FRAME_FN_OFF  0 // offset to function number
-#define FRAME_IP_OFF  1 // offset to return address
-#define FRAME_FP_OFF  2 // offset to frame pointer
-#define FRAME_VAR_OFF 3 // offset to variables
+struct function_call {
+	int32_t fno;
+	int32_t return_address;
+	int32_t page_slot;
+	int32_t page_ptr;
+};
+
+// The stack
+static union vm_value *stack = NULL; // the stack
+static int32_t stack_ptr = 0;        // pointer to the top of the stack
+static size_t stack_size;            // current size of the stack
+
+// The heap
+// An array of pointers to heap-allocated objects, plus reference counts.
+static struct vm_pointer *heap;
+static size_t heap_size;
+
+// Heap free list
+// This is a list of unused indices into the 'heap' array.
+static int32_t *heap_free_stack;
+static int32_t heap_free_ptr = 0;
+
+// Memory for global page + local pages
+static union vm_value *page_stack;
+static int32_t page_ptr = 0; // points to start of current local page
+static int32_t pages_size;
+
+// Stack of function call frames
+static struct function_call call_stack[4096];
+static int32_t call_stack_ptr = 0;
 
 static struct ain *ain;
 static size_t instr_ptr = 0;
+
+static int32_t heap_alloc_slot(enum vm_pointer_type type)
+{
+	int32_t slot = heap_free_stack[heap_free_ptr++];
+	heap[slot].ref = 1;
+	heap[slot].type = type;
+	return slot;
+}
+
+static void heap_free_slot(int32_t slot)
+{
+	heap_free_stack[--heap_free_ptr] = slot;
+}
+
+static void heap_ref(int32_t slot)
+{
+	heap[slot].ref++;
+}
+
+static void heap_unref(int32_t slot)
+{
+	if (--heap[slot].ref <= 0) {
+		switch (heap[slot].type) {
+		case VM_PAGE:
+			break;
+		case VM_STRING:
+			free_string(heap[slot].s);
+			break;
+		}
+		heap_free_slot(slot);
+	}
+}
 
 static union vm_value _vm_id(union vm_value v)
 {
@@ -70,37 +140,26 @@ static union vm_value vm_float(float v)
 	return (union vm_value) { .f = v };
 }
 
-static union vm_value vm_string(struct string *v)
-{
-	return (union vm_value) { .s = v };
-}
-
 #define vm_value_cast(v) _Generic((v),				\
 				  union vm_value: _vm_id,	\
 				  int32_t: vm_int,		\
 				  int64_t: vm_long,		\
-				  float: vm_float,		\
-				  struct string*: vm_string)(v)
+				  float: vm_float)(v)
 
 static int32_t local_get(int varno)
 {
-	return frame_stack[frame_ptr + FRAME_VAR_OFF + varno].i;
-}
-
-static int32_t local_ref(int varno)
-{
-	return frame_ptr + FRAME_VAR_OFF + varno;
+        return page_stack[page_ptr + varno].i;
 }
 
 static void local_set(int varno, int32_t value)
 {
-	frame_stack[frame_ptr + FRAME_VAR_OFF + varno].i = value;
+	page_stack[page_ptr + varno].i = value;
 }
 
 static enum ain_data_type local_type(int varno)
 {
-	int32_t fno = frame_stack[frame_ptr + FRAME_FN_OFF].i;
-	return ain->functions[fno].vars[varno].data_type;
+	struct ain_function *f = &ain->functions[call_stack[call_stack_ptr-1].fno];
+	return f->vars[varno].data_type;
 }
 
 // Read the opcode at ADDR.
@@ -132,71 +191,92 @@ static union vm_value stack_pop(void)
 }
 
 // Pop a reference off the stack, returning the address of the referenced object.
-static int32_t stack_pop_ref(void)
+static union vm_value *stack_pop_ref(void)
 {
-	int32_t index = stack_pop().i;
-	int32_t frame = stack_pop().i;
-	return frame + FRAME_VAR_OFF + index;
+	int32_t page_index = stack_pop().i;
+	int32_t heap_index = stack_pop().i;
+	return &heap[heap_index].page[page_index];
 }
 
-static void stack_push_string_literal(int32_t no)
+static void stack_push_string(struct string *s)
 {
-	stack[stack_ptr++].s = ain->strings[no];
-}
-
-static void stack_push_string(struct string *str)
-{
-	stack[stack_ptr++].s = str;
-}
-
-static struct string *stack_pop_string(void)
-{
-	stack_ptr--;
-	return stack[stack_ptr].s;
-}
-
-static void stack_toss_string(void)
-{
-	stack_ptr--;
-	free_string(stack[stack_ptr].s);
+	int32_t heap_slot = heap_alloc_slot(VM_STRING);
+	heap[heap_slot].s = s;
+	stack[stack_ptr++].i = heap_slot;
 }
 
 static struct string *stack_peek_string(void)
 {
-	return stack[stack_ptr-1].s;
+	return heap[stack_peek(0).i].s;
 }
 
 /*
  * System 4 calling convention:
  *   - caller pushes arguments, in order
- *   - CALLFUNC creates stack frame ("page", on separate stack), pops arguments
+ *   - CALLFUNC creates stack frame, pops arguments into local page
  *   - callee pushes return value on the stack
  *   - RETURN jumps to return address (saved in stack frame)
  */
-
 static void function_call(int32_t no)
 {
 	struct ain_function *f = &ain->functions[no];
-	int32_t cur_fno = frame_stack[frame_ptr + FRAME_FN_OFF].i;
-	int32_t new_fp = frame_ptr + FRAME_VAR_OFF + ain->functions[cur_fno].nr_vars;
+	int32_t cur_fno = call_stack[call_stack_ptr-1].fno;
+	//int32_t new_fp = frame_ptr + 1 + ain->functions[cur_fno].nr_vars;
+	int32_t page_slot = heap_alloc_slot(VM_PAGE);
+	int32_t new_pp = page_ptr + ain->functions[cur_fno].nr_vars;
 
 	// create new stack frame
-	frame_stack[new_fp + FRAME_FN_OFF].i = no;
-	frame_stack[new_fp + FRAME_IP_OFF].i = instr_ptr + instruction_width(CALLFUNC);
-	frame_stack[new_fp + FRAME_FP_OFF].i = frame_ptr;
+	call_stack[call_stack_ptr++] = (struct function_call) {
+		.fno = no,
+		.return_address = instr_ptr + instruction_width(CALLFUNC),
+		.page_slot = page_slot,
+		.page_ptr = page_ptr
+	};
+	// create local page
+	heap[page_slot].page = page_stack + new_pp;
 	for (int i = f->nr_args - 1; i >= 0; i--) {
-		frame_stack[new_fp + FRAME_VAR_OFF + i] = stack_pop();
+		page_stack[new_pp + i] = stack_pop();
+	}
+	// heap-backed variables need a allocate a slot
+	for (int i = f->nr_args; i < f->nr_vars; i++) {
+		int32_t slot;
+		switch (f->vars[i].data_type) {
+		case AIN_STRING:
+			slot = heap_alloc_slot(VM_STRING);
+			heap[slot].s = NULL;
+			page_stack[new_pp + i].i = slot;
+			break;
+		default:
+			break;
+		}
 	}
 
-	// update frame & instruction pointers
-	frame_ptr = new_fp;
+	// update stack/instruction pointers
+	page_ptr  = new_pp;
 	instr_ptr = ain->functions[no].address;
 }
 
 static void function_return(void)
 {
-	instr_ptr  = frame_stack[frame_ptr + FRAME_IP_OFF].i;
-	frame_ptr  = frame_stack[frame_ptr + FRAME_FP_OFF].i;
+	call_stack_ptr--;
+
+	// unref slots for heap-backed variables
+	struct ain_function *f = &ain->functions[call_stack[call_stack_ptr].fno];
+	for (int i = f->nr_args; i < f->nr_vars; i++) {
+		switch (f->vars[i].data_type) {
+		case AIN_STRING:
+			heap_unref(local_get(i));
+			break;
+		default:
+			break;
+		}
+	}
+
+	heap_free_slot(call_stack[call_stack_ptr].page_slot);
+	instr_ptr = call_stack[call_stack_ptr].return_address;
+	page_ptr  = call_stack[call_stack_ptr].page_ptr;
+
+
 }
 
 static void system_call(int32_t code)
@@ -223,7 +303,7 @@ static void execute_instruction(int16_t opcode)
 {
 	int32_t index, a, b, c, v;
 	union vm_value val;
-	struct string *sa, *sb;
+	union vm_value *ref;
 	const char *opcode_name = "UNKNOWN";
 	switch (opcode) {
 	//
@@ -233,27 +313,30 @@ static void execute_instruction(int16_t opcode)
 		stack_push(get_argument(0));
 		break;
 	case S_PUSH:
-		stack_push_string_literal(get_argument(0));
+		stack_push_string(ain->strings[get_argument(0)]);
 		break;
 	case POP:
 		stack_pop();
 		break;
 	case S_POP:
-		stack_toss_string();
+		index = stack_pop().i;
+		heap_unref(index);
 		break;
 	case REF:
 		// Dereference a reference to a value.
-		stack_push(frame_stack[stack_pop_ref()].i);
+		stack_push(stack_pop_ref()[0]);
 		break;
 	case S_REF:
 		// Dereference a reference to a string
-		stack_push_string(frame_stack[stack_pop_ref()].s);
+		index = stack_pop_ref()->i;
+		heap_ref(index);
+		stack_push(index);
 		break;
 	case REFREF:
 		// Dereference a reference to a reference.
-		index = stack_pop_ref();
-		stack_push(frame_stack[index].i);
-		stack_push(frame_stack[index + 1].i);
+		ref = stack_pop_ref();
+		stack_push(ref[0].i);
+		stack_push(ref[1].i);
 		break;
 	case DUP:
 		// A -> AA
@@ -288,25 +371,20 @@ static void execute_instruction(int16_t opcode)
 		stack_push(c);
 		break;
 	case PUSHLOCALPAGE:
-		stack_push(frame_ptr);
+		stack_push(call_stack[call_stack_ptr-1].page_slot);
 		break;
 	case ASSIGN:
-		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i = v;
+		val = stack_pop();
+		stack_pop_ref()[0] = val;
 		break;
 	case SH_LOCALREF: // VARNO
-		// XXX: This instruction does different things depending on the
-		//      type of the local variable.
-		a = get_argument(0);
-		switch (local_type(a)) {
+		index = get_argument(0);
+		stack_push(local_get(index));
+		switch (local_type(index)) {
 		case AIN_STRING:
-			// push a pointer to the stack (assignable)
-			stack_push(local_ref(a));
+			heap_ref(local_get(index));
 			break;
 		default:
-			// push the value to the stack (immediate)
-			stack_push(local_get(a));
 			break;
 		}
 		break;
@@ -438,76 +516,68 @@ static void execute_instruction(int16_t opcode)
 	// +=, -=, etc.
 	case PLUSA:
 		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i += v;
+		stack_pop_ref()[0].i += v;
 		break;
 	case MINUSA:
 		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i -= v;
+		stack_pop_ref()[0].i -= v;
 		break;
 	case MULA:
 		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i *= v;
+		stack_pop_ref()[0].i *= v;
 		break;
 	case DIVA:
 		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i /= v;
+		stack_pop_ref()[0].i /= v;
 		break;
 	case MODA:
 		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i %= v;
+		stack_pop_ref()[0].i %= v;
 		break;
 	case ANDA:
 		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i &= v;
+		stack_pop_ref()[0].i &= v;
 		break;
 	case ORA:
 		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i |= v;
+		stack_pop_ref()[0].i |= v;
 		break;
 	case XORA:
 		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i ^= v;
+		stack_pop_ref()[0].i ^= v;
 		break;
 	case LSHIFTA:
 		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i <<= v;
+		stack_pop_ref()[0].i <<= v;
 		break;
 	case RSHIFTA:
 		v = stack_pop().i;
-		index = stack_pop_ref();
-		frame_stack[index].i >>= v;
+		stack_pop_ref()[0].i >>= v;
 		break;
 	case INC:
-		index = stack_pop_ref();
-		frame_stack[index].i++;
+		stack_pop_ref()[0].i++;
 		break;
 	case DEC:
-		index = stack_pop_ref();
-		frame_stack[index].i--;
+		stack_pop_ref()[0].i--;
 		break;
 	//
 	// --- Strings ---
 	//
-	case S_ASSIGN:
-		sa = stack_pop_string();
-		val = stack_pop();
-		frame_stack[val.i].s = sa;
-		stack_push_string(sa);
+	case S_ASSIGN: // A = B
+		b = stack_pop().i;
+		a = stack_peek(0).i;
+		if (heap[a].s) {
+			free_string(heap[a].s);
+		}
+		heap[a].s = string_dup(heap[b].s);
+		heap_unref(b);
 		break;
 	case S_ADD:
-		sb = stack_pop_string();
-		sa = stack_pop_string();
-		sa = string_append(sa, sb);
-		stack_push_string(sa);
+		b = stack_pop().i;
+		a = stack_pop().i;
+		stack_push_string(string_append(heap[a].s, heap[b].s));
+		heap_unref(a);
+		heap_unref(b);
 		break;
 	case I_STRING:
 		stack_push_string(integer_to_string(stack_pop().i));
@@ -525,16 +595,29 @@ static void execute_instruction(int16_t opcode)
 
 void vm_execute(struct ain *program)
 {
-	// initialize machine state
+	// initialize VM state
+	stack_size = INITIAL_STACK_SIZE;
+	stack = xmalloc(INITIAL_STACK_SIZE * sizeof(union vm_value));
 	stack_ptr = 0;
-	frame_ptr = 0;
-	stack_size = 1024;
-	stack = xmalloc(stack_size);
+
+	heap_size = INITIAL_HEAP_SIZE;
+	heap = xmalloc(INITIAL_HEAP_SIZE * sizeof(struct vm_pointer));
+
+	heap_free_stack = xmalloc(INITIAL_HEAP_SIZE * sizeof(int32_t));
+	for (size_t i = 0; i < INITIAL_HEAP_SIZE; i++) {
+		heap_free_stack[i] = i;
+	}
+	heap_free_ptr = 1; // global page at index 0
+
+	pages_size = INITIAL_PAGES_SIZE;
+	page_stack = xmalloc(INITIAL_PAGES_SIZE * sizeof(union vm_value));
+	page_ptr = 0;
+
 	ain = program;
 
 	// Jump to main. We set up a stack frame so that when main returns,
 	// the first instruction past the end of the code section is executed.
-	// ()When we read the AIN file, CALLSYS 0x0 was placed there.)
+	// (When we read the AIN file, CALLSYS 0x0 was placed there.)
 	instr_ptr = ain->code_size - instruction_width(CALLFUNC);
 	function_call(ain->main);
 
