@@ -270,11 +270,11 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		int32_t count = read_int32(r);
 		ain->functions = read_functions(r, count, ain);
 	} else if (TAG_EQ("GLOB")) {
-		int32_t count = read_int32(r);
-		ain->globals = read_globals(r, count, ain);
+		ain->nr_globals = read_int32(r);
+		ain->globals = read_globals(r, ain->nr_globals, ain);
 	} else if (TAG_EQ("GSET")) {
-		int32_t count = read_int32(r);
-		ain->global_initvals = read_initvals(r, count);
+		ain->nr_initvals = read_int32(r);
+		ain->global_initvals = read_initvals(r, ain->nr_initvals);
 	} else if (TAG_EQ("STRT")) {
 		int32_t count = read_int32(r);
 		ain->structures = read_structures(r, count);

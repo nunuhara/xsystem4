@@ -160,7 +160,9 @@ struct ain {
 	size_t code_size;
 	struct ain_function *functions;
 	struct ain_global *globals;
+	int32_t nr_globals;
 	struct ain_initval *global_initvals;
+	int32_t nr_initvals;
 	struct ain_struct *structures;
 	struct string **messages;
 	int32_t main;

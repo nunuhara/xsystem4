@@ -162,6 +162,16 @@ static enum ain_data_type local_type(int varno)
 	return f->vars[varno].data_type;
 }
 
+static int32_t global_get(int varno)
+{
+	return heap[0].page[varno].i;
+}
+
+static enum ain_data_type global_type(int varno)
+{
+	return ain->globals[varno].data_type;
+}
+
 // Read the opcode at ADDR.
 static int16_t get_opcode(size_t addr)
 {
@@ -370,12 +380,26 @@ static void execute_instruction(int16_t opcode)
 		stack_push(b);
 		stack_push(c);
 		break;
+	case PUSHGLOBALPAGE:
+		stack_push(0);
+		break;
 	case PUSHLOCALPAGE:
 		stack_push(call_stack[call_stack_ptr-1].page_slot);
 		break;
 	case ASSIGN:
 		val = stack_pop();
 		stack_pop_ref()[0] = val;
+		break;
+	case SH_GLOBALREF: // VARNO
+		index = get_argument(0);
+		stack_push(global_get(index));
+		switch (global_type(index)) {
+		case AIN_STRING:
+			heap_ref(global_get(index));
+			break;
+		default:
+			break;
+		}
 		break;
 	case SH_LOCALREF: // VARNO
 		index = get_argument(0);
@@ -614,6 +638,32 @@ void vm_execute(struct ain *program)
 	page_ptr = 0;
 
 	ain = program;
+
+	// Initialize globals
+	heap[0].page = xmalloc(sizeof(union vm_value) * ain->nr_globals);
+	for (int i = 0; i < ain->nr_globals; i++) {
+		switch (ain->globals[i].data_type) {
+		case AIN_STRING:
+			heap[0].page[i].i = heap_alloc_slot(VM_STRING);
+			break;
+		default:
+			break;
+		}
+	}
+	for (int i = 0; i < ain->nr_initvals; i++) {
+		int32_t index;
+		struct ain_initval *v = &ain->global_initvals[i];
+		switch (v->data_type) {
+		case AIN_STRING:
+			index = heap_alloc_slot(VM_STRING);
+			heap[0].page[v->global_index].i = index;
+			heap[index].s = make_string(v->string_value, strlen(v->string_value));
+			break;
+		default:
+			heap[0].page[v->global_index].i = v->int_value;
+			break;
+		}
+	}
 
 	// Jump to main. We set up a stack frame so that when main returns,
 	// the first instruction past the end of the code section is executed.
