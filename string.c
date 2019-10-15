@@ -14,11 +14,13 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "system4.h"
 #include "vm_string.h"
+#include "utfsjis.h"
 
 struct string *make_string(const char *str, unsigned int len)
 {
@@ -76,10 +78,14 @@ struct string *string_copy(const struct string *s, int index, int len)
 {
 	if (index < 0)
 		index = 0;
-	if (index >= s->size || len <= 0)
+	if (len <= 0)
 		return make_string("", 0);
-	if (index + len > s->size)
+	if ((index = sjis_index(s->text, index)) < 0)
+		return make_string("", 0);
+
+	if ((len = sjis_index(s->text + index, len)) < 0)
 		len = s->size - index;
+
 	return make_string(s->text + index, len);
 }
 
@@ -93,24 +99,43 @@ int string_find(const struct string *haystack, const struct string *needle)
 
 void string_push_back(struct string **s, int c)
 {
-	*s = xrealloc(*s, sizeof(struct string) + (*s)->size + 2);
+	int bytes = SJIS_2BYTE(c) ? 2 : 1;
+	*s = xrealloc(*s, sizeof(struct string) + (*s)->size + bytes + 1);
 	(*s)->text[(*s)->size++] = c & 0xFF;
+	if (bytes == 2) {
+		(*s)->text[(*s)->size++] = c >> 8;
+	}
 	(*s)->text[(*s)->size] = '\0';
 }
 
 void string_pop_back(struct string *s)
 {
-	s->text[--s->size] = '\0';
+	// get index of last character
+	int c = 0;
+	for (int i = 0; i < s->size; i++) {
+		c = i;
+		if (SJIS_2BYTE(s->text[i])) {
+			i++;
+		}
+	}
+	s->text[c] = '\0';
+	s->size = c;
 }
 
 void string_erase(struct string *s, int index)
 {
+	int bytes;
 	if (index < 0)
 		index = 0;
 	if (index >= s->size)
 		return;
-	memcpy(s->text + index, s->text + index + 1, s->size - index - 1);
-	s->text[--s->size] = '\0';
+	if ((index = sjis_index(s->text, index)) < 0)
+		return;
+	bytes = SJIS_2BYTE(s->text[index]) ? 2 : 1;
+
+	memcpy(s->text + index, s->text + index + bytes, s->size - index - bytes);
+	s->size -= bytes;
+	s->text[s->size] = '\0';
 }
 
 struct string *integer_to_string(int n)

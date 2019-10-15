@@ -22,6 +22,7 @@
 #include "ain.h"
 #include "instructions.h"
 #include "little_endian.h"
+#include "utfsjis.h"
 
 #define INITIAL_STACK_SIZE 1024
 #define INITIAL_HEAP_SIZE  4096
@@ -311,12 +312,17 @@ static void function_return(void)
 
 static void system_call(int32_t code)
 {
+	char *utf;
+	struct string *str;
 	switch (code) {
 	case 0x0: // system.Exit(int nResult)
 		sys_exit(stack_pop().i);
 		break;
 	case 0x6: // system.Output(string szText)
-		sys_message("%s", stack_peek_string(0)->text);
+		str = stack_peek_string(0);
+		utf = sjis2utf(str->text, str->size);
+		sys_message("%s", utf);
+		free(utf);
 		// XXX: caller S_POPs
 		break;
 	case 0x14: // system.Peek()
@@ -726,10 +732,12 @@ static void execute_instruction(int16_t opcode)
 		stack_push(v);
 		break;
 	case S_LENGTH:
-		// TODO: handle sjis
+		a = stack_pop_ref()->i;
+		stack_push(sjis_count_char(heap[a].s->text));
+		break;
 	case S_LENGTHBYTE:
 		a = stack_pop_ref()->i;
-		stack_push((int32_t)heap[a].s->size);
+		stack_push(heap[a].s->size);
 		break;
 	case S_EMPTY:
 		v = !stack_peek_string(0)->size;
