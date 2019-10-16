@@ -573,49 +573,52 @@ static void execute_instruction(int16_t opcode)
 	// +=, -=, etc.
 	case PLUSA:
 		v = stack_pop().i;
-		stack_pop_ref()[0].i += v;
+		stack_push(stack_pop_ref()[0].i += v);
 		break;
 	case MINUSA:
 		v = stack_pop().i;
-		stack_pop_ref()[0].i -= v;
+		stack_push(stack_pop_ref()[0].i -= v);
 		break;
 	case MULA:
 		v = stack_pop().i;
-		stack_pop_ref()[0].i *= v;
+		stack_push(stack_pop_ref()[0].i *= v);
 		break;
 	case DIVA:
 		v = stack_pop().i;
-		stack_pop_ref()[0].i /= v;
+		stack_push(stack_pop_ref()[0].i /= v);
 		break;
 	case MODA:
 		v = stack_pop().i;
-		stack_pop_ref()[0].i %= v;
+		stack_push(stack_pop_ref()[0].i %= v);
 		break;
 	case ANDA:
 		v = stack_pop().i;
-		stack_pop_ref()[0].i &= v;
+		stack_push(stack_pop_ref()[0].i &= v);
 		break;
 	case ORA:
 		v = stack_pop().i;
-		stack_pop_ref()[0].i |= v;
+		stack_push(stack_pop_ref()[0].i |= v);
 		break;
 	case XORA:
 		v = stack_pop().i;
-		stack_pop_ref()[0].i ^= v;
+		stack_push(stack_pop_ref()[0].i ^= v);
 		break;
 	case LSHIFTA:
 		v = stack_pop().i;
-		stack_pop_ref()[0].i <<= v;
+		stack_push(stack_pop_ref()[0].i <<= v);
 		break;
 	case RSHIFTA:
 		v = stack_pop().i;
-		stack_pop_ref()[0].i >>= v;
+		stack_push(stack_pop_ref()[0].i >>= v);
 		break;
 	case INC:
 		stack_pop_ref()[0].i++;
 		break;
 	case DEC:
 		stack_pop_ref()[0].i--;
+		break;
+	case ITOB:
+		stack_set(0, !!stack_peek(0).i);
 		break;
 	//
 	// --- Floating Point Arithmetic ---
