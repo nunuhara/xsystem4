@@ -422,6 +422,7 @@ static void execute_instruction(int16_t opcode)
 	case F_ASSIGN:
 		val = stack_pop();
 		stack_pop_ref()[0] = val;
+		stack_push(val);
 		break;
 	case SH_GLOBALREF: // VARNO
 		index = get_argument(0);
