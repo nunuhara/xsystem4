@@ -1,0 +1,69 @@
+// -*-mode: C; coding: sjis; -*-
+
+const bool true = 1;
+const bool false = 0;
+
+int tests_failed;
+int tests_passed;
+int total_failed = 0;
+int total_passed = 0;
+
+void test_start(string name)
+{
+	tests_failed = 0;
+	tests_passed = 0;
+}
+
+void test_end(string name)
+{
+	system.Output(name + ": " + string(tests_failed) + " failed; " + string(tests_passed) + " passed\n");
+	total_failed += tests_failed;
+	total_passed += tests_passed;
+}
+
+void test_equal(string msg, int actual, int expected)
+{
+	if (actual != expected) {
+		system.Output("FAIL: " + msg + " (expected " + string(expected) + "; got " + string(actual) + ")\n");
+		tests_failed++;
+	} else {
+		tests_passed++;
+	}
+}
+
+void test_bool(string msg, bool actual, bool expected)
+{
+	if (actual != expected) {
+		system.Output("FAIL: " + msg + " (expected " + (expected ? "true" : "false") + "; got " + (actual ? "true" : "false") + ")\n");
+		tests_failed++;
+	} else {
+		tests_passed++;
+	}
+}
+
+void test_string(string msg, string actual, string expected)
+{
+	if (actual != expected) {
+		system.Output("FAIL: " + msg + " (expected \"" + expected + "\"; got \"" + actual + "\")\n");
+		tests_failed++;
+	} else {
+		tests_passed++;
+	}
+}
+
+int main(void)
+{
+	test_start("arithmetic");
+	test_arithmetic();
+	test_end("arithmetic");
+	test_start("strings");
+	test_strings();
+	test_end("strings");
+	if (total_failed > 0) {
+		system.Output(string(total_failed) + " tests failed.\n");
+	} else {
+		system.Output("All tests passed.\n");
+	}
+	system.Exit(total_failed > 0);
+	return 0;
+}

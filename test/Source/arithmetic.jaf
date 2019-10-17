@@ -1,0 +1,58 @@
+// -*-mode: C; coding: sjis; -*-
+
+void test_arithmetic(void)
+{
+	int n;
+	int one = 1;
+	int three = 3;
+	int five = 5;
+	int ten = 10;
+	test_equal("-(5)",   -five,        -5);
+	test_equal("-(-5)",  -(-five),     5);
+	test_equal("!5",     !five,        0);
+	test_equal("!!5",    !!five,       1);
+	test_equal("~5",     ~five,        0xFFFFFFFA);
+	test_equal("5 + 10", five + ten,   15);
+	test_equal("5 - 10", five - ten,   -5);
+	test_equal("10 - 5", ten - five,   5);
+	test_equal("5 * 10", five * ten,   50);
+	test_equal("5 / 10", five / ten,   0);
+	test_equal("10 / 5", ten / five,   2);
+	test_equal("5 % 10", five % ten,   5);
+	test_equal("10 % 5", ten % five,   0);
+	test_equal("5 & 10", five & ten,   0);
+	test_equal("5 | 10", five | ten,   15);
+	test_equal("1 ^ 3",  one ^ three,  2);
+	test_equal("1 << 3", one << three, 8);
+	test_equal("3 >> 1", three >> one, 1);
+	// comparisons
+	test_bool("1 < 3",  one < three,  true);
+	test_bool("3 < 1",  three < one,  false);
+	test_bool("1 < 1",  one < one,    false);
+	test_bool("3 > 1",  three > one,  true);
+	test_bool("1 > 3",  one > three,  false);
+	test_bool("1 > 1",  one > one,    false);
+	test_bool("1 <= 3", one <= three, true);
+	test_bool("3 <= 1", three <= one, false);
+	test_bool("1 <= 1", one <= one,   true);
+	test_bool("3 >= 1", three >= one, true);
+	test_bool("1 >= 3", one >= three, false);
+	test_bool("1 >= 1", one >= one,   true);
+	test_bool("1 != 3", one != three, true);
+	test_bool("1 != 1", one != one,   false);
+	test_bool("1 == 1", one == one,   true);
+	test_bool("1 == 3", one == three, false);
+	// assignment
+	test_equal("++0",     (n = 0, ++n),   1);
+	test_equal("--1",     (n = 1, --n),   0);
+	test_equal("0 += 2",  (n = 0, n+=2),  2);
+	test_equal("3 -= 2",  (n = 3, n-=2),  1);
+	test_equal("2 *= 3",  (n = 2, n*=3),  6);
+	test_equal("6 /= 2",  (n = 6, n/=2),  3);
+	test_equal("4 %= 3",  (n = 4, n%=3),  1);
+	test_equal("3 &= 2",  (n = 3, n&=2),  2);
+	test_equal("2 |= 1",  (n = 2, n|=1),  3);
+	test_equal("3 ^= 1",  (n = 3, n^=1),  2);
+	test_equal("1 <<= 3", (n = 1, n<<=3), 8);
+	test_equal("3 >>= 1", (n = 3, n>>=1), 1);
+}

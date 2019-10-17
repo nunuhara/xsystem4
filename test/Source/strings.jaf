@@ -1,0 +1,69 @@
+// -*-mode: C; coding: sjis; -*-
+
+void test_strings(void)
+{
+	int i;
+	float f;
+	string s;
+	test_bool("\"a\" == \"a\"", "a" == "a", true);
+	test_bool("\"a\" != \"b\"", "a" == "b", false);
+	test_bool("\"a\" < \"b\"",  "a" < "b",  true);
+	test_bool("\"a\" < \"a\"",  "a" < "a",  false);
+	test_bool("\"b\" < \"a\"",  "b" < "a",  false);
+	test_bool("\"a\" > \"b\"",  "a" > "b",  false);
+	test_bool("\"a\" > \"a\"",  "a" > "a",  false);
+	test_bool("\"b\" > \"a\"",  "b" > "a",  true);
+	test_bool("\"a\" <= \"b\"", "a" <= "b", true);
+	test_bool("\"a\" <= \"a\"", "a" <= "a", true);
+	test_bool("\"b\" <= \"a\"", "b" <= "a", false);
+	test_bool("\"a\" >= \"b\"", "a" >= "b", false);
+	test_bool("\"a\" >= \"a\"", "a" >= "a", true);
+	test_bool("\"b\" >= \"a\"", "b" >= "a", true);
+	test_bool("var = \"str\"", (s = "str", s == "str"), true);
+	// S_ADD
+	test_string("\"a\" + \"b\"", "a" + "b", "ab");
+	// S_LENGTH
+	test_equal("\"\".Length()", (s = "", s.Length()), 0);
+	test_equal("\"abc\".Length()", (s = "abc", s.Length()), 3);
+	test_equal("\"‚ bc\".Length()", (s = "‚ bc", s.Length()), 3);
+	// S_LENGTHBYTE
+	test_equal("\"\".LengthByte()", (s = "", s.LengthByte()), 0);
+	test_equal("\"abc\".LengthByte()", (s = "abc", s.LengthByte()), 3);
+	test_equal("\"‚ bc\".LengthByte()", (s = "‚ bc", s.LengthByte()), 4);
+	// S_EMPTY
+	test_bool("\"\".Empty()", (s = "", s.Empty()), true);
+	test_bool("\"a\".Empty()", (s = "a", s.Empty()), false);
+	// S_FIND
+	test_equal("\"ab‚ ‚¢‚¤\".Find(\"b‚ \")", (s = "ab‚ ‚¢‚¤", s.Find("b‚ ")), 1);
+	test_equal("\"ab‚ ‚¢‚¤\".Find(\"b‚ \")", (s = "ab‚ ‚¢‚¤", s.Find("‚¢")), 3);
+	test_equal("\"ab‚ ‚¢‚¤\".Find(\"‚¤‚¦‚¨\")", (s = "ab‚ ‚¢‚¤", s.Find("‚¤‚¦‚¨")), -1);
+	// S_GETPART
+	test_string("\"ab‚ ‚¢‚¤\".GetPart(0, 0)", (s = "ab‚ ‚¢‚¤", s.GetPart(0, 0)), "");
+	test_string("\"ab‚ ‚¢‚¤\".GetPart(16, 2)", (s = "ab‚ ‚¢‚¤", s.GetPart(16, 2)), "");
+	test_string("\"ab‚ ‚¢‚¤\".GetPart(1, 3)", (s = "ab‚ ‚¢‚¤", s.GetPart(1, 3)), "b‚ ‚¢");
+	test_string("\"ab‚ ‚¢‚¤\".GetPart(-1, 3)", (s = "ab‚ ‚¢‚¤", s.GetPart(-1, 3)), "ab‚ ");
+	test_string("\"ab‚ ‚¢‚¤\".GetPart(2, 16)", (s = "ab‚ ‚¢‚¤", s.GetPart(2, 16)), "‚ ‚¢‚¤");
+	// S_PUSHBACK2
+	test_string("\"\".PushBack('a')", (s = "", s.PushBack('a'), s), "a");
+	test_string("\"‚ \".PushBack('a')", (s = "‚ ", s.PushBack('a'), s), "‚ a");
+	// S_POPBACK2
+	test_string("\"‚ a\".PopBack()", (s = "‚ a", s.PopBack(), s), "‚ ");
+	test_string("\"‚ \".PopBack()", (s = "‚ ", s.PopBack(), s), "");
+	// S_ERASE2
+	test_string("\"\".Erase(-1)",   (s = "",   s.Erase(-1), s), "");
+	test_string("\"\".Erase(0)",    (s = "",   s.Erase(0),  s), "");
+	test_string("\"\".Erase(1)",    (s = "",   s.Erase(1),  s), "");
+	test_string("\"a\".Erase(-1)",  (s = "a",  s.Erase(-1), s), "");
+	test_string("\"a\".Erase(0)",   (s = "a",  s.Erase(0),  s), "");
+	test_string("\"a\".Erase(1)",   (s = "a",  s.Erase(1),  s), "a");
+	test_string("\"‚ \".Erase(-1)", (s = "‚ ", s.Erase(-1), s), "");
+	test_string("\"‚ \".Erase(0)",  (s = "‚ ", s.Erase(0),  s), "");
+	test_string("\"‚ \".Erase(1)",  (s = "‚ ", s.Erase(1),  s), "‚ ");
+	test_string("\"‚ bc\".Erase(1)",  (s = "‚ bc", s.Erase(1),  s), "‚ c");
+
+	// I_STRING
+	test_bool("(42).String()", (i = 42, i.String() == "42"), true);
+	// FTOS
+	test_bool("(4.2).String()", (f = 4.2, f.String() == "4.200000"), true);
+	test_bool("(4.222).String(2)", (f = 4.222, f.String(2) == "4.22"), true);
+}

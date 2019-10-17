@@ -1,0 +1,26 @@
+ProjectName = "test"
+
+Formation "Debug" {
+    Define = "DEBUG"
+}
+Formation "Release" {
+    Define = "RELEASE"
+}
+
+CodeName = "test.ain"
+
+GameVersion = 100
+
+SourceDir = "Source"
+HLLDir    = "HLL"
+ObjDir    = "OBJ"
+OutputDir = "Run"
+
+SystemSource = {
+	"System\System.inc",
+}
+
+Source = {
+	"test.inc",
+}
+
