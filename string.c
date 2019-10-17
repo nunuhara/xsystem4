@@ -91,10 +91,15 @@ struct string *string_copy(const struct string *s, int index, int len)
 
 int string_find(const struct string *haystack, const struct string *needle)
 {
-	char *r = strstr(haystack->text, needle->text);
-	if (!r)
-		return -1;
-	return r - haystack->text;
+	int c = 0;
+	for (int i = 0; i < haystack->size; i++, c++) {
+		if (!strncmp(haystack->text+i, needle->text, needle->size))
+			return c;
+		if (SJIS_2BYTE(haystack->text[i])) {
+			i++;
+		}
+	}
+	return -1;
 }
 
 void string_push_back(struct string **s, int c)
