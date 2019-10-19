@@ -1,6 +1,7 @@
 Source = {
 "main.jaf",
 "arithmetic.jaf",
-"strings.jaf"
+"strings.jaf",
+"structs.jaf"
 }
 

@@ -59,6 +59,9 @@ int main(void)
 	test_start("strings");
 	test_strings();
 	test_end("strings");
+	test_start("structs");
+	test_structs();
+	test_end("structs");
 	if (total_failed > 0) {
 		system.Output(string(total_failed) + " tests failed.\n");
 	} else {

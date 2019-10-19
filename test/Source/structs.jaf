@@ -1,0 +1,24 @@
+// -*-mode: C; coding: sjis; -*-
+
+struct inner_struct {
+	int a;
+};
+
+struct my_struct {
+	int a;
+	int b;
+	string s;
+	inner_struct inner;
+};
+
+void test_structs(void)
+{
+	my_struct s;
+	test_equal("s.a (uninitialized)", s.a, 0);
+	test_string("s.s (uninitialized)", s.s, "");
+	test_equal("s.inner.a (uninitialized)", s.inner.a, 0);
+	test_equal("s.a = 12", (s.a = 12, s.a), 12);
+	test_equal("s.b = 13", (s.b = 13, s.b), 13);
+	test_bool("s.s = \"test\"", (s.s = "test", s.s == "test"), true);
+	test_equal("s.inner.a = 14", (s.inner.a = 14, s.inner.a), 14);
+}

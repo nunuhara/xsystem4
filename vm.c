@@ -41,6 +41,7 @@ union vm_value {
 };
 
 enum vm_pointer_type {
+	VM_FRAME,
 	VM_PAGE,
 	VM_STRING
 };
@@ -111,7 +112,10 @@ static void heap_unref(int32_t slot)
 {
 	if (--heap[slot].ref <= 0) {
 		switch (heap[slot].type) {
+		case VM_FRAME:
+			break;
 		case VM_PAGE:
+			free(heap[slot].page);
 			break;
 		case VM_STRING:
 			free_string(heap[slot].s);
@@ -229,6 +233,99 @@ static struct string *stack_peek_string(int n)
 	return heap[stack_peek(n).i].s;
 }
 
+static int32_t alloc_page(int nr_vars)
+{
+	union vm_value *page = xmalloc(sizeof(union vm_value) * nr_vars);
+	int32_t slot = heap_alloc_slot(VM_PAGE);
+	heap[slot].page = page;
+	return slot;
+}
+
+/*
+ * Copy NR_ARGS values from the page SRC to the page DST, recursively.
+ */
+static void copy_page(union vm_value *dst, union vm_value *src, struct ain_variable *vars, int nr_args)
+{
+	for (int i = 0; i < nr_args; i++) {
+		int32_t slot;
+		struct ain_struct *s;
+		switch (vars[i].data_type) {
+		case AIN_STRING:
+			slot = heap_alloc_slot(VM_STRING);
+			heap[slot].s = string_dup(heap[src[i].i].s);
+			dst[i].i = slot;
+			break;
+		case AIN_STRUCT:
+			s = &ain->structures[vars[i].struct_type];
+			slot = alloc_page(s->nr_members);
+			copy_page(heap[slot].page, heap[src[i].i].page, s->members, s->nr_members);
+			break;
+		default:
+			dst[i] = src[i];
+		}
+	}
+}
+
+static void init_page(union vm_value *dst, struct ain_variable *vars, int nr_vars)
+{
+	for (int i = 0; i < nr_vars; i++) {
+		int32_t slot;
+		switch (vars[i].data_type) {
+		case AIN_STRING:
+			slot = heap_alloc_slot(VM_STRING);
+			heap[slot].s = NULL;
+			dst[i].i = slot;
+			break;
+		default:
+			dst[i].i = 0;
+		}
+	}
+}
+
+static void delete_page(union vm_value *page, struct ain_variable *vars, int nr_vars)
+{
+	for (int i = 0; i < nr_vars; i++) {
+		struct ain_struct *s;
+		switch (vars[i].data_type) {
+		case AIN_STRING:
+			heap_unref(page[i].i);
+			break;
+		case AIN_STRUCT:
+			s = &ain->structures[vars[i].struct_type];
+			delete_page(heap[page[i].i].page, s->members, s->nr_members);
+			heap_unref(page[i].i);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static int create_struct(int no)
+{
+	struct ain_struct *s = &ain->structures[no];
+	int slot = alloc_page(s->nr_members);
+	for (int i = 0; i < s->nr_members; i++) {
+		int memb;
+		switch (s->members[i].data_type) {
+		case AIN_STRING:
+			memb = heap_alloc_slot(VM_STRING);
+			heap[memb].s = make_string("", 0);
+			heap[slot].page[i].i = memb;
+			break;
+		case AIN_STRUCT:
+			memb = create_struct(s->members[i].struct_type);
+			heap[slot].page[i].i = memb;
+			break;
+		default:
+			heap[slot].page[i].i = 0;
+			break;
+		}
+	}
+	// TODO: call constructor
+	return slot;
+}
+
 /*
  * System 4 calling convention:
  *   - caller pushes arguments, in order
@@ -240,8 +337,7 @@ static void function_call(int32_t no)
 {
 	struct ain_function *f = &ain->functions[no];
 	int32_t cur_fno = call_stack[call_stack_ptr-1].fno;
-	//int32_t new_fp = frame_ptr + 1 + ain->functions[cur_fno].nr_vars;
-	int32_t page_slot = heap_alloc_slot(VM_PAGE);
+	int32_t page_slot = heap_alloc_slot(VM_FRAME);
 	int32_t new_pp = page_ptr + ain->functions[cur_fno].nr_vars;
 
 	// create new stack frame
@@ -251,36 +347,13 @@ static void function_call(int32_t no)
 		.page_slot = page_slot,
 		.page_ptr = page_ptr
 	};
+
 	// create local page
 	heap[page_slot].page = page_stack + new_pp;
-	for (int i = f->nr_args - 1; i >= 0; i--) {
-		int32_t slot;
-		switch (f->vars[i].data_type) {
-		case AIN_STRING:
-			slot = heap_alloc_slot(VM_STRING);
-			heap[slot].s = string_dup(heap[stack_pop().i].s);
-			page_stack[new_pp + i].i = slot;
-			break;
-		default:
-			page_stack[new_pp + i] = stack_pop();
-			break;
-		}
-		// TODO: when argument is heap-backed, and not a reference
-		//       need to either copy or set some kind of COW flag
-	}
-	// heap-backed variables need to allocate a slot
-	for (int i = f->nr_args; i < f->nr_vars; i++) {
-		int32_t slot;
-		switch (f->vars[i].data_type) {
-		case AIN_STRING:
-			slot = heap_alloc_slot(VM_STRING);
-			heap[slot].s = NULL;
-			page_stack[new_pp + i].i = slot;
-			break;
-		default:
-			break;
-		}
-	}
+	memset(page_stack + new_pp + f->nr_args, 0, f->nr_vars - f->nr_args);
+	copy_page(page_stack + new_pp, stack + (stack_ptr - f->nr_args), f->vars, f->nr_args);
+	init_page(page_stack + new_pp + f->nr_args, f->vars + f->nr_args, f->nr_vars - f->nr_args);
+	stack_ptr -= f->nr_args;
 
 	// update stack/instruction pointers
 	page_ptr  = new_pp;
@@ -293,17 +366,9 @@ static void function_return(void)
 
 	// unref slots for heap-backed variables
 	struct ain_function *f = &ain->functions[call_stack[call_stack_ptr].fno];
-	for (int i = 0; i < f->nr_vars; i++) {
-		switch (f->vars[i].data_type) {
-		case AIN_STRING:
-			heap_unref(local_get(i));
-			break;
-		default:
-			break;
-		}
-	}
-
+	delete_page(page_stack + page_ptr, f->vars, f->nr_vars);
 	heap_free_slot(call_stack[call_stack_ptr].page_slot);
+
 	instr_ptr = call_stack[call_stack_ptr].return_address;
 	page_ptr  = call_stack[call_stack_ptr].page_ptr;
 
@@ -365,7 +430,9 @@ static void execute_instruction(int16_t opcode)
 		break;
 	case REF:
 		// Dereference a reference to a value.
-		stack_push(stack_pop_ref()[0]);
+		index = stack_pop_ref()[0].i;
+		heap_ref(index);
+		stack_push(index);
 		break;
 	case REFREF:
 	//case S_REFREF: // ???
@@ -429,6 +496,7 @@ static void execute_instruction(int16_t opcode)
 		stack_push(global_get(index));
 		switch (global_type(index)) {
 		case AIN_STRING:
+		case AIN_STRUCT:
 			heap_ref(global_get(index));
 			break;
 		default:
@@ -440,6 +508,7 @@ static void execute_instruction(int16_t opcode)
 		stack_push(local_get(index));
 		switch (local_type(index)) {
 		case AIN_STRING:
+		case AIN_STRUCT:
 			heap_ref(local_get(index));
 			break;
 		default:
@@ -447,7 +516,6 @@ static void execute_instruction(int16_t opcode)
 		}
 		break;
 	case SH_LOCALASSIGN: // VARNO, VALUE
-		// Assign VALUE to local VARNO
 		local_set(get_argument(0), get_argument(1));
 		break;
 	case SH_LOCALINC: // VARNO
@@ -457,6 +525,16 @@ static void execute_instruction(int16_t opcode)
 	case SH_LOCALDEC: // VARNO
 		index = get_argument(0);
 		local_set(index, local_get(index)-1);
+		break;
+	case SH_LOCALDELETE:
+		if ((index = local_get(get_argument(0)))) {
+			heap_unref(index);
+			local_set(get_argument(0), 0);
+		}
+		break;
+	case SH_LOCALCREATE: // VARNO, STRUCTNO
+		index = create_struct(get_argument(1));
+		local_set(get_argument(0), index);
 		break;
 	//
 	// --- Function Calls ---
