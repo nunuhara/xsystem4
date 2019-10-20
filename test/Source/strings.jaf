@@ -20,6 +20,7 @@ void test_strings(void)
 	test_bool("\"a\" >= \"a\"", "a" >= "a", true);
 	test_bool("\"b\" >= \"a\"", "b" >= "a", true);
 	test_bool("var = \"str\"", (s = "str", s == "str"), true);
+	test_string("foo += \"bar\"", (s = "foo", s += "bar"), "foobar");
 	// S_ADD
 	test_string("\"a\" + \"b\"", "a" + "b", "ab");
 	// S_LENGTH

@@ -25,10 +25,10 @@
 #define noreturn _Noreturn
 
 #define ERROR(fmt, ...) \
-	sys_error("*ERROR*(%s): " fmt "\n", __func__, ##__VA_ARGS__)
+	sys_error("*ERROR*(%s:%s:%d): " fmt "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
 
 #define WARNING(fmt, ...) \
-	sys_error("*ERROR*(%s): " fmt "\n", __func__, ##__VA_ARGS__)
+	sys_message("*WARNING*(%s:%s:%d): " fmt "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
 
 #define NOTICE(fmt, ...) \
 	sys_message(fmt "\n", ##__VA_ARGS__)
