@@ -262,6 +262,45 @@ static void delete_page(union vm_value *page, struct ain_variable *vars, int nr_
 	}
 }
 
+/*
+ * Recursively copy a page.
+ */
+static union vm_value *copy_page(union vm_value *src, struct ain_variable *vars, int nr_vars)
+{
+	union vm_value *dst = xmalloc(sizeof(union vm_value) * nr_vars);
+	for (int i = 0; i < nr_vars; i++) {
+		int slot;
+		struct ain_struct *s;
+		union vm_value *page;
+		switch (vars[i].data_type) {
+		case AIN_STRING:
+			slot = heap_alloc_slot(VM_STRING);
+			heap[slot].s = string_dup(heap[src[i].i].s);
+			dst[i].i = slot;
+			break;
+		case AIN_STRUCT:
+			s = &ain->structures[vars[i].struct_type];
+			page = copy_page(heap[src[i].i].page, s->members, s->nr_members);
+			slot = heap_alloc_slot(VM_PAGE);
+			heap[slot].page = page;
+			dst[i].i = slot;
+			break;
+		default:
+			dst[i] = src[i];
+			break;
+		}
+	}
+	return dst;
+}
+
+static int struct_copy(int no, int src_slot)
+{
+	int dst_slot = heap_alloc_slot(VM_PAGE);
+	struct ain_struct *s = &ain->structures[no];
+	heap[dst_slot].page = copy_page(heap[src_slot].page, s->members, s->nr_members);
+	return dst_slot;
+}
+
 static struct string EMPTY_STRING = {
 	.literal = true,
 	.size = 0,
@@ -829,6 +868,12 @@ static void execute_instruction(int16_t opcode)
 	case FTOS:
 		v = stack_pop().i; // precision
 		stack_push_string(float_to_string(stack_pop().f, v));
+		break;
+	//
+	// --- Structs/Classes ---
+	//
+	case SR_REF:
+		stack_push(struct_copy(get_argument(0), stack_pop_var()->i));
 		break;
 	// -- NOOPs ---
 	case FUNC:
