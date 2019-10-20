@@ -1,0 +1,29 @@
+// -*-mode: C; coding: sjis; -*-
+
+int g;
+
+void assign(ref int i, int v)
+{
+	i = v;
+}
+
+void string_set_local(string s)
+{
+	s = "oops";
+}
+
+void string_assign(ref string dst, string src)
+{
+	dst = src;
+}
+
+void test_lang(void)
+{
+	int i;
+	string s;
+	test_equal("global assignment", (g = 16, g), 16);
+	test_equal("ref assignment", (i = 0, assign(i, 32), i), 32);
+	test_string("string pass-by-value", (s = "test", string_set_local(s), s), "test");
+	test_string("string pass-by-ref", (s = "foo", string_assign(s, "bar"), s), "bar");
+	test_equal("conditional", (i = 1, i ? 42 : 0), 42);
+}

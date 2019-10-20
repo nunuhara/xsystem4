@@ -53,15 +53,22 @@ void test_string(string msg, string actual, string expected)
 
 int main(void)
 {
+	test_start("language features");
+	test_lang();
+	test_end("language features");
+
 	test_start("arithmetic");
 	test_arithmetic();
 	test_end("arithmetic");
+
 	test_start("strings");
 	test_strings();
 	test_end("strings");
+
 	test_start("structs");
 	test_structs();
 	test_end("structs");
+
 	if (total_failed > 0) {
 		system.Output(string(total_failed) + " tests failed.\n");
 	} else {
