@@ -13,7 +13,8 @@ from the stack and stored in a "page" by the CALLFUNC instruction.
 ### Pages
 
 Non-pointer variables are stored in "pages". There is a global page for global
-variables, and a local page for each function call.
+variables, and a local page for each function call. Structures and arrays are
+also implemented as pages.
 
 The SH_LOCAL* family of instructions implicitly operate on the current page.
 
@@ -50,7 +51,28 @@ memory leaks by creating circular references. E.g. the following code leaks:
         // they each hold a reference to the other, even after they're both out
         // of scope
     }
+
+Another point to note is that reference counting operates at the page level. So
+if you create a reference to a local variable which escapes the normal scope of
+that variable, *every other variable in the same page* remains referenced until
+that reference is deleted. E.g.
+
+    struct a {
+        int a;
+        ~a() { system.Output("destructor called\n"); }
+    };
     
+    ref int global_ref;
+    
+    void leak(void)
+    {
+        int i;
+        a local_a;
+        global_ref <- i;
+        // the destructor for local_a is never called, because it lives in the
+        // same page as i, which is referenced by a global
+    }
+
 Calling Convention
 ------------------
 

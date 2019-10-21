@@ -59,11 +59,8 @@ static int32_t read_int32(struct ain_reader *r)
 
 static uint8_t *read_code(struct ain_reader *r, size_t len)
 {
-	uint8_t *bytes = xmalloc(len + 6);
+	uint8_t *bytes = xmalloc(len);
 	memcpy(bytes, r->buf + r->index, len);
-	// XXX: main() returns to CALLSYS 0x0 (system.Exit)
-	LittleEndian_putW(bytes, len, CALLSYS);
-	LittleEndian_putDW(bytes, len + 2, 0);
 	r->index += len;
 	return bytes;
 }
@@ -91,7 +88,7 @@ static struct string *read_vm_string(struct ain_reader *r)
 {
 	size_t len = strlen((char*)r->buf + r->index);
 	struct string *s = make_string((char*)r->buf + r->index, len);
-	s->literal = true;
+	s->cow = true;
 	r->index += len + 1;
 	return s;
 }

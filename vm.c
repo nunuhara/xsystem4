@@ -222,11 +222,6 @@ static struct string *stack_peek_string(int n)
 	return heap[stack_peek(n).i].s;
 }
 
-static struct string *stack_pop_string(void)
-{
-	return heap[stack[--stack_ptr].i].s;
-}
-
 /*
  * System 4 calling convention:
  *   - caller pushes arguments, in order
@@ -352,7 +347,8 @@ static int struct_copy(int no, int src_slot)
 }
 
 static struct string EMPTY_STRING = {
-	.literal = true,
+	.cow = true,
+	.ref = 1,
 	.size = 0,
 	.text = ""
 };
@@ -366,7 +362,7 @@ static void create_struct(int no, union vm_value *var)
 		switch (s->members[i].data_type) {
 		case AIN_STRING:
 			memb = heap_alloc_slot(VM_STRING);
-			heap[memb].s = &EMPTY_STRING;
+			heap[memb].s = string_ref(&EMPTY_STRING);
 			heap[slot].page[i].i = memb;
 			break;
 		case AIN_STRUCT:
@@ -404,13 +400,6 @@ static void execute_instruction(int16_t opcode)
 	case F_PUSH:
 		stack_push(get_argument_float(0));
 		break;
-	case S_PUSH:
-		stack_push_string(ain->strings[get_argument(0)]);
-		break;
-	case S_POP:
-		index = stack_pop().i;
-		heap_unref(index);
-		break;
 	case REF:
 		// Dereference a reference to a value.
 		index = stack_pop_var()[0].i;
@@ -422,11 +411,6 @@ static void execute_instruction(int16_t opcode)
 		ref = stack_pop_var();
 		stack_push(ref[0].i);
 		stack_push(ref[1].i);
-		break;
-	case S_REF:
-		// Dereference a reference to a string
-		index = stack_pop_var()->i;
-		stack_push_string(string_dup(heap[index].s));
 		break;
 	case DUP:
 		// A -> AA
@@ -505,7 +489,7 @@ static void execute_instruction(int16_t opcode)
 		create_struct(get_argument(1), local_ptr(get_argument(0)));
 		break;
 	//
-	// --- Function Calls ---
+	// --- Control Flow ---
 	//
 	case CALLFUNC:
 		function_call(get_argument(0), instr_ptr + instruction_width(CALLFUNC));
@@ -519,9 +503,6 @@ static void execute_instruction(int16_t opcode)
 	case CALLSYS:
 		system_call(get_argument(0));
 		break;
-	//
-	// --- Control Flow ---
-	//
 	case JUMP: // ADDR
 		instr_ptr = get_argument(0);
 		break;
@@ -726,29 +707,42 @@ static void execute_instruction(int16_t opcode)
 	//
 	// --- Strings ---
 	//
+	case S_PUSH:
+		stack_push_string(string_ref(ain->strings[get_argument(0)]));
+		break;
+	case S_POP:
+		index = stack_pop().i;
+		heap_unref(index);
+		break;
+	case S_REF:
+		// Dereference a reference to a string
+		index = stack_pop_var()->i;
+		stack_push_string(string_ref(heap[index].s));
+		break;
 	case S_ASSIGN: // A = B
 		b = stack_peek(0).i;
 		a = stack_peek(1).i;
 		if (heap[a].s) {
 			free_string(heap[a].s);
 		}
-		heap[a].s = string_dup(heap[b].s);
+		heap[a].s = string_ref(heap[b].s);
 		// remove A from the stack, but leave B
 		stack_set(1, b);
 		stack_pop();
 		break;
 	case S_PLUSA2:
-		b = stack_peek(0).i;
 		a = stack_peek(1).i;
+		b = stack_peek(0).i;
 		string_append(&heap[a].s, heap[b].s);
 		heap_unref(b);
 		stack_pop();
 		stack_pop();
-		stack_push_string(string_dup(heap[a].s));
+		stack_push_string(string_ref(heap[a].s));
 		break;
 	case S_ADD:
 		b = stack_pop().i;
 		a = stack_pop().i;
+		// TODO: can use string_append here?
 		stack_push_string(string_concatenate(heap[a].s, heap[b].s));
 		heap_unref(a);
 		heap_unref(b);
@@ -822,13 +816,15 @@ static void execute_instruction(int16_t opcode)
 		break;
 	//case S_POPBACK: // ???
 	case S_POPBACK2:
-		string_pop_back(stack_pop_string());
+		index = stack_pop().i;
+		string_pop_back(&heap[index].s);
 		break;
 	//case S_ERASE: // ???
 	case S_ERASE2:
 		b = stack_pop().i; // ???
 		a = stack_pop().i; // index
-		string_erase(stack_pop_string(), a);
+		index = stack_pop().i;
+		string_erase(&heap[index].s, a);
 		break;
 	case I_STRING:
 		stack_push_string(integer_to_string(stack_pop().i));
@@ -871,6 +867,7 @@ static void vm_execute(void)
 		instr_ptr += instructions[opcode].ip_inc;
 	}
 }
+
 
 void vm_execute_ain(struct ain *program)
 {
@@ -922,3 +919,4 @@ void vm_execute_ain(struct ain *program)
 
 	vm_call(ain->main, -1);
 }
+
