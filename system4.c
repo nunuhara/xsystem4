@@ -96,6 +96,6 @@ int main(int argc, char *argv[])
 		ERROR("%s", ain_strerror(err));
 	}
 
-	vm_execute(ain);
+	vm_execute_ain(ain);
 	sys_exit(0);
 }

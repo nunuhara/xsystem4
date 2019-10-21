@@ -181,6 +181,6 @@ struct ain {
 const char *ain_strerror(int error);
 struct ain *ain_open(const char *path, int *error);
 void ain_free(struct ain *ain);
-void vm_execute(struct ain *program);
+void vm_execute_ain(struct ain *program);
 
 #endif /* SYSTEM4_AIN_H */

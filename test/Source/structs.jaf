@@ -11,9 +11,34 @@ struct my_struct {
 	inner_struct inner;
 };
 
+struct my_class_inner {
+	int a;
+	my_class_inner() {
+		a = 99;
+	}
+};
+
+struct my_class {
+	int a;
+	int b;
+	my_class_inner inner;
+
+	my_class() {
+		a = 42;
+		b = inner.a + 1;
+	}
+
+	void set_a(int a_);
+};
+
+void my_class::set_a(int a_) {
+	a = a_;
+}
+
 void test_structs(void)
 {
 	my_struct s;
+	my_class c;
 	test_equal("s.a (uninitialized)", s.a, 0);
 	test_string("s.s (uninitialized)", s.s, "");
 	test_equal("s.inner.a (uninitialized)", s.inner.a, 0);
@@ -21,4 +46,8 @@ void test_structs(void)
 	test_equal("s.b = 13", (s.b = 13, s.b), 13);
 	test_bool("s.s = \"test\"", (s.s = "test", s.s == "test"), true);
 	test_equal("s.inner.a = 14", (s.inner.a = 14, s.inner.a), 14);
+	test_equal("constructor", c.a, 42);
+	test_equal("nested constructor", c.inner.a, 99);
+	test_equal("nested constructor precedence", c.b, 100);
+	test_equal("c.set_a(22)", (c.set_a(22), c.a), 22);
 }
