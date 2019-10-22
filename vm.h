@@ -27,10 +27,12 @@ union vm_value {
 };
 
 enum vm_pointer_type {
-	VM_FRAME,
 	VM_PAGE,
 	VM_STRING
 };
+
+struct string;
+struct page;
 
 // Heap-backed objects. Reference counted.
 struct vm_pointer {
@@ -38,7 +40,7 @@ struct vm_pointer {
 	enum vm_pointer_type type;
 	union {
 		struct string *s;
-		union vm_value *page;
+		struct page *page;
 	};
 };
 

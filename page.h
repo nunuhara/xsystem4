@@ -18,12 +18,19 @@
 #define SYSTEM4_PAGE_H
 
 #include <stdint.h>
+#include "vm.h"
 
-union vm_value;
 struct ain_variable;
 
-int32_t alloc_page(int nr_vars);
-union vm_value *copy_page(union vm_value *src, struct ain_variable *vars, int nr_vars);
-void delete_page(union vm_value *page, struct ain_variable *vars, int nr_vars);
+struct page {
+	int nr_vars;
+	struct ain_variable *vars;
+	union vm_value values[];
+};
+
+struct page *alloc_page(int nr_vars, struct ain_variable *vars);
+void free_page(struct page *page);
+struct page *copy_page(struct page *page);
+void delete_page(struct page *page);
 
 #endif /* SYSTEM4_PAGE_H */

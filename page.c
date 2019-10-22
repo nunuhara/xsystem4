@@ -20,28 +20,52 @@
 #include "vm_string.h"
 #include "page.h"
 
-int32_t alloc_page(int nr_vars)
+#define NR_CACHES 8
+#define CACHE_SIZE 64
+
+struct page_cache {
+	unsigned int cached;
+	struct page *pages[CACHE_SIZE];
+};
+
+struct page_cache page_cache[NR_CACHES];
+
+struct page *_alloc_page(int nr_vars)
 {
-	union vm_value *page = xmalloc(sizeof(union vm_value) * nr_vars);
-	int32_t slot = heap_alloc_slot(VM_PAGE);
-	heap[slot].page = page;
-	return slot;
+	int cache_nr = nr_vars - 1;
+	if (cache_nr < NR_CACHES && page_cache[cache_nr].cached) {
+		return page_cache[cache_nr].pages[--page_cache[cache_nr].cached];
+	}
+	return xmalloc(sizeof(struct page) + sizeof(union vm_value) * nr_vars);
 }
 
-void delete_page(union vm_value *page, struct ain_variable *vars, int nr_vars)
+void free_page(struct page *page)
 {
-	for (int i = 0; i < nr_vars; i++) {
-		struct ain_struct *s;
-		switch (vars[i].data_type) {
+	int cache_no = page->nr_vars - 1;
+	if (cache_no >= NR_CACHES || page_cache[cache_no].cached >= CACHE_SIZE) {
+		free(page);
+		return;
+	}
+	page_cache[cache_no].pages[page_cache[cache_no].cached++] = page;
+}
+
+struct page *alloc_page(int nr_vars, struct ain_variable *vars)
+{
+	struct page *page = _alloc_page(nr_vars);
+	page->nr_vars = nr_vars;
+	page->vars = vars;
+	return page;
+}
+
+void delete_page(struct page *page)
+{
+	for (int i = 0; i < page->nr_vars; i++) {
+		switch (page->vars[i].data_type) {
 		case AIN_STRING:
-			heap_unref(page[i].i);
-			break;
 		case AIN_STRUCT:
-			if (page[i].i == -1)
+			if (page->values[i].i == -1)
 				break;
-			s = &ain->structures[vars[i].struct_type];
-			delete_page(heap[page[i].i].page, s->members, s->nr_members);
-			heap_unref(page[i].i);
+			heap_unref(page->values[i].i);
 			break;
 		default:
 			break;
@@ -52,25 +76,21 @@ void delete_page(union vm_value *page, struct ain_variable *vars, int nr_vars)
 /*
  * Recursively copy a page.
  */
-union vm_value *copy_page(union vm_value *src, struct ain_variable *vars, int nr_vars)
+struct page *copy_page(struct page *src)
 {
-	union vm_value *dst = xmalloc(sizeof(union vm_value) * nr_vars);
-	for (int i = 0; i < nr_vars; i++) {
+	struct page *dst = xmalloc(sizeof(struct page) + sizeof(union vm_value) * src->nr_vars);
+	for (int i = 0; i < src->nr_vars; i++) {
 		int slot;
-		struct ain_struct *s;
-		union vm_value *page;
-		switch (vars[i].data_type) {
+		switch (src->vars[i].data_type) {
 		case AIN_STRING:
 			slot = heap_alloc_slot(VM_STRING);
-			heap[slot].s = string_dup(heap[src[i].i].s);
-			dst[i].i = slot;
+			heap[slot].s = string_dup(heap[src->values[i].i].s);
+			dst->values[i].i = slot;
 			break;
 		case AIN_STRUCT:
-			s = &ain->structures[vars[i].struct_type];
-			page = copy_page(heap[src[i].i].page, s->members, s->nr_members);
 			slot = heap_alloc_slot(VM_PAGE);
-			heap[slot].page = page;
-			dst[i].i = slot;
+			heap[slot].page = copy_page(heap[src->values[i].i].page);
+			dst->values[i].i = slot;
 			break;
 		default:
 			dst[i] = src[i];
