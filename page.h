@@ -21,16 +21,31 @@
 #include "vm.h"
 
 struct ain_variable;
+enum ain_data_type;
+
+enum page_type {
+	LOCAL_PAGE,
+	STRUCT_PAGE,
+	ARRAY_PAGE
+};
+
+#define NR_PAGE_TYPES (ARRAY_PAGE+1)
 
 struct page {
+	enum page_type type;
 	int nr_vars;
 	struct ain_variable *vars;
 	union vm_value values[];
 };
 
-struct page *alloc_page(int nr_vars, struct ain_variable *vars);
+union vm_value variable_initval(enum ain_data_type type);
+
+struct page *alloc_page(enum page_type type, int nr_vars, struct ain_variable *vars);
+struct page *alloc_array(int rank, union vm_value *dimensions, struct ain_variable *var);
 void free_page(struct page *page);
+
 struct page *copy_page(struct page *page);
 void delete_page(struct page *page);
+enum ain_data_type variable_type(struct page *page, int varno);
 
 #endif /* SYSTEM4_PAGE_H */

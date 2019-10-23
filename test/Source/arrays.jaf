@@ -1,0 +1,54 @@
+// -*-mode: C; coding: sjis; -*-
+
+void test_array_set(void)
+{
+	array@int ar[2];
+	test_equal("uninitialized array get", ar[0], 0);
+	ar[0] = 1;
+	ar[1] = 2;
+	test_equal("array get [0]", ar[0], 1);
+	test_equal("array get [1]", ar[1], 2);
+}
+
+void test_array_rank2(void)
+{
+	array@int@2 ar[2][4];
+	int i, j;
+
+	for (i = 0; i < 2; i++) {
+		for (j = 0; j < 4; j++) {
+			ar[i][j] = i*4 + j;
+		}
+	}
+
+	for (i = 0; i < 2; i++) {
+		for (j = 0; j < 4; j++) {
+			test_equal("array get [" + string(i) + "][" + string(j) + "]", ar[i][j], i*4 + j);
+		}
+	}
+}
+
+void test_array_alloc(void)
+{
+	array@int@2 ar;
+
+	ar.Alloc(2, 4);
+	ar[0][0] = 1;
+	ar[1][0] = 2;
+	test_equal("array get [0][0]", ar[0][0], 1);
+	test_equal("array get [1][0]", ar[1][0], 2);
+	ar.Free();
+
+	ar.Alloc(4, 2);
+	ar[2][0] = 3;
+	ar[3][0] = 4;
+	test_equal("array get [2][0]", ar[2][0], 3);
+	test_equal("array get [3][0]", ar[3][0], 4);
+}
+
+void test_arrays(void)
+{
+	test_array_set();
+	test_array_rank2();
+	test_array_alloc();
+}

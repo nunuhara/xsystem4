@@ -27,6 +27,8 @@ struct string {
 	char text[];
 };
 
+extern struct string EMPTY_STRING;
+
 void free_string(struct string *str);
 
 // constructors

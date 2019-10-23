@@ -3,6 +3,7 @@ Source = {
 "lang.jaf",
 "arithmetic.jaf",
 "strings.jaf",
-"structs.jaf"
+"structs.jaf",
+"arrays.jaf"
 }
 

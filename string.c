@@ -22,11 +22,15 @@
 #include "vm_string.h"
 #include "utfsjis.h"
 
-int nr_strings = 0;
+struct string EMPTY_STRING = {
+	.cow = true,
+	.ref = 1,
+	.size = 0,
+	.text = ""
+};
 
 static struct string *alloc_string(int size)
 {
-	nr_strings++;
 	return xmalloc(sizeof(struct string) + size + 1);
 }
 
@@ -36,7 +40,6 @@ void free_string(struct string *str)
 		ERROR("Double free of string object");
 	if (!--str->ref) {
 		free(str);
-		nr_strings--;
 	}
 }
 

@@ -31,6 +31,8 @@ enum vm_pointer_type {
 	VM_STRING
 };
 
+#define NR_VM_POINTER_TYPES (VM_STRING+1)
+
 struct string;
 struct page;
 
