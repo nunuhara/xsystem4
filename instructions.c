@@ -153,7 +153,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(S_LENGTH, 0),
         OP(S_LENGTHBYTE, 0),
         OP(I_STRING, 0),
-        OP(CALLFUNC2, 0),
+        JMP(CALLFUNC2, 0),
         OP(DUP2_X1, 0),
         OP(R_ASSIGN, 0),
         OP(FT_ASSIGNS, 0),

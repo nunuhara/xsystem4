@@ -440,6 +440,11 @@ static void execute_instruction(int16_t opcode)
 		stack_push(b);
 		stack_push(c);
 		break;
+	case SWAP:
+		a = stack_peek(1).i;
+		stack_set(1, stack_peek(0));
+		stack_set(0, a);
+		break;
 	case PUSHGLOBALPAGE:
 		stack_push(0);
 		break;
@@ -489,6 +494,10 @@ static void execute_instruction(int16_t opcode)
 	//
 	case CALLFUNC:
 		function_call(get_argument(0), instr_ptr + instruction_width(CALLFUNC));
+		break;
+	case CALLFUNC2:
+		stack_pop(); // function-type index (only needed for compilation)
+		function_call(stack_pop().i, instr_ptr + instruction_width(CALLFUNC2));
 		break;
 	case CALLMETHOD:
 		method_call(get_argument(0), instr_ptr + instruction_width(CALLMETHOD));
