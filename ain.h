@@ -69,6 +69,16 @@ enum ain_data_type {
 	AIN_REF_ARRAY_DELEGATE = 69
 };
 
+#define AIN_ARRAY_TYPE				\
+	AIN_ARRAY_INT:				\
+	case AIN_ARRAY_FLOAT:			\
+	case AIN_ARRAY_STRING:			\
+	case AIN_ARRAY_STRUCT:			\
+	case AIN_ARRAY_FUNC_TYPE:		\
+	case AIN_ARRAY_BOOL:			\
+	case AIN_ARRAY_LONG_INT:		\
+	case AIN_ARRAY_DELEGATE
+
 struct ain_variable {
 	char *name;
 	int32_t data_type;
