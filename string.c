@@ -197,3 +197,49 @@ int string_find(const struct string *haystack, const struct string *needle)
 	}
 	return -1;
 }
+
+int string_get_char(const struct string *str, int i)
+{
+	if ((i = sjis_index(str->text, i)) < 0)
+		ERROR("String index out of bounds");
+
+	if (SJIS_2BYTE(str->text[i]))
+		return (uint8_t)str->text[i] | ((uint8_t)str->text[i+1] << 8);
+	return str->text[i];
+}
+
+void string_set_char(struct string **_str, int i, unsigned int c)
+{
+	struct string *str = *_str = cow_check(*_str);
+	int bytes_src, bytes_dst;
+
+	if ((i = sjis_index(str->text, i)) < 0)
+		ERROR("String index out of bounds");
+
+	bytes_src = SJIS_2BYTE(c) ? 2 : 1;
+	bytes_dst = SJIS_2BYTE(str->text[i]) ? 2 : 1;
+
+	if (bytes_src == 1 && bytes_dst == 1) {
+		str->text[i] = c;
+	} else if (bytes_src == 2 && bytes_dst == 2) {
+		str->text[i]   = c & 0xFF;
+		str->text[i+1] = (c >> 8) & 0xFF;
+	} else if (bytes_src == 1 && bytes_dst == 2) {
+		// shrink 1 byte
+		str->text[i] = c;
+		for (int j = i+1; j < str->size; j++) {
+			str->text[j] = str->text[j+1];
+		}
+		str->size--;
+	} else if (bytes_src == 2 && bytes_dst == 1) {
+		// grow 1 byte
+		str = xrealloc(str, sizeof(struct string) + str->size + 1);
+		str->size++;
+		*_str = str;
+		for (int j = str->size; j > i; j--) {
+			str->text[j] = str->text[j-1];
+		}
+		str->text[i]   = c & 0xFF;
+		str->text[i+1] = (c >> 8) & 0xFF;
+	}
+}

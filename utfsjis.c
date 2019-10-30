@@ -29,7 +29,7 @@
 #include "utfsjis.h"
 #include "s2utbl.h"
 
-// Convert a byte-index to a character-index for a given SJIS string.
+// Convert a character-index to a byte-index for a given SJIS string.
 int sjis_index(const char *_src, int index)
 {
 	const uint8_t *src = (uint8_t*)_src;

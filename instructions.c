@@ -123,8 +123,8 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(SF_CREATEPIXEL, 0), // TODO
         OP(SF_CREATEALPHA, 0), // TODO
 
-        OP(SR_POP, 0), // TODO
-        OP(SR_ASSIGN, 0), // TODO
+        OP(SR_POP, 0),
+        OP(SR_ASSIGN, 0),
         OP(SR_REF, 1, INSTR_INT),
         OP(SR_REFREF, 0), // TODO
         OP(A_ALLOC, 0),
@@ -133,8 +133,8 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(A_NUMOF, 0),
         OP(A_COPY, 0),
         OP(A_FILL, 0),
-        OP(C_REF, 0), // TODO
-        OP(C_ASSIGN, 0), // TODO
+        OP(C_REF, 0),
+        OP(C_ASSIGN, 0),
         OP(MSG, 0), // TODO
         OP(CALLHLL, 0), // TODO
         OP(PUSHSTRUCTPAGE, 0),

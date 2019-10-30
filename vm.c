@@ -801,11 +801,38 @@ static void execute_instruction(int16_t opcode)
 		v = stack_pop().i; // precision
 		stack_push_string(float_to_string(stack_pop().f, v));
 		break;
+	// --- Characters ---
+	case C_REF:
+		v = stack_pop().i;
+		slot = stack_pop().i;
+		stack_push(string_get_char(heap[slot].s, v));
+		break;
+	case C_ASSIGN:
+		v = stack_pop().i;
+		i = stack_pop().i;
+		slot = stack_pop().i;
+		string_set_char(&heap[slot].s, i, v);
+		stack_push(v);
+		break;
 	//
 	// --- Structs/Classes ---
 	//
 	case SR_REF:
 		stack_push(vm_copy_page(heap[stack_pop_var()->i].page));
+		break;
+	case SR_POP:
+		heap_unref(stack_pop().i);
+		break;
+	case SR_ASSIGN:
+		stack_pop(); // struct type
+		b = stack_pop().i;
+		a = stack_pop().i;
+		if (a == -1)
+			EXECUTION_ERROR("Assignment to null-pointer");
+		if (heap[a].page)
+			delete_page(heap[a].page);
+		heap[a].page = copy_page(heap[b].page);
+		stack_push(b);
 		break;
 	//
 	// -- Arrays --

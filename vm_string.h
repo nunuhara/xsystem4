@@ -49,4 +49,8 @@ void string_erase(struct string **s, int index);
 // queries
 int string_find(const struct string *haystack, const struct string *needle);
 
+// characters
+int string_get_char(const struct string *str, int i);
+void string_set_char(struct string **_s, int i, unsigned int c);
+
 #endif

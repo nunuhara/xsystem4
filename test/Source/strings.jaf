@@ -67,4 +67,11 @@ void test_strings(void)
 	// FTOS
 	test_bool("(4.2).String()", (f = 4.2, f.String() == "4.200000"), true);
 	test_bool("(4.222).String(2)", (f = 4.222, f.String(2) == "4.22"), true);
+	// C_REF
+	test_equal("ab‚ ‚¢‚¤[3]", (s = "ab‚ ‚¢‚¤", s[3]), '‚¢');
+	// C_ASSIGN
+	test_string("ab‚ ‚¢‚¤[1] = 'c'", (s = "ab‚ ‚¢‚¤", s[1] = 'c', s), "ac‚ ‚¢‚¤");
+	test_string("ab‚ ‚¢‚¤[3] = '‚ '", (s = "ab‚ ‚¢‚¤", s[3] = '‚ ', s), "ab‚ ‚ ‚¤");
+	test_string("ab‚ ‚¢‚¤[1] = '‚ '", (s = "ab‚ ‚¢‚¤", s[1] = '‚ ', s), "a‚ ‚ ‚¢‚¤");
+	test_string("ab‚ ‚¢‚¤[3] = 'c'", (s = "ab‚ ‚¢‚¤", s[3] = 'c', s), "ab‚ c‚¤");
 }

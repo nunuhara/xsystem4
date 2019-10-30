@@ -50,4 +50,10 @@ void test_structs(void)
 	test_equal("nested constructor", c.inner.a, 99);
 	test_equal("nested constructor precedence", c.b, 100);
 	test_equal("c.set_a(22)", (c.set_a(22), c.a), 22);
+
+	my_struct a;
+	my_struct b;
+	a.a = 42;
+	b = a;
+	test_equal("struct assign", b.a, 42);
 }
