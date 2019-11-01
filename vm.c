@@ -523,6 +523,18 @@ static void execute_instruction(int16_t opcode)
 		exec_strswitch(get_argument(0), heap[slot].s);
 		heap_unref(slot);
 		break;
+	case ASSERT:
+		i = stack_pop().i; // line number
+		a = stack_pop().i; // filename
+		b = stack_pop().i; // expression
+		v = stack_pop().i; // value
+		if (!v) {
+			sys_message("Assertion failed at %s:%d: %s\n", heap[a].s->text, i, heap[b].s->text);
+			sys_exit(1);
+		}
+		heap_unref(a);
+		heap_unref(b);
+		break;
 	//
 	// --- Arithmetic ---
 	//
