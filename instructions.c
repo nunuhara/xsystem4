@@ -155,9 +155,9 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(I_STRING, 0),
         JMP(CALLFUNC2, 0),
         OP(DUP2_X1, 0),
-        OP(R_ASSIGN, 0), // TODO
+        OP(R_ASSIGN, 0),
         OP(FT_ASSIGNS, 0), // TODO
-        OP(ASSERT, 0), // TODO
+        OP(ASSERT, 0),
         OP(S_LT, 0),
         OP(S_GT, 0),
         OP(S_LTE, 0),
@@ -165,12 +165,12 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(S_LENGTH2, 0), // TODO
         OP(S_LENGTHBYTE2, 0), // TODO
         OP(NEW, 0), // TODO
-        OP(DELETE, 0), // TODO
+        OP(DELETE, 0),
         OP(CHECKUDO, 0), // TODO
         OP(A_REF, 0),
         OP(DUP, 0),
-        OP(DUP_U2, 0), // TODO
-        OP(SP_INC, 0), // TODO
+        OP(DUP_U2, 0),
+        OP(SP_INC, 0),
         OP(SP_DEC, 0), // TODO
         OP(ENDFUNC, 1, INSTR_FUN),
         OP(R_EQUALE, 0), // TODO

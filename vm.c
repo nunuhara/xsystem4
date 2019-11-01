@@ -210,7 +210,7 @@ static union vm_value *stack_pop_var(void)
 	int32_t page_index = stack_pop().i;
 	int32_t heap_index = stack_pop().i;
 	if (!heap[heap_index].page || page_index >= heap[heap_index].page->nr_vars)
-		EXECUTION_ERROR("Out of bounds page index");
+		EXECUTION_ERROR("Out of bounds page index: %d/%d", heap_index, page_index);
 	return &heap[heap_index].page->values[page_index];
 }
 
@@ -319,6 +319,10 @@ static void system_call(int32_t code)
 	switch (code) {
 	case 0x0: // system.Exit(int nResult)
 		sys_exit(stack_pop().i);
+		break;
+	case 0x3: // system.LockPeek()
+	case 0x4: // system.UnlockPeek()
+		stack_push(1);
 		break;
 	case 0x6: // system.Output(string szText)
 		str = stack_peek_string(0);
@@ -432,11 +436,18 @@ static void execute_instruction(int16_t opcode)
 		stack_push(b);
 		stack_push(c);
 		break;
+	case DUP_U2:
+		// AB -> ABA
+		stack_push(stack_peek(1).i);
+		break;
 	case SWAP:
 		a = stack_peek(1).i;
 		stack_set(1, stack_peek(0));
 		stack_set(0, a);
 		break;
+	//
+	// --- Variables ---
+	//
 	case PUSHGLOBALPAGE:
 		stack_push(0);
 		break;
@@ -480,6 +491,23 @@ static void execute_instruction(int16_t opcode)
 		break;
 	case SH_LOCALCREATE: // VARNO, STRUCTNO
 		create_struct(get_argument(1), local_ptr(get_argument(0)));
+		break;
+	case R_ASSIGN:
+		varno = stack_pop().i;
+		pageno = stack_pop().i;
+		dst_i = stack_pop().i;
+		dst = stack_pop().i;
+		heap[dst].page->values[dst_i].i = pageno;
+		heap[dst].page->values[dst_i+1].i = varno;
+		stack_push(pageno);
+		stack_push(varno);
+		break;
+	case DELETE:
+		if ((slot = stack_pop().i) != -1)
+			heap_unref(slot);
+		break;
+	case SP_INC:
+		heap_ref(stack_pop().i);
 		break;
 	//
 	// --- Control Flow ---
@@ -1028,6 +1056,8 @@ void vm_execute_ain(struct ain *program)
 		case AIN_STRING:
 			heap[0].page->values[i].i = heap_alloc_slot(VM_STRING);
 			break;
+		case AIN_REF_TYPE:
+			heap[0].page->values[i].i = -1;
 		default:
 			break;
 		}
