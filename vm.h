@@ -91,9 +91,19 @@ static inline union vm_value vm_float(float v)
 				  bool: vm_bool,		\
 				  float: vm_float)(v)
 
+static inline void stack_set_value(int n, union vm_value v)
+{
+	stack[stack_ptr - (1 + n)] = v;
+}
+
+static inline void stack_push_value(union vm_value v)
+{
+	stack[stack_ptr++] = v;
+}
+
 // Set the Nth value from the top of the stack to V.
-#define stack_set(n, v) (stack[stack_ptr - (1 + (n))] = vm_value_cast(v))
-#define stack_push(v) (stack[stack_ptr++] = vm_value_cast(v))
+#define stack_set(n, v) (stack_set_value((n), vm_value_cast(v)))
+#define stack_push(v) (stack_push_value(vm_value_cast(v)))
 union vm_value stack_pop(void);
 
 int vm_string_ref(struct string *s);
