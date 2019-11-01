@@ -76,7 +76,7 @@ int main(void)
 	if (total_failed > 0) {
 		system.Output(string(total_failed) + " tests failed.\n");
 	} else {
-		system.Output("All tests passed.\n");
+		system.Output("All tests passed „¤|æ|„¢\n");
 	}
 	system.Exit(total_failed > 0);
 	return 0;

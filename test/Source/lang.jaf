@@ -48,6 +48,48 @@ int arithmetic_sub(int a, int b)
 	return a - b;
 }
 
+int test_switch(int i)
+{
+	switch (i) {
+	case 0: return 0;
+	case 1: return 1;
+	case 2: return 2;
+	}
+	return 100;
+}
+
+int test_switch_default(int i)
+{
+	switch (i) {
+	case 0: return 0;
+	case 1: return 1;
+	case 2: return 2;
+	default: return 100;
+	}
+	return -1;
+}
+
+int test_string_switch(string s)
+{
+	switch (s) {
+	case "a": return 0;
+	case "b": return 1;
+	case "c": return 2;
+	}
+	return 100;
+}
+
+int test_string_switch_default(string s)
+{
+	switch (s) {
+	case "a": return 0;
+	case "b": return 1;
+	case "c": return 2;
+	default: return 100;
+	}
+	return -1;
+}
+
 void test_lang(void)
 {
 	int i;
@@ -64,4 +106,10 @@ void test_lang(void)
 	test_equal("array pass-by-value", (ar[1][1] = 2, array_set_local(ar, 1, 1, 42), ar[1][1]), 2);
 	test_equal("conditional", (i = 1, i ? 42 : 0), 42);
 	test_equal("functype", (f = &arithmetic_sub, f(7, 2)), 5);
+	test_equal("switch", test_switch(2), 2);
+	test_equal("switch (no default)", test_switch(3), 100);
+	test_equal("switch (default)", test_switch_default(3), 100);
+	test_equal("string switch", test_string_switch("b"), 1);
+	test_equal("string switch (no default)", test_string_switch("d"), 100);
+	test_equal("string switch (default)", test_string_switch_default("d"), 100);
 }

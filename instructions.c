@@ -141,8 +141,8 @@ const struct instruction instructions[NR_OPCODES] = {
         JMP(CALLMETHOD, 1, INSTR_FUN),
         OP(SH_GLOBALREF, 1, INSTR_INT),
         OP(SH_LOCALREF, 1, INSTR_INT),
-        OP(SWITCH, 0), // TODO
-        OP(STRSWITCH, 0), // TODO
+        JMP(SWITCH, 1),
+        JMP(STRSWITCH, 1),
         OP(FUNC, 1, INSTR_FUN),
         OP(_EOF, 1, INSTR_FILE),
         OP(CALLSYS, 1, INSTR_INT),
@@ -175,8 +175,8 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(ENDFUNC, 1, INSTR_FUN),
         OP(R_EQUALE, 0), // TODO
         OP(R_NOTE, 0), // TODO
-        OP(SH_LOCALCREATE, 2), // TODO
-        OP(SH_LOCALDELETE, 1), // TODO
+        OP(SH_LOCALCREATE, 2),
+        OP(SH_LOCALDELETE, 1),
         OP(STOI, 0), // TODO
         OP(A_PUSHBACK, 0),
         OP(A_POPBACK, 0),

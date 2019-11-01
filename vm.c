@@ -337,6 +337,36 @@ static void system_call(int32_t code)
 	}
 }
 
+void exec_switch(int no, int val)
+{
+	struct ain_switch *s = &ain->switches[no];
+	for (int i = 0; i < s->nr_cases; i++) {
+		if (s->cases[i].value == val) {
+			instr_ptr = s->cases[i].address;
+			return;
+		}
+	}
+	if (s->default_address > 0)
+		instr_ptr = s->default_address;
+	else
+		instr_ptr += instruction_width(SWITCH);
+}
+
+void exec_strswitch(int no, struct string *str)
+{
+	struct ain_switch *s = &ain->switches[no];
+	for (int i = 0; i < s->nr_cases; i++) {
+		if (!strcmp(str->text, ain->strings[s->cases[i].value]->text)) {
+			instr_ptr = s->cases[i].address;
+			return;
+		}
+	}
+	if (s->default_address > 0)
+		instr_ptr = s->default_address;
+	else
+		instr_ptr += instruction_width(STRSWITCH);
+}
+
 static void execute_instruction(int16_t opcode)
 {
 	int32_t a, b, c, v, pageno, varno, slot;
@@ -484,6 +514,14 @@ static void execute_instruction(int16_t opcode)
 			instr_ptr = get_argument(0);
 		else
 			instr_ptr += instruction_width(IFNZ);
+		break;
+	case SWITCH:
+		exec_switch(get_argument(0), stack_pop().i);
+		break;
+	case STRSWITCH:
+		slot = stack_pop().i;
+		exec_strswitch(get_argument(0), heap[slot].s);
+		heap_unref(slot);
 		break;
 	//
 	// --- Arithmetic ---
