@@ -98,6 +98,7 @@ enum ain_data_type {
 
 struct ain_variable {
 	char *name;
+	char *name2;
 	int32_t data_type;
 	int32_t struct_type;
 	int32_t array_dimensions;
@@ -117,6 +118,7 @@ struct ain_function {
 
 struct ain_global {
 	char *name;
+	char *name2;
 	int32_t data_type;
 	int32_t struct_type;
 	int32_t array_dimensions;
@@ -201,11 +203,13 @@ struct ain {
 	char **filenames;
 	int32_t ojmp;
 	struct ain_function_type *function_types;
-	//delegates
+	struct ain_function_type *delegates;
 	char **global_group_names;
+	char **enums;
 };
 
 const char *ain_strerror(int error);
+const char *ain_strtype(enum ain_data_type type);
 struct ain *ain_open(const char *path, int *error);
 void ain_free(struct ain *ain);
 void vm_execute_ain(struct ain *program);

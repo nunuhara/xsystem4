@@ -44,6 +44,50 @@ const char *ain_strerror(int error)
 	return "Invalid error code";
 }
 
+const char *ain_strtype(enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_VOID:                return "void";
+	case AIN_INT:                 return "int";
+	case AIN_FLOAT:               return "float";
+	case AIN_STRING:              return "string";
+	case AIN_STRUCT:              return "struct";
+	case AIN_ARRAY_INT:           return "array@int";
+	case AIN_ARRAY_FLOAT:         return "array@float";
+	case AIN_ARRAY_STRING:        return "array@string";
+	case AIN_ARRAY_STRUCT:        return "array@struct";
+	case AIN_REF_INT:             return "ref int";
+	case AIN_REF_FLOAT:           return "ref float";
+	case AIN_REF_STRING:          return "ref string";
+	case AIN_REF_STRUCT:          return "ref struct";
+	case AIN_REF_ARRAY_INT:       return "ref array@int";
+	case AIN_REF_ARRAY_FLOAT:     return "ref array@float";
+	case AIN_REF_ARRAY_STRING:    return "ref array@string";
+	case AIN_REF_ARRAY_STRUCT:    return "ref array@struct";
+	case AIN_IMAIN_SYSTEM:        return "imain_system";
+	case AIN_FUNC_TYPE:           return "functype";
+	case AIN_ARRAY_FUNC_TYPE:     return "array@functype";
+	case AIN_REF_FUNC_TYPE:       return "ref functype";
+	case AIN_REF_ARRAY_FUNC_TYPE: return "ref array@functype";
+	case AIN_BOOL:                return "bool";
+	case AIN_ARRAY_BOOL:          return "array@bool";
+	case AIN_REF_BOOL:            return "ref bool";
+	case AIN_REF_ARRAY_BOOL:      return "ref array@bool";
+	case AIN_LONG_INT:            return "lint";
+	case AIN_ARRAY_LONG_INT:      return "array@lint";
+	case AIN_REF_LONG_INT:        return "ref lint";
+	case AIN_REF_ARRAY_LONG_INT:  return "ref array@lint";
+	case AIN_DELEGATE:            return "delegate";
+	case AIN_ARRAY_DELEGATE:      return "array@delegate";
+	case AIN_REF_ARRAY_DELEGATE:  return "ref array@delegate";
+	default:                      break;
+	}
+
+	static char buf[128];
+	sprintf(buf, "type:%d", type);
+	return buf;
+}
+
 struct ain_reader {
 	uint8_t *buf;
 	size_t size;
@@ -57,7 +101,7 @@ static int32_t read_int32(struct ain_reader *r)
 	return v;
 }
 
-static uint8_t *read_code(struct ain_reader *r, size_t len)
+static uint8_t *read_bytes(struct ain_reader *r, size_t len)
 {
 	uint8_t *bytes = xmalloc(len);
 	memcpy(bytes, r->buf + r->index, len);
@@ -102,14 +146,88 @@ static struct string **read_vm_strings(struct ain_reader *r, int count)
 	return strings;
 }
 
-static struct ain_variable *read_variables(struct ain_reader *r, int count)
+static struct string *read_msg1_string(struct ain_reader *r)
+{
+	int32_t len = read_int32(r);
+	struct string *s = make_string((char*)r->buf + r->index, len);
+	s->cow = true;
+	r->index += len;
+
+	// why...
+	for (int i = 0; i < len; i++) {
+		s->text[i] -= (uint8_t)i;
+		s->text[i] -= 0x60;
+	}
+
+	return s;
+}
+
+static struct string **read_msg1_strings(struct ain_reader *r, int count)
+{
+	struct string **strings = calloc(count, sizeof(struct string*));
+	for (int i = 0; i < count; i++) {
+		strings[i] = read_msg1_string(r);
+	}
+	return strings;
+}
+
+// FIXME: figure out what this is used for
+static void skip_ainv8_unknown_variable_data(struct ain_reader *r, enum ain_data_type type) {
+	int uk;
+	switch ((uk = read_int32(r))) {
+	case 0:
+		break;
+	case 1:
+		switch (type) {
+		case AIN_STRING:
+			read_string(r);
+			break;
+		case AIN_DELEGATE:
+		case AIN_REF_TYPE:
+			break;
+		default:
+			read_int32(r);
+		}
+		break;
+	case AIN_INT:
+	case AIN_FLOAT:
+	case AIN_STRING:
+	case AIN_STRUCT:
+	case AIN_REF_STRUCT:
+	case AIN_BOOL:
+	case 0x59:
+	case 0x5C:
+		read_int32(r); // -1 or positive; maybe struct type?
+		read_int32(r); // only known value is 0
+		read_int32(r); // known values: 0, 1
+		break;
+	case 0x4F:
+		read_int32(r); // -1 or positive; maybe struct type?
+		read_int32(r); // only known value is 1
+		read_int32(r); // data type?
+		read_int32(r); // -1 or positive; maybe struct type?
+		read_int32(r); // only known value is 0
+		read_int32(r); // only known value is 0
+		break;
+	default:
+		ERROR("VARIABLE UNKNOWN: %d (at %p)\n", uk, r->index - 4);
+		break;
+	}
+}
+
+static struct ain_variable *read_variables(struct ain_reader *r, int count, struct ain *ain)
 {
 	struct ain_variable *variables = calloc(count, sizeof(struct ain_variable));
 	for (int i = 0; i < count; i++) {
 		variables[i].name = read_string(r);
+		if (ain->version >= 12)
+			variables[i].name2 = read_string(r); // duplicate name?
 		variables[i].data_type = read_int32(r);
 		variables[i].struct_type = read_int32(r);
 		variables[i].array_dimensions = read_int32(r);
+		if (ain->version >= 8)
+			skip_ainv8_unknown_variable_data(r, variables[i].data_type);
+
 	}
 	return variables;
 }
@@ -120,18 +238,37 @@ static struct ain_function *read_functions(struct ain_reader *r, int count, stru
 	for (int i = 0; i < count; i++) {
 		funs[i].address = read_int32(r);
 		funs[i].name = read_string(r);
-		if (ain->version > 0 && ain->version < 7) {
+		if (ain->version > 0 && ain->version < 7)
 			funs[i].is_label = read_int32(r);
-		}
 		funs[i].data_type = read_int32(r);
 		funs[i].struct_type = read_int32(r);
+
+		if (ain->version >= 11) {
+			int uk = read_int32(r); // known values: 0, 1
+			if (uk == 1) {
+				read_int32(r); // data type
+				read_int32(r); // struct type
+				read_int32(r); // array dimensions
+			} else if (uk) {
+				ERROR("FUNC UNKNOWN_1 = %d (at %p)\n", uk, r->index - 4);
+			}
+		}
+
 		funs[i].nr_args = read_int32(r);
 		funs[i].nr_vars = read_int32(r);
+
+		if (ain->version >= 11) {
+			int uk = read_int32(r); // known values: 0, 1
+			if (uk && uk != 1) {
+				ERROR("FUNC UNKNOWN_2 = %d (at %p)\n", uk, r->index - 4);
+			}
+		}
+
 		if (ain->version > 0) {
 			funs[i].crc = read_int32(r);
 		}
 		if (funs[i].nr_vars > 0) {
-			funs[i].vars = read_variables(r, funs[i].nr_vars);
+			funs[i].vars = read_variables(r, funs[i].nr_vars, ain);
 		}
 	}
 	return funs;
@@ -142,9 +279,16 @@ static struct ain_global *read_globals(struct ain_reader *r, int count, struct a
 	struct ain_global *globals = calloc(count, sizeof(struct ain_global));
 	for (int i = 0; i < count; i++) {
 		globals[i].name = read_string(r);
+		if (ain->version >= 12)
+			globals[i].name2 = read_string(r);
 		globals[i].data_type = read_int32(r);
 		globals[i].struct_type = read_int32(r);
 		globals[i].array_dimensions = read_int32(r);
+		if (globals[i].data_type == 0x4F) {
+			read_int32(r); // data type
+			read_int32(r); // struct type
+			read_int32(r); // array dimensions
+		}
 		if (ain->version >= 5) {
 			globals[i].group_index = read_int32(r);
 		}
@@ -167,15 +311,22 @@ static struct ain_initval *read_initvals(struct ain_reader *r, int count)
 	return values;
 }
 
-static struct ain_struct *read_structures(struct ain_reader *r, int count)
+static struct ain_struct *read_structures(struct ain_reader *r, int count, struct ain *ain)
 {
 	struct ain_struct *structures = calloc(count, sizeof(struct ain_struct));
 	for (int i = 0; i < count; i++) {
 		structures[i].name = read_string(r);
+		if (ain->version >= 11) {
+			int n = read_int32(r);
+			for (int j = 0; j < n; j++) {
+				read_int32(r); // ???
+				read_int32(r); // ???
+			}
+		}
 		structures[i].constructor = read_int32(r);
 		structures[i].destructor = read_int32(r);
 		structures[i].nr_members = read_int32(r);
-		structures[i].members = read_variables(r, structures[i].nr_members);
+		structures[i].members = read_variables(r, structures[i].nr_members, ain);
 	}
 	return structures;
 }
@@ -235,16 +386,24 @@ static struct ain_switch *read_switches(struct ain_reader *r, int count)
 	return switches;
 }
 
-static struct ain_function_type *read_function_types(struct ain_reader *r, int count)
+static struct ain_function_type *read_function_types(struct ain_reader *r, int count, struct ain *ain)
 {
 	struct ain_function_type *types = calloc(count, sizeof(struct ain_function_type));
 	for (int i = 0; i < count; i++) {
 		types[i].name = read_string(r);
 		types[i].data_type = read_int32(r);
 		types[i].struct_type = read_int32(r);
+		if (ain->version >= 11) {
+			int n = read_int32(r);
+			if (n) {
+				read_int32(r); // data type
+				read_int32(r); // struct type
+				read_int32(r); // array dimensions
+			}
+		}
 		types[i].nr_arguments = read_int32(r);
 		types[i].nr_variables = read_int32(r);
-		types[i].variables = read_variables(r, types[i].nr_variables);
+		types[i].variables = read_variables(r, types[i].nr_variables, ain);
 	}
 	return types;
 }
@@ -262,21 +421,28 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		ain->keycode = read_int32(r);
 	} else if (TAG_EQ("CODE")) {
 		ain->code_size = read_int32(r);
-		ain->code = read_code(r, ain->code_size);
+		ain->code = read_bytes(r, ain->code_size);
 	} else if (TAG_EQ("FUNC")) {
 		int32_t count = read_int32(r);
 		ain->functions = read_functions(r, count, ain);
 	} else if (TAG_EQ("GLOB")) {
 		ain->nr_globals = read_int32(r);
+		// FIXME: why off by one?
+		if (ain->version >= 12)
+			ain->nr_globals++;
 		ain->globals = read_globals(r, ain->nr_globals, ain);
 	} else if (TAG_EQ("GSET")) {
 		ain->nr_initvals = read_int32(r);
 		ain->global_initvals = read_initvals(r, ain->nr_initvals);
 	} else if (TAG_EQ("STRT")) {
 		int32_t count = read_int32(r);
-		ain->structures = read_structures(r, count);
+		ain->structures = read_structures(r, count, ain);
 	} else if (TAG_EQ("MSG0")) {
 		ain->messages = read_vm_strings(r, read_int32(r));
+	} else if (TAG_EQ("MSG1")) {
+		int32_t count = read_int32(r);
+		read_int32(r); // ???
+		ain->messages = read_msg1_strings(r, count);
 	} else if (TAG_EQ("MAIN")) {
 		ain->main = read_int32(r);
 	} else if (TAG_EQ("MSGF")) {
@@ -296,14 +462,17 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 	} else if (TAG_EQ("OJMP")) {
 		ain->ojmp = read_int32(r);
 	} else if (TAG_EQ("FNCT")) {
-		//int32_t length = read_int32(r) - 4; // ???
-		read_int32(r);
+		read_int32(r); // ???
 		int32_t count = read_int32(r);
-		ain->function_types = read_function_types(r, count);
-	//} else if (TAG_EQ("DELG")) {
+		ain->function_types = read_function_types(r, count, ain);
+	} else if (TAG_EQ("DELG")) {
+		read_int32(r); // ???
+		int32_t count = read_int32(r);
+		ain->delegates = read_function_types(r, count, ain);
 	} else if (TAG_EQ("OBJG")) {
 		ain->global_group_names = read_strings(r, read_int32(r));
-	//} else if (TAG_EQ("MSG1")) {
+	} else if (TAG_EQ("ENUM")) {
+		ain->enums = read_strings(r, read_int32(r));
 	} else {
 		return false;
 	}
