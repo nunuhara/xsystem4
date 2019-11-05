@@ -149,6 +149,7 @@ struct ain_hll_argument {
 
 struct ain_hll_function {
 	char *name;
+	void (*fun)(void);
 	int32_t data_type;
 	int32_t nr_arguments;
 	struct ain_hll_argument *arguments;
@@ -188,14 +189,15 @@ struct ain {
 	uint8_t *code;
 	size_t code_size;
 	struct ain_function *functions;
-	struct ain_global *globals;
 	int32_t nr_globals;
-	struct ain_initval *global_initvals;
+	struct ain_global *globals;
 	int32_t nr_initvals;
+	struct ain_initval *global_initvals;
 	struct ain_struct *structures;
 	struct string **messages;
 	int32_t main;
 	int32_t msgf;
+	int32_t nr_libraries;
 	struct ain_library *libraries;
 	struct ain_switch *switches;
 	int32_t game_version;

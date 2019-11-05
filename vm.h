@@ -25,6 +25,9 @@ union vm_value {
 	int32_t i;
 	int64_t i64;
 	float f;
+	// HLL only
+	int *iref;
+	float *fref;
 };
 
 enum vm_pointer_type {
@@ -46,6 +49,16 @@ struct vm_pointer {
 		struct string *s;
 		struct page *page;
 	};
+};
+
+struct hll_function {
+	char *name;
+	void (*fun)(void);
+};
+
+struct library {
+	char *name;
+	struct hll_function **functions;
 };
 
 struct ain;

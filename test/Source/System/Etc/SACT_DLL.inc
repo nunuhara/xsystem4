@@ -1,0 +1,3 @@
+LoadDLL = {
+	"Math.dll",
+}

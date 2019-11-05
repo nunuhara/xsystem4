@@ -136,7 +136,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(C_REF, 0),
         OP(C_ASSIGN, 0),
         OP(MSG, 0), // TODO
-        OP(CALLHLL, 0), // TODO
+        OP(CALLHLL, 2, INSTR_INT, INSTR_INT),
         OP(PUSHSTRUCTPAGE, 0),
         JMP(CALLMETHOD, 1, INSTR_FUN),
         OP(SH_GLOBALREF, 1, INSTR_INT),

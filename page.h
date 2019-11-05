@@ -59,8 +59,19 @@ struct page {
 	union vm_value values[];
 };
 
+static inline union vm_value page_get(int pageno, int varno)
+{
+	return heap[pageno].page->values[varno];
+}
+
+static inline void page_set(int pageno, int varno, union vm_value v)
+{
+	heap[pageno].page->values[varno] = v;
+}
+
 // variables
 union vm_value variable_initval(enum ain_data_type type);
+void variable_fini(union vm_value v, enum ain_data_type type);
 enum ain_data_type variable_type(struct page *page, int varno, enum ain_data_type *struct_type);
 
 // pages

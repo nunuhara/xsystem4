@@ -1,0 +1,32 @@
+// -*-mode: C; coding: sjis; -*-
+
+void test_math(void)
+{
+	int ia, ib;
+	float fa, fb;
+	test_float("Math.Cos(40)", Math.Cos(40), 0.766044);
+	test_float("Math.Sin(40)", Math.Sin(40), 0.642788);
+	test_float("Math.Atan(40)", Math.Atan(40), 1.545802);
+	test_float("Math.Atan2(20, 40)", Math.Atan2(20, 40), 0.463648);
+	test_float("Math.Pow(0.5, 1.5)", Math.Pow(0.5, 1.5), 0.353553);
+	test_equal("Math.Abs(-3)", Math.Abs(-3), 3);
+	test_float("Math.AbsF(-3.5)", Math.Abs(-3.5), 3.0); // XXX: why not 3.5?
+	test_equal("Math.Min(1, 2)", Math.Min(1, 2), 1);
+	test_equal("Math.Min(2, 1)", Math.Min(2, 1), 1);
+	test_float("Math.MinF(1.0, 2.0)", Math.MinF(1.0, 2.0), 1.0);
+	test_float("Math.MinF(2.0, 1.0)", Math.MinF(2.0, 1.0), 1.0);
+	test_equal("Math.Max(1, 2)", Math.Max(1, 2), 2);
+	test_equal("Math.Max(2, 1)", Math.Max(2, 1), 2);
+	test_float("Math.MaxF(1.0, 2.0)", Math.MaxF(1.0, 2.0), 2.0);
+	test_float("Math.MaxF(2.0, 1.0)", Math.MaxF(2.0, 1.0), 2.0);
+
+	ia = 1, ib = 2;
+	Math.Swap(ia, ib);
+	test_equal("Math.Swap(a, b), a", ia, 2);
+	test_equal("Math.Swap(a, b), b", ib, 1);
+
+	fa = 1.0, fb = 2.0;
+	Math.SwapF(fa, fb);
+	test_float("Math.SwapF(a, b), a", fa, 2.0);
+	test_float("Math.SwapF(a, b), b", fb, 1.0);
+}

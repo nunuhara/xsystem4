@@ -448,8 +448,8 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 	} else if (TAG_EQ("MSGF")) {
 		ain->msgf = read_int32(r);
 	} else if (TAG_EQ("HLL0")) {
-		int32_t count = read_int32(r);
-		ain->libraries = read_libraries(r, count);
+		ain->nr_libraries = read_int32(r);
+		ain->libraries = read_libraries(r, ain->nr_libraries);
 	} else if (TAG_EQ("SWI0")) {
 		int32_t count = read_int32(r);
 		ain->switches = read_switches(r, count);

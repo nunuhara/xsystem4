@@ -1,0 +1,50 @@
+////////////////////////////////////////////////////////////
+// Math.hll
+
+////////////////////////////////////////////////////////////
+// 数学
+float	Cos(float fDeg);			// コサイン（角度）
+float	Sin(float fDeg);			// サイン（角度）
+
+float	Sqrt(float fValue);			// 平方根
+
+float	Atan(float x);				// アークタンジェント
+float	Atan2(float y, float x);	// アークタンジェント y/x
+
+int 	Abs(int nValue);			// 絶対値を得る
+float 	AbsF(float fValue);			// 絶対値float
+
+float	Pow(float fBase, float fExponent);	// fBaseのfExponet乗を返します
+
+
+////////////////////////////////////////////////////////////
+// 乱数
+void	SetSeed(int nSeed);		// 乱数の種セット
+void	SetRandMode(int nMode);	// 乱数のモードをセット(0:標準(default) 1:正規分布 2:1/f分布)
+int		Rand(void);				// 0～0x7FFFFFFFの範囲で乱数生成
+float	RandF(void);			// 0～1の範囲で乱数生成
+
+// テーブルを作成して、その中身をシャッフルすることで
+// ランダムを取り出す関数、使う前に、SetSeedは必要。
+void	RandTableInit(int nNum, int nSize);	// nSize個のランダムテーブルを作成、0～nSize-1 までの数値が入る
+int		RandTable(int nNum);				// テーブルの数値を取得 nNumはテーブル番号
+
+// ランダムテーブル、ＶＭ内の配列を使う版 ※配列の要素数が、そのままテーブルの大きさになります。
+// pArrayはテーブル配列を指定（Allocはスクリプトで確保すること）
+void	RandTable2Init(int nNum, array@int pArray);
+
+// テーブルの数値を取得 nNumはテーブル番号
+int		RandTable2(int nNum);
+
+
+////////////////////////////////////////////////////////////
+// その他
+int		Min(int x, int y);
+float	MinF(float x, float y);
+int		Max(int x, int y);
+float	MaxF(float x, float y);
+
+void	Swap(intp x, intp y); 		// 入れ替え
+void	SwapF(floatp x, floatp y);
+
+

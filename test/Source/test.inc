@@ -4,6 +4,7 @@ Source = {
 "arithmetic.jaf",
 "strings.jaf",
 "structs.jaf",
-"arrays.jaf"
+"arrays.jaf",
+"math.jaf"
 }
 

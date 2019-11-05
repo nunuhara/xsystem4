@@ -31,6 +31,17 @@ void test_equal(string msg, int actual, int expected)
 	}
 }
 
+void test_float(string msg, float actual, float expected)
+{
+	float d = actual - expected;
+	if (d > 0.001 || d < -0.001) {
+		system.Output("FAIL: " + msg + " (expected " + string(expected) + "; got " + string(actual) + ")\n");
+		tests_failed++;
+	} else {
+		tests_passed++;
+	}
+}
+
 void test_bool(string msg, bool actual, bool expected)
 {
 	if (actual != expected) {
@@ -72,6 +83,10 @@ int main(void)
 	test_start("arrays");
 	test_arrays();
 	test_end("arrays");
+
+	test_start("Math.dll");
+	test_math();
+	test_end("Math.dll");
 
 	if (total_failed > 0) {
 		system.Output(string(total_failed) + " tests failed.\n");

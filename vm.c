@@ -305,6 +305,49 @@ void vm_call(int fno, int struct_page)
 	instr_ptr = saved_ip;
 }
 
+static void hll_call(int libno, int fno)
+{
+	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
+	if (!f->fun)
+		EXECUTION_ERROR("Unimplemented HLL function: %s", f->name);
+
+	// convert non-heap ref types to pointers
+	for (int i = f->nr_arguments - 1; i >= 0; i--) {
+		switch(f->arguments[i].data_type) {
+		case AIN_REF_INT:
+		case AIN_REF_BOOL:
+		case AIN_REF_FLOAT:
+			stack_ptr -= 2;
+			break;
+		default:
+			stack_ptr--;
+		}
+	}
+	for (int i = 0, src = 0; i < f->nr_arguments; i++, src++) {
+		int pageno, varno;
+		switch (f->arguments[i].data_type) {
+		case AIN_REF_INT:
+		case AIN_REF_BOOL:
+			pageno = stack[stack_ptr+src].i;
+			varno = stack[stack_ptr+src+1].i;
+			stack[stack_ptr+i].iref = &heap[pageno].page->values[varno].i;
+			src++;
+			break;
+		case AIN_REF_FLOAT:
+			pageno = stack[stack_ptr+src].i;
+			varno = stack[stack_ptr+src+1].i;
+			stack[stack_ptr+i].fref = &heap[pageno].page->values[varno].f;
+			src++;
+			break;
+		}
+	}
+
+	f->fun();
+	for (int i = 0; i < f->nr_arguments; i++) {
+		variable_fini(stack[stack_ptr + i], f->arguments[i].data_type);
+	}
+}
+
 static void function_return(void)
 {
 	call_stack_ptr--;
@@ -521,6 +564,9 @@ static void execute_instruction(int16_t opcode)
 		break;
 	case CALLMETHOD:
 		method_call(get_argument(0), instr_ptr + instruction_width(CALLMETHOD));
+		break;
+	case CALLHLL:
+		hll_call(get_argument(0), get_argument(1));
 		break;
 	case RETURN:
 		function_return();
@@ -1028,6 +1074,44 @@ static void vm_execute(void)
 	}
 }
 
+extern struct library lib_Math;
+
+struct library *libraries[] = {
+	&lib_Math,
+	NULL
+};
+
+static void link_library(struct ain_library *ainlib, struct library *lib)
+{
+	for (int i = 0; i < ainlib->nr_functions; i++) {
+		bool linked = false;
+		for (int j = 0; lib->functions[j]; j++) {
+			if (!strcmp(ainlib->functions[i].name, lib->functions[j]->name)) {
+				ainlib->functions[i].fun = lib->functions[j]->fun;
+				linked = true;
+				break;
+			}
+		}
+		if (!linked)
+			WARNING("Unimplemented library function: %s", ainlib->functions[i].name);
+	}
+}
+
+static void link_libraries(void)
+{
+	for (int i = 0; i < ain->nr_libraries; i++) {
+		bool linked = false;
+		for (int j = 0; libraries[j]; j++) {
+			if (!strcmp(ain->libraries[i].name, libraries[j]->name)) {
+				link_library(&ain->libraries[i], libraries[j]);
+				linked = true;
+				break;
+			}
+		}
+		if (!linked)
+			WARNING("Unimplemented library: %s", ain->libraries[i].name);
+	}
+}
 
 void vm_execute_ain(struct ain *program)
 {
@@ -1077,6 +1161,7 @@ void vm_execute_ain(struct ain *program)
 		}
 	}
 
+	link_libraries();
 	vm_call(ain->main, -1);
 }
 

@@ -1,7 +1,7 @@
 
 CopyToRun = {
 	"System40.exe",
-	"System40.ini"
+	"System40.ini",
 }
 
 CopyToDLL = {
