@@ -309,7 +309,7 @@ static void hll_call(int libno, int fno)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
 	if (!f->fun)
-		EXECUTION_ERROR("Unimplemented HLL function: %s", f->name);
+		EXECUTION_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
 
 	// convert non-heap ref types to pointers
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
@@ -1131,6 +1131,8 @@ void vm_execute_ain(struct ain *program)
 
 	ain = program;
 
+	link_libraries();
+
 	// Initialize globals
 	heap[0].page = xmalloc(sizeof(struct page) + sizeof(union vm_value) * ain->nr_globals);
 	heap[0].page->nr_vars = ain->nr_globals;
@@ -1142,6 +1144,10 @@ void vm_execute_ain(struct ain *program)
 			break;
 		case AIN_REF_TYPE:
 			heap[0].page->values[i].i = -1;
+			break;
+		case AIN_STRUCT:
+			create_struct(ain->globals[i].struct_type, &heap[0].page->values[i]);
+			break;
 		default:
 			break;
 		}
@@ -1161,7 +1167,6 @@ void vm_execute_ain(struct ain *program)
 		}
 	}
 
-	link_libraries();
 	vm_call(ain->main, -1);
 }
 
