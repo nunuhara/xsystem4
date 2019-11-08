@@ -29,6 +29,7 @@
 #define INITIAL_STACK_SIZE 1024
 #define INITIAL_HEAP_SIZE  4096
 #define INITIAL_PAGES_SIZE 4096
+#define HLL_MAX_ARGS 64
 
 // When the IP is set to VM_RETURN, the VM halts
 #define VM_RETURN 0xFFFFFFFF
@@ -158,9 +159,9 @@ static union vm_value *local_page(void)
 	return heap[local_page_slot()].page->values;
 }
 
-static int32_t local_get(int varno)
+static union vm_value local_get(int varno)
 {
-	return local_page()[varno].i;
+	return local_page()[varno];
 }
 
 static void local_set(int varno, int32_t value)
@@ -173,9 +174,9 @@ static union vm_value *local_ptr(int varno)
 	return local_page() + varno;
 }
 
-static int32_t global_get(int varno)
+static union vm_value global_get(int varno)
 {
-	return heap[0].page->values[varno].i;
+	return heap[0].page->values[varno];
 }
 
 static int32_t struct_page_slot(void)
@@ -311,41 +312,29 @@ static void hll_call(int libno, int fno)
 	if (!f->fun)
 		EXECUTION_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
 
-	// convert non-heap ref types to pointers
+	union vm_value args[HLL_MAX_ARGS];
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
+		int pageno, varno;
 		switch(f->arguments[i].data_type) {
 		case AIN_REF_INT:
 		case AIN_REF_BOOL:
 		case AIN_REF_FLOAT:
 			stack_ptr -= 2;
+			pageno = stack[stack_ptr].i;
+			varno = stack[stack_ptr+1].i;
+			args[i].ref = &heap[pageno].page->values[varno];
 			break;
 		default:
 			stack_ptr--;
+			args[i] = stack[stack_ptr];
 		}
 	}
-	for (int i = 0, src = 0; i < f->nr_arguments; i++, src++) {
-		int pageno, varno;
-		switch (f->arguments[i].data_type) {
-		case AIN_REF_INT:
-		case AIN_REF_BOOL:
-			pageno = stack[stack_ptr+src].i;
-			varno = stack[stack_ptr+src+1].i;
-			stack[stack_ptr+i].iref = &heap[pageno].page->values[varno].i;
-			src++;
-			break;
-		case AIN_REF_FLOAT:
-			pageno = stack[stack_ptr+src].i;
-			varno = stack[stack_ptr+src+1].i;
-			stack[stack_ptr+i].fref = &heap[pageno].page->values[varno].f;
-			src++;
-			break;
-		}
-	}
-
-	f->fun();
+	union vm_value r = f->fun(args);
 	for (int i = 0; i < f->nr_arguments; i++) {
 		variable_fini(stack[stack_ptr + i], f->arguments[i].data_type);
 	}
+	if (f->data_type != AIN_VOID)
+		stack_push(r);
 }
 
 static void function_return(void)
@@ -507,10 +496,10 @@ static void execute_instruction(int16_t opcode)
 		stack_push(val);
 		break;
 	case SH_GLOBALREF: // VARNO
-		stack_push(global_get(get_argument(0)));
+		stack_push(global_get(get_argument(0)).i);
 		break;
 	case SH_LOCALREF: // VARNO
-		stack_push(local_get(get_argument(0)));
+		stack_push(local_get(get_argument(0)).i);
 		break;
 	case SH_STRUCTREF: // VARNO
 		stack_push(struct_page()[get_argument(0)]);
@@ -520,14 +509,14 @@ static void execute_instruction(int16_t opcode)
 		break;
 	case SH_LOCALINC: // VARNO
 		varno = get_argument(0);
-		local_set(varno, local_get(varno)+1);
+		local_set(varno, local_get(varno).i+1);
 		break;
 	case SH_LOCALDEC: // VARNO
 		varno = get_argument(0);
-		local_set(varno, local_get(varno)-1);
+		local_set(varno, local_get(varno).i-1);
 		break;
 	case SH_LOCALDELETE:
-		if ((slot = local_get(get_argument(0))) != -1) {
+		if ((slot = local_get(get_argument(0)).i) != -1) {
 			heap_unref(slot);
 			local_set(get_argument(0), -1);
 		}
@@ -1075,9 +1064,11 @@ static void vm_execute(void)
 }
 
 extern struct library lib_Math;
+extern struct library lib_OutputLog;
 
 struct library *libraries[] = {
 	&lib_Math,
+	&lib_OutputLog,
 	NULL
 };
 
@@ -1094,6 +1085,8 @@ static void link_library(struct ain_library *ainlib, struct library *lib)
 		}
 		if (!linked)
 			WARNING("Unimplemented library function: %s", ainlib->functions[i].name);
+		else if (ainlib->functions[i].nr_arguments >= HLL_MAX_ARGS)
+			ERROR("Too many arguments to library function: %s", ainlib->functions[i].name);
 	}
 }
 

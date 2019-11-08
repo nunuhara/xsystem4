@@ -147,9 +147,11 @@ struct ain_hll_argument {
 	int32_t data_type;
 };
 
+union vm_value;
+
 struct ain_hll_function {
 	char *name;
-	void (*fun)(void);
+	union vm_value (*fun)(union vm_value *args);
 	int32_t data_type;
 	int32_t nr_arguments;
 	struct ain_hll_argument *arguments;

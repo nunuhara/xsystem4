@@ -26,6 +26,7 @@ union vm_value {
 	int64_t i64;
 	float f;
 	// HLL only
+	void *ref;
 	int *iref;
 	float *fref;
 };
@@ -53,7 +54,7 @@ struct vm_pointer {
 
 struct hll_function {
 	char *name;
-	void (*fun)(void);
+	union vm_value (*fun)(union vm_value *_args);
 };
 
 struct library {

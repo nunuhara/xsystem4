@@ -1,7 +1,5 @@
 /* Copyright (C) 2019 Nunuhara Cabbage <nunuhara@haniwa.technology>
  *
- * Credit to SLC for reverse engineering AIN formats.
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -27,86 +25,104 @@ static inline float deg2rad(float deg)
 	return deg * (M_PI / 180.0);
 }
 
-hll_defun(Cos) {
-	hll_return(cosf(deg2rad(hll_arg(0).f)));
+hll_defun(Cos, args)
+{
+	hll_return(cosf(deg2rad(args[0].f)));
 }
 
-hll_defun(Sin) {
-	hll_return(sinf(deg2rad(hll_arg(0).f)));
+hll_defun(Sin, args)
+{
+	hll_return(sinf(deg2rad(args[0].f)));
 }
 
-hll_defun(Sqrt) {
-	hll_return(sqrtf(hll_arg(0).f));
+hll_defun(Sqrt, args)
+{
+	hll_return(sqrtf(args[0].f));
 }
 
-hll_defun(Atan) {
-	hll_return(atanf(hll_arg(0).f));
+hll_defun(Atan, args)
+{
+	hll_return(atanf(args[0].f));
 }
 
-hll_defun(Atan2) {
-	hll_return(atan2f(hll_arg(0).f, hll_arg(1).f));
+hll_defun(Atan2, args)
+{
+	hll_return(atan2f(args[0].f, args[1].f));
 }
 
-hll_defun(Abs) {
-	hll_return(abs(hll_arg(0).i));
+hll_defun(Abs, args)
+{
+	hll_return(abs(args[0].i));
 }
 
-hll_defun(AbsF) {
-	hll_return(fabsf(hll_arg(0).f));
+hll_defun(AbsF, args)
+{
+	hll_return(fabsf(args[0].f));
 }
 
-hll_defun(Pow) {
-	hll_return(powf(hll_arg(0).f, hll_arg(1).f));
+hll_defun(Pow, args)
+{
+	hll_return(powf(args[0].f, args[1].f));
 }
 
-hll_defun(SetSeed) {
-	srand(hll_arg(0).i);
+hll_defun(SetSeed, args)
+{
+	srand(args[0].i);
 	hll_return(0);
 }
 
-hll_unimplemented(SetRandMode)
+hll_unimplemented(Math, SetRandMode)
 
-hll_defun(Rand) {
+hll_defun(Rand, args)
+{
 	hll_return(rand());
 }
 
 // TODO
-hll_unimplemented(RandF)
-hll_unimplemented(RandTableInit)
-hll_unimplemented(RandTable)
-hll_unimplemented(RandTable2Init)
-hll_unimplemented(RandTable2)
+hll_unimplemented(Math, RandF)
+hll_unimplemented(Math, RandTableInit)
+hll_unimplemented(Math, RandTable)
+hll_unimplemented(Math, RandTable2Init)
+hll_unimplemented(Math, RandTable2)
 
-hll_defun(Min) {
-	int a = hll_arg(0).i, b = hll_arg(1).i;
+hll_defun(Min, args)
+{
+	int a = args[0].i, b = args[1].i;
 	hll_return(a < b ? a : b);
 }
 
-hll_defun(MinF) {
-	float a = hll_arg(0).f, b = hll_arg(1).f;
+hll_defun(MinF, args)
+{
+	float a = args[0].f, b = args[1].f;
 	hll_return(a < b ? a : b);
 }
 
-hll_defun(Max) {
-	int a = hll_arg(0).i, b = hll_arg(1).i;
+hll_defun(Max, args)
+{
+	int a = args[0].i, b = args[1].i;
 	hll_return(a > b ? a : b);
 }
 
-hll_defun(MaxF) {
-	float a = hll_arg(0).f, b = hll_arg(1).f;
+hll_defun(MaxF, args)
+{
+	float a = args[0].f, b = args[1].f;
 	hll_return(a > b ? a : b);
 }
 
-hll_defun(Swap) {
-	int tmp = *hll_arg(0).iref;
-	*hll_arg(0).iref = *hll_arg(1).iref;
-	*hll_arg(1).iref = tmp;
+hll_defun(Swap, args)
+{
+	int tmp = *args[0].iref;
+	*args[0].iref = *args[1].iref;
+	*args[1].iref = tmp;
+	hll_return(0);
 }
 
-hll_defun(SwapF) {
-	float tmp = *hll_arg(0).fref;
-	*hll_arg(0).fref = *hll_arg(1).fref;
-	*hll_arg(1).fref = tmp;
+hll_defun(SwapF, args)
+{
+	float tmp = *args[0].fref;
+	*args[0].fref = *args[1].fref;
+	*args[1].fref = tmp;
+	hll_return(0);
 }
 
 hll_deflib(Math) {
