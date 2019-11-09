@@ -24,6 +24,7 @@
 #define CACHE_SIZE 64
 
 static const char *pagetype_strtab[] = {
+	[GLOBAL_PAGE] = "GLOBAL_PAGE",
 	[LOCAL_PAGE] = "LOCAL_PAGE",
 	[STRUCT_PAGE] = "STRUCT_PAGE",
 	[ARRAY_PAGE] = "ARRAY_PAGE"
@@ -123,6 +124,10 @@ enum ain_data_type array_type(enum ain_data_type type)
 enum ain_data_type variable_type(struct page *page, int varno, enum ain_data_type *struct_type)
 {
 	switch (page->type) {
+	case GLOBAL_PAGE:
+		if (struct_type)
+			*struct_type = ain->globals[varno].struct_type;
+		return ain->globals[varno].data_type;
 	case LOCAL_PAGE:
 		if (struct_type)
 			*struct_type = ain->functions[page->index].vars[varno].struct_type;

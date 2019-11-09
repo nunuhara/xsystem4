@@ -1127,9 +1127,7 @@ void vm_execute_ain(struct ain *program)
 	link_libraries();
 
 	// Initialize globals
-	heap[0].page = xmalloc(sizeof(struct page) + sizeof(union vm_value) * ain->nr_globals);
-	heap[0].page->nr_vars = ain->nr_globals;
-	//heap[0].page->vars = ain->globals; // FIXME: wrong type
+	heap[0].page = alloc_page(GLOBAL_PAGE, 0, ain->nr_globals);
 	for (int i = 0; i < ain->nr_globals; i++) {
 		switch (ain->globals[i].data_type) {
 		case AIN_STRING:

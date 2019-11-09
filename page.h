@@ -25,6 +25,7 @@ struct ain_variable;
 enum ain_data_type;
 
 enum page_type {
+	GLOBAL_PAGE,
 	LOCAL_PAGE,
 	STRUCT_PAGE,
 	ARRAY_PAGE
