@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "system4.h"
+#include "vm.h"
 #include "vm_string.h"
 #include "utfsjis.h"
 
@@ -128,6 +129,19 @@ static struct string *cow_check(struct string *s)
 	if (s->cow)
 		s->cow = 0;
 	return s;
+}
+
+void string_append_cstr(struct string **_a, const char *b, size_t b_size)
+{
+	if (!b_size)
+		return;
+	struct string *a = *_a = cow_check(*_a);
+
+	a = xrealloc(a, sizeof(struct string) + a->size + b_size + 1);
+	memcpy(a->text + a->size, b, b_size);
+	a->size += b_size;
+	a->text[a->size] = '\0';
+	*_a = a;
 }
 
 void string_append(struct string **_a, const struct string *b)
@@ -242,4 +256,222 @@ void string_set_char(struct string **_str, int i, unsigned int c)
 		str->text[i]   = c & 0xFF;
 		str->text[i+1] = (c >> 8) & 0xFF;
 	}
+}
+
+#define DIGIT_MAX 512
+
+enum fmt_type {
+	FMT_VOID,
+	FMT_INT,
+	FMT_FLOAT,
+	FMT_STRING,
+	FMT_CHAR,
+	FMT_BOOL
+};
+
+struct fmt_spec {
+	enum fmt_type type;
+	int precision;
+	int padding;
+        bool zero_pad;
+	bool zenkaku;
+};
+
+static int read_number(const char **_fmt)
+{
+	int n = 0;
+	const char *fmt = *_fmt;
+	while (*fmt && *fmt >= '0' && *fmt <= '9') {
+		n *= 10;
+		n += *fmt - '0';
+		fmt++;
+	}
+	*_fmt = fmt;
+	return n;
+}
+
+static void parse_fmt_spec(const char **_fmt, struct fmt_spec *spec)
+{
+	const char *fmt = *_fmt;
+	memset(spec, 0, sizeof(struct fmt_spec));
+	spec->precision = 6;
+	while (*fmt) {
+		switch (*fmt) {
+		case 'd':
+			spec->type = FMT_INT;
+			goto end;
+		case 'D':
+			spec->type = FMT_INT;
+			spec->zenkaku = true;
+			goto end;
+		case 'f':
+			spec->type = FMT_FLOAT;
+			goto end;
+		case 'F':
+			spec->type = FMT_FLOAT;
+			spec->zenkaku = true;
+			goto end;
+		case 's':
+			spec->type = FMT_STRING;
+			goto end;
+		case 'c':
+			spec->type = FMT_CHAR;
+			goto end;
+		case 'b':
+			spec->type = FMT_BOOL;
+			goto end;
+		case '0':
+			spec->zero_pad = true;
+			fmt++;
+			break;
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			spec->padding = read_number(&fmt);
+			break;
+		case '.':
+			fmt++;
+			spec->precision = read_number(&fmt);
+			break;
+		default:
+			goto warn;
+		}
+	}
+warn:
+	WARNING("Invalid format specifier: %s", *_fmt);
+end:
+	*_fmt = ++fmt;
+}
+
+static int number_han2zen(char *buf)
+{
+	char tmp[DIGIT_MAX];
+	int i = 0;
+	for (char *p = buf; *p && i < DIGIT_MAX-2; p++) {
+		switch (*p) {
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			tmp[i++] = 0x82;
+			tmp[i++] = 0x4f + (*p - '0');
+			break;
+		case '-':
+			tmp[i++] = 0x81;
+			tmp[i++] = 0x7c;
+			break;
+		case '.':
+			tmp[i++] = 0x81;
+			tmp[i++] = 0x44;
+			break;
+		case ' ':
+			tmp[i++] = 0x81;
+			tmp[i++] = 0x40;
+			break;
+		default:
+			tmp[i++] = *p;
+		}
+	}
+	tmp[i] = '\0';
+
+	memcpy(buf, tmp, i+1);
+	return i;
+}
+
+static int fmt_int(char *buf, struct fmt_spec *spec, int v)
+{
+	int i = 0;
+	char fmt[64];
+
+	// prepare format string for snprintf
+	fmt[i++] = '%';
+	if (spec->padding) {
+		if (spec->zero_pad)
+			fmt[i++] = '0';
+		i += snprintf(fmt+i, 64-i, "%d", spec->padding);
+	}
+	fmt[i++] = 'd';
+	fmt[i] = '\0';
+
+	i = snprintf(buf, DIGIT_MAX-1, fmt, v);
+	if (spec->zenkaku)
+		i = number_han2zen(buf);
+	return i;
+}
+
+static int fmt_float(char *buf, struct fmt_spec *spec, float v)
+{
+	int i = 0;
+	char fmt[64];
+
+	// prepare format string for snprintf
+	fmt[i++] = '%';
+	if (spec->padding) {
+		if (spec->zero_pad)
+			fmt[i++] = '0';
+		i += snprintf(fmt+i, 64-i, "%d", spec->padding);
+	}
+	fmt[i++] = '.';
+	i += snprintf(fmt+i, 64-i, "%d", spec->precision);
+	fmt[i++] = 'f';
+	fmt[i] = '\0';
+
+	i = snprintf(buf, DIGIT_MAX-1, fmt, v);
+	if (spec->zenkaku) {
+		i = number_han2zen(buf);
+		// XXX: bug in System40.exe
+		buf[i++] = 'F';
+		buf[i] = '\0';
+	}
+	return i;
+}
+
+static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value arg)
+{
+	int len;
+	char buf[DIGIT_MAX] = { [DIGIT_MAX-1] = '\0' };
+	switch (spec->type) {
+	case FMT_VOID:
+		return;
+	case FMT_INT:
+		len = fmt_int(buf, spec, arg.i);
+		string_append_cstr(s, buf, len);
+		break;
+	case FMT_FLOAT:
+		len = fmt_float(buf, spec, arg.f);
+		string_append_cstr(s, buf, len);
+		break;
+	case FMT_STRING:
+		string_append(s, heap[arg.i].s);
+		break;
+	case FMT_CHAR:
+		string_push_back(s, arg.i);
+		break;
+	case FMT_BOOL:
+		if (arg.i)
+			string_append_cstr(s, "true", 4);
+		else
+			string_append_cstr(s, "false", 5);
+		break;
+	}
+}
+
+struct string *string_format(struct string *fmt, union vm_value arg)
+{
+	struct string *out = string_ref(&EMPTY_STRING);
+	for (const char *s = fmt->text; *s; s++) {
+		if (*s == '%') {
+			struct fmt_spec spec;
+			string_append_cstr(&out, fmt->text, s - fmt->text);
+			s++;
+			parse_fmt_spec(&s, &spec);
+			append_fmt(&out, &spec, arg);
+			string_append_cstr(&out, s, strlen(s));
+		}
+	}
+	return out;
 }

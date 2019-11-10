@@ -31,6 +31,15 @@ mem_alloc void *_xmalloc(size_t size, const char *func)
 	return ptr;
 }
 
+mem_alloc void *_xcalloc(size_t nmemb, size_t size, const char *func)
+{
+	void *ptr = calloc(nmemb, size);
+	if (!ptr) {
+		sys_error("*ERROR*(%s): Out of memory\n", func);
+	}
+	return ptr;
+}
+
 mem_alloc void *_xrealloc(void *ptr, size_t size, const char *func)
 {
 	ptr = realloc(ptr, size);

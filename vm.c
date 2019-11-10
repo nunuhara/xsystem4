@@ -907,6 +907,15 @@ static void execute_instruction(int16_t opcode)
 		slot = stack_pop().i;
 		string_erase(&heap[slot].s, a);
 		break;
+	case S_MOD:
+		stack_pop(); // ???
+		val = stack_pop();
+		slot = stack_pop().i;
+		dst = heap_alloc_slot(VM_STRING);
+		heap[dst].s = string_format(heap[slot].s, val);
+		heap_unref(slot);
+		stack_push(dst);
+		break;
 	case I_STRING:
 		stack_push_string(integer_to_string(stack_pop().i));
 		break;

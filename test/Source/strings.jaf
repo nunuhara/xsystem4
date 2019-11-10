@@ -61,6 +61,31 @@ void test_strings(void)
 	test_string("\"‚ \".Erase(0)",  (s = "‚ ", s.Erase(0),  s), "");
 	test_string("\"‚ \".Erase(1)",  (s = "‚ ", s.Erase(1),  s), "‚ ");
 	test_string("\"‚ bc\".Erase(1)",  (s = "‚ bc", s.Erase(1),  s), "‚ c");
+	// S_MOD
+	// int
+	test_string("%d % 42", "%d" % 42, "42");
+	test_string("abc%d % 42", "abc%d" % 42, "abc42");
+	test_string("%dabc % 42", "%dabc" % 42, "42abc");
+	test_string("abc%ddef % 42", "abc%ddef" % 42, "abc42def");
+	test_string("abc%4ddef % 42", "abc%4ddef" % 42, "abc  42def");
+	test_string("abc%04ddef % 42", "abc%04ddef" % 42, "abc0042def");
+	test_string("abc%Ddef % 42", "abc%Ddef" % 42, "abc‚S‚Qdef");
+	test_string("abc%4Ddef % 42", "abc%4Ddef" % 42, "abc@@‚S‚Qdef");
+	test_string("abc%04Ddef % 42", "abc%04Ddef" % 42, "abc‚O‚O‚S‚Qdef");
+	// float
+	test_string("abc%fdef % 12.3", "abc%fdef" % 12.3, "abc12.300000def");
+	test_string("abc%.2fdef % 12.3", "abc%.2fdef" % 12.3, "abc12.30def");
+	test_string("abc%8.2fdef % 12.3", "abc%8.2fdef" % 12.3, "abc   12.30def");
+	test_string("abc%Fdef % 12.3", "abc%Fdef" % 12.3, "abc‚P‚QD‚R‚O‚O‚O‚O‚OFdef");
+	test_string("abc%.2Fdef % 12.3", "abc%.2Fdef" % 12.3, "abc‚P‚QD‚R‚OFdef");
+	test_string("abc%8.2Fdef % 12.3", "abc%8.2Fdef" % 12.3, "abc@@@‚P‚QD‚R‚OFdef");
+	// string
+	test_string("abc%sdef % \"‚ ‚¢‚¤\"", "abc%sdef" % "‚ ‚¢‚¤", "abc‚ ‚¢‚¤def");
+	// char
+	test_string("abc%cdef % '‚ '", "abc%cdef" % '‚ ', "abc‚ def");
+	// bool
+	test_string("abc%bdef % 1", "abc%bdef" % 1, "abctruedef");
+	test_string("abc%bdef % 0", "abc%bdef" % 0, "abcfalsedef");
 
 	// I_STRING
 	test_bool("(42).String()", (i = 42, i.String() == "42"), true);

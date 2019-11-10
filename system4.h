@@ -43,6 +43,9 @@ noreturn void sys_exit(int code);
 #define xmalloc(size) _xmalloc(size, __func__)
 mem_alloc void *_xmalloc(size_t size, const char *func);
 
+#define xcalloc(nmemb, size) _xcalloc(nmemb, size, __func__)
+mem_alloc void *_xcalloc(size_t nmemb, size_t size, const char *func);
+
 #define xrealloc(ptr, size) _xrealloc(ptr, size, __func__)
 mem_alloc void *_xrealloc(void *ptr, size_t size, const char *func);
 
