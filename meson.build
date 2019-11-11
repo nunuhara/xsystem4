@@ -9,6 +9,7 @@ system4 = ['ain.c',
            ]
 hll_libs = ['hll/Math.c',
             'hll/OutputLog.c',
+            'hll/SACT2.c',
             ]
 
 zdep = dependency('zlib')

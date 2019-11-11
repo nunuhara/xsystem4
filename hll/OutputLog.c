@@ -16,11 +16,15 @@
 
 #include <stdio.h>
 #include "hll.h"
+#include "../utfsjis.h"
 
 hll_warn_unimplemented(OutputLog, Create)
 
 hll_defun(Output, args) {
-	printf("%s", heap[args[1].i].s->text);
+	struct string *s = heap[args[1].i].s;
+	char *u = sjis2utf(s->text, s->size);
+	printf("%s", u);
+	free(u);
 	hll_return(0);
 }
 

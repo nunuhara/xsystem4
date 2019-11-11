@@ -1074,10 +1074,12 @@ static void vm_execute(void)
 
 extern struct library lib_Math;
 extern struct library lib_OutputLog;
+extern struct library lib_SACT2;
 
 struct library *libraries[] = {
 	&lib_Math,
 	&lib_OutputLog,
+	&lib_SACT2,
 	NULL
 };
 
