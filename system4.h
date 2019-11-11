@@ -66,4 +66,13 @@ mem_alloc char *_xstrdup(const char *in, const char *func);
 		_a < _b ? _a : _b;		\
 	})
 
+struct config {
+	char *game_name;
+	char *ain_filename;
+	int view_width;
+	int view_height;
+};
+
+struct config config;
+
 #endif /* SYSTEM4_H */

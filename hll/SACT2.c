@@ -17,6 +17,7 @@
 #include <math.h>
 #include <time.h>
 #include "hll.h"
+#include "../system4.h"
 
 // int Init(imain_system pIMainSystem, int nCGCacheSize)
 hll_defun(Init, args)
@@ -38,13 +39,13 @@ hll_unimplemented(SACT2, WP_SetSP)
 // int GetScreenWidth(void)
 hll_defun(GetScreenWidth, _)
 {
-	hll_return(800); // TODO
+	hll_return(config.view_width);
 }
 
 // int GetScreenHeight(void)
 hll_defun(GetScreenHeight, _)
 {
-	hll_return(600); // TODO
+	hll_return(config.view_height);
 }
 
 // int GetMainSurfaceNumber(void)

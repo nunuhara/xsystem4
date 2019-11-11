@@ -5,7 +5,8 @@ system4 = ['ain.c',
            'system.c',
            'utfsjis.c',
 ]
-xsystem4 = ['page.c',
+xsystem4 = ['ini.c',
+            'page.c',
             'system4.c',
             'vm.c',
 ]
