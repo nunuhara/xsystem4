@@ -44,26 +44,33 @@ const char *ain_strerror(int error)
 	return "Invalid error code";
 }
 
-const char *ain_strtype(enum ain_data_type type)
+const char *ain_strtype(struct ain *ain, enum ain_data_type type, int struct_type)
 {
+	static char buf[1024] = { [1023] = '\0' };
 	switch (type) {
 	case AIN_VOID:                return "void";
 	case AIN_INT:                 return "int";
 	case AIN_FLOAT:               return "float";
 	case AIN_STRING:              return "string";
-	case AIN_STRUCT:              return "struct";
+	case AIN_STRUCT:              return ain->structures[struct_type].name;
 	case AIN_ARRAY_INT:           return "array@int";
 	case AIN_ARRAY_FLOAT:         return "array@float";
 	case AIN_ARRAY_STRING:        return "array@string";
-	case AIN_ARRAY_STRUCT:        return "array@struct";
+	case AIN_ARRAY_STRUCT:
+		snprintf(buf, 1023, "array@%s", ain->structures[struct_type].name);
+		return buf;
 	case AIN_REF_INT:             return "ref int";
 	case AIN_REF_FLOAT:           return "ref float";
 	case AIN_REF_STRING:          return "ref string";
-	case AIN_REF_STRUCT:          return "ref struct";
+	case AIN_REF_STRUCT:
+		snprintf(buf, 1023, "ref %s", ain->structures[struct_type].name);
+		return buf;
 	case AIN_REF_ARRAY_INT:       return "ref array@int";
 	case AIN_REF_ARRAY_FLOAT:     return "ref array@float";
 	case AIN_REF_ARRAY_STRING:    return "ref array@string";
-	case AIN_REF_ARRAY_STRUCT:    return "ref array@struct";
+	case AIN_REF_ARRAY_STRUCT:
+		snprintf(buf, 1023, "ref array@%s", ain->structures[struct_type].name);
+		return buf;
 	case AIN_IMAIN_SYSTEM:        return "imain_system";
 	case AIN_FUNC_TYPE:           return "functype";
 	case AIN_ARRAY_FUNC_TYPE:     return "array@functype";
@@ -80,12 +87,14 @@ const char *ain_strtype(enum ain_data_type type)
 	case AIN_DELEGATE:            return "delegate";
 	case AIN_ARRAY_DELEGATE:      return "array@delegate";
 	case AIN_REF_ARRAY_DELEGATE:  return "ref array@delegate";
-	default:                      break;
+	case AIN_UNKNOWN_TYPE_67:     return "type_67";
+	case AIN_UNKNOWN_TYPE_74:     return "type_74";
+	case AIN_UNKNOWN_TYPE_75:     return "type_75";
+	case AIN_UNKNOWN_TYPE_79:     return "type_79";
+	case AIN_UNKNOWN_TYPE_80:     return "type_80";
+	case AIN_UNKNOWN_TYPE_95:     return "type_95";
+	default:                      return "unknown_type";
 	}
-
-	static char buf[128];
-	sprintf(buf, "type:%d", type);
-	return buf;
 }
 
 struct ain_reader {
@@ -423,8 +432,8 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		ain->code_size = read_int32(r);
 		ain->code = read_bytes(r, ain->code_size);
 	} else if (TAG_EQ("FUNC")) {
-		int32_t count = read_int32(r);
-		ain->functions = read_functions(r, count, ain);
+		ain->nr_functions = read_int32(r);
+		ain->functions = read_functions(r, ain->nr_functions, ain);
 	} else if (TAG_EQ("GLOB")) {
 		ain->nr_globals = read_int32(r);
 		// FIXME: why off by one?
@@ -435,14 +444,15 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		ain->nr_initvals = read_int32(r);
 		ain->global_initvals = read_initvals(r, ain->nr_initvals);
 	} else if (TAG_EQ("STRT")) {
-		int32_t count = read_int32(r);
-		ain->structures = read_structures(r, count, ain);
+		ain->nr_structures = read_int32(r);
+		ain->structures = read_structures(r, ain->nr_structures, ain);
 	} else if (TAG_EQ("MSG0")) {
-		ain->messages = read_vm_strings(r, read_int32(r));
+		ain->nr_messages = read_int32(r);
+		ain->messages = read_vm_strings(r, ain->nr_messages);
 	} else if (TAG_EQ("MSG1")) {
-		int32_t count = read_int32(r);
+		ain->nr_messages = read_int32(r);
 		read_int32(r); // ???
-		ain->messages = read_msg1_strings(r, count);
+		ain->messages = read_msg1_strings(r, ain->nr_messages);
 	} else if (TAG_EQ("MAIN")) {
 		ain->main = read_int32(r);
 	} else if (TAG_EQ("MSGF")) {
@@ -456,23 +466,27 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 	} else if (TAG_EQ("GVER")) {
 		ain->game_version = read_int32(r);
 	} else if (TAG_EQ("STR0")) {
-		ain->strings = read_vm_strings(r, read_int32(r));
+		ain->nr_strings = read_int32(r);
+		ain->strings = read_vm_strings(r, ain->nr_strings);
 	} else if (TAG_EQ("FNAM")) {
-		ain->filenames = read_strings(r, read_int32(r));
+		ain->nr_filenames = read_int32(r);
+		ain->filenames = read_strings(r, ain->nr_filenames);
 	} else if (TAG_EQ("OJMP")) {
 		ain->ojmp = read_int32(r);
 	} else if (TAG_EQ("FNCT")) {
 		read_int32(r); // ???
-		int32_t count = read_int32(r);
-		ain->function_types = read_function_types(r, count, ain);
+		ain->nr_function_types = read_int32(r);
+		ain->function_types = read_function_types(r, ain->nr_function_types, ain);
 	} else if (TAG_EQ("DELG")) {
 		read_int32(r); // ???
 		int32_t count = read_int32(r);
 		ain->delegates = read_function_types(r, count, ain);
 	} else if (TAG_EQ("OBJG")) {
-		ain->global_group_names = read_strings(r, read_int32(r));
+		ain->nr_global_groups = read_int32(r);
+		ain->global_group_names = read_strings(r, ain->nr_global_groups);
 	} else if (TAG_EQ("ENUM")) {
-		ain->enums = read_strings(r, read_int32(r));
+		ain->nr_enums = read_int32(r);
+		ain->enums = read_strings(r, ain->nr_enums);
 	} else {
 		return false;
 	}

@@ -66,7 +66,13 @@ enum ain_data_type {
 	AIN_REF_ARRAY_LONG_INT = 60,
 	AIN_DELEGATE = 63,
 	AIN_ARRAY_DELEGATE = 66,
-	AIN_REF_ARRAY_DELEGATE = 69
+	AIN_UNKNOWN_TYPE_67 = 67, // delegate?
+	AIN_REF_ARRAY_DELEGATE = 69,
+	AIN_UNKNOWN_TYPE_74 = 74, // generic array value? (ref?)
+	AIN_UNKNOWN_TYPE_75 = 75, // generic array value?
+	AIN_UNKNOWN_TYPE_79 = 79, // generic array? (ref?)
+	AIN_UNKNOWN_TYPE_80 = 80, // generic array?
+	AIN_UNKNOWN_TYPE_95 = 95, // function?
 };
 
 #define AIN_ARRAY_TYPE				\
@@ -190,12 +196,15 @@ struct ain {
 	int32_t keycode;
 	uint8_t *code;
 	size_t code_size;
+	int32_t nr_functions;
 	struct ain_function *functions;
 	int32_t nr_globals;
 	struct ain_global *globals;
 	int32_t nr_initvals;
 	struct ain_initval *global_initvals;
+	int32_t nr_structures;
 	struct ain_struct *structures;
+	int32_t nr_messages;
 	struct string **messages;
 	int32_t main;
 	int32_t msgf;
@@ -203,17 +212,22 @@ struct ain {
 	struct ain_library *libraries;
 	struct ain_switch *switches;
 	int32_t game_version;
+	int32_t nr_strings;
 	struct string **strings;
+	int32_t nr_filenames;
 	char **filenames;
 	int32_t ojmp;
+	int nr_function_types;
 	struct ain_function_type *function_types;
 	struct ain_function_type *delegates;
+	int32_t nr_global_groups;
 	char **global_group_names;
+	int32_t nr_enums;
 	char **enums;
 };
 
 const char *ain_strerror(int error);
-const char *ain_strtype(enum ain_data_type type);
+const char *ain_strtype(struct ain *ain, enum ain_data_type type, int struct_type);
 struct ain *ain_open(const char *path, int *error);
 void ain_free(struct ain *ain);
 void vm_execute_ain(struct ain *program);
