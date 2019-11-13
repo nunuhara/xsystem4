@@ -18,6 +18,7 @@
 #include <time.h>
 #include "hll.h"
 #include "../system4.h"
+#include "../cg.h"
 
 // int Init(imain_system pIMainSystem, int nCGCacheSize)
 hll_defun(Init, args)
@@ -206,7 +207,11 @@ hll_defun(Timer_Get, _)
 }
 
 // int CG_IsExist(int nCG)
-hll_unimplemented(SACT2, CG_IsExist)
+hll_defun(CG_IsExist, args)
+{
+	hll_return(cg_exists(args[0].i));
+}
+
 // int CG_GetMetrics(int nCG, ref struct cm)
 hll_unimplemented(SACT2, CG_GetMetrics)
 // int CSV_Load(string pIStringFileName)

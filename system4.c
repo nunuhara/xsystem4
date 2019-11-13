@@ -18,8 +18,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <libgen.h>
+#include <dirent.h>
+#include <ctype.h>
 #include "system4.h"
 #include "ain.h"
+#include "ald.h"
 #include "ini.h"
 
 struct config config = {
@@ -57,6 +60,70 @@ static int config_handler(void *user, unused const char *section, const char *na
 	return 1;
 }
 
+static char *ald_filenames[ALDFILETYPE_MAX][ALD_FILEMAX];
+static int ald_count[ALDFILETYPE_MAX];
+
+void ald_init(int type, char **files, int count)
+{
+	int error = ALD_SUCCESS;
+	ald[type] = ald_open(files, count, ALD_MMAP, &error);
+	if (error)
+		ERROR("Failed to open ALD file: %s\n", ald_strerror(error));
+}
+
+static void init_gamedata_dir(const char *path)
+{
+	DIR *dir;
+	struct dirent *d;
+	char filepath[512] = { [511] = '\0' };
+
+	if (!(dir = opendir(path))) {
+		ERROR("Failed to open directory: %s", path);
+	}
+
+	// get ALD filenames
+	while ((d = readdir(dir))) {
+		int dno;
+		size_t len = strlen(d->d_name);
+		snprintf(filepath, 511, "%s/%s", path, d->d_name);
+		if (strcasecmp(d->d_name+len-4, ".ald"))
+			continue;
+		dno = toupper(*(d->d_name+len-5)) - 'A';
+		if (dno < 0 || dno >= ALD_FILEMAX)
+			continue;
+
+		switch (*(d->d_name+len-6)) {
+		case 'b':
+		case 'B':
+			ald_filenames[ALDFILE_BGM][dno] = strdup(filepath);
+			ald_count[ALDFILE_BGM] = max(ald_count[ALDFILE_BGM], dno+1);
+			break;
+		case 'g':
+		case 'G':
+			ald_filenames[ALDFILE_CG][dno] = strdup(filepath);
+			ald_count[ALDFILE_CG] = max(ald_count[ALDFILE_CG], dno+1);
+			break;
+		case 'w':
+		case 'W':
+			ald_filenames[ALDFILE_WAVE][dno] = strdup(filepath);
+			ald_count[ALDFILE_WAVE] = max(ald_count[ALDFILE_WAVE], dno+1);
+			break;
+		default:
+			WARNING("Unhandled ALD file: %s", d->d_name);
+			break;
+		}
+	}
+
+	// open ALD archives
+	if (ald_count[ALDFILE_BGM] > 0)
+		ald_init(ALDFILE_BGM, ald_filenames[ALDFILE_BGM], ald_count[ALDFILE_BGM]);
+	if (ald_count[ALDFILE_CG] > 0)
+		ald_init(ALDFILE_CG, ald_filenames[ALDFILE_CG], ald_count[ALDFILE_CG]);
+	if (ald_count[ALDFILE_WAVE] > 0)
+		ald_init(ALDFILE_WAVE, ald_filenames[ALDFILE_WAVE], ald_count[ALDFILE_WAVE]);
+
+}
+
 int main(int argc, char *argv[])
 {
 	size_t len;
@@ -83,7 +150,8 @@ int main(int argc, char *argv[])
 		strcat(ainfile, "/");
 		strcat(ainfile, config.ain_filename);
 	} else if (len > 4 && !strcasecmp(&argv[1][len - 4], ".ain")) {
-		ainfile = argv[1];
+		ainfile = strdup(argv[1]);
+		dir = dirname(argv[1]);
 	} else  {
 		ERROR("Not an AIN/INI file: %s", &argv[1][len - 4]);
 	}
@@ -94,6 +162,8 @@ int main(int argc, char *argv[])
 	if (!(ain = ain_open(ainfile, &err))) {
 		ERROR("%s", ain_strerror(err));
 	}
+
+	init_gamedata_dir(dir);
 
 	vm_execute_ain(ain);
 	sys_exit(0);
