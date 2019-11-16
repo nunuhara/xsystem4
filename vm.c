@@ -1196,7 +1196,10 @@ void vm_execute_ain(struct ain *program)
 void vm_stack_trace(void)
 {
 	for (int i = call_stack_ptr - 1; i >= 0; i--) {
-		sys_warning("\t%s\n", ain->functions[call_stack[i].fno].name);
+		struct ain_function *f = &ain->functions[call_stack[i].fno];
+		char *u = sjis2utf(f->name, strlen(f->name));
+		sys_warning("\t%s\n", u);
+		free(u);
 	}
 }
 

@@ -72,9 +72,9 @@ hll_defun(Init, args)
 // int Error(string strErr)
 hll_unimplemented(SACT2, Error)
 // int SetWP(int nCG)
-hll_unimplemented(SACT2, SetWP)
+hll_warn_unimplemented(SACT2, SetWP, 1)
 // int SetWP_Color(int nR, int nG, int nB)
-hll_unimplemented(SACT2, SetWP_Color)
+hll_warn_unimplemented(SACT2, SetWP_Color, 1)
 // int WP_GetSP(int nSP)
 hll_unimplemented(SACT2, WP_GetSP)
 // int WP_SetSP(int nSP)
@@ -387,48 +387,70 @@ hll_unimplemented(SACT2, CSV_GetInt)
 hll_unimplemented(SACT2, CSV_SetInt)
 // void CSV_Realloc(int nLines, int nColumns)
 hll_unimplemented(SACT2, CSV_Realloc)
+
 // int Music_IsExist(int nNum)
-hll_unimplemented(SACT2, Music_IsExist)
+hll_warn_unimplemented(SACT2, Music_IsExist, 1)
+
 // int Music_Prepare(int nCh, int nNum)
-hll_unimplemented(SACT2, Music_Prepare)
+hll_warn_unimplemented(SACT2, Music_Prepare, 1)
+
 // int Music_Unprepare(int nCh)
-hll_unimplemented(SACT2, Music_Unprepare)
+hll_warn_unimplemented(SACT2, Music_Unprepare, 1)
+
 // int Music_Play(int nCh)
-hll_unimplemented(SACT2, Music_Play)
+hll_warn_unimplemented(SACT2, Music_Play, 1)
+
 // int Music_Stop(int nCh)
-hll_unimplemented(SACT2, Music_Stop)
+hll_warn_unimplemented(SACT2, Music_Stop, 1)
+
 // int Music_IsPlay(int nCh)
-hll_unimplemented(SACT2, Music_IsPlay)
+hll_warn_unimplemented(SACT2, Music_IsPlay, 1)
+
 // int Music_SetLoopCount(int nCh, int nCount)
-hll_unimplemented(SACT2, Music_SetLoopCount)
+hll_warn_unimplemented(SACT2, Music_SetLoopCount, 1)
+
 // int Music_GetLoopCount(int nCh)
-hll_unimplemented(SACT2, Music_GetLoopCount)
+hll_warn_unimplemented(SACT2, Music_GetLoopCount, 1)
+
 // int Music_SetLoopStartPos(int nCh, int dwPos)
-hll_unimplemented(SACT2, Music_SetLoopStartPos)
+hll_warn_unimplemented(SACT2, Music_SetLoopStartPos, 1)
+
 // int Music_SetLoopEndPos(int nCh, int dwPos)
-hll_unimplemented(SACT2, Music_SetLoopEndPos)
+hll_warn_unimplemented(SACT2, Music_SetLoopEndPos, 1)
+
 // int Music_Fade(int nCh, int nTime, int nVolume, int bStop)
-hll_unimplemented(SACT2, Music_Fade)
+hll_warn_unimplemented(SACT2, Music_Fade, 1)
+
 // int Music_StopFade(int nCh)
-hll_unimplemented(SACT2, Music_StopFade)
+hll_warn_unimplemented(SACT2, Music_StopFade, 1)
+
 // int Music_IsFade(int nCh)
-hll_unimplemented(SACT2, Music_IsFade)
+hll_warn_unimplemented(SACT2, Music_IsFade, 1)
+
 // int Music_Pause(int nCh)
-hll_unimplemented(SACT2, Music_Pause)
+hll_warn_unimplemented(SACT2, Music_Pause, 1)
+
 // int Music_Restart(int nCh)
-hll_unimplemented(SACT2, Music_Restart)
+hll_warn_unimplemented(SACT2, Music_Restart, 1)
+
 // int Music_IsPause(int nCh)
-hll_unimplemented(SACT2, Music_IsPause)
+hll_warn_unimplemented(SACT2, Music_IsPause, 1)
+
 // int Music_GetPos(int nCh)
-hll_unimplemented(SACT2, Music_GetPos)
+hll_warn_unimplemented(SACT2, Music_GetPos, 1)
+
 // int Music_GetLength(int nCh)
-hll_unimplemented(SACT2, Music_GetLength)
+hll_warn_unimplemented(SACT2, Music_GetLength, 1)
+
 // int Music_GetSamplePos(int nCh)
-hll_unimplemented(SACT2, Music_GetSamplePos)
+hll_warn_unimplemented(SACT2, Music_GetSamplePos, 1)
+
 // int Music_GetSampleLength(int nCh)
-hll_unimplemented(SACT2, Music_GetSampleLength)
+hll_warn_unimplemented(SACT2, Music_GetSampleLength, 1)
+
 // int Music_Seek(int nCh, int dwPos)
-hll_unimplemented(SACT2, Music_Seek)
+hll_warn_unimplemented(SACT2, Music_Seek, 1)
+
 // int Sound_IsExist(int nNum)
 hll_unimplemented(SACT2, Sound_IsExist)
 // int Sound_GetUnuseChannel(void)
