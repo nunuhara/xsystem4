@@ -52,23 +52,32 @@ const char *ain_strtype(struct ain *ain, enum ain_data_type type, int struct_typ
 	case AIN_INT:                 return "int";
 	case AIN_FLOAT:               return "float";
 	case AIN_STRING:              return "string";
-	case AIN_STRUCT:              return ain->structures[struct_type].name;
+	case AIN_STRUCT:
+		if (struct_type == -1)
+			return "struct";
+		return ain->structures[struct_type].name;
 	case AIN_ARRAY_INT:           return "array@int";
 	case AIN_ARRAY_FLOAT:         return "array@float";
 	case AIN_ARRAY_STRING:        return "array@string";
 	case AIN_ARRAY_STRUCT:
+		if (struct_type == -1)
+			return "array@struct";
 		snprintf(buf, 1023, "array@%s", ain->structures[struct_type].name);
 		return buf;
 	case AIN_REF_INT:             return "ref int";
 	case AIN_REF_FLOAT:           return "ref float";
 	case AIN_REF_STRING:          return "ref string";
 	case AIN_REF_STRUCT:
+		if (struct_type == -1)
+			return "ref struct";
 		snprintf(buf, 1023, "ref %s", ain->structures[struct_type].name);
 		return buf;
 	case AIN_REF_ARRAY_INT:       return "ref array@int";
 	case AIN_REF_ARRAY_FLOAT:     return "ref array@float";
 	case AIN_REF_ARRAY_STRING:    return "ref array@string";
 	case AIN_REF_ARRAY_STRUCT:
+		if (struct_type == -1)
+			return "ref array@struct";
 		snprintf(buf, 1023, "ref array@%s", ain->structures[struct_type].name);
 		return buf;
 	case AIN_IMAIN_SYSTEM:        return "imain_system";
