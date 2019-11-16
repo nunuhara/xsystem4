@@ -1,4 +1,5 @@
 /* Copyright (C) 2019 Nunuhara Cabbage <nunuhara@haniwa.technology>
+ * Copyright (C) 2000- Fumihiko Murata <fmurata@p1.tcnet.ne.jp>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,31 +15,15 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include "hll.h"
-#include "../utfsjis.h"
+#ifndef SYSTEM4_SDL_CORE_H
+#define SYSTEM4_SDL_CORE_H
 
-hll_warn_unimplemented(OutputLog, Create, 0)
+#include <stdbool.h>
 
-hll_defun(Output, args) {
-	struct string *s = heap[args[1].i].s;
-	char *u = sjis2utf(s->text, s->size);
-	printf("%s", u);
-	free(u);
-	hll_return(0);
-}
+int sdl_initialize(void);
+void sdl_remove(void);
 
-hll_warn_unimplemented(OutputLog, Clear, 0)
-hll_warn_unimplemented(OutputLog, Save, 0)
-hll_warn_unimplemented(OutputLog, EnableAutoSave, 0)
-hll_warn_unimplemented(OutputLog, DisableAutoSave, 0)
+void sdl_set_window_size(int x, int y, int w, int h);
+void sdl_fullscreen(bool on);
 
-hll_deflib(OutputLog) {
-	hll_export(Create),
-	hll_export(Output),
-	hll_export(Clear),
-	hll_export(Save),
-	hll_export(EnableAutoSave),
-	hll_export(DisableAutoSave),
-	NULL
-};
+#endif /* SYSTEM4_SDL_CORE_H */

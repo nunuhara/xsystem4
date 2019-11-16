@@ -45,7 +45,7 @@ static char *config_strdup(const char *str)
 	return out;
 }
 
-static int config_handler(void *user, unused const char *section, const char *name, const char *value)
+static int config_handler(void *user, possibly_unused const char *section, const char *name, const char *value)
 {
 	struct config *config = (struct config*)user;
 	if (!strcmp(name, "GameName")) {

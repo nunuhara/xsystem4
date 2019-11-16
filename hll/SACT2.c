@@ -19,10 +19,52 @@
 #include "hll.h"
 #include "../system4.h"
 #include "../cg.h"
+#include "../queue.h"
+#include "../sdl_core.h"
+
+struct SACT2_sprite {
+	TAILQ_ENTRY(SACT2_sprite) entry;
+	struct cg *cg;
+	Point pos;
+	int z;
+	int width, height;
+	int r, g, b, a;
+	bool show;
+	bool used;
+};
+
+static struct SACT2_sprite *sprites = NULL;
+static int nr_sprites = 0;
+
+TAILQ_HEAD(listhead, SACT2_sprite) visible_sprites =
+	TAILQ_HEAD_INITIALIZER(visible_sprites);
+
+static void sprite_set_show(struct SACT2_sprite *sp, bool show)
+{
+	if (!sp->show == !show)
+		return;
+
+	sp->show = show;
+
+	if (show) {
+		struct SACT2_sprite *p;
+		TAILQ_FOREACH(p, &visible_sprites, entry) {
+			if (p->z > sp->z) {
+				TAILQ_INSERT_BEFORE(p, sp, entry);
+				return;
+			}
+		}
+		TAILQ_INSERT_TAIL(&visible_sprites, sp, entry);
+	} else {
+		TAILQ_REMOVE(&visible_sprites, sp, entry);
+	}
+}
 
 // int Init(imain_system pIMainSystem, int nCGCacheSize)
 hll_defun(Init, args)
 {
+
+	sdl_initialize();
 	hll_return(1);
 }
 
@@ -65,22 +107,77 @@ hll_unimplemented(SACT2, QuakeScreen)
 hll_unimplemented(SACT2, QUAKE_SET_CROSS)
 // void QUAKE_SET_ROTATION(int nAmp, int nCycle)
 hll_unimplemented(SACT2, QUAKE_SET_ROTATION)
+
 // int SP_GetUnuseNum(int nMin)
-hll_unimplemented(SACT2, SP_GetUnuseNum)
+hll_defun(SP_GetUnuseNum, args)
+{
+	int nMin = args[0].i;
+
+	for (int i = nMin; i < nr_sprites; i++) {
+		if (!sprites[i].used)
+			hll_return(i);
+	}
+
+	int n = max(nMin, nr_sprites);
+	nr_sprites = n + 256;
+	sprites = xrealloc(sprites, sizeof(struct SACT2_sprite) * nr_sprites);
+	hll_return(n);
+}
+
 // int SP_Count(void)
 hll_unimplemented(SACT2, SP_Count)
 // int SP_Enum(ref array@int anSP)
 hll_unimplemented(SACT2, SP_Enum)
 // int SP_GetMaxZ(void)
 hll_unimplemented(SACT2, SP_GetMaxZ)
+
 // int SP_SetCG(int nSP, int nCG)
-hll_unimplemented(SACT2, SP_SetCG)
+hll_defun(SP_SetCG, args)
+{
+	int sp = args[0].i;
+	int cg = args[1].i;
+
+	WARNING("SACT2.SP_SetCG(%d, %d)", sp, cg);
+	sprites[sp].cg = cg_load(cg);
+	hll_return(!!sprites[sp].cg);
+}
+
 // int SP_SetCGFromFile(int nSP, string pIStringFileName)
 hll_unimplemented(SACT2, SP_SetCGFromFile)
 // int SP_SaveCG(int nSP, string pIStringFileName)
 hll_unimplemented(SACT2, SP_SaveCG)
+
 // int SP_Create(int nSP, int nWidth, int nHeight, int nR, int nG, int nB, int nBlendRate)
-hll_unimplemented(SACT2, SP_Create)
+hll_defun(SP_Create, args)
+{
+	int sp     = args[0].i;
+	int width  = args[1].i;
+	int height = args[2].i;
+	int r      = args[3].i;
+	int g      = args[4].i;
+	int b      = args[5].i;
+	int a      = args[6].i;
+
+	sprites[sp] = (struct SACT2_sprite) {
+		.pos = (Point) {
+			.x = 0,
+			.y = 0
+		},
+		.z = 0,
+		.width = width,
+		.height = height,
+		.r = r,
+		.g = g,
+		.b = b,
+		.a = a,
+		.cg = NULL,
+		.show = false,
+		.used = true
+	};
+	sprite_set_show(&sprites[sp], true);
+	hll_return(1);
+}
+
 // int SP_CreatePixelOnly(int nSP, int nWidth, int nHeight)
 hll_unimplemented(SACT2, SP_CreatePixelOnly)
 // int SP_CreateCustom(int nSP)
@@ -88,47 +185,114 @@ hll_unimplemented(SACT2, SP_CreateCustom)
 // int SP_Delete(int nSP)
 hll_unimplemented(SACT2, SP_Delete)
 // int SP_SetPos(int nSP, int nX, int nY)
-hll_unimplemented(SACT2, SP_SetPos)
+hll_defun(SP_SetPos, args)
+{
+	int sp = args[0].i;
+	sprites[sp].pos.x = args[1].i;
+	sprites[sp].pos.y = args[2].i;
+	hll_return(1);
+}
+
 // int SP_SetX(int nSP, int nX)
-hll_unimplemented(SACT2, SP_SetX)
+hll_defun(SP_SetX, args)
+{
+	sprites[args[0].i].pos.x = args[1].i;
+	hll_return(1);
+}
+
 // int SP_SetY(int nSP, int nY)
-hll_unimplemented(SACT2, SP_SetY)
+hll_defun(SP_SetY, args)
+{
+	sprites[args[0].i].pos.y = args[1].i;
+	hll_return(1);
+}
+
 // int SP_SetZ(int nSP, int nZ)
-hll_unimplemented(SACT2, SP_SetZ)
+hll_defun(SP_SetZ, args)
+{
+	sprites[args[0].i].z = args[1].i;
+	hll_return(1);
+}
+
 // int SP_SetBlendRate(int nSP, int nBlendRate)
-hll_unimplemented(SACT2, SP_SetBlendRate)
+hll_defun(SP_SetBlendRate, args)
+{
+	sprites[args[0].i].a = args[1].i;
+	hll_return(1);
+}
+
 // int SP_SetShow(int nSP, int nfShow)
-hll_unimplemented(SACT2, SP_SetShow)
+hll_defun(SP_SetShow, args)
+{
+	sprite_set_show(&sprites[args[0].i], args[1].i);
+	hll_return(1);
+}
+
 // int SP_SetDrawMethod(int nSP, int nMethod)
 hll_unimplemented(SACT2, SP_SetDrawMethod)
 // int SP_IsUsing(int nSP)
 hll_unimplemented(SACT2, SP_IsUsing)
 // int SP_ExistAlpha(int nSP)
 hll_unimplemented(SACT2, SP_ExistAlpha)
+
 // int SP_GetPosX(int nSP)
-hll_unimplemented(SACT2, SP_GetPosX)
+hll_defun(SP_GetPosX, args)
+{
+	hll_return(sprites[args[0].i].pos.x);
+}
+
 // int SP_GetPosY(int nSP)
-hll_unimplemented(SACT2, SP_GetPosY)
+hll_defun(SP_GetPosY, args)
+{
+	hll_return(sprites[args[0].i].pos.y);
+}
+
 // int SP_GetWidth(int nSP)
-hll_unimplemented(SACT2, SP_GetWidth)
+hll_defun(SP_GetWidth, args)
+{
+	struct SACT2_sprite *sp = &sprites[args[0].i];
+	if (sp->cg)
+		hll_return(sp->cg->width);
+	hll_return(sp->width);
+}
+
 // int SP_GetHeight(int nSP)
-hll_unimplemented(SACT2, SP_GetHeight)
+hll_defun(SP_GetHeight, args)
+{
+	struct SACT2_sprite *sp = &sprites[args[0].i];
+	if (sp->cg)
+		hll_return(sp->cg->height);
+	hll_return(sp->width);
+}
+
 // int SP_GetZ(int nSP)
-hll_unimplemented(SACT2, SP_GetZ)
+hll_defun(SP_GetZ, args)
+{
+	hll_return(sprites[args[0].i].z);
+}
+
 // int SP_GetBlendRate(int nSP)
-hll_unimplemented(SACT2, SP_GetBlendRate)
+hll_defun(SP_GetBlendRate, args)
+{
+	hll_return(sprites[args[0].i].a);
+}
+
 // int SP_GetShow(int nSP)
-hll_unimplemented(SACT2, SP_GetShow)
+hll_defun(SP_GetShow, args)
+{
+	hll_return(sprites[args[0].i].show);
+}
+
 // int SP_GetDrawMethod(int nSP)
-hll_unimplemented(SACT2, SP_GetDrawMethod)
+hll_warn_unimplemented(SACT2, SP_GetDrawMethod, 0)
 // int SP_SetTextHome(int nSP, int nX, int nY)
-hll_unimplemented(SACT2, SP_SetTextHome)
+hll_warn_unimplemented(SACT2, SP_SetTextHome, 0)
 // int SP_SetTextLineSpace(int nSP, int nPx)
 hll_unimplemented(SACT2, SP_SetTextLineSpace)
 // int SP_SetTextCharSpace(int nSP, int nPx)
 hll_unimplemented(SACT2, SP_SetTextCharSpace)
 // int SP_SetTextPos(int nSP, int nX, int nY)
-hll_unimplemented(SACT2, SP_SetTextPos)
+hll_warn_unimplemented(SACT2, SP_SetTextPos, 0)
 // int SP_TextDraw(int nSP, string text, struct tm)
 hll_unimplemented(SACT2, SP_TextDraw)
 // int SP_TextClear(int nSP)

@@ -178,6 +178,11 @@ void create_struct(int no, union vm_value *var)
 			heap[memb].s = string_ref(&EMPTY_STRING);
 			heap[slot].page->values[i].i = memb;
 			break;
+		case AIN_ARRAY_TYPE:
+			memb = heap_alloc_slot(VM_PAGE);
+			heap[memb].page = NULL;
+			heap[slot].page->values[i].i = memb;
+			break;
 		case AIN_STRUCT:
 			create_struct(s->members[i].struct_type, &heap[slot].page->values[i]);
 			break;

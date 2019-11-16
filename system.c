@@ -57,25 +57,34 @@ mem_alloc char *_xstrdup(const char *in, const char *func)
 	return out;
 }
 
-noreturn void sys_error(char *fmt, ...)
+noreturn void sys_verror(const char *fmt, va_list ap)
 {
-	va_list ap;
-	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
-	va_end(ap);
 	sys_exit(1);
 }
 
-void sys_warning(char *fmt, ...)
+noreturn void sys_error(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	sys_verror(fmt, ap);
+}
+
+void sys_vwarning(const char *fmt, va_list ap)
+{
+	vfprintf(stderr, fmt, ap);
+}
+
+void sys_warning(const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
+	sys_vwarning(fmt, ap);
 	va_end(ap);
 }
 
-void sys_message(char *fmt, ...)
+void sys_message(const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);

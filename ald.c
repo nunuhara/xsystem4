@@ -183,12 +183,15 @@ static int _ald_get(struct ald_archive *ar, int no, int *disk_out, int *dataptr_
 bool ald_data_exists(struct ald_archive *ar, int no)
 {
 	int disk, dataptr;
-	return !!_ald_get(ar, no, &disk, &dataptr);
+	return ar && !!_ald_get(ar, no, &disk, &dataptr);
 }
 
 /* Get a piece of data from an ALD archive. */
 struct archive_data *ald_get(struct ald_archive *ar, int no)
 {
+	if (!ar)
+		return NULL;
+
 	uint8_t *data;
 	struct archive_data *dfile;
 	int disk, dataptr, ptr, size;

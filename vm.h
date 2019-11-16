@@ -19,6 +19,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "system4.h"
 
 // Non-heap values. Stored in pages and on the stack.
 union vm_value {
@@ -125,5 +126,11 @@ int vm_copy_page(struct page *page);
 union vm_value vm_copy(union vm_value v, enum ain_data_type type);
 
 void vm_call(int fno, int struct_page);
+
+void vm_stack_trace(void);
+noreturn void _vm_error(const char *fmt, ...);
+
+#define VM_ERROR(fmt, ...) \
+	_vm_error("*ERROR*(%s:%s:%d): " fmt "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
 
 #endif /* SYSTEM4_VM_H */

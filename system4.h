@@ -17,13 +17,14 @@
 #ifndef SYSTEM4_H
 #define SYSTEM4_H
 
+#include <stdarg.h>
 #include <stddef.h>
 
 // TODO: should put in a separate header and guard with feature checks
 #define const_pure __attribute__((const))
 #define mem_alloc __attribute__((malloc))
 #define noreturn _Noreturn
-#define unused __attribute__((unused))
+#define possibly_unused __attribute__((unused))
 
 #define ERROR(fmt, ...) \
 	sys_error("*ERROR*(%s:%s:%d): " fmt "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
@@ -34,9 +35,11 @@
 #define NOTICE(fmt, ...) \
 	sys_message(fmt "\n", ##__VA_ARGS__)
 
-noreturn void sys_error(char *fmt, ...);
-void sys_warning(char *fmt, ...);
-void sys_message(char *fmt, ...);
+noreturn void sys_verror(const char *fmt, va_list ap);
+noreturn void sys_error(const char *fmt, ...);
+void sys_vwarning(const char *fmt, va_list ap);
+void sys_warning(const char *fmt, ...);
+void sys_message(const char *fmt, ...);
 
 noreturn void sys_exit(int code);
 

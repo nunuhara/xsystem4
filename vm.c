@@ -34,9 +34,6 @@
 // When the IP is set to VM_RETURN, the VM halts
 #define VM_RETURN 0xFFFFFFFF
 
-#define EXECUTION_ERROR(msg, ...) \
-	ERROR("%s (0x%X): " msg, current_instruction_name(), instr_ptr, ##__VA_ARGS__)
-
 /*
  * NOTE: The current implementation is a simple bytecode interpreter.
  *       System40.exe uses a JIT compiler, and we should too.
@@ -66,7 +63,7 @@ static int32_t heap_free_ptr = 0;
 
 // Stack of function call frames
 static struct function_call call_stack[4096];
-static int32_t call_stack_ptr = 1; // 0 = imaginary frame before main()
+static int32_t call_stack_ptr = 0; // 0 = imaginary frame before main()
 
 struct ain *ain;
 static size_t instr_ptr = 0;
@@ -131,7 +128,7 @@ static const char *vm_ptrtype_string(enum vm_pointer_type type) {
 void heap_unref(int slot)
 {
 	if (heap[slot].ref <= 0) {
-		EXECUTION_ERROR("double free of slot %d (%s)", slot, vm_ptrtype_string(heap[slot].type));
+		VM_ERROR("double free of slot %d (%s)", slot, vm_ptrtype_string(heap[slot].type));
 	}
 	if (--heap[slot].ref <= 0) {
 		switch (heap[slot].type) {
@@ -211,7 +208,7 @@ static union vm_value *stack_pop_var(void)
 	int32_t page_index = stack_pop().i;
 	int32_t heap_index = stack_pop().i;
 	if (!heap[heap_index].page || page_index >= heap[heap_index].page->nr_vars)
-		EXECUTION_ERROR("Out of bounds page index: %d/%d", heap_index, page_index);
+		VM_ERROR("Out of bounds page index: %d/%d", heap_index, page_index);
 	return &heap[heap_index].page->values[page_index];
 }
 
@@ -310,7 +307,7 @@ static void hll_call(int libno, int fno)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
 	if (!f->fun)
-		EXECUTION_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
+		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
 
 	union vm_value args[HLL_MAX_ARGS];
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
@@ -950,7 +947,7 @@ static void execute_instruction(int16_t opcode)
 		b = stack_pop().i;
 		a = stack_pop().i;
 		if (a == -1)
-			EXECUTION_ERROR("Assignment to null-pointer");
+			VM_ERROR("Assignment to null-pointer");
 		if (heap[a].page)
 			delete_page(heap[a].page);
 		heap[a].page = copy_page(heap[b].page);
@@ -1050,7 +1047,7 @@ static void execute_instruction(int16_t opcode)
 	case FUNC:
 		break;
 	default:
-		EXECUTION_ERROR("Unimplemented instruction");
+		VM_ERROR("Unimplemented instruction");
 	}
 }
 
@@ -1061,11 +1058,11 @@ static void vm_execute(void)
 		if (instr_ptr == VM_RETURN)
 			return;
 		if (instr_ptr >= ain->code_size) {
-			EXECUTION_ERROR("Illegal instruction pointer: 0x%08lX", instr_ptr);
+			VM_ERROR("Illegal instruction pointer: 0x%08lX", instr_ptr);
 		}
 		opcode = get_opcode(instr_ptr);
 		if (opcode >= NR_OPCODES) {
-			EXECUTION_ERROR("Illegal opcode: 0x%04X", opcode);
+			VM_ERROR("Illegal opcode: 0x%04X", opcode);
 		}
 		execute_instruction(opcode);
 		instr_ptr += instructions[opcode].ip_inc;
@@ -1140,12 +1137,18 @@ void vm_execute_ain(struct ain *program)
 	// Initialize globals
 	heap[0].page = alloc_page(GLOBAL_PAGE, 0, ain->nr_globals);
 	for (int i = 0; i < ain->nr_globals; i++) {
+		int slot;
 		switch (ain->globals[i].data_type) {
 		case AIN_STRING:
 			heap[0].page->values[i].i = heap_alloc_slot(VM_STRING);
 			break;
 		case AIN_REF_TYPE:
 			heap[0].page->values[i].i = -1;
+			break;
+		case AIN_ARRAY_TYPE:
+			slot = heap_alloc_slot(VM_PAGE);
+			heap[0].page->values[i].i = slot;
+			heap[slot].page = NULL;
 			break;
 		case AIN_STRUCT:
 			create_struct(ain->globals[i].struct_type, &heap[0].page->values[i]);
@@ -1170,5 +1173,23 @@ void vm_execute_ain(struct ain *program)
 	}
 
 	vm_call(ain->main, -1);
+}
+
+void vm_stack_trace(void)
+{
+	for (int i = call_stack_ptr - 1; i >= 0; i--) {
+		sys_warning("\t%s\n", ain->functions[call_stack[i].fno].name);
+	}
+}
+
+noreturn void _vm_error(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	sys_vwarning(fmt, ap);
+	va_end(ap);
+	sys_warning("at %s (0x%X) in:\n", current_instruction_name(), instr_ptr);
+	vm_stack_trace();
+	sys_exit(1);
 }
 

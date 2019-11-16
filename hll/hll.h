@@ -26,22 +26,22 @@
 #include "../system4.h"
 
 #define hll_defun(fname, args)						\
-	static union vm_value _hllfun_ ## fname(unused union vm_value *args); \
+	static union vm_value _hllfun_ ## fname(possibly_unused union vm_value *args); \
 	static struct hll_function _hllstruct_ ## fname = {		\
 		.name = #fname,						\
 		.fun = _hllfun_ ## fname				\
 	};								\
-	static union vm_value _hllfun_ ## fname(unused union vm_value *args)
+	static union vm_value _hllfun_ ## fname(possibly_unused union vm_value *args)
 
 #define hll_unimplemented(libname, fname)				\
 	hll_defun(fname, args) {					\
-		ERROR("Unimplemented HLL function: " #libname "." #fname); \
+		VM_ERROR("Unimplemented HLL function: " #libname "." #fname); \
 	}
 
-#define hll_warn_unimplemented(libname, fname)				\
+#define hll_warn_unimplemented(libname, fname, rval)			\
 	hll_defun(fname, args) {					\
 		WARNING("Unimplemented HLL function: " #libname "." #fname); \
-		hll_return(0);						\
+		hll_return(rval);					\
 	}
 
 #define hll_export(fname) &_hllstruct_ ## fname
