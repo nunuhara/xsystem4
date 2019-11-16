@@ -156,6 +156,8 @@ void delete_page(struct page *page)
  */
 struct page *copy_page(struct page *src)
 {
+	if (!src)
+		return NULL;
 	struct page *dst = alloc_page(src->type, src->index, src->nr_vars);
 	dst->struct_type = src->struct_type;
 	dst->rank = src->rank;
