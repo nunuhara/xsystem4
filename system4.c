@@ -28,6 +28,7 @@
 struct config config = {
 	.game_name = NULL,
 	.ain_filename = NULL,
+	.save_dir = NULL,
 	.view_width = 800,
 	.view_height = 600
 };
@@ -52,6 +53,8 @@ static int config_handler(void *user, possibly_unused const char *section, const
 		config->game_name = config_strdup(value);
 	} else if (!strcmp(name, "CodeName")) {
 		config->ain_filename = config_strdup(value);
+	} else if (!strcmp(name, "SaveFolder")) {
+		config->save_dir = config_strdup(value);
 	} else if (!strcmp(name, "ViewWidth")) {
 		config->view_width = atoi(value);
 	} else if (!strcmp(name, "ViewHeight")) {

@@ -72,6 +72,7 @@ mem_alloc char *_xstrdup(const char *in, const char *func);
 struct config {
 	char *game_name;
 	char *ain_filename;
+	char *save_dir;
 	int view_width;
 	int view_height;
 };

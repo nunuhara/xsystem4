@@ -362,6 +362,12 @@ static void system_call(int32_t code)
 		free(utf);
 		// XXX: caller S_POPs
 		break;
+	case 0xC:
+		if (config.save_dir)
+			stack_push_string(make_string(config.save_dir, strlen(config.save_dir)));
+		else
+			stack_push_string(string_ref(&EMPTY_STRING));
+		break;
 	case 0xD:
 		stack_push(vm_time());
 		break;

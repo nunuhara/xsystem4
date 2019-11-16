@@ -114,32 +114,26 @@ struct cg *cg_load(int no)
 	//  size is only pixel data size
 	switch(type) {
 	case ALCG_VSP:
-		sys_message("extracting VSP");
 		cg = vsp_extract(dfile->data);
 		size = cg->width * cg->height;
 		break;
 	case ALCG_PMS8:
-		sys_message("extracting PMS8");
 		cg = pms256_extract(dfile->data);
 		size = cg->width * cg->height;
 		break;
 	case ALCG_PMS16:
-		sys_message("extracting PMS16");
 		cg = pms64k_extract(dfile->data);
 		size = (cg->width * cg->height) * sizeof(uint16_t);
 		break;
 	case ALCG_BMP8:
-		sys_message("extracting BMP8");
 		cg = bmp256_extract(dfile->data);
 		size = cg->width * cg->height;
 		break;
 	case ALCG_BMP24:
-		sys_message("extracting BMP24");
 		cg = bmp16m_extract(dfile->data);
 		size = (cg->width * cg->height) * sizeof(uint16_t);
 		break;
 	case ALCG_QNT:
-		sys_message("extracting QNT");
 		cg = qnt_extract(dfile->data);
 		size = (cg->width * cg->height) * 3;
 		break;
