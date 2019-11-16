@@ -18,6 +18,7 @@
 #include <time.h>
 #include "hll.h"
 #include "../system4.h"
+#include "../vm.h"
 #include "../cg.h"
 #include "../queue.h"
 #include "../sdl_core.h"
@@ -355,19 +356,7 @@ hll_unimplemented(SACT2, Key_IsDown)
 // int Timer_Get(void)
 hll_defun(Timer_Get, _)
 {
-	int ms;
-	time_t s;
-	struct timespec spec;
-
-	clock_gettime(CLOCK_MONOTONIC, &spec);
-
-	s = spec.tv_sec;
-	ms = lround(spec.tv_nsec / 1.0e6);
-	if (ms > 999) {
-		s++;
-		ms = 0;
-	}
-	hll_return(ms);
+	hll_return(vm_time());
 }
 
 // int CG_IsExist(int nCG)

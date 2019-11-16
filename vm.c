@@ -16,6 +16,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+#include <time.h>
 
 #include "system4.h"
 #include "vm.h"
@@ -359,6 +361,9 @@ static void system_call(int32_t code)
 		sys_message("%s", utf);
 		free(utf);
 		// XXX: caller S_POPs
+		break;
+	case 0xD:
+		stack_push(vm_time());
 		break;
 	case 0x14: // system.Peek()
 		break;
@@ -1198,3 +1203,19 @@ noreturn void _vm_error(const char *fmt, ...)
 	sys_exit(1);
 }
 
+int vm_time(void)
+{
+	int ms;
+	time_t s;
+	struct timespec spec;
+
+	clock_gettime(CLOCK_MONOTONIC, &spec);
+
+	s = spec.tv_sec;
+	ms = lround(spec.tv_nsec / 1.0e6);
+	if (ms > 999) {
+		s++;
+		ms = 0;
+	}
+	return ms;
+}
