@@ -18,6 +18,7 @@ xsystem4 = ['ald.c',
             'vm.c',
 ]
 hll_libs = ['hll/Math.c',
+            'hll/MsgLogManager.c',
             'hll/OutputLog.c',
             'hll/SACT2.c',
 ]
