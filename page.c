@@ -81,6 +81,7 @@ union vm_value variable_initval(enum ain_data_type type)
 		heap[slot].s = string_ref(&EMPTY_STRING);
 		return (union vm_value) { .i = slot };
 	case AIN_STRUCT:
+	case AIN_REF_TYPE:
 		return (union vm_value) { .i = -1 };
 	case AIN_ARRAY_TYPE:
 		slot = heap_alloc_slot(VM_PAGE);
