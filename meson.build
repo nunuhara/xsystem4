@@ -20,6 +20,7 @@ xsystem4 = ['ald.c',
 hll_libs = ['hll/DrawPluginManager.c',
             'hll/Math.c',
             'hll/MsgLogManager.c',
+            'hll/MsgSkip.c',
             'hll/OutputLog.c',
             'hll/SACT2.c',
 ]
