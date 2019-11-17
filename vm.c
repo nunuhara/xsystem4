@@ -1190,6 +1190,7 @@ void vm_execute_ain(struct ain *program)
 		}
 	}
 
+	vm_call(ain->nr_functions-1, -1); // function "0": allocate global arrays
 	vm_call(ain->main, -1);
 }
 
