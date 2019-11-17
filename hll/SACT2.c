@@ -37,34 +37,24 @@ struct SACT2_sprite {
 static struct SACT2_sprite *sprites = NULL;
 static int nr_sprites = 0;
 
-TAILQ_HEAD(listhead, SACT2_sprite) visible_sprites =
-	TAILQ_HEAD_INITIALIZER(visible_sprites);
+TAILQ_HEAD(listhead, SACT2_sprite) sprite_list =
+	TAILQ_HEAD_INITIALIZER(sprite_list);
 
-static void sprite_set_show(struct SACT2_sprite *sp, bool show)
+static void sprite_register(struct SACT2_sprite *sp)
 {
-	if (!sp->show == !show)
-		return;
-
-	sp->show = show;
-
-	if (show) {
-		struct SACT2_sprite *p;
-		TAILQ_FOREACH(p, &visible_sprites, entry) {
-			if (p->z > sp->z) {
-				TAILQ_INSERT_BEFORE(p, sp, entry);
-				return;
-			}
+	struct SACT2_sprite *p;
+	TAILQ_FOREACH(p, &sprite_list, entry) {
+		if (p->z > sp->z) {
+			TAILQ_INSERT_BEFORE(p, sp, entry);
+			return;
 		}
-		TAILQ_INSERT_TAIL(&visible_sprites, sp, entry);
-	} else {
-		TAILQ_REMOVE(&visible_sprites, sp, entry);
 	}
+	TAILQ_INSERT_TAIL(&sprite_list, sp, entry);
 }
 
 // int Init(imain_system pIMainSystem, int nCGCacheSize)
 hll_defun(Init, args)
 {
-
 	sdl_initialize();
 	hll_return(1);
 }
@@ -97,7 +87,7 @@ hll_unimplemented(SACT2, GetMainSurfaceNumber)
 // int Update(void)
 hll_unimplemented(SACT2, Update)
 // int Effect(int nType, int nTime, int nfKey)
-hll_unimplemented(SACT2, Effect)
+hll_warn_unimplemented(SACT2, Effect, 1)
 // int EffectSetMask(int nCG)
 hll_unimplemented(SACT2, EffectSetMask)
 // int EffectSetMaskSP(int nSP)
@@ -129,8 +119,14 @@ hll_defun(SP_GetUnuseNum, args)
 hll_unimplemented(SACT2, SP_Count)
 // int SP_Enum(ref array@int anSP)
 hll_unimplemented(SACT2, SP_Enum)
+
 // int SP_GetMaxZ(void)
-hll_unimplemented(SACT2, SP_GetMaxZ)
+hll_defun(SP_GetMaxZ, args)
+{
+	if (TAILQ_EMPTY(&sprite_list))
+		hll_return(0);
+	hll_return(TAILQ_LAST(&sprite_list, listhead)->z);
+}
 
 // int SP_SetCG(int nSP, int nCG)
 hll_defun(SP_SetCG, args)
@@ -138,7 +134,6 @@ hll_defun(SP_SetCG, args)
 	int sp = args[0].i;
 	int cg = args[1].i;
 
-	WARNING("SACT2.SP_SetCG(%d, %d)", sp, cg);
 	sprites[sp].cg = cg_load(cg);
 	hll_return(!!sprites[sp].cg);
 }
@@ -175,7 +170,7 @@ hll_defun(SP_Create, args)
 		.show = false,
 		.used = true
 	};
-	sprite_set_show(&sprites[sp], true);
+	sprite_register(&sprites[sp]);
 	hll_return(1);
 }
 
@@ -183,8 +178,17 @@ hll_defun(SP_Create, args)
 hll_unimplemented(SACT2, SP_CreatePixelOnly)
 // int SP_CreateCustom(int nSP)
 hll_unimplemented(SACT2, SP_CreateCustom)
+
 // int SP_Delete(int nSP)
-hll_unimplemented(SACT2, SP_Delete)
+hll_defun(SP_Delete, args)
+{
+	struct SACT2_sprite *sp = &sprites[args[0].i];
+	if (!sp->used)
+		hll_return(0);
+	TAILQ_REMOVE(&sprite_list, sp, entry);
+	hll_return(1);
+}
+
 // int SP_SetPos(int nSP, int nX, int nY)
 hll_defun(SP_SetPos, args)
 {
@@ -225,7 +229,7 @@ hll_defun(SP_SetBlendRate, args)
 // int SP_SetShow(int nSP, int nfShow)
 hll_defun(SP_SetShow, args)
 {
-	sprite_set_show(&sprites[args[0].i], args[1].i);
+	sprites[args[0].i].show = !!args[1].i;
 	hll_return(1);
 }
 
@@ -295,11 +299,11 @@ hll_unimplemented(SACT2, SP_SetTextCharSpace)
 // int SP_SetTextPos(int nSP, int nX, int nY)
 hll_warn_unimplemented(SACT2, SP_SetTextPos, 0)
 // int SP_TextDraw(int nSP, string text, struct tm)
-hll_unimplemented(SACT2, SP_TextDraw)
+hll_warn_unimplemented(SACT2, SP_TextDraw, 1)
 // int SP_TextClear(int nSP)
-hll_unimplemented(SACT2, SP_TextClear)
+hll_warn_unimplemented(SACT2, SP_TextClear, 1)
 // int SP_TextHome(int nSP, int nTextSize)
-hll_unimplemented(SACT2, SP_TextHome)
+hll_warn_unimplemented(SACT2, SP_TextHome, 1)
 // int SP_TextNewLine(int nSP, int nTextSize)
 hll_unimplemented(SACT2, SP_TextNewLine)
 // int SP_TextBackSpace(int nSP)
@@ -332,26 +336,64 @@ hll_unimplemented(SACT2, IntToZenkaku)
 hll_unimplemented(SACT2, IntToHankaku)
 // int StringPopFront(ref string sDst, ref string sSrc)
 hll_unimplemented(SACT2, StringPopFront)
+
 // int Mouse_GetPos(ref int pnX, ref int pnY)
-hll_unimplemented(SACT2, Mouse_GetPos)
+hll_defun(Mouse_GetPos, args)
+{
+	hll_unimplemented_warning(SACT2, Mouse_GetPos);
+	*args[0].iref = 0;
+	*args[1].iref = 0;
+	hll_return(0);
+}
+
 // int Mouse_SetPos(int nX, int nY)
 hll_unimplemented(SACT2, Mouse_SetPos)
 // void Mouse_ClearWheel(void)
-hll_unimplemented(SACT2, Mouse_ClearWheel)
+hll_warn_unimplemented(SACT2, Mouse_ClearWheel, 0)
+
 // void Mouse_GetWheel(ref int pnForward, ref int pnBack)
-hll_unimplemented(SACT2, Mouse_GetWheel)
+hll_defun(Mouse_GetWheel, args)
+{
+	hll_unimplemented_warning(SACT2, Mouse_GetWheel);
+	*args[0].iref = 0;
+	*args[1].iref = 0;
+	hll_return(0);
+}
+
 // void Joypad_ClearKeyDownFlag(int nNum)
-hll_unimplemented(SACT2, Joypad_ClearKeyDownFlag)
+hll_warn_unimplemented(SACT2, Joypad_ClearKeyDownFlag, 0)
 // int Joypad_IsKeyDown(int nNum, int nKey)
 hll_unimplemented(SACT2, Joypad_IsKeyDown)
 // int Joypad_GetNumof(void)
 hll_unimplemented(SACT2, Joypad_GetNumof)
 // void JoypadQuake_Set(int nNum, int nType, int nMagnitude)
 hll_unimplemented(SACT2, JoypadQuake_Set)
+
+// bool Joypad_GetAnalogStickStatus(int nNum, int nType, ref float pfDegree, ref float pfPower)
+hll_defun(Joypad_GetAnalogStickStatus, args)
+{
+	hll_unimplemented_warning(SACT2, Joypad_GetAnalogStickStatus);
+	*args[2].fref = 0.0;
+	*args[3].fref = 0.0;
+	hll_return(1);
+}
+
+// bool Joypad_GetDigitalStickStatus(int nNum, int nType, ref bool pbLeft, ref bool pbRight, ref bool pbUp, ref bool pbDown)
+hll_defun(Joypad_GetDigitalStickStatus, args)
+{
+	hll_unimplemented_warning(SACT2, Joypad_GetDigitalStickStatus);
+	*args[2].iref = 0;
+	*args[3].iref = 0;
+	*args[4].iref = 0;
+	*args[5].iref = 0;
+	hll_return(1);
+}
+
 // int Key_ClearFlag(void)
-hll_unimplemented(SACT2, Key_ClearFlag)
+hll_warn_unimplemented(SACT2, Key_ClearFlag, 1)
+
 // int Key_IsDown(int nKeyCode)
-hll_unimplemented(SACT2, Key_IsDown)
+hll_warn_unimplemented(SACT2, Key_IsDown, 0)
 
 // int Timer_Get(void)
 hll_defun(Timer_Get, _)
@@ -586,6 +628,8 @@ hll_deflib(SACT2) {
 	hll_export(Joypad_IsKeyDown),
 	hll_export(Joypad_GetNumof),
 	hll_export(JoypadQuake_Set),
+	hll_export(Joypad_GetAnalogStickStatus),
+	hll_export(Joypad_GetDigitalStickStatus),
 	hll_export(Key_ClearFlag),
 	hll_export(Key_IsDown),
 	hll_export(Timer_Get),

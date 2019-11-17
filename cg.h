@@ -66,5 +66,6 @@ struct cg {
 
 bool cg_exists(int no);
 struct cg *cg_load(int no);
+void cg_free(struct cg *cg);
 
 #endif /* SYSTEM4_CG_H */

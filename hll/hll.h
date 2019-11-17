@@ -38,9 +38,12 @@
 		VM_ERROR("Unimplemented HLL function: " #libname "." #fname); \
 	}
 
+#define hll_unimplemented_warning(libname, fname)			\
+	WARNING("Unimplemented HLL function: " #libname "." #fname)
+
 #define hll_warn_unimplemented(libname, fname, rval)			\
 	hll_defun(fname, args) {					\
-		WARNING("Unimplemented HLL function: " #libname "." #fname); \
+		hll_unimplemented_warning(libname, fname);		\
 		hll_return(rval);					\
 	}
 
