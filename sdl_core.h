@@ -19,11 +19,18 @@
 #define SYSTEM4_SDL_CORE_H
 
 #include <stdbool.h>
+#include <stdint.h>
+#include "graphics.h"
+
+struct cg;
 
 int sdl_initialize(void);
 void sdl_remove(void);
 
 void sdl_set_window_size(int x, int y, int w, int h);
 void sdl_fullscreen(bool on);
+
+void sdl_update_screen(void);
+void sdl_draw_cg(struct cg *cg);
 
 #endif /* SYSTEM4_SDL_CORE_H */

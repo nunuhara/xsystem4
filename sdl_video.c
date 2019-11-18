@@ -18,6 +18,7 @@
 #include <string.h>
 #include <SDL.h>
 #include "system4.h"
+#include "sdl_core.h"
 #include "sdl_private.h"
 
 int sdl_initialize(void)
@@ -40,7 +41,7 @@ int sdl_initialize(void)
 	// init cursor
 	//sdl_cursor_init();
 
-	//sdl_setWindowSize(0, 0, config.view_width, config.view_height);
+	sdl_set_window_size(0, 0, config.view_width, config.view_height);
 
 	//sdl_shadow_init();
 
@@ -87,7 +88,7 @@ void sdl_set_window_size(int x, int y, int w, int h)
 		SDL_FreeSurface(sdl.display);
 	if (sdl.texture)
 		SDL_DestroyTexture(sdl.texture);
-	sdl.display = SDL_CreateRGBSurface(0, w, h, 32, 0, 0, 0, 0);
+	sdl.display = SDL_CreateRGBSurface(0, w, h, 32, 0xFF00, 0xFF0000, 0xFF000000, 0xFF);
 	sdl.texture = SDL_CreateTexture(sdl.renderer, sdl.display->format->format,
 					SDL_TEXTUREACCESS_STATIC, w, h);
 }

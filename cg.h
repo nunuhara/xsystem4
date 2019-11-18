@@ -21,6 +21,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <SDL.h>
 #include "graphics.h"
 
 /*
@@ -28,13 +29,10 @@
  */
 enum cg_type {
 	ALCG_UNKNOWN = 1,
-	ALCG_VSP     = 2,
-	ALCG_PMS8    = 3,
-	ALCG_PMS16   = 4,
-	ALCG_BMP8    = 5,
-	ALCG_BMP24   = 6,
-	ALCG_QNT     = 7,
-	ALCG_AJP     = 8
+	ALCG_BMP24   = 2,
+	ALCG_QNT     = 3,
+	ALCG_AJP     = 4,
+	ALCG_PNG     = 5
 };
 
 /*
@@ -42,30 +40,17 @@ enum cg_type {
  */
 struct cg {
 	enum cg_type type; // cg format type
-	int x;             // default display location x
-	int y;             // default display location y
-	int z;             // draw order
-	int width;         // image width
-	int height;        // image height
-
-	uint8_t *pic;      // extracted pixel data
-	uint8_t *alpha;    // extracted alpha data if exists
-	Pallet256 *pal;    // extracted pallet data if exists
-
-	int vsp_bank;      // pallet bank for vsp
-	int pms_bank;      // pallet bank for pms
-
-	int spritecolor;   // sprite color for vsp and pms8
-	int alphalevel;    // alpha level of image
-
-	int data_offset;   // pic offset for clipping
-
-	int r, g, b, a;
+	int no;
+	int z;
 	bool show;
+	SDL_Color color;
+	Rectangle rect;
+	SDL_Surface *s;
 };
 
 bool cg_exists(int no);
-struct cg *cg_load(int no);
+bool cg_load(struct cg *cg, int no);
+struct cg *cg_init(int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void cg_free(struct cg *cg);
 
 #endif /* SYSTEM4_CG_H */

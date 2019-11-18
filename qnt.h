@@ -43,6 +43,6 @@ struct qnt_header {
 };
 
 bool qnt_checkfmt(uint8_t *data);
-struct cg *qnt_extract(uint8_t *data);
+void qnt_extract(struct cg *cg, uint8_t *data);
 
 #endif /* __QNT_H__ */

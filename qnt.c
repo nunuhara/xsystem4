@@ -33,6 +33,7 @@
 
 #include <stdlib.h>
 #include <zlib.h>
+#include <SDL.h>
 
 #include "little_endian.h"
 #include "cg.h"
@@ -60,7 +61,8 @@ static void extract_alpha(struct qnt_header *qnt, uint8_t *pic, uint8_t *b);
  *
  *   return: acquired qnt information object
  */
-static struct qnt_header *extract_header(uint8_t *b) {
+static struct qnt_header *extract_header(uint8_t *b)
+{
 	struct qnt_header *qnt = malloc(sizeof(struct qnt_header));
 	int rsv0;
 
@@ -86,6 +88,8 @@ static struct qnt_header *extract_header(uint8_t *b) {
 		qnt->pixel_size = LittleEndian_getDW(b, 36);
 		qnt->alpha_size = LittleEndian_getDW(b, 40);
 	}
+	if (qnt->bpp != 24)
+		ERROR("Unsupported bits-per-pixel: %d", qnt->bpp);
 
 	return qnt;
 }
@@ -97,7 +101,8 @@ static struct qnt_header *extract_header(uint8_t *b) {
  *   pic: pixel to be stored
  *   b  : raw data (pointer to pixel)
  */
-static void extract_pixel(struct qnt_header *qnt, uint8_t *pic, uint8_t *b) {
+static void extract_pixel(struct qnt_header *qnt, uint8_t *pic, uint8_t *b)
+{
 	int i, j, x, y, w, h;
 	unsigned long ucbuf = (qnt->width+1) * (qnt->height+1) * 3 + ZLIBBUF_MARGIN;
 	uint8_t *raw = malloc(sizeof(uint8_t) * ucbuf);
@@ -179,7 +184,8 @@ static void extract_pixel(struct qnt_header *qnt, uint8_t *pic, uint8_t *b) {
  *   pic: pixel to be stored
  *   b  : raw data (pointer to alpha pixel)
  */
-static void extract_alpha(struct qnt_header *qnt, uint8_t *pic, uint8_t *b) {
+static void extract_alpha(struct qnt_header *qnt, uint8_t *pic, uint8_t *b)
+{
 	int i, x, y, w, h;
 	unsigned long ucbuf = (qnt->width+1) * (qnt->height+1) + ZLIBBUF_MARGIN;
 	uint8_t *raw = malloc(sizeof(uint8_t) * ucbuf);
@@ -227,7 +233,8 @@ static void extract_alpha(struct qnt_header *qnt, uint8_t *pic, uint8_t *b) {
  *
  *   return: true if data is qnt
  */
-bool qnt_checkfmt(uint8_t *data) {
+bool qnt_checkfmt(uint8_t *data)
+{
 	if (data[0] != 'Q' || data[1] != 'N' || data[2] != 'T') return false;
 	return true;
 }
@@ -239,24 +246,46 @@ bool qnt_checkfmt(uint8_t *data) {
  *
  *   return: extracted image data and information
 */
-struct cg *qnt_extract(uint8_t *data) {
-	struct cg *cg = calloc(1, sizeof(struct cg));
+void qnt_extract(struct cg *cg, uint8_t *data)
+{
+	// FIXME: endianness?
+	uint32_t amask = 0x0;
+	uint32_t rmask = 0xFF;
+	uint32_t bmask = 0xFF00;
+	uint32_t gmask = 0xFF0000;
 	struct qnt_header *qnt = extract_header(data);
+	uint8_t *pixels = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10) * 3));
+	extract_pixel(qnt, pixels, data + qnt->hdr_size);
 
-	cg->pic = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10) * 3));
-	extract_pixel(qnt, cg->pic, data + qnt->hdr_size);
-
-	if (qnt->alpha_size != 0) {
-		cg->alpha = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10)));
-		extract_alpha(qnt, (uint8_t *)cg->alpha, data + qnt->hdr_size + qnt->pixel_size);
+	// combine color/alpha data
+	if (qnt->alpha_size) {
+		uint8_t *alpha = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10)));
+		uint8_t *tmp = malloc((qnt->width+10) * (qnt->height+10) * 4);
+		extract_alpha(qnt, alpha, data + qnt->hdr_size + qnt->pixel_size);
+		for (int src_i = 0, dst_i = 0, p = 0; p < qnt->width * qnt->height; p++) {
+			tmp[dst_i++] = pixels[src_i++];
+			tmp[dst_i++] = pixels[src_i++];
+			tmp[dst_i++] = pixels[src_i++];
+			tmp[dst_i++] = alpha[p];
+		}
+		free(alpha);
+		free(pixels);
+		pixels = tmp;
+		amask = 0xFF;
+		rmask = 0xFF00;
+		gmask = 0xFF0000;
+		bmask = 0xFF000000;
 	}
 
-	cg->type   = ALCG_QNT;
-	cg->x      = qnt->x0;
-	cg->y      = qnt->y0;
-	cg->width  = qnt->width;
-	cg->height = qnt->height;
-	cg->pal    = NULL;
+	// create SDL surface
+	cg->s = SDL_CreateRGBSurfaceFrom(pixels, qnt->width, qnt->height, 24, qnt->width * 3,
+					 rmask, gmask, bmask, amask);
+	if (!cg->s)
+		ERROR("Creating surface failed: %s", SDL_GetError());
 
-	return cg;
+	cg->type   = ALCG_QNT;
+	cg->rect.x = qnt->x0; // ???
+	cg->rect.y = qnt->y0; // ???
+	cg->rect.w = qnt->width;
+	cg->rect.h = qnt->height;
 }

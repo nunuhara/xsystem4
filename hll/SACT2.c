@@ -26,11 +26,6 @@
 struct SACT2_sprite {
 	TAILQ_ENTRY(SACT2_sprite) entry;
 	struct cg *cg;
-	Point pos;
-	int z;
-	int width, height;
-	int r, g, b, a;
-	bool show;
 	bool used;
 };
 
@@ -44,7 +39,7 @@ static void sprite_register(struct SACT2_sprite *sp)
 {
 	struct SACT2_sprite *p;
 	TAILQ_FOREACH(p, &sprite_list, entry) {
-		if (p->z > sp->z) {
+		if (p->cg->z > sp->cg->z) {
 			TAILQ_INSERT_BEFORE(p, sp, entry);
 			return;
 		}
@@ -84,8 +79,20 @@ hll_defun(GetScreenHeight, _)
 
 // int GetMainSurfaceNumber(void)
 hll_unimplemented(SACT2, GetMainSurfaceNumber)
+
 // int Update(void)
-hll_unimplemented(SACT2, Update)
+hll_defun(Update, _)
+{
+	struct SACT2_sprite *p;
+	TAILQ_FOREACH_REVERSE(p, &sprite_list, listhead, entry) {
+		if (!p->cg->show)
+			continue;
+		sdl_draw_cg(p->cg);
+	}
+	sdl_update_screen();
+	hll_return(1);
+}
+
 // int Effect(int nType, int nTime, int nfKey)
 hll_warn_unimplemented(SACT2, Effect, 1)
 // int EffectSetMask(int nCG)
@@ -125,7 +132,7 @@ hll_defun(SP_GetMaxZ, args)
 {
 	if (TAILQ_EMPTY(&sprite_list))
 		hll_return(0);
-	hll_return(TAILQ_LAST(&sprite_list, listhead)->z);
+	hll_return(TAILQ_LAST(&sprite_list, listhead)->cg->z);
 }
 
 // int SP_SetCG(int nSP, int nCG)
@@ -134,8 +141,9 @@ hll_defun(SP_SetCG, args)
 	int sp = args[0].i;
 	int cg = args[1].i;
 
-	sprites[sp].cg = cg_load(cg);
-	hll_return(!!sprites[sp].cg);
+	if (!cg_load(sprites[sp].cg, cg - 1))
+		hll_return(0);
+	hll_return(1);
 }
 
 // int SP_SetCGFromFile(int nSP, string pIStringFileName)
@@ -154,22 +162,13 @@ hll_defun(SP_Create, args)
 	int b      = args[5].i;
 	int a      = args[6].i;
 
-	sprites[sp] = (struct SACT2_sprite) {
-		.pos = (Point) {
-			.x = 0,
-			.y = 0
-		},
-		.z = 0,
-		.width = width,
-		.height = height,
-		.r = r,
-		.g = g,
-		.b = b,
-		.a = a,
-		.cg = NULL,
-		.show = false,
-		.used = true
-	};
+	if (sprites[sp].used) {
+		TAILQ_REMOVE(&sprite_list, &sprites[sp], entry);
+		cg_free(sprites[sp].cg);
+	}
+
+	sprites[sp].used = true;
+	sprites[sp].cg = cg_init(width, height, r, g, b, a);
 	sprite_register(&sprites[sp]);
 	hll_return(1);
 }
@@ -186,6 +185,8 @@ hll_defun(SP_Delete, args)
 	if (!sp->used)
 		hll_return(0);
 	TAILQ_REMOVE(&sprite_list, sp, entry);
+	cg_free(sp->cg);
+	sp->cg = NULL;
 	hll_return(1);
 }
 
@@ -193,43 +194,43 @@ hll_defun(SP_Delete, args)
 hll_defun(SP_SetPos, args)
 {
 	int sp = args[0].i;
-	sprites[sp].pos.x = args[1].i;
-	sprites[sp].pos.y = args[2].i;
+	sprites[sp].cg->rect.x = args[1].i;
+	sprites[sp].cg->rect.y = args[2].i;
 	hll_return(1);
 }
 
 // int SP_SetX(int nSP, int nX)
 hll_defun(SP_SetX, args)
 {
-	sprites[args[0].i].pos.x = args[1].i;
+	sprites[args[0].i].cg->rect.x = args[1].i;
 	hll_return(1);
 }
 
 // int SP_SetY(int nSP, int nY)
 hll_defun(SP_SetY, args)
 {
-	sprites[args[0].i].pos.y = args[1].i;
+	sprites[args[0].i].cg->rect.y = args[1].i;
 	hll_return(1);
 }
 
 // int SP_SetZ(int nSP, int nZ)
 hll_defun(SP_SetZ, args)
 {
-	sprites[args[0].i].z = args[1].i;
+	sprites[args[0].i].cg->z = args[1].i;
 	hll_return(1);
 }
 
 // int SP_SetBlendRate(int nSP, int nBlendRate)
 hll_defun(SP_SetBlendRate, args)
 {
-	sprites[args[0].i].a = args[1].i;
+	sprites[args[0].i].cg->color.a = args[1].i;
 	hll_return(1);
 }
 
 // int SP_SetShow(int nSP, int nfShow)
 hll_defun(SP_SetShow, args)
 {
-	sprites[args[0].i].show = !!args[1].i;
+	sprites[args[0].i].cg->show = !!args[1].i;
 	hll_return(1);
 }
 
@@ -243,49 +244,43 @@ hll_unimplemented(SACT2, SP_ExistAlpha)
 // int SP_GetPosX(int nSP)
 hll_defun(SP_GetPosX, args)
 {
-	hll_return(sprites[args[0].i].pos.x);
+	hll_return(sprites[args[0].i].cg->rect.x);
 }
 
 // int SP_GetPosY(int nSP)
 hll_defun(SP_GetPosY, args)
 {
-	hll_return(sprites[args[0].i].pos.y);
+	hll_return(sprites[args[0].i].cg->rect.y);
 }
 
 // int SP_GetWidth(int nSP)
 hll_defun(SP_GetWidth, args)
 {
-	struct SACT2_sprite *sp = &sprites[args[0].i];
-	if (sp->cg)
-		hll_return(sp->cg->width);
-	hll_return(sp->width);
+	hll_return(sprites[args[0].i].cg->rect.w);
 }
 
 // int SP_GetHeight(int nSP)
 hll_defun(SP_GetHeight, args)
 {
-	struct SACT2_sprite *sp = &sprites[args[0].i];
-	if (sp->cg)
-		hll_return(sp->cg->height);
-	hll_return(sp->width);
+	hll_return(sprites[args[0].i].cg->rect.h);
 }
 
 // int SP_GetZ(int nSP)
 hll_defun(SP_GetZ, args)
 {
-	hll_return(sprites[args[0].i].z);
+	hll_return(sprites[args[0].i].cg->z);
 }
 
 // int SP_GetBlendRate(int nSP)
 hll_defun(SP_GetBlendRate, args)
 {
-	hll_return(sprites[args[0].i].a);
+	hll_return((int)sprites[args[0].i].cg->color.a);
 }
 
 // int SP_GetShow(int nSP)
 hll_defun(SP_GetShow, args)
 {
-	hll_return(sprites[args[0].i].show);
+	hll_return(sprites[args[0].i].cg->show);
 }
 
 // int SP_GetDrawMethod(int nSP)
