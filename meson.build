@@ -1,4 +1,5 @@
-project('system4', 'c', default_options : ['c_std=c11 -Wall -Wextra'])
+project('system4', 'c', default_options : ['c_std=c11'])
+add_project_arguments('-D_DEFAULT_SOURCE', language : 'c')
 system4 = ['ain.c',
            'instructions.c',
            'string.c',
