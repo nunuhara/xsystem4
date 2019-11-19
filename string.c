@@ -471,6 +471,7 @@ struct string *string_format(struct string *fmt, union vm_value arg)
 			parse_fmt_spec(&s, &spec);
 			append_fmt(&out, &spec, arg);
 			string_append_cstr(&out, s, strlen(s));
+			break;
 		}
 	}
 	return out;
