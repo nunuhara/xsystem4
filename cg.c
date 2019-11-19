@@ -43,19 +43,24 @@ static enum cg_type check_cgformat(uint8_t *data)
 	return ALCG_UNKNOWN;
 }
 
+void _cg_free(struct cg *cg)
+{
+	if (!cg)
+		return;
+	if (cg->s) {
+		if (cg->no >= 0)
+			free(cg->s->pixels);
+		SDL_FreeSurface(cg->s);
+	}
+}
+
 /*
  * Free CG data
  *  cg: object to free
  */
 void cg_free(struct cg *cg)
 {
-	if (!cg)
-		return;
-	if (cg->s) {
-		if (cg->no < 0)
-			free(cg->s->pixels);
-		SDL_FreeSurface(cg->s);
-	}
+	_cg_free(cg);
 	free(cg);
 }
 
@@ -101,21 +106,24 @@ bool cg_load(struct cg *cg, int no)
 	return true;
 }
 
+void _cg_init(struct cg *cg, int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+	cg->no = -1;
+	cg->rect.w = width;
+	cg->rect.h = height;
+	cg->color = (SDL_Color) { .r = r, .g = g, .b = b, .a = a };
+	cg->s = NULL;
+}
+
+void cg_reinit(struct cg *cg, int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+	_cg_free(cg);
+	_cg_init(cg, width, height, r, g, b, a);
+}
+
 struct cg *cg_init(int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
 	struct cg *cg = calloc(1, sizeof(struct cg));
-	*cg = (struct cg) {
-		.no = -1,
-		.rect = {
-			.w = width,
-			.h = height
-		},
-		.color = {
-			.r = r,
-			.g = g,
-			.b = b,
-			.a = a
-		}
-	};
+	_cg_init(cg, width, height, r, g, b, a);
 	return cg;
 }

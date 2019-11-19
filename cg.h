@@ -51,6 +51,7 @@ struct cg {
 bool cg_exists(int no);
 bool cg_load(struct cg *cg, int no);
 struct cg *cg_init(int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+void cg_reinit(struct cg *cg, int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void cg_free(struct cg *cg);
 
 #endif /* SYSTEM4_CG_H */

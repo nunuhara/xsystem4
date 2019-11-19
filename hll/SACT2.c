@@ -20,6 +20,7 @@
 #include "../system4.h"
 #include "../vm.h"
 #include "../cg.h"
+#include "../input.h"
 #include "../queue.h"
 #include "../sdl_core.h"
 
@@ -83,6 +84,7 @@ hll_unimplemented(SACT2, GetMainSurfaceNumber)
 // int Update(void)
 hll_defun(Update, _)
 {
+	handle_events();
 	struct SACT2_sprite *p;
 	TAILQ_FOREACH_REVERSE(p, &sprite_list, listhead, entry) {
 		if (!p->cg->show)
@@ -162,14 +164,13 @@ hll_defun(SP_Create, args)
 	int b      = args[5].i;
 	int a      = args[6].i;
 
-	if (sprites[sp].used) {
-		TAILQ_REMOVE(&sprite_list, &sprites[sp], entry);
-		cg_free(sprites[sp].cg);
+	if (sprites[sp].used && sprites[sp].cg) {
+		cg_reinit(sprites[sp].cg, width, height, r, g, b, a);
+	} else {
+		sprites[sp].used = true;
+		sprites[sp].cg = cg_init(width, height, r, g, b, a);
+		sprite_register(&sprites[sp]);
 	}
-
-	sprites[sp].used = true;
-	sprites[sp].cg = cg_init(width, height, r, g, b, a);
-	sprite_register(&sprites[sp]);
 	hll_return(1);
 }
 
@@ -319,8 +320,18 @@ hll_unimplemented(SACT2, SP_GetTextPosY)
 hll_unimplemented(SACT2, SP_GetTextLineSpace)
 // int SP_IsPtIn(int nSP, int nX, int nY)
 hll_unimplemented(SACT2, SP_IsPtIn)
+
 // int SP_IsPtInRect(int nSP, int nX, int nY)
-hll_unimplemented(SACT2, SP_IsPtInRect)
+hll_defun(SP_IsPtInRect, args)
+{
+	struct SACT2_sprite *sp = &sprites[args[0].i];
+	Point p = { .x = args[1].i, .y = args[2].i };
+
+	if (!sp->used)
+		hll_return(0);
+	hll_return(!!SDL_PointInRect(&p, &sp->cg->rect));
+}
+
 // int GAME_MSG_GetNumof(void)
 hll_unimplemented(SACT2, GAME_MSG_GetNumof)
 // void GAME_MSG_Get(int nIndex, ref string text)
@@ -335,14 +346,12 @@ hll_unimplemented(SACT2, StringPopFront)
 // int Mouse_GetPos(ref int pnX, ref int pnY)
 hll_defun(Mouse_GetPos, args)
 {
-	hll_unimplemented_warning(SACT2, Mouse_GetPos);
-	*args[0].iref = 0;
-	*args[1].iref = 0;
-	hll_return(0);
+	mouse_get_pos(args[0].iref, args[1].iref);
+	hll_return(mouse_focus && keyboard_focus);
 }
 
 // int Mouse_SetPos(int nX, int nY)
-hll_unimplemented(SACT2, Mouse_SetPos)
+hll_warn_unimplemented(SACT2, Mouse_SetPos, 1)
 // void Mouse_ClearWheel(void)
 hll_warn_unimplemented(SACT2, Mouse_ClearWheel, 0)
 
@@ -388,7 +397,10 @@ hll_defun(Joypad_GetDigitalStickStatus, args)
 hll_warn_unimplemented(SACT2, Key_ClearFlag, 1)
 
 // int Key_IsDown(int nKeyCode)
-hll_warn_unimplemented(SACT2, Key_IsDown, 0)
+hll_defun(Key_IsDown, args)
+{
+	hll_return(key_is_down(args[0].i));
+}
 
 // int Timer_Get(void)
 hll_defun(Timer_Get, _)
