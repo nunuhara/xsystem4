@@ -162,7 +162,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(S_GT, 0),
         OP(S_LTE, 0),
         OP(S_GTE, 0),
-        OP(S_LENGTH2, 0), // TODO
+        OP(S_LENGTH2, 0),
         OP(S_LENGTHBYTE2, 0), // TODO
         OP(NEW, 0), // TODO
         OP(DELETE, 0),

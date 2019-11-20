@@ -939,6 +939,11 @@ static void execute_instruction(int16_t opcode)
 		a = stack_pop_var()->i;
 		stack_push(sjis_count_char(heap[a].s->text));
 		break;
+	case S_LENGTH2:
+		slot = stack_pop().i;
+		stack_push(sjis_count_char(heap[slot].s->text));
+		heap_unref(slot);
+		break;
 	case S_LENGTHBYTE:
 		a = stack_pop_var()->i;
 		stack_push(heap[a].s->size);
