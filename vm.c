@@ -626,6 +626,14 @@ static void execute_instruction(int16_t opcode)
 	case SJUMP:
 		scenario_call(stack_pop().i);
 		break;
+	case MSG:
+		if (ain->msgf < 0)
+			break;
+		stack_push(get_argument(0));
+		stack_push(ain->nr_messages);
+		stack_push_string(string_ref(ain->messages[get_argument(0)]));
+		function_call(ain->msgf, instr_ptr + instruction_width(MSG));
+		break;
 	case JUMP: // ADDR
 		instr_ptr = get_argument(0);
 		break;

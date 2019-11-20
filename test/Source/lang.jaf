@@ -120,4 +120,17 @@ void test_lang(void)
 	test_equal("string switch (no default)", test_string_switch("d"), 100);
 	test_equal("string switch (default)", test_string_switch_default("d"), 100);
 	test_equal("local ref escape", (set_page_ref(42), gi), 42);
+	'message1';
+	'message2';
+}
+
+int msg_count = 0;
+
+void message(int msg_nr, int nr_messages, string msg)
+{
+	if (msg_count == 0)
+		test_string("message1", msg, "message1");
+	else if (msg_count == 1)
+		test_string("message2", msg, "message2");
+	msg_count++;
 }
