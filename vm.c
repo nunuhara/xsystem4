@@ -253,6 +253,49 @@ union vm_value vm_copy(union vm_value v, enum ain_data_type type)
 	}
 }
 
+static int get_function_by_name(const char *name)
+{
+	for (int i = 0; i < ain->nr_functions; i++) {
+		if (!strcmp(name, ain->functions[i].name))
+			return i;
+	}
+	return -1;
+}
+
+static int alloc_scenario_page(const char *fname)
+{
+	int fno, slot;
+	struct ain_function *f;
+
+	if ((fno = get_function_by_name(fname)) < 0)
+		VM_ERROR("Invalid scenario function: %s", fname);
+	f = &ain->functions[fno];
+
+	slot = heap_alloc_slot(VM_PAGE);
+	heap[slot].page = alloc_page(LOCAL_PAGE, fno, f->nr_vars);
+	for (int i = 0; i < f->nr_vars; i++) {
+		heap[slot].page->values[i] = variable_initval(f->vars[i].data_type);
+	}
+	return slot;
+}
+
+static void scenario_call(int slot)
+{
+	int fno = heap[slot].page->index;
+	// flush call stack
+	for (int i = call_stack_ptr - 1; i >= 0; i--) {
+		heap_unref(call_stack[i].page_slot);
+	}
+	call_stack[0] = (struct function_call) {
+		.fno = fno,
+		.return_address = VM_RETURN,
+		.page_slot = slot,
+		.struct_page = -1
+	};
+	call_stack_ptr = 1;
+	instr_ptr = ain->functions[fno].address;
+}
+
 /*
  * System 4 calling convention:
  *   - caller pushes arguments, in order
@@ -571,6 +614,17 @@ static void execute_instruction(int16_t opcode)
 		break;
 	case CALLSYS:
 		system_call(get_argument(0));
+		break;
+	case CALLONJUMP:
+		slot = stack_pop().i;
+		// XXX: I am GUESSING that the VM pre-allocates the scenario function's
+		//      local page here. It certainly pushes what appears to be a page
+		//      index to the stack.
+		stack_push(alloc_scenario_page(heap[slot].s->text));
+		heap_unref(slot);
+		break;
+	case SJUMP:
+		scenario_call(stack_pop().i);
 		break;
 	case JUMP: // ADDR
 		instr_ptr = get_argument(0);
