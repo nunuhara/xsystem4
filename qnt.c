@@ -263,10 +263,10 @@ void qnt_extract(struct cg *cg, uint8_t *data)
 		uint8_t *tmp = malloc((qnt->width+10) * (qnt->height+10) * 4);
 		extract_alpha(qnt, alpha, data + qnt->hdr_size + qnt->pixel_size);
 		for (int src_i = 0, dst_i = 0, p = 0; p < qnt->width * qnt->height; p++) {
-			tmp[dst_i++] = pixels[src_i++];
-			tmp[dst_i++] = pixels[src_i++];
-			tmp[dst_i++] = pixels[src_i++];
 			tmp[dst_i++] = alpha[p];
+			tmp[dst_i++] = pixels[src_i++];
+			tmp[dst_i++] = pixels[src_i++];
+			tmp[dst_i++] = pixels[src_i++];
 		}
 		free(alpha);
 		free(pixels);
@@ -275,11 +275,14 @@ void qnt_extract(struct cg *cg, uint8_t *data)
 		rmask = 0xFF00;
 		gmask = 0xFF0000;
 		bmask = 0xFF000000;
-	}
 
-	// create SDL surface
-	cg->s = SDL_CreateRGBSurfaceFrom(pixels, qnt->width, qnt->height, 24, qnt->width * 3,
-					 rmask, gmask, bmask, amask);
+		cg->s = SDL_CreateRGBSurfaceFrom(pixels, qnt->width, qnt->height, 32, qnt->width * 4,
+						 rmask, gmask, bmask, amask);
+	} else {
+		// create SDL surface
+		cg->s = SDL_CreateRGBSurfaceFrom(pixels, qnt->width, qnt->height, 24, qnt->width * 3,
+						 rmask, gmask, bmask, amask);
+	}
 	if (!cg->s)
 		ERROR("Creating surface failed: %s", SDL_GetError());
 
