@@ -28,7 +28,7 @@ TAILQ_HEAD(listhead, sact_sprite) sprite_list =
 
 struct sact_sprite *sact_get_sprite(int sp)
 {
-	if (sp >= nr_sprites)
+	if (sp < 0 || sp >= nr_sprites)
 		return NULL;
 	return sprites[sp];
 }
