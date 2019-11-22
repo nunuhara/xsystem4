@@ -39,7 +39,7 @@ void sdl_update_screen(void)
 SDL_Surface *sdl_make_rectangle(int w, int h, SDL_Color *color)
 {
 	Rectangle rect = { .x = 0, .y = 0, .w = w, .h = w };
-	SDL_Surface *s = SDL_CreateRGBSurface(0, w, h, 32, 0xFF00, 0xFF0000, 0xFF000000, 0xFF);
+	SDL_Surface *s = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB32);
 	uint32_t c = SDL_MapRGBA(s->format, color->r, color->g, color->b, color->a);
 	SDL_FillRect(s, &rect, c);
 	return s;

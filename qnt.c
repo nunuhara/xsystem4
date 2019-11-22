@@ -248,18 +248,13 @@ bool qnt_checkfmt(uint8_t *data)
 */
 SDL_Surface *qnt_extract(uint8_t *data)
 {
-	// FIXME: endianness?
-	uint32_t amask = 0x0;
-	uint32_t rmask = 0xFF;
-	uint32_t bmask = 0xFF00;
-	uint32_t gmask = 0xFF0000;
 	struct qnt_header *qnt = extract_header(data);
 	uint8_t *pixels = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10) * 3));
 	extract_pixel(qnt, pixels, data + qnt->hdr_size);
 
 	if (!qnt->alpha_size)
-		return SDL_CreateRGBSurfaceFrom(pixels, qnt->width, qnt->height, 24, qnt->width * 3,
-						rmask, gmask, bmask, amask);
+		return SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt->width, qnt->height, 24,
+							  qnt->width * 3, SDL_PIXELFORMAT_RGB24);
 
 	// combine color/alpha data
 	uint8_t *alpha = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10)));
@@ -274,11 +269,7 @@ SDL_Surface *qnt_extract(uint8_t *data)
 	free(alpha);
 	free(pixels);
 	pixels = tmp;
-	amask = 0xFF;
-	rmask = 0xFF00;
-	gmask = 0xFF0000;
-	bmask = 0xFF000000;
 
-	return SDL_CreateRGBSurfaceFrom(pixels, qnt->width, qnt->height, 32, qnt->width * 4,
-					rmask, gmask, bmask, amask);
+	return SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt->width, qnt->height, 32,
+						  qnt->width * 4, SDL_PIXELFORMAT_ARGB32);
 }
