@@ -29,10 +29,9 @@
  */
 enum cg_type {
 	ALCG_UNKNOWN = 1,
-	ALCG_BMP24   = 2,
-	ALCG_QNT     = 3,
-	ALCG_AJP     = 4,
-	ALCG_PNG     = 5
+	ALCG_QNT     = 2,
+	ALCG_AJP     = 3,
+	ALCG_PNG     = 4
 };
 
 /*
@@ -40,18 +39,14 @@ enum cg_type {
  */
 struct cg {
 	enum cg_type type; // cg format type
-	int no;
-	int z;
-	bool show;
-	SDL_Color color;
-	Rectangle rect;
+	bool pixel_alloc;
 	SDL_Surface *s;
 };
 
 bool cg_exists(int no);
 bool cg_load(struct cg *cg, int no);
-struct cg *cg_init(int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-void cg_reinit(struct cg *cg, int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+struct cg *cg_init(void);
+void cg_reinit(struct cg *cg);
 void cg_free(struct cg *cg);
 
 #endif /* SYSTEM4_CG_H */

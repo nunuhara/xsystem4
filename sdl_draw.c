@@ -36,7 +36,7 @@ void sdl_update_screen(void)
 	sdl.dirty = false;
 }
 
-static SDL_Surface *make_rectangle(int w, int h, SDL_Color *color)
+SDL_Surface *sdl_make_rectangle(int w, int h, SDL_Color *color)
 {
 	Rectangle rect = { .x = 0, .y = 0, .w = w, .h = w };
 	SDL_Surface *s = SDL_CreateRGBSurface(0, w, h, 32, 0xFF00, 0xFF0000, 0xFF000000, 0xFF);
@@ -69,11 +69,9 @@ void sdl_draw_rectangle(Rectangle *_rect, int pixels, uint8_t r, uint8_t g, uint
 	sdl.dirty = true;
 }
 
-void sdl_draw_cg(struct cg *cg)
+void sdl_draw_cg(struct cg *cg, Rectangle *dst)
 {
-	Rectangle src = { .x = 0, .y = 0, .w = cg->rect.w, .h = cg->rect.h };
-	if (!cg->s)
-		cg->s = make_rectangle(cg->rect.w, cg->rect.h, &cg->color);
-	SDL_BlitSurface(cg->s, &src, sdl.display, &cg->rect);
+	Rectangle src = { .x = 0, .y = 0, .w = cg->s->w, .h = cg->s->h };
+	SDL_BlitSurface(cg->s, &src, sdl.display, dst);
 	sdl.dirty = true;
 }

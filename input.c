@@ -25,22 +25,31 @@ static enum sact_keycode sdl_keytable[];
 bool mouse_focus = true;
 bool keyboard_focus = true;
 
-static SDL_Scancode sact_to_sdl_button(enum sact_keycode code)
+static enum sact_keycode sdl_to_sact_button(int button)
 {
-	switch (code) {
-	case VK_LBUTTON: return SDL_BUTTON_LEFT;
-	case VK_RBUTTON: return SDL_BUTTON_RIGHT;
-	case VK_MBUTTON: return SDL_BUTTON_MIDDLE;
-	default:         return 0;
+	switch (button) {
+	case SDL_BUTTON_LEFT:   return VK_LBUTTON;
+	case SDL_BUTTON_RIGHT:  return VK_RBUTTON;
+	case SDL_BUTTON_MIDDLE: return VK_MBUTTON;
+	default:                return 0;
 	}
 }
 
 bool key_is_down(enum sact_keycode code)
 {
-	int button = sact_to_sdl_button(code);
-	if (button)
-		return SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(button);
 	return key_state[code];
+}
+
+void key_clear_flag(void)
+{
+	for (int i = 0; i < VK_NR_KEYCODES; i++) {
+		key_state[i] = false;
+	}
+}
+
+void mouse_get_pos(int *x, int *y)
+{
+	SDL_GetMouseState(x, y);
 }
 
 static void key_event(SDL_KeyboardEvent *e, bool pressed)
@@ -50,9 +59,11 @@ static void key_event(SDL_KeyboardEvent *e, bool pressed)
 		key_state[code] = pressed;
 }
 
-void mouse_get_pos(int *x, int *y)
+static void mouse_event(SDL_MouseButtonEvent *e)
 {
-	SDL_GetMouseState(x, y);
+	enum sact_keycode code = sdl_to_sact_button(e->button);
+	if (code)
+		key_state[code] = e->state == SDL_PRESSED;
 }
 
 void handle_events(void)
@@ -87,6 +98,10 @@ void handle_events(void)
 			break;
 		case SDL_KEYUP:
 			key_event(&e.key, false);
+			break;
+		case SDL_MOUSEBUTTONUP:
+		case SDL_MOUSEBUTTONDOWN:
+			mouse_event(&e.button);
 			break;
 		default:
 			break;

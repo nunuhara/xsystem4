@@ -1,5 +1,4 @@
 /* Copyright (C) 2019 Nunuhara Cabbage <nunuhara@haniwa.technology>
- * Copyright (C) 2000- Fumihiko Murata <fmurata@p1.tcnet.ne.jp>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,23 +14,34 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#ifndef SYSTEM4_SDL_CORE_H
-#define SYSTEM4_SDL_CORE_H
+#ifndef SYSTEM4_SACT_H
+#define SYSTEM4_SACT_H
 
 #include <stdbool.h>
-#include <stdint.h>
+#include <SDL.h>
+#include "queue.h"
 #include "graphics.h"
 
 struct cg;
 
-int sdl_initialize(void);
-void sdl_remove(void);
+struct sact_sprite {
+	TAILQ_ENTRY(sact_sprite) entry;
+	struct cg *cg;
+	SDL_Color color;
+	Rectangle rect;
+	int z;
+	bool show;
+};
 
-void sdl_set_window_size(int x, int y, int w, int h);
-void sdl_fullscreen(bool on);
+struct sact_sprite *sact_get_sprite(int sp);
 
-void sdl_update_screen(void);
-void sdl_draw_cg(struct cg *cg, Rectangle *dst);
-SDL_Surface *sdl_make_rectangle(int w, int h, SDL_Color *color);
+int sact_Init(void);
+int sact_Update(void);
+int sact_SP_GetUnuseNum(int min);
+int sact_SP_GetMaxZ(void);
+int sact_SP_SetCG(int sp, int cg);
+int sact_SP_Create(int sp, int width, int height, int r, int g, int b, int a);
+int sact_SP_Delete(int sp);
+int sact_SP_SetZ(int sp, int z);
 
-#endif /* SYSTEM4_SDL_CORE_H */
+#endif /* SYSTEM4_SACT_H */

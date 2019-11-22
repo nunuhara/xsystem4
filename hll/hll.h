@@ -33,6 +33,9 @@
 	};								\
 	static union vm_value _hllfun_ ## fname(possibly_unused union vm_value *args)
 
+#define hll_defun_inline(fname, expr)			\
+	hll_defun(fname, a) { hll_return(expr); }
+
 #define hll_unimplemented(libname, fname)				\
 	hll_defun(fname, args) {					\
 		VM_ERROR("Unimplemented HLL function: " #libname "." #fname); \

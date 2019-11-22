@@ -246,7 +246,7 @@ bool qnt_checkfmt(uint8_t *data)
  *
  *   return: extracted image data and information
 */
-void qnt_extract(struct cg *cg, uint8_t *data)
+SDL_Surface *qnt_extract(uint8_t *data)
 {
 	// FIXME: endianness?
 	uint32_t amask = 0x0;
@@ -257,38 +257,28 @@ void qnt_extract(struct cg *cg, uint8_t *data)
 	uint8_t *pixels = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10) * 3));
 	extract_pixel(qnt, pixels, data + qnt->hdr_size);
 
+	if (!qnt->alpha_size)
+		return SDL_CreateRGBSurfaceFrom(pixels, qnt->width, qnt->height, 24, qnt->width * 3,
+						rmask, gmask, bmask, amask);
+
 	// combine color/alpha data
-	if (qnt->alpha_size) {
-		uint8_t *alpha = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10)));
-		uint8_t *tmp = malloc((qnt->width+10) * (qnt->height+10) * 4);
-		extract_alpha(qnt, alpha, data + qnt->hdr_size + qnt->pixel_size);
-		for (int src_i = 0, dst_i = 0, p = 0; p < qnt->width * qnt->height; p++) {
-			tmp[dst_i++] = alpha[p];
-			tmp[dst_i++] = pixels[src_i++];
-			tmp[dst_i++] = pixels[src_i++];
-			tmp[dst_i++] = pixels[src_i++];
-		}
-		free(alpha);
-		free(pixels);
-		pixels = tmp;
-		amask = 0xFF;
-		rmask = 0xFF00;
-		gmask = 0xFF0000;
-		bmask = 0xFF000000;
-
-		cg->s = SDL_CreateRGBSurfaceFrom(pixels, qnt->width, qnt->height, 32, qnt->width * 4,
-						 rmask, gmask, bmask, amask);
-	} else {
-		// create SDL surface
-		cg->s = SDL_CreateRGBSurfaceFrom(pixels, qnt->width, qnt->height, 24, qnt->width * 3,
-						 rmask, gmask, bmask, amask);
+	uint8_t *alpha = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10)));
+	uint8_t *tmp = malloc((qnt->width+10) * (qnt->height+10) * 4);
+	extract_alpha(qnt, alpha, data + qnt->hdr_size + qnt->pixel_size);
+	for (int src_i = 0, dst_i = 0, p = 0; p < qnt->width * qnt->height; p++) {
+		tmp[dst_i++] = alpha[p];
+		tmp[dst_i++] = pixels[src_i++];
+		tmp[dst_i++] = pixels[src_i++];
+		tmp[dst_i++] = pixels[src_i++];
 	}
-	if (!cg->s)
-		ERROR("Creating surface failed: %s", SDL_GetError());
+	free(alpha);
+	free(pixels);
+	pixels = tmp;
+	amask = 0xFF;
+	rmask = 0xFF00;
+	gmask = 0xFF0000;
+	bmask = 0xFF000000;
 
-	cg->type   = ALCG_QNT;
-	cg->rect.x = qnt->x0; // ???
-	cg->rect.y = qnt->y0; // ???
-	cg->rect.w = qnt->width;
-	cg->rect.h = qnt->height;
+	return SDL_CreateRGBSurfaceFrom(pixels, qnt->width, qnt->height, 32, qnt->width * 4,
+					rmask, gmask, bmask, amask);
 }

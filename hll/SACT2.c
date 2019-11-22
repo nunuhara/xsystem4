@@ -23,325 +23,234 @@
 #include "../input.h"
 #include "../queue.h"
 #include "../sdl_core.h"
-
-struct SACT2_sprite {
-	TAILQ_ENTRY(SACT2_sprite) entry;
-	struct cg *cg;
-	bool used;
-};
-
-static struct SACT2_sprite *sprites = NULL;
-static int nr_sprites = 0;
-
-TAILQ_HEAD(listhead, SACT2_sprite) sprite_list =
-	TAILQ_HEAD_INITIALIZER(sprite_list);
-
-static void sprite_register(struct SACT2_sprite *sp)
-{
-	struct SACT2_sprite *p;
-	TAILQ_FOREACH(p, &sprite_list, entry) {
-		if (p->cg->z > sp->cg->z) {
-			TAILQ_INSERT_BEFORE(p, sp, entry);
-			return;
-		}
-	}
-	TAILQ_INSERT_TAIL(&sprite_list, sp, entry);
-}
+#include "../sact.h"
 
 // int Init(imain_system pIMainSystem, int nCGCacheSize)
-hll_defun(Init, args)
-{
-	sdl_initialize();
-	hll_return(1);
-}
-
+hll_defun_inline(Init, sact_Init());
 // int Error(string strErr)
-hll_unimplemented(SACT2, Error)
+hll_unimplemented(SACT2, Error);
 // int SetWP(int nCG)
-hll_warn_unimplemented(SACT2, SetWP, 1)
+hll_warn_unimplemented(SACT2, SetWP, 1);
 // int SetWP_Color(int nR, int nG, int nB)
-hll_warn_unimplemented(SACT2, SetWP_Color, 1)
+hll_warn_unimplemented(SACT2, SetWP_Color, 1);
 // int WP_GetSP(int nSP)
-hll_unimplemented(SACT2, WP_GetSP)
+hll_unimplemented(SACT2, WP_GetSP);
 // int WP_SetSP(int nSP)
-hll_unimplemented(SACT2, WP_SetSP)
-
+hll_unimplemented(SACT2, WP_SetSP);
 // int GetScreenWidth(void)
-hll_defun(GetScreenWidth, _)
-{
-	hll_return(config.view_width);
-}
-
+hll_defun_inline(GetScreenWidth, config.view_width);
 // int GetScreenHeight(void)
-hll_defun(GetScreenHeight, _)
-{
-	hll_return(config.view_height);
-}
-
+hll_defun_inline(GetScreenHeight, config.view_height);
 // int GetMainSurfaceNumber(void)
-hll_unimplemented(SACT2, GetMainSurfaceNumber)
-
+hll_unimplemented(SACT2, GetMainSurfaceNumber);
 // int Update(void)
-hll_defun(Update, _)
-{
-	handle_events();
-	struct SACT2_sprite *p;
-	TAILQ_FOREACH_REVERSE(p, &sprite_list, listhead, entry) {
-		if (!p->cg->show)
-			continue;
-		sdl_draw_cg(p->cg);
-	}
-	sdl_update_screen();
-	hll_return(1);
-}
-
+hll_defun_inline(Update, sact_Update());
 // int Effect(int nType, int nTime, int nfKey)
-hll_warn_unimplemented(SACT2, Effect, 1)
+hll_warn_unimplemented(SACT2, Effect, 1);
 // int EffectSetMask(int nCG)
-hll_unimplemented(SACT2, EffectSetMask)
+hll_unimplemented(SACT2, EffectSetMask);
 // int EffectSetMaskSP(int nSP)
-hll_unimplemented(SACT2, EffectSetMaskSP)
+hll_unimplemented(SACT2, EffectSetMaskSP);
 // void QuakeScreen(int nAmplitudeX, int nAmplitudeY, int nTime, int nfKey)
-hll_unimplemented(SACT2, QuakeScreen)
+hll_unimplemented(SACT2, QuakeScreen);
 // void QUAKE_SET_CROSS(int nAmpX, int nAmpY)
-hll_unimplemented(SACT2, QUAKE_SET_CROSS)
+hll_unimplemented(SACT2, QUAKE_SET_CROSS);
 // void QUAKE_SET_ROTATION(int nAmp, int nCycle)
-hll_unimplemented(SACT2, QUAKE_SET_ROTATION)
-
+hll_unimplemented(SACT2, QUAKE_SET_ROTATION);
 // int SP_GetUnuseNum(int nMin)
-hll_defun(SP_GetUnuseNum, args)
-{
-	int nMin = args[0].i;
-
-	for (int i = nMin; i < nr_sprites; i++) {
-		if (!sprites[i].used)
-			hll_return(i);
-	}
-
-	int n = max(nMin, nr_sprites);
-	nr_sprites = n + 256;
-	sprites = xrealloc(sprites, sizeof(struct SACT2_sprite) * nr_sprites);
-	hll_return(n);
-}
-
+hll_defun_inline(SP_GetUnuseNum, sact_SP_GetUnuseNum(a[0].i));
 // int SP_Count(void)
-hll_unimplemented(SACT2, SP_Count)
+hll_unimplemented(SACT2, SP_Count);
 // int SP_Enum(ref array@int anSP)
-hll_unimplemented(SACT2, SP_Enum)
-
+hll_unimplemented(SACT2, SP_Enum);
 // int SP_GetMaxZ(void)
-hll_defun(SP_GetMaxZ, args)
-{
-	if (TAILQ_EMPTY(&sprite_list))
-		hll_return(0);
-	hll_return(TAILQ_LAST(&sprite_list, listhead)->cg->z);
-}
-
+hll_defun_inline(SP_GetMaxZ, sact_SP_GetMaxZ());
 // int SP_SetCG(int nSP, int nCG)
-hll_defun(SP_SetCG, args)
-{
-	int sp = args[0].i;
-	int cg = args[1].i;
-
-	if (!cg_load(sprites[sp].cg, cg - 1))
-		hll_return(0);
-	hll_return(1);
-}
-
+hll_defun_inline(SP_SetCG, sact_SP_SetCG(a[0].i, a[1].i));
 // int SP_SetCGFromFile(int nSP, string pIStringFileName)
-hll_unimplemented(SACT2, SP_SetCGFromFile)
+hll_unimplemented(SACT2, SP_SetCGFromFile);
 // int SP_SaveCG(int nSP, string pIStringFileName)
-hll_unimplemented(SACT2, SP_SaveCG)
-
+hll_unimplemented(SACT2, SP_SaveCG);
 // int SP_Create(int nSP, int nWidth, int nHeight, int nR, int nG, int nB, int nBlendRate)
-hll_defun(SP_Create, args)
-{
-	int sp     = args[0].i;
-	int width  = args[1].i;
-	int height = args[2].i;
-	int r      = args[3].i;
-	int g      = args[4].i;
-	int b      = args[5].i;
-	int a      = args[6].i;
-
-	if (sprites[sp].used && sprites[sp].cg) {
-		cg_reinit(sprites[sp].cg, width, height, r, g, b, a);
-	} else {
-		sprites[sp].used = true;
-		sprites[sp].cg = cg_init(width, height, r, g, b, a);
-		sprite_register(&sprites[sp]);
-	}
-	hll_return(1);
-}
-
+hll_defun_inline(SP_Create, sact_SP_Create(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i));
 // int SP_CreatePixelOnly(int nSP, int nWidth, int nHeight)
-hll_unimplemented(SACT2, SP_CreatePixelOnly)
+hll_unimplemented(SACT2, SP_CreatePixelOnly);
 // int SP_CreateCustom(int nSP)
-hll_unimplemented(SACT2, SP_CreateCustom)
-
+hll_unimplemented(SACT2, SP_CreateCustom);
 // int SP_Delete(int nSP)
-hll_defun(SP_Delete, args)
-{
-	struct SACT2_sprite *sp = &sprites[args[0].i];
-	if (!sp->used)
-		hll_return(0);
-	TAILQ_REMOVE(&sprite_list, sp, entry);
-	cg_free(sp->cg);
-	sp->cg = NULL;
-	hll_return(1);
-}
+hll_defun_inline(SP_Delete, sact_SP_Delete(a[0].i));
 
 // int SP_SetPos(int nSP, int nX, int nY)
 hll_defun(SP_SetPos, args)
 {
-	int sp = args[0].i;
-	sprites[sp].cg->rect.x = args[1].i;
-	sprites[sp].cg->rect.y = args[2].i;
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(1);
+	sp->rect.x = args[1].i;
+	sp->rect.y = args[2].i;
 	hll_return(1);
 }
 
 // int SP_SetX(int nSP, int nX)
 hll_defun(SP_SetX, args)
 {
-	sprites[args[0].i].cg->rect.x = args[1].i;
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	sp->rect.x = args[1].i;
 	hll_return(1);
 }
 
 // int SP_SetY(int nSP, int nY)
 hll_defun(SP_SetY, args)
 {
-	sprites[args[0].i].cg->rect.y = args[1].i;
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	sp->rect.y = args[1].i;
 	hll_return(1);
 }
 
 // int SP_SetZ(int nSP, int nZ)
 hll_defun(SP_SetZ, args)
 {
-	sprites[args[0].i].cg->z = args[1].i;
-	hll_return(1);
+	hll_return(sact_SP_SetZ(args[0].i, args[1].i));
 }
 
 // int SP_SetBlendRate(int nSP, int nBlendRate)
 hll_defun(SP_SetBlendRate, args)
 {
-	sprites[args[0].i].cg->color.a = args[1].i;
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	sp->color.a = args[1].i;
 	hll_return(1);
 }
 
 // int SP_SetShow(int nSP, int nfShow)
 hll_defun(SP_SetShow, args)
 {
-	sprites[args[0].i].cg->show = !!args[1].i;
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	sp->show = !!args[1].i;
 	hll_return(1);
 }
 
 // int SP_SetDrawMethod(int nSP, int nMethod)
-hll_unimplemented(SACT2, SP_SetDrawMethod)
+hll_unimplemented(SACT2, SP_SetDrawMethod);
 // int SP_IsUsing(int nSP)
-hll_unimplemented(SACT2, SP_IsUsing)
+hll_unimplemented(SACT2, SP_IsUsing);
 // int SP_ExistAlpha(int nSP)
-hll_unimplemented(SACT2, SP_ExistAlpha)
+hll_unimplemented(SACT2, SP_ExistAlpha);
 
 // int SP_GetPosX(int nSP)
 hll_defun(SP_GetPosX, args)
 {
-	hll_return(sprites[args[0].i].cg->rect.x);
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	hll_return(sp->rect.x);
 }
 
 // int SP_GetPosY(int nSP)
 hll_defun(SP_GetPosY, args)
 {
-	hll_return(sprites[args[0].i].cg->rect.y);
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	hll_return(sp->rect.y);
 }
 
 // int SP_GetWidth(int nSP)
 hll_defun(SP_GetWidth, args)
 {
-	hll_return(sprites[args[0].i].cg->rect.w);
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	hll_return(sp->rect.w);
 }
 
 // int SP_GetHeight(int nSP)
 hll_defun(SP_GetHeight, args)
 {
-	hll_return(sprites[args[0].i].cg->rect.h);
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	hll_return(sp->rect.h);
 }
 
 // int SP_GetZ(int nSP)
 hll_defun(SP_GetZ, args)
 {
-	hll_return(sprites[args[0].i].cg->z);
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	hll_return(sp->z);
 }
 
 // int SP_GetBlendRate(int nSP)
 hll_defun(SP_GetBlendRate, args)
 {
-	hll_return((int)sprites[args[0].i].cg->color.a);
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	hll_return((int)sp->color.a);
 }
 
 // int SP_GetShow(int nSP)
 hll_defun(SP_GetShow, args)
 {
-	hll_return(sprites[args[0].i].cg->show);
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp || !sp->cg) hll_return(0);
+	hll_return(sp->show);
 }
 
 // int SP_GetDrawMethod(int nSP)
-hll_warn_unimplemented(SACT2, SP_GetDrawMethod, 0)
+hll_warn_unimplemented(SACT2, SP_GetDrawMethod, 0);
 // int SP_SetTextHome(int nSP, int nX, int nY)
-hll_warn_unimplemented(SACT2, SP_SetTextHome, 0)
+hll_warn_unimplemented(SACT2, SP_SetTextHome, 0);
 // int SP_SetTextLineSpace(int nSP, int nPx)
-hll_unimplemented(SACT2, SP_SetTextLineSpace)
+hll_unimplemented(SACT2, SP_SetTextLineSpace);
 // int SP_SetTextCharSpace(int nSP, int nPx)
-hll_unimplemented(SACT2, SP_SetTextCharSpace)
+hll_unimplemented(SACT2, SP_SetTextCharSpace);
 // int SP_SetTextPos(int nSP, int nX, int nY)
-hll_warn_unimplemented(SACT2, SP_SetTextPos, 0)
+hll_warn_unimplemented(SACT2, SP_SetTextPos, 0);
 // int SP_TextDraw(int nSP, string text, struct tm)
-hll_warn_unimplemented(SACT2, SP_TextDraw, 1)
+hll_warn_unimplemented(SACT2, SP_TextDraw, 1);
 // int SP_TextClear(int nSP)
-hll_warn_unimplemented(SACT2, SP_TextClear, 1)
+hll_warn_unimplemented(SACT2, SP_TextClear, 1);
 // int SP_TextHome(int nSP, int nTextSize)
-hll_warn_unimplemented(SACT2, SP_TextHome, 1)
+hll_warn_unimplemented(SACT2, SP_TextHome, 1);
 // int SP_TextNewLine(int nSP, int nTextSize)
-hll_unimplemented(SACT2, SP_TextNewLine)
+hll_unimplemented(SACT2, SP_TextNewLine);
 // int SP_TextBackSpace(int nSP)
-hll_unimplemented(SACT2, SP_TextBackSpace)
+hll_unimplemented(SACT2, SP_TextBackSpace);
 // int SP_TextCopy(int nDstSP, int nSrcSP)
-hll_unimplemented(SACT2, SP_TextCopy)
+hll_unimplemented(SACT2, SP_TextCopy);
 // int SP_GetTextHomeX(int nSP)
-hll_unimplemented(SACT2, SP_GetTextHomeX)
+hll_unimplemented(SACT2, SP_GetTextHomeX);
 // int SP_GetTextHomeY(int nSP)
-hll_unimplemented(SACT2, SP_GetTextHomeY)
+hll_unimplemented(SACT2, SP_GetTextHomeY);
 // int SP_GetTextCharSpace(int nSP)
-hll_unimplemented(SACT2, SP_GetTextCharSpace)
+hll_unimplemented(SACT2, SP_GetTextCharSpace);
 // int SP_GetTextPosX(int nSP)
-hll_unimplemented(SACT2, SP_GetTextPosX)
+hll_warn_unimplemented(SACT2, SP_GetTextPosX, 0);
 // int SP_GetTextPosY(int nSP)
-hll_unimplemented(SACT2, SP_GetTextPosY)
+hll_warn_unimplemented(SACT2, SP_GetTextPosY, 0);
 // int SP_GetTextLineSpace(int nSP)
-hll_unimplemented(SACT2, SP_GetTextLineSpace)
+hll_warn_unimplemented(SACT2, SP_GetTextLineSpace, 0);
 // int SP_IsPtIn(int nSP, int nX, int nY)
-hll_unimplemented(SACT2, SP_IsPtIn)
+hll_unimplemented(SACT2, SP_IsPtIn);
 
 // int SP_IsPtInRect(int nSP, int nX, int nY)
 hll_defun(SP_IsPtInRect, args)
 {
-	struct SACT2_sprite *sp = &sprites[args[0].i];
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
 	Point p = { .x = args[1].i, .y = args[2].i };
-
-	if (!sp->used)
-		hll_return(0);
-	hll_return(!!SDL_PointInRect(&p, &sp->cg->rect));
+	if (!sp || !sp->cg) hll_return(0);
+	hll_return(!!SDL_PointInRect(&p, &sp->rect));
 }
 
 // int GAME_MSG_GetNumof(void)
-hll_unimplemented(SACT2, GAME_MSG_GetNumof)
+hll_unimplemented(SACT2, GAME_MSG_GetNumof);
 // void GAME_MSG_Get(int nIndex, ref string text)
-hll_unimplemented(SACT2, GAME_MSG_Get)
+hll_unimplemented(SACT2, GAME_MSG_Get);
 // void IntToZenkaku(ref string s, int nValue, int nFigures, int nfZeroPadding)
-hll_unimplemented(SACT2, IntToZenkaku)
+hll_unimplemented(SACT2, IntToZenkaku);
 // void IntToHankaku(ref string s, int nValue, int nFigures, int nfZeroPadding)
-hll_unimplemented(SACT2, IntToHankaku)
+hll_unimplemented(SACT2, IntToHankaku);
 // int StringPopFront(ref string sDst, ref string sSrc)
-hll_unimplemented(SACT2, StringPopFront)
+hll_unimplemented(SACT2, StringPopFront);
 
 // int Mouse_GetPos(ref int pnX, ref int pnY)
 hll_defun(Mouse_GetPos, args)
@@ -351,27 +260,27 @@ hll_defun(Mouse_GetPos, args)
 }
 
 // int Mouse_SetPos(int nX, int nY)
-hll_warn_unimplemented(SACT2, Mouse_SetPos, 1)
+hll_warn_unimplemented(SACT2, Mouse_SetPos, 1);
 // void Mouse_ClearWheel(void)
-hll_warn_unimplemented(SACT2, Mouse_ClearWheel, 0)
+hll_warn_unimplemented(SACT2, Mouse_ClearWheel, 0);
 
 // void Mouse_GetWheel(ref int pnForward, ref int pnBack)
 hll_defun(Mouse_GetWheel, args)
 {
-	hll_unimplemented_warning(SACT2, Mouse_GetWheel);
+	//hll_unimplemented_warning(SACT2, Mouse_GetWheel);
 	*args[0].iref = 0;
 	*args[1].iref = 0;
 	hll_return(0);
 }
 
 // void Joypad_ClearKeyDownFlag(int nNum)
-hll_warn_unimplemented(SACT2, Joypad_ClearKeyDownFlag, 0)
+hll_warn_unimplemented(SACT2, Joypad_ClearKeyDownFlag, 0);
 // int Joypad_IsKeyDown(int nNum, int nKey)
-hll_unimplemented(SACT2, Joypad_IsKeyDown)
+hll_unimplemented(SACT2, Joypad_IsKeyDown);
 // int Joypad_GetNumof(void)
-hll_unimplemented(SACT2, Joypad_GetNumof)
+hll_unimplemented(SACT2, Joypad_GetNumof);
 // void JoypadQuake_Set(int nNum, int nType, int nMagnitude)
-hll_unimplemented(SACT2, JoypadQuake_Set)
+hll_unimplemented(SACT2, JoypadQuake_Set);
 
 // bool Joypad_GetAnalogStickStatus(int nNum, int nType, ref float pfDegree, ref float pfPower)
 hll_defun(Joypad_GetAnalogStickStatus, args)
@@ -385,7 +294,7 @@ hll_defun(Joypad_GetAnalogStickStatus, args)
 // bool Joypad_GetDigitalStickStatus(int nNum, int nType, ref bool pbLeft, ref bool pbRight, ref bool pbUp, ref bool pbDown)
 hll_defun(Joypad_GetDigitalStickStatus, args)
 {
-	hll_unimplemented_warning(SACT2, Joypad_GetDigitalStickStatus);
+	//hll_unimplemented_warning(SACT2, Joypad_GetDigitalStickStatus);
 	*args[2].iref = 0;
 	*args[3].iref = 0;
 	*args[4].iref = 0;
@@ -394,170 +303,135 @@ hll_defun(Joypad_GetDigitalStickStatus, args)
 }
 
 // int Key_ClearFlag(void)
-hll_warn_unimplemented(SACT2, Key_ClearFlag, 1)
-
+hll_defun_inline(Key_ClearFlag, (key_clear_flag(), 1));
 // int Key_IsDown(int nKeyCode)
-hll_defun(Key_IsDown, args)
-{
-	hll_return(key_is_down(args[0].i));
-}
-
+hll_defun_inline(Key_IsDown, key_is_down(a[0].i));
 // int Timer_Get(void)
-hll_defun(Timer_Get, _)
-{
-	hll_return(vm_time());
-}
-
+hll_defun_inline(Timer_Get, vm_time());
 // int CG_IsExist(int nCG)
-hll_defun(CG_IsExist, args)
-{
-	hll_return(cg_exists(args[0].i));
-}
-
+hll_defun_inline(CG_IsExist, cg_exists(a[0].i));
 // int CG_GetMetrics(int nCG, ref struct cm)
-hll_unimplemented(SACT2, CG_GetMetrics)
+hll_unimplemented(SACT2, CG_GetMetrics);
 // int CSV_Load(string pIStringFileName)
-hll_unimplemented(SACT2, CSV_Load)
+hll_unimplemented(SACT2, CSV_Load);
 // int CSV_Save(void)
-hll_unimplemented(SACT2, CSV_Save)
+hll_unimplemented(SACT2, CSV_Save);
 // int CSV_SaveAs(string pIStringFileName)
-hll_unimplemented(SACT2, CSV_SaveAs)
+hll_unimplemented(SACT2, CSV_SaveAs);
 // int CSV_CountLines(void)
-hll_unimplemented(SACT2, CSV_CountLines)
+hll_unimplemented(SACT2, CSV_CountLines);
 // int CSV_CountColumns(void)
-hll_unimplemented(SACT2, CSV_CountColumns)
+hll_unimplemented(SACT2, CSV_CountColumns);
 // void CSV_Get(ref string pIString, int nLine, int nColumn)
-hll_unimplemented(SACT2, CSV_Get)
+hll_unimplemented(SACT2, CSV_Get);
 // int CSV_Set(int nLine, int nColumn, string pIStringData)
-hll_unimplemented(SACT2, CSV_Set)
+hll_unimplemented(SACT2, CSV_Set);
 // int CSV_GetInt(int nLine, int nColumn)
-hll_unimplemented(SACT2, CSV_GetInt)
+hll_unimplemented(SACT2, CSV_GetInt);
 // void CSV_SetInt(int nLine, int nColumn, int nData)
-hll_unimplemented(SACT2, CSV_SetInt)
+hll_unimplemented(SACT2, CSV_SetInt);
 // void CSV_Realloc(int nLines, int nColumns)
-hll_unimplemented(SACT2, CSV_Realloc)
-
+hll_unimplemented(SACT2, CSV_Realloc);
 // int Music_IsExist(int nNum)
-hll_warn_unimplemented(SACT2, Music_IsExist, 1)
-
+hll_warn_unimplemented(SACT2, Music_IsExist, 1);
 // int Music_Prepare(int nCh, int nNum)
-hll_warn_unimplemented(SACT2, Music_Prepare, 1)
-
+hll_warn_unimplemented(SACT2, Music_Prepare, 1);
 // int Music_Unprepare(int nCh)
-hll_warn_unimplemented(SACT2, Music_Unprepare, 1)
-
+hll_warn_unimplemented(SACT2, Music_Unprepare, 1);
 // int Music_Play(int nCh)
-hll_warn_unimplemented(SACT2, Music_Play, 1)
-
+hll_warn_unimplemented(SACT2, Music_Play, 1);
 // int Music_Stop(int nCh)
-hll_warn_unimplemented(SACT2, Music_Stop, 1)
-
+hll_warn_unimplemented(SACT2, Music_Stop, 1);
 // int Music_IsPlay(int nCh)
-hll_warn_unimplemented(SACT2, Music_IsPlay, 1)
-
+hll_warn_unimplemented(SACT2, Music_IsPlay, 1);
 // int Music_SetLoopCount(int nCh, int nCount)
-hll_warn_unimplemented(SACT2, Music_SetLoopCount, 1)
-
+hll_warn_unimplemented(SACT2, Music_SetLoopCount, 1);
 // int Music_GetLoopCount(int nCh)
-hll_warn_unimplemented(SACT2, Music_GetLoopCount, 1)
-
+hll_warn_unimplemented(SACT2, Music_GetLoopCount, 1);
 // int Music_SetLoopStartPos(int nCh, int dwPos)
-hll_warn_unimplemented(SACT2, Music_SetLoopStartPos, 1)
-
+hll_warn_unimplemented(SACT2, Music_SetLoopStartPos, 1);
 // int Music_SetLoopEndPos(int nCh, int dwPos)
-hll_warn_unimplemented(SACT2, Music_SetLoopEndPos, 1)
-
+hll_warn_unimplemented(SACT2, Music_SetLoopEndPos, 1);
 // int Music_Fade(int nCh, int nTime, int nVolume, int bStop)
-hll_warn_unimplemented(SACT2, Music_Fade, 1)
-
+hll_warn_unimplemented(SACT2, Music_Fade, 1);
 // int Music_StopFade(int nCh)
-hll_warn_unimplemented(SACT2, Music_StopFade, 1)
-
+hll_warn_unimplemented(SACT2, Music_StopFade, 1);
 // int Music_IsFade(int nCh)
-hll_warn_unimplemented(SACT2, Music_IsFade, 1)
-
+hll_warn_unimplemented(SACT2, Music_IsFade, 1);
 // int Music_Pause(int nCh)
-hll_warn_unimplemented(SACT2, Music_Pause, 1)
-
+hll_warn_unimplemented(SACT2, Music_Pause, 1);
 // int Music_Restart(int nCh)
-hll_warn_unimplemented(SACT2, Music_Restart, 1)
-
+hll_warn_unimplemented(SACT2, Music_Restart, 1);
 // int Music_IsPause(int nCh)
-hll_warn_unimplemented(SACT2, Music_IsPause, 1)
-
+hll_warn_unimplemented(SACT2, Music_IsPause, 1);
 // int Music_GetPos(int nCh)
-hll_warn_unimplemented(SACT2, Music_GetPos, 1)
-
+hll_warn_unimplemented(SACT2, Music_GetPos, 1);
 // int Music_GetLength(int nCh)
-hll_warn_unimplemented(SACT2, Music_GetLength, 1)
-
+hll_warn_unimplemented(SACT2, Music_GetLength, 1);
 // int Music_GetSamplePos(int nCh)
-hll_warn_unimplemented(SACT2, Music_GetSamplePos, 1)
-
+hll_warn_unimplemented(SACT2, Music_GetSamplePos, 1);
 // int Music_GetSampleLength(int nCh)
-hll_warn_unimplemented(SACT2, Music_GetSampleLength, 1)
-
+hll_warn_unimplemented(SACT2, Music_GetSampleLength, 1);
 // int Music_Seek(int nCh, int dwPos)
-hll_warn_unimplemented(SACT2, Music_Seek, 1)
-
+hll_warn_unimplemented(SACT2, Music_Seek, 1);
 // int Sound_IsExist(int nNum)
-hll_unimplemented(SACT2, Sound_IsExist)
+hll_unimplemented(SACT2, Sound_IsExist);
 // int Sound_GetUnuseChannel(void)
-hll_unimplemented(SACT2, Sound_GetUnuseChannel)
+hll_unimplemented(SACT2, Sound_GetUnuseChannel);
 // int Sound_Prepare(int nCh, int nNum)
-hll_unimplemented(SACT2, Sound_Prepare)
+hll_unimplemented(SACT2, Sound_Prepare);
 // int Sound_Unprepare(int nCh)
-hll_unimplemented(SACT2, Sound_Unprepare)
+hll_unimplemented(SACT2, Sound_Unprepare);
 // int Sound_Play(int nCh)
-hll_unimplemented(SACT2, Sound_Play)
+hll_unimplemented(SACT2, Sound_Play);
 // int Sound_Stop(int nCh)
-hll_unimplemented(SACT2, Sound_Stop)
+hll_unimplemented(SACT2, Sound_Stop);
 // int Sound_IsPlay(int nCh)
-hll_unimplemented(SACT2, Sound_IsPlay)
+hll_unimplemented(SACT2, Sound_IsPlay);
 // int Sound_SetLoopCount(int nCh, int nCount)
-hll_unimplemented(SACT2, Sound_SetLoopCount)
+hll_unimplemented(SACT2, Sound_SetLoopCount);
 // int Sound_GetLoopCount(int nCh)
-hll_unimplemented(SACT2, Sound_GetLoopCount)
+hll_unimplemented(SACT2, Sound_GetLoopCount);
 // int Sound_Fade(int nCh, int nTime, int nVolume, int bStop)
-hll_unimplemented(SACT2, Sound_Fade)
+hll_unimplemented(SACT2, Sound_Fade);
 // int Sound_StopFade(int nCh)
-hll_unimplemented(SACT2, Sound_StopFade)
+hll_unimplemented(SACT2, Sound_StopFade);
 // int Sound_IsFade(int nCh)
-hll_unimplemented(SACT2, Sound_IsFade)
+hll_unimplemented(SACT2, Sound_IsFade);
 // int Sound_GetPos(int nCh)
-hll_unimplemented(SACT2, Sound_GetPos)
+hll_unimplemented(SACT2, Sound_GetPos);
 // int Sound_GetLength(int nCh)
-hll_unimplemented(SACT2, Sound_GetLength)
+hll_unimplemented(SACT2, Sound_GetLength);
 // int Sound_ReverseLR(int nCh)
-hll_unimplemented(SACT2, Sound_ReverseLR)
+hll_unimplemented(SACT2, Sound_ReverseLR);
 // int Sound_GetVolume(int nCh)
-hll_unimplemented(SACT2, Sound_GetVolume)
+hll_unimplemented(SACT2, Sound_GetVolume);
 // int Sound_GetTimeLength(int nCh)
-hll_unimplemented(SACT2, Sound_GetTimeLength)
+hll_unimplemented(SACT2, Sound_GetTimeLength);
 // int Sound_GetGroupNum(int nCh)
-hll_unimplemented(SACT2, Sound_GetGroupNum)
+hll_unimplemented(SACT2, Sound_GetGroupNum);
 // bool Sound_PrepareFromFile(int nCh, string szFileName)
-hll_unimplemented(SACT2, Sound_PrepareFromFile)
+hll_unimplemented(SACT2, Sound_PrepareFromFile);
 // void System_GetDate(ref int pnYear, ref int pnMonth, ref int pnDay, ref int pnDayOfWeek)
-hll_unimplemented(SACT2, System_GetDate)
+hll_unimplemented(SACT2, System_GetDate);
 // void System_GetTime(ref int pnHour, ref int pnMinute, ref int pnSecond, ref int pnMilliSeconds)
-hll_unimplemented(SACT2, System_GetTime)
+hll_unimplemented(SACT2, System_GetTime);
 // void CG_RotateRGB(int nDest, int nDx, int nDy, int nWidth, int nHeight, int nRotateType)
-hll_unimplemented(SACT2, CG_RotateRGB)
+hll_unimplemented(SACT2, CG_RotateRGB);
 // void CG_BlendAMapBin(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nBorder)
-hll_unimplemented(SACT2, CG_BlendAMapBin)
+hll_unimplemented(SACT2, CG_BlendAMapBin);
 // void Debug_Pause(void)
-hll_unimplemented(SACT2, Debug_Pause)
+hll_unimplemented(SACT2, Debug_Pause);
 // void Debug_GetFuncStack(ref string sz, int nNest)
-hll_unimplemented(SACT2, Debug_GetFuncStack)
+hll_unimplemented(SACT2, Debug_GetFuncStack);
 // int SP_GetAMapValue(int nSP, int nX, int nY)
-hll_unimplemented(SACT2, SP_GetAMapValue)
+hll_unimplemented(SACT2, SP_GetAMapValue);
 // bool SP_GetPixelValue(int nSP, int nX, int nY, ref int pnR, ref int pnG, ref int pnB)
-hll_unimplemented(SACT2, SP_GetPixelValue)
+hll_unimplemented(SACT2, SP_GetPixelValue);
 // int SP_SetBrightness(int nSP, int nBrightness)
-hll_unimplemented(SACT2, SP_SetBrightness)
+hll_unimplemented(SACT2, SP_SetBrightness);
 // int SP_GetBrightness(int nSP)
-hll_unimplemented(SACT2, SP_GetBrightness)
+hll_unimplemented(SACT2, SP_GetBrightness);
 
 hll_deflib(SACT2) {
 	hll_export(Init),

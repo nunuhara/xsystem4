@@ -48,7 +48,7 @@ void _cg_free(struct cg *cg)
 	if (!cg)
 		return;
 	if (cg->s) {
-		if (cg->no >= 0)
+		if (cg->pixel_alloc)
 			free(cg->s->pixels);
 		SDL_FreeSurface(cg->s);
 	}
@@ -86,8 +86,9 @@ bool cg_load(struct cg *cg, int no)
 	//  size is only pixel data size
 	switch(type) {
 	case ALCG_QNT:
-		qnt_extract(cg, dfile->data);
-		size = (cg->rect.w * cg->rect.h) * 3;
+		cg->type = ALCG_QNT;
+		cg->s = qnt_extract(dfile->data);
+		cg->pixel_alloc = true;
 		break;
 	case ALCG_AJP:
 		// TODO
@@ -102,28 +103,24 @@ bool cg_load(struct cg *cg, int no)
 	// ok to free
 	ald_free_data(dfile);
 
-	cg->no = no;
 	return true;
 }
 
-void _cg_init(struct cg *cg, int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+void _cg_init(struct cg *cg)
 {
-	cg->no = -1;
-	cg->rect.w = width;
-	cg->rect.h = height;
-	cg->color = (SDL_Color) { .r = r, .g = g, .b = b, .a = a };
+	cg->pixel_alloc = false;
 	cg->s = NULL;
 }
 
-void cg_reinit(struct cg *cg, int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+void cg_reinit(struct cg *cg)
 {
 	_cg_free(cg);
-	_cg_init(cg, width, height, r, g, b, a);
+	_cg_init(cg);
 }
 
-struct cg *cg_init(int width, int height, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+struct cg *cg_init(void)
 {
 	struct cg *cg = calloc(1, sizeof(struct cg));
-	_cg_init(cg, width, height, r, g, b, a);
+	_cg_init(cg);
 	return cg;
 }

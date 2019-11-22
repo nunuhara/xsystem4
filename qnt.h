@@ -28,6 +28,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <SDL.h>
 #include "cg.h"
 
 struct qnt_header {
@@ -43,6 +44,6 @@ struct qnt_header {
 };
 
 bool qnt_checkfmt(uint8_t *data);
-void qnt_extract(struct cg *cg, uint8_t *data);
+SDL_Surface *qnt_extract(uint8_t *data);
 
 #endif /* __QNT_H__ */

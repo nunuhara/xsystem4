@@ -139,6 +139,7 @@ bool keyboard_focus;
 
 void handle_events(void);
 bool key_is_down(enum sact_keycode code);
+void key_clear_flag(void);
 void mouse_get_pos(int *x, int *y);
 
 #endif /* SYSTEM4_INPUT_H */
