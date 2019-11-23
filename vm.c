@@ -1284,17 +1284,5 @@ noreturn void _vm_error(const char *fmt, ...)
 
 int vm_time(void)
 {
-	int ms;
-	time_t s;
-	struct timespec spec;
-
-	clock_gettime(CLOCK_MONOTONIC, &spec);
-
-	s = spec.tv_sec;
-	ms = lround(spec.tv_nsec / 1.0e6);
-	if (ms > 999) {
-		s++;
-		ms = 0;
-	}
-	return ms;
+	return clock() / (CLOCKS_PER_SEC / 1000);
 }
