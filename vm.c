@@ -1235,9 +1235,6 @@ void vm_execute_ain(struct ain *program)
 			heap[0].page->values[i].i = slot;
 			heap[slot].page = NULL;
 			break;
-		case AIN_STRUCT:
-			create_struct(ain->globals[i].struct_type, &heap[0].page->values[i]);
-			break;
 		default:
 			break;
 		}
@@ -1258,6 +1255,14 @@ void vm_execute_ain(struct ain *program)
 	}
 
 	vm_call(ain->nr_functions-1, -1); // function "0": allocate global arrays
+
+	// XXX: global constructors must be called AFTER initializing non-struct variables
+	//      otherwise a global set in a constructor will be clobbered by its initval
+	for (int i = 0; i < ain->nr_globals; i++) {
+		if (ain->globals[i].data_type == AIN_STRUCT)
+			create_struct(ain->globals[i].struct_type, &heap[0].page->values[i]);
+	}
+
 	vm_call(ain->main, -1);
 }
 
