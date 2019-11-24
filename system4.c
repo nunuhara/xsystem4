@@ -24,10 +24,12 @@
 #include "ain.h"
 #include "ald.h"
 #include "ini.h"
+#include "utfsjis.h"
 
 struct config config = {
 	.game_name = NULL,
 	.ain_filename = NULL,
+	.game_dir = NULL,
 	.save_dir = NULL,
 	.view_width = 800,
 	.view_height = 600
@@ -130,7 +132,7 @@ static void init_gamedata_dir(const char *path)
 int main(int argc, char *argv[])
 {
 	size_t len;
-	char *dir, *ainfile;
+	char *ainfile;
 	int err = AIN_SUCCESS;
 	struct ain *ain;
 
@@ -147,14 +149,12 @@ int main(int argc, char *argv[])
 		if (!config.ain_filename)
 			ERROR("No AIN filename specified in %s", argv[1]);
 
-		dir = dirname(argv[1]);
-		ainfile = xmalloc(strlen(dir) + strlen(config.ain_filename) + 2);
-		strcpy(ainfile, dir);
-		strcat(ainfile, "/");
-		strcat(ainfile, config.ain_filename);
+		config.game_dir = strdup(dirname(argv[1]));
+		ainfile = gamedir_path(config.ain_filename);
 	} else if (len > 4 && !strcasecmp(&argv[1][len - 4], ".ain")) {
 		ainfile = strdup(argv[1]);
-		dir = dirname(argv[1]);
+		config.ain_filename = strdup(basename(argv[1]));
+		config.game_dir = strdup(dirname(argv[1]));
 	} else  {
 		ERROR("Not an AIN/INI file: %s", &argv[1][len - 4]);
 	}
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
 		ERROR("%s", ain_strerror(err));
 	}
 
-	init_gamedata_dir(dir);
+	init_gamedata_dir(config.game_dir);
 
 	vm_execute_ain(ain);
 	sys_exit(0);

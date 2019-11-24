@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "system4.h"
+#include "utfsjis.h"
 
 mem_alloc void *_xmalloc(size_t size, const char *func)
 {
@@ -97,4 +98,21 @@ noreturn void sys_exit(int code)
 {
 	// TODO: cleanup
 	exit(code);
+}
+
+char *gamedir_path(const char *path)
+{
+	char *utf = sjis2utf(path, strlen(path));
+	for (int i = 0; utf[i]; i++) {
+		if (utf[i] == '\\')
+			utf[i] = '/';
+	}
+
+	char *gamepath = xmalloc(strlen(config.game_dir) + strlen(utf) + 2);
+	strcpy(gamepath, config.game_dir);
+	strcat(gamepath, "/");
+	strcat(gamepath, utf);
+
+	free(utf);
+	return gamepath;
 }
