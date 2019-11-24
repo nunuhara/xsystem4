@@ -64,4 +64,18 @@
 
 #define hll_return(v) return vm_value_cast(v)
 
+static inline union vm_value *hll_struct_ref(int pageno)
+{
+	if (pageno < 0 || heap[pageno].type != VM_PAGE || !heap[pageno].page || heap[pageno].page->type != STRUCT_PAGE)
+		return NULL;
+	return heap[pageno].page->values;
+}
+
+static inline struct string *hll_string_ref(int slot)
+{
+	if (slot < 0 || heap[slot].type != VM_STRING)
+		return NULL;
+	return heap[slot].s;
+}
+
 #endif /* SYSTEM4_HLL_H */

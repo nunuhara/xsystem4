@@ -663,7 +663,11 @@ static void execute_instruction(int16_t opcode)
 		b = stack_pop().i; // expression
 		v = stack_pop().i; // value
 		if (!v) {
-			sys_message("Assertion failed at %s:%d: %s\n", heap[a].s->text, i, heap[b].s->text);
+			char *filename = sjis2utf(heap[a].s->text, heap[a].s->size);
+			char *value = sjis2utf(heap[b].s->text, heap[b].s->size);
+			sys_message("Assertion failed at %s:%d: %s\n", filename, i, value);
+			free(filename);
+			free(value);
 			sys_exit(1);
 		}
 		heap_unref(a);
@@ -1148,6 +1152,7 @@ static void vm_execute(void)
 	}
 }
 
+extern struct library lib_ACXLoader;
 extern struct library lib_DrawPluginManager;
 extern struct library lib_Math;
 extern struct library lib_MsgLogManager;
@@ -1156,6 +1161,7 @@ extern struct library lib_OutputLog;
 extern struct library lib_SACT2;
 
 struct library *libraries[] = {
+	&lib_ACXLoader,
 	&lib_DrawPluginManager,
 	&lib_Math,
 	&lib_MsgLogManager,
