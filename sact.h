@@ -23,14 +23,23 @@
 #include "graphics.h"
 
 struct cg;
+struct string;
+union vm_value;
 
 struct sact_sprite {
 	TAILQ_ENTRY(sact_sprite) entry;
 	struct cg *cg;
 	SDL_Color color;
 	Rectangle rect;
+	struct {
+		struct string *str;
+		SDL_Surface *surf;
+		Point home;
+		Point pos;
+	} text;
 	int z;
 	bool show;
+	int no;
 };
 
 struct sact_sprite *sact_get_sprite(int sp);
@@ -43,5 +52,7 @@ int sact_SP_SetCG(int sp, int cg);
 int sact_SP_Create(int sp, int width, int height, int r, int g, int b, int a);
 int sact_SP_Delete(int sp);
 int sact_SP_SetZ(int sp, int z);
+int sact_SP_TextDraw(int sp_no, struct string *text, union vm_value *tm);
+int sact_SP_TextClear(int sp_no);
 
 #endif /* SYSTEM4_SACT_H */

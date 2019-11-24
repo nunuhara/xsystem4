@@ -50,6 +50,8 @@
 		hll_return(rval);					\
 	}
 
+#define hll_ignore_unimplemented(fname, rval) hll_defun_inline(fname, rval)
+
 #define hll_export(fname) &_hllstruct_ ## fname
 
 #define hll_deflib(lname, ...)				\

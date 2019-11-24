@@ -42,7 +42,7 @@ hll_defun(GetEnable, args)
 }
 
 //int GetState(void)
-hll_warn_unimplemented(MsgSkip, GetState, 0);
+hll_ignore_unimplemented(GetState, 0);
 //int GetFlag(int nMsgNum)
 hll_warn_unimplemented(MsgSkip, GetFlag, 0);
 //int GetNumofMsg(void)

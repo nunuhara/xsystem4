@@ -20,6 +20,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <SDL.h>
 #include "graphics.h"
 
 struct cg;
@@ -31,7 +32,33 @@ void sdl_set_window_size(int x, int y, int w, int h);
 void sdl_fullscreen(bool on);
 
 void sdl_update_screen(void);
-void sdl_draw_cg(struct cg *cg, Rectangle *dst);
+void sdl_draw_surface(SDL_Surface *s, Rectangle *dst);
 SDL_Surface *sdl_make_rectangle(int w, int h, SDL_Color *color);
+
+enum font_weight {
+	FW_NORMAL = 400,
+	FW_BOLD   = 700
+};
+
+enum font_face {
+	FONT_GOTHIC = 0,
+	FONT_MINCHO = 1
+};
+
+struct text_metrics {
+	SDL_Color color;
+	SDL_Color outline_color;
+	unsigned int size;
+	enum font_weight weight;
+	enum font_face face;
+	int outline_left;
+	int outline_up;
+	int outline_right;
+	int outline_down;
+};
+
+void sdl_text_init(void);
+bool sdl_set_font(int face, unsigned int size);
+int sdl_render_text(SDL_Surface *dst, Point pos, char *msg, struct text_metrics *tm);
 
 #endif /* SYSTEM4_SDL_CORE_H */

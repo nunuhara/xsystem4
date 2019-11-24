@@ -14,6 +14,7 @@ xsystem4 = ['ald.c',
             'page.c',
             'sact_graphics.c',
             'sdl_draw.c',
+            'sdl_text.c',
             'sdl_video.c',
             'system4.c',
             'vm.c',
@@ -28,6 +29,7 @@ hll_libs = ['hll/DrawPluginManager.c',
 zdep = dependency('zlib')
 mdep = meson.get_compiler('c').find_library('m', required: false)
 sdl2 = dependency('sdl2')
+sdl2ttf = dependency('SDL2_ttf')
 
-executable('system4', xsystem4 + system4 + hll_libs, dependencies: [mdep, zdep, sdl2])
+executable('system4', xsystem4 + system4 + hll_libs, dependencies: [mdep, zdep, sdl2, sdl2ttf])
 executable('aindump', ['aindump.c'] + system4, dependencies: [mdep, zdep])

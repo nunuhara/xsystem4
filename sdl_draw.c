@@ -69,9 +69,9 @@ void sdl_draw_rectangle(Rectangle *_rect, int pixels, uint8_t r, uint8_t g, uint
 	sdl.dirty = true;
 }
 
-void sdl_draw_cg(struct cg *cg, Rectangle *dst)
+void sdl_draw_surface(SDL_Surface *s, Rectangle *dst)
 {
-	Rectangle src = { .x = 0, .y = 0, .w = cg->s->w, .h = cg->s->h };
-	SDL_BlitSurface(cg->s, &src, sdl.display, dst);
+	Rectangle src = { .x = 0, .y = 0, .w = s->w, .h = s->h };
+	SDL_BlitSurface(s, &src, sdl.display, dst);
 	sdl.dirty = true;
 }

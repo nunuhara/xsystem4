@@ -84,7 +84,7 @@ hll_defun_inline(SP_Delete, sact_SP_Delete(a[0].i));
 hll_defun(SP_SetPos, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(1);
+	if (!sp) hll_return(1);
 	sp->rect.x = args[1].i;
 	sp->rect.y = args[2].i;
 	hll_return(1);
@@ -94,7 +94,7 @@ hll_defun(SP_SetPos, args)
 hll_defun(SP_SetX, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	sp->rect.x = args[1].i;
 	hll_return(1);
 }
@@ -103,22 +103,19 @@ hll_defun(SP_SetX, args)
 hll_defun(SP_SetY, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	sp->rect.y = args[1].i;
 	hll_return(1);
 }
 
 // int SP_SetZ(int nSP, int nZ)
-hll_defun(SP_SetZ, args)
-{
-	hll_return(sact_SP_SetZ(args[0].i, args[1].i));
-}
+hll_defun_inline(SP_SetZ, sact_SP_SetZ(a[0].i, a[1].i));
 
 // int SP_SetBlendRate(int nSP, int nBlendRate)
 hll_defun(SP_SetBlendRate, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	sp->color.a = args[1].i;
 	hll_return(1);
 }
@@ -127,15 +124,17 @@ hll_defun(SP_SetBlendRate, args)
 hll_defun(SP_SetShow, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	sp->show = !!args[1].i;
 	hll_return(1);
 }
 
 // int SP_SetDrawMethod(int nSP, int nMethod)
 hll_unimplemented(SACT2, SP_SetDrawMethod);
+
 // int SP_IsUsing(int nSP)
-hll_unimplemented(SACT2, SP_IsUsing);
+hll_defun_inline(SP_IsUsing, sact_get_sprite(a[0].i) != NULL);
+
 // int SP_ExistAlpha(int nSP)
 hll_unimplemented(SACT2, SP_ExistAlpha);
 
@@ -143,7 +142,7 @@ hll_unimplemented(SACT2, SP_ExistAlpha);
 hll_defun(SP_GetPosX, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	hll_return(sp->rect.x);
 }
 
@@ -151,7 +150,7 @@ hll_defun(SP_GetPosX, args)
 hll_defun(SP_GetPosY, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	hll_return(sp->rect.y);
 }
 
@@ -159,7 +158,7 @@ hll_defun(SP_GetPosY, args)
 hll_defun(SP_GetWidth, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	hll_return(sp->rect.w);
 }
 
@@ -167,7 +166,7 @@ hll_defun(SP_GetWidth, args)
 hll_defun(SP_GetHeight, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	hll_return(sp->rect.h);
 }
 
@@ -175,7 +174,7 @@ hll_defun(SP_GetHeight, args)
 hll_defun(SP_GetZ, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	hll_return(sp->z);
 }
 
@@ -183,7 +182,7 @@ hll_defun(SP_GetZ, args)
 hll_defun(SP_GetBlendRate, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	hll_return((int)sp->color.a);
 }
 
@@ -191,44 +190,95 @@ hll_defun(SP_GetBlendRate, args)
 hll_defun(SP_GetShow, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	hll_return(sp->show);
 }
 
 // int SP_GetDrawMethod(int nSP)
 hll_warn_unimplemented(SACT2, SP_GetDrawMethod, 0);
+
 // int SP_SetTextHome(int nSP, int nX, int nY)
-hll_warn_unimplemented(SACT2, SP_SetTextHome, 0);
+hll_defun(SP_SetTextHome, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(0);
+	sp->text.home = (Point) { .x = args[1].i, .y = args[2].i };
+	hll_return(1);
+}
+
 // int SP_SetTextLineSpace(int nSP, int nPx)
 hll_unimplemented(SACT2, SP_SetTextLineSpace);
 // int SP_SetTextCharSpace(int nSP, int nPx)
 hll_unimplemented(SACT2, SP_SetTextCharSpace);
+
 // int SP_SetTextPos(int nSP, int nX, int nY)
-hll_warn_unimplemented(SACT2, SP_SetTextPos, 0);
+hll_defun(SP_SetTextPos, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(0);
+	sp->text.pos = (Point) { .x = args[1].i, .y = args[2].i };
+	hll_return(1);
+}
+
 // int SP_TextDraw(int nSP, string text, struct tm)
-hll_warn_unimplemented(SACT2, SP_TextDraw, 1);
+hll_defun_inline(SP_TextDraw, sact_SP_TextDraw(a[0].i, heap[a[1].i].s, heap[a[2].i].page->values));
 // int SP_TextClear(int nSP)
-hll_warn_unimplemented(SACT2, SP_TextClear, 1);
+hll_defun_inline(SP_TextClear, sact_SP_TextClear(a[0].i));
+
 // int SP_TextHome(int nSP, int nTextSize)
-hll_warn_unimplemented(SACT2, SP_TextHome, 1);
+hll_defun(SP_TextHome, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(0);
+	// FIXME: do something with nTextSize
+	sp->text.pos = sp->text.home;
+	hll_return(1);
+}
+
 // int SP_TextNewLine(int nSP, int nTextSize)
 hll_unimplemented(SACT2, SP_TextNewLine);
 // int SP_TextBackSpace(int nSP)
 hll_unimplemented(SACT2, SP_TextBackSpace);
 // int SP_TextCopy(int nDstSP, int nSrcSP)
 hll_unimplemented(SACT2, SP_TextCopy);
+
 // int SP_GetTextHomeX(int nSP)
-hll_unimplemented(SACT2, SP_GetTextHomeX);
+hll_defun(SP_GetTextHomeX, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(0);
+	hll_return(sp->text.home.x);
+}
+
 // int SP_GetTextHomeY(int nSP)
-hll_unimplemented(SACT2, SP_GetTextHomeY);
+hll_defun(SP_GetTextHomeY, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(0);
+	hll_return(sp->text.home.y);
+}
+
 // int SP_GetTextCharSpace(int nSP)
 hll_unimplemented(SACT2, SP_GetTextCharSpace);
+
 // int SP_GetTextPosX(int nSP)
-hll_warn_unimplemented(SACT2, SP_GetTextPosX, 0);
+hll_defun(SP_GetTextPosX, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(0);
+	hll_return(sp->text.pos.x);
+}
+
 // int SP_GetTextPosY(int nSP)
-hll_warn_unimplemented(SACT2, SP_GetTextPosY, 0);
+hll_defun(SP_GetTextPosY, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(0);
+	hll_return(sp->text.pos.y);
+}
+
 // int SP_GetTextLineSpace(int nSP)
-hll_warn_unimplemented(SACT2, SP_GetTextLineSpace, 0);
+hll_defun_inline(SP_GetTextLineSpace, 0);
 // int SP_IsPtIn(int nSP, int nX, int nY)
 hll_unimplemented(SACT2, SP_IsPtIn);
 
@@ -237,12 +287,12 @@ hll_defun(SP_IsPtInRect, args)
 {
 	struct sact_sprite *sp = sact_get_sprite(args[0].i);
 	Point p = { .x = args[1].i, .y = args[2].i };
-	if (!sp || !sp->cg) hll_return(0);
+	if (!sp) hll_return(0);
 	hll_return(!!SDL_PointInRect(&p, &sp->rect));
 }
 
 // int GAME_MSG_GetNumof(void)
-hll_unimplemented(SACT2, GAME_MSG_GetNumof);
+hll_defun_inline(GAME_MSG_GetNumof, ain->nr_messages);
 // void GAME_MSG_Get(int nIndex, ref string text)
 hll_unimplemented(SACT2, GAME_MSG_Get);
 // void IntToZenkaku(ref string s, int nValue, int nFigures, int nfZeroPadding)
@@ -262,7 +312,7 @@ hll_defun(Mouse_GetPos, args)
 // int Mouse_SetPos(int nX, int nY)
 hll_warn_unimplemented(SACT2, Mouse_SetPos, 1);
 // void Mouse_ClearWheel(void)
-hll_warn_unimplemented(SACT2, Mouse_ClearWheel, 0);
+hll_defun_inline(Mouse_ClearWheel, 0);
 
 // void Mouse_GetWheel(ref int pnForward, ref int pnBack)
 hll_defun(Mouse_GetWheel, args)
@@ -309,7 +359,7 @@ hll_defun_inline(Key_IsDown, key_is_down(a[0].i));
 // int Timer_Get(void)
 hll_defun_inline(Timer_Get, vm_time());
 // int CG_IsExist(int nCG)
-hll_defun_inline(CG_IsExist, cg_exists(a[0].i));
+hll_defun_inline(CG_IsExist, cg_exists(a[0].i - 1));
 // int CG_GetMetrics(int nCG, ref struct cm)
 hll_unimplemented(SACT2, CG_GetMetrics);
 // int CSV_Load(string pIStringFileName)
