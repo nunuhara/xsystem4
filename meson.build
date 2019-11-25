@@ -20,6 +20,7 @@ xsystem4 = ['ald.c',
             'vm.c',
 ]
 hll_libs = ['hll/ACXLoader.c',
+            'hll/DrawGraph.c',
             'hll/DrawPluginManager.c',
             'hll/Math.c',
             'hll/MsgLogManager.c',

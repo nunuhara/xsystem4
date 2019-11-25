@@ -52,7 +52,17 @@ int sact_SP_SetCG(int sp, int cg);
 int sact_SP_Create(int sp, int width, int height, int r, int g, int b, int a);
 int sact_SP_Delete(int sp);
 int sact_SP_SetZ(int sp, int z);
+int sact_SP_ExistsAlpha(int sp_no);
 int sact_SP_TextDraw(int sp_no, struct string *text, union vm_value *tm);
 int sact_SP_TextClear(int sp_no);
+
+void DrawGraph_Copy(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
+void DrawGraph_CopyBright(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int rate);
+void DrawGraph_CopyAMap(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
+void DrawGraph_CopySprite(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int r, int g, int b);
+void DrawGraph_CopyUseAMapUnder(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int a_threshold);
+void DrawGraph_CopyUseAMapBorder(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int a_threshold);
+void DrawGraph_CopyAMapMax(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
+void DrawGraph_CopyAMapMin(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
 
 #endif /* SYSTEM4_SACT_H */

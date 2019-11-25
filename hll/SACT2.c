@@ -48,11 +48,11 @@ hll_defun_inline(Update, sact_Update());
 // int Effect(int nType, int nTime, int nfKey)
 hll_warn_unimplemented(SACT2, Effect, 1);
 // int EffectSetMask(int nCG)
-hll_unimplemented(SACT2, EffectSetMask);
+hll_warn_unimplemented(SACT2, EffectSetMask, 1);
 // int EffectSetMaskSP(int nSP)
 hll_unimplemented(SACT2, EffectSetMaskSP);
 // void QuakeScreen(int nAmplitudeX, int nAmplitudeY, int nTime, int nfKey)
-hll_unimplemented(SACT2, QuakeScreen);
+hll_warn_unimplemented(SACT2, QuakeScreen, 0);
 // void QUAKE_SET_CROSS(int nAmpX, int nAmpY)
 hll_unimplemented(SACT2, QUAKE_SET_CROSS);
 // void QUAKE_SET_ROTATION(int nAmp, int nCycle)
@@ -136,7 +136,7 @@ hll_unimplemented(SACT2, SP_SetDrawMethod);
 hll_defun_inline(SP_IsUsing, sact_get_sprite(a[0].i) != NULL);
 
 // int SP_ExistAlpha(int nSP)
-hll_unimplemented(SACT2, SP_ExistAlpha);
+hll_defun_inline(SP_ExistAlpha, sact_SP_ExistsAlpha(a[0].i));
 
 // int SP_GetPosX(int nSP)
 hll_defun(SP_GetPosX, args)
@@ -330,7 +330,7 @@ hll_unimplemented(SACT2, Joypad_IsKeyDown);
 // int Joypad_GetNumof(void)
 hll_unimplemented(SACT2, Joypad_GetNumof);
 // void JoypadQuake_Set(int nNum, int nType, int nMagnitude)
-hll_unimplemented(SACT2, JoypadQuake_Set);
+hll_warn_unimplemented(SACT2, JoypadQuake_Set, 0);
 
 // bool Joypad_GetAnalogStickStatus(int nNum, int nType, ref float pfDegree, ref float pfPower)
 hll_defun(Joypad_GetAnalogStickStatus, args)
@@ -431,7 +431,7 @@ hll_unimplemented(SACT2, Sound_GetUnuseChannel);
 // int Sound_Prepare(int nCh, int nNum)
 hll_unimplemented(SACT2, Sound_Prepare);
 // int Sound_Unprepare(int nCh)
-hll_unimplemented(SACT2, Sound_Unprepare);
+hll_warn_unimplemented(SACT2, Sound_Unprepare, 1);
 // int Sound_Play(int nCh)
 hll_unimplemented(SACT2, Sound_Play);
 // int Sound_Stop(int nCh)

@@ -165,6 +165,14 @@ int sact_SP_SetZ(int sp_no, int z)
 
 }
 
+int sact_SP_ExistsAlpha(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	if (!sp->cg->s) return 1;
+	return !!sp->cg->s->format->Amask;
+}
+
 #define tm_ColorR(tm)       (tm[0].i)
 #define tm_ColorG(tm)       (tm[1].i)
 #define tm_ColorB(tm)       (tm[2].i)
@@ -230,4 +238,215 @@ int sact_SP_TextClear(int sp_no)
 		sp->text.surf = NULL;
 	}
 	return 1;
+}
+
+//
+// --- DrawGraph.dll ---
+//
+
+struct sact_sprite *DrawGraph_get_sprite(int no)
+{
+	struct sact_sprite *sp = sact_get_sprite(no);
+	if (!sp)
+		ERROR("Invalid sprite number: %d", no);
+	if (!sp->cg->s)
+		sp->cg->s = sdl_make_rectangle(sp->rect.w, sp->rect.h, &sp->color);
+	return sp;
+}
+
+static void DrawGraph_Blit(SDL_Surface *ds, int dx, int dy, SDL_Surface *ss, int sx, int sy, int w, int h)
+{
+	Rectangle src_rect = { .x = sx, .y = sy, .w = w, .h = h };
+	Rectangle dst_rect = { .x = dx, .y = dy, .w = w, .h = h };
+	SDL_BlitSurface(ss, &src_rect, ds, &dst_rect);
+}
+
+void DrawGraph_Copy(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
+{
+	SDL_BlendMode mode;
+	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
+	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
+
+	SDL_GetSurfaceBlendMode(ss, &mode);
+	SDL_SetSurfaceBlendMode(ss, SDL_BLENDMODE_NONE);
+
+	DrawGraph_Blit(ds, dx, dy, ss, sx, sy, w, h);
+
+	SDL_SetSurfaceBlendMode(ss, mode);
+}
+
+void DrawGraph_CopyBright(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int rate)
+{
+	SDL_BlendMode mode;
+	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
+	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
+
+	SDL_GetSurfaceBlendMode(ss, &mode);
+	SDL_SetSurfaceBlendMode(ss, SDL_BLENDMODE_NONE);
+	SDL_SetSurfaceColorMod(ss, rate, rate, rate);
+
+	DrawGraph_Blit(ds, dx, dy, ss, sx, sy, w, h);
+
+	SDL_SetSurfaceColorMod(ss, 255, 255, 255);
+	SDL_SetSurfaceBlendMode(ss, mode);
+}
+
+// Clip src/dst rectangles in preparation for a copy.
+static void clip_rects(SDL_Surface *ds, int *dx, int *dy, SDL_Surface *ss, int *sx, int *sy, int *w, int *h)
+{
+	if (*sx < 0) {
+		*dx -= *sx;
+		*w += *sx;
+		*sx = 0;
+	}
+	if (*sy < 0) {
+		*dy -= *sy;
+		*h += *sy;
+		*sy = 0;
+	}
+	if (*dx < 0) {
+		*sx -= *dx;
+		*w += *dx;
+		*dx = 0;
+	}
+	if (*dy < 0) {
+		*sy -= *dy;
+		*w += *dy;
+		*dy = 0;
+	}
+	*w = min(*w, min(ds->w - *dx, ss->w - *sx));
+	*h = min(*h, min(ds->h - *dy, ss->h - *sy));
+}
+
+static inline uint32_t *get_pixel(SDL_Surface *s, int x, int y)
+{
+	return (uint32_t*)(((uint8_t*)s->pixels) + s->pitch*y + s->format->BytesPerPixel*x);
+}
+
+static inline void next_pixel(SDL_Surface *s, uint32_t **p)
+{
+	*p = (uint32_t*)((uint8_t*)*p + s->format->BytesPerPixel);
+}
+
+// iterator for copy operations
+#define copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, expr)	\
+	do {								\
+		clip_rects(ds, &dx, &dy, ss, &sx, &sy, &w, &h);		\
+		SDL_LockSurface(ds);					\
+		SDL_LockSurface(ss);					\
+		for (int _row = 0; _row < h; _row++) {			\
+			uint32_t *dp = get_pixel(ds, dx, _row+dy);	\
+			uint32_t *sp = get_pixel(ss, sx, _row+sy);	\
+			for (int _col = 0; _col < w; _col++, next_pixel(ds, &dp), next_pixel(ss, &sp)) \
+				expr;					\
+		}							\
+		SDL_UnlockSurface(ss);					\
+		SDL_UnlockSurface(ds);					\
+	} while (0)
+
+void DrawGraph_CopyAMap(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
+{
+	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
+	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
+
+	if (!ds->format->Amask || !ss->format->Amask)
+		return;
+
+	copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, {
+		uint32_t a = (*sp & ss->format->Amask) >> ss->format->Ashift;
+		*dp &= ~ds->format->Amask;
+		*dp |= (a << ds->format->Ashift);
+	});
+}
+
+void DrawGraph_CopySprite(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int r, int g, int b)
+{
+	SDL_BlendMode mode;
+	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
+	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
+
+	SDL_GetSurfaceBlendMode(ss, &mode);
+	SDL_SetSurfaceBlendMode(ss, SDL_BLENDMODE_NONE);
+	SDL_SetColorKey(ss, SDL_TRUE, SDL_MapRGB(ss->format, r, g, b));
+
+	DrawGraph_Blit(ds, dx, dy, ss, sx, sy, w, h);
+
+	SDL_SetColorKey(ss, SDL_FALSE, 0);
+	SDL_SetSurfaceBlendMode(ss, mode);
+}
+
+void DrawGraph_CopyUseAMapUnder(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int a_threshold)
+{
+	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
+	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
+
+	if (!ss->format->Amask)
+		return;
+
+	uint8_t r, g, b, a;
+	copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, {
+		SDL_GetRGBA(*sp, ss->format, &r, &g, &b, &a);
+		if (a <= a_threshold) {
+			*dp &= ~(ds->format->Rmask | ds->format->Gmask | ds->format->Bmask);
+			*dp |= (uint32_t)r << ds->format->Rshift;
+			*dp |= (uint32_t)g << ds->format->Gshift;
+			*dp |= (uint32_t)b << ds->format->Bshift;
+		}
+	});
+}
+
+void DrawGraph_CopyUseAMapBorder(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int a_threshold)
+{
+	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
+	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
+
+	if (!ss->format->Amask)
+		return;
+
+	uint8_t r, g, b, a;
+	copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, {
+			SDL_GetRGBA(*sp, ss->format, &r, &g, &b, &a);
+			if (a >= a_threshold) {
+				*dp &= ~(ds->format->Rmask | ds->format->Gmask | ds->format->Bmask);
+				*dp |= (uint32_t)r << ds->format->Rshift;
+				*dp |= (uint32_t)g << ds->format->Gshift;
+				*dp |= (uint32_t)b << ds->format->Bshift;
+			}
+		});
+}
+
+void DrawGraph_CopyAMapMax(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
+{
+	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
+	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
+
+	if (!ss->format->Amask || !ds->format->Amask)
+		return;
+
+	copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, {
+		uint32_t d_a = (*dp & ds->format->Amask) >> ds->format->Ashift;
+		uint32_t s_a = (*sp & ss->format->Amask) >> ss->format->Ashift;
+		if (s_a > d_a) {
+			*dp &= ~ds->format->Amask;
+			*dp |= s_a << ds->format->Ashift;
+		}
+	});
+}
+
+void DrawGraph_CopyAMapMin(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
+{
+	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
+	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
+
+	if (!ss->format->Amask || !ds->format->Amask)
+		return;
+
+	copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, {
+		uint32_t d_a = (*dp & ds->format->Amask) >> ds->format->Ashift;
+		uint32_t s_a = (*sp & ss->format->Amask) >> ss->format->Ashift;
+		if (s_a < d_a) {
+			*dp &= ~ds->format->Amask;
+			*dp |= s_a << ds->format->Ashift;
+		}
+	});
 }
