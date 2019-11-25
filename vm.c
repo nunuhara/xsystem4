@@ -1230,22 +1230,7 @@ void vm_execute_ain(struct ain *program)
 	// Initialize globals
 	heap[0].page = alloc_page(GLOBAL_PAGE, 0, ain->nr_globals);
 	for (int i = 0; i < ain->nr_globals; i++) {
-		int slot;
-		switch (ain->globals[i].data_type) {
-		case AIN_STRING:
-			heap[0].page->values[i].i = heap_alloc_slot(VM_STRING);
-			break;
-		case AIN_REF_TYPE:
-			heap[0].page->values[i].i = -1;
-			break;
-		case AIN_ARRAY_TYPE:
-			slot = heap_alloc_slot(VM_PAGE);
-			heap[0].page->values[i].i = slot;
-			heap[slot].page = NULL;
-			break;
-		default:
-			break;
-		}
+		heap[0].page->values[i] = variable_initval(ain->globals[i].data_type);
 	}
 	for (int i = 0; i < ain->nr_initvals; i++) {
 		int32_t index;
