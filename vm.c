@@ -1230,7 +1230,13 @@ void vm_execute_ain(struct ain *program)
 	// Initialize globals
 	heap[0].page = alloc_page(GLOBAL_PAGE, 0, ain->nr_globals);
 	for (int i = 0; i < ain->nr_globals; i++) {
-		heap[0].page->values[i] = variable_initval(ain->globals[i].data_type);
+		if (ain->globals[i].data_type == AIN_STRUCT) {
+			// XXX: need to allocate storage for global structs BEFORE calling
+			//      constructors.
+			alloc_struct(ain->globals[i].struct_type, &heap[0].page->values[i]);
+		} else {
+			heap[0].page->values[i] = variable_initval(ain->globals[i].data_type);
+		}
 	}
 	for (int i = 0; i < ain->nr_initvals; i++) {
 		int32_t index;
@@ -1253,7 +1259,7 @@ void vm_execute_ain(struct ain *program)
 	//      otherwise a global set in a constructor will be clobbered by its initval
 	for (int i = 0; i < ain->nr_globals; i++) {
 		if (ain->globals[i].data_type == AIN_STRUCT)
-			create_struct(ain->globals[i].struct_type, &heap[0].page->values[i]);
+			init_struct(ain->globals[i].struct_type, heap[0].page->values[i].i);
 	}
 
 	vm_call(ain->main, -1);

@@ -168,7 +168,7 @@ struct page *copy_page(struct page *src)
 	return dst;
 }
 
-void create_struct(int no, union vm_value *var)
+void alloc_struct(int no, union vm_value *var)
 {
 	struct ain_struct *s = &ain->structures[no];
 	int slot = heap_alloc_slot(VM_PAGE);
@@ -187,17 +187,33 @@ void create_struct(int no, union vm_value *var)
 			heap[slot].page->values[i].i = memb;
 			break;
 		case AIN_STRUCT:
-			create_struct(s->members[i].struct_type, &heap[slot].page->values[i]);
+			alloc_struct(s->members[i].struct_type, &heap[slot].page->values[i]);
 			break;
 		default:
 			heap[slot].page->values[i].i = 0;
 			break;
 		}
 	}
+	var->i = slot;
+}
+
+void init_struct(int no, int slot)
+{
+	struct ain_struct *s = &ain->structures[no];
+	for (int i = 0; i < s->nr_members; i++) {
+		if (s->members[i].data_type == AIN_STRUCT) {
+			init_struct(s->members[i].struct_type, heap[slot].page->values[i].i);
+		}
+	}
 	if (s->constructor > 0) {
 		vm_call(s->constructor, slot);
 	}
-	var->i = slot;
+}
+
+void create_struct(int no, union vm_value *var)
+{
+	alloc_struct(no, var);
+	init_struct(no, var->i);
 }
 
 struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, int struct_type)

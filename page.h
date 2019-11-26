@@ -82,6 +82,8 @@ struct page *copy_page(struct page *page);
 void delete_page(struct page *page);
 
 // structs
+void alloc_struct(int no, union vm_value *var);
+void init_struct(int no, int slot);
 void create_struct(int no, union vm_value *var);
 
 // arrays
