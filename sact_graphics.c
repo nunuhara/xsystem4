@@ -125,11 +125,12 @@ int sact_SP_SetCG(int sp_no, int cg_no)
 
 int sact_SP_Create(int sp_no, int width, int height, int r, int g, int b, int a)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp;
 
-	if (!sp) {
+	if (sp_no < 0)
+		VM_ERROR("Invalid sprite number: %d", sp_no);
+	if (!(sp = sact_get_sprite(sp_no)))
 		sp = alloc_sprite(sp_no);
-	}
 
 	sp->color = (SDL_Color) { .r = r, .g = g, .b = b, .a = a };
 	sp->rect.w = width;
@@ -344,6 +345,17 @@ static inline void next_pixel(SDL_Surface *s, uint32_t **p)
 		SDL_UnlockSurface(ds);					\
 	} while (0)
 
+#define fill_for_each_pixel(s, x, y, w, h, p, expr)			\
+	do {								\
+		SDL_LockSurface(s);					\
+		for (int _row = 0; _row < h; _row++) {			\
+			uint32_t *p = get_pixel(s, x, _row+y);		\
+			for (int _col = 0; _col < w; _col++, next_pixel(s, &p)) \
+				expr;					\
+		}							\
+		SDL_UnlockSurface(s);					\
+	} while(0);
+
 void DrawGraph_CopyAMap(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
 {
 	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
@@ -448,5 +460,54 @@ void DrawGraph_CopyAMapMin(int dno, int dx, int dy, int sno, int sx, int sy, int
 			*dp &= ~ds->format->Amask;
 			*dp |= s_a << ds->format->Ashift;
 		}
+	});
+}
+
+static void blend_pixels(SDL_Color *dst, SDL_Color src)
+{
+	uint32_t alpha = src.a + 1;
+	uint32_t inv_alpha = 256 - src.a;
+	dst->r = (uint8_t)((alpha * src.r + inv_alpha * dst->r) >> 8);
+	dst->g = (uint8_t)((alpha * src.g + inv_alpha * dst->g) >> 8);
+	dst->b = (uint8_t)((alpha * src.b + inv_alpha * dst->b) >> 8);
+}
+
+void DrawGraph_Fill(int sp_no, int x, int y, int w, int h, int r, int g, int b)
+{
+	SDL_Surface *s = DrawGraph_get_sprite(sp_no)->cg->s;
+
+	fill_for_each_pixel(s, x, y, w, h, p, {
+		*p &= ~(s->format->Rmask | s->format->Gmask | s->format->Bmask);
+		*p |= (uint32_t)r << s->format->Rshift;
+		*p |= (uint32_t)g << s->format->Gshift;
+		*p |= (uint32_t)b << s->format->Bshift;
+	});
+}
+
+// XXX: Despite being called a fill operation, this function actually performs blending.
+void DrawGraph_FillAlphaColor(int sp_no, int x, int y, int w, int h, int r, int g, int b, int a)
+{
+	SDL_Surface *s = DrawGraph_get_sprite(sp_no)->cg->s;
+
+	SDL_Color dst;
+	SDL_Color src = { .r = r, .g = g, .b = b, .a = a };
+	fill_for_each_pixel(s, x, y, w, h, p, {
+		SDL_GetRGBA(*p, s->format, &dst.r, &dst.g, &dst.b, &dst.a);
+		blend_pixels(&dst, src);
+		*p &= ~(s->format->Rmask | s->format->Gmask | s->format->Bmask | s->format->Amask);
+		*p |= (uint32_t)dst.r << s->format->Rshift;
+		*p |= (uint32_t)dst.g << s->format->Gshift;
+		*p |= (uint32_t)dst.b << s->format->Bshift;
+		*p |= (uint32_t)dst.a << s->format->Ashift;
+	});
+}
+
+void DrawGraph_FillAMap(int sp_no, int x, int y, int w, int h, int a)
+{
+	SDL_Surface *s = DrawGraph_get_sprite(sp_no)->cg->s;
+
+	fill_for_each_pixel(s, x, y, w, h, p, {
+		*p &= ~s->format->Amask;
+		*p |= (uint32_t)a << s->format->Ashift;
 	});
 }

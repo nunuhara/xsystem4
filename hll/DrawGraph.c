@@ -64,11 +64,11 @@ hll_unimplemented(DrawGraph, BlendMultiply);
 //void BlendScreenAlpha(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
 hll_unimplemented(DrawGraph, BlendScreenAlpha);
 //void Fill(int nDest, int nX, int nY, int nWidth, int nHeight, int nR, int nG, int nB)
-hll_unimplemented(DrawGraph, Fill);
+hll_defun_inline(Fill, (DrawGraph_Fill(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void FillAlphaColor(int nDest, int nX, int nY, int nWidth, int nHeight, int nR, int nG, int nB, int nRate)
-hll_unimplemented(DrawGraph, FillAlphaColor);
+hll_defun_inline(FillAlphaColor, (DrawGraph_FillAlphaColor(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
 //void FillAMap(int nDest, int nX, int nY, int nWidth, int nHeight, int nAlpha)
-hll_unimplemented(DrawGraph, FillAMap);
+hll_defun_inline(FillAMap, (DrawGraph_FillAMap(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i), 0));
 //void FillAMapOverBorder(int nDest, int nX, int nY, int nWidth, int nHeight, int nAlpha, int nBorder)
 hll_unimplemented(DrawGraph, FillAMapOverBorder);
 //void FillAMapUnderBorder(int nDest, int nX, int nY, int nWidth, int nHeight, int nAlpha, int nBorder)
