@@ -123,15 +123,13 @@ int sact_SP_SetCG(int sp_no, int cg_no)
 
 }
 
-int sact_SP_Create(int sp_no, int width, int height, int r, int g, int b, int a)
+static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r, int g, int b, int a)
 {
 	struct sact_sprite *sp;
-
 	if (sp_no < 0)
 		VM_ERROR("Invalid sprite number: %d", sp_no);
 	if (!(sp = sact_get_sprite(sp_no)))
 		sp = alloc_sprite(sp_no);
-
 	sp->color = (SDL_Color) { .r = r, .g = g, .b = b, .a = a };
 	sp->rect.w = width;
 	sp->rect.h = height;
@@ -141,6 +139,18 @@ int sact_SP_Create(int sp_no, int width, int height, int r, int g, int b, int a)
 		sp->cg = cg_init();
 		sprite_register(sp);
 	}
+	return sp;
+}
+
+int sact_SP_Create(int sp_no, int width, int height, int r, int g, int b, int a)
+{
+	create_sprite(sp_no, width, height, r, g, b, a);
+	return 1;
+}
+
+int sact_SP_CreatePixelOnly(int sp_no, int width, int height)
+{
+	create_sprite(sp_no, width, height, 0, 0, 0, 255);
 	return 1;
 }
 

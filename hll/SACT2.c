@@ -74,7 +74,7 @@ hll_unimplemented(SACT2, SP_SaveCG);
 // int SP_Create(int nSP, int nWidth, int nHeight, int nR, int nG, int nB, int nBlendRate)
 hll_defun_inline(SP_Create, sact_SP_Create(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i));
 // int SP_CreatePixelOnly(int nSP, int nWidth, int nHeight)
-hll_unimplemented(SACT2, SP_CreatePixelOnly);
+hll_defun_inline(SP_CreatePixelOnly, sact_SP_CreatePixelOnly(a[0].i, a[1].i, a[2].i));
 // int SP_CreateCustom(int nSP)
 hll_unimplemented(SACT2, SP_CreateCustom);
 // int SP_Delete(int nSP)
@@ -430,7 +430,7 @@ hll_warn_unimplemented(SACT2, Music_Fade, 1);
 // int Music_StopFade(int nCh)
 hll_warn_unimplemented(SACT2, Music_StopFade, 1);
 // int Music_IsFade(int nCh)
-hll_warn_unimplemented(SACT2, Music_IsFade, 1);
+hll_warn_unimplemented(SACT2, Music_IsFade, 0);
 // int Music_Pause(int nCh)
 hll_warn_unimplemented(SACT2, Music_Pause, 1);
 // int Music_Restart(int nCh)
