@@ -36,6 +36,8 @@ struct sact_sprite {
 		SDL_Surface *surf;
 		Point home;
 		Point pos;
+		int char_space;
+		int line_space;
 	} text;
 	int z;
 	bool show;
@@ -55,6 +57,7 @@ int sact_SP_SetZ(int sp, int z);
 int sact_SP_ExistsAlpha(int sp_no);
 int sact_SP_TextDraw(int sp_no, struct string *text, union vm_value *tm);
 int sact_SP_TextClear(int sp_no);
+int sact_SP_TextCopy(int dno, int sno);
 
 void DrawGraph_Copy(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
 void DrawGraph_CopyBright(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int rate);

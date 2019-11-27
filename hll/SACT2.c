@@ -207,9 +207,22 @@ hll_defun(SP_SetTextHome, args)
 }
 
 // int SP_SetTextLineSpace(int nSP, int nPx)
-hll_unimplemented(SACT2, SP_SetTextLineSpace);
+hll_defun(SP_SetTextLineSpace, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(1);
+	sp->text.line_space = args[1].i;
+	hll_return(1);
+}
+
 // int SP_SetTextCharSpace(int nSP, int nPx)
-hll_unimplemented(SACT2, SP_SetTextCharSpace);
+hll_defun(SP_SetTextCharSpace, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(1);
+	sp->text.char_space = args[1].i;
+	hll_return(1);
+}
 
 // int SP_SetTextPos(int nSP, int nX, int nY)
 hll_defun(SP_SetTextPos, args)
@@ -240,7 +253,7 @@ hll_unimplemented(SACT2, SP_TextNewLine);
 // int SP_TextBackSpace(int nSP)
 hll_unimplemented(SACT2, SP_TextBackSpace);
 // int SP_TextCopy(int nDstSP, int nSrcSP)
-hll_unimplemented(SACT2, SP_TextCopy);
+hll_defun_inline(SP_TextCopy, sact_SP_TextCopy(a[0].i, a[1].i));
 
 // int SP_GetTextHomeX(int nSP)
 hll_defun(SP_GetTextHomeX, args)
@@ -259,7 +272,12 @@ hll_defun(SP_GetTextHomeY, args)
 }
 
 // int SP_GetTextCharSpace(int nSP)
-hll_unimplemented(SACT2, SP_GetTextCharSpace);
+hll_defun(SP_GetTextCharSpace, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(0);
+	hll_return(sp->text.char_space);
+}
 
 // int SP_GetTextPosX(int nSP)
 hll_defun(SP_GetTextPosX, args)
@@ -278,7 +296,12 @@ hll_defun(SP_GetTextPosY, args)
 }
 
 // int SP_GetTextLineSpace(int nSP)
-hll_defun_inline(SP_GetTextLineSpace, 0);
+hll_defun(SP_GetTextLineSpace, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(0);
+	hll_return(sp->text.line_space);
+}
 // int SP_IsPtIn(int nSP, int nX, int nY)
 hll_unimplemented(SACT2, SP_IsPtIn);
 

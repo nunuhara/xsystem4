@@ -225,19 +225,51 @@ int sact_SP_TextDraw(int sp_no, struct string *text, union vm_value *_tm)
 	}
 
 	init_text_metrics(&tm, _tm);
-	sp->text.pos.x += sdl_render_text(sp->text.surf, sp->text.pos, text->text, &tm);
+	sp->text.pos.x += sdl_render_text(sp->text.surf, sp->text.pos, text->text, &tm) + sp->text.char_space;
 	return 1;
+}
+
+static void clear_text(struct sact_sprite *sp)
+{
+	if (sp->text.surf) {
+		SDL_FreeSurface(sp->text.surf);
+		sp->text.surf = NULL;
+	}
 }
 
 int sact_SP_TextClear(int sp_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
+	clear_text(sp);
+	return 1;
+}
 
-	if (sp->text.surf) {
-		SDL_FreeSurface(sp->text.surf);
-		sp->text.surf = NULL;
+int sact_SP_TextCopy(int dno, int sno)
+{
+	struct sact_sprite *dsp = sact_get_sprite(dno);
+	struct sact_sprite *ssp = sact_get_sprite(sno);
+	if (!ssp)
+		return 0;
+	if (!dsp) {
+		sact_SP_Create(dno, 1, 1, 0, 0, 0, 0);
+		if (!(dsp = sact_get_sprite(dno))) {
+			WARNING("Failed to create sprite");
+			return 0;
+		}
 	}
+
+	clear_text(dsp);
+	if (ssp->text.surf) {
+		SDL_Color c = { 0, 0, 0, 0 };
+		Rectangle rect = { .x = 0, .y = 0, .w = dsp->rect.w, .h = dsp->rect.h };
+		dsp->text.surf = sdl_make_rectangle(dsp->rect.w, dsp->rect.h, &c);
+		SDL_BlitSurface(ssp->text.surf, NULL, dsp->text.surf, &rect);
+	}
+	dsp->text.home = ssp->text.home;
+	dsp->text.pos = ssp->text.pos;
+	dsp->text.char_space = ssp->text.char_space;
+	dsp->text.line_space = ssp->text.line_space;
 	return 1;
 }
 
