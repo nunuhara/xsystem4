@@ -80,6 +80,10 @@ bool sdl_set_font(int face, unsigned int size)
 static void _sdl_render_text(TTF_Font *f, SDL_Surface *dst, Point pos, char *msg, SDL_Color color)
 {
 	SDL_Surface *s = TTF_RenderUTF8_Blended(f, msg, color);
+	if (!s) {
+		WARNING("Text rendering failed: %s", msg);
+		return;
+	}
 	Rectangle dst_pos = { .x = pos.x, .y = pos.y, .w = s->w, .h = s->h };
 	SDL_BlitSurface(s, NULL, dst, &dst_pos);
 	SDL_FreeSurface(s);
@@ -97,6 +101,8 @@ static int sact_to_sdl_fontstyle(int style)
 int sdl_render_text(SDL_Surface *dst, Point pos, char *msg, struct text_metrics *tm)
 {
 	if (!font)
+		return 0;
+	if (!msg[0])
 		return 0;
 	if (font->size != tm->size || font->face != tm->face)
 		sdl_set_font(tm->face, tm->size);
