@@ -47,23 +47,14 @@
 #define ZLIBBUF_MARGIN 5*1024
 
 /*
-  static methods
-*/
-static struct qnt_header *extract_header(uint8_t *b);
-static void extract_pixel(struct qnt_header *qnt, uint8_t *pic, uint8_t *b);
-static void extract_alpha(struct qnt_header *qnt, uint8_t *pic, uint8_t *b);
-
-
-/*
  * Get information from header
  *
  *   b: raw data
  *
  *   return: acquired qnt information object
  */
-static struct qnt_header *extract_header(uint8_t *b)
+static void extract_header(uint8_t *b, struct qnt_header *qnt)
 {
-	struct qnt_header *qnt = malloc(sizeof(struct qnt_header));
 	int rsv0;
 
 	rsv0 = LittleEndian_getDW(b, 4);
@@ -90,8 +81,6 @@ static struct qnt_header *extract_header(uint8_t *b)
 	}
 	if (qnt->bpp != 24)
 		ERROR("Unsupported bits-per-pixel: %d", qnt->bpp);
-
-	return qnt;
 }
 
 /*
@@ -239,6 +228,20 @@ bool qnt_checkfmt(uint8_t *data)
 	return true;
 }
 
+bool qnt_get_metrics(uint8_t *data, struct cg_metrics *dst)
+{
+	struct qnt_header qnt;
+	extract_header(data, &qnt);
+	dst->w = qnt.width;
+	dst->h = qnt.height;
+	dst->bpp = qnt.bpp;
+	dst->has_pixel = qnt.pixel_size > 0;
+	dst->has_alpha = qnt.alpha_size > 0;
+	dst->pixel_pitch = qnt.width * (qnt.bpp / 8);
+	dst->alpha_pitch = 1;
+	return true;
+}
+
 /*
  * Extract qnt header and pixel
  *
@@ -248,19 +251,20 @@ bool qnt_checkfmt(uint8_t *data)
 */
 SDL_Surface *qnt_extract(uint8_t *data)
 {
-	struct qnt_header *qnt = extract_header(data);
-	uint8_t *pixels = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10) * 3));
-	extract_pixel(qnt, pixels, data + qnt->hdr_size);
+	struct qnt_header qnt;
+	extract_header(data, &qnt);
+	uint8_t *pixels = malloc(sizeof(uint8_t) * ((qnt.width+10) * (qnt.height+10) * 3));
+	extract_pixel(&qnt, pixels, data + qnt.hdr_size);
 
-	if (!qnt->alpha_size)
-		return SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt->width, qnt->height, 24,
-							  qnt->width * 3, SDL_PIXELFORMAT_RGB24);
+	if (!qnt.alpha_size)
+		return SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt.width, qnt.height, 24,
+							  qnt.width * 3, SDL_PIXELFORMAT_RGB24);
 
 	// combine color/alpha data
-	uint8_t *alpha = malloc(sizeof(uint8_t) * ((qnt->width+10) * (qnt->height+10)));
-	uint8_t *tmp = malloc((qnt->width+10) * (qnt->height+10) * 4);
-	extract_alpha(qnt, alpha, data + qnt->hdr_size + qnt->pixel_size);
-	for (int src_i = 0, dst_i = 0, p = 0; p < qnt->width * qnt->height; p++) {
+	uint8_t *alpha = malloc(sizeof(uint8_t) * ((qnt.width+10) * (qnt.height+10)));
+	uint8_t *tmp = malloc((qnt.width+10) * (qnt.height+10) * 4);
+	extract_alpha(&qnt, alpha, data + qnt.hdr_size + qnt.pixel_size);
+	for (int src_i = 0, dst_i = 0, p = 0; p < qnt.width * qnt.height; p++) {
 		tmp[dst_i++] = alpha[p];
 		tmp[dst_i++] = pixels[src_i++];
 		tmp[dst_i++] = pixels[src_i++];
@@ -270,6 +274,6 @@ SDL_Surface *qnt_extract(uint8_t *data)
 	free(pixels);
 	pixels = tmp;
 
-	return SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt->width, qnt->height, 32,
-						  qnt->width * 4, SDL_PIXELFORMAT_ARGB32);
+	return SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt.width, qnt.height, 32,
+						  qnt.width * 4, SDL_PIXELFORMAT_ARGB32);
 }

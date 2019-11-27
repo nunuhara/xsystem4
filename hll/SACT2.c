@@ -384,7 +384,7 @@ hll_defun_inline(Timer_Get, vm_time());
 // int CG_IsExist(int nCG)
 hll_defun_inline(CG_IsExist, cg_exists(a[0].i - 1));
 // int CG_GetMetrics(int nCG, ref struct cm)
-hll_unimplemented(SACT2, CG_GetMetrics);
+hll_defun_inline(CG_GetMetrics, sact_CG_GetMetrics(a[0].i - 1, heap[a[1].i].page->values));
 // int CSV_Load(string pIStringFileName)
 hll_unimplemented(SACT2, CSV_Load);
 // int CSV_Save(void)

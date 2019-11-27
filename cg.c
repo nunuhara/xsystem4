@@ -43,6 +43,23 @@ static enum cg_type check_cgformat(uint8_t *data)
 	return ALCG_UNKNOWN;
 }
 
+bool cg_get_metrics(int no, struct cg_metrics *dst)
+{
+	struct archive_data *dfile;
+
+	if (!(dfile = ald_get(ald[ALDFILE_CG], no)))
+		return false;
+
+	switch (check_cgformat(dfile->data)) {
+	case ALCG_QNT:
+		qnt_get_metrics(dfile->data, dst);
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
+
 void _cg_free(struct cg *cg)
 {
 	if (!cg)

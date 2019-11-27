@@ -43,7 +43,18 @@ struct cg {
 	SDL_Surface *s;
 };
 
+struct cg_metrics {
+	int w;
+	int h;
+	int bpp;
+	bool has_pixel;
+	bool has_alpha;
+	int pixel_pitch;
+	int alpha_pitch;
+};
+
 bool cg_exists(int no);
+bool cg_get_metrics(int no, struct cg_metrics *dst);
 bool cg_load(struct cg *cg, int no);
 struct cg *cg_init(void);
 void cg_reinit(struct cg *cg);

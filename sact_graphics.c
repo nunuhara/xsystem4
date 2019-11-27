@@ -283,6 +283,21 @@ int sact_SP_TextCopy(int dno, int sno)
 	return 1;
 }
 
+int sact_CG_GetMetrics(int cg_no, union vm_value *cgm)
+{
+	struct cg_metrics metrics;
+	if (!cg_get_metrics(cg_no, &metrics))
+		return 0;
+	cgm[0].i = metrics.w;
+	cgm[1].i = metrics.h;
+	cgm[2].i = metrics.bpp;
+	cgm[3].i = metrics.has_pixel;
+	cgm[4].i = metrics.has_alpha;
+	cgm[5].i = metrics.pixel_pitch;
+	cgm[6].i = metrics.alpha_pitch;
+	return 1;
+}
+
 //
 // --- DrawGraph.dll ---
 //
