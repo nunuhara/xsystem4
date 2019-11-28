@@ -103,6 +103,10 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 	int32_t slot = heap_free_stack[heap_free_ptr++];
 	heap[slot].ref = 1;
 	heap[slot].type = type;
+#ifdef DEBUG_HEAP
+	heap[slot].alloc_addr = instr_ptr;
+	heap[slot].ref_addr = 0;
+#endif
 	return slot;
 }
 
@@ -114,6 +118,9 @@ static void heap_free_slot(int32_t slot)
 void heap_ref(int32_t slot)
 {
 	heap[slot].ref++;
+#ifdef DEBUG_HEAP
+	heap[slot].ref_addr = instr_ptr;
+#endif
 }
 
 static const char *vm_ptrtype_strtab[] = {
@@ -318,6 +325,11 @@ static void function_call(int fno, int return_address)
 	// pop arguments, store in local page
 	for (int i = f->nr_args - 1; i >= 0; i--) {
 		heap[slot].page->values[i] = stack_pop();
+		switch (f->vars[i].data_type) {
+		case AIN_REF_TYPE:
+			heap_ref(heap[slot].page->values[i].i);
+			break;
+		}
 	}
 	// initialize local variables
 	for (int i = f->nr_args; i < f->nr_vars; i++) {
@@ -373,7 +385,15 @@ static void hll_call(int libno, int fno)
 	}
 	union vm_value r = f->fun(args);
 	for (int i = 0; i < f->nr_arguments; i++) {
-		variable_fini(stack[stack_ptr + i], f->arguments[i].data_type);
+		// XXX: We don't increase the ref count when passing ref arguments to HLL
+		//      functions, so we need to avoid decreasing it via variable_fini
+		switch (f->arguments[i].data_type) {
+		case AIN_REF_TYPE:
+			break;
+		default:
+			variable_fini(stack[stack_ptr + i], f->arguments[i].data_type);
+			break;
+		}
 	}
 	if (f->data_type != AIN_VOID)
 		stack_push(r);
@@ -392,7 +412,7 @@ static void system_call(int32_t code)
 	struct string *str;
 	switch (code) {
 	case 0x0: // system.Exit(int nResult)
-		sys_exit(stack_pop().i);
+		vm_exit(stack_pop().i);
 		break;
 	case 0x3: // system.LockPeek()
 	case 0x4: // system.UnlockPeek()
@@ -668,7 +688,7 @@ static void execute_instruction(int16_t opcode)
 			sys_message("Assertion failed at %s:%d: %s\n", filename, i, value);
 			free(filename);
 			free(value);
-			sys_exit(1);
+			vm_exit(1);
 		}
 		heap_unref(a);
 		heap_unref(b);
@@ -1031,8 +1051,10 @@ static void execute_instruction(int16_t opcode)
 		a = stack_pop().i;
 		if (a == -1)
 			VM_ERROR("Assignment to null-pointer");
-		if (heap[a].page)
+		if (heap[a].page) {
 			delete_page(heap[a].page);
+			free_page(heap[a].page);
+		}
 		heap[a].page = copy_page(heap[b].page);
 		stack_push(b);
 		break;
@@ -1045,7 +1067,7 @@ static void execute_instruction(int16_t opcode)
 		pageno = stack_peek(a+1).i;
 		slot = heap[pageno].page->values[varno].i;
 		data_type = variable_type(heap[pageno].page, varno, &struct_type);
-		heap[slot].page = alloc_array(a, stack_peek_ptr(a-1), data_type, struct_type);
+		heap[slot].page = alloc_array(a, stack_peek_ptr(a-1), data_type, struct_type, true);
 		stack_ptr -= a + 2;
 		break;
 	case A_REALLOC:
@@ -1054,7 +1076,7 @@ static void execute_instruction(int16_t opcode)
 		pageno = stack_peek(a+1).i;
 		slot = heap[pageno].page->values[varno].i;
 		data_type = variable_type(heap[pageno].page, varno, &struct_type);
-		heap[slot].page = realloc_array(heap[slot].page, a, stack_peek_ptr(a-1), data_type, struct_type);
+		heap[slot].page = realloc_array(heap[slot].page, a, stack_peek_ptr(a-1), data_type, struct_type, true);
 		stack_ptr -= a + 2;
 		break;
 	case A_FREE:
@@ -1228,6 +1250,7 @@ void vm_execute_ain(struct ain *program)
 	link_libraries();
 
 	// Initialize globals
+	heap[0].ref = 1;
 	heap[0].page = alloc_page(GLOBAL_PAGE, 0, ain->nr_globals);
 	for (int i = 0; i < ain->nr_globals; i++) {
 		if (ain->globals[i].data_type == AIN_STRUCT) {
@@ -1289,4 +1312,69 @@ noreturn void _vm_error(const char *fmt, ...)
 int vm_time(void)
 {
 	return clock() / (CLOCKS_PER_SEC / 1000);
+}
+
+#ifdef DEBUG_HEAP
+static void describe_page(struct page *page)
+{
+	if (!page) {
+		sys_message("NULL_PAGE\n");
+		return;
+	}
+
+	switch (page->type) {
+	case GLOBAL_PAGE:
+		sys_message("GLOBAL_PAGE\n");
+		break;
+	case LOCAL_PAGE:
+		sys_message("LOCAL_PAGE: %s\n", ain->functions[page->index].name);
+		break;
+	case STRUCT_PAGE:
+		sys_message("STRUCT_PAGE: %s\n", ain->structures[page->index].name);
+		break;
+	case ARRAY_PAGE:
+		sys_message("ARRAY_PAGE: %s\n", ain_strtype(ain, page->a_type, page->struct_type));
+		break;
+	}
+}
+
+static void describe_slot(size_t slot)
+{
+	sys_message("[%d](%d)(%08X)(%08X) = ", slot, heap[slot].ref, heap[slot].alloc_addr, heap[slot].ref_addr);
+	switch (heap[slot].type) {
+	case VM_PAGE:
+		describe_page(heap[slot].page);
+		break;
+	case VM_STRING:
+		if (heap[slot].s) {
+			char *u = sjis2utf(heap[slot].s->text, heap[slot].s->size);
+			sys_message("STRING: %s\n", u);
+			free(u);
+		} else {
+			sys_message("STRING: NULL\n");
+		}
+		break;
+	default:
+		sys_message("???\n");
+		break;
+	}
+}
+#endif
+
+noreturn void vm_exit(int code)
+{
+	// flush call stack
+	for (int i = call_stack_ptr - 1; i >= 0; i--) {
+		heap_unref(call_stack[i].page_slot);
+	}
+	// free globals
+	heap_unref(0);
+#ifdef DEBUG_HEAP
+	for (size_t i = 0; i < heap_size; i++) {
+		if (heap[i].ref > 0)
+			describe_slot(i);
+	}
+	sys_message("Number of leaked objects: %d\n", heap_free_ptr);
+#endif
+	sys_exit(code);
 }

@@ -98,6 +98,7 @@ void variable_fini(union vm_value v, enum ain_data_type type)
 	case AIN_STRING:
 	case AIN_STRUCT:
 	case AIN_ARRAY_TYPE:
+	case AIN_REF_TYPE:
 		if (v.i == -1)
 			break;
 		heap_unref(v.i);
@@ -216,7 +217,7 @@ void create_struct(int no, union vm_value *var)
 	init_struct(no, var->i);
 }
 
-struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, int struct_type)
+struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, int struct_type, bool init_structs)
 {
 	if (rank < 1)
 		return NULL;
@@ -228,12 +229,12 @@ struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, in
 
 	for (int i = 0; i < dimensions->i; i++) {
 		if (rank == 1) {
-			if (type == AIN_STRUCT)
+			if (type == AIN_STRUCT && init_structs)
 				create_struct(struct_type, &page->values[i]);
 			else
 				page->values[i] = variable_initval(type);
 		} else {
-			struct page *child = alloc_array(rank - 1, dimensions + 1, data_type, struct_type);
+			struct page *child = alloc_array(rank - 1, dimensions + 1, data_type, struct_type, init_structs);
 			int slot = heap_alloc_slot(VM_PAGE);
 			heap[slot].page = child;
 			page->values[i].i = slot;
@@ -242,14 +243,14 @@ struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, in
 	return page;
 }
 
-struct page *realloc_array(struct page *src, int rank, union vm_value *dimensions, int data_type, int struct_type)
+struct page *realloc_array(struct page *src, int rank, union vm_value *dimensions, int data_type, int struct_type, bool init_structs)
 {
 	if (rank < 1)
 		ERROR("Tried to allocate 0-rank array");
 	if (!src && !dimensions->i)
 		return NULL;
 	if (!src)
-		return alloc_array(rank, dimensions, data_type, struct_type);
+		return alloc_array(rank, dimensions, data_type, struct_type, init_structs);
 	if (src->type != ARRAY_PAGE)
 		ERROR("Not an array");
 	if (src->rank != rank)
@@ -273,12 +274,12 @@ struct page *realloc_array(struct page *src, int rank, union vm_value *dimension
 	if (dimensions->i > src->nr_vars) {
 		for (int i = src->nr_vars; i < dimensions->i; i++) {
 			if (rank == 1) {
-				if (type == AIN_STRUCT)
+				if (type == AIN_STRUCT && init_structs)
 					create_struct(struct_type, &src->values[i]);
 				else
 					src->values[i] = variable_initval(type);
 			} else {
-				struct page *child = alloc_array(rank - 1, dimensions + 1, data_type, struct_type);
+				struct page *child = alloc_array(rank - 1, dimensions + 1, data_type, struct_type, init_structs);
 				int slot = heap_alloc_slot(VM_PAGE);
 				heap[slot].page = child;
 				src->values[i].i = slot;
@@ -358,12 +359,12 @@ void array_pushback(struct page **dst, union vm_value v, int data_type, int stru
 
 		int index = (*dst)->nr_vars;
 		union vm_value dims[1] = { (union vm_value) { .i = index + 1 } };
-		*dst = realloc_array(*dst, 1, dims, (*dst)->a_type, (*dst)->struct_type);
-		(*dst)->values[index] = vm_copy(v, array_type((*dst)->a_type));
+		*dst = realloc_array(*dst, 1, dims, (*dst)->a_type, (*dst)->struct_type, false);
+		(*dst)->values[index] = v;
 	} else {
 		union vm_value dims[1] = { (union vm_value) { .i = 1 } };
-		*dst = alloc_array(1, dims, data_type, struct_type);
-		(*dst)->values[0] = vm_copy(v, array_type((*dst)->a_type));
+		*dst = alloc_array(1, dims, data_type, struct_type, false);
+		(*dst)->values[0] = v;
 	}
 }
 
@@ -377,7 +378,7 @@ void array_popback(struct page **dst)
 		ERROR("Tried popping from a multi-dimensional array");
 
 	union vm_value dims[1] = { (union vm_value) { .i = (*dst)->nr_vars - 1 } };
-	*dst = realloc_array(*dst, 1, dims, (*dst)->a_type, (*dst)->struct_type);
+	*dst = realloc_array(*dst, 1, dims, (*dst)->a_type, (*dst)->struct_type, false);
 }
 
 bool array_erase(struct page **_page, int i)
@@ -433,7 +434,7 @@ void array_insert(struct page **_page, int i, union vm_value v, int data_type, i
 	for (int j = page->nr_vars - 1; j > i; j--) {
 		page->values[j] = page->values[j-1];
 	}
-	page->values[i] = vm_copy(v, array_type(page->a_type));
+	page->values[i] = v;
 }
 
 static int current_sort_function;

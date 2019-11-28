@@ -17,6 +17,7 @@
 #ifndef SYSTEM4_PAGE_H
 #define SYSTEM4_PAGE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "vm.h"
 #include "ain.h"
@@ -87,8 +88,8 @@ void init_struct(int no, int slot);
 void create_struct(int no, union vm_value *var);
 
 // arrays
-struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, int struct_type);
-struct page *realloc_array(struct page *src, int rank, union vm_value *dimensions, int data_type, int struct_type);
+struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, int struct_type, bool init_structs);
+struct page *realloc_array(struct page *src, int rank, union vm_value *dimensions, int data_type, int struct_type, bool init_structs);
 int array_numof(struct page *page, int rank);
 void array_copy(struct page *dst, int dst_i, struct page *src, int src_i, int n);
 int array_fill(struct page *dst, int dst_i, int n, union vm_value v);

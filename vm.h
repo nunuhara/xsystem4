@@ -51,6 +51,10 @@ struct vm_pointer {
 		struct string *s;
 		struct page *page;
 	};
+#ifdef DEBUG_HEAP
+	size_t alloc_addr;
+	size_t ref_addr;
+#endif
 };
 
 struct hll_function {
@@ -130,6 +134,7 @@ int vm_time(void);
 
 void vm_stack_trace(void);
 noreturn void _vm_error(const char *fmt, ...);
+noreturn void vm_exit(int code);
 
 #define VM_ERROR(fmt, ...) \
 	_vm_error("*ERROR*(%s:%s:%d): " fmt "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)

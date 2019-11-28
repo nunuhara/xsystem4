@@ -18,6 +18,7 @@
 #include "system4.h"
 #include "sdl_private.h"
 #include "input.h"
+#include "vm.h"
 
 bool key_state[VK_NR_KEYCODES];
 static enum sact_keycode sdl_keytable[];
@@ -72,7 +73,7 @@ void handle_events(void)
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 		case SDL_QUIT:
-			sys_exit(0);
+			vm_exit(0);
 			break;
 		case SDL_WINDOWEVENT:
 			switch (e.window.event) {
