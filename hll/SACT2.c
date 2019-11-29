@@ -46,7 +46,7 @@ hll_unimplemented(SACT2, GetMainSurfaceNumber);
 // int Update(void)
 hll_defun_inline(Update, sact_Update());
 // int Effect(int nType, int nTime, int nfKey)
-hll_warn_unimplemented(SACT2, Effect, 1);
+hll_defun_inline(Effect, sact_Effect(a[0].i, a[1].i, a[2].i));
 // int EffectSetMask(int nCG)
 hll_warn_unimplemented(SACT2, EffectSetMask, 1);
 // int EffectSetMaskSP(int nSP)

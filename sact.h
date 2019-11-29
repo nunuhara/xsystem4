@@ -48,6 +48,7 @@ struct sact_sprite *sact_get_sprite(int sp);
 
 int sact_Init(void);
 int sact_Update(void);
+int sact_Effect(int type, int time, int key);
 int sact_SP_GetUnuseNum(int min);
 int sact_SP_GetMaxZ(void);
 int sact_SP_SetCG(int sp, int cg);
