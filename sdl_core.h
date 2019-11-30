@@ -28,12 +28,32 @@ struct cg;
 int sdl_initialize(void);
 void sdl_remove(void);
 
-void sdl_set_window_size(int x, int y, int w, int h);
+void sdl_set_window_size(int w, int h);
 void sdl_fullscreen(bool on);
 
-void sdl_update_screen(void);
-void sdl_draw_surface(SDL_Surface *s, Rectangle *dst);
-SDL_Surface *sdl_make_rectangle(int w, int h, SDL_Color *color);
+// surface/texture creation
+SDL_Texture *sdl_create_texture(int w, int h);
+void sdl_update_texture(SDL_Texture *t, SDL_Surface *s);
+SDL_Texture *sdl_surface_to_texture(SDL_Surface *s);
+SDL_Surface *sdl_create_surface(int w, int h, SDL_Color *color);
+
+// rendering
+void sdl_render_clear(void);
+void sdl_render_present(void);
+void sdl_render_texture(SDL_Texture *t, Rectangle *r);
+
+// drawing
+void sdl_copy(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h);
+void sdl_copy_bright(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h, int rate);
+void sdl_copy_amap(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h);
+void sdl_copy_sprite(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h, int r, int g, int b);
+void sdl_copy_use_amap_under(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h, int a_threshold);
+void sdl_copy_use_amap_border(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h, int a_threshold);
+void sdl_copy_amap_max(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h);
+void sdl_copy_amap_min(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h);
+void sdl_fill(struct cg *dst, int x, int y, int w, int h, int r, int g, int b);
+void sdl_fill_alpha_color(struct cg *dst, int x, int y, int w, int h, int r, int g, int b, int a);
+void sdl_fill_amap(struct cg *dst, int x, int y, int w, int h, int a);
 
 enum font_weight {
 	FW_NORMAL = 400,

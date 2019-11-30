@@ -39,7 +39,6 @@ static enum cg_type check_cgformat(uint8_t *data)
 	if (qnt_checkfmt(data)) {
 		return ALCG_QNT;
 	}
-	WARNING("Unknown CG type");
 	return ALCG_UNKNOWN;
 }
 
@@ -55,6 +54,7 @@ bool cg_get_metrics(int no, struct cg_metrics *dst)
 		qnt_get_metrics(dfile->data, dst);
 		break;
 	default:
+		WARNING("Unknown CG type (CG %d)", no);
 		return false;
 	}
 	return true;
@@ -89,7 +89,7 @@ void cg_free(struct cg *cg)
 bool cg_load(struct cg *cg, int no)
 {
 	struct archive_data *dfile;
-	int type, possibly_unused size = 0;
+	int type;
 
 	if (!(dfile = ald_get(ald[ALDFILE_CG], no))) {
 		WARNING("Failed to load CG %d", no);
@@ -100,32 +100,32 @@ bool cg_load(struct cg *cg, int no)
 	type = check_cgformat(dfile->data);
 
 	// extract cg
-	//  size is only pixel data size
 	switch(type) {
 	case ALCG_QNT:
-		cg->type = ALCG_QNT;
-		cg->s = qnt_extract(dfile->data);
-		cg->pixel_alloc = true;
+		qnt_extract(dfile->data, cg);
 		break;
 	case ALCG_AJP:
-		// TODO
+		WARNING("Unimplemented CG type: AJP");
 		break;
 	case ALCG_PNG:
-		// TODO
+		WARNING("Unimplemented CG type: PNG");
 		break;
 	default:
+		WARNING("Unknown CG type (CG %d)", no);
 		break;
 	}
 
 	// ok to free
 	ald_free_data(dfile);
 
-	return true;
+	return !!cg->s;
 }
 
 void _cg_init(struct cg *cg)
 {
+	cg->type = ALCG_UNKNOWN;
 	cg->pixel_alloc = false;
+	cg->has_alpha = false;
 	cg->s = NULL;
 }
 

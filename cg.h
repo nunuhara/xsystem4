@@ -40,7 +40,9 @@ enum cg_type {
 struct cg {
 	enum cg_type type; // cg format type
 	bool pixel_alloc;
+	bool has_alpha;
 	SDL_Surface *s;
+	SDL_Texture *t;
 };
 
 struct cg_metrics {

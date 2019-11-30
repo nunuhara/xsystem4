@@ -39,6 +39,8 @@
 #include "cg.h"
 #include "qnt.h"
 #include "system4.h"
+#include "sdl_private.h"
+#include "sdl_core.h"
 
 /*
   zlib の展開バッファで、幅×高さ×３に、さらにどれくらい余裕をとるか
@@ -249,17 +251,27 @@ bool qnt_get_metrics(uint8_t *data, struct cg_metrics *dst)
  *
  *   return: extracted image data and information
 */
-SDL_Surface *qnt_extract(uint8_t *data)
+void qnt_extract(uint8_t *data, struct cg *cg)
 {
 	struct qnt_header qnt;
 	extract_header(data, &qnt);
 	uint8_t *pixels = malloc(sizeof(uint8_t) * ((qnt.width+10) * (qnt.height+10) * 3));
 	extract_pixel(&qnt, pixels, data + qnt.hdr_size);
 
-	if (!qnt.alpha_size)
-		return SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt.width, qnt.height, 24,
-							  qnt.width * 3, SDL_PIXELFORMAT_RGB24);
+	cg->type = ALCG_QNT;
+	cg->has_alpha = qnt.alpha_size > 0;
 
+	if (!qnt.alpha_size) {
+		// convert RGB -> ARGB
+		SDL_Surface *tmp =  SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt.width, qnt.height, 24,
+								       qnt.width * 3, SDL_PIXELFORMAT_RGB24);
+		cg->s = SDL_ConvertSurface(tmp, sdl.format, 0);
+		cg->t = sdl_surface_to_texture(cg->s);
+		cg->pixel_alloc = false;
+		SDL_FreeSurface(tmp);
+		free(pixels);
+		return;
+	}
 	// combine color/alpha data
 	uint8_t *alpha = malloc(sizeof(uint8_t) * ((qnt.width+10) * (qnt.height+10)));
 	uint8_t *tmp = malloc((qnt.width+10) * (qnt.height+10) * 4);
@@ -274,6 +286,8 @@ SDL_Surface *qnt_extract(uint8_t *data)
 	free(pixels);
 	pixels = tmp;
 
-	return SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt.width, qnt.height, 32,
-						  qnt.width * 4, SDL_PIXELFORMAT_ARGB32);
+	cg->s = SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt.width, qnt.height, 32,
+						   qnt.width * 4, SDL_PIXELFORMAT_ARGB32);
+	cg->t = sdl_surface_to_texture(cg->s);
+	cg->pixel_alloc = true;
 }

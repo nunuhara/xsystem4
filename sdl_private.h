@@ -29,19 +29,12 @@
 struct sdl_private_data {
 	SDL_Window *window;
 	SDL_Renderer *renderer;
-	SDL_Texture *texture;
-	SDL_Surface *display; /* toplevel surface */
-	SDL_Surface *dib; /* offscreen surface */
-	SDL_Color col[256]; /* color pallet */
-	unsigned long white; /* white pixel */
-	//agsurface_t *cimg;
-	SDL_Rect view;
+	SDL_PixelFormat *format;
+	int w, h;
 	//FONT *font;
 	bool dirty;
 	bool ms_active; /* mouse is active */
 	bool fs_on;
-	int winoffset_x; /* draw offset in Window x */
-	int winoffset_y; /*                       y */
 };
 
 struct sdl_private_data sdl;

@@ -70,17 +70,21 @@ int sact_Init(void)
 int sact_Update(void)
 {
 	handle_events();
+
+	sdl_render_clear();
 	struct sact_sprite *p;
 	TAILQ_FOREACH(p, &sprite_list, entry) {
 		if (!p->show)
 			continue;
-		if (!p->cg->s)
-			p->cg->s = sdl_make_rectangle(p->rect.w, p->rect.h, &p->color);
-		sdl_draw_surface(p->cg->s, &p->rect);
-		if (p->text.surf)
-			sdl_draw_surface(p->text.surf, &p->rect);
+		if (!p->cg->s) {
+			p->cg->s = sdl_create_surface(p->rect.w, p->rect.h, &p->color);
+			p->cg->t = sdl_surface_to_texture(p->cg->s);
+		}
+		sdl_render_texture(p->cg->t, &p->rect);
+		if (p->text.t)
+			sdl_render_texture(p->text.t, &p->rect);
 	}
-	sdl_update_screen();
+	sdl_render_present();
 	return 1;
 }
 
@@ -253,7 +257,7 @@ static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r
 		VM_ERROR("Invalid sprite number: %d", sp_no);
 	if (!(sp = sact_get_sprite(sp_no)))
 		sp = alloc_sprite(sp_no);
-	sp->color = (SDL_Color) { .r = r, .g = g, .b = b, .a = a };
+	sp->color = (SDL_Color) { .r = r, .g = g, .b = b, .a = (a >= 0 ? a : 255) };
 	sp->rect.w = width;
 	sp->rect.h = height;
 	if (sp->cg) {
@@ -262,6 +266,7 @@ static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r
 		sp->cg = cg_init();
 		sprite_register(sp);
 	}
+	sp->cg->has_alpha = a >= 0;
 	return sp;
 }
 
@@ -273,7 +278,7 @@ int sact_SP_Create(int sp_no, int width, int height, int r, int g, int b, int a)
 
 int sact_SP_CreatePixelOnly(int sp_no, int width, int height)
 {
-	create_sprite(sp_no, width, height, 0, 0, 0, 255);
+	create_sprite(sp_no, width, height, 0, 0, 0, -1);
 	return 1;
 }
 
@@ -303,46 +308,31 @@ int sact_SP_ExistsAlpha(int sp_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
-	if (!sp->cg->s) return 1;
-	return !!sp->cg->s->format->Amask;
+	return sp->cg->has_alpha;
 }
-
-#define tm_ColorR(tm)       (tm[0].i)
-#define tm_ColorG(tm)       (tm[1].i)
-#define tm_ColorB(tm)       (tm[2].i)
-#define tm_Size(tm)         (tm[3].i)
-#define tm_Weight(tm)       (tm[4].i)
-#define tm_Face(tm)         (tm[5].i)
-#define tm_ShadowPixelL(tm) (tm[6].i)
-#define tm_ShadowPixelU(tm) (tm[7].i)
-#define tm_ShadowPixelR(tm) (tm[8].i)
-#define tm_ShadowPixelD(tm) (tm[9].i)
-#define tm_ShadowColorR(tm) (tm[10].i)
-#define tm_ShadowColorG(tm) (tm[11].i)
-#define tm_ShadowColorB(tm) (tm[12].i)
 
 static void init_text_metrics(struct text_metrics *tm, union vm_value *_tm)
 {
 	*tm = (struct text_metrics) {
 		.color = {
-			.r = tm_ColorR(_tm),
-			.g = tm_ColorG(_tm),
-			.b = tm_ColorB(_tm),
+			.r = _tm[0].i,
+			.g = _tm[1].i,
+			.b = _tm[2].i,
 			.a = 255
 		},
 		.outline_color = {
-			.r = tm_ShadowColorR(_tm),
-			.g = tm_ShadowColorG(_tm),
-			.b = tm_ShadowColorB(_tm),
+			.r = _tm[10].i,
+			.g = _tm[11].i,
+			.b = _tm[12].i,
 			.a = 255
 		},
-		.size          = tm_Size(_tm),
-		.weight        = tm_Weight(_tm),
-		.face          = tm_Face(_tm),
-		.outline_left  = tm_ShadowPixelL(_tm),
-		.outline_up    = tm_ShadowPixelU(_tm),
-		.outline_right = tm_ShadowPixelR(_tm),
-		.outline_down  = tm_ShadowPixelD(_tm),
+		.size          = _tm[3].i,
+		.weight        = _tm[4].i,
+		.face          = _tm[5].i,
+		.outline_left  = _tm[6].i,
+		.outline_up    = _tm[7].i,
+		.outline_right = _tm[8].i,
+		.outline_down  = _tm[9].i,
 	};
 }
 
@@ -354,11 +344,13 @@ int sact_SP_TextDraw(int sp_no, struct string *text, union vm_value *_tm)
 
 	if (!sp->text.surf) {
 		SDL_Color c = { 0, 0, 0, 0 };
-		sp->text.surf = sdl_make_rectangle(sp->rect.w, sp->rect.h, &c);
+		sp->text.surf = sdl_create_surface(sp->rect.w, sp->rect.h, &c);
+		sp->text.t = sdl_create_texture(sp->rect.w, sp->rect.h);
 	}
 
 	init_text_metrics(&tm, _tm);
 	sp->text.pos.x += sdl_render_text(sp->text.surf, sp->text.pos, text->text, &tm) + sp->text.char_space;
+	sdl_update_texture(sp->text.t, sp->text.surf);
 	return 1;
 }
 
@@ -366,7 +358,9 @@ static void clear_text(struct sact_sprite *sp)
 {
 	if (sp->text.surf) {
 		SDL_FreeSurface(sp->text.surf);
+		SDL_DestroyTexture(sp->text.t);
 		sp->text.surf = NULL;
+		sp->text.t = NULL;
 	}
 }
 
@@ -395,9 +389,11 @@ int sact_SP_TextCopy(int dno, int sno)
 	clear_text(dsp);
 	if (ssp->text.surf) {
 		SDL_Color c = { 0, 0, 0, 0 };
-		Rectangle rect = { .x = 0, .y = 0, .w = dsp->rect.w, .h = dsp->rect.h };
-		dsp->text.surf = sdl_make_rectangle(dsp->rect.w, dsp->rect.h, &c);
+		Rectangle rect = RECT(0, 0, dsp->rect.w, dsp->rect.h);
+		dsp->text.surf = sdl_create_surface(dsp->rect.w, dsp->rect.h, &c);
+		dsp->text.t = sdl_create_texture(dsp->rect.w, dsp->rect.h);
 		SDL_BlitSurface(ssp->text.surf, NULL, dsp->text.surf, &rect);
+		sdl_update_texture(dsp->text.t, dsp->text.surf);
 	}
 	dsp->text.home = ssp->text.home;
 	dsp->text.pos = ssp->text.pos;
@@ -425,269 +421,69 @@ int sact_CG_GetMetrics(int cg_no, union vm_value *cgm)
 // --- DrawGraph.dll ---
 //
 
-struct sact_sprite *DrawGraph_get_sprite(int no)
+struct sact_sprite *get_surface(int no)
 {
 	struct sact_sprite *sp = sact_get_sprite(no);
 	if (!sp)
 		ERROR("Invalid sprite number: %d", no);
 	if (!sp->cg->s)
-		sp->cg->s = sdl_make_rectangle(sp->rect.w, sp->rect.h, &sp->color);
+		sp->cg->s = sdl_create_surface(sp->rect.w, sp->rect.h, &sp->color);
+	if (!sp->cg->t)
+		sp->cg->t = sdl_surface_to_texture(sp->cg->s);
 	return sp;
-}
-
-static void DrawGraph_Blit(SDL_Surface *ds, int dx, int dy, SDL_Surface *ss, int sx, int sy, int w, int h)
-{
-	Rectangle src_rect = { .x = sx, .y = sy, .w = w, .h = h };
-	Rectangle dst_rect = { .x = dx, .y = dy, .w = w, .h = h };
-	SDL_BlitSurface(ss, &src_rect, ds, &dst_rect);
 }
 
 void DrawGraph_Copy(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
 {
-	SDL_BlendMode mode;
-	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
-	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
-
-	SDL_GetSurfaceBlendMode(ss, &mode);
-	SDL_SetSurfaceBlendMode(ss, SDL_BLENDMODE_NONE);
-
-	DrawGraph_Blit(ds, dx, dy, ss, sx, sy, w, h);
-
-	SDL_SetSurfaceBlendMode(ss, mode);
+	sdl_copy(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
 }
 
 void DrawGraph_CopyBright(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int rate)
 {
-	SDL_BlendMode mode;
-	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
-	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
-
-	SDL_GetSurfaceBlendMode(ss, &mode);
-	SDL_SetSurfaceBlendMode(ss, SDL_BLENDMODE_NONE);
-	SDL_SetSurfaceColorMod(ss, rate, rate, rate);
-
-	DrawGraph_Blit(ds, dx, dy, ss, sx, sy, w, h);
-
-	SDL_SetSurfaceColorMod(ss, 255, 255, 255);
-	SDL_SetSurfaceBlendMode(ss, mode);
+	sdl_copy_bright(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h, rate);
 }
-
-// Clip src/dst rectangles in preparation for a copy.
-static void clip_rects(SDL_Surface *ds, int *dx, int *dy, SDL_Surface *ss, int *sx, int *sy, int *w, int *h)
-{
-	if (*sx < 0) {
-		*dx -= *sx;
-		*w += *sx;
-		*sx = 0;
-	}
-	if (*sy < 0) {
-		*dy -= *sy;
-		*h += *sy;
-		*sy = 0;
-	}
-	if (*dx < 0) {
-		*sx -= *dx;
-		*w += *dx;
-		*dx = 0;
-	}
-	if (*dy < 0) {
-		*sy -= *dy;
-		*w += *dy;
-		*dy = 0;
-	}
-	*w = min(*w, min(ds->w - *dx, ss->w - *sx));
-	*h = min(*h, min(ds->h - *dy, ss->h - *sy));
-}
-
-static inline uint32_t *get_pixel(SDL_Surface *s, int x, int y)
-{
-	return (uint32_t*)(((uint8_t*)s->pixels) + s->pitch*y + s->format->BytesPerPixel*x);
-}
-
-static inline void next_pixel(SDL_Surface *s, uint32_t **p)
-{
-	*p = (uint32_t*)((uint8_t*)*p + s->format->BytesPerPixel);
-}
-
-// iterator for copy operations
-#define copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, expr)	\
-	do {								\
-		clip_rects(ds, &dx, &dy, ss, &sx, &sy, &w, &h);		\
-		SDL_LockSurface(ds);					\
-		SDL_LockSurface(ss);					\
-		for (int _row = 0; _row < h; _row++) {			\
-			uint32_t *dp = get_pixel(ds, dx, _row+dy);	\
-			uint32_t *sp = get_pixel(ss, sx, _row+sy);	\
-			for (int _col = 0; _col < w; _col++, next_pixel(ds, &dp), next_pixel(ss, &sp)) \
-				expr;					\
-		}							\
-		SDL_UnlockSurface(ss);					\
-		SDL_UnlockSurface(ds);					\
-	} while (0)
-
-#define fill_for_each_pixel(s, x, y, w, h, p, expr)			\
-	do {								\
-		SDL_LockSurface(s);					\
-		for (int _row = 0; _row < h; _row++) {			\
-			uint32_t *p = get_pixel(s, x, _row+y);		\
-			for (int _col = 0; _col < w; _col++, next_pixel(s, &p)) \
-				expr;					\
-		}							\
-		SDL_UnlockSurface(s);					\
-	} while(0);
 
 void DrawGraph_CopyAMap(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
 {
-	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
-	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
-
-	if (!ds->format->Amask || !ss->format->Amask)
-		return;
-
-	copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, {
-		uint32_t a = (*sp & ss->format->Amask) >> ss->format->Ashift;
-		*dp &= ~ds->format->Amask;
-		*dp |= (a << ds->format->Ashift);
-	});
+	sdl_copy_amap(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
 }
 
 void DrawGraph_CopySprite(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int r, int g, int b)
 {
-	SDL_BlendMode mode;
-	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
-	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
-
-	SDL_GetSurfaceBlendMode(ss, &mode);
-	SDL_SetSurfaceBlendMode(ss, SDL_BLENDMODE_NONE);
-	SDL_SetColorKey(ss, SDL_TRUE, SDL_MapRGB(ss->format, r, g, b));
-
-	DrawGraph_Blit(ds, dx, dy, ss, sx, sy, w, h);
-
-	SDL_SetColorKey(ss, SDL_FALSE, 0);
-	SDL_SetSurfaceBlendMode(ss, mode);
+	sdl_copy_sprite(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h, r, g, b);
 }
 
 void DrawGraph_CopyUseAMapUnder(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int a_threshold)
 {
-	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
-	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
-
-	if (!ss->format->Amask)
-		return;
-
-	uint8_t r, g, b, a;
-	copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, {
-		SDL_GetRGBA(*sp, ss->format, &r, &g, &b, &a);
-		if (a <= a_threshold) {
-			*dp &= ~(ds->format->Rmask | ds->format->Gmask | ds->format->Bmask);
-			*dp |= (uint32_t)r << ds->format->Rshift;
-			*dp |= (uint32_t)g << ds->format->Gshift;
-			*dp |= (uint32_t)b << ds->format->Bshift;
-		}
-	});
+	sdl_copy_use_amap_under(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h, a_threshold);
 }
 
 void DrawGraph_CopyUseAMapBorder(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int a_threshold)
 {
-	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
-	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
-
-	if (!ss->format->Amask)
-		return;
-
-	uint8_t r, g, b, a;
-	copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, {
-			SDL_GetRGBA(*sp, ss->format, &r, &g, &b, &a);
-			if (a >= a_threshold) {
-				*dp &= ~(ds->format->Rmask | ds->format->Gmask | ds->format->Bmask);
-				*dp |= (uint32_t)r << ds->format->Rshift;
-				*dp |= (uint32_t)g << ds->format->Gshift;
-				*dp |= (uint32_t)b << ds->format->Bshift;
-			}
-		});
+	sdl_copy_use_amap_border(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h, a_threshold);
 }
 
 void DrawGraph_CopyAMapMax(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
 {
-	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
-	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
-
-	if (!ss->format->Amask || !ds->format->Amask)
-		return;
-
-	copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, {
-		uint32_t d_a = (*dp & ds->format->Amask) >> ds->format->Ashift;
-		uint32_t s_a = (*sp & ss->format->Amask) >> ss->format->Ashift;
-		if (s_a > d_a) {
-			*dp &= ~ds->format->Amask;
-			*dp |= s_a << ds->format->Ashift;
-		}
-	});
+	sdl_copy_amap_max(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
 }
 
 void DrawGraph_CopyAMapMin(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
 {
-	SDL_Surface *ds = DrawGraph_get_sprite(dno)->cg->s;
-	SDL_Surface *ss = DrawGraph_get_sprite(sno)->cg->s;
-
-	if (!ss->format->Amask || !ds->format->Amask)
-		return;
-
-	copy_for_each_pixel(ds, dx, dy, ss, sx, sy, w, h, dp, sp, {
-		uint32_t d_a = (*dp & ds->format->Amask) >> ds->format->Ashift;
-		uint32_t s_a = (*sp & ss->format->Amask) >> ss->format->Ashift;
-		if (s_a < d_a) {
-			*dp &= ~ds->format->Amask;
-			*dp |= s_a << ds->format->Ashift;
-		}
-	});
-}
-
-static void blend_pixels(SDL_Color *dst, SDL_Color src)
-{
-	uint32_t alpha = src.a + 1;
-	uint32_t inv_alpha = 256 - src.a;
-	dst->r = (uint8_t)((alpha * src.r + inv_alpha * dst->r) >> 8);
-	dst->g = (uint8_t)((alpha * src.g + inv_alpha * dst->g) >> 8);
-	dst->b = (uint8_t)((alpha * src.b + inv_alpha * dst->b) >> 8);
+	sdl_copy_amap_min(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
 }
 
 void DrawGraph_Fill(int sp_no, int x, int y, int w, int h, int r, int g, int b)
 {
-	SDL_Surface *s = DrawGraph_get_sprite(sp_no)->cg->s;
-
-	fill_for_each_pixel(s, x, y, w, h, p, {
-		*p &= ~(s->format->Rmask | s->format->Gmask | s->format->Bmask);
-		*p |= (uint32_t)r << s->format->Rshift;
-		*p |= (uint32_t)g << s->format->Gshift;
-		*p |= (uint32_t)b << s->format->Bshift;
-	});
+	sdl_fill(get_surface(sp_no)->cg, x, y, w, h, r, g, b);
 }
 
-// XXX: Despite being called a fill operation, this function actually performs blending.
 void DrawGraph_FillAlphaColor(int sp_no, int x, int y, int w, int h, int r, int g, int b, int a)
 {
-	SDL_Surface *s = DrawGraph_get_sprite(sp_no)->cg->s;
-
-	SDL_Color dst;
-	SDL_Color src = { .r = r, .g = g, .b = b, .a = a };
-	fill_for_each_pixel(s, x, y, w, h, p, {
-		SDL_GetRGBA(*p, s->format, &dst.r, &dst.g, &dst.b, &dst.a);
-		blend_pixels(&dst, src);
-		*p &= ~(s->format->Rmask | s->format->Gmask | s->format->Bmask | s->format->Amask);
-		*p |= (uint32_t)dst.r << s->format->Rshift;
-		*p |= (uint32_t)dst.g << s->format->Gshift;
-		*p |= (uint32_t)dst.b << s->format->Bshift;
-		*p |= (uint32_t)dst.a << s->format->Ashift;
-	});
+	sdl_fill_alpha_color(get_surface(sp_no)->cg, x, y, w, h, r, g, b, a);
 }
 
 void DrawGraph_FillAMap(int sp_no, int x, int y, int w, int h, int a)
 {
-	SDL_Surface *s = DrawGraph_get_sprite(sp_no)->cg->s;
-
-	fill_for_each_pixel(s, x, y, w, h, p, {
-		*p &= ~s->format->Amask;
-		*p |= (uint32_t)a << s->format->Ashift;
-	});
+	sdl_fill_amap(get_surface(sp_no)->cg, x, y, w, h, a);
 }

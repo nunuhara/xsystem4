@@ -34,6 +34,7 @@ struct sact_sprite {
 	struct {
 		struct string *str;
 		SDL_Surface *surf;
+		SDL_Texture *t;
 		Point home;
 		Point pos;
 		int char_space;

@@ -45,6 +45,6 @@ struct qnt_header {
 
 bool qnt_checkfmt(uint8_t *data);
 bool qnt_get_metrics(uint8_t *data, struct cg_metrics *dst);
-SDL_Surface *qnt_extract(uint8_t *data);
+void qnt_extract(uint8_t *data, struct cg *cg);
 
 #endif /* __QNT_H__ */

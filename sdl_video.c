@@ -21,31 +21,24 @@
 #include "sdl_core.h"
 #include "sdl_private.h"
 
+#define PIXEL_FORMAT SDL_PIXELFORMAT_ARGB32
+
 int sdl_initialize(void)
 {
 	memset(&sdl, 0, sizeof(struct sdl_private_data));
 
 	// make toplevel window
 	SDL_Init(SDL_INIT_VIDEO);
+	sdl.format = SDL_AllocFormat(PIXEL_FORMAT);
 	sdl.window = SDL_CreateWindow("XSystem4",
 				      SDL_WINDOWPOS_UNDEFINED,
 				      SDL_WINDOWPOS_UNDEFINED,
 				      config.view_width,
 				      config.view_height,
 				      SDL_WINDOW_RESIZABLE);
+
 	sdl.renderer = SDL_CreateRenderer(sdl.window, -1, 0);
-
-	// offscreen pixmap
-	//makeDIB(config.view_width, config.view_height, SYS4_DEFAULT_DEPTH);
-
-	// init cursor
-	//sdl_cursor_init();
-
-	sdl_set_window_size(0, 0, config.view_width, config.view_height);
-
-	//sdl_shadow_init();
-
-	//joy_open();
+	sdl_set_window_size(config.view_width, config.view_height);
 	return 0;
 }
 
@@ -54,9 +47,7 @@ void sdl_remove(void)
 	if (!sdl.window)
 		return;
 
-	//SDL_FreeSurface(sdl.dib);
 	SDL_DestroyRenderer(sdl.renderer);
-	//joy_close();
 	SDL_Quit();
 }
 
@@ -71,24 +62,64 @@ void sdl_fullscreen(bool on)
 	}
 }
 
-void sdl_set_window_size(int x, int y, int w, int h)
+void sdl_set_window_size(int w, int h)
 {
-	sdl.view.x = x;
-	sdl.view.y = y;
-
-	if (w == sdl.view.w && h == sdl.view.h)
+	if (w == sdl.w && h == sdl.h)
 		return;
 
-	sdl.view.w = w;
-	sdl.view.h = h;
+	sdl.w = w;
+	sdl.h = h;
 
 	SDL_SetWindowSize(sdl.window, w, h);
 	SDL_RenderSetLogicalSize(sdl.renderer, w, h);
-	if (sdl.display)
-		SDL_FreeSurface(sdl.display);
-	if (sdl.texture)
-		SDL_DestroyTexture(sdl.texture);
-	sdl.display = SDL_CreateRGBSurface(0, w, h, 32, 0xFF00, 0xFF0000, 0xFF000000, 0xFF);
-	sdl.texture = SDL_CreateTexture(sdl.renderer, sdl.display->format->format,
-					SDL_TEXTUREACCESS_STATIC, w, h);
+}
+
+SDL_Texture *sdl_create_texture(int w, int h)
+{
+	SDL_Texture *t = SDL_CreateTexture(sdl.renderer, PIXEL_FORMAT, SDL_TEXTUREACCESS_STATIC, w, h);
+	SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
+	return t;
+}
+
+SDL_Surface *sdl_create_surface(int w, int h, SDL_Color *color)
+{
+	Rectangle rect = { .x = 0, .y = 0, .w = w, .h = w };
+	SDL_Surface *s = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB32);
+	if (color) {
+		uint32_t c = SDL_MapRGBA(s->format, color->r, color->g, color->b, color->a);
+		SDL_FillRect(s, &rect, c);
+	}
+	return s;
+}
+
+void sdl_update_texture(SDL_Texture *t, SDL_Surface *s)
+{
+	if (SDL_MUSTLOCK(s))
+		SDL_LockSurface(s);
+	SDL_UpdateTexture(t, NULL, s->pixels, s->pitch);
+	if (SDL_MUSTLOCK(s))
+		SDL_UnlockSurface(s);
+}
+
+SDL_Texture *sdl_surface_to_texture(SDL_Surface *s)
+{
+	SDL_Texture *t = SDL_CreateTexture(sdl.renderer, PIXEL_FORMAT, SDL_TEXTUREACCESS_STATIC, s->w, s->h);
+	SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
+	SDL_UpdateTexture(t, NULL, s->pixels, s->pitch);
+	return t;
+}
+
+void sdl_render_clear(void)
+{
+	SDL_RenderClear(sdl.renderer);
+}
+
+void sdl_render_present(void)
+{
+	SDL_RenderPresent(sdl.renderer);
+}
+
+void sdl_render_texture(SDL_Texture *t, Rectangle *r)
+{
+	SDL_RenderCopy(sdl.renderer, t, NULL, r);
 }

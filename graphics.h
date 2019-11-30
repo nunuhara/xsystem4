@@ -22,30 +22,19 @@
 #include <stdint.h>
 #include <SDL.h>
 
-typedef struct {
-        uint8_t red[256];
-        uint8_t green[256];
-        uint8_t blue[256];
-} Pallet256;
-
-typedef struct {
-        uint8_t r,g,b;
-        uint32_t pixel;
-} Pallet;
-
 typedef SDL_Point Point;
 
+#define POINT(_x, _y) ((Point){.x=_x, .y=_y})
+
 typedef struct {
-        int width;
-        int height;
+        int w;
+        int h;
 } Dimension;
+
+#define DIM(_w, _h) ((Dimension){.w=_w, .h=_h})
 
 typedef SDL_Rect Rectangle;
 
-typedef struct {
-        int width;
-        int height;
-        int depth;
-} DispInfo;
+#define RECT(_x, _y, _w, _h) ((Rectangle){.x=_x, .y=_y, .w=_w, .h=_h})
 
 #endif /* SYSTEM4_GRAPHICS_H */
