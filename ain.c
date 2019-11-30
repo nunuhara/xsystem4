@@ -256,6 +256,8 @@ static struct ain_function *read_functions(struct ain_reader *r, int count, stru
 	for (int i = 0; i < count; i++) {
 		funs[i].address = read_int32(r);
 		funs[i].name = read_string(r);
+		if (!strcmp(funs[i].name, "0"))
+			ain->alloc = i;
 		if (ain->version > 0 && ain->version < 7)
 			funs[i].is_label = read_int32(r);
 		funs[i].data_type = read_int32(r);

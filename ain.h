@@ -207,6 +207,7 @@ struct ain {
 	int32_t nr_messages;
 	struct string **messages;
 	int32_t main;
+	int32_t alloc;
 	int32_t msgf;
 	int32_t nr_libraries;
 	struct ain_library *libraries;
