@@ -98,5 +98,6 @@ void array_popback(struct page **dst);
 bool array_erase(struct page **page, int i);
 void array_insert(struct page **_page, int i, union vm_value v, int data_type, int struct_type);
 void array_sort(struct page *page, int compare_fno);
+int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno);
 
 #endif /* SYSTEM4_PAGE_H */

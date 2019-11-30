@@ -443,3 +443,30 @@ void array_sort(struct page *page, int compare_fno)
 	current_sort_function = compare_fno;
 	qsort(page->values, sizeof(union vm_value), page->nr_vars, array_compare);
 }
+
+int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno)
+{
+	if (!page)
+		return -1;
+
+	start = max(start, 0);
+	end = min(end, page->nr_vars);
+
+	// if no compare function given, compare integer values
+	if (!compare_fno) {
+		for (int i = start; i < end; i++) {
+			if (page->values[i].i == v.i)
+				return i;
+		}
+		return -1;
+	}
+
+	for (int i = start; i < end; i++) {
+		stack_push(v);
+		stack_push(page->values[i]);
+		vm_call(compare_fno, -1);
+		if (stack_pop().i)
+			return i;
+	}
+	return -1;
+}

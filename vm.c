@@ -1158,6 +1158,14 @@ static void execute_instruction(enum opcode opcode)
 		slot = stack_pop_var()->i;
 		array_sort(heap[slot].page, a);
 		break;
+	case A_FIND: {
+		int fno = stack_pop().i;
+		union vm_value v = stack_pop();
+		int end = stack_pop().i;
+		int start = stack_pop().i;
+		int array = stack_pop_var()->i;
+		stack_push(array_find(heap[array].page, start, end, v, fno));
+	}
 	// -- NOOPs ---
 	case FUNC:
 		break;
