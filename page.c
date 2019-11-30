@@ -175,24 +175,10 @@ void alloc_struct(int no, union vm_value *var)
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap[slot].page = alloc_page(STRUCT_PAGE, no, s->nr_members);
 	for (int i = 0; i < s->nr_members; i++) {
-		int memb;
-		switch (s->members[i].data_type) {
-		case AIN_STRING:
-			memb = heap_alloc_slot(VM_STRING);
-			heap[memb].s = string_ref(&EMPTY_STRING);
-			heap[slot].page->values[i].i = memb;
-			break;
-		case AIN_ARRAY_TYPE:
-			memb = heap_alloc_slot(VM_PAGE);
-			heap[memb].page = NULL;
-			heap[slot].page->values[i].i = memb;
-			break;
-		case AIN_STRUCT:
+		if (s->members[i].data_type == AIN_STRUCT) {
 			alloc_struct(s->members[i].struct_type, &heap[slot].page->values[i]);
-			break;
-		default:
-			heap[slot].page->values[i].i = 0;
-			break;
+		} else {
+			heap[slot].page->values[i] = variable_initval(s->members[i].data_type);
 		}
 	}
 	var->i = slot;

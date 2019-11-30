@@ -28,9 +28,9 @@
 #include "little_endian.h"
 #include "utfsjis.h"
 
-#define INITIAL_STACK_SIZE 1024
+#define INITIAL_STACK_SIZE 4096
 #define INITIAL_HEAP_SIZE  4096
-#define INITIAL_PAGES_SIZE 4096
+#define HEAP_ALLOC_STEP    4096
 #define HLL_MAX_ARGS 64
 
 // When the IP is set to VM_RETURN, the VM halts
@@ -61,7 +61,7 @@ static size_t heap_size;
 // Heap free list
 // This is a list of unused indices into the 'heap' array.
 static int32_t *heap_free_stack;
-static int32_t heap_free_ptr = 0;
+static size_t heap_free_ptr = 0;
 
 // Stack of function call frames
 static struct function_call call_stack[4096];
@@ -100,6 +100,16 @@ static const char *current_instruction_name(void)
 
 int32_t heap_alloc_slot(enum vm_pointer_type type)
 {
+	// grow heap if needed
+	if (heap_free_ptr >= heap_size) {
+		heap = xrealloc(heap, sizeof(struct vm_pointer) * (heap_size+HEAP_ALLOC_STEP));
+		heap_free_stack = xrealloc(heap_free_stack, sizeof(int32_t) * (heap_size+HEAP_ALLOC_STEP));
+		for (size_t i = heap_size; i < heap_size+HEAP_ALLOC_STEP; i++) {
+			heap_free_stack[i] = i;
+		}
+		heap_size += HEAP_ALLOC_STEP;
+	}
+
 	int32_t slot = heap_free_stack[heap_free_ptr++];
 	heap[slot].ref = 1;
 	heap[slot].type = type;
@@ -475,7 +485,7 @@ void exec_strswitch(int no, struct string *str)
 		instr_ptr += instruction_width(STRSWITCH);
 }
 
-static void execute_instruction(int16_t opcode)
+static void execute_instruction(enum opcode opcode)
 {
 	int32_t a, b, c, v, pageno, varno, slot;
 	int32_t src, src_i, dst, dst_i, i, n;
