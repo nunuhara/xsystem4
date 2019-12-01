@@ -1325,6 +1325,7 @@ extern struct library lib_MsgLogManager;
 extern struct library lib_MsgSkip;
 extern struct library lib_OutputLog;
 extern struct library lib_SACT2;
+extern struct library lib_SystemServiceEx;
 
 struct library *libraries[] = {
 	&lib_ACXLoader,
@@ -1335,6 +1336,7 @@ struct library *libraries[] = {
 	&lib_MsgSkip,
 	&lib_OutputLog,
 	&lib_SACT2,
+	&lib_SystemServiceEx,
 	NULL
 };
 

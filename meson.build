@@ -27,6 +27,7 @@ hll_libs = ['hll/ACXLoader.c',
             'hll/MsgSkip.c',
             'hll/OutputLog.c',
             'hll/SACT2.c',
+            'hll/SystemServiceEx.c',
 ]
 zdep = dependency('zlib')
 mdep = meson.get_compiler('c').find_library('m', required: false)
