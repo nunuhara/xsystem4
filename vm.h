@@ -24,7 +24,7 @@
 // Non-heap values. Stored in pages and on the stack.
 union vm_value {
 	int32_t i;
-	int64_t i64;
+	int64_t li;
 	float f;
 	// HLL only
 	void *ref;
@@ -90,7 +90,7 @@ static inline union vm_value vm_int(int32_t v)
 
 static inline union vm_value vm_long(int64_t v)
 {
-	return (union vm_value) { .i64 = v };
+	return (union vm_value) { .li = v };
 }
 
 static inline union vm_value vm_bool(bool b)

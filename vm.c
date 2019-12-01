@@ -903,6 +903,13 @@ static void execute_instruction(enum opcode opcode)
 		break;
 	}
 	//
+	// --- 64-bit integers ---
+	//
+	case ITOLI: {
+		stack_set(0, (int64_t)stack_peek(0).i);
+		break;
+	}
+	//
 	// --- Floating Point Arithmetic ---
 	//
 	case FTOI: {
