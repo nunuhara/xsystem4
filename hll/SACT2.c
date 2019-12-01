@@ -318,10 +318,43 @@ hll_defun(SP_IsPtInRect, args)
 hll_defun_inline(GAME_MSG_GetNumof, ain->nr_messages);
 // void GAME_MSG_Get(int nIndex, ref string text)
 hll_unimplemented(SACT2, GAME_MSG_Get);
+
 // void IntToZenkaku(ref string s, int nValue, int nFigures, int nfZeroPadding)
-hll_unimplemented(SACT2, IntToZenkaku);
+hll_defun(IntToZenkaku, args)
+{
+	int slot = args[0].i;
+	int val = args[1].i;
+	int fig = args[2].i;
+	bool zero_pad = args[3].i;
+	char buf[512];
+	int i;
+
+	if (heap[slot].s)
+		free_string(heap[slot].s);
+
+	i = int_to_cstr(buf, 1024, val, fig, zero_pad, true);
+	heap[slot].s = make_string(buf, i);
+	hll_return(0);
+}
+
 // void IntToHankaku(ref string s, int nValue, int nFigures, int nfZeroPadding)
-hll_unimplemented(SACT2, IntToHankaku);
+hll_defun(IntToHankaku, args)
+{
+	int slot = args[0].i;
+	int val = args[1].i;
+	int fig = args[2].i;
+	bool zero_pad = args[3].i;
+	char buf[512];
+	int i;
+
+	if (heap[slot].s)
+		free_string(heap[slot].s);
+
+	i = int_to_cstr(buf, 1024, val, fig, zero_pad, false);
+	heap[slot].s = make_string(buf, i);
+	hll_return(0);
+}
+
 // int StringPopFront(ref string sDst, ref string sSrc)
 hll_unimplemented(SACT2, StringPopFront);
 

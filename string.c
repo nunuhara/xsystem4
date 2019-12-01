@@ -349,9 +349,9 @@ end:
 	*_fmt = ++fmt;
 }
 
-static int number_han2zen(char *buf)
+static int number_han2zen(char *buf, size_t size)
 {
-	char tmp[DIGIT_MAX];
+	char *tmp = xmalloc(size*2);
 	int i = 0;
 	for (char *p = buf; *p && i < DIGIT_MAX-2; p++) {
 		switch (*p) {
@@ -379,50 +379,55 @@ static int number_han2zen(char *buf)
 	tmp[i] = '\0';
 
 	memcpy(buf, tmp, i+1);
+	free(tmp);
 	return i;
 }
 
-static int fmt_int(char *buf, struct fmt_spec *spec, int v)
+int int_to_cstr(char *buf, size_t size, int v, int figures, bool zero_pad, bool zenkaku)
 {
-	int i = 0;
 	char fmt[64];
+	int i = 0;
 
 	// prepare format string for snprintf
 	fmt[i++] = '%';
-	if (spec->padding) {
-		if (spec->zero_pad)
+	if (figures > 0) {
+		if (zero_pad)
 			fmt[i++] = '0';
-		i += snprintf(fmt+i, 64-i, "%d", spec->padding);
+		i += snprintf(fmt+i, 64-i, "%d", figures);
 	}
 	fmt[i++] = 'd';
 	fmt[i] = '\0';
 
-	i = snprintf(buf, DIGIT_MAX-1, fmt, v);
-	if (spec->zenkaku)
-		i = number_han2zen(buf);
+	i = snprintf(buf, size-1, fmt, v);
+	buf[i] = '\0';
+
+	if (zenkaku)
+		i = number_han2zen(buf, size);
+
 	return i;
 }
 
-static int fmt_float(char *buf, struct fmt_spec *spec, float v)
+int float_to_cstr(char *buf, size_t size, float v, int figures, bool zero_pad, int precision, bool zenkaku)
 {
-	int i = 0;
 	char fmt[64];
+	int i = 0;
 
-	// prepare format string for snprintf
 	fmt[i++] = '%';
-	if (spec->padding) {
-		if (spec->zero_pad)
+	if (figures > 0) {
+		if (zero_pad)
 			fmt[i++] = '0';
-		i += snprintf(fmt+i, 64-i, "%d", spec->padding);
+		i += snprintf(fmt+i, 64-i, "%d", figures);
 	}
 	fmt[i++] = '.';
-	i += snprintf(fmt+i, 64-i, "%d", spec->precision);
+	i += snprintf(fmt+i, 64-i, "%d", precision);
 	fmt[i++] = 'f';
 	fmt[i] = '\0';
 
-	i = snprintf(buf, DIGIT_MAX-1, fmt, v);
-	if (spec->zenkaku) {
-		i = number_han2zen(buf);
+	i = snprintf(buf, size-1, fmt, v);
+	buf[i] = '\0';
+
+	if (zenkaku) {
+		i = number_han2zen(buf, DIGIT_MAX);
 		// XXX: bug in System40.exe
 		buf[i++] = 'F';
 		buf[i] = '\0';
@@ -438,11 +443,11 @@ static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value 
 	case FMT_VOID:
 		return;
 	case FMT_INT:
-		len = fmt_int(buf, spec, arg.i);
+		len = int_to_cstr(buf, DIGIT_MAX, arg.i, spec->padding, spec->zero_pad, spec->zenkaku);
 		string_append_cstr(s, buf, len);
 		break;
 	case FMT_FLOAT:
-		len = fmt_float(buf, spec, arg.f);
+		len = float_to_cstr(buf, DIGIT_MAX, arg.f, spec->padding, spec->zero_pad, spec->precision, spec->zenkaku);
 		string_append_cstr(s, buf, len);
 		break;
 	case FMT_STRING:

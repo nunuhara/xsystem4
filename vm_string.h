@@ -56,4 +56,8 @@ int string_find(const struct string *haystack, const struct string *needle);
 int string_get_char(const struct string *str, int i);
 void string_set_char(struct string **_s, int i, unsigned int c);
 
+// C strings
+int int_to_cstr(char *buf, size_t size, int v, int figures, bool zero_pad, bool zenkaku);
+int float_to_cstr(char *buf, size_t size, float v, int figures, bool zero_pad, int precision, bool zenkaku);
+
 #endif
