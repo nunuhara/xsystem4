@@ -487,176 +487,204 @@ void exec_strswitch(int no, struct string *str)
 
 static void execute_instruction(enum opcode opcode)
 {
-	int32_t a, b, c, v, pageno, varno, slot;
-	int32_t src, src_i, dst, dst_i, i, n;
-	enum ain_data_type data_type, struct_type;
-	float f;
-	struct string *s;
-	union vm_value val;
-	union vm_value *ref;
 	switch (opcode) {
 	//
 	// --- Stack Management ---
 	//
-	case PUSH:
+	case PUSH: {
 		stack_push(get_argument(0));
 		break;
-	case POP:
+	}
+	case POP: {
 		stack_pop();
 		break;
-	case F_PUSH:
+	}
+	case F_PUSH: {
 		stack_push(get_argument_float(0));
 		break;
-	case REF:
+	}
+	case REF: {
 		// Dereference a reference to a value.
-		v = stack_pop_var()[0].i;
-		stack_push(v);
+		stack_push(stack_pop_var()->i);
 		break;
-	case REFREF:
+	}
+	case REFREF: {
 		// Dereference a reference to a reference.
-		ref = stack_pop_var();
+		union vm_value *ref = stack_pop_var();
 		stack_push(ref[0].i);
 		stack_push(ref[1].i);
 		break;
-	case DUP:
+	}
+	case DUP: {
 		// A -> AA
 		stack_push(stack_peek(0).i);
 		break;
-	case DUP2:
+	}
+	case DUP2: {
 		// AB -> ABAB
-		a = stack_peek(1).i;
-		b = stack_peek(0).i;
+		int a = stack_peek(1).i;
+		int b = stack_peek(0).i;
 		stack_push(a);
 		stack_push(b);
 		break;
-	case DUP_X2:
+	}
+	case DUP_X2: {
 		// ABC -> CABC
-		a = stack_peek(2).i;
-		b = stack_peek(1).i;
-		c = stack_peek(0).i;
+		int a = stack_peek(2).i;
+		int b = stack_peek(1).i;
+		int c = stack_peek(0).i;
 		stack_set(2, c);
 		stack_set(1, a);
 		stack_set(0, b);
 		stack_push(c);
 		break;
-	case DUP2_X1:
+	}
+	case DUP2_X1: {
 		// ABC -> BCABC
-		a = stack_peek(2).i;
-		b = stack_peek(1).i;
-		c = stack_peek(0).i;
+		int a = stack_peek(2).i;
+		int b = stack_peek(1).i;
+		int c = stack_peek(0).i;
 		stack_set(2, b);
 		stack_set(1, c);
 		stack_set(0, a);
 		stack_push(b);
 		stack_push(c);
 		break;
-	case DUP_U2:
+	}
+	case DUP_U2: {
 		// AB -> ABA
 		stack_push(stack_peek(1).i);
 		break;
-	case SWAP:
-		a = stack_peek(1).i;
+	}
+	case SWAP: {
+		int a = stack_peek(1).i;
 		stack_set(1, stack_peek(0));
 		stack_set(0, a);
 		break;
+	}
 	//
 	// --- Variables ---
 	//
-	case PUSHGLOBALPAGE:
+	case PUSHGLOBALPAGE: {
 		stack_push(0);
 		break;
-	case PUSHLOCALPAGE:
+	}
+	case PUSHLOCALPAGE: {
 		stack_push(local_page_slot());
 		break;
-	case PUSHSTRUCTPAGE:
+	}
+	case PUSHSTRUCTPAGE: {
 		stack_push(struct_page_slot());
 		break;
+	}
 	case ASSIGN:
-	case F_ASSIGN:
-		val = stack_pop();
+	case F_ASSIGN: {
+		union vm_value val = stack_pop();
 		stack_pop_var()[0] = val;
 		stack_push(val);
 		break;
-	case SH_GLOBALREF: // VARNO
+	}
+	case SH_GLOBALREF: { // VARNO
 		stack_push(global_get(get_argument(0)).i);
 		break;
-	case SH_LOCALREF: // VARNO
+	}
+	case SH_LOCALREF: { // VARNO
 		stack_push(local_get(get_argument(0)).i);
 		break;
-	case SH_STRUCTREF: // VARNO
+	}
+	case SH_STRUCTREF: { // VARNO
 		stack_push(struct_page()[get_argument(0)]);
 		break;
-	case SH_LOCALASSIGN: // VARNO, VALUE
+	}
+	case SH_LOCALASSIGN: { // VARNO, VALUE
 		local_set(get_argument(0), get_argument(1));
 		break;
-	case SH_LOCALINC: // VARNO
-		varno = get_argument(0);
+	}
+	case SH_LOCALINC: { // VARNO
+		int varno = get_argument(0);
 		local_set(varno, local_get(varno).i+1);
 		break;
-	case SH_LOCALDEC: // VARNO
-		varno = get_argument(0);
+	}
+	case SH_LOCALDEC: { // VARNO
+		int varno = get_argument(0);
 		local_set(varno, local_get(varno).i-1);
 		break;
-	case SH_LOCALDELETE:
-		if ((slot = local_get(get_argument(0)).i) != -1) {
+	}
+	case SH_LOCALDELETE: {
+		int slot = local_get(get_argument(0)).i;
+		if (slot != -1) {
 			heap_unref(slot);
 			local_set(get_argument(0), -1);
 		}
 		break;
-	case SH_LOCALCREATE: // VARNO, STRUCTNO
+	}
+	case SH_LOCALCREATE: { // VARNO, STRUCTNO
 		create_struct(get_argument(1), local_ptr(get_argument(0)));
 		break;
-	case R_ASSIGN:
-		varno = stack_pop().i;
-		pageno = stack_pop().i;
-		dst_i = stack_pop().i;
-		dst = stack_pop().i;
-		heap[dst].page->values[dst_i].i = pageno;
-		heap[dst].page->values[dst_i+1].i = varno;
-		stack_push(pageno);
-		stack_push(varno);
+	}
+	case R_ASSIGN: {
+		int src_var = stack_pop().i;
+		int src_page = stack_pop().i;
+		int dst_var = stack_pop().i;
+		int dst_page = stack_pop().i;
+		heap[dst_page].page->values[dst_var].i = src_page;
+		heap[dst_page].page->values[dst_var+1].i = src_var;
+		stack_push(src_page);
+		stack_push(src_var);
 		break;
-	case DELETE:
-		if ((slot = stack_pop().i) != -1)
+	}
+	case DELETE: {
+		int slot = stack_pop().i;
+		if (slot != -1)
 			heap_unref(slot);
 		break;
-	case SP_INC:
+	}
+	case SP_INC: {
 		heap_ref(stack_pop().i);
 		break;
+	}
 	//
 	// --- Control Flow ---
 	//
-	case CALLFUNC:
+	case CALLFUNC: {
 		function_call(get_argument(0), instr_ptr + instruction_width(CALLFUNC));
 		break;
-	case CALLFUNC2:
+	}
+	case CALLFUNC2: {
 		stack_pop(); // function-type index (only needed for compilation)
 		function_call(stack_pop().i, instr_ptr + instruction_width(CALLFUNC2));
 		break;
-	case CALLMETHOD:
+	}
+	case CALLMETHOD: {
 		method_call(get_argument(0), instr_ptr + instruction_width(CALLMETHOD));
 		break;
-	case CALLHLL:
+	}
+	case CALLHLL: {
 		hll_call(get_argument(0), get_argument(1));
 		break;
-	case RETURN:
+	}
+	case RETURN: {
 		function_return();
 		break;
-	case CALLSYS:
+	}
+	case CALLSYS: {
 		system_call(get_argument(0));
 		break;
-	case CALLONJUMP:
-		slot = stack_pop().i;
+	}
+	case CALLONJUMP: {
+		int str = stack_pop().i;
 		// XXX: I am GUESSING that the VM pre-allocates the scenario function's
 		//      local page here. It certainly pushes what appears to be a page
 		//      index to the stack.
-		stack_push(alloc_scenario_page(heap[slot].s->text));
-		heap_unref(slot);
+		stack_push(alloc_scenario_page(heap[str].s->text));
+		heap_unref(str);
 		break;
-	case SJUMP:
+	}
+	case SJUMP: {
 		scenario_call(stack_pop().i);
 		break;
-	case MSG:
+	}
+	case MSG: {
 		if (ain->msgf < 0)
 			break;
 		stack_push(get_argument(0));
@@ -664,500 +692,597 @@ static void execute_instruction(enum opcode opcode)
 		stack_push_string(string_ref(ain->messages[get_argument(0)]));
 		function_call(ain->msgf, instr_ptr + instruction_width(MSG));
 		break;
-	case JUMP: // ADDR
+	}
+	case JUMP: { // ADDR
 		instr_ptr = get_argument(0);
 		break;
-	case IFZ: // ADDR
+	}
+	case IFZ: { // ADDR
 		if (!stack_pop().i)
 			instr_ptr = get_argument(0);
 		else
 			instr_ptr += instruction_width(IFZ);
 		break;
-	case IFNZ: // ADDR
+	}
+	case IFNZ: { // ADDR
 		if (stack_pop().i)
 			instr_ptr = get_argument(0);
 		else
 			instr_ptr += instruction_width(IFNZ);
 		break;
-	case SWITCH:
+	}
+	case SWITCH: {
 		exec_switch(get_argument(0), stack_pop().i);
 		break;
-	case STRSWITCH:
-		slot = stack_pop().i;
-		exec_strswitch(get_argument(0), heap[slot].s);
-		heap_unref(slot);
+	}
+	case STRSWITCH: {
+		int str = stack_pop().i;
+		exec_strswitch(get_argument(0), heap[str].s);
+		heap_unref(str);
 		break;
-	case ASSERT:
-		i = stack_pop().i; // line number
-		a = stack_pop().i; // filename
-		b = stack_pop().i; // expression
-		v = stack_pop().i; // value
-		if (!v) {
-			char *filename = sjis2utf(heap[a].s->text, heap[a].s->size);
-			char *value = sjis2utf(heap[b].s->text, heap[b].s->size);
-			sys_message("Assertion failed at %s:%d: %s\n", filename, i, value);
+	}
+	case ASSERT: {
+		int line = stack_pop().i; // line number
+		int file = stack_pop().i; // filename
+		int expr = stack_pop().i; // expression
+		if (!stack_pop().i) {
+			char *filename = sjis2utf(heap[file].s->text, heap[file].s->size);
+			char *value = sjis2utf(heap[expr].s->text, heap[expr].s->size);
+			sys_message("Assertion failed at %s:%d: %s\n", filename, line, value);
 			free(filename);
 			free(value);
 			vm_exit(1);
 		}
-		heap_unref(a);
-		heap_unref(b);
+		heap_unref(file);
+		heap_unref(expr);
 		break;
+	}
 	//
 	// --- Arithmetic ---
 	//
-	case INV:
+	case INV: {
 		stack[stack_ptr-1].i = -stack[stack_ptr-1].i;
 		break;
-	case NOT:
+	}
+	case NOT: {
 		stack[stack_ptr-1].i = !stack[stack_ptr-1].i;
 		break;
-	case COMPL:
+	}
+	case COMPL: {
 		stack[stack_ptr-1].i = ~stack[stack_ptr-1].i;
 		break;
-	case ADD:
+	}
+	case ADD: {
 		stack[stack_ptr-2].i += stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
-	case SUB:
+	}
+	case SUB: {
 		stack[stack_ptr-2].i -= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
-	case MUL:
+	}
+	case MUL: {
 		stack[stack_ptr-2].i *= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
-	case DIV:
+	}
+	case DIV: {
 		stack[stack_ptr-2].i /= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
-	case MOD:
+	}
+	case MOD: {
 		stack[stack_ptr-2].i %= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
-	case AND:
+	}
+	case AND: {
 		stack[stack_ptr-2].i &= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
-	case OR:
+	}
+	case OR: {
 		stack[stack_ptr-2].i |= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
-	case XOR:
+	}
+	case XOR: {
 		stack[stack_ptr-2].i ^= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
-	case LSHIFT:
+	}
+	case LSHIFT: {
 		stack[stack_ptr-2].i <<= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
-	case RSHIFT:
+	}
+	case RSHIFT: {
 		stack[stack_ptr-2].i >>= stack[stack_ptr-1].i;
 		stack_ptr--;
 		break;
+	}
 	// Numeric Comparisons
-	case LT:
-		b = stack_pop().i;
-		a = stack_pop().i;
+	case LT: {
+		int b = stack_pop().i;
+		int a = stack_pop().i;
 		stack_push(a < b ? 1 : 0);
 		break;
-	case GT:
-		b = stack_pop().i;
-		a = stack_pop().i;
+	}
+	case GT: {
+		int b = stack_pop().i;
+		int a = stack_pop().i;
 		stack_push(a > b ? 1 : 0);
 		break;
-	case LTE:
-		b = stack_pop().i;
-		a = stack_pop().i;
+	}
+	case LTE: {
+		int b = stack_pop().i;
+		int a = stack_pop().i;
 		stack_push(a <= b ? 1 : 0);
 		break;
-	case GTE:
-		b = stack_pop().i;
-		a = stack_pop().i;
+	}
+	case GTE: {
+		int b = stack_pop().i;
+		int a = stack_pop().i;
 		stack_push(a >= b ? 1 : 0);
 		break;
-	case NOTE:
-		b = stack_pop().i;
-		a = stack_pop().i;
+	}
+	case NOTE: {
+		int b = stack_pop().i;
+		int a = stack_pop().i;
 		stack_push(a != b ? 1 : 0);
 		break;
-	case EQUALE:
-		b = stack_pop().i;
-		a = stack_pop().i;
+	}
+	case EQUALE: {
+		int b = stack_pop().i;
+		int a = stack_pop().i;
 		stack_push(a == b ? 1 : 0);
 		break;
+	}
 	// +=, -=, etc.
-	case PLUSA:
-		v = stack_pop().i;
-		stack_push(stack_pop_var()[0].i += v);
+	case PLUSA: {
+		int n = stack_pop().i;
+		stack_push(stack_pop_var()[0].i += n);
 		break;
-	case MINUSA:
-		v = stack_pop().i;
-		stack_push(stack_pop_var()[0].i -= v);
+	}
+	case MINUSA: {
+		int n = stack_pop().i;
+		stack_push(stack_pop_var()[0].i -= n);
 		break;
-	case MULA:
-		v = stack_pop().i;
-		stack_push(stack_pop_var()[0].i *= v);
+	}
+	case MULA: {
+		int n = stack_pop().i;
+		stack_push(stack_pop_var()[0].i *= n);
 		break;
-	case DIVA:
-		v = stack_pop().i;
-		stack_push(stack_pop_var()[0].i /= v);
+	}
+	case DIVA: {
+		int n = stack_pop().i;
+		stack_push(stack_pop_var()[0].i /= n);
 		break;
-	case MODA:
-		v = stack_pop().i;
-		stack_push(stack_pop_var()[0].i %= v);
+	}
+	case MODA: {
+		int n = stack_pop().i;
+		stack_push(stack_pop_var()[0].i %= n);
 		break;
-	case ANDA:
-		v = stack_pop().i;
-		stack_push(stack_pop_var()[0].i &= v);
+	}
+	case ANDA: {
+		int n = stack_pop().i;
+		stack_push(stack_pop_var()[0].i &= n);
 		break;
-	case ORA:
-		v = stack_pop().i;
-		stack_push(stack_pop_var()[0].i |= v);
+	}
+	case ORA: {
+		int n = stack_pop().i;
+		stack_push(stack_pop_var()[0].i |= n);
 		break;
-	case XORA:
-		v = stack_pop().i;
-		stack_push(stack_pop_var()[0].i ^= v);
+	}
+	case XORA: {
+		int n = stack_pop().i;
+		stack_push(stack_pop_var()[0].i ^= n);
 		break;
-	case LSHIFTA:
-		v = stack_pop().i;
-		stack_push(stack_pop_var()[0].i <<= v);
+	}
+	case LSHIFTA: {
+		int n = stack_pop().i;
+		stack_push(stack_pop_var()[0].i <<= n);
 		break;
-	case RSHIFTA:
-		v = stack_pop().i;
-		stack_push(stack_pop_var()[0].i >>= v);
+	}
+	case RSHIFTA: {
+		int n = stack_pop().i;
+		stack_push(stack_pop_var()[0].i >>= n);
 		break;
-	case INC:
+	}
+	case INC: {
 		stack_pop_var()[0].i++;
 		break;
-	case DEC:
+	}
+	case DEC: {
 		stack_pop_var()[0].i--;
 		break;
-	case ITOB:
+	}
+	case ITOB: {
 		stack_set(0, !!stack_peek(0).i);
 		break;
+	}
 	//
 	// --- Floating Point Arithmetic ---
 	//
-	case FTOI:
+	case FTOI: {
 		stack_set(0, (int32_t)stack_peek(0).f);
 		break;
-	case ITOF:
+	}
+	case ITOF: {
 		stack_set(0, (float)stack_peek(0).i);
 		break;
-	case F_INV:
+	}
+	case F_INV: {
 		stack_set(0, -stack_peek(0).f);
 		break;
-	case F_ADD:
-		f = stack_pop().f;
+	}
+	case F_ADD: {
+		float f = stack_pop().f;
 		stack_set(0, stack_peek(0).f + f);
 		break;
-	case F_SUB:
-		f = stack_pop().f;
+	}
+	case F_SUB: {
+		float f = stack_pop().f;
 		stack_set(0, stack_peek(0).f - f);
 		break;
-	case F_MUL:
-		f = stack_pop().f;
+	}
+	case F_MUL: {
+		float f = stack_pop().f;
 		stack_set(0, stack_peek(0).f * f);
 		break;
-	case F_DIV:
-		f = stack_pop().f;
+	}
+	case F_DIV: {
+		float f = stack_pop().f;
 		stack_set(0, stack_peek(0).f / f);
 		break;
+	}
 	// floating point comparison
-	case F_LT:
-		f = stack_pop().f;
+	case F_LT: {
+		float f = stack_pop().f;
 		stack_set(0, stack_peek(0).f < f ? 1 : 0);
 		break;
-	case F_GT:
-		f = stack_pop().f;
+	}
+	case F_GT: {
+		float f = stack_pop().f;
 		stack_set(0, stack_peek(0).f > f ? 1 : 0);
 		break;
-	case F_LTE:
-		f = stack_pop().f;
+	}
+	case F_LTE: {
+		float f = stack_pop().f;
 		stack_set(0, stack_peek(0).f <= f ? 1 : 0);
 		break;
-	case F_GTE:
-		f = stack_pop().f;
+	}
+	case F_GTE: {
+		float f = stack_pop().f;
 		stack_set(0, stack_peek(0).f >= f ? 1 : 0);
 		break;
-	case F_NOTE:
-		f = stack_pop().f;
+	}
+	case F_NOTE: {
+		float f = stack_pop().f;
 		stack_set(0, stack_peek(0).f != f ? 1 : 0);
 		break;
-	case F_EQUALE:
-		f = stack_pop().f;
+	}
+	case F_EQUALE: {
+		float f = stack_pop().f;
 		stack_set(0, stack_peek(0).f == f ? 1 : 0);
 		break;
+	}
 	//
 	// --- Strings ---
 	//
-	case S_PUSH:
+	case S_PUSH: {
 		stack_push_string(string_ref(ain->strings[get_argument(0)]));
 		break;
-	case S_POP:
-		slot = stack_pop().i;
-		heap_unref(slot);
+	}
+	case S_POP: {
+		heap_unref(stack_pop().i);
 		break;
-	case S_REF:
+	}
+	case S_REF: {
 		// Dereference a reference to a string
-		slot = stack_pop_var()->i;
-		stack_push_string(string_ref(heap[slot].s));
+		int str = stack_pop_var()->i;
+		stack_push_string(string_ref(heap[str].s));
 		break;
+	}
 	//case S_REFREF: // ???: why/how is this different from regular REFREF?
-	case S_ASSIGN: // A = B
-		b = stack_peek(0).i;
-		a = stack_peek(1).i;
-		if (heap[a].s) {
-			free_string(heap[a].s);
+	case S_ASSIGN: { // A = B
+		int rval = stack_peek(0).i;
+		int lval = stack_peek(1).i;
+		if (heap[lval].s) {
+			free_string(heap[lval].s);
 		}
-		heap[a].s = string_ref(heap[b].s);
+		heap[lval].s = string_ref(heap[rval].s);
 		// remove A from the stack, but leave B
-		stack_set(1, b);
+		stack_set(1, rval);
 		stack_pop();
 		break;
-	case S_PLUSA2:
-		a = stack_peek(1).i;
-		b = stack_peek(0).i;
+	}
+	case S_PLUSA2: {
+		int a = stack_peek(1).i;
+		int b = stack_peek(0).i;
 		string_append(&heap[a].s, heap[b].s);
 		heap_unref(b);
 		stack_pop();
 		stack_pop();
 		stack_push_string(string_ref(heap[a].s));
 		break;
-	case S_ADD:
-		b = stack_pop().i;
-		a = stack_pop().i;
+	}
+	case S_ADD: {
+		int b = stack_pop().i;
+		int a = stack_pop().i;
 		// TODO: can use string_append here?
 		stack_push_string(string_concatenate(heap[a].s, heap[b].s));
 		heap_unref(a);
 		heap_unref(b);
 		break;
-	case S_LT:
-		v = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) < 0;
+	}
+	case S_LT: {
+		bool lt = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) < 0;
 		heap_unref(stack_pop().i);
 		heap_unref(stack_pop().i);
-		stack_push(v);
+		stack_push(lt);
 		break;
-	case S_GT:
-		v = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) > 0;
+	}
+	case S_GT: {
+		bool gt = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) > 0;
 		heap_unref(stack_pop().i);
 		heap_unref(stack_pop().i);
-		stack_push(v);
+		stack_push(gt);
 		break;
-	case S_LTE:
-		v = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) <= 0;
+	}
+	case S_LTE: {
+		bool lte = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) <= 0;
 		heap_unref(stack_pop().i);
 		heap_unref(stack_pop().i);
-		stack_push(v);
+		stack_push(lte);
 		break;
-	case S_GTE:
-		v = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) >= 0;
+	}
+	case S_GTE: {
+		bool gte = strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text) >= 0;
 		heap_unref(stack_pop().i);
 		heap_unref(stack_pop().i);
-		stack_push(v);
+		stack_push(gte);
 		break;
-	case S_NOTE:
-		v = !!strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text);
+	}
+	case S_NOTE: {
+		bool noteq = !!strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text);
 		heap_unref(stack_pop().i);
 		heap_unref(stack_pop().i);
-		stack_push(v);
+		stack_push(noteq);
 		break;
-	case S_EQUALE:
-		v = !strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text);
+	}
+	case S_EQUALE: {
+		bool eq = !strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text);
 		heap_unref(stack_pop().i);
 		heap_unref(stack_pop().i);
-		stack_push(v);
+		stack_push(eq);
 		break;
-	case S_LENGTH:
-		a = stack_pop_var()->i;
-		stack_push(sjis_count_char(heap[a].s->text));
+	}
+	case S_LENGTH: {
+		int str = stack_pop_var()->i;
+		stack_push(sjis_count_char(heap[str].s->text));
 		break;
-	case S_LENGTH2:
-		slot = stack_pop().i;
-		stack_push(sjis_count_char(heap[slot].s->text));
-		heap_unref(slot);
+	}
+	case S_LENGTH2: {
+		int str = stack_pop().i;
+		stack_push(sjis_count_char(heap[str].s->text));
+		heap_unref(str);
 		break;
-	case S_LENGTHBYTE:
-		a = stack_pop_var()->i;
-		stack_push(heap[a].s->size);
+	}
+	case S_LENGTHBYTE: {
+		int str = stack_pop_var()->i;
+		stack_push(heap[str].s->size);
 		break;
-	case S_EMPTY:
-		v = !stack_peek_string(0)->size;
+	}
+	case S_EMPTY: {
+		bool empty = !stack_peek_string(0)->size;
 		heap_unref(stack_pop().i);
-		stack_push(v);
+		stack_push(empty);
 		break;
-	case S_FIND:
-		v = string_find(stack_peek_string(1), stack_peek_string(0));
+	}
+	case S_FIND: {
+		int i = string_find(stack_peek_string(1), stack_peek_string(0));
 		heap_unref(stack_pop().i);
 		heap_unref(stack_pop().i);
-		stack_push(v);
+		stack_push(i);
 		break;
-	case S_GETPART:
-		b = stack_pop().i; // length
-		a = stack_pop().i; // index
-		s = string_copy(stack_peek_string(0), a, b);
+	}
+	case S_GETPART: {
+		int len = stack_pop().i; // length
+		int i = stack_pop().i; // index
+		struct string *s = string_copy(stack_peek_string(0), i, len);
 		heap_unref(stack_pop().i);
 		stack_push_string(s);
 		break;
+	}
 	//case S_PUSHBACK: // ???
-	case S_PUSHBACK2:
-		v = stack_pop().i;
-		string_push_back(&heap[stack_pop().i].s, v);
+	case S_PUSHBACK2: {
+		int c = stack_pop().i;
+		int str = stack_pop().i;
+		string_push_back(&heap[str].s, c);
 		break;
+	}
 	//case S_POPBACK: // ???
-	case S_POPBACK2:
-		slot = stack_pop().i;
-		string_pop_back(&heap[slot].s);
+	case S_POPBACK2: {
+		int str = stack_pop().i;
+		string_pop_back(&heap[str].s);
 		break;
+	}
 	//case S_ERASE: // ???
-	case S_ERASE2:
-		b = stack_pop().i; // ???
-		a = stack_pop().i; // index
-		slot = stack_pop().i;
-		string_erase(&heap[slot].s, a);
-		break;
-	case S_MOD:
+	case S_ERASE2: {
 		stack_pop(); // ???
-		val = stack_pop();
-		slot = stack_pop().i;
-		dst = heap_alloc_slot(VM_STRING);
-		heap[dst].s = string_format(heap[slot].s, val);
-		heap_unref(slot);
+		int i = stack_pop().i; // index
+		int str = stack_pop().i;
+		string_erase(&heap[str].s, i);
+		break;
+	}
+	case S_MOD: {
+		stack_pop(); // ???
+		union vm_value val = stack_pop();
+		int fmt = stack_pop().i;
+		int dst = heap_alloc_slot(VM_STRING);
+		heap[dst].s = string_format(heap[fmt].s, val);
+		heap_unref(fmt);
 		stack_push(dst);
 		break;
-	case I_STRING:
+	}
+	case I_STRING: {
 		stack_push_string(integer_to_string(stack_pop().i));
 		break;
-	case FTOS:
-		v = stack_pop().i; // precision
-		stack_push_string(float_to_string(stack_pop().f, v));
+	}
+	case FTOS: {
+		int precision = stack_pop().i;
+		stack_push_string(float_to_string(stack_pop().f, precision));
 		break;
+	}
 	// --- Characters ---
-	case C_REF:
-		v = stack_pop().i;
-		slot = stack_pop().i;
-		stack_push(string_get_char(heap[slot].s, v));
+	case C_REF: {
+		int i = stack_pop().i;
+		int str = stack_pop().i;
+		stack_push(string_get_char(heap[str].s, i));
 		break;
-	case C_ASSIGN:
-		v = stack_pop().i;
-		i = stack_pop().i;
-		slot = stack_pop().i;
-		string_set_char(&heap[slot].s, i, v);
-		stack_push(v);
+	}
+	case C_ASSIGN: {
+		int c = stack_pop().i;
+		int i = stack_pop().i;
+		int str = stack_pop().i;
+		string_set_char(&heap[str].s, i, c);
+		stack_push(c);
 		break;
+	}
 	//
 	// --- Structs/Classes ---
 	//
-	case SR_REF:
+	case SR_REF: {
 		stack_push(vm_copy_page(heap[stack_pop_var()->i].page));
 		break;
-	case SR_POP:
+	}
+	case SR_POP: {
 		heap_unref(stack_pop().i);
 		break;
-	case SR_ASSIGN:
+	}
+	case SR_ASSIGN: {
 		stack_pop(); // struct type
-		b = stack_pop().i;
-		a = stack_pop().i;
-		if (a == -1)
+		int rval = stack_pop().i;
+		int lval = stack_pop().i;
+		if (lval == -1)
 			VM_ERROR("Assignment to null-pointer");
-		if (heap[a].page) {
-			delete_page(heap[a].page);
-			free_page(heap[a].page);
+		if (heap[lval].page) {
+			delete_page(heap[lval].page);
+			free_page(heap[lval].page);
 		}
-		heap[a].page = copy_page(heap[b].page);
-		stack_push(b);
+		heap[lval].page = copy_page(heap[rval].page);
+		stack_push(rval);
 		break;
+	}
 	//
 	// -- Arrays --
 	//
-	case A_ALLOC:
-		a = stack_pop().i; // rank
-		varno = stack_peek(a).i;
-		pageno = stack_peek(a+1).i;
-		slot = heap[pageno].page->values[varno].i;
-		data_type = variable_type(heap[pageno].page, varno, &struct_type);
-		heap[slot].page = alloc_array(a, stack_peek_ptr(a-1), data_type, struct_type, true);
-		stack_ptr -= a + 2;
+	case A_ALLOC: {
+		enum ain_data_type struct_type;
+		int rank = stack_pop().i;
+		int varno = stack_peek(rank).i;
+		int pageno = stack_peek(rank+1).i;
+		int array = heap[pageno].page->values[varno].i;
+		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type);
+		heap[array].page = alloc_array(rank, stack_peek_ptr(rank-1), data_type, struct_type, true);
+		stack_ptr -= rank + 2;
 		break;
-	case A_REALLOC:
-		a = stack_pop().i; // rank
-		varno = stack_peek(a).i;
-		pageno = stack_peek(a+1).i;
-		slot = heap[pageno].page->values[varno].i;
-		data_type = variable_type(heap[pageno].page, varno, &struct_type);
-		heap[slot].page = realloc_array(heap[slot].page, a, stack_peek_ptr(a-1), data_type, struct_type, true);
-		stack_ptr -= a + 2;
+	}
+	case A_REALLOC: {
+		enum ain_data_type struct_type;
+		int rank = stack_pop().i; // rank
+		int varno = stack_peek(rank).i;
+		int pageno = stack_peek(rank+1).i;
+		int array = heap[pageno].page->values[varno].i;
+		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type);
+		heap[array].page = realloc_array(heap[array].page, rank, stack_peek_ptr(rank-1), data_type, struct_type, true);
+		stack_ptr -= rank + 2;
 		break;
-	case A_FREE:
-		slot = stack_pop_var()->i;
-		if (heap[slot].page) {
-			delete_page(heap[slot].page);
-			free_page(heap[slot].page);
-			heap[slot].page = NULL;
+	}
+	case A_FREE: {
+		int array = stack_pop_var()->i;
+		if (heap[array].page) {
+			delete_page(heap[array].page);
+			free_page(heap[array].page);
+			heap[array].page = NULL;
 		}
 		break;
-	case A_REF:
-		a = stack_pop().i;
-		slot = heap_alloc_slot(VM_PAGE);
-		heap[slot].page = copy_page(heap[a].page);
+	}
+	case A_REF: {
+		int array = stack_pop().i;
+		int slot = heap_alloc_slot(VM_PAGE);
+		heap[slot].page = copy_page(heap[array].page);
 		stack_push(slot);
 		break;
-	case A_NUMOF:
-		a = stack_pop().i; // rank
-		slot = stack_pop_var()->i;
-		stack_push(array_numof(heap[slot].page, a));
+	}
+	case A_NUMOF: {
+		int rank = stack_pop().i; // rank
+		int array = stack_pop_var()->i;
+		stack_push(array_numof(heap[array].page, rank));
 		break;
-	case A_COPY:
-		n = stack_pop().i;
-		src_i = stack_pop().i;
-		src = stack_pop().i;
-		dst_i = stack_pop().i;
-		dst = stack_pop_var()->i;
+	}
+	case A_COPY: {
+		int n = stack_pop().i;
+		int src_i = stack_pop().i;
+		int src = stack_pop().i;
+		int dst_i = stack_pop().i;
+		int dst = stack_pop_var()->i;
 		array_copy(heap[dst].page, dst_i, heap[src].page, src_i, n);
 		stack_push(n);
 		break;
-	case A_FILL:
-		val = stack_pop();
-		n = stack_pop().i;
-		dst_i = stack_pop().i;
-		dst = stack_pop_var()->i;
-		stack_push(array_fill(heap[dst].page, dst_i, n, val));
+	}
+	case A_FILL: {
+		union vm_value val = stack_pop();
+		int n = stack_pop().i;
+		int i = stack_pop().i;
+		int array = stack_pop_var()->i;
+		stack_push(array_fill(heap[array].page, i, n, val));
 		break;
-	case A_PUSHBACK:
-		val = stack_pop();
-		varno = stack_pop().i;
-		pageno = stack_pop().i;
-		slot = heap[pageno].page->values[varno].i;
-		data_type = variable_type(heap[pageno].page, varno, &struct_type);
-		array_pushback(&heap[slot].page, val, data_type, struct_type);
+	}
+	case A_PUSHBACK: {
+		enum ain_data_type struct_type;
+		union vm_value val = stack_pop();
+		int varno = stack_pop().i;
+		int pageno = stack_pop().i;
+		int array = heap[pageno].page->values[varno].i;
+		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type);
+		array_pushback(&heap[array].page, val, data_type, struct_type);
 		break;
-	case A_POPBACK:
+	}
+	case A_POPBACK: {
 		array_popback(&heap[stack_pop_var()->i].page);
 		break;
-	case A_EMPTY:
-		slot = stack_pop_var()->i;
-		stack_push(!heap[slot].page);
+	}
+	case A_EMPTY: {
+		int array = stack_pop_var()->i;
+		stack_push(!heap[array].page);
 		break;
-	case A_ERASE:
-		i = stack_pop().i;
-		slot = stack_pop_var()->i;
-		stack_push(array_erase(&heap[slot].page, i));
+	}
+	case A_ERASE: {
+		int i = stack_pop().i;
+		int array = stack_pop_var()->i;
+		stack_push(array_erase(&heap[array].page, i));
 		break;
-	case A_INSERT:
-		val = stack_pop();
-		i = stack_pop().i;
-		varno = stack_pop().i;
-		pageno = stack_pop().i;
-		slot = heap[pageno].page->values[varno].i;
-		data_type = variable_type(heap[pageno].page, varno, &struct_type);
-		array_insert(&heap[slot].page, i, val, data_type, struct_type);
+	}
+	case A_INSERT: {
+		enum ain_data_type struct_type;
+		union vm_value val = stack_pop();
+		int i = stack_pop().i;
+		int varno = stack_pop().i;
+		int pageno = stack_pop().i;
+		int array = heap[pageno].page->values[varno].i;
+		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type);
+		array_insert(&heap[array].page, i, val, data_type, struct_type);
 		break;
-	case A_SORT:
-		a = stack_pop().i;
-		slot = stack_pop_var()->i;
-		array_sort(heap[slot].page, a);
+	}
+	case A_SORT: {
+		int fno = stack_pop().i;
+		int array = stack_pop_var()->i;
+		array_sort(heap[array].page, fno);
 		break;
+	}
 	case A_FIND: {
 		int fno = stack_pop().i;
 		union vm_value v = stack_pop();
