@@ -1318,6 +1318,9 @@ static void vm_execute(void)
 }
 
 extern struct library lib_ACXLoader;
+extern struct library lib_AliceLogo;
+extern struct library lib_AliceLogo2;
+extern struct library lib_AliceLogo3;
 extern struct library lib_DrawGraph;
 extern struct library lib_DrawPluginManager;
 extern struct library lib_Math;
@@ -1329,6 +1332,9 @@ extern struct library lib_SystemServiceEx;
 
 struct library *libraries[] = {
 	&lib_ACXLoader,
+	&lib_AliceLogo,
+	&lib_AliceLogo2,
+	&lib_AliceLogo3,
 	&lib_DrawGraph,
 	&lib_DrawPluginManager,
 	&lib_Math,
