@@ -975,6 +975,26 @@ static void execute_instruction(enum opcode opcode)
 		stack_set(0, stack_peek(0).f == f ? 1 : 0);
 		break;
 	}
+	case F_PLUSA: {
+		float n = stack_pop().f;
+		stack_push(stack_pop_var()->f += n);
+		break;
+	}
+	case F_MINUSA: {
+		float n = stack_pop().f;
+		stack_push(stack_pop_var()->f -= n);
+		break;
+	}
+	case F_MULA: {
+		float n = stack_pop().f;
+		stack_push(stack_pop_var()->f *= n);
+		break;
+	}
+	case F_DIVA: {
+		float n = stack_pop().f;
+		stack_push(stack_pop_var()->f /= n);
+		break;
+	}
 	//
 	// --- Strings ---
 	//

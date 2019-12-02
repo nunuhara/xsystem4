@@ -187,7 +187,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(SH_LOCALINC, 1, INSTR_INT),
         OP(SH_LOCALDEC, 1, INSTR_INT),
         OP(SH_LOCALASSIGN, 2, INSTR_INT, INSTR_INT),
-        OP(ITOB, 0), // TODO
+        OP(ITOB, 0),
         OP(S_FIND, 0),
         OP(S_GETPART, 0),
         OP(A_SORT, 0),
@@ -202,7 +202,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(S_ERASE2, 0),
         OP(S_PUSHBACK2, 0),
         OP(S_POPBACK2, 0),
-        OP(ITOLI, 0), // TODO
+        OP(ITOLI, 0),
         OP(LI_ADD, 0), // TODO
         OP(LI_SUB, 0), // TODO
         OP(LI_MUL, 0), // TODO
