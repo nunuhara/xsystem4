@@ -68,6 +68,11 @@ static inline void PIXEL_SET_RGBA(uint32_t *p, uint8_t r, uint8_t g, uint8_t b, 
 	*p = (r << R_SHIFT) | (g << G_SHIFT) | (b << B_SHIFT) | (a << A_SHIFT);
 }
 
+static inline uint32_t PIXEL_MAP(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+	return (r << R_SHIFT) | (g << G_SHIFT) | (b << B_SHIFT) | (a << A_SHIFT);
+}
+
 // Clip src/dst rectangles in preparation for a copy.
 static void copy_clip_rects(int dw, int dh, int *dx, int *dy, int sw, int sh, int *sx, int *sy, int *w, int *h)
 {
@@ -119,43 +124,61 @@ static inline uint32_t *get_pixel(SDL_Surface *s, int x, int y)
 	return (uint32_t*)(((uint8_t*)s->pixels) + s->pitch*y + s->format->BytesPerPixel*x);
 }
 
+typedef void(*pixel_op)(uint32_t *p, uint32_t data);
+typedef void(*pixel_op2)(uint32_t *dp, uint32_t *sp, uint32_t data);
+
 // iterator for copy operations
 // FIXME: texture should be marked as dirty and updated later to avoid unnecessary copying
-#define copy_for_each_pixel(dcg, dx, dy, scg, sx, sy, w, h, dp, sp, expr) \
-	do {								\
-		copy_clip_rects(dcg->s->w, dcg->s->h, &dx, &dy, scg->s->w, scg->s->h, &sx, &sy, &w, &h); \
-		SDL_LockSurface(dcg->s);				\
-		SDL_LockSurface(scg->s);				\
-		for (int _row = 0; _row < h; _row++) {			\
-			uint32_t *dp = get_pixel(dcg->s, dx, _row+dy);	\
-			uint32_t *sp = get_pixel(scg->s, sx, _row+sy);	\
-			for (int _col = 0; _col < w; _col++, dp++, sp++) \
-				expr;					\
-		}							\
-		SDL_UpdateTexture(dcg->t, NULL, dcg->s->pixels, dcg->s->pitch); \
-		SDL_UnlockSurface(scg->s);				\
-		SDL_UnlockSurface(dcg->s);				\
-	} while (0)
+static void for_each_pixel_pair(struct cg *dst, int dx, int dy, SDL_Surface *src, int sx, int sy, int w, int h, pixel_op2 op, uint32_t data)
+{
+	copy_clip_rects(dst->s->w, dst->s->h, &dx, &dy, src->w, src->h, &sx, &sy, &w, &h);
+	SDL_LockSurface(dst->s);
+	SDL_LockSurface(src);
+	for (int row = 0; row < h; row++) {
+		uint32_t *dp = get_pixel(dst->s, dx, row+dy);
+		uint32_t *sp = get_pixel(src, sx, row+sy);
+		for (int col = 0; col < w; col++, dp++, sp++) {
+			op(dp, sp, data);
+		}
+	}
+	SDL_UpdateTexture(dst->t, NULL, dst->s->pixels, dst->s->pitch);
+	SDL_UnlockSurface(src);
+	SDL_UnlockSurface(dst->s);
+}
 
 // iterator for fill operations
-#define fill_for_each_pixel(cg, x, y, w, h, p, expr)			\
-	do {								\
-		fill_clip_rect(&x, &y, cg->s->w, cg->s->h, &w, &h);	\
-		SDL_LockSurface(cg->s);					\
-		for (int _row = 0; _row < h; _row++) {			\
-			uint32_t *p = get_pixel(cg->s, x, _row+y);	\
-			for (int _col = 0; _col < w; _col++, p++)	\
-				expr;					\
-		}							\
-		SDL_UpdateTexture(cg->t, NULL, cg->s->pixels, cg->s->pitch); \
-		SDL_UnlockSurface(cg->s);				\
-	} while(0);
+static void for_each_pixel(struct cg *dst, int x, int y, int w, int h, pixel_op op, uint32_t data)
+{
+	fill_clip_rect(&x, &y, dst->s->w, dst->s->h, &w, &h);
+	SDL_LockSurface(dst->s);
+	for (int row = 0; row < h; row++) {
+		uint32_t *p = get_pixel(dst->s, x, row+y);
+		for (int col = 0; col < w; col++, p++) {
+			op(p, data);
+		}
+	}
+	SDL_UpdateTexture(dst->t, NULL, dst->s->pixels, dst->s->pitch);
+	SDL_UnlockSurface(dst->s);
+}
 
-static void sdl_blit(SDL_Surface *ds, int dx, int dy, SDL_Surface *ss, int sx, int sy, int w, int h)
+static void sdl_pixop_copy_color(uint32_t *dp, uint32_t *sp, possibly_unused uint32_t data)
+{
+	uint8_t r, g, b, a;
+	SDL_GetRGBA(*sp, sdl.format, &r, &g, &b, &a);
+	PIXEL_SET_RGB(dp, r, g, b);
+}
+
+static void sdl_pixop_copy_alpha(uint32_t *dp, uint32_t *sp, possibly_unused uint32_t data)
+{
+	PIXEL_SET_A(dp, PIXEL_A(*sp));
+}
+
+static void sdl_cg_blit(struct cg *dst, int dx, int dy, SDL_Surface *src, int sx, int sy, int w, int h)
 {
 	Rectangle src_rect = RECT(sx, sy, w, h);
 	Rectangle dst_rect = RECT(dx, dy, w, h);
-	SDL_BlitSurface(ss, &src_rect, ds, &dst_rect);
+	SDL_BlitSurface(src, &src_rect, dst->s, &dst_rect);
+	sdl_update_texture(dst->t, dst->s);
 }
 
 void sdl_copy(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h)
@@ -163,7 +186,7 @@ void sdl_copy(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, in
 	SDL_BlendMode mode;
 	SDL_GetSurfaceBlendMode(src->s, &mode);
 	SDL_SetSurfaceBlendMode(src->s, SDL_BLENDMODE_NONE);
-	sdl_blit(dst->s, dx, dy, src->s, sx, sy, w, h);
+	sdl_cg_blit(dst, dx, dy, src->s, sx, sy, w, h);
 
 	SDL_SetSurfaceBlendMode(src->s, mode);
 }
@@ -175,7 +198,7 @@ void sdl_copy_bright(struct cg *dst, int dx, int dy, struct cg *src, int sx, int
 	SDL_SetSurfaceBlendMode(src->s, SDL_BLENDMODE_NONE);
 	SDL_SetSurfaceColorMod(src->s, rate, rate, rate);
 
-	sdl_blit(dst->s, dx, dy, src->s, sx, sy, w, h);
+	sdl_cg_blit(dst, dx, dy, src->s, sx, sy, w, h);
 
 	SDL_SetSurfaceColorMod(src->s, 255, 255, 255);
 	SDL_SetSurfaceBlendMode(src->s, mode);
@@ -185,10 +208,7 @@ void sdl_copy_amap(struct cg *dst, int dx, int dy, struct cg *src, int sx, int s
 {
 	if (!dst->has_alpha || !src->has_alpha)
 		return;
-
-	copy_for_each_pixel(dst, dx, dy, src, sx, sy, w, h, dp, sp, {
-		PIXEL_SET_A(dp, PIXEL_A(*sp));
-	});
+	for_each_pixel_pair(dst, dx, dy, src->s, sx, sy, w, h, sdl_pixop_copy_alpha, 0);
 }
 
 void sdl_copy_sprite(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h, int r, int g, int b)
@@ -199,99 +219,140 @@ void sdl_copy_sprite(struct cg *dst, int dx, int dy, struct cg *src, int sx, int
 	SDL_SetSurfaceBlendMode(src->s, SDL_BLENDMODE_NONE);
 	SDL_SetColorKey(src->s, SDL_TRUE, SDL_MapRGB(sdl.format, r, g, b));
 
-	sdl_blit(dst->s, dx, dy, src->s, sx, sy, w, h);
+	sdl_cg_blit(dst, dx, dy, src->s, sx, sy, w, h);
 
 	SDL_SetColorKey(src->s, SDL_FALSE, 0);
 	SDL_SetSurfaceBlendMode(src->s, mode);
+}
+
+static void sdl_pixop_copy_use_amap_under(uint32_t *dp, uint32_t *sp, uint32_t threshold)
+{
+	uint8_t r, g, b, a;
+	SDL_GetRGBA(*sp, sdl.format, &r, &g, &b, &a);
+	if (a <= threshold) {
+		PIXEL_SET_RGB(dp, r, g, b);
+	}
 }
 
 void sdl_copy_use_amap_under(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h, int a_threshold)
 {
 	if (!src->has_alpha)
 		return;
+	for_each_pixel_pair(dst, dx, dy, src->s, sx, sy, w, h, sdl_pixop_copy_use_amap_under, a_threshold);
+}
 
+static void sdl_pixop_copy_use_amap_border(uint32_t *dp, uint32_t *sp, uint32_t threshold)
+{
 	uint8_t r, g, b, a;
-	copy_for_each_pixel(dst, dx, dy, src, sx, sy, w, h, dp, sp, {
-		SDL_GetRGBA(*sp, sdl.format, &r, &g, &b, &a);
-		if (a <= a_threshold) {
-			PIXEL_SET_RGB(dp, r, g, b);
-		}
-	});
+	SDL_GetRGBA(*sp, sdl.format, &r, &g, &b, &a);
+	if (a >= threshold) {
+		PIXEL_SET_RGB(dp, r, g, b);
+	}
 }
 
 void sdl_copy_use_amap_border(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h, int a_threshold)
 {
 	if (!src->has_alpha)
 		return;
+	for_each_pixel_pair(dst, dx, dy, src->s, sx, sy, w, h, sdl_pixop_copy_use_amap_border, a_threshold);
+}
 
-	uint8_t r, g, b, a;
-	copy_for_each_pixel(dst, dx, dy, src, sx, sy, w, h, dp, sp, {
-		SDL_GetRGBA(*sp, sdl.format, &r, &g, &b, &a);
-		if (a >= a_threshold) {
-			PIXEL_SET_RGB(dp, r, g, b);
-		}
-	});
+static void sdl_pixop_copy_amap_max(uint32_t *dp, uint32_t *sp, possibly_unused uint32_t data)
+{
+	uint32_t d_a = PIXEL_A(*dp);
+	uint32_t s_a = PIXEL_A(*sp);
+	if (s_a > d_a) {
+		PIXEL_SET_A(dp, s_a);
+	}
 }
 
 void sdl_copy_amap_max(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h)
 {
 	if (!src->has_alpha || !dst->has_alpha)
 		return;
+	for_each_pixel_pair(dst, dx, dy, src->s, sx, sy, w, h, sdl_pixop_copy_amap_max, 0);
+}
 
-	copy_for_each_pixel(dst, dx, dy, src, sx, sy, w, h, dp, sp, {
-		uint32_t d_a = (*dp & sdl.format->Amask) >> sdl.format->Ashift;
-		uint32_t s_a = (*sp & sdl.format->Amask) >> sdl.format->Ashift;
-		if (s_a > d_a) {
-			PIXEL_SET_A(dp, s_a);
-		}
-	});
+static void sdl_pixop_copy_amap_min(uint32_t *dp, uint32_t *sp, possibly_unused uint32_t data)
+{
+	uint32_t d_a = PIXEL_A(*dp);
+	uint32_t s_a = PIXEL_A(*sp);
+	if (s_a < d_a) {
+		PIXEL_SET_A(dp, s_a);
+	}
 }
 
 void sdl_copy_amap_min(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h)
 {
 	if (!src->has_alpha || !dst->has_alpha)
 		return;
-
-	copy_for_each_pixel(dst, dx, dy, src, sx, sy, w, h, dp, sp, {
-		uint32_t d_a = (*dp & A_MASK) >> A_SHIFT;
-		uint32_t s_a = (*sp & A_MASK) >> A_SHIFT;
-		if (s_a < d_a) {
-			PIXEL_SET_A(dp, s_a);
-		}
-	});
+	for_each_pixel_pair(dst, dx, dy, src->s, sx, sy, w, h, sdl_pixop_copy_amap_min, 0);
 }
 
-static void blend_pixels(SDL_Color *dst, SDL_Color src)
+static uint32_t blend_pixels(uint32_t dst, uint32_t src)
 {
-	uint32_t alpha = src.a + 1;
-	uint32_t inv_alpha = 256 - src.a;
-	dst->r = (uint8_t)((alpha * src.r + inv_alpha * dst->r) >> 8);
-	dst->g = (uint8_t)((alpha * src.g + inv_alpha * dst->g) >> 8);
-	dst->b = (uint8_t)((alpha * src.b + inv_alpha * dst->b) >> 8);
+	uint32_t alpha = PIXEL_A(src) + 1;
+	uint32_t inv_alpha = 256 - PIXEL_A(src);
+	uint8_t r = (uint8_t)((alpha * PIXEL_R(src) + inv_alpha * PIXEL_R(dst)) >> 8);
+	uint8_t g = (uint8_t)((alpha * PIXEL_G(src) + inv_alpha * PIXEL_G(dst)) >> 8);
+	uint8_t b = (uint8_t)((alpha * PIXEL_B(src) + inv_alpha * PIXEL_B(dst)) >> 8);
+	return PIXEL_MAP(r, g, b, PIXEL_A(dst));
+}
+
+static void sdl_pixop_fill_rgb(uint32_t *p, uint32_t c)
+{
+	PIXEL_SET_A(&c, PIXEL_A(*p));
+	*p = c;
 }
 
 void sdl_fill(struct cg *dst, int x, int y, int w, int h, int r, int g, int b)
 {
-	fill_for_each_pixel(dst, x, y, w, h, p, {
-		PIXEL_SET_RGBA(p, r, g, b, PIXEL_A(*p));
-	});
+	uint32_t c = SDL_MapRGB(sdl.format, r, g, b);
+	for_each_pixel(dst, x, y, w, h, sdl_pixop_fill_rgb, c);
+}
+
+static void sdl_pixop_fill_alpha_color(uint32_t *p, uint32_t c)
+{
+	*p = blend_pixels(*p, c);
 }
 
 // XXX: Despite being called a fill operation, this function actually performs blending.
 void sdl_fill_alpha_color(struct cg *cg, int x, int y, int w, int h, int r, int g, int b, int a)
 {
-	SDL_Color dst;
-	SDL_Color src = { .r = r, .g = g, .b = b, .a = a };
-	fill_for_each_pixel(cg, x, y, w, h, p, {
-		SDL_GetRGBA(*p, sdl.format, &dst.r, &dst.g, &dst.b, &dst.a);
-		blend_pixels(&dst, src);
-		PIXEL_SET_RGBA(p, dst.r, dst.g, dst.b, dst.a);
-	});
+	uint32_t c = SDL_MapRGBA(sdl.format, r, g, b, a);
+	for_each_pixel(cg, x, y, w, h, sdl_pixop_fill_alpha_color, c);
+}
+
+static void sdl_pixop_fill_alpha(uint32_t *p, uint32_t a)
+{
+	PIXEL_SET_A(p, a);
 }
 
 void sdl_fill_amap(struct cg *dst, int x, int y, int w, int h, int a)
 {
-	fill_for_each_pixel(dst, x, y, w, h, p, {
-		PIXEL_SET_A(p, a);
-	});
+	for_each_pixel(dst, x, y, w, h, sdl_pixop_fill_alpha, a);
+}
+
+static SDL_Surface *sdl_stretch_surface(SDL_Surface *src, Rectangle *src_rect, int w, int h)
+{
+	Rectangle dst_rect = RECT(0, 0, w, h);
+	SDL_Surface *dst = sdl_create_surface(w, h, NULL);
+	SDL_BlitScaled(src, src_rect, dst, &dst_rect);
+	return dst;
+}
+
+void sdl_copy_stretch(struct cg *dst, int dx, int dy, int dw, int dh, struct cg *src, int sx, int sy, int sw, int sh)
+{
+	Rectangle s_rect = RECT(sx, sy, sw, sh);
+	SDL_Surface *stretched = sdl_stretch_surface(src->s, &s_rect, dw, dh);
+	for_each_pixel_pair(dst, dx, dy, stretched, 0, 0, dw, dh, sdl_pixop_copy_color, 0);
+	SDL_FreeSurface(stretched);
+}
+
+void sdl_copy_stretch_amap(struct cg *dst, int dx, int dy, int dw, int dh, struct cg *src, int sx, int sy, int sw, int sh)
+{
+	Rectangle s_rect = RECT(sx, sy, sw, sh);
+	SDL_Surface *stretched = sdl_stretch_surface(src->s, &s_rect, dw, dh);
+	for_each_pixel_pair(dst, dx, dy, stretched, 0, 0, dw, dh, sdl_pixop_copy_alpha, 0);
+	SDL_FreeSurface(stretched);
 }

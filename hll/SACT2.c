@@ -130,7 +130,7 @@ hll_defun(SP_SetShow, args)
 }
 
 // int SP_SetDrawMethod(int nSP, int nMethod)
-hll_unimplemented(SACT2, SP_SetDrawMethod);
+hll_defun_inline(SP_SetDrawMethod, sact_SP_SetDrawMethod(a[0].i, a[1].i));
 
 // int SP_IsUsing(int nSP)
 hll_defun_inline(SP_IsUsing, sact_get_sprite(a[0].i) != NULL);

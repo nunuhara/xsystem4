@@ -36,6 +36,18 @@ struct sact_sprite *sact_get_sprite(int sp)
 	return sprites[sp];
 }
 
+struct sact_sprite *get_surface(int no)
+{
+	struct sact_sprite *sp = sact_get_sprite(no);
+	if (!sp)
+		ERROR("Invalid sprite number: %d", no);
+	if (!sp->cg->s)
+		sp->cg->s = sdl_create_surface(sp->rect.w, sp->rect.h, &sp->color);
+	if (!sp->cg->t)
+		sp->cg->t = sdl_surface_to_texture(sp->cg->s);
+	return sp;
+}
+
 static struct sact_sprite *alloc_sprite(int sp)
 {
 	sprites[sp] = xcalloc(1, sizeof(struct sact_sprite));
@@ -304,6 +316,28 @@ int sact_SP_SetZ(int sp_no, int z)
 
 }
 
+int sact_SP_SetDrawMethod(int sp_no, int method)
+{
+	struct sact_sprite *sp = get_surface(sp_no);
+	SDL_BlendMode mode;
+	switch (method) {
+	case 0:
+		mode = SDL_BLENDMODE_BLEND;
+		break;
+	case 1:
+		mode = SDL_BLENDMODE_ADD;
+		break;
+	case 2:
+		mode = SDL_BLENDMODE_MOD;
+		break;
+	default:
+		WARNING("SACT.SP_SetDrawMethod: unknown draw method: %d", method);
+		return 0;
+	}
+	SDL_SetTextureBlendMode(sp->cg->t, mode);
+	return 1;
+}
+
 int sact_SP_ExistsAlpha(int sp_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
@@ -421,18 +455,6 @@ int sact_CG_GetMetrics(int cg_no, union vm_value *cgm)
 // --- DrawGraph.dll ---
 //
 
-struct sact_sprite *get_surface(int no)
-{
-	struct sact_sprite *sp = sact_get_sprite(no);
-	if (!sp)
-		ERROR("Invalid sprite number: %d", no);
-	if (!sp->cg->s)
-		sp->cg->s = sdl_create_surface(sp->rect.w, sp->rect.h, &sp->color);
-	if (!sp->cg->t)
-		sp->cg->t = sdl_surface_to_texture(sp->cg->s);
-	return sp;
-}
-
 void DrawGraph_Copy(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
 {
 	sdl_copy(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
@@ -486,4 +508,14 @@ void DrawGraph_FillAlphaColor(int sp_no, int x, int y, int w, int h, int r, int 
 void DrawGraph_FillAMap(int sp_no, int x, int y, int w, int h, int a)
 {
 	sdl_fill_amap(get_surface(sp_no)->cg, x, y, w, h, a);
+}
+
+void DrawGraph_CopyStretch(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
+{
+	sdl_copy_stretch(get_surface(dst)->cg, dx, dy, dw, dh, get_surface(src)->cg, sx, sy, sw, sh);
+}
+
+void DrawGraph_CopyStretchAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
+{
+	sdl_copy_stretch_amap(get_surface(dst)->cg, dx, dy, dw, dh, get_surface(src)->cg, sx, sy, sw, sh);
 }

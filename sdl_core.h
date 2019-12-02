@@ -54,6 +54,8 @@ void sdl_copy_amap_min(struct cg *dst, int dx, int dy, struct cg *src, int sx, i
 void sdl_fill(struct cg *dst, int x, int y, int w, int h, int r, int g, int b);
 void sdl_fill_alpha_color(struct cg *dst, int x, int y, int w, int h, int r, int g, int b, int a);
 void sdl_fill_amap(struct cg *dst, int x, int y, int w, int h, int a);
+void sdl_copy_stretch(struct cg *dst, int dx, int dy, int dw, int dh, struct cg *src, int sx, int sy, int sw, int sh);
+void sdl_copy_stretch_amap(struct cg *dst, int dx, int dy, int dw, int dh, struct cg *src, int sx, int sy, int sw, int sh);
 
 enum font_weight {
 	FW_NORMAL = 400,

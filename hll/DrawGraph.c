@@ -98,21 +98,21 @@ hll_unimplemented(DrawGraph, CopyTextureWrap);
 //void CopyTextureWrapAlpha(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight, int nU, int nV, int nAlpha)
 hll_unimplemented(DrawGraph, CopyTextureWrapAlpha);
 //void CopyStretch(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_unimplemented(DrawGraph, CopyStretch);
+hll_defun_inline(CopyStretch, (DrawGraph_CopyStretch(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i, a[9].i), 0));
 //void CopyStretchBlend(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight, int nAlpha)
 hll_unimplemented(DrawGraph, CopyStretchBlend);
 //void CopyStretchBlendAMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
 hll_unimplemented(DrawGraph, CopyStretchBlendAMap);
 //void CopyStretchAMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_unimplemented(DrawGraph, CopyStretchAMap);
+hll_defun_inline(CopyStretchAMap, (DrawGraph_CopyStretchAMap(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i, a[9].i), 0));
 //void CopyStretchInterp(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
 hll_unimplemented(DrawGraph, CopyStretchInterp);
 //void CopyStretchAMapInterp(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
 hll_unimplemented(DrawGraph, CopyStretchAMapInterp);
 //void CopyReduce(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_unimplemented(DrawGraph, CopyReduce);
+hll_defun_inline(CopyReduce, (DrawGraph_CopyStretch(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i, a[9].i), 0));
 //void CopyReduceAMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_unimplemented(DrawGraph, CopyReduceAMap);
+hll_defun_inline(CopyReduceAMap, (DrawGraph_CopyStretchAMap(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i, a[9].i), 0));
 //void DrawTextToPMap(int nDest, int nX, int nY, string szText)
 hll_unimplemented(DrawGraph, DrawTextToPMap);
 //void DrawTextToAMap(int nDest, int nX, int nY, string szText)
