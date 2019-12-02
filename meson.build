@@ -30,6 +30,7 @@ hll_libs = ['hll/ACXLoader.c',
             'hll/MsgLogManager.c',
             'hll/MsgSkip.c',
             'hll/OutputLog.c',
+            'hll/PlayMovie.c',
             'hll/SACT2.c',
             'hll/SystemServiceEx.c',
 ]

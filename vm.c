@@ -1335,6 +1335,7 @@ extern struct library lib_Math;
 extern struct library lib_MsgLogManager;
 extern struct library lib_MsgSkip;
 extern struct library lib_OutputLog;
+extern struct library lib_PlayMovie;
 extern struct library lib_SACT2;
 extern struct library lib_SystemServiceEx;
 
@@ -1350,6 +1351,7 @@ struct library *libraries[] = {
 	&lib_MsgLogManager,
 	&lib_MsgSkip,
 	&lib_OutputLog,
+	&lib_PlayMovie,
 	&lib_SACT2,
 	&lib_SystemServiceEx,
 	NULL
