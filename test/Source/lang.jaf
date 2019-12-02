@@ -97,6 +97,23 @@ void set_page_ref(int v)
 	gi <- v;
 }
 
+void func_stack2(void)
+{
+	func_stack1();
+}
+
+void func_stack1(void)
+{
+	func_stack0();
+}
+
+void func_stack0(void)
+{
+	test_string("system.GetFuncStackName(0)", system.GetFuncStackName(0), "func_stack0");
+	test_string("system.GetFuncStackName(0)", system.GetFuncStackName(1), "func_stack1");
+	test_string("system.GetFuncStackName(0)", system.GetFuncStackName(2), "func_stack2");
+}
+
 void test_lang(void)
 {
 	int i;
@@ -120,6 +137,7 @@ void test_lang(void)
 	test_equal("string switch (no default)", test_string_switch("d"), 100);
 	test_equal("string switch (default)", test_string_switch_default("d"), 100);
 	test_equal("local ref escape", (set_page_ref(42), gi), 42);
+	func_stack2();
 	'message1';
 	'message2';
 }

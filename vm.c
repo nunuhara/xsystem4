@@ -444,6 +444,18 @@ static void system_call(int32_t code)
 	case 0xD:
 		stack_push(vm_time());
 		break;
+	case 0x13: {
+		int i = call_stack_ptr - (1 + stack_pop().i);
+		if (i < 0 || i >= call_stack_ptr) {
+			const char *msg = "Invalid stack index";
+			stack_push_string(make_string(msg, strlen(msg)));
+			return;
+		}
+		struct function_call *call = &call_stack[i];
+		struct ain_function *fun = &ain->functions[call->fno];
+		stack_push_string(make_string(fun->name, strlen(fun->name)));
+		break;
+	}
 	case 0x14: // system.Peek()
 		break;
 	case 0x15: // system.Sleep(int nSleep)
