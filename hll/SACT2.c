@@ -481,7 +481,7 @@ hll_warn_unimplemented(SACT2, Music_GetSampleLength, 1);
 // int Music_Seek(int nCh, int dwPos)
 hll_warn_unimplemented(SACT2, Music_Seek, 1);
 // int Sound_IsExist(int nNum)
-hll_unimplemented(SACT2, Sound_IsExist);
+hll_warn_unimplemented(SACT2, Sound_IsExist, 0);
 // int Sound_GetUnuseChannel(void)
 hll_unimplemented(SACT2, Sound_GetUnuseChannel);
 // int Sound_Prepare(int nCh, int nNum)

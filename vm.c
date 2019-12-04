@@ -26,6 +26,7 @@
 #include "ain.h"
 #include "instructions.h"
 #include "little_endian.h"
+#include "savedata.h"
 #include "utfsjis.h"
 
 #define INITIAL_STACK_SIZE 4096
@@ -165,6 +166,11 @@ void heap_unref(int slot)
 	}
 }
 
+void heap_set_page(int slot, struct page *page)
+{
+	heap[slot].page = page;
+}
+
 static int local_page_slot(void)
 {
 	return call_stack[call_stack_ptr-1].page_slot;
@@ -190,9 +196,24 @@ static union vm_value *local_ptr(int varno)
 	return local_page() + varno;
 }
 
-static union vm_value global_get(int varno)
+union vm_value global_get(int varno)
 {
 	return heap[0].page->values[varno];
+}
+
+void global_set(int varno, union vm_value val)
+{
+	switch (ain->globals[varno].data_type) {
+	case AIN_STRING:
+	case AIN_STRUCT:
+	case AIN_ARRAY_TYPE:
+		if (heap[0].page->values[varno].i > 0) {
+			heap_unref(heap[0].page->values[varno].i);
+		}
+	default:
+		break;
+	}
+	heap[0].page->values[varno] = val;
 }
 
 static int32_t struct_page_slot(void)
@@ -203,6 +224,18 @@ static int32_t struct_page_slot(void)
 static union vm_value *struct_page(void)
 {
 	return heap[struct_page_slot()].page->values;
+}
+
+static bool page_index_valid(int index)
+{
+	return index >= 0 && (size_t)index < heap_size && heap[index].ref > 0 && heap[index].type == VM_PAGE;
+}
+
+struct page *vm_get_page(int index)
+{
+	if (!page_index_valid(index))
+		VM_ERROR("Invalid page index: %d", index);
+	return heap[index].page;
 }
 
 static union vm_value stack_peek(int n)
@@ -253,7 +286,7 @@ int vm_string_ref(struct string *s)
 int vm_copy_page(struct page *page)
 {
 	int slot = heap_alloc_slot(VM_PAGE);
-	heap[slot].page = copy_page(page);
+	heap_set_page(slot, copy_page(page));
 	return slot;
 }
 
@@ -289,7 +322,7 @@ static int alloc_scenario_page(const char *fname)
 	f = &ain->functions[fno];
 
 	slot = heap_alloc_slot(VM_PAGE);
-	heap[slot].page = alloc_page(LOCAL_PAGE, fno, f->nr_vars);
+	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
 	for (int i = 0; i < f->nr_vars; i++) {
 		heap[slot].page->values[i] = variable_initval(f->vars[i].data_type);
 	}
@@ -324,7 +357,7 @@ static void function_call(int fno, int return_address)
 {
 	struct ain_function *f = &ain->functions[fno];
 	int slot = heap_alloc_slot(VM_PAGE);
-	heap[slot].page = alloc_page(LOCAL_PAGE, fno, f->nr_vars);
+	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
 
 	call_stack[call_stack_ptr++] = (struct function_call) {
 		.fno = fno,
@@ -424,6 +457,22 @@ static void system_call(int32_t code)
 	case 0x0: // system.Exit(int nResult)
 		vm_exit(stack_pop().i);
 		break;
+	case 0x1: { // system.GlobalSave(string szKeyName, string szFileName)
+		int filename = stack_pop().i;
+		int keyname = stack_pop().i;
+		stack_push(save_globals(heap[keyname].s->text, heap[filename].s->text));
+		heap_unref(filename);
+		heap_unref(keyname);
+		break;
+	}
+	case 0x2: { // system.GlobalLoad(string szKeyName, string szFileName)
+		int filename = stack_pop().i;
+		int keyname = stack_pop().i;
+		stack_push(load_globals(heap[keyname].s->text, heap[filename].s->text, NULL, NULL));
+		heap_unref(filename);
+		heap_unref(keyname);
+		break;
+	}
 	case 0x3: // system.LockPeek()
 	case 0x4: // system.UnlockPeek()
 		stack_push(1);
@@ -435,16 +484,32 @@ static void system_call(int32_t code)
 		free(utf);
 		// XXX: caller S_POPs
 		break;
+	case 0xA: { // system.ExistsFile(string szFileName)
+		int str = stack_pop().i;
+		heap_unref(str);
+		stack_push(1); // TODO
+		break;
+	}
 	case 0xC:
 		if (config.save_dir)
 			stack_push_string(make_string(config.save_dir, strlen(config.save_dir)));
 		else
 			stack_push_string(string_ref(&EMPTY_STRING));
 		break;
-	case 0xD:
+	case 0xD: // system.GetTime()
 		stack_push(vm_time());
 		break;
-	case 0x13: {
+	case 0xF:
+		str = stack_peek_string(0);
+		utf = sjis2utf(str->text, str->size);
+		sys_warning("*GAME ERROR*: %s\n", utf);
+		free(utf);
+		// XXX: caller S_POPs
+		break;
+	case 0x11: // system.IsDebugMode()
+		stack_push(0);
+		break;
+	case 0x13: { // system.GetFuncStackName(int nIndex)
 		int i = call_stack_ptr - (1 + stack_pop().i);
 		if (i < 0 || i >= call_stack_ptr) {
 			const char *msg = "Invalid stack index";
@@ -461,9 +526,31 @@ static void system_call(int32_t code)
 	case 0x15: // system.Sleep(int nSleep)
 		stack_pop();
 		break;
+	case 0x18: {
+		union vm_value *n = stack_pop_var();
+		int groupname = stack_pop().i;
+		int filename = stack_pop().i;
+		int keyname = stack_pop().i;
+		stack_push(save_group(heap[keyname].s->text, heap[filename].s->text, heap[groupname].s->text, &n->i));
+		heap_unref(groupname);
+		heap_unref(filename);
+		heap_unref(keyname);
+		break;
+	}
+	case 0x19: { // system.GroupLoad(string szKeyName, string szFileName, string szGroupName, ref int nNumofLoad)
+		union vm_value *n = stack_pop_var();
+		int groupname = stack_pop().i;
+		int filename = stack_pop().i;
+		int keyname = stack_pop().i;
+		NOTICE("LOADING %s", heap[filename].s->text);
+		stack_push(load_globals(heap[keyname].s->text, heap[filename].s->text, heap[groupname].s->text, &n->i));
+		heap_unref(groupname);
+		heap_unref(filename);
+		heap_unref(keyname);
+		break;
+	}
 	default:
-		WARNING("Unimplemented syscall: 0x%X", code);
-		vm_stack_trace();
+		VM_ERROR("Unimplemented syscall: 0x%X", code);
 	}
 }
 
@@ -921,6 +1008,11 @@ static void execute_instruction(enum opcode opcode)
 		stack_set(0, (int64_t)stack_peek(0).i);
 		break;
 	}
+	case LI_ASSIGN: {
+		int64_t v = stack_pop().li;
+		stack_push(stack_pop_var()->li = v);
+		break;
+	}
 	//
 	// --- Floating Point Arithmetic ---
 	//
@@ -1211,7 +1303,7 @@ static void execute_instruction(enum opcode opcode)
 			delete_page(heap[lval].page);
 			free_page(heap[lval].page);
 		}
-		heap[lval].page = copy_page(heap[rval].page);
+		heap_set_page(lval, copy_page(heap[rval].page));
 		stack_push(rval);
 		break;
 	}
@@ -1219,24 +1311,24 @@ static void execute_instruction(enum opcode opcode)
 	// -- Arrays --
 	//
 	case A_ALLOC: {
-		enum ain_data_type struct_type;
+		int struct_type;
 		int rank = stack_pop().i;
 		int varno = stack_peek(rank).i;
 		int pageno = stack_peek(rank+1).i;
 		int array = heap[pageno].page->values[varno].i;
 		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type);
-		heap[array].page = alloc_array(rank, stack_peek_ptr(rank-1), data_type, struct_type, true);
+		heap_set_page(array, alloc_array(rank, stack_peek_ptr(rank-1), data_type, struct_type, true));
 		stack_ptr -= rank + 2;
 		break;
 	}
 	case A_REALLOC: {
-		enum ain_data_type struct_type;
+		int struct_type;
 		int rank = stack_pop().i; // rank
 		int varno = stack_peek(rank).i;
 		int pageno = stack_peek(rank+1).i;
 		int array = heap[pageno].page->values[varno].i;
 		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type);
-		heap[array].page = realloc_array(heap[array].page, rank, stack_peek_ptr(rank-1), data_type, struct_type, true);
+		heap_set_page(array, realloc_array(heap[array].page, rank, stack_peek_ptr(rank-1), data_type, struct_type, true));
 		stack_ptr -= rank + 2;
 		break;
 	}
@@ -1245,14 +1337,14 @@ static void execute_instruction(enum opcode opcode)
 		if (heap[array].page) {
 			delete_page(heap[array].page);
 			free_page(heap[array].page);
-			heap[array].page = NULL;
+			heap_set_page(array, NULL);
 		}
 		break;
 	}
 	case A_REF: {
 		int array = stack_pop().i;
 		int slot = heap_alloc_slot(VM_PAGE);
-		heap[slot].page = copy_page(heap[array].page);
+		heap_set_page(slot, copy_page(heap[array].page));
 		stack_push(slot);
 		break;
 	}
@@ -1281,7 +1373,7 @@ static void execute_instruction(enum opcode opcode)
 		break;
 	}
 	case A_PUSHBACK: {
-		enum ain_data_type struct_type;
+		int struct_type;
 		union vm_value val = stack_pop();
 		int varno = stack_pop().i;
 		int pageno = stack_pop().i;
@@ -1306,7 +1398,7 @@ static void execute_instruction(enum opcode opcode)
 		break;
 	}
 	case A_INSERT: {
-		enum ain_data_type struct_type;
+		int struct_type;
 		union vm_value val = stack_pop();
 		int i = stack_pop().i;
 		int varno = stack_pop().i;
@@ -1445,12 +1537,12 @@ void vm_execute_ain(struct ain *program)
 
 	// Initialize globals
 	heap[0].ref = 1;
-	heap[0].page = alloc_page(GLOBAL_PAGE, 0, ain->nr_globals);
+	heap_set_page(0, alloc_page(GLOBAL_PAGE, 0, ain->nr_globals));
 	for (int i = 0; i < ain->nr_globals; i++) {
 		if (ain->globals[i].data_type == AIN_STRUCT) {
 			// XXX: need to allocate storage for global structs BEFORE calling
 			//      constructors.
-			alloc_struct(ain->globals[i].struct_type, &heap[0].page->values[i]);
+			heap[0].page->values[i].i = alloc_struct(ain->globals[i].struct_type);
 		} else {
 			heap[0].page->values[i] = variable_initval(ain->globals[i].data_type);
 		}

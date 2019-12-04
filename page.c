@@ -85,7 +85,7 @@ union vm_value variable_initval(enum ain_data_type type)
 		return (union vm_value) { .i = -1 };
 	case AIN_ARRAY_TYPE:
 		slot = heap_alloc_slot(VM_PAGE);
-		heap[slot].page = NULL;
+		heap_set_page(slot, NULL);
 		return (union vm_value) { .i = slot };
 	default:
 		return (union vm_value) { .i = 0 };
@@ -123,7 +123,7 @@ enum ain_data_type array_type(enum ain_data_type type)
 	}
 }
 
-enum ain_data_type variable_type(struct page *page, int varno, enum ain_data_type *struct_type)
+enum ain_data_type variable_type(struct page *page, int varno, int *struct_type)
 {
 	switch (page->type) {
 	case GLOBAL_PAGE:
@@ -169,19 +169,19 @@ struct page *copy_page(struct page *src)
 	return dst;
 }
 
-void alloc_struct(int no, union vm_value *var)
+int alloc_struct(int no)
 {
 	struct ain_struct *s = &ain->structures[no];
 	int slot = heap_alloc_slot(VM_PAGE);
-	heap[slot].page = alloc_page(STRUCT_PAGE, no, s->nr_members);
+	heap_set_page(slot, alloc_page(STRUCT_PAGE, no, s->nr_members));
 	for (int i = 0; i < s->nr_members; i++) {
 		if (s->members[i].data_type == AIN_STRUCT) {
-			alloc_struct(s->members[i].struct_type, &heap[slot].page->values[i]);
+			heap[slot].page->values[i].i = alloc_struct(s->members[i].struct_type);
 		} else {
 			heap[slot].page->values[i] = variable_initval(s->members[i].data_type);
 		}
 	}
-	var->i = slot;
+	return slot;
 }
 
 void init_struct(int no, int slot)
@@ -199,7 +199,7 @@ void init_struct(int no, int slot)
 
 void create_struct(int no, union vm_value *var)
 {
-	alloc_struct(no, var);
+	var->i = alloc_struct(no);
 	init_struct(no, var->i);
 }
 
@@ -222,7 +222,7 @@ struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, in
 		} else {
 			struct page *child = alloc_array(rank - 1, dimensions + 1, data_type, struct_type, init_structs);
 			int slot = heap_alloc_slot(VM_PAGE);
-			heap[slot].page = child;
+			heap_set_page(slot, child);
 			page->values[i].i = slot;
 		}
 	}
@@ -267,7 +267,7 @@ struct page *realloc_array(struct page *src, int rank, union vm_value *dimension
 			} else {
 				struct page *child = alloc_array(rank - 1, dimensions + 1, data_type, struct_type, init_structs);
 				int slot = heap_alloc_slot(VM_PAGE);
-				heap[slot].page = child;
+				heap_set_page(slot, child);
 				src->values[i].i = slot;
 			}
 		}

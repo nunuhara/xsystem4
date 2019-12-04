@@ -125,6 +125,12 @@ static inline void stack_push_value(union vm_value v)
 #define stack_push(v) (stack_push_value(vm_value_cast(v)))
 union vm_value stack_pop(void);
 
+void heap_set_page(int slot, struct page *page);
+
+union vm_value global_get(int varno);
+void global_set(int varno, union vm_value val);
+struct page *vm_get_page(int index);
+
 int vm_string_ref(struct string *s);
 int vm_copy_page(struct page *page);
 union vm_value vm_copy(union vm_value v, enum ain_data_type type);
