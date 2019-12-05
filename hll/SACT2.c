@@ -411,7 +411,7 @@ hll_defun(Joypad_GetDigitalStickStatus, args)
 // int Key_ClearFlag(void)
 hll_defun_inline(Key_ClearFlag, (key_clear_flag(), 1));
 // int Key_IsDown(int nKeyCode)
-hll_defun_inline(Key_IsDown, key_is_down(a[0].i));
+hll_defun_inline(Key_IsDown, (handle_events(), key_is_down(a[0].i)));
 // int Timer_Get(void)
 hll_defun_inline(Timer_Get, vm_time());
 // int CG_IsExist(int nCG)
