@@ -203,24 +203,24 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(S_PUSHBACK2, 0),
         OP(S_POPBACK2, 0),
         OP(ITOLI, 0),
-        OP(LI_ADD, 0), // TODO
-        OP(LI_SUB, 0), // TODO
-        OP(LI_MUL, 0), // TODO
-        OP(LI_DIV, 0), // TODO
-        OP(LI_MOD, 0), // TODO
-        OP(LI_ASSIGN, 0), // TODO
-        OP(LI_PLUSA, 0), // TODO
-        OP(LI_MINUSA, 0), // TODO
-        OP(LI_MULA, 0), // TODO
-        OP(LI_DIVA, 0), // TODO
-        OP(LI_MODA, 0), // TODO
-        OP(LI_ANDA, 0), // TODO
-        OP(LI_ORA, 0), // TODO
-        OP(LI_XORA, 0), // TODO
-        OP(LI_LSHIFTA, 0), // TODO
-        OP(LI_RSHIFTA, 0), // TODO
-        OP(LI_INC, 0), // TODO
-        OP(LI_DEC, 0), // TODO
+        OP(LI_ADD, 0),
+        OP(LI_SUB, 0),
+        OP(LI_MUL, 0),
+        OP(LI_DIV, 0),
+        OP(LI_MOD, 0),
+        OP(LI_ASSIGN, 0),
+        OP(LI_PLUSA, 0),
+        OP(LI_MINUSA, 0),
+        OP(LI_MULA, 0),
+        OP(LI_DIVA, 0),
+        OP(LI_MODA, 0),
+        OP(LI_ANDA, 0),
+        OP(LI_ORA, 0),
+        OP(LI_XORA, 0),
+        OP(LI_LSHIFTA, 0),
+        OP(LI_RSHIFTA, 0),
+        OP(LI_INC, 0),
+        OP(LI_DEC, 0),
         OP(A_FIND, 0), // TODO
         OP(A_REVERSE, 0), // TODO
         OP(SH_SR_ASSIGN, 0), // TODO
