@@ -55,8 +55,10 @@ bool cg_get_metrics(int no, struct cg_metrics *dst)
 		break;
 	default:
 		WARNING("Unknown CG type (CG %d)", no);
+		ald_free_data(dfile);
 		return false;
 	}
+	ald_free_data(dfile);
 	return true;
 }
 
@@ -68,6 +70,7 @@ void _cg_free(struct cg *cg)
 		if (cg->pixel_alloc)
 			free(cg->s->pixels);
 		SDL_FreeSurface(cg->s);
+		SDL_DestroyTexture(cg->t);
 	}
 }
 

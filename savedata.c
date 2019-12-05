@@ -267,6 +267,7 @@ static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_ty
 		}
 		rank = get_json_array_rank(json, &dims);
 		heap[slot].page = alloc_array(rank, dims, array_type(type), struct_type, false);
+		free(dims);
 		load_page(heap[slot].page, json);
 		return vm_int(slot);
 	case AIN_REF_TYPE:
@@ -295,7 +296,8 @@ static cJSON *read_save_file(const char *filename)
 	len = ftell(f);
 	fseek(f, 0, SEEK_SET);
 
-	buf = xmalloc(len);
+	buf = xmalloc(len+1);
+	buf[len] = '\0';
 	if (fread(buf, len, 1, f) != 1) {
 		WARNING("Failed to read save file: %s", filename);
 		free(buf);

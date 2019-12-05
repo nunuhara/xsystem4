@@ -39,6 +39,7 @@ int sdl_initialize(void)
 
 	sdl.renderer = SDL_CreateRenderer(sdl.window, -1, 0);
 	sdl_set_window_size(config.view_width, config.view_height);
+	atexit(sdl_remove);
 	return 0;
 }
 
@@ -48,7 +49,9 @@ void sdl_remove(void)
 		return;
 
 	SDL_DestroyRenderer(sdl.renderer);
+	SDL_FreeFormat(sdl.format);
 	SDL_Quit();
+	sdl.window = NULL;
 }
 
 void sdl_fullscreen(bool on)

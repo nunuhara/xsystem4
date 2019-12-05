@@ -56,7 +56,7 @@ struct page *_alloc_page(int nr_vars)
 void free_page(struct page *page)
 {
 	int cache_no = page->nr_vars - 1;
-	if (cache_no >= NR_CACHES || page_cache[cache_no].cached >= CACHE_SIZE) {
+	if (cache_no < 0 || cache_no >= NR_CACHES || page_cache[cache_no].cached >= CACHE_SIZE) {
 		free(page);
 		return;
 	}

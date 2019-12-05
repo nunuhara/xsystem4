@@ -128,6 +128,7 @@ static void init_gamedata_dir(const char *path)
 	if (ald_count[ALDFILE_WAVE] > 0)
 		ald_init(ALDFILE_WAVE, ald_filenames[ALDFILE_WAVE], ald_count[ALDFILE_WAVE]);
 
+	closedir(dir);
 }
 
 static char *get_xsystem4_home(void)
@@ -150,7 +151,7 @@ static char *get_xsystem4_home(void)
 	// $HOME/.xsystem4
 	env_home = getenv("HOME");
 	if (env_home && *env_home) {
-		char *home = xmalloc(strlen(env_home) + strlen("/.xsystem4"));
+		char *home = xmalloc(strlen(env_home) + strlen("/.xsystem4") + 1);
 		strcpy(home, env_home);
 		strcat(home, "/.xsystem4");
 		return home;
@@ -165,11 +166,10 @@ static char *get_save_path(const char *dir_name)
 	if (!dir_name)
 		dir_name = "SaveData";
 
-	const char *home = get_xsystem4_home();
 	char *utf8_game_name = sjis2utf(config.game_name, strlen(config.game_name));
 	char *utf8_dir_name = sjis2utf(dir_name, strlen(dir_name));
-	char *save_dir = xmalloc(strlen(home) + 1 + strlen(utf8_game_name) + 1 + strlen(utf8_dir_name) + 1);
-	strcpy(save_dir, home);
+	char *save_dir = xmalloc(strlen(config.home_dir) + 1 + strlen(utf8_game_name) + 1 + strlen(utf8_dir_name) + 1);
+	strcpy(save_dir, config.home_dir);
 	strcat(save_dir, "/");
 	strcat(save_dir, utf8_game_name);
 	strcat(save_dir, "/");

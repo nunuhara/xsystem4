@@ -254,6 +254,7 @@ int sact_SP_SetCG(int sp_no, int cg_no)
 		WARNING("Failed to create sprite");
 		return 0;
 	}
+	cg_reinit(sp->cg);
 	if (!cg_load(sp->cg, cg_no - 1))
 		return 0;
 	sp->rect.w = sp->cg->s->w;
