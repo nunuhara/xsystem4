@@ -473,8 +473,8 @@ static void system_call(int32_t code)
 		heap_unref(keyname);
 		break;
 	}
-	case 0x3: // system.LockPeek()
-	case 0x4: // system.UnlockPeek()
+	case 0x3: // system.LockPeek(void)
+	case 0x4: // system.UnlockPeek(void)
 		stack_push(1);
 		break;
 	case 0x6: // system.Output(string szText)
@@ -490,23 +490,23 @@ static void system_call(int32_t code)
 		stack_push(1); // TODO
 		break;
 	}
-	case 0xC:
+	case 0xC: // system.GetSaveFolderName(void)
 		if (config.save_dir)
 			stack_push_string(make_string(config.save_dir, strlen(config.save_dir)));
 		else
 			stack_push_string(string_ref(&EMPTY_STRING));
 		break;
-	case 0xD: // system.GetTime()
+	case 0xD: // system.GetTime(void)
 		stack_push(vm_time());
 		break;
-	case 0xF:
+	case 0xF: // system.Error(string szText)
 		str = stack_peek_string(0);
 		utf = sjis2utf(str->text, str->size);
 		sys_warning("*GAME ERROR*: %s\n", utf);
 		free(utf);
 		// XXX: caller S_POPs
 		break;
-	case 0x11: // system.IsDebugMode()
+	case 0x11: // system.IsDebugMode(void)
 		stack_push(0);
 		break;
 	case 0x13: { // system.GetFuncStackName(int nIndex)
@@ -521,12 +521,12 @@ static void system_call(int32_t code)
 		stack_push_string(make_string(fun->name, strlen(fun->name)));
 		break;
 	}
-	case 0x14: // system.Peek()
+	case 0x14: // system.Peek(void)
 		break;
 	case 0x15: // system.Sleep(int nSleep)
 		stack_pop();
 		break;
-	case 0x18: {
+	case 0x18: { // system.GroupSave(string szKeyName, string szFileName, string szGroupName, ref int nNumofLoad)
 		union vm_value *n = stack_pop_var();
 		int groupname = stack_pop().i;
 		int filename = stack_pop().i;
@@ -542,7 +542,6 @@ static void system_call(int32_t code)
 		int groupname = stack_pop().i;
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
-		NOTICE("LOADING %s", heap[filename].s->text);
 		stack_push(load_globals(heap[keyname].s->text, heap[filename].s->text, heap[groupname].s->text, &n->i));
 		heap_unref(groupname);
 		heap_unref(filename);

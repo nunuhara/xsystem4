@@ -74,6 +74,7 @@ struct config {
 	char *ain_filename;
 	char *game_dir;
 	char *save_dir;
+	char *home_dir;
 	int view_width;
 	int view_height;
 };

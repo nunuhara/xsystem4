@@ -30,6 +30,15 @@
 		free(str);						\
 	}
 
+static char *savedir_path(const char *filename)
+{
+	char *path = xmalloc(strlen(config.save_dir) + 1 + strlen(filename) + 1);
+	strcpy(path, config.save_dir);
+	strcat(path, "/");
+	strcat(path, filename);
+	return path;
+}
+
 static cJSON *vm_value_to_json(enum ain_data_type type, union vm_value val);
 
 static cJSON *page_to_json(int index)
@@ -94,11 +103,14 @@ static void add_global(struct global_save_data *data, int global, union vm_value
 
 static int write_save_data(struct global_save_data *data, const char *filename)
 {
-	FILE *f = fopen(filename, "w");
+	char *path = savedir_path(filename);
+	FILE *f = fopen(path, "w");
 	if (!f) {
 		WARNING("Failed to open save file: %s: %s", filename, strerror(errno));
+		free(path);
 		return 0;
 	}
+	free(path);
 
 	char *str = cJSON_Print(data->save);
 	cJSON_Delete(data->save);
@@ -270,11 +282,14 @@ static cJSON *read_save_file(const char *filename)
 	FILE *f;
 	long len;
 	char *buf;
+	char *path = savedir_path(filename);
 
-	if (!(f = fopen(filename, "r"))) {
+	if (!(f = fopen(path, "r"))) {
 		WARNING("Failed to open save file: %s: %s", filename, strerror(errno));
+		free(path);
 		return NULL;
 	}
+	free(path);
 
 	fseek(f, 0, SEEK_END);
 	len = ftell(f);
@@ -339,7 +354,6 @@ int load_globals(const char *keyname, const char *filename, const char *group_na
 			invalid_save_data("Invalid global index", index);
 			goto cleanup;
 		}
-		NOTICE("LOADING GLOBAL %s (%s)", ain->globals[i].name, ain_strtype(ain, ain->globals[i].data_type, ain->globals[i].struct_type));
 		global_set(i, json_to_vm_value(ain->globals[i].data_type, ain->globals[i].struct_type, value));
 		if (n)
 			(*n)++;

@@ -31,6 +31,7 @@ struct config config = {
 	.ain_filename = NULL,
 	.game_dir = NULL,
 	.save_dir = NULL,
+	.home_dir = NULL,
 	.view_width = 800,
 	.view_height = 600
 };
@@ -129,6 +130,66 @@ static void init_gamedata_dir(const char *path)
 
 }
 
+static char *get_xsystem4_home(void)
+{
+	// $XSYSTEM4_HOME
+	char *env_home = getenv("XSYSTEM4_HOME");
+	if (env_home && *env_home) {
+		return xstrdup(env_home);
+	}
+
+	// $XDG_DATA_HOME/xsystem4
+	env_home = getenv("XDG_DATA_HOME");
+	if (env_home && *env_home) {
+		char *home = xmalloc(strlen(env_home) + strlen("/xsystem4") + 1);
+		strcpy(home, env_home);
+		strcat(home, "/xsystem4");
+		return home;
+	}
+
+	// $HOME/.xsystem4
+	env_home = getenv("HOME");
+	if (env_home && *env_home) {
+		char *home = xmalloc(strlen(env_home) + strlen("/.xsystem4"));
+		strcpy(home, env_home);
+		strcat(home, "/.xsystem4");
+		return home;
+	}
+
+	// If all else fails, use the current directory
+	return xstrdup(".");
+}
+
+static char *get_save_path(const char *dir_name)
+{
+	if (!dir_name)
+		dir_name = "SaveData";
+
+	const char *home = get_xsystem4_home();
+	char *utf8_game_name = sjis2utf(config.game_name, strlen(config.game_name));
+	char *utf8_dir_name = sjis2utf(dir_name, strlen(dir_name));
+	char *save_dir = xmalloc(strlen(home) + 1 + strlen(utf8_game_name) + 1 + strlen(utf8_dir_name) + 1);
+	strcpy(save_dir, home);
+	strcat(save_dir, "/");
+	strcat(save_dir, utf8_game_name);
+	strcat(save_dir, "/");
+	strcat(save_dir, utf8_dir_name);
+	free(utf8_game_name);
+	free(utf8_dir_name);
+	return save_dir;
+}
+
+static void config_init(void)
+{
+	config.home_dir = get_xsystem4_home();
+	if (!config.game_name)
+		config.game_name = strdup(config.ain_filename);
+
+	char *new_save_dir = get_save_path(config.save_dir);
+	free(config.save_dir);
+	config.save_dir = new_save_dir;
+}
+
 int main(int argc, char *argv[])
 {
 	size_t len;
@@ -159,8 +220,7 @@ int main(int argc, char *argv[])
 		ERROR("Not an AIN/INI file: %s", &argv[1][len - 4]);
 	}
 
-	if (!config.game_name)
-		config.game_name = strdup("Unknown game");
+	config_init();
 
 	if (!(ain = ain_open(ainfile, &err))) {
 		ERROR("%s", ain_strerror(err));
