@@ -62,6 +62,7 @@ int sact_SP_ExistsAlpha(int sp_no);
 int sact_SP_TextDraw(int sp_no, struct string *text, union vm_value *tm);
 int sact_SP_TextClear(int sp_no);
 int sact_SP_TextCopy(int dno, int sno);
+int sact_SP_IsPtIn(int sp_no, int x, int y);
 int sact_CG_GetMetrics(int cg_no, union vm_value *cgm);
 
 void DrawGraph_Copy(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);

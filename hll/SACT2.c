@@ -303,7 +303,7 @@ hll_defun(SP_GetTextLineSpace, args)
 	hll_return(sp->text.line_space);
 }
 // int SP_IsPtIn(int nSP, int nX, int nY)
-hll_unimplemented(SACT2, SP_IsPtIn);
+hll_defun_inline(SP_IsPtIn, sact_SP_IsPtIn(a[0].i, a[1].i, a[2].i));
 
 // int SP_IsPtInRect(int nSP, int nX, int nY)
 hll_defun(SP_IsPtInRect, args)

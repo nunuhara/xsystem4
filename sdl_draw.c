@@ -119,11 +119,6 @@ static void fill_clip_rect(int *dx, int *dy, int dw, int dh, int *w, int *h)
 	*h = min(*h, dh - *dy);
 }
 
-static inline uint32_t *get_pixel(SDL_Surface *s, int x, int y)
-{
-	return (uint32_t*)(((uint8_t*)s->pixels) + s->pitch*y + s->format->BytesPerPixel*x);
-}
-
 typedef void(*pixel_op)(uint32_t *p, uint32_t data);
 typedef void(*pixel_op2)(uint32_t *dp, uint32_t *sp, uint32_t data);
 
@@ -135,8 +130,8 @@ static void for_each_pixel_pair(struct cg *dst, int dx, int dy, SDL_Surface *src
 	SDL_LockSurface(dst->s);
 	SDL_LockSurface(src);
 	for (int row = 0; row < h; row++) {
-		uint32_t *dp = get_pixel(dst->s, dx, row+dy);
-		uint32_t *sp = get_pixel(src, sx, row+sy);
+		uint32_t *dp = sdl_get_pixel(dst->s, dx, row+dy);
+		uint32_t *sp = sdl_get_pixel(src, sx, row+sy);
 		for (int col = 0; col < w; col++, dp++, sp++) {
 			op(dp, sp, data);
 		}
@@ -152,7 +147,7 @@ static void for_each_pixel(struct cg *dst, int x, int y, int w, int h, pixel_op 
 	fill_clip_rect(&x, &y, dst->s->w, dst->s->h, &w, &h);
 	SDL_LockSurface(dst->s);
 	for (int row = 0; row < h; row++) {
-		uint32_t *p = get_pixel(dst->s, x, row+y);
+		uint32_t *p = sdl_get_pixel(dst->s, x, row+y);
 		for (int col = 0; col < w; col++, p++) {
 			op(p, data);
 		}

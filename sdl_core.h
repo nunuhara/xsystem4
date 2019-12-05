@@ -57,6 +57,11 @@ void sdl_fill_amap(struct cg *dst, int x, int y, int w, int h, int a);
 void sdl_copy_stretch(struct cg *dst, int dx, int dy, int dw, int dh, struct cg *src, int sx, int sy, int sw, int sh);
 void sdl_copy_stretch_amap(struct cg *dst, int dx, int dy, int dw, int dh, struct cg *src, int sx, int sy, int sw, int sh);
 
+static inline uint32_t *sdl_get_pixel(SDL_Surface *s, int x, int y)
+{
+	return (uint32_t*)(((uint8_t*)s->pixels) + s->pitch*y + s->format->BytesPerPixel*x);
+}
+
 enum font_weight {
 	FW_NORMAL = 400,
 	FW_BOLD   = 700

@@ -436,6 +436,23 @@ int sact_SP_TextCopy(int dno, int sno)
 	return 1;
 }
 
+int sact_SP_IsPtIn(int sp_no, int x, int y)
+{
+	bool in = false;
+	Point p = POINT(x, y);
+	struct sact_sprite *sp = get_surface(sp_no);
+	if (SDL_PointInRect(&p, &sp->rect)) {
+		uint8_t r, g, b, a;
+		x -= sp->rect.x;
+		y -= sp->rect.y;
+		SDL_LockSurface(sp->cg->s);
+		SDL_GetRGBA(*sdl_get_pixel(sp->cg->s, x, y), sp->cg->s->format, &r, &g, &b, &a);
+		in = !!a;
+		SDL_UnlockSurface(sp->cg->s);
+	}
+	return in;
+}
+
 int sact_CG_GetMetrics(int cg_no, union vm_value *cgm)
 {
 	struct cg_metrics metrics;
