@@ -128,6 +128,8 @@ static void heap_free_slot(int32_t slot)
 
 void heap_ref(int32_t slot)
 {
+	if (slot == -1)
+		return;
 	heap[slot].ref++;
 #ifdef DEBUG_HEAP
 	heap[slot].ref_addr = instr_ptr;
