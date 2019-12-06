@@ -74,11 +74,18 @@ void DrawGraph_CopyUseAMapBorder(int dno, int dx, int dy, int sno, int sx, int s
 void DrawGraph_CopyAMapMax(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
 void DrawGraph_CopyAMapMin(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
 
+void DrawGraph_BlendAMap(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
+
 void DrawGraph_Fill(int sp_no, int x, int y, int w, int h, int r, int g, int b);
 void DrawGraph_FillAMap(int sp_no, int x, int y, int w, int h, int a);
 void DrawGraph_FillAlphaColor(int sp_no, int x, int y, int w, int h, int r, int g, int b, int a);
 
+void DrawGraph_AddDA_DAxSA(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
+
 void DrawGraph_CopyStretch(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
 void DrawGraph_CopyStretchAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
+
+void DrawGraph_CopyReverseLR(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
+void DrawGraph_CopyReverseAMapLR(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
 
 #endif /* SYSTEM4_SACT_H */

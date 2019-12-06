@@ -27,6 +27,7 @@
 #define G_MASK (sdl.format->Gmask)
 #define B_MASK (sdl.format->Bmask)
 #define A_MASK (sdl.format->Amask)
+#define RGB_MASK (R_MASK | G_MASK | B_MASK)
 
 #define R_SHIFT (sdl.format->Rshift)
 #define G_SHIFT (sdl.format->Gshift)
@@ -71,6 +72,16 @@ static inline void PIXEL_SET_RGBA(uint32_t *p, uint8_t r, uint8_t g, uint8_t b, 
 static inline uint32_t PIXEL_MAP(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
 	return (r << R_SHIFT) | (g << G_SHIFT) | (b << B_SHIFT) | (a << A_SHIFT);
+}
+
+static inline void PIXEL_COPY_RGB(uint32_t *dp, uint32_t *sp)
+{
+	*dp = (*sp & RGB_MASK) | (*dp & A_MASK);
+}
+
+static inline void PIXEL_COPY_ALPHA(uint32_t *dp, uint32_t *sp)
+{
+	*dp = (*sp & A_MASK) | (*dp & RGB_MASK);
 }
 
 // Clip src/dst rectangles in preparation for a copy.
@@ -294,6 +305,11 @@ static uint32_t blend_pixels(uint32_t dst, uint32_t src)
 	return PIXEL_MAP(r, g, b, PIXEL_A(dst));
 }
 
+void sdl_blend_amap(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h)
+{
+	sdl_cg_blit(dst, dx, dy, src->s, sx, sy, w, h);
+}
+
 static void sdl_pixop_fill_rgb(uint32_t *p, uint32_t c)
 {
 	PIXEL_SET_A(&c, PIXEL_A(*p));
@@ -328,6 +344,19 @@ void sdl_fill_amap(struct cg *dst, int x, int y, int w, int h, int a)
 	for_each_pixel(dst, x, y, w, h, sdl_pixop_fill_alpha, a);
 }
 
+static void sdl_pixop_add_da_daxsa(uint32_t *dp, uint32_t *sp, possibly_unused uint32_t data)
+{
+	uint32_t da = PIXEL_A(*dp);
+	uint32_t sa = PIXEL_A(*sp);
+	uint32_t a = da ? (da + ((da*sa) >> 8)) : sa; // ???
+	PIXEL_SET_A(dp, min((uint32_t)255, a));
+}
+
+void sdl_add_da_daxsa(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h)
+{
+	for_each_pixel_pair(dst, dx, dy, src->s, sx, sy, w, h, sdl_pixop_add_da_daxsa, 0);
+}
+
 static SDL_Surface *sdl_stretch_surface(SDL_Surface *src, Rectangle *src_rect, int w, int h)
 {
 	Rectangle dst_rect = RECT(0, 0, w, h);
@@ -350,4 +379,38 @@ void sdl_copy_stretch_amap(struct cg *dst, int dx, int dy, int dw, int dh, struc
 	SDL_Surface *stretched = sdl_stretch_surface(src->s, &s_rect, dw, dh);
 	for_each_pixel_pair(dst, dx, dy, stretched, 0, 0, dw, dh, sdl_pixop_copy_alpha, 0);
 	SDL_FreeSurface(stretched);
+}
+
+void sdl_copy_reverse_LR(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h)
+{
+	copy_clip_rects(dst->s->w, dst->s->h, &dx, &dy, src->s->w, src->s->h, &sx, &sy, &w, &h);
+	SDL_LockSurface(dst->s);
+	SDL_LockSurface(src->s);
+	for (int row = 0; row < h; row++) {
+		uint32_t *dp = sdl_get_pixel(dst->s, dx, row+dy);
+		uint32_t *sp = sdl_get_pixel(src->s, sx + w - 1, row+sy);
+		for (int col = 0; col < w; col++, dp++, sp--) {
+			PIXEL_COPY_RGB(dp, sp);
+		}
+	}
+	SDL_UpdateTexture(dst->t, NULL, dst->s->pixels, dst->s->pitch);
+	SDL_UnlockSurface(src->s);
+	SDL_UnlockSurface(dst->s);
+}
+
+void sdl_copy_reverse_amap_LR(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h)
+{
+	copy_clip_rects(dst->s->w, dst->s->h, &dx, &dy, src->s->w, src->s->h, &sx, &sy, &w, &h);
+	SDL_LockSurface(dst->s);
+	SDL_LockSurface(src->s);
+	for (int row = 0; row < h; row++) {
+		uint32_t *dp = sdl_get_pixel(dst->s, dx, row+dy);
+		uint32_t *sp = sdl_get_pixel(src->s, sx + w - 1, row+sy);
+		for (int col = 0; col < w; col++, dp++, sp--) {
+			PIXEL_COPY_ALPHA(dp, sp);
+		}
+	}
+	SDL_UpdateTexture(dst->t, NULL, dst->s->pixels, dst->s->pitch);
+	SDL_UnlockSurface(src->s);
+	SDL_UnlockSurface(dst->s);
 }

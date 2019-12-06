@@ -42,7 +42,7 @@ hll_unimplemented(DrawGraph, BlendSrcBright);
 //void BlendAddSatur(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, BlendAddSatur);
 //void BlendAMap(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, BlendAMap);
+hll_defun_inline(BlendAMap, (DrawGraph_BlendAMap(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void BlendAMapSrcOnly(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, BlendAMapSrcOnly);
 //void BlendAMapColor(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nR, int nG, int nB)
@@ -82,9 +82,9 @@ hll_unimplemented(DrawGraph, FillMultiply);
 //void SaturDP_DPxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, SaturDP);
 //void ScreenDA_DAxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, ScreenDA);
+hll_unimplemented(DrawGraph, ScreenDA_DAxSA);
 //void AddDA_DAxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, AddDA);
+hll_defun_inline(AddDA_DAxSA, (DrawGraph_AddDA_DAxSA(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void SpriteCopyAMap(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nColorKey)
 hll_unimplemented(DrawGraph, SpriteCopyAMap);
 //void BlendDA_DAxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
@@ -178,11 +178,11 @@ hll_unimplemented(DrawGraph, CopyRotateXFixUUseAMap);
 //void CopyRotateXFixDUseAMap(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
 hll_unimplemented(DrawGraph, CopyRotateXFixDUseAMap);
 //void CopyReverseLR(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, CopyReverseLR);
+hll_defun_inline(CopyReverseLR, (DrawGraph_CopyReverseLR(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void CopyReverseUD(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, CopyReverseUD);
 //void CopyReverseAMapLR(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, CopyReverseAMapLR);
+hll_defun_inline(CopyReverseAMapLR, (DrawGraph_CopyReverseAMapLR(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void CopyReverseAMapUD(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, CopyReverseAMapUD);
 //void CopyWidthBlur(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nBlur)
@@ -239,8 +239,8 @@ hll_deflib(DrawGraph) {
 	hll_export(FillScreen),
 	hll_export(FillMultiply),
 	hll_export(SaturDP),
-	hll_export(ScreenDA),
-	hll_export(AddDA),
+	hll_export(ScreenDA_DAxSA),
+	hll_export(AddDA_DAxSA),
 	hll_export(SpriteCopyAMap),
 	hll_export(BlendDA),
 	hll_export(SubDA),

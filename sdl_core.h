@@ -51,11 +51,15 @@ void sdl_copy_use_amap_under(struct cg *dst, int dx, int dy, struct cg *src, int
 void sdl_copy_use_amap_border(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h, int a_threshold);
 void sdl_copy_amap_max(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h);
 void sdl_copy_amap_min(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h);
+void sdl_blend_amap(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h);
 void sdl_fill(struct cg *dst, int x, int y, int w, int h, int r, int g, int b);
 void sdl_fill_alpha_color(struct cg *dst, int x, int y, int w, int h, int r, int g, int b, int a);
 void sdl_fill_amap(struct cg *dst, int x, int y, int w, int h, int a);
+void sdl_add_da_daxsa(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h);
 void sdl_copy_stretch(struct cg *dst, int dx, int dy, int dw, int dh, struct cg *src, int sx, int sy, int sw, int sh);
 void sdl_copy_stretch_amap(struct cg *dst, int dx, int dy, int dw, int dh, struct cg *src, int sx, int sy, int sw, int sh);
+void sdl_copy_reverse_LR(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h);
+void sdl_copy_reverse_amap_LR(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h);
 
 static inline uint32_t *sdl_get_pixel(SDL_Surface *s, int x, int y)
 {

@@ -513,6 +513,11 @@ void DrawGraph_CopyAMapMin(int dno, int dx, int dy, int sno, int sx, int sy, int
 	sdl_copy_amap_min(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
 }
 
+void DrawGraph_BlendAMap(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
+{
+	sdl_blend_amap(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
+}
+
 void DrawGraph_Fill(int sp_no, int x, int y, int w, int h, int r, int g, int b)
 {
 	sdl_fill(get_surface(sp_no)->cg, x, y, w, h, r, g, b);
@@ -528,6 +533,11 @@ void DrawGraph_FillAMap(int sp_no, int x, int y, int w, int h, int a)
 	sdl_fill_amap(get_surface(sp_no)->cg, x, y, w, h, a);
 }
 
+void DrawGraph_AddDA_DAxSA(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
+{
+	sdl_add_da_daxsa(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
+}
+
 void DrawGraph_CopyStretch(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
 {
 	sdl_copy_stretch(get_surface(dst)->cg, dx, dy, dw, dh, get_surface(src)->cg, sx, sy, sw, sh);
@@ -536,4 +546,14 @@ void DrawGraph_CopyStretch(int dst, int dx, int dy, int dw, int dh, int src, int
 void DrawGraph_CopyStretchAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
 {
 	sdl_copy_stretch_amap(get_surface(dst)->cg, dx, dy, dw, dh, get_surface(src)->cg, sx, sy, sw, sh);
+}
+
+void DrawGraph_CopyReverseLR(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
+{
+	sdl_copy_reverse_LR(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
+}
+
+void DrawGraph_CopyReverseAMapLR(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h)
+{
+	sdl_copy_reverse_amap_LR(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
 }
