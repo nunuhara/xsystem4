@@ -79,6 +79,43 @@ struct string *integer_to_string(int n)
 	return make_string(buf, len);
 }
 
+static void number_zen2han(char *buf)
+{
+	for (int src = 0, dst = 0; buf[src];) {
+		uint8_t b1 = buf[src];
+		if (SJIS_2BYTE(b1)) {
+			uint8_t b2 = buf[src+1];
+			if (b1 == 0x82 && b2 >= 0x4f && b2 <= 0x58) {
+				buf[dst++] = '0' + (b2 - 0x4f);
+				src += 2;
+			} else if (b1 == 0x81 && b2 == 0x7c) {
+				buf[dst++] = '-';
+				src += 2;
+			} else if (b1 == 0x81 && b2 == 0x44) {
+				buf[dst++] = '.';
+				src += 2;
+			} else if (b1 == 0x81 && b2 == 0x40) {
+				buf[dst++] = ' ';
+				src += 2;
+			} else {
+				buf[dst++] = buf[src++];
+				buf[dst++] = buf[src++];
+			}
+		} else {
+			buf[dst++] = buf[src++];
+		}
+	}
+}
+
+int string_to_integer(struct string *s)
+{
+	char *buf = xstrdup(s->text);
+	number_zen2han(buf);
+	int n = atoi(buf);
+	free(buf);
+	return n;
+}
+
 struct string *float_to_string(float f, int precision)
 {
 	char buf[512];

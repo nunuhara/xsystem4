@@ -1351,6 +1351,20 @@ static void execute_instruction(enum opcode opcode)
 		stack_push_string(float_to_string(stack_pop().f, precision));
 		break;
 	}
+	case STOI: {
+		int str = stack_pop().i;
+		stack_push(string_to_integer(heap[str].s));
+		heap_unref(str);
+		break;
+	}
+	case FT_ASSIGNS: {
+		//int functype = stack_pop().i;
+		stack_pop();
+		int str = stack_pop().i;
+		stack_pop_var()->i = get_function_by_name(heap[str].s->text);
+		stack_push(str);
+		break;
+	}
 	// --- Characters ---
 	case C_REF: {
 		int i = stack_pop().i;

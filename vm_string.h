@@ -38,6 +38,7 @@ struct string *make_string(const char *str, unsigned int len);
 struct string *string_ref(struct string *s);
 struct string *string_dup(const struct string *in);
 struct string *integer_to_string(int n);
+int string_to_integer(struct string *s);
 struct string *float_to_string(float f, int precision);
 struct string *string_concatenate(const struct string *a, const struct string *b);
 struct string *string_copy(const struct string *s, int index, int len);
