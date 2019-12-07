@@ -284,7 +284,7 @@ void string_set_char(struct string **_str, int i, unsigned int c)
 		str->size--;
 	} else if (bytes_src == 2 && bytes_dst == 1) {
 		// grow 1 byte
-		str = xrealloc(str, sizeof(struct string) + str->size + 1);
+		str = xrealloc(str, sizeof(struct string) + str->size + 2);
 		str->size++;
 		*_str = str;
 		for (int j = str->size; j > i; j--) {

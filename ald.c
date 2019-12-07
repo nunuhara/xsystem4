@@ -156,7 +156,7 @@ static int _ald_get(struct ald_archive *ar, int no, int *disk_out, int *dataptr_
 	int disk, ptr, dataptr, dataptr2;
 
 	// check that index is within range of file map
-	if (no > ar->maxfile)
+	if (no < 0 || no >= ar->maxfile)
 		return 0;
 
 	// look up data in file map
