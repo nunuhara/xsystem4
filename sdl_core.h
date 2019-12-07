@@ -68,7 +68,9 @@ static inline uint32_t *sdl_get_pixel(SDL_Surface *s, int x, int y)
 
 enum font_weight {
 	FW_NORMAL = 400,
-	FW_BOLD   = 700
+	FW_BOLD   = 700,
+	FW_NORMAL2 = 1400,
+	FW_BOLD2   = 1700
 };
 
 enum font_face {

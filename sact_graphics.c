@@ -378,7 +378,7 @@ int sact_SP_TextDraw(int sp_no, struct string *text, union vm_value *_tm)
 	if (!sp) return 0;
 
 	if (!sp->text.surf) {
-		SDL_Color c = { 0, 0, 0, 0 };
+		SDL_Color c = { 255, 255, 255, 0 };
 		sp->text.surf = sdl_create_surface(sp->rect.w, sp->rect.h, &c);
 		sp->text.t = sdl_create_texture(sp->rect.w, sp->rect.h);
 	}

@@ -249,7 +249,14 @@ hll_defun(SP_TextHome, args)
 }
 
 // int SP_TextNewLine(int nSP, int nTextSize)
-hll_unimplemented(SACT2, SP_TextNewLine);
+hll_defun(SP_TextNewLine, args)
+{
+	struct sact_sprite *sp = sact_get_sprite(args[0].i);
+	if (!sp) hll_return(0);
+	sp->text.pos = POINT(sp->text.home.x, sp->text.home.y + args[0].i);
+	hll_return(1);
+}
+
 // int SP_TextBackSpace(int nSP)
 hll_unimplemented(SACT2, SP_TextBackSpace);
 // int SP_TextCopy(int nDstSP, int nSrcSP)

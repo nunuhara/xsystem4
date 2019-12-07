@@ -25,8 +25,8 @@
 
 // TODO: install fonts on system, and provide run-time configuration option
 const char *font_paths[] = {
-	[FONT_GOTHIC] = "fonts/mincho.otf",
-	[FONT_MINCHO] = "fonts/MTLc3m.ttf"
+	[FONT_GOTHIC] = "fonts/MTLc3m.ttf",
+	[FONT_MINCHO] = "fonts/mincho.otf"
 };
 
 struct font {
@@ -92,9 +92,15 @@ static void _sdl_render_text(TTF_Font *f, SDL_Surface *dst, Point pos, char *msg
 static int sact_to_sdl_fontstyle(int style)
 {
 	switch (style) {
-	case FW_NORMAL: return 0;
-	case FW_BOLD:   return TTF_STYLE_BOLD;
-	default:        return 0;
+	case FW_NORMAL:
+	case FW_NORMAL2:
+		return 0;
+	case FW_BOLD:
+	case FW_BOLD2:
+		return TTF_STYLE_BOLD;
+	default:
+		WARNING("Unknown fontstyle: %d", style);
+		return 0;
 	}
 }
 
