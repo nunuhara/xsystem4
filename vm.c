@@ -28,6 +28,7 @@
 #include "little_endian.h"
 #include "savedata.h"
 #include "utfsjis.h"
+#include "debugger.h"
 
 #define INITIAL_STACK_SIZE 4096
 #define INITIAL_HEAP_SIZE  4096
@@ -178,24 +179,24 @@ static int local_page_slot(void)
 	return call_stack[call_stack_ptr-1].page_slot;
 }
 
-static union vm_value *local_page(void)
+struct page *local_page(void)
 {
-	return heap[local_page_slot()].page->values;
+	return heap[local_page_slot()].page;
 }
 
 static union vm_value local_get(int varno)
 {
-	return local_page()[varno];
+	return local_page()->values[varno];
 }
 
 static void local_set(int varno, int32_t value)
 {
-	local_page()[varno].i = value;
+	local_page()->values[varno].i = value;
 }
 
 static union vm_value *local_ptr(int varno)
 {
-	return local_page() + varno;
+	return local_page()->values + varno;
 }
 
 union vm_value global_get(int varno)
@@ -228,7 +229,7 @@ static union vm_value *struct_page(void)
 	return heap[struct_page_slot()].page->values;
 }
 
-static bool page_index_valid(int index)
+bool page_index_valid(int index)
 {
 	return index >= 0 && (size_t)index < heap_size && heap[index].ref > 0 && heap[index].type == VM_PAGE;
 }
@@ -1690,6 +1691,9 @@ noreturn void _vm_error(const char *fmt, ...)
 	va_end(ap);
 	sys_warning("at %s (0x%X) in:\n", current_instruction_name(), instr_ptr);
 	vm_stack_trace();
+#ifdef DEBUGGER_ENABLED
+	dbg_repl();
+#endif
 	sys_exit(1);
 }
 

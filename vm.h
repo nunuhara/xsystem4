@@ -129,7 +129,9 @@ void heap_set_page(int slot, struct page *page);
 
 union vm_value global_get(int varno);
 void global_set(int varno, union vm_value val);
+bool page_index_valid(int index);
 struct page *vm_get_page(int index);
+struct page *local_page(void);
 
 int vm_string_ref(struct string *s);
 int vm_copy_page(struct page *page);

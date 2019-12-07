@@ -1,0 +1,93 @@
+;; Copyright (C) 2019 Nunuhara Cabbage <nunuhara@haniwa.technology>
+;;
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2 of the License, or
+;; (at your option) any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with this program; if not, see <http://gnu.org/licenses/>.
+
+(c-include "ain.h")
+(c-include "page.h")
+(c-include "vm.h")
+
+(define-c-const int (type/void AIN_VOID))
+(define-c-const int (type/int AIN_INT))
+(define-c-const int (type/float AIN_FLOAT))
+(define-c-const int (type/string AIN_STRING))
+(define-c-const int (type/struct AIN_STRUCT))
+(define-c-const int (type/array-int AIN_ARRAY_INT))
+(define-c-const int (type/array-float AIN_ARRAY_FLOAT))
+(define-c-const int (type/array-string AIN_ARRAY_STRING))
+(define-c-const int (type/array-struct AIN_ARRAY_STRUCT))
+(define-c-const int (type/ref-int AIN_REF_INT))
+(define-c-const int (type/ref-float AIN_REF_FLOAT))
+(define-c-const int (type/ref-string AIN_REF_STRING))
+(define-c-const int (type/ref-struct AIN_REF_STRUCT))
+(define-c-const int (type/ref-array-int AIN_REF_ARRAY_INT))
+(define-c-const int (type/ref-array-float AIN_REF_ARRAY_FLOAT))
+(define-c-const int (type/ref-array-string AIN_REF_ARRAY_STRING))
+(define-c-const int (type/ref-array-struct AIN_REF_ARRAY_STRUCT))
+(define-c-const int (type/imain-system AIN_IMAIN_SYSTEM))
+(define-c-const int (type/func-type AIN_FUNC_TYPE))
+(define-c-const int (type/array-func-type AIN_ARRAY_FUNC_TYPE))
+(define-c-const int (type/ref-func-type AIN_REF_FUNC_TYPE))
+(define-c-const int (type/ref-array-func-type AIN_REF_ARRAY_FUNC_TYPE))
+(define-c-const int (type/bool AIN_BOOL))
+(define-c-const int (type/array-bool AIN_ARRAY_BOOL))
+(define-c-const int (type/ref-bool AIN_REF_BOOL))
+(define-c-const int (type/ref-array-bool AIN_REF_ARRAY_BOOL))
+(define-c-const int (type/long AIN_LONG_INT))
+(define-c-const int (type/array-long AIN_ARRAY_LONG_INT))
+(define-c-const int (type/ref-long AIN_REF_LONG_INT))
+(define-c-const int (type/ref-array-long AIN_REF_ARRAY_LONG_INT))
+(define-c-const int (type/delegate AIN_DELEGATE))
+(define-c-const int (type/array-delegate AIN_ARRAY_DELEGATE))
+(define-c-const int (type/ref-array-delegate AIN_REF_ARRAY_DELEGATE))
+
+(define-c-const int (page-type/global GLOBAL_PAGE))
+(define-c-const int (page-type/local  LOCAL_PAGE))
+(define-c-const int (page-type/struct STRUCT_PAGE))
+(define-c-const int (page-type/array  ARRAY_PAGE))
+
+(define-c-struct page
+  predicate: page?
+  (int type        page-type)
+  (int index       page-type-index)
+  (int nr_vars     page-nr-vars)
+
+  (int a_type      array-data-type)
+  (int struct_type array-struct-type)
+  (int rank        array-rank))
+
+(define-c-union vm_value
+  predicate: vm-value?
+  (int i vm-value-int)
+  (long li vm-value-long)
+  (float f vm-value-float))
+
+(define-c (free string) (vm-value-string vm_value_string) (vm_value))
+
+(define-c-struct variable
+  finalizer: free_variable
+  predicate: variable?
+  (int      data_type   variable-data-type)
+  (int      struct_type variable-struct-type)
+  (string   name        variable-name)
+  (int      varno       variable-varno)
+  (vm_value value       variable-vm-value))
+
+(define-c void (backtrace vm_stack_trace) ())
+
+(define-c (maybe-null page) (get-page get_page) (int))
+(define-c page (local-page local_page) ())
+(define-c (free variable) (page-ref page_ref) (page int))
+
+(define-c (maybe-null (free variable)) (get-global-variable get_global_by_name) (string))
+(define-c (maybe-null (free variable)) (get-local-variable get_local_by_name) (string))

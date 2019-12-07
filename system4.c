@@ -228,6 +228,10 @@ int main(int argc, char *argv[])
 
 	init_gamedata_dir(config.game_dir);
 
+#ifdef DEBUGGER_ENABLED
+	dbg_init();
+#endif
+
 	vm_execute_ain(ain);
 	sys_exit(0);
 }

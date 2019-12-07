@@ -1,11 +1,13 @@
 project('system4', 'c', default_options : ['c_std=c11'])
 add_project_arguments('-D_DEFAULT_SOURCE', language : 'c')
+
 system4 = ['ain.c',
            'instructions.c',
            'string.c',
            'system.c',
            'utfsjis.c',
 ]
+
 xsystem4 = ['ald.c',
             'cJSON.c',
             'cg.c',
@@ -20,8 +22,8 @@ xsystem4 = ['ald.c',
             'sdl_video.c',
             'system4.c',
             'vm.c',
-]
-hll_libs = ['hll/ACXLoader.c',
+
+            'hll/ACXLoader.c',
             'hll/AliceLogo.c',
             'hll/AliceLogo2.c',
             'hll/AliceLogo3.c',
@@ -36,10 +38,19 @@ hll_libs = ['hll/ACXLoader.c',
             'hll/SACT2.c',
             'hll/SystemServiceEx.c',
 ]
-zdep = dependency('zlib')
-mdep = meson.get_compiler('c').find_library('m', required: false)
+
+zlib = dependency('zlib')
+libm = meson.get_compiler('c').find_library('m', required: false)
 sdl2 = dependency('sdl2')
 sdl2ttf = dependency('SDL2_ttf')
+xsystem4_deps = [libm, zlib, sdl2, sdl2ttf]
 
-executable('system4', xsystem4 + system4 + hll_libs, dependencies: [mdep, zdep, sdl2, sdl2ttf])
-executable('aindump', ['aindump.c'] + system4, dependencies: [mdep, zdep])
+chibi = dependency('chibi-scheme', required : get_option('debugger'))
+if chibi.found()
+    xsystem4_deps += chibi
+    xsystem4 += 'debugger.c'
+    add_project_arguments('-DDEBUGGER_ENABLED', language : 'c')
+endif
+
+executable('system4', xsystem4 + system4, dependencies: xsystem4_deps, c_args : ['-Wno-unused-parameter'])
+executable('aindump', ['aindump.c'] + system4, dependencies: [libm, zlib])
