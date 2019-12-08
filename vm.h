@@ -54,6 +54,7 @@ struct vm_pointer {
 #ifdef DEBUG_HEAP
 	size_t alloc_addr;
 	size_t ref_addr;
+	size_t free_addr;
 #endif
 };
 

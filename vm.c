@@ -151,9 +151,16 @@ static const char *vm_ptrtype_string(enum vm_pointer_type type) {
 void heap_unref(int slot)
 {
 	if (heap[slot].ref <= 0) {
+#ifdef DEBUG_HEAP
+		VM_ERROR("double free of slot %d (%s)\nOriginally allocd at %X\nOriginally freed at %X",
+			 slot, vm_ptrtype_string(heap[slot].type), heap[slot].alloc_addr, heap[slot].free_addr);
+#endif
 		VM_ERROR("double free of slot %d (%s)", slot, vm_ptrtype_string(heap[slot].type));
 	}
 	if (--heap[slot].ref <= 0) {
+#ifdef DEBUG_HEAP
+		heap[slot].free_addr = instr_ptr;
+#endif
 		switch (heap[slot].type) {
 		case VM_PAGE:
 			if (heap[slot].page) {
@@ -447,9 +454,9 @@ static void hll_call(int libno, int fno)
 
 static void function_return(void)
 {
+	heap_unref(call_stack[call_stack_ptr-1].page_slot);
+	instr_ptr = call_stack[call_stack_ptr-1].return_address;
 	call_stack_ptr--;
-	heap_unref(call_stack[call_stack_ptr].page_slot);
-	instr_ptr = call_stack[call_stack_ptr].return_address;
 }
 
 static void system_call(int32_t code)
