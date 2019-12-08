@@ -111,15 +111,33 @@ void variable_fini(union vm_value v, enum ain_data_type type)
 enum ain_data_type array_type(enum ain_data_type type)
 {
 	switch (type) {
-	case AIN_ARRAY_INT:       return AIN_INT;
-	case AIN_ARRAY_FLOAT:     return AIN_FLOAT;
-	case AIN_ARRAY_STRING:    return AIN_STRING;
-	case AIN_ARRAY_STRUCT:    return AIN_STRUCT;
-	case AIN_ARRAY_FUNC_TYPE: return AIN_FUNC_TYPE;
-	case AIN_ARRAY_BOOL:      return AIN_BOOL;
-	case AIN_ARRAY_LONG_INT:  return AIN_LONG_INT;
-	case AIN_ARRAY_DELEGATE:  return AIN_DELEGATE;
-	default:                  return type;
+	case AIN_ARRAY_INT:
+	case AIN_REF_ARRAY_INT:
+		return AIN_INT;
+	case AIN_ARRAY_FLOAT:
+	case AIN_REF_ARRAY_FLOAT:
+		return AIN_FLOAT;
+	case AIN_ARRAY_STRING:
+	case AIN_REF_ARRAY_STRING:
+		return AIN_STRING;
+	case AIN_ARRAY_STRUCT:
+	case AIN_REF_ARRAY_STRUCT:
+		return AIN_STRUCT;
+	case AIN_ARRAY_FUNC_TYPE:
+	case AIN_REF_ARRAY_FUNC_TYPE:
+		return AIN_FUNC_TYPE;
+	case AIN_ARRAY_BOOL:
+	case AIN_REF_ARRAY_BOOL:
+		return AIN_BOOL;
+	case AIN_ARRAY_LONG_INT:
+	case AIN_REF_ARRAY_LONG_INT:
+		return AIN_LONG_INT;
+	case AIN_ARRAY_DELEGATE:
+	case AIN_REF_ARRAY_DELEGATE:
+		return AIN_DELEGATE;
+	default:
+		WARNING("Unknown/invalid array type: %d", type);
+		return type;
 	}
 }
 
