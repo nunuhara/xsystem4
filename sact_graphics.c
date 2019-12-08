@@ -317,18 +317,42 @@ int sact_SP_SetZ(int sp_no, int z)
 
 }
 
+int sact_SP_GetBlendRate(int sp_no)
+{
+	uint8_t rate;
+	struct sact_sprite *sp = get_surface(sp_no);
+	if (!sp) return 0;
+	SDL_GetTextureAlphaMod(sp->cg->t, &rate);
+	return rate;
+}
+
+int sact_SP_SetBlendRate(int sp_no, int rate)
+{
+	struct sact_sprite *sp = get_surface(sp_no);
+	if (!sp) return 0;
+	rate = max(0, min(255, rate));
+	SDL_SetTextureAlphaMod(sp->cg->t, rate);
+	return 1;
+}
+
+enum {
+	DRAW_METHOD_NORMAL = 0,
+	DRAW_METHOD_SCREEN = 1,
+	DRAW_METHOD_MULTIPLY = 2
+};
+
 int sact_SP_SetDrawMethod(int sp_no, int method)
 {
 	struct sact_sprite *sp = get_surface(sp_no);
 	SDL_BlendMode mode;
 	switch (method) {
-	case 0:
+	case DRAW_METHOD_NORMAL:
 		mode = SDL_BLENDMODE_BLEND;
 		break;
-	case 1:
+	case DRAW_METHOD_SCREEN:
 		mode = SDL_BLENDMODE_ADD;
 		break;
-	case 2:
+	case DRAW_METHOD_MULTIPLY:
 		mode = SDL_BLENDMODE_MOD;
 		break;
 	default:
@@ -337,6 +361,25 @@ int sact_SP_SetDrawMethod(int sp_no, int method)
 	}
 	SDL_SetTextureBlendMode(sp->cg->t, mode);
 	return 1;
+}
+
+int sact_SP_GetDrawMethod(int sp_no)
+{
+	struct sact_sprite *sp = get_surface(sp_no);
+	SDL_BlendMode mode;
+	SDL_GetTextureBlendMode(sp->cg->t, &mode);
+	switch (mode) {
+	case SDL_BLENDMODE_NONE:
+	case SDL_BLENDMODE_BLEND:
+		return DRAW_METHOD_NORMAL;
+	case SDL_BLENDMODE_ADD:
+		return DRAW_METHOD_SCREEN;
+	case SDL_BLENDMODE_MOD:
+		return DRAW_METHOD_MULTIPLY;
+	default:
+		WARNING("Unknown blend mode: %d", mode);
+		return DRAW_METHOD_NORMAL;
+	}
 }
 
 int sact_SP_ExistsAlpha(int sp_no)
@@ -377,13 +420,19 @@ int sact_SP_TextDraw(int sp_no, struct string *text, union vm_value *_tm)
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
 
+	init_text_metrics(&tm, _tm);
+
 	if (!sp->text.surf) {
-		SDL_Color c = { 255, 255, 255, 0 };
+		SDL_Color c;
+		if (tm.outline_left || tm.outline_right || tm.outline_up || tm.outline_down)
+			c = tm.outline_color;
+		else
+			c = tm.color;
+		c.a = 0;
 		sp->text.surf = sdl_create_surface(sp->rect.w, sp->rect.h, &c);
 		sp->text.t = sdl_create_texture(sp->rect.w, sp->rect.h);
 	}
 
-	init_text_metrics(&tm, _tm);
 	sp->text.pos.x += sdl_render_text(sp->text.surf, sp->text.pos, text->text, &tm) + sp->text.char_space;
 	sdl_update_texture(sp->text.t, sp->text.surf);
 	return 1;

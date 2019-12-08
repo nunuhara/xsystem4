@@ -112,13 +112,7 @@ hll_defun(SP_SetY, args)
 hll_defun_inline(SP_SetZ, sact_SP_SetZ(a[0].i, a[1].i));
 
 // int SP_SetBlendRate(int nSP, int nBlendRate)
-hll_defun(SP_SetBlendRate, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	sp->color.a = args[1].i;
-	hll_return(1);
-}
+hll_defun_inline(SP_SetBlendRate, sact_SP_SetBlendRate(a[0].i, a[1].i));
 
 // int SP_SetShow(int nSP, int nfShow)
 hll_defun(SP_SetShow, args)
@@ -179,12 +173,7 @@ hll_defun(SP_GetZ, args)
 }
 
 // int SP_GetBlendRate(int nSP)
-hll_defun(SP_GetBlendRate, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return((int)sp->color.a);
-}
+hll_defun_inline(SP_GetBlendRate, sact_SP_GetBlendRate(a[0].i));
 
 // int SP_GetShow(int nSP)
 hll_defun(SP_GetShow, args)
@@ -195,7 +184,7 @@ hll_defun(SP_GetShow, args)
 }
 
 // int SP_GetDrawMethod(int nSP)
-hll_warn_unimplemented(SACT2, SP_GetDrawMethod, 0);
+hll_defun_inline(SP_GetDrawMethod, sact_SP_GetDrawMethod(a[0].i));
 
 // int SP_SetTextHome(int nSP, int nX, int nY)
 hll_defun(SP_SetTextHome, args)
