@@ -567,6 +567,11 @@ void DrawGraph_BlendAMap(int dno, int dx, int dy, int sno, int sx, int sy, int w
 	sdl_blend_amap(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h);
 }
 
+void DrawGraph_BlendAMapAlpha(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int alpha)
+{
+	sdl_blend_amap_alpha(get_surface(dno)->cg, dx, dy, get_surface(sno)->cg, sx, sy, w, h, alpha);
+}
+
 void DrawGraph_Fill(int sp_no, int x, int y, int w, int h, int r, int g, int b)
 {
 	sdl_fill(get_surface(sp_no)->cg, x, y, w, h, r, g, b);

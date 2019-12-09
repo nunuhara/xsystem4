@@ -50,7 +50,7 @@ hll_unimplemented(DrawGraph, BlendAMapColor);
 //void BlendAMapColorAlpha(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nR, int nG, int nB, int nAlpha)
 hll_unimplemented(DrawGraph, BlendAMapColorAlpha);
 //void BlendAMapAlpha(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
-hll_unimplemented(DrawGraph, BlendAMapAlpha);
+hll_defun_inline(BlendAMapAlpha, (DrawGraph_BlendAMapAlpha(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
 //void BlendAMapBright(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nRate)
 hll_unimplemented(DrawGraph, BlendAMapBright);
 //void BlendAMapAlphaSrcBright(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha, int nRate)

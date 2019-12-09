@@ -78,6 +78,7 @@ void DrawGraph_CopyAMapMax(int dno, int dx, int dy, int sno, int sx, int sy, int
 void DrawGraph_CopyAMapMin(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
 
 void DrawGraph_BlendAMap(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
+void DrawGraph_BlendAMapAlpha(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int alpha);
 
 void DrawGraph_Fill(int sp_no, int x, int y, int w, int h, int r, int g, int b);
 void DrawGraph_FillAMap(int sp_no, int x, int y, int w, int h, int a);

@@ -310,6 +310,13 @@ void sdl_blend_amap(struct cg *dst, int dx, int dy, struct cg *src, int sx, int 
 	sdl_cg_blit(dst, dx, dy, src->s, sx, sy, w, h);
 }
 
+void sdl_blend_amap_alpha(struct cg *dst, int dx, int dy, struct cg *src, int sx, int sy, int w, int h, int alpha)
+{
+	SDL_SetSurfaceAlphaMod(src->s, alpha);
+	sdl_cg_blit(dst, dx, dy, src->s, sx, sy, w, h);
+	SDL_SetSurfaceAlphaMod(src->s, 255);
+}
+
 static void sdl_pixop_fill_rgb(uint32_t *p, uint32_t c)
 {
 	PIXEL_SET_A(&c, PIXEL_A(*p));
