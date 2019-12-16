@@ -11,16 +11,17 @@ system4 = ['ain.c',
 xsystem4 = ['ald.c',
             'cJSON.c',
             'cg.c',
-            'qnt.c',
+            'draw.c',
+            'file.c',
             'ini.c',
             'input.c',
             'page.c',
+            'qnt.c',
             'sact_graphics.c',
             'savedata.c',
-            'sdl_draw.c',
-            'sdl_text.c',
-            'sdl_video.c',
             'system4.c',
+            'text.c',
+            'video.c',
             'vm.c',
 
             'hll/ACXLoader.c',
@@ -43,7 +44,9 @@ zlib = dependency('zlib')
 libm = meson.get_compiler('c').find_library('m', required: false)
 sdl2 = dependency('sdl2')
 sdl2ttf = dependency('SDL2_ttf')
-xsystem4_deps = [libm, zlib, sdl2, sdl2ttf]
+gl = dependency('GL')
+glew = dependency('glew')
+xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, gl, glew]
 
 chibi = dependency('chibi-scheme', required : get_option('debugger'))
 if chibi.found()

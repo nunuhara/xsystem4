@@ -16,25 +16,28 @@
 
 #include "hll.h"
 #include "../sact.h"
+#include "../graphics.h"
+
+#define TEX(sp_no) sact_get_texture(sp_no)
 
 //void Copy(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(Copy, (DrawGraph_Copy(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
+hll_defun_inline(Copy, (gfx_copy(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void CopyBright(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nRate)
-hll_defun_inline(CopyBright, (DrawGraph_CopyBright(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
+hll_defun_inline(CopyBright, (gfx_copy_bright(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
 //void CopyAMap(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(CopyAMap, (DrawGraph_CopyAMap(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
+hll_defun_inline(CopyAMap, (gfx_copy_amap(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void CopySprite(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nR, int nG, int nB)
-hll_defun_inline(CopySprite, (DrawGraph_CopySprite(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i, a[9].i, a[10].i), 0));
+hll_defun_inline(CopySprite, (gfx_copy_sprite(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, COLOR(a[8].i, a[9].i, a[10].i, 0)), 0));
 //void CopyColorReverse(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, CopyColorReverse);
 //void CopyUseAMapUnder(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
-hll_defun_inline(CopyUseAMapUnder, (DrawGraph_CopyUseAMapUnder(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
+hll_defun_inline(CopyUseAMapUnder, (gfx_copy_use_amap_under(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
 //void CopyUseAMapBorder(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
-hll_defun_inline(CopyUseAMapBorder, (DrawGraph_CopyUseAMapBorder(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
+hll_defun_inline(CopyUseAMapBorder, (gfx_copy_use_amap_border(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
 //void CopyAMapMax(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(CopyAMapMax, (DrawGraph_CopyAMapMax(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
+hll_defun_inline(CopyAMapMax, (gfx_copy_amap_max(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void CopyAMapMin(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(CopyAMapMin, (DrawGraph_CopyAMapMin(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
+hll_defun_inline(CopyAMapMin, (gfx_copy_amap_min(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void Blend(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
 hll_unimplemented(DrawGraph, Blend);
 //void BlendSrcBright(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha, int nRate)
@@ -42,7 +45,7 @@ hll_unimplemented(DrawGraph, BlendSrcBright);
 //void BlendAddSatur(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, BlendAddSatur);
 //void BlendAMap(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(BlendAMap, (DrawGraph_BlendAMap(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
+hll_defun_inline(BlendAMap, (gfx_blend_amap(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void BlendAMapSrcOnly(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, BlendAMapSrcOnly);
 //void BlendAMapColor(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nR, int nG, int nB)
@@ -50,7 +53,7 @@ hll_unimplemented(DrawGraph, BlendAMapColor);
 //void BlendAMapColorAlpha(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nR, int nG, int nB, int nAlpha)
 hll_unimplemented(DrawGraph, BlendAMapColorAlpha);
 //void BlendAMapAlpha(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
-hll_defun_inline(BlendAMapAlpha, (DrawGraph_BlendAMapAlpha(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
+hll_defun_inline(BlendAMapAlpha, (gfx_blend_amap_alpha(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
 //void BlendAMapBright(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nRate)
 hll_unimplemented(DrawGraph, BlendAMapBright);
 //void BlendAMapAlphaSrcBright(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha, int nRate)
@@ -64,11 +67,11 @@ hll_unimplemented(DrawGraph, BlendMultiply);
 //void BlendScreenAlpha(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
 hll_unimplemented(DrawGraph, BlendScreenAlpha);
 //void Fill(int nDest, int nX, int nY, int nWidth, int nHeight, int nR, int nG, int nB)
-hll_defun_inline(Fill, (DrawGraph_Fill(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
+hll_defun_inline(Fill, (gfx_fill(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void FillAlphaColor(int nDest, int nX, int nY, int nWidth, int nHeight, int nR, int nG, int nB, int nRate)
-hll_defun_inline(FillAlphaColor, (DrawGraph_FillAlphaColor(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
+hll_defun_inline(FillAlphaColor, (gfx_fill_alpha_color(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
 //void FillAMap(int nDest, int nX, int nY, int nWidth, int nHeight, int nAlpha)
-hll_defun_inline(FillAMap, (DrawGraph_FillAMap(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i), 0));
+hll_defun_inline(FillAMap, (gfx_fill_amap(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, a[5].i), 0));
 //void FillAMapOverBorder(int nDest, int nX, int nY, int nWidth, int nHeight, int nAlpha, int nBorder)
 hll_unimplemented(DrawGraph, FillAMapOverBorder);
 //void FillAMapUnderBorder(int nDest, int nX, int nY, int nWidth, int nHeight, int nAlpha, int nBorder)
@@ -84,7 +87,7 @@ hll_unimplemented(DrawGraph, SaturDP);
 //void ScreenDA_DAxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, ScreenDA_DAxSA);
 //void AddDA_DAxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(AddDA_DAxSA, (DrawGraph_AddDA_DAxSA(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
+hll_defun_inline(AddDA_DAxSA, (gfx_add_da_daxsa(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void SpriteCopyAMap(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nColorKey)
 hll_unimplemented(DrawGraph, SpriteCopyAMap);
 //void BlendDA_DAxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
@@ -98,21 +101,21 @@ hll_unimplemented(DrawGraph, CopyTextureWrap);
 //void CopyTextureWrapAlpha(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight, int nU, int nV, int nAlpha)
 hll_unimplemented(DrawGraph, CopyTextureWrapAlpha);
 //void CopyStretch(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_defun_inline(CopyStretch, (DrawGraph_CopyStretch(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i, a[9].i), 0));
+hll_defun_inline(CopyStretch, (gfx_copy_stretch(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, TEX(a[5].i), a[6].i, a[7].i, a[8].i, a[9].i), 0));
 //void CopyStretchBlend(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight, int nAlpha)
 hll_unimplemented(DrawGraph, CopyStretchBlend);
 //void CopyStretchBlendAMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
 hll_unimplemented(DrawGraph, CopyStretchBlendAMap);
 //void CopyStretchAMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_defun_inline(CopyStretchAMap, (DrawGraph_CopyStretchAMap(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i, a[9].i), 0));
+hll_defun_inline(CopyStretchAMap, (gfx_copy_stretch_amap(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, TEX(a[5].i), a[6].i, a[7].i, a[8].i, a[9].i), 0));
 //void CopyStretchInterp(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
 hll_unimplemented(DrawGraph, CopyStretchInterp);
 //void CopyStretchAMapInterp(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
 hll_unimplemented(DrawGraph, CopyStretchAMapInterp);
 //void CopyReduce(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_defun_inline(CopyReduce, (DrawGraph_CopyStretch(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i, a[9].i), 0));
+hll_defun_inline(CopyReduce, (gfx_copy_stretch(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, TEX(a[5].i), a[6].i, a[7].i, a[8].i, a[9].i), 0));
 //void CopyReduceAMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_defun_inline(CopyReduceAMap, (DrawGraph_CopyStretchAMap(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i, a[9].i), 0));
+hll_defun_inline(CopyReduceAMap, (gfx_copy_stretch_amap(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, TEX(a[5].i), a[6].i, a[7].i, a[8].i, a[9].i), 0));
 //void DrawTextToPMap(int nDest, int nX, int nY, string szText)
 hll_unimplemented(DrawGraph, DrawTextToPMap);
 //void DrawTextToAMap(int nDest, int nX, int nY, string szText)
@@ -165,7 +168,7 @@ hll_unimplemented(DrawGraph, CopyRotateYFixR);
 hll_unimplemented(DrawGraph, CopyRotateYFixLUseAMap);
 //void CopyRotateYFixRUseAMap(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
 hll_unimplemented(DrawGraph, CopyRotateYFixRUseAMap);
-//void CopyRotateX(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
+//void CopyRotatex(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
 hll_unimplemented(DrawGraph, CopyRotateX);
 //void CopyRotateXUseAMap(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
 hll_unimplemented(DrawGraph, CopyRotateXUseAMap);
@@ -178,11 +181,11 @@ hll_unimplemented(DrawGraph, CopyRotateXFixUUseAMap);
 //void CopyRotateXFixDUseAMap(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
 hll_unimplemented(DrawGraph, CopyRotateXFixDUseAMap);
 //void CopyReverseLR(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(CopyReverseLR, (DrawGraph_CopyReverseLR(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
+hll_defun_inline(CopyReverseLR, (gfx_copy_reverse_LR(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void CopyReverseUD(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, CopyReverseUD);
 //void CopyReverseAMapLR(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(CopyReverseAMapLR, (DrawGraph_CopyReverseAMapLR(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
+hll_defun_inline(CopyReverseAMapLR, (gfx_copy_reverse_amap_LR(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
 //void CopyReverseAMapUD(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
 hll_unimplemented(DrawGraph, CopyReverseAMapUD);
 //void CopyWidthBlur(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nBlur)

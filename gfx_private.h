@@ -1,4 +1,4 @@
-/* sdl_private.h  SDL only private data
+/* gfx_private.h  SDL/OpenGL only private data
  *
  * Copyright (C) 2019 Nunuhara Cabbage <nunuhara@haniwa.technology>
  * Copyright (C) 2000- Fumihiko Murata <fmurata@p1.tcnet.ne.jp>
@@ -17,35 +17,25 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#ifndef SYSTEM4_SDL_PRIVATE_H
-#define SYSTEM4_SDL_PRIVATE_H
+#ifndef SYSTEM4_GFX_PRIVATE_H
+#define SYSTEM4_GFX_PRIVATE_H
 
 #include <stdbool.h>
 #include <SDL.h>
+#include <GL/glew.h>
 
-//#include "ags.h"
-//#include "font.h"
-
-struct sdl_private_data {
+struct {
 	SDL_Window *window;
-	SDL_Renderer *renderer;
 	SDL_PixelFormat *format;
+	struct {
+		SDL_GLContext context;
+		GLuint vbo;
+		GLuint ibo;
+	} gl;
 	int w, h;
-	//FONT *font;
 	bool dirty;
 	bool ms_active; /* mouse is active */
 	bool fs_on;
-};
+} sdl;
 
-struct sdl_private_data sdl;
-
-extern void sdl_cursor_init(void);
-extern void sdl_shadow_init(void);
-extern int sdl_nearest_color(int r, int g, int b);
-
-#define SDL_AllocSurface(flags,w,h,d,r,g,b,a) SDL_CreateRGBSurface(0,w,h,d,r,g,b,a)
-
-#define setRect(r,xx,yy,ww,hh) (r).x=(xx),(r).y=(yy),(r).w=(ww),(r).h=(hh)
-#define setOffset(s,x,y) (s->pixels) + (x) * (s->format->BytesPerPixel) + (y) * s->pitch
-
-#endif /* SYSTEM4_SDL_PRIVATE_H */
+#endif /* SYSTEM4_GFX_PRIVATE_H */

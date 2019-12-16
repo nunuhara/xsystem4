@@ -16,7 +16,7 @@
 
 #include <SDL.h>
 #include "system4.h"
-#include "sdl_private.h"
+#include "gfx_private.h"
 #include "input.h"
 #include "vm.h"
 

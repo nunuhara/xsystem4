@@ -39,8 +39,7 @@
 #include "cg.h"
 #include "qnt.h"
 #include "system4.h"
-#include "sdl_private.h"
-#include "sdl_core.h"
+#include "gfx_core.h"
 
 /*
   zlib の展開バッファで、幅×高さ×３に、さらにどれくらい余裕をとるか
@@ -230,17 +229,22 @@ bool qnt_checkfmt(uint8_t *data)
 	return true;
 }
 
+static void qnt_init_metrics(struct qnt_header *qnt, struct cg_metrics *dst)
+{
+	dst->w = qnt->width;
+	dst->h = qnt->height;
+	dst->bpp = qnt->bpp;
+	dst->has_pixel = qnt->pixel_size > 0;
+	dst->has_alpha = qnt->alpha_size > 0;
+	dst->pixel_pitch = qnt->width * (qnt->bpp / 8);
+	dst->alpha_pitch = 1;
+}
+
 bool qnt_get_metrics(uint8_t *data, struct cg_metrics *dst)
 {
 	struct qnt_header qnt;
 	extract_header(data, &qnt);
-	dst->w = qnt.width;
-	dst->h = qnt.height;
-	dst->bpp = qnt.bpp;
-	dst->has_pixel = qnt.pixel_size > 0;
-	dst->has_alpha = qnt.alpha_size > 0;
-	dst->pixel_pitch = qnt.width * (qnt.bpp / 8);
-	dst->alpha_pitch = 1;
+	qnt_init_metrics(&qnt, dst);
 	return true;
 }
 
@@ -255,39 +259,31 @@ void qnt_extract(uint8_t *data, struct cg *cg)
 {
 	struct qnt_header qnt;
 	extract_header(data, &qnt);
-	uint8_t *pixels = malloc(sizeof(uint8_t) * ((qnt.width+10) * (qnt.height+10) * 3));
+	qnt_init_metrics(&qnt, &cg->metrics);
+
+	uint8_t *pixels = calloc(1, sizeof(uint8_t) * ((qnt.width+10) * (qnt.height+10) * 3));
 	extract_pixel(&qnt, pixels, data + qnt.hdr_size);
 
 	cg->type = ALCG_QNT;
-	cg->has_alpha = qnt.alpha_size > 0;
 
-	if (!qnt.alpha_size) {
-		// convert RGB -> ARGB
-		SDL_Surface *tmp =  SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt.width, qnt.height, 24,
-								       qnt.width * 3, SDL_PIXELFORMAT_RGB24);
-		cg->s = SDL_ConvertSurface(tmp, sdl.format, 0);
-		cg->t = sdl_surface_to_texture(cg->s);
-		cg->pixel_alloc = false;
-		SDL_FreeSurface(tmp);
-		free(pixels);
-		return;
-	}
 	// combine color/alpha data
 	uint8_t *alpha = malloc(sizeof(uint8_t) * ((qnt.width+10) * (qnt.height+10)));
 	uint8_t *tmp = malloc((qnt.width+10) * (qnt.height+10) * 4);
-	extract_alpha(&qnt, alpha, data + qnt.hdr_size + qnt.pixel_size);
+	if (qnt.alpha_size) {
+		extract_alpha(&qnt, alpha, data + qnt.hdr_size + qnt.pixel_size);
+	} else {
+		// FIXME: Some CGs don't display correctly unless we add an alpha channel here.
+		//        Not sure why. It seems to affect some but not all alpha-less CGs.
+		//        E.g. CG#90 (and similar) from the Rance 2 digest version.
+		memset(alpha, 0xFF, (qnt.width+10)*(qnt.height+10));
+	}
 	for (int src_i = 0, dst_i = 0, p = 0; p < qnt.width * qnt.height; p++) {
+		tmp[dst_i++] = pixels[src_i++];
+		tmp[dst_i++] = pixels[src_i++];
+		tmp[dst_i++] = pixels[src_i++];
 		tmp[dst_i++] = alpha[p];
-		tmp[dst_i++] = pixels[src_i++];
-		tmp[dst_i++] = pixels[src_i++];
-		tmp[dst_i++] = pixels[src_i++];
 	}
 	free(alpha);
 	free(pixels);
-	pixels = tmp;
-
-	cg->s = SDL_CreateRGBSurfaceWithFormatFrom(pixels, qnt.width, qnt.height, 32,
-						   qnt.width * 4, SDL_PIXELFORMAT_ARGB32);
-	cg->t = sdl_surface_to_texture(cg->s);
-	cg->pixel_alloc = true;
+	cg->pixels = tmp;
 }

@@ -22,6 +22,10 @@
 #include <stdint.h>
 #include <SDL.h>
 
+typedef SDL_Color Color;
+
+#define COLOR(_r, _g, _b, _a) ((Color){.r=_r, .g=_g, .b=_b, .a=_a})
+
 typedef SDL_Point Point;
 
 #define POINT(_x, _y) ((Point){.x=_x, .y=_y})

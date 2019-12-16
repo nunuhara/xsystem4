@@ -21,8 +21,6 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <SDL.h>
-#include "graphics.h"
 
 /*
  * Available CG formats
@@ -32,17 +30,6 @@ enum cg_type {
 	ALCG_QNT     = 2,
 	ALCG_AJP     = 3,
 	ALCG_PNG     = 4
-};
-
-/*
- * Information for displaying CG data
- */
-struct cg {
-	enum cg_type type; // cg format type
-	bool pixel_alloc;
-	bool has_alpha;
-	SDL_Surface *s;
-	SDL_Texture *t;
 };
 
 struct cg_metrics {
@@ -55,11 +42,18 @@ struct cg_metrics {
 	int alpha_pitch;
 };
 
+/*
+ * Information for displaying CG data
+ */
+struct cg {
+	enum cg_type type; // cg format type
+	struct cg_metrics metrics;
+	void *pixels;
+};
+
 bool cg_exists(int no);
 bool cg_get_metrics(int no, struct cg_metrics *dst);
-bool cg_load(struct cg *cg, int no);
-struct cg *cg_init(void);
-void cg_reinit(struct cg *cg);
+struct cg *cg_load(int no);
 void cg_free(struct cg *cg);
 
 #endif /* SYSTEM4_CG_H */

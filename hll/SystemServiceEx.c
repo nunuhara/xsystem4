@@ -15,6 +15,7 @@
  */
 
 #include "hll.h"
+#include "../gfx_core.h"
 
 // int GetUpdateResult()
 hll_unimplemented(SystemServiceEx, GetUpdateResult);
@@ -25,7 +26,7 @@ hll_warn_unimplemented(SystemServiceEx, GetOverlayActive, 0);
 // void UpdateMainSurface(int nX, int nY, int nWidth, int nHeight)
 hll_unimplemented(SystemServiceEx, UpdateMainSurface);
 // void SetWaitVSync(int bWaitVSync)
-hll_warn_unimplemented(SystemServiceEx, SetWaitVSync, 0);
+hll_defun_inline(SetWaitVSync, (gfx_set_wait_vsync(a[0].i), 0));
 // int GetHasPresented()
 hll_unimplemented(SystemServiceEx, GetHasPresented);
 // void ClearHasPresented()

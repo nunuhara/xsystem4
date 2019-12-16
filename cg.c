@@ -62,16 +62,11 @@ bool cg_get_metrics(int no, struct cg_metrics *dst)
 	return true;
 }
 
-void _cg_free(struct cg *cg)
+static void _cg_free(struct cg *cg)
 {
 	if (!cg)
 		return;
-	if (cg->s) {
-		if (cg->pixel_alloc)
-			free(cg->s->pixels);
-		SDL_FreeSurface(cg->s);
-		SDL_DestroyTexture(cg->t);
-	}
+	free(cg->pixels);
 }
 
 /*
@@ -89,15 +84,17 @@ void cg_free(struct cg *cg)
  *  no: file no ( >= 0)
  *  return: cg object(extracted)
 */
-bool cg_load(struct cg *cg, int no)
+struct cg *cg_load(int no)
 {
+	struct cg *cg;
 	struct archive_data *dfile;
 	int type;
 
 	if (!(dfile = ald_get(ald[ALDFILE_CG], no))) {
 		WARNING("Failed to load CG %d", no);
-		return false;
+		return NULL;
 	}
+	cg = xcalloc(1, sizeof(struct cg));
 
 	// check loaded cg format
 	type = check_cgformat(dfile->data);
@@ -121,26 +118,8 @@ bool cg_load(struct cg *cg, int no)
 	// ok to free
 	ald_free_data(dfile);
 
-	return !!cg->s;
-}
-
-void _cg_init(struct cg *cg)
-{
-	cg->type = ALCG_UNKNOWN;
-	cg->pixel_alloc = false;
-	cg->has_alpha = false;
-	cg->s = NULL;
-}
-
-void cg_reinit(struct cg *cg)
-{
-	_cg_free(cg);
-	_cg_init(cg);
-}
-
-struct cg *cg_init(void)
-{
-	struct cg *cg = calloc(1, sizeof(struct cg));
-	_cg_init(cg);
-	return cg;
+	if (cg->pixels)
+		return cg;
+	free(cg);
+	return NULL;
 }

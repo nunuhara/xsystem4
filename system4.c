@@ -23,6 +23,7 @@
 #include "system4.h"
 #include "ain.h"
 #include "ald.h"
+#include "debugger.h"
 #include "ini.h"
 #include "utfsjis.h"
 

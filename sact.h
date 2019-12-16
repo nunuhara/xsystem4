@@ -19,22 +19,22 @@
 
 #include <stdbool.h>
 #include <SDL.h>
+#include <GL/glew.h>
 #include "queue.h"
 #include "graphics.h"
+#include "gfx_core.h"
 
-struct cg;
 struct string;
 union vm_value;
 
 struct sact_sprite {
 	TAILQ_ENTRY(sact_sprite) entry;
-	struct cg *cg;
+	struct texture texture;
 	SDL_Color color;
 	Rectangle rect;
 	struct {
 		struct string *str;
-		SDL_Surface *surf;
-		SDL_Texture *t;
+		struct texture texture;
 		Point home;
 		Point pos;
 		int char_space;
@@ -43,9 +43,11 @@ struct sact_sprite {
 	int z;
 	bool show;
 	int no;
+	int cg_no;
 };
 
 struct sact_sprite *sact_get_sprite(int sp);
+struct texture *sact_get_texture(int sp_no);
 
 int sact_Init(void);
 int sact_Update(void);
@@ -59,6 +61,7 @@ int sact_SP_Delete(int sp);
 int sact_SP_SetZ(int sp, int z);
 int sact_SP_GetBlendRate(int sp_no);
 int sact_SP_SetBlendRate(int sp_no, int rate);
+int sact_SP_SetShow(int sp_no, bool show);
 int sact_SP_SetDrawMethod(int sp_no, int method);
 int sact_SP_GetDrawMethod(int sp_no);
 int sact_SP_ExistsAlpha(int sp_no);
@@ -67,29 +70,5 @@ int sact_SP_TextClear(int sp_no);
 int sact_SP_TextCopy(int dno, int sno);
 int sact_SP_IsPtIn(int sp_no, int x, int y);
 int sact_CG_GetMetrics(int cg_no, union vm_value *cgm);
-
-void DrawGraph_Copy(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
-void DrawGraph_CopyBright(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int rate);
-void DrawGraph_CopyAMap(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
-void DrawGraph_CopySprite(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int r, int g, int b);
-void DrawGraph_CopyUseAMapUnder(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int a_threshold);
-void DrawGraph_CopyUseAMapBorder(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int a_threshold);
-void DrawGraph_CopyAMapMax(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
-void DrawGraph_CopyAMapMin(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
-
-void DrawGraph_BlendAMap(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
-void DrawGraph_BlendAMapAlpha(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h, int alpha);
-
-void DrawGraph_Fill(int sp_no, int x, int y, int w, int h, int r, int g, int b);
-void DrawGraph_FillAMap(int sp_no, int x, int y, int w, int h, int a);
-void DrawGraph_FillAlphaColor(int sp_no, int x, int y, int w, int h, int r, int g, int b, int a);
-
-void DrawGraph_AddDA_DAxSA(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
-
-void DrawGraph_CopyStretch(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
-void DrawGraph_CopyStretchAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
-
-void DrawGraph_CopyReverseLR(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
-void DrawGraph_CopyReverseAMapLR(int dno, int dx, int dy, int sno, int sx, int sy, int w, int h);
 
 #endif /* SYSTEM4_SACT_H */

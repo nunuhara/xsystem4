@@ -22,7 +22,7 @@
 #include "../cg.h"
 #include "../input.h"
 #include "../queue.h"
-#include "../sdl_core.h"
+#include "../gfx_core.h"
 #include "../sact.h"
 
 // int Init(imain_system pIMainSystem, int nCGCacheSize)
@@ -115,14 +115,7 @@ hll_defun_inline(SP_SetZ, sact_SP_SetZ(a[0].i, a[1].i));
 hll_defun_inline(SP_SetBlendRate, sact_SP_SetBlendRate(a[0].i, a[1].i));
 
 // int SP_SetShow(int nSP, int nfShow)
-hll_defun(SP_SetShow, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	sp->show = !!args[1].i;
-	hll_return(1);
-}
-
+hll_defun_inline(SP_SetShow, sact_SP_SetShow(a[0].i, a[1].i));
 // int SP_SetDrawMethod(int nSP, int nMethod)
 hll_defun_inline(SP_SetDrawMethod, sact_SP_SetDrawMethod(a[0].i, a[1].i));
 

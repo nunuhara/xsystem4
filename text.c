@@ -17,7 +17,7 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include "system4.h"
-#include "sdl_core.h"
+#include "gfx_core.h"
 #include "graphics.h"
 #include "utfsjis.h"
 
@@ -45,7 +45,7 @@ static struct _font font_table[2];
 
 static struct font *font;
 
-bool sdl_set_font(int face, unsigned int size)
+bool gfx_set_font(int face, unsigned int size)
 {
 	struct _font *ff = &font_table[face];
 
@@ -77,16 +77,47 @@ bool sdl_set_font(int face, unsigned int size)
 	return true;
 }
 
-static void _sdl_render_text(TTF_Font *f, SDL_Surface *dst, Point pos, char *msg, SDL_Color color)
+static void get_glyph(TTF_Font *f, Texture *dst, char *msg, SDL_Color color)
 {
 	SDL_Surface *s = TTF_RenderUTF8_Blended(f, msg, color);
 	if (!s) {
 		WARNING("Text rendering failed: %s", msg);
 		return;
 	}
-	Rectangle dst_pos = { .x = pos.x, .y = pos.y, .w = s->w, .h = s->h };
-	SDL_BlitSurface(s, NULL, dst, &dst_pos);
+	if (s->format->format != SDL_PIXELFORMAT_BGRA32) {
+		WARNING("Wrong pixel format from SDL_ttf");
+	}
+	gfx_init_texture_with_pixels(dst, s->w, s->h, s->pixels, GL_BGRA);
 	SDL_FreeSurface(s);
+}
+
+static void render_glyph(Texture *dst, Texture *glyph, Point pos)
+{
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, pos.x, pos.y, glyph->w, glyph->h);
+
+	GLfloat mw_transform[16] = {
+		[0]  = glyph->w,
+		[5]  = glyph->h,
+		[10] = 1,
+		[15] = 1
+	};
+	GLfloat wv_transform[16] = {
+		[0]  =  2.0 / glyph->w,
+		[5]  =  2.0 / glyph->h,
+		[10] =  2,
+		[12] = -1,
+		[13] = -1,
+		[15] =  1
+	};
+	struct gfx_render_job job = {
+		.texture = glyph->handle,
+		.world_transform = mw_transform,
+		.view_transform = wv_transform,
+		.data = glyph
+	};
+	gfx_render(&job);
+
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 }
 
 static int sact_to_sdl_fontstyle(int style)
@@ -104,14 +135,14 @@ static int sact_to_sdl_fontstyle(int style)
 	}
 }
 
-int sdl_render_text(SDL_Surface *dst, Point pos, char *msg, struct text_metrics *tm)
+int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
 {
 	if (!font)
 		return 0;
 	if (!msg[0])
 		return 0;
 	if (font->size != tm->size || font->face != tm->face)
-		sdl_set_font(tm->face, tm->size);
+		gfx_set_font(tm->face, tm->size);
 	if (font->weight != tm->weight) {
 		TTF_SetFontStyle(font->font, sact_to_sdl_fontstyle(tm->weight));
 		font->weight = tm->weight;
@@ -123,32 +154,44 @@ int sdl_render_text(SDL_Surface *dst, Point pos, char *msg, struct text_metrics 
 
 	pos.y -= (TTF_FontAscent(font->font) - font->size * 0.9);
 
-	// XXX: This wont work if the outline size is larger than the stroke size
-	//      of the font itself.
-	if (tm->outline_left) {
-		Point p = { pos.x - tm->outline_left, pos.y };
-		_sdl_render_text(font->font, dst, p, conv, tm->outline_color);
+	glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
+	if (tm->outline_left || tm->outline_up || tm->outline_right || tm->outline_down) {
+		Texture outline;
+		get_glyph(font->font, &outline, conv, tm->outline_color);
+		// XXX: This wont work if the outline size is larger than the stroke size
+		//      of the font itself.
+		if (tm->outline_left) {
+			Point p = { pos.x - tm->outline_left, pos.y };
+			render_glyph(dst, &outline, p);
+		}
+		if (tm->outline_up) {
+			Point p = { pos.x, pos.y - tm->outline_up };
+			render_glyph(dst, &outline, p);
+		}
+		if (tm->outline_right) {
+			Point p = { pos.x + tm->outline_right, pos.y };
+			render_glyph(dst, &outline, p);
+		}
+		if (tm->outline_down) {
+			Point p = { pos.x, pos.y + tm->outline_down };
+			render_glyph(dst, &outline, p);
+		}
+		gfx_delete_texture(&outline);
 	}
-	if (tm->outline_up) {
-		Point p = { pos.x, pos.y - tm->outline_up };
-		_sdl_render_text(font->font, dst, p, conv, tm->outline_color);
-	}
-	if (tm->outline_right) {
-		Point p = { pos.x + tm->outline_right, pos.y };
-		_sdl_render_text(font->font, dst, p, conv, tm->outline_color);
-	}
-	if (tm->outline_down) {
-		Point p = { pos.x, pos.y + tm->outline_down };
-		_sdl_render_text(font->font, dst, p, conv, tm->outline_color);
-	}
-	_sdl_render_text(font->font, dst, pos, conv, tm->color);
+
+	Texture glyph;
+	get_glyph(font->font, &glyph, conv, tm->color);
+	render_glyph(dst, &glyph, pos);
+	gfx_delete_texture(&glyph);
+	glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+
 	free(conv);
 	return width;
 }
 
-void sdl_text_init(void)
+void gfx_font_init(void)
 {
 	if (TTF_Init() == -1)
 		ERROR("Failed to initialize SDL_ttf: %s", TTF_GetError());
-	sdl_set_font(FONT_MINCHO, 16);
+	gfx_set_font(FONT_MINCHO, 16);
 }
