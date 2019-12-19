@@ -149,11 +149,11 @@ hll_unimplemented(DrawGraph, GetFontSpace);
 //void GetFontColor(ref int pnR, ref int pnG, ref int pnB)
 hll_unimplemented(DrawGraph, GetFontColor);
 //void CopyRotZoom(int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotZoom);
+hll_defun_inline(CopyRotZoom, (gfx_copy_rot_zoom(TEX(a[0].i), TEX(a[1].i), a[2].i, a[3].i, a[4].i, a[5].i, a[6].f, a[7].f), 0));
 //void CopyRotZoomAMap(int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotZoomAMap);
+hll_defun_inline(CopyRotZoomAMap, (gfx_copy_rot_zoom_amap(TEX(a[0].i), TEX(a[1].i), a[2].i, a[3].i, a[4].i, a[5].i, a[6].f, a[7].f), 0));
 //void CopyRotZoomUseAMap(int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotZoomUseAMap);
+hll_defun_inline(CopyRotZoomUseAMap, (gfx_copy_rot_zoom_use_amap(TEX(a[0].i), TEX(a[1].i), a[2].i, a[3].i, a[4].i, a[5].i, a[6].f, a[7].f), 0));
 //void CopyRotZoom2Bilinear(int nDest, float fCx, float fCy, int nSrc, float fSrcCx, float fSrcCy, float fRotate, float fMag)
 hll_unimplemented(DrawGraph, CopyRotZoom2Bilinear);
 //void CopyRotateY(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)

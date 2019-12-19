@@ -14,11 +14,16 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <math.h>
 #include <SDL.h>
 #include <GL/glew.h>
 #include "gfx_core.h"
 #include "gfx_private.h"
 #include "system4.h"
+
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
 
 struct copy_shader {
 	Shader s;
@@ -31,15 +36,19 @@ struct copy_shader {
 
 struct copy_data {
 	int dx, dy, sx, sy, w, h;
-	int sw, sh;
+	int vpx, vpy, vpw, vph;
+	int sw, sh; // used to compute scale factor for stretch
 	// optional
 	float r, g, b, a;
 	float threshold;
 };
 
+#define ROTATE_DATA(dst, _sx, _sy, _w, _h)		\
+	{ .dx = 0, .dy = 0, .sx=_sx, .sy=_sy, .w=_w, .h=_h, .sw=_w, .sh=_h, .vpx=0, .vpy=0, .vpw=dst->w, .vph=dst->h }
+
 // set copy_data required for a stretch operation
 #define STRETCH_DATA(_dx, _dy, _dw, _dh, _sx, _sy, _sw, _sh)		\
-	{ .dx=_dx, .dy=_dy, .sx=_sx, .sy=_sy, .w=_dw, .h=_dh, .sw=_sw, .sh=_sh }
+	{ .dx=_dx, .dy=_dy, .sx=_sx, .sy=_sy, .w=_dw, .h=_dh, .sw=_sw, .sh=_sh, .vpx=_dx, .vpy=_dy, .vpw=_dw, .vph=_dh }
 
 // set copy_data required for a simple copy operation
 #define COPY_DATA(_dx, _dy, _sx, _sy, _w, _h)			\
@@ -51,13 +60,15 @@ static struct copy_shader copy_use_amap_under_shader;
 static struct copy_shader copy_use_amap_border_shader;
 static struct copy_shader blend_amap_alpha_shader;
 static struct copy_shader fill_shader;
+static struct copy_shader hitbox_shader;
+static struct copy_shader hitbox_noblend_shader;
 
 static void prepare_copy_shader(struct gfx_render_job *job, void *data)
 {
 	struct copy_shader *s = (struct copy_shader*)job->shader;
 	struct copy_data *d = (struct copy_data*)data;
-	glUniform2f(s->bot_left, d->dx, d->dy);
-	glUniform2f(s->top_right, d->dx + d->w, d->dy + d->h);
+	glUniform2f(s->bot_left, d->sx, d->sy);
+	glUniform2f(s->top_right, d->sx + d->w, d->sy + d->h);
 
 	glUniform4f(s->color, d->r, d->g, d->b, d->a);
 	glUniform1f(s->threshold, d->threshold);
@@ -66,6 +77,8 @@ static void prepare_copy_shader(struct gfx_render_job *job, void *data)
 static void load_copy_shader(struct copy_shader *s, const char *v_path, const char *f_path)
 {
 	gfx_load_shader(&s->s, v_path, f_path);
+	s->bot_left = glGetUniformLocation(s->s.program, "bot_left");
+	s->top_right = glGetUniformLocation(s->s.program, "top_right");
 	s->color = glGetUniformLocation(s->s.program, "color");
 	s->threshold = glGetUniformLocation(s->s.program, "threshold");
 	s->s.prepare = prepare_copy_shader;
@@ -91,11 +104,17 @@ void gfx_draw_init(void)
 
 	// basic fill shader
 	load_copy_shader(&fill_shader, "shaders/render.v.glsl", "shaders/fill.f.glsl");
+
+	// shader that discards texels that fail a hitbox test
+	load_copy_shader(&hitbox_shader, "shaders/render.v.glsl", "shaders/hitbox.f.glsl");
+
+	// hitbox shader which ignores alpha component of texture (a=1)
+	load_copy_shader(&hitbox_noblend_shader, "shaders/render.v.glsl", "shaders/hitbox_noblend.f.glsl");
 }
 
 static void run_draw_shader(Shader *s, Texture *dst, Texture *src, GLfloat *mw_transform, GLfloat *wv_transform, struct copy_data *data)
 {
-	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, data->dx, data->dy, data->w, data->h);
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, data->vpx, data->vpy, data->vpw, data->vph);
 
 	struct gfx_render_job job = {
 		.shader = s,
@@ -324,6 +343,60 @@ void gfx_copy_stretch_amap(Texture *dst, int dx, int dy, int dw, int dh, Texture
 	run_copy_shader(&copy_shader.s, dst, src, &data);
 
 	restore_blend_mode();
+}
+
+// FIXME: this doesn't work correctly when the src rectangle crosses the edge of the CG.
+static void copy_rot_zoom(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag, Shader *shader)
+{
+	double theta = -rotate * (M_PI / 180.0);
+	double mag_cos_theta = cos(theta) * mag;
+	double mag_sin_theta = sin(theta) * mag;
+
+	// 1. scale to src texture size
+	// 2. translate so that center point of copy region is at origin
+	// 3. rotate
+	// 4. tranlate to center of dst texture
+	GLfloat mw_transform[16] = {
+		[0]  =  mag_cos_theta * src->w,
+		[1]  =  mag_sin_theta * src->w,
+		[4]  = -mag_sin_theta * src->h,
+		[5]  =  mag_cos_theta * src->h,
+		[10] =  1,
+		[12] =  (dst->w - (w*mag_cos_theta) - (2*sx*mag_cos_theta) + (h*mag_sin_theta) + (2*sy*mag_sin_theta)) / 2.0,
+		[13] =  (dst->h - (h*mag_cos_theta) - (2*sy*mag_cos_theta) - (w*mag_sin_theta) - (2*sx*mag_sin_theta)) / 2.0,
+		[15] =  1,
+	};
+	GLfloat wv_transform[16] = {
+		[0]  =  2.0 / dst->w,
+		[5]  =  2.0 / dst->h,
+		[10] =  2,
+		[12] = -1,
+		[13] = -1,
+		[14] = -1,
+		[15] = 1
+	};
+
+	struct copy_data data = ROTATE_DATA(dst, sx, sy, w, h);
+	run_draw_shader(shader, dst, src, mw_transform, wv_transform, &data);
+}
+
+void gfx_copy_rot_zoom(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag)
+{
+	copy_rot_zoom(dst, src, sx, sy, w, h, rotate, mag, &hitbox_noblend_shader.s);
+}
+
+void gfx_copy_rot_zoom_amap(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag)
+{
+	gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 0);
+
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+	copy_rot_zoom(dst, src, sx, sy, w, h, rotate, mag, &hitbox_shader.s);
+	restore_blend_mode();
+}
+
+void gfx_copy_rot_zoom_use_amap(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag)
+{
+	copy_rot_zoom(dst, src, sx, sy, w, h, rotate, mag, &hitbox_shader.s);
 }
 
 void gfx_copy_reverse_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
