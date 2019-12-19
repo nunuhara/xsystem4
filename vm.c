@@ -751,6 +751,15 @@ static void execute_instruction(enum opcode opcode)
 		heap_ref(stack_pop().i);
 		break;
 	}
+	case OBJSWAP: {
+		stack_pop(); // type
+		union vm_value *b = stack_pop_var();
+		union vm_value *a = stack_pop_var();
+		union vm_value tmp = *a;
+		*a = *b;
+		*b = tmp;
+		break;
+	}
 	//
 	// --- Control Flow ---
 	//

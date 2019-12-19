@@ -196,7 +196,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(FTOS, 0),
         OP(S_MOD, 0),
         OP(S_PLUSA2, 0),
-        OP(OBJSWAP, 0), // TODO
+        OP(OBJSWAP, 0),
         OP(S_ERASE, 0), // TODO
         OP(SR_REF2, 0), // TODO
         OP(S_ERASE2, 0),
