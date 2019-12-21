@@ -81,6 +81,7 @@ struct config {
 
 struct config config;
 
+char *unix_path(const char *path);
 char *gamedir_path(const char *path);
 
 #endif /* SYSTEM4_H */

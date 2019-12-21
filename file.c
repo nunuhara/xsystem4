@@ -14,9 +14,11 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "system4.h"
 
 void *file_read(const char *path, size_t *len_out)
@@ -47,4 +49,9 @@ void *file_read(const char *path, size_t *len_out)
 
 	buf[len] = 0;
 	return buf;
+}
+
+bool file_exists(const char *path)
+{
+	return access(path, F_OK) != -1;
 }

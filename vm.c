@@ -24,6 +24,7 @@
 #include "vm_string.h"
 #include "page.h"
 #include "ain.h"
+#include "file.h"
 #include "instructions.h"
 #include "little_endian.h"
 #include "savedata.h"
@@ -496,8 +497,10 @@ static void system_call(int32_t code)
 		break;
 	case 0xA: { // system.ExistsFile(string szFileName)
 		int str = stack_pop().i;
+		char *path = unix_path(heap[str].s->text);
+		stack_push(file_exists(path));
 		heap_unref(str);
-		stack_push(1); // TODO
+		free(path);
 		break;
 	}
 	case 0xC: // system.GetSaveFolderName(void)
@@ -516,6 +519,23 @@ static void system_call(int32_t code)
 		free(utf);
 		// XXX: caller S_POPs
 		break;
+	case 0x10: {
+		int slot = stack_pop().i;
+		struct string *name = heap[slot].s;
+		size_t dir_len = strlen(config.save_dir);
+		char *path = xmalloc(dir_len + 1 + name->size + 1);
+
+		strncpy(path, config.save_dir, dir_len);
+		path[dir_len] = '/';
+		strncpy(path+dir_len+1, name->text, name->size);
+		path[dir_len+1+name->size] = '\0';
+
+		stack_push(file_exists(path));
+		heap_unref(slot);
+		NOTICE("-----PATH=%s", path);
+		free(path);
+		break;
+	}
 	case 0x11: // system.IsDebugMode(void)
 		stack_push(0);
 		break;
@@ -1570,6 +1590,7 @@ extern struct library lib_AliceLogo3;
 extern struct library lib_Confirm2;
 extern struct library lib_DrawGraph;
 extern struct library lib_DrawPluginManager;
+extern struct library lib_File;
 extern struct library lib_Math;
 extern struct library lib_MsgLogManager;
 extern struct library lib_MsgSkip;
@@ -1586,6 +1607,7 @@ struct library *libraries[] = {
 	&lib_Confirm2,
 	&lib_DrawGraph,
 	&lib_DrawPluginManager,
+	&lib_File,
 	&lib_Math,
 	&lib_MsgLogManager,
 	&lib_MsgSkip,

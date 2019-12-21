@@ -100,14 +100,19 @@ noreturn void sys_exit(int code)
 	exit(code);
 }
 
-char *gamedir_path(const char *path)
+char *unix_path(const char *path)
 {
 	char *utf = sjis2utf(path, strlen(path));
 	for (int i = 0; utf[i]; i++) {
 		if (utf[i] == '\\')
 			utf[i] = '/';
 	}
+	return utf;
+}
 
+char *gamedir_path(const char *path)
+{
+	char *utf = unix_path(path);
 	char *gamepath = xmalloc(strlen(config.game_dir) + strlen(utf) + 2);
 	strcpy(gamepath, config.game_dir);
 	strcat(gamepath, "/");

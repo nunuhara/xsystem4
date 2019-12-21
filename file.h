@@ -18,7 +18,9 @@
 #define SYSTEM4_FILE_H
 
 #include <stddef.h>
+#include <stdbool.h>
 
 void *file_read(const char *path, size_t *len_out);
+bool file_exists(const char *path);
 
 #endif /* SYSTEM4_FILE_H */
