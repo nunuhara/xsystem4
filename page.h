@@ -74,7 +74,7 @@ static inline void page_set(int pageno, int varno, union vm_value v)
 // variables
 union vm_value variable_initval(enum ain_data_type type);
 void variable_fini(union vm_value v, enum ain_data_type type);
-enum ain_data_type variable_type(struct page *page, int varno, int *struct_type);
+enum ain_data_type variable_type(struct page *page, int varno, int *struct_type, int *array_rank);
 
 // pages
 struct page *alloc_page(enum page_type type, int type_index, int nr_vars);
@@ -89,15 +89,15 @@ void create_struct(int no, union vm_value *var);
 
 // arrays
 enum ain_data_type array_type(enum ain_data_type type);
-struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, int struct_type, bool init_structs);
-struct page *realloc_array(struct page *src, int rank, union vm_value *dimensions, int data_type, int struct_type, bool init_structs);
+struct page *alloc_array(int rank, union vm_value *dimensions, enum ain_data_type data_type, int struct_type, bool init_structs);
+struct page *realloc_array(struct page *src, int rank, union vm_value *dimensions, enum ain_data_type data_type, int struct_type, bool init_structs);
 int array_numof(struct page *page, int rank);
 void array_copy(struct page *dst, int dst_i, struct page *src, int src_i, int n);
 int array_fill(struct page *dst, int dst_i, int n, union vm_value v);
-void array_pushback(struct page **dst, union vm_value v, int data_type, int struct_type);
+void array_pushback(struct page **dst, union vm_value v, enum ain_data_type data_type, int struct_type);
 void array_popback(struct page **dst);
 bool array_erase(struct page **page, int i);
-void array_insert(struct page **_page, int i, union vm_value v, int data_type, int struct_type);
+void array_insert(struct page **_page, int i, union vm_value v, enum ain_data_type data_type, int struct_type);
 void array_sort(struct page *page, int compare_fno);
 int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno);
 void array_reverse(struct page *page);

@@ -108,7 +108,7 @@ static struct variable *page_ref(struct page *page, int i)
 		return NULL;
 
 	struct variable *v = malloc(sizeof(struct variable));
-	v->data_type = variable_type(page, i, &v->struct_type);
+	v->data_type = variable_type(page, i, &v->struct_type, NULL);
 	v->name = to_utf(variable_name(page, i));
 	v->varno = i;
 	v->value = &page->values[i];

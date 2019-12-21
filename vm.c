@@ -270,6 +270,8 @@ static union vm_value *stack_pop_var(void)
 {
 	int32_t page_index = stack_pop().i;
 	int32_t heap_index = stack_pop().i;
+	if (heap_index < 0 || (size_t)heap_index >= heap_size)
+		VM_ERROR("Out of bounds heap index: %d/%d", heap_index, page_index);
 	if (!heap[heap_index].page || page_index >= heap[heap_index].page->nr_vars)
 		VM_ERROR("Out of bounds page index: %d/%d", heap_index, page_index);
 	return &heap[heap_index].page->values[page_index];
@@ -460,15 +462,35 @@ static void function_return(void)
 	call_stack_ptr--;
 }
 
+enum syscall_code {
+	SYS_EXIT                 = 0x00,
+	SYS_GLOBAL_SAVE          = 0x01,
+	SYS_GLOBAL_LOAD          = 0x02,
+	SYS_LOCK_PEEK            = 0x03,
+	SYS_UNLOCK_PEEK          = 0x04,
+	SYS_OUTPUT               = 0x06,
+	SYS_EXISTS_FILE          = 0x0A,
+	SYS_GET_SAVE_FOLDER_NAME = 0x0C,
+	SYS_GET_TIME             = 0x0D,
+	SYS_ERROR                = 0x0F,
+	SYS_EXISTS_SAVE_FILE     = 0x10,
+	SYS_IS_DEBUG_MODE        = 0x11,
+	SYS_GET_FUNC_STACK_NAME  = 0x13,
+	SYS_PEEK                 = 0x14,
+	SYS_SLEEP                = 0x15,
+	SYS_GROUP_SAVE           = 0x18,
+	SYS_GROUP_LOAD           = 0x19
+};
+
 static void system_call(int32_t code)
 {
 	char *utf;
 	struct string *str;
 	switch (code) {
-	case 0x0: // system.Exit(int nResult)
+	case SYS_EXIT: // system.Exit(int nResult)
 		vm_exit(stack_pop().i);
 		break;
-	case 0x1: { // system.GlobalSave(string szKeyName, string szFileName)
+	case SYS_GLOBAL_SAVE: { // system.GlobalSave(string szKeyName, string szFileName)
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
 		stack_push(save_globals(heap[keyname].s->text, heap[filename].s->text));
@@ -476,7 +498,7 @@ static void system_call(int32_t code)
 		heap_unref(keyname);
 		break;
 	}
-	case 0x2: { // system.GlobalLoad(string szKeyName, string szFileName)
+	case SYS_GLOBAL_LOAD: { // system.GlobalLoad(string szKeyName, string szFileName)
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
 		stack_push(load_globals(heap[keyname].s->text, heap[filename].s->text, NULL, NULL));
@@ -484,18 +506,18 @@ static void system_call(int32_t code)
 		heap_unref(keyname);
 		break;
 	}
-	case 0x3: // system.LockPeek(void)
-	case 0x4: // system.UnlockPeek(void)
+	case SYS_LOCK_PEEK: // system.LockPeek(void)
+	case SYS_UNLOCK_PEEK: // system.UnlockPeek(void)
 		stack_push(1);
 		break;
-	case 0x6: // system.Output(string szText)
+	case SYS_OUTPUT: // system.Output(string szText)
 		str = stack_peek_string(0);
 		utf = sjis2utf(str->text, str->size);
 		sys_message("%s", utf);
 		free(utf);
 		// XXX: caller S_POPs
 		break;
-	case 0xA: { // system.ExistsFile(string szFileName)
+	case SYS_EXISTS_FILE: { // system.ExistsFile(string szFileName)
 		int str = stack_pop().i;
 		char *path = unix_path(heap[str].s->text);
 		stack_push(file_exists(path));
@@ -503,23 +525,23 @@ static void system_call(int32_t code)
 		free(path);
 		break;
 	}
-	case 0xC: // system.GetSaveFolderName(void)
+	case SYS_GET_SAVE_FOLDER_NAME: // system.GetSaveFolderName(void)
 		if (config.save_dir)
 			stack_push_string(make_string(config.save_dir, strlen(config.save_dir)));
 		else
 			stack_push_string(string_ref(&EMPTY_STRING));
 		break;
-	case 0xD: // system.GetTime(void)
+	case SYS_GET_TIME: // system.GetTime(void)
 		stack_push(vm_time());
 		break;
-	case 0xF: // system.Error(string szText)
+	case SYS_ERROR: // system.Error(string szText)
 		str = stack_peek_string(0);
 		utf = sjis2utf(str->text, str->size);
 		sys_warning("*GAME ERROR*: %s\n", utf);
 		free(utf);
 		// XXX: caller S_POPs
 		break;
-	case 0x10: {
+	case SYS_EXISTS_SAVE_FILE: {
 		int slot = stack_pop().i;
 		struct string *name = heap[slot].s;
 		size_t dir_len = strlen(config.save_dir);
@@ -532,14 +554,13 @@ static void system_call(int32_t code)
 
 		stack_push(file_exists(path));
 		heap_unref(slot);
-		NOTICE("-----PATH=%s", path);
 		free(path);
 		break;
 	}
-	case 0x11: // system.IsDebugMode(void)
+	case SYS_IS_DEBUG_MODE: // system.IsDebugMode(void)
 		stack_push(0);
 		break;
-	case 0x13: { // system.GetFuncStackName(int nIndex)
+	case SYS_GET_FUNC_STACK_NAME: { // system.GetFuncStackName(int nIndex)
 		int i = call_stack_ptr - (1 + stack_pop().i);
 		if (i < 0 || i >= call_stack_ptr) {
 			const char *msg = "Invalid stack index";
@@ -551,12 +572,12 @@ static void system_call(int32_t code)
 		stack_push_string(make_string(fun->name, strlen(fun->name)));
 		break;
 	}
-	case 0x14: // system.Peek(void)
+	case SYS_PEEK: // system.Peek(void)
 		break;
-	case 0x15: // system.Sleep(int nSleep)
+	case SYS_SLEEP: // system.Sleep(int nSleep)
 		stack_pop();
 		break;
-	case 0x18: { // system.GroupSave(string szKeyName, string szFileName, string szGroupName, ref int nNumofLoad)
+	case SYS_GROUP_SAVE: { // system.GroupSave(string szKeyName, string szFileName, string szGroupName, ref int nNumofLoad)
 		union vm_value *n = stack_pop_var();
 		int groupname = stack_pop().i;
 		int filename = stack_pop().i;
@@ -567,7 +588,7 @@ static void system_call(int32_t code)
 		heap_unref(keyname);
 		break;
 	}
-	case 0x19: { // system.GroupLoad(string szKeyName, string szFileName, string szGroupName, ref int nNumofLoad)
+	case SYS_GROUP_LOAD: { // system.GroupLoad(string szKeyName, string szFileName, string szGroupName, ref int nNumofLoad)
 		union vm_value *n = stack_pop_var();
 		int groupname = stack_pop().i;
 		int filename = stack_pop().i;
@@ -1451,7 +1472,7 @@ static void execute_instruction(enum opcode opcode)
 		int varno = stack_peek(rank).i;
 		int pageno = stack_peek(rank+1).i;
 		int array = heap[pageno].page->values[varno].i;
-		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type);
+		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type, NULL);
 		heap_set_page(array, alloc_array(rank, stack_peek_ptr(rank-1), data_type, struct_type, true));
 		stack_ptr -= rank + 2;
 		break;
@@ -1462,7 +1483,7 @@ static void execute_instruction(enum opcode opcode)
 		int varno = stack_peek(rank).i;
 		int pageno = stack_peek(rank+1).i;
 		int array = heap[pageno].page->values[varno].i;
-		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type);
+		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type, NULL);
 		heap_set_page(array, realloc_array(heap[array].page, rank, stack_peek_ptr(rank-1), data_type, struct_type, true));
 		stack_ptr -= rank + 2;
 		break;
@@ -1513,7 +1534,7 @@ static void execute_instruction(enum opcode opcode)
 		int varno = stack_pop().i;
 		int pageno = stack_pop().i;
 		int array = heap[pageno].page->values[varno].i;
-		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type);
+		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type, NULL);
 		array_pushback(&heap[array].page, val, data_type, struct_type);
 		break;
 	}
@@ -1539,7 +1560,7 @@ static void execute_instruction(enum opcode opcode)
 		int varno = stack_pop().i;
 		int pageno = stack_pop().i;
 		int array = heap[pageno].page->values[varno].i;
-		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type);
+		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type, NULL);
 		array_insert(&heap[array].page, i, val, data_type, struct_type);
 		break;
 	}

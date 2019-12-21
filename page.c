@@ -141,24 +141,32 @@ enum ain_data_type array_type(enum ain_data_type type)
 	}
 }
 
-enum ain_data_type variable_type(struct page *page, int varno, int *struct_type)
+enum ain_data_type variable_type(struct page *page, int varno, int *struct_type, int *array_rank)
 {
 	switch (page->type) {
 	case GLOBAL_PAGE:
 		if (struct_type)
 			*struct_type = ain->globals[varno].struct_type;
+		if (array_rank)
+			*array_rank = ain->globals[varno].array_dimensions;
 		return ain->globals[varno].data_type;
 	case LOCAL_PAGE:
 		if (struct_type)
 			*struct_type = ain->functions[page->index].vars[varno].struct_type;
+		if (array_rank)
+			*array_rank = ain->functions[page->index].vars[varno].array_dimensions;
 		return ain->functions[page->index].vars[varno].data_type;
 	case STRUCT_PAGE:
 		if (struct_type)
 			*struct_type = ain->structures[page->index].members[varno].struct_type;
+		if (array_rank)
+			*array_rank = ain->structures[page->index].members[varno].array_dimensions;
 		return ain->structures[page->index].members[varno].data_type;
 	case ARRAY_PAGE:
 		if (struct_type)
 			*struct_type = page->struct_type;
+		if (array_rank)
+			*array_rank = page->rank - 1;
 		return page->rank > 1 ? page->a_type : array_type(page->a_type);
 	}
 	return AIN_VOID;
@@ -167,7 +175,7 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type)
 void delete_page(struct page *page)
 {
 	for (int i = 0; i < page->nr_vars; i++) {
-		variable_fini(page->values[i], variable_type(page, i, NULL));
+		variable_fini(page->values[i], variable_type(page, i, NULL, NULL));
 	}
 }
 
@@ -182,7 +190,7 @@ struct page *copy_page(struct page *src)
 	dst->struct_type = src->struct_type;
 	dst->rank = src->rank;
 	for (int i = 0; i < src->nr_vars; i++) {
-		dst->values[i] = vm_copy(src->values[i], variable_type(src, i, NULL));
+		dst->values[i] = vm_copy(src->values[i], variable_type(src, i, NULL, NULL));
 	}
 	return dst;
 }
@@ -221,7 +229,7 @@ void create_struct(int no, union vm_value *var)
 	init_struct(no, var->i);
 }
 
-struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, int struct_type, bool init_structs)
+struct page *alloc_array(int rank, union vm_value *dimensions, enum ain_data_type data_type, int struct_type, bool init_structs)
 {
 	if (rank < 1)
 		return NULL;
@@ -247,7 +255,7 @@ struct page *alloc_array(int rank, union vm_value *dimensions, int data_type, in
 	return page;
 }
 
-struct page *realloc_array(struct page *src, int rank, union vm_value *dimensions, int data_type, int struct_type, bool init_structs)
+struct page *realloc_array(struct page *src, int rank, union vm_value *dimensions, enum ain_data_type data_type, int struct_type, bool init_structs)
 {
 	if (rank < 1)
 		ERROR("Tried to allocate 0-rank array");
@@ -267,7 +275,7 @@ struct page *realloc_array(struct page *src, int rank, union vm_value *dimension
 	// if shrinking array, unref orphaned children
 	if (dimensions->i < src->nr_vars) {
 		for (int i = dimensions->i; i < src->nr_vars; i++) {
-			variable_fini(src->values[i], variable_type(src, i, NULL));
+			variable_fini(src->values[i], variable_type(src, i, NULL, NULL));
 		}
 	}
 
@@ -353,7 +361,7 @@ int array_fill(struct page *dst, int dst_i, int n, union vm_value v)
 	return n;
 }
 
-void array_pushback(struct page **dst, union vm_value v, int data_type, int struct_type)
+void array_pushback(struct page **dst, union vm_value v, enum ain_data_type data_type, int struct_type)
 {
 	if (*dst) {
 		if ((*dst)->type != ARRAY_PAGE)
@@ -415,7 +423,7 @@ bool array_erase(struct page **_page, int i)
 	return true;
 }
 
-void array_insert(struct page **_page, int i, union vm_value v, int data_type, int struct_type)
+void array_insert(struct page **_page, int i, union vm_value v, enum ain_data_type data_type, int struct_type)
 {
 	struct page *page = *_page;
 	if (!page) {

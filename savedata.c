@@ -24,9 +24,12 @@
 #include "vm.h"
 #include "cJSON.h"
 
+static int current_global;
+
 #define invalid_save_data(msg, data) {					\
 		char *str = data ? cJSON_Print(data) : strdup("NULL");	\
-		WARNING("Invalid save data: " msg ": %s", data);	\
+		if (!str) str = strdup("PRINTING FAILED");		\
+		WARNING("Invalid save data (%d): " msg ": %s", current_global, data); \
 		free(str);						\
 	}
 
@@ -49,7 +52,7 @@ static cJSON *page_to_json(int index)
 
 	cJSON *values = cJSON_CreateArray();
 	for (int i = 0; i < page->nr_vars; i++) {
-		cJSON_AddItemToArray(values, vm_value_to_json(variable_type(page, i, NULL), page->values[i]));
+		cJSON_AddItemToArray(values, vm_value_to_json(variable_type(page, i, NULL, NULL), page->values[i]));
 	}
 	return values;
 }
@@ -173,26 +176,15 @@ int save_group(const char *keyname, const char *filename, const char *group_name
 	return write_save_data(&data, filename);
 }
 
-static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, cJSON *json);
+static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json);
 
-int get_json_array_rank(cJSON *json, union vm_value **dims)
+void get_array_dims(cJSON *json, int rank, union vm_value *dims)
 {
-	// count rank
-	int rank = 1;
 	cJSON *array = json;
-	while (cJSON_GetArraySize(array) > 0 && !cJSON_IsArray((array = cJSON_GetArrayItem(array, 0)))) {
-		rank++;
-	}
-
-	// count dims
-	array = json;
-	*dims = xmalloc(sizeof(union vm_value) * rank);
 	for (int i = 0; i < rank; i++) {
-		(*dims)[i].i = cJSON_GetArraySize(array);
+		dims[i].i = cJSON_GetArraySize(array);
 		array = cJSON_GetArrayItem(array, 0);
 	}
-
-	return rank;
 }
 
 static void load_page(struct page *page, cJSON *vars)
@@ -200,18 +192,19 @@ static void load_page(struct page *page, cJSON *vars)
 	int i = 0;
 	cJSON *v;
 	cJSON_ArrayForEach(v, vars) {
-		int struct_type;
-		enum ain_data_type data_type = variable_type(page, i, &struct_type);
-		page->values[i] = json_to_vm_value(data_type, struct_type, v);
+		int struct_type, array_rank;
+		enum ain_data_type data_type = variable_type(page, i, &struct_type, &array_rank);
+		page->values[i] = json_to_vm_value(data_type, struct_type, array_rank, v);
 		i++;
 	}
 }
 
-static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, cJSON *json)
+static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json)
 {
 	char *str;
-	int slot, rank;
+	int slot;
 	union vm_value *dims;
+	struct page *page;
 	switch (type) {
 	case AIN_INT:
 	case AIN_BOOL:
@@ -265,8 +258,10 @@ static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_ty
 			heap[slot].page = NULL;
 			return vm_int(slot);
 		}
-		rank = get_json_array_rank(json, &dims);
-		heap[slot].page = alloc_array(rank, dims, array_type(type), struct_type, false);
+		dims = xmalloc(sizeof(union vm_value) * array_rank);
+		get_array_dims(json, array_rank, dims);
+		page = alloc_array(array_rank, dims, type, struct_type, false);
+		heap[slot].page = page;
 		free(dims);
 		load_page(heap[slot].page, json);
 		return vm_int(slot);
@@ -356,7 +351,8 @@ int load_globals(const char *keyname, const char *filename, const char *group_na
 			invalid_save_data("Invalid global index", index);
 			goto cleanup;
 		}
-		global_set(i, json_to_vm_value(ain->globals[i].data_type, ain->globals[i].struct_type, value));
+		current_global = i;
+		global_set(i, json_to_vm_value(ain->globals[i].data_type, ain->globals[i].struct_type, ain->globals[i].array_dimensions, value));
 		if (n)
 			(*n)++;
 	}
