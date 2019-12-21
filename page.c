@@ -488,3 +488,15 @@ int array_find(struct page *page, int start, int end, union vm_value v, int comp
 	}
 	return -1;
 }
+
+void array_reverse(struct page *page)
+{
+	if (!page)
+		return;
+
+	for (int start = 0, end = page->nr_vars-1; start < end; start++, end--) {
+		union vm_value tmp = page->values[start];
+		page->values[start] = page->values[end];
+		page->values[end] = tmp;
+	}
+}

@@ -1556,6 +1556,12 @@ static void execute_instruction(enum opcode opcode)
 		int start = stack_pop().i;
 		int array = stack_pop_var()->i;
 		stack_push(array_find(heap[array].page, start, end, v, fno));
+		break;
+	}
+	case A_REVERSE: {
+		int array = stack_pop_var()->i;
+		array_reverse(heap[array].page);
+		break;
 	}
 	// -- NOOPs ---
 	case FUNC:

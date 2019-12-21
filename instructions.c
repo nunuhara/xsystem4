@@ -221,8 +221,8 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(LI_RSHIFTA, 0),
         OP(LI_INC, 0),
         OP(LI_DEC, 0),
-        OP(A_FIND, 0), // TODO
-        OP(A_REVERSE, 0), // TODO
+        OP(A_FIND, 0),
+        OP(A_REVERSE, 0),
         OP(SH_SR_ASSIGN, 0), // TODO
         OP(SH_MEM_ASSIGN_LOCAL, 0), // TODO
         OP(A_NUMOF_GLOB_1, 0), // TODO
