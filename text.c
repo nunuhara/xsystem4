@@ -21,6 +21,19 @@
 #include "graphics.h"
 #include "utfsjis.h"
 
+/*
+ * NOTE: There are two different text rendering APIs: SACT2 and DrawGraph.
+ *
+ *       SACT2 is a stateless API which uses the text_metrics structure.
+ *       It is implemented via the single function gfx_render_text and
+ *       supports bold and outlined font styles.
+ *
+ *       DrawGraph is a stateful API that uses the font_metrics structure.
+ *       The various gfx_setfont_* and gfx_draw_text* functions implement
+ *       this API. It supports bold, underline and strikethrough font
+ *       styles and two different rendering modes (pixel map and alpha map)
+ */
+
 #define MAX_FONT_SIZE 128
 
 // TODO: install fonts on system, and provide run-time configuration option
@@ -32,7 +45,7 @@ const char *font_paths[] = {
 struct font {
 	unsigned int size;
 	enum font_face face;
-	enum font_weight weight;
+	int style;
 	TTF_Font *font;
 };
 
@@ -45,7 +58,23 @@ static struct _font font_table[2];
 
 static struct font *font;
 
-bool gfx_set_font(int face, unsigned int size)
+// current font state
+static struct font_metrics font_metrics = {
+	.size = 16,
+	.face = FONT_GOTHIC,
+	.weight = FW_BOLD,
+	.underline = false,
+	.strikeout = false,
+	.space = 0,
+	.color = {
+		.r = 255,
+		.g = 255,
+		.b = 255,
+		.a = 255
+	}
+};
+
+bool gfx_set_font(enum font_face face, unsigned int size)
 {
 	struct _font *ff = &font_table[face];
 
@@ -69,12 +98,109 @@ bool gfx_set_font(int face, unsigned int size)
 		}
 		ff->fonts[size].size = size;
 		ff->fonts[size].face = face;
-		ff->fonts[size].weight = FW_NORMAL;
+		ff->fonts[size].style = TTF_STYLE_NORMAL;
 	}
 
 	// set current font
 	font = &ff->fonts[size];
 	return true;
+}
+
+static void set_font_style(int style)
+{
+	if (font->style != style) {
+		TTF_SetFontStyle(font->font, style);
+		font->style = style;
+	}
+}
+
+static int get_font_style(void)
+{
+	int style = 0;
+	if (font_metrics.weight == FW_BOLD || font_metrics.weight == FW_BOLD2)
+		style |= TTF_STYLE_BOLD;
+	if (font_metrics.underline)
+		style |= TTF_STYLE_UNDERLINE;
+	if (font_metrics.strikeout)
+		style |= TTF_STYLE_STRIKETHROUGH;
+	return style ? style : TTF_STYLE_NORMAL;
+}
+
+bool gfx_set_font_size(unsigned int size)
+{
+	font_metrics.size = size;
+	return gfx_set_font(font_metrics.face, size);
+}
+
+int gfx_get_font_size(void)
+{
+	return font_metrics.size;
+}
+
+bool gfx_set_font_face(enum font_face face)
+{
+	font_metrics.face = face;
+	return gfx_set_font(face, font_metrics.size);
+}
+
+enum font_face gfx_get_font_face(void)
+{
+	return font_metrics.face;
+}
+
+bool gfx_set_font_weight(enum font_weight weight)
+{
+	font_metrics.weight = weight;
+	return true;
+}
+
+enum font_weight gfx_get_font_weight(void)
+{
+	return font_metrics.weight;
+}
+
+bool gfx_set_font_underline(bool on)
+{
+	font_metrics.underline = on;
+	return true;
+}
+
+bool gfx_get_font_underline(void)
+{
+	return font_metrics.underline;
+}
+
+bool gfx_set_font_strikeout(bool on)
+{
+	font_metrics.strikeout = on;
+	return true;
+}
+
+bool gfx_get_font_strikeout(void)
+{
+	return font_metrics.strikeout;
+}
+
+bool gfx_set_font_space(int space)
+{
+	font_metrics.space = space;
+	return true;
+}
+
+int gfx_get_font_space(void)
+{
+	return font_metrics.space;
+}
+
+bool gfx_set_font_color(SDL_Color color)
+{
+	font_metrics.color = color;
+	return true;
+}
+
+SDL_Color gfx_get_font_color(void)
+{
+	return font_metrics.color;
 }
 
 static void get_glyph(TTF_Font *f, Texture *dst, char *msg, SDL_Color color)
@@ -135,6 +261,10 @@ static int sact_to_sdl_fontstyle(int style)
 	}
 }
 
+// NOTE: This is the SACT2 text rendering interface.
+// FIXME: If char spacing is set up (via SACT2.SetTextCharSpace), this doesn't do the right
+//        thing. Need to render each character individually and add the specified spacing.
+//        Should add a char_space field to text_metrics to keep this function stateless.
 int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
 {
 	if (!font)
@@ -143,10 +273,8 @@ int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
 		return 0;
 	if (font->size != tm->size || font->face != tm->face)
 		gfx_set_font(tm->face, tm->size);
-	if (font->weight != tm->weight) {
-		TTF_SetFontStyle(font->font, sact_to_sdl_fontstyle(tm->weight));
-		font->weight = tm->weight;
-	}
+
+	set_font_style(sact_to_sdl_fontstyle(tm->weight));
 
 	int width;
 	char *conv = sjis2utf(msg, strlen(msg));
@@ -189,9 +317,29 @@ int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
 	return width;
 }
 
+void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text)
+{
+	if (!font)
+		return;
+
+	set_font_style(get_font_style());
+
+	char *conv = sjis2utf(text, strlen(text));
+	Point pos = { x, y };
+
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+
+	Texture glyph;
+	get_glyph(font->font, &glyph, conv, font_metrics.color);
+	render_glyph(dst, &glyph, pos);
+	gfx_delete_texture(&glyph);
+
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+}
+
 void gfx_font_init(void)
 {
 	if (TTF_Init() == -1)
 		ERROR("Failed to initialize SDL_ttf: %s", TTF_GetError());
-	gfx_set_font(FONT_MINCHO, 16);
+	gfx_set_font(FONT_GOTHIC, 16);
 }

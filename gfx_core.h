@@ -139,8 +139,36 @@ struct text_metrics {
 	int outline_down;
 };
 
+struct font_metrics {
+	int size;
+	enum font_face face;
+	int weight;
+	bool underline;
+	bool strikeout;
+	int space;
+	SDL_Color color;
+};
+
 void gfx_font_init(void);
-bool gfx_set_font(int face, unsigned int size);
+bool gfx_set_font(enum font_face face, unsigned int size);
+
+bool gfx_set_font_size(unsigned int size);
+bool gfx_set_font_face(enum font_face face);
+bool gfx_set_font_weight(enum font_weight weight);
+bool gfx_set_font_underline(bool on);
+bool gfx_set_font_strikeout(bool on);
+bool gfx_set_font_space(int space);
+bool gfx_set_font_color(SDL_Color color);
+
+int gfx_get_font_size(void);
+enum font_face gfx_get_font_face(void);
+enum font_weight gfx_get_font_weight(void);
+bool gfx_get_font_underline(void);
+bool gfx_get_font_strikeout(void);
+int gfx_get_font_space(void);
+SDL_Color gfx_get_font_color(void);
+
 int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm);
+void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text);
 
 #endif /* SYSTEM4_SDL_CORE_H */

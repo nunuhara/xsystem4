@@ -119,35 +119,44 @@ hll_defun_inline(CopyReduceAMap, (gfx_copy_stretch_amap(TEX(a[0].i), a[1].i, a[2
 //void DrawTextToPMap(int nDest, int nX, int nY, string szText)
 hll_unimplemented(DrawGraph, DrawTextToPMap);
 //void DrawTextToAMap(int nDest, int nX, int nY, string szText)
-hll_unimplemented(DrawGraph, DrawTextToAMap);
+hll_defun_inline(DrawTextToAMap, (gfx_draw_text_to_amap(TEX(a[0].i), a[1].i, a[2].i, hll_string_ref(a[3].i)->text), 0));
 //void SetFontSize(int nSize)
-hll_unimplemented(DrawGraph, SetFontSize);
+hll_defun_inline(SetFontSize, gfx_set_font_size(a[0].i));
 //void SetFontName(string pIText)
-hll_unimplemented(DrawGraph, SetFontName);
+hll_warn_unimplemented(DrawGraph, SetFontName, 0);
 //void SetFontWeight(int nWeight)
-hll_unimplemented(DrawGraph, SetFontWeight);
+hll_defun_inline(SetFontWeight, gfx_set_font_weight(a[0].i));
 //void SetFontUnderline(int nFlag)
-hll_unimplemented(DrawGraph, SetFontUnderline);
+hll_defun_inline(SetFontUnderline, gfx_set_font_underline(a[0].i));
 //void SetFontStrikeOut(int nFlag)
-hll_unimplemented(DrawGraph, SetFontStrikeOut);
+hll_defun_inline(SetFontStrikeOut, gfx_set_font_strikeout(a[0].i));
 //void SetFontSpace(int nSpace)
-hll_unimplemented(DrawGraph, SetFontSpace);
+hll_defun_inline(SetFontSpace, gfx_set_font_space(a[0].i));
 //void SetFontColor(int nR, int nG, int nB)
-hll_unimplemented(DrawGraph, SetFontColor);
+hll_defun_inline(SetFontColor, gfx_set_font_color(COLOR(a[0].i, a[1].i, a[2].i, 255)));
 //int GetFontSize()
-hll_unimplemented(DrawGraph, GetFontSize);
+hll_defun_inline(GetFontSize, gfx_get_font_size());
 //string GetFontName()
-hll_unimplemented(DrawGraph, GetFontName);
+hll_warn_unimplemented(DrawGraph, GetFontName, vm_string_ref(&EMPTY_STRING)); // FIXME
 //int GetFontWeight()
-hll_unimplemented(DrawGraph, GetFontWeight);
+hll_defun_inline(GetFontWeight, (int)gfx_get_font_weight());
 //int GetFontUnderline()
-hll_unimplemented(DrawGraph, GetFontUnderline);
+hll_defun_inline(GetFontUnderline, gfx_get_font_underline());
 //int GetFontStrikeOut()
-hll_unimplemented(DrawGraph, GetFontStrikeOut);
+hll_defun_inline(GetFontStrikeOut, gfx_get_font_strikeout());
 //int GetFontSpace()
-hll_unimplemented(DrawGraph, GetFontSpace);
+hll_defun_inline(GetFontSpace, gfx_get_font_space());
+
 //void GetFontColor(ref int pnR, ref int pnG, ref int pnB)
-hll_unimplemented(DrawGraph, GetFontColor);
+hll_defun(GetFontColor, args)
+{
+	SDL_Color c = gfx_get_font_color();
+	*args[0].iref = c.r;
+	*args[1].iref = c.g;
+	*args[2].iref = c.b;
+	hll_return(0);
+}
+
 //void CopyRotZoom(int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
 hll_defun_inline(CopyRotZoom, (gfx_copy_rot_zoom(TEX(a[0].i), TEX(a[1].i), a[2].i, a[3].i, a[4].i, a[5].i, a[6].f, a[7].f), 0));
 //void CopyRotZoomAMap(int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
