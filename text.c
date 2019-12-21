@@ -337,6 +337,27 @@ void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text)
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
+void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text)
+{
+	if (!font)
+		return;
+
+	set_font_style(get_font_style());
+
+	char *conv = sjis2utf(text, strlen(text));
+	Point pos = { x, y };
+
+	//glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+
+	Texture glyph;
+	get_glyph(font->font, &glyph, conv, font_metrics.color);
+	render_glyph(dst, &glyph, pos);
+	gfx_delete_texture(&glyph);
+
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+}
+
 void gfx_font_init(void)
 {
 	if (TTF_Init() == -1)

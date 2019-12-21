@@ -171,5 +171,6 @@ SDL_Color gfx_get_font_color(void);
 
 int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm);
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text);
+void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text);
 
 #endif /* SYSTEM4_SDL_CORE_H */

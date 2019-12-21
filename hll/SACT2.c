@@ -520,9 +520,9 @@ hll_unimplemented(SACT2, Debug_Pause);
 // void Debug_GetFuncStack(ref string sz, int nNest)
 hll_unimplemented(SACT2, Debug_GetFuncStack);
 // int SP_GetAMapValue(int nSP, int nX, int nY)
-hll_unimplemented(SACT2, SP_GetAMapValue);
+hll_defun_inline(SP_GetAMapValue, sact_SP_GetAMapValue(a[0].i, a[1].i, a[2].i));
 // bool SP_GetPixelValue(int nSP, int nX, int nY, ref int pnR, ref int pnG, ref int pnB)
-hll_unimplemented(SACT2, SP_GetPixelValue);
+hll_defun_inline(SP_GetPixelValue, sact_SP_GetPixelValue(a[0].i, a[1].i, a[2].i, a[3].iref, a[4].iref, a[5].iref));
 // int SP_SetBrightness(int nSP, int nBrightness)
 hll_unimplemented(SACT2, SP_SetBrightness);
 // int SP_GetBrightness(int nSP)

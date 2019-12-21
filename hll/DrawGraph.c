@@ -117,7 +117,7 @@ hll_defun_inline(CopyReduce, (gfx_copy_stretch(TEX(a[0].i), a[1].i, a[2].i, a[3]
 //void CopyReduceAMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
 hll_defun_inline(CopyReduceAMap, (gfx_copy_stretch_amap(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, TEX(a[5].i), a[6].i, a[7].i, a[8].i, a[9].i), 0));
 //void DrawTextToPMap(int nDest, int nX, int nY, string szText)
-hll_unimplemented(DrawGraph, DrawTextToPMap);
+hll_defun_inline(DrawTextToPMap, (gfx_draw_text_to_pmap(TEX(a[0].i), a[1].i, a[2].i, hll_string_ref(a[3].i)->text), 0));
 //void DrawTextToAMap(int nDest, int nX, int nY, string szText)
 hll_defun_inline(DrawTextToAMap, (gfx_draw_text_to_amap(TEX(a[0].i), a[1].i, a[2].i, hll_string_ref(a[3].i)->text), 0));
 //void SetFontSize(int nSize)
@@ -210,9 +210,9 @@ hll_unimplemented(DrawGraph, DrawLine);
 //void DrawLineToAMap(int nDest, int nX0, int nY0, int nX1, int nY1, int nAlpha)
 hll_unimplemented(DrawGraph, DrawLineToAMap);
 //bool GetPixelColor(int nSurface, int nX, int nY, ref int nR, ref int nG, ref int nB)
-hll_unimplemented(DrawGraph, GetPixelColor);
+hll_defun_inline(GetPixelColor, sact_SP_GetPixelValue(a[0].i, a[1].i, a[2].i, a[3].iref, a[4].iref, a[5].iref));
 //bool GetAlphaColor(int nSurface, int nX, int nY, ref int nA)
-hll_unimplemented(DrawGraph, GetAlphaColor);
+hll_defun_inline(GetAlphaColor, (*a[3].iref = sact_SP_GetAMapValue(a[0].i, a[1].i, a[2].i), 1));
 //void DrawPolygon(int nDest, int nTex, float fX0, float fY0, float fZ0, float fU0, float fV0, float fX1, float fY1, float fZ1, float fU1, float fV1, float fX2, float fY2, float fZ2, float fU2, float fV2)
 hll_unimplemented(DrawGraph, DrawPolygon);
 //void DrawColorPolygon(int nDest, float fX0, float fY0, float fZ0, int nR0, int nG0, int nB0, int nA0, float fX1, float fY1, float fZ1, int nR1, int nG1, int nB1, int nA1, float fX2, float fY2, float fZ2, int nR2, int nG2, int nB2, int nA2)

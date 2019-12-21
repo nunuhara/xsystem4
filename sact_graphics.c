@@ -517,3 +517,20 @@ int sact_CG_GetMetrics(int cg_no, union vm_value *cgm)
 	cgm[6].i = metrics.alpha_pitch;
 	return 1;
 }
+
+int sact_SP_GetAMapValue(int sp_no, int x, int y)
+{
+	Texture *t = sact_get_texture(sp_no);
+	SDL_Color c = gfx_get_pixel(t, x, y);
+	return c.a;
+}
+
+int sact_SP_GetPixelValue(int sp_no, int x, int y, int *r, int *g, int *b)
+{
+	Texture *t = sact_get_texture(sp_no);
+	SDL_Color c = gfx_get_pixel(t, x, y);
+	*r = c.r;
+	*g = c.g;
+	*b = c.b;
+	return 1;
+}

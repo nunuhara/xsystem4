@@ -70,5 +70,7 @@ int sact_SP_TextClear(int sp_no);
 int sact_SP_TextCopy(int dno, int sno);
 int sact_SP_IsPtIn(int sp_no, int x, int y);
 int sact_CG_GetMetrics(int cg_no, union vm_value *cgm);
+int sact_SP_GetAMapValue(int sp_no, int x, int y);
+int sact_SP_GetPixelValue(int sp_no, int x, int y, int *r, int *g, int *b);
 
 #endif /* SYSTEM4_SACT_H */
