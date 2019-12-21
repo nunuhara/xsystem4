@@ -42,7 +42,7 @@ hll_defun_inline(GetScreenWidth, config.view_width);
 // int GetScreenHeight(void)
 hll_defun_inline(GetScreenHeight, config.view_height);
 // int GetMainSurfaceNumber(void)
-hll_unimplemented(SACT2, GetMainSurfaceNumber);
+hll_defun_inline(GetMainSurfaceNumber, -1);
 // int Update(void)
 hll_defun_inline(Update, sact_Update());
 // int Effect(int nType, int nTime, int nfKey)

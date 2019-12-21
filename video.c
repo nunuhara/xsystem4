@@ -42,7 +42,7 @@
 static GLfloat world_view_transform[16] = {
 	[10] =  2,
 	[12] = -1,
-	[13] =  1,
+	[13] = -1,
 	[14] = -1,
 	[15] =  1
 };
@@ -51,6 +51,9 @@ struct default_shader {
 	struct shader s;
 	GLuint alpha_mod;
 } default_shader;
+
+GLuint main_surface_fb;
+struct texture main_surface;
 
 void prepare_default_shader(struct gfx_render_job *job, void *data)
 {
@@ -133,6 +136,7 @@ static int gl_initialize(void)
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
+
 	return 0;
 }
 
@@ -179,6 +183,11 @@ void gfx_fini(void)
 	SDL_Quit();
 }
 
+Texture *gfx_main_surface(void)
+{
+	return &main_surface;
+}
+
 void gfx_fullscreen(bool on)
 {
 	if (on && !sdl.fs_on) {
@@ -190,13 +199,37 @@ void gfx_fullscreen(bool on)
 	}
 }
 
+static void main_surface_init(int w, int h)
+{
+	gfx_delete_texture(&main_surface);
+
+
+	glGenTextures(1, &main_surface.handle);
+	glBindTexture(GL_TEXTURE_2D, main_surface.handle);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	main_surface.w = w;
+	main_surface.h = h;
+	main_surface.has_alpha = true;
+	main_surface.alpha_mod = 255;
+	main_surface.draw_method = DRAW_METHOD_NORMAL;
+
+	glGenFramebuffers(1, &main_surface_fb);
+	glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, main_surface.handle, 0);
+}
+
 void gfx_set_window_size(int w, int h)
 {
 	sdl.w = w;
 	sdl.h = h;
 	world_view_transform[0] = 2.0 / w;
-	world_view_transform[5] = -2.0 / h;
+	world_view_transform[5] = 2.0 / h;
 	SDL_SetWindowSize(sdl.window, w, h);
+	main_surface_init(w, h);
 }
 
 void gfx_set_wait_vsync(bool wait)
@@ -211,7 +244,34 @@ void gfx_clear(void)
 
 void gfx_swap(void)
 {
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	static GLfloat mw_transform[16] = {
+		[0]  = 1,
+		[5]  = 1,
+		[10] = 1,
+		[15] = 1
+	};
+	static GLfloat wv_transform[16] = {
+		[0]  =  2,
+		[5]  = -2,
+		[10] =  1,
+		[12] = -1,
+		[13] =  1,
+		[15] =  1
+	};
+	struct gfx_render_job job = {
+		.shader = &default_shader.s,
+		.texture = main_surface.handle,
+		.world_transform = mw_transform,
+		.view_transform = wv_transform,
+		.data = &main_surface
+	};
+	gfx_render(&job);
+
 	SDL_GL_SwapWindow(sdl.window);
+	glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);
 }
 
 /*
@@ -371,7 +431,7 @@ GLuint gfx_set_framebuffer(GLenum target, Texture *t, int x, int y, int w, int h
 
 void gfx_reset_framebuffer(GLenum target, GLuint fbo)
 {
-	glBindFramebuffer(target, 0);
+	glBindFramebuffer(target, main_surface_fb);
 	glDeleteFramebuffers(1, &fbo);
 	glViewport(0, 0, sdl.w, sdl.h);
 }

@@ -23,6 +23,8 @@
 #include "vm_string.h"
 #include "utfsjis.h"
 
+static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
+
 static struct sact_sprite **sprites = NULL;
 static int nr_sprites = 0;
 
@@ -31,7 +33,7 @@ TAILQ_HEAD(listhead, sact_sprite) sprite_list =
 
 struct sact_sprite *sact_get_sprite(int sp)
 {
-	if (sp < 0 || sp >= nr_sprites)
+	if (sp < -1 || sp >= nr_sprites)
 		return NULL;
 	return sprites[sp];
 }
@@ -81,10 +83,32 @@ static void sprite_unregister(struct sact_sprite *sp)
 	TAILQ_REMOVE(&sprite_list, sp, entry);
 }
 
+static void realloc_sprite_table(int n)
+{
+	int old_nr_sprites = nr_sprites;
+	nr_sprites = n;
+
+	struct sact_sprite **tmp = xrealloc(sprites-1, sizeof(struct sact_sprite*) * (nr_sprites+1));
+	sprites = tmp + 1;
+
+	memset(sprites + old_nr_sprites, 0, sizeof(struct sact_sprite*) * (nr_sprites - old_nr_sprites));
+}
+
 int sact_Init(void)
 {
 	gfx_init();
 	gfx_font_init();
+
+	nr_sprites = 256;
+	sprites = xmalloc(sizeof(struct sact_sprite*) * 257);
+	memset(sprites, 0, sizeof(struct sact_sprite*) * 257);
+
+	// create sprite for main_surface
+	Texture *t = gfx_main_surface();
+	struct sact_sprite *sp = create_sprite(0, t->w, t->h, 0, 0, 0, 255);
+	sp->texture = *t; // XXX: textures normally shouldn't be copied like this...
+
+	sprites++;
 	return 1;
 }
 
@@ -237,11 +261,8 @@ int sact_SP_GetUnuseNum(int min)
 			return i;
 	}
 
-	int old_nr_sprites = nr_sprites;
 	int n = max(min, nr_sprites);
-	nr_sprites = n + 256;
-	sprites = xrealloc(sprites, sizeof(struct sact_sprite*) * nr_sprites);
-	memset(sprites + old_nr_sprites, 0, sizeof(struct sact_sprite*) * (nr_sprites - old_nr_sprites));
+	realloc_sprite_table(n + 256);
 	return n;
 }
 

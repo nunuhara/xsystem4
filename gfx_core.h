@@ -66,6 +66,7 @@ struct gfx_render_job {
 int gfx_init(void);
 void gfx_fini(void);
 
+Texture *gfx_main_surface(void);
 void gfx_set_window_size(int w, int h);
 void gfx_fullscreen(bool on);
 void gfx_set_wait_vsync(bool wait);
