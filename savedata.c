@@ -42,8 +42,6 @@ static char *savedir_path(const char *filename)
 	return path;
 }
 
-static cJSON *vm_value_to_json(enum ain_data_type type, union vm_value val);
-
 static cJSON *page_to_json(int index)
 {
 	struct page *page = vm_get_page(index);
@@ -58,7 +56,7 @@ static cJSON *page_to_json(int index)
 }
 
 // FIXME: non-page reference types occupy two vm_values
-static cJSON *vm_value_to_json(enum ain_data_type type, union vm_value val)
+cJSON *vm_value_to_json(enum ain_data_type type, union vm_value val)
 {
 	switch (type) {
 	case AIN_INT:
@@ -119,7 +117,7 @@ static int write_save_data(struct global_save_data *data, const char *filename)
 	cJSON_Delete(data->save);
 
 	if (fwrite(str, strlen(str), 1, f) != 1) {
-		WARNING("Failed to write save file: %s");
+		WARNING("Failed to write save file: %s", strerror(errno));
 		free(str);
 		return 0;
 	}
@@ -176,7 +174,7 @@ int save_group(const char *keyname, const char *filename, const char *group_name
 	return write_save_data(&data, filename);
 }
 
-static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json);
+union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json);
 
 void get_array_dims(cJSON *json, int rank, union vm_value *dims)
 {
@@ -187,7 +185,7 @@ void get_array_dims(cJSON *json, int rank, union vm_value *dims)
 	}
 }
 
-static void load_page(struct page *page, cJSON *vars)
+void json_load_page(struct page *page, cJSON *vars)
 {
 	int i = 0;
 	cJSON *v;
@@ -199,7 +197,7 @@ static void load_page(struct page *page, cJSON *vars)
 	}
 }
 
-static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json)
+union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json)
 {
 	char *str;
 	int slot;
@@ -244,7 +242,7 @@ static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_ty
 		if (!cJSON_IsArray(json) || cJSON_GetArraySize(json) != ain->structures[struct_type].nr_members) {
 			invalid_save_data("Not an array", json);
 		} else {
-			load_page(heap[slot].page, json);
+			json_load_page(heap[slot].page, json);
 		}
 		return vm_int(slot);
 	case AIN_ARRAY_TYPE:
@@ -263,7 +261,7 @@ static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_ty
 		page = alloc_array(array_rank, dims, type, struct_type, false);
 		heap[slot].page = page;
 		free(dims);
-		load_page(heap[slot].page, json);
+		json_load_page(heap[slot].page, json);
 		return vm_int(slot);
 	case AIN_REF_TYPE:
 		return vm_int(-1);
