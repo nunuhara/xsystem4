@@ -98,7 +98,20 @@ hll_defun(GetNumofColumn, args)
 }
 
 //bool GetDataInt(int nLine, int nColumn, ref int pnData)
-hll_unimplemented(ACXLoader, GetDataInt);
+hll_defun(GetDataInt, args)
+{
+	int line = args[0].i;
+	int col = args[1].i;
+
+	if (line < 0 || line >= acx.nr_lines || col < 0 || col >= acx.nr_columns)
+		hll_return(false);
+
+	uint8_t *data = acx.data + (line * acx.nr_columns * 4) + (col * 4);
+	*args[2].iref = LittleEndian_getDW(data, 0);
+
+	hll_return(true);
+}
+
 //bool GetDataString(int nLine, int nColumn, ref string pIData)
 hll_unimplemented(ACXLoader, GetDataString);
 
