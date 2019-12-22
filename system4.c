@@ -24,6 +24,7 @@
 #include "ain.h"
 #include "ald.h"
 #include "debugger.h"
+#include "file.h"
 #include "ini.h"
 #include "utfsjis.h"
 
@@ -189,6 +190,7 @@ static void config_init(void)
 	char *new_save_dir = get_save_path(config.save_dir);
 	free(config.save_dir);
 	config.save_dir = new_save_dir;
+	mkdir_p(new_save_dir);
 }
 
 int main(int argc, char *argv[])

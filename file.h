@@ -22,5 +22,6 @@
 
 void *file_read(const char *path, size_t *len_out);
 bool file_exists(const char *path);
+int mkdir_p(const char *path);
 
 #endif /* SYSTEM4_FILE_H */
