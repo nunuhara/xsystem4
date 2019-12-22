@@ -128,6 +128,7 @@ int sact_SetWP(int cg_no)
 
 	gfx_delete_texture(&wp.texture);
 	gfx_init_texture_with_cg(&wp.texture, cg);
+	cg_free(cg);
 	return 1;
 }
 
