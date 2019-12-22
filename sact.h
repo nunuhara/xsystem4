@@ -50,6 +50,7 @@ struct sact_sprite *sact_get_sprite(int sp);
 struct texture *sact_get_texture(int sp_no);
 
 int sact_Init(void);
+int sact_SetWP(int cg_no);
 int sact_Update(void);
 int sact_Effect(int type, int time, int key);
 int sact_SP_GetUnuseNum(int min);

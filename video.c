@@ -203,7 +203,6 @@ static void main_surface_init(int w, int h)
 {
 	gfx_delete_texture(&main_surface);
 
-
 	glGenTextures(1, &main_surface.handle);
 	glBindTexture(GL_TEXTURE_2D, main_surface.handle);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
@@ -235,6 +234,15 @@ void gfx_set_window_size(int w, int h)
 void gfx_set_wait_vsync(bool wait)
 {
 	SDL_GL_SetSwapInterval(wait);
+}
+
+void gfx_set_clear_color(int r, int g, int b, int a)
+{
+	float rf = max(0, min(255, r)) / 255.0;
+	float gf = max(0, min(255, g)) / 255.0;
+	float bf = max(0, min(255, b)) / 255.0;
+	float af = max(0, min(255, a)) / 255.0;
+	glClearColor(rf, gf, bf, af);
 }
 
 void gfx_clear(void)

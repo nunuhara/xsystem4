@@ -30,9 +30,9 @@ hll_defun_inline(Init, sact_Init());
 // int Error(string strErr)
 hll_unimplemented(SACT2, Error);
 // int SetWP(int nCG)
-hll_warn_unimplemented(SACT2, SetWP, 1);
+hll_defun_inline(SetWP, sact_SetWP(a[0].i));
 // int SetWP_Color(int nR, int nG, int nB)
-hll_warn_unimplemented(SACT2, SetWP_Color, 1);
+hll_defun_inline(SetWP_Color, (gfx_set_clear_color(a[0].i, a[1].i, a[2].i, 255), 1));
 // int WP_GetSP(int nSP)
 hll_unimplemented(SACT2, WP_GetSP);
 // int WP_SetSP(int nSP)
@@ -547,7 +547,7 @@ hll_defun(System_GetTime, args)
 // void CG_RotateRGB(int nDest, int nDx, int nDy, int nWidth, int nHeight, int nRotateType)
 hll_unimplemented(SACT2, CG_RotateRGB);
 // void CG_BlendAMapBin(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nBorder)
-hll_unimplemented(SACT2, CG_BlendAMapBin);
+hll_defun_inline(CG_BlendAMapBin, (gfx_copy_use_amap_border(sact_get_texture(a[0].i), a[1].i, a[2].i, sact_get_texture(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
 // void Debug_Pause(void)
 hll_unimplemented(SACT2, Debug_Pause);
 // void Debug_GetFuncStack(ref string sz, int nNest)

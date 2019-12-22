@@ -28,6 +28,9 @@ static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r
 static struct sact_sprite **sprites = NULL;
 static int nr_sprites = 0;
 
+// wallpaper
+static struct sact_sprite wp;
+
 TAILQ_HEAD(listhead, sact_sprite) sprite_list =
 	TAILQ_HEAD_INITIALIZER(sprite_list);
 
@@ -112,11 +115,31 @@ int sact_Init(void)
 	return 1;
 }
 
+int sact_SetWP(int cg_no)
+{
+	if (!cg_no) {
+		gfx_delete_texture(&wp.texture);
+		return 1;
+	}
+
+	struct cg *cg = cg_load(cg_no - 1);
+	if (!cg)
+		return 0;
+
+	gfx_delete_texture(&wp.texture);
+	gfx_init_texture_with_cg(&wp.texture, cg);
+	return 1;
+}
+
 int sact_Update(void)
 {
 	handle_events();
 
 	gfx_clear();
+	if (wp.texture.handle) {
+		Rectangle r = RECT(0, 0, wp.texture.w, wp.texture.h);
+		gfx_render_texture(&wp.texture, &r);
+	}
 	struct sact_sprite *p;
 	TAILQ_FOREACH(p, &sprite_list, entry) {
 		if (!p->texture.handle) {
@@ -278,12 +301,13 @@ int sact_SP_Count(void)
 
 int sact_SP_Enum(union vm_value *array, int size)
 {
-	for (int i = 0, count = 0; i < nr_sprites && count < size; i++) {
+	int count = 0;
+	for (int i = 0; i < nr_sprites && count < size; i++) {
 		if (sprites[i]) {
 			array[count++].i = i;
 		}
 	}
-	return 0;
+	return count;
 }
 
 int sact_SP_GetMaxZ(void)
