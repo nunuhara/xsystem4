@@ -18,6 +18,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <SDL.h> // for system.MsgBox
 
 #include "system4.h"
 #include "vm.h"
@@ -469,6 +470,7 @@ enum syscall_code {
 	SYS_LOCK_PEEK            = 0x03,
 	SYS_UNLOCK_PEEK          = 0x04,
 	SYS_OUTPUT               = 0x06,
+	SYS_MSGBOX               = 0x07,
 	SYS_EXISTS_FILE          = 0x0A,
 	SYS_GET_SAVE_FOLDER_NAME = 0x0C,
 	SYS_GET_TIME             = 0x0D,
@@ -484,12 +486,11 @@ enum syscall_code {
 
 static void system_call(int32_t code)
 {
-	char *utf;
-	struct string *str;
 	switch (code) {
-	case SYS_EXIT: // system.Exit(int nResult)
+	case SYS_EXIT: {// system.Exit(int nResult)
 		vm_exit(stack_pop().i);
 		break;
+	}
 	case SYS_GLOBAL_SAVE: { // system.GlobalSave(string szKeyName, string szFileName)
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
@@ -507,16 +508,25 @@ static void system_call(int32_t code)
 		break;
 	}
 	case SYS_LOCK_PEEK: // system.LockPeek(void)
-	case SYS_UNLOCK_PEEK: // system.UnlockPeek(void)
+	case SYS_UNLOCK_PEEK: {// system.UnlockPeek(void)
 		stack_push(1);
 		break;
-	case SYS_OUTPUT: // system.Output(string szText)
-		str = stack_peek_string(0);
-		utf = sjis2utf(str->text, str->size);
+	}
+	case SYS_OUTPUT: {// system.Output(string szText)
+		struct string *str = stack_peek_string(0);
+		char *utf = sjis2utf(str->text, str->size);
 		sys_message("%s", utf);
 		free(utf);
 		// XXX: caller S_POPs
 		break;
+	}
+	case SYS_MSGBOX: {
+		struct string *str = stack_peek_string(0);
+		char *utf = sjis2utf(str->text, str->size);
+		SDL_ShowSimpleMessageBox(0, "xsystem4", utf, NULL);
+		free(utf);
+		break;
+	}
 	case SYS_EXISTS_FILE: { // system.ExistsFile(string szFileName)
 		int str = stack_pop().i;
 		char *path = unix_path(heap[str].s->text);
@@ -525,22 +535,25 @@ static void system_call(int32_t code)
 		free(path);
 		break;
 	}
-	case SYS_GET_SAVE_FOLDER_NAME: // system.GetSaveFolderName(void)
+	case SYS_GET_SAVE_FOLDER_NAME: {// system.GetSaveFolderName(void)
 		if (config.save_dir)
 			stack_push_string(make_string(config.save_dir, strlen(config.save_dir)));
 		else
 			stack_push_string(string_ref(&EMPTY_STRING));
 		break;
-	case SYS_GET_TIME: // system.GetTime(void)
+	}
+	case SYS_GET_TIME: {// system.GetTime(void)
 		stack_push(vm_time());
 		break;
-	case SYS_ERROR: // system.Error(string szText)
-		str = stack_peek_string(0);
-		utf = sjis2utf(str->text, str->size);
+	}
+	case SYS_ERROR: {// system.Error(string szText)
+		struct string *str = stack_peek_string(0);
+		char *utf = sjis2utf(str->text, str->size);
 		sys_warning("*GAME ERROR*: %s\n", utf);
 		free(utf);
 		// XXX: caller S_POPs
 		break;
+	}
 	case SYS_EXISTS_SAVE_FILE: {
 		int slot = stack_pop().i;
 		struct string *name = heap[slot].s;
@@ -557,9 +570,10 @@ static void system_call(int32_t code)
 		free(path);
 		break;
 	}
-	case SYS_IS_DEBUG_MODE: // system.IsDebugMode(void)
+	case SYS_IS_DEBUG_MODE: {// system.IsDebugMode(void)
 		stack_push(0);
 		break;
+	}
 	case SYS_GET_FUNC_STACK_NAME: { // system.GetFuncStackName(int nIndex)
 		int i = call_stack_ptr - (1 + stack_pop().i);
 		if (i < 0 || i >= call_stack_ptr) {
@@ -572,11 +586,13 @@ static void system_call(int32_t code)
 		stack_push_string(make_string(fun->name, strlen(fun->name)));
 		break;
 	}
-	case SYS_PEEK: // system.Peek(void)
+	case SYS_PEEK: {// system.Peek(void)
 		break;
-	case SYS_SLEEP: // system.Sleep(int nSleep)
+	}
+	case SYS_SLEEP: {// system.Sleep(int nSleep)
 		stack_pop();
 		break;
+	}
 	case SYS_GROUP_SAVE: { // system.GroupSave(string szKeyName, string szFileName, string szGroupName, ref int nNumofLoad)
 		union vm_value *n = stack_pop_var();
 		int groupname = stack_pop().i;
