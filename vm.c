@@ -536,10 +536,13 @@ static void system_call(int32_t code)
 		break;
 	}
 	case SYS_GET_SAVE_FOLDER_NAME: {// system.GetSaveFolderName(void)
-		if (config.save_dir)
-			stack_push_string(make_string(config.save_dir, strlen(config.save_dir)));
-		else
+		if (config.save_dir) {
+			char *sjis = utf2sjis(config.save_dir, strlen(config.save_dir));
+			stack_push_string(make_string(sjis, strlen(sjis)));
+			//stack_push_string(make_string(config.save_dir, strlen(config.save_dir)));
+		} else {
 			stack_push_string(string_ref(&EMPTY_STRING));
+		}
 		break;
 	}
 	case SYS_GET_TIME: {// system.GetTime(void)
