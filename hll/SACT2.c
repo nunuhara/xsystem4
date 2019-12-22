@@ -369,9 +369,9 @@ hll_defun(Mouse_GetWheel, args)
 }
 
 // void Joypad_ClearKeyDownFlag(int nNum)
-hll_warn_unimplemented(SACT2, Joypad_ClearKeyDownFlag, 0);
+hll_defun_inline(Joypad_ClearKeyDownFlag, 0);
 // int Joypad_IsKeyDown(int nNum, int nKey)
-hll_unimplemented(SACT2, Joypad_IsKeyDown);
+hll_defun_inline(Joypad_IsKeyDown, 0);
 // int Joypad_GetNumof(void)
 hll_unimplemented(SACT2, Joypad_GetNumof);
 // void JoypadQuake_Set(int nNum, int nType, int nMagnitude)
@@ -507,10 +507,35 @@ hll_unimplemented(SACT2, Sound_GetTimeLength);
 hll_unimplemented(SACT2, Sound_GetGroupNum);
 // bool Sound_PrepareFromFile(int nCh, string szFileName)
 hll_unimplemented(SACT2, Sound_PrepareFromFile);
+
 // void System_GetDate(ref int pnYear, ref int pnMonth, ref int pnDay, ref int pnDayOfWeek)
-hll_unimplemented(SACT2, System_GetDate);
+hll_defun(System_GetDate, args)
+{
+	time_t t = time(NULL);
+	struct tm *tm = localtime(&t);
+
+	*args[0].iref = tm->tm_year;
+	*args[1].iref = tm->tm_mon;
+	*args[2].iref = tm->tm_mday;
+	*args[3].iref = tm->tm_wday;
+	hll_return(0);
+}
+
 // void System_GetTime(ref int pnHour, ref int pnMinute, ref int pnSecond, ref int pnMilliSeconds)
-hll_unimplemented(SACT2, System_GetTime);
+hll_defun(System_GetTime, args)
+{
+	time_t t = time(NULL);
+	struct tm *tm = localtime(&t);
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+
+	*args[0].iref = tm->tm_hour;
+	*args[1].iref = tm->tm_min;
+	*args[2].iref = ts.tv_sec;
+	*args[3].iref = ts.tv_nsec / 1000000;
+	hll_return(0);
+}
+
 // void CG_RotateRGB(int nDest, int nDx, int nDy, int nWidth, int nHeight, int nRotateType)
 hll_unimplemented(SACT2, CG_RotateRGB);
 // void CG_BlendAMapBin(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nBorder)
