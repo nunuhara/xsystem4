@@ -266,6 +266,26 @@ int sact_SP_GetUnuseNum(int min)
 	return n;
 }
 
+int sact_SP_Count(void)
+{
+	int count = 0;
+	for (int i = 0; i < nr_sprites; i++) {
+		if (sprites[i])
+			count++;
+	}
+	return count;
+}
+
+int sact_SP_Enum(union vm_value *array, int size)
+{
+	for (int i = 0, count = 0; i < nr_sprites && count < size; i++) {
+		if (sprites[i]) {
+			array[count++].i = i;
+		}
+	}
+	return 0;
+}
+
 int sact_SP_GetMaxZ(void)
 {
 	if (TAILQ_EMPTY(&sprite_list))
@@ -291,7 +311,6 @@ int sact_SP_SetCG(int sp_no, int cg_no)
 	sp->cg_no = cg_no;
 	cg_free(cg);
 	return 1;
-
 }
 
 static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r, int g, int b, int a)

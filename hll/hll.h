@@ -71,6 +71,15 @@ static inline union vm_value *hll_struct_ref(int pageno)
 	return heap[pageno].page->values;
 }
 
+static inline union vm_value *hll_array_ref(int pageno, int *size)
+{
+	if (pageno < 0 || heap[pageno].type != VM_PAGE || !heap[pageno].page || heap[pageno].page->type != ARRAY_PAGE)
+		return NULL;
+	if (size)
+		*size = heap[pageno].page->nr_vars;
+	return heap[pageno].page->values;
+}
+
 static inline struct string *hll_string_ref(int slot)
 {
 	if (slot < 0 || heap[slot].type != VM_STRING)

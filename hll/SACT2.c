@@ -60,9 +60,16 @@ hll_unimplemented(SACT2, QUAKE_SET_ROTATION);
 // int SP_GetUnuseNum(int nMin)
 hll_defun_inline(SP_GetUnuseNum, sact_SP_GetUnuseNum(a[0].i));
 // int SP_Count(void)
-hll_unimplemented(SACT2, SP_Count);
+hll_defun_inline(SP_Count, sact_SP_Count());
+
 // int SP_Enum(ref array@int anSP)
-hll_unimplemented(SACT2, SP_Enum);
+hll_defun(SP_Enum, args)
+{
+	int size;
+	union vm_value *array = hll_array_ref(args[0].i, &size);
+	hll_return(sact_SP_Enum(array, size));
+}
+
 // int SP_GetMaxZ(void)
 hll_defun_inline(SP_GetMaxZ, sact_SP_GetMaxZ());
 // int SP_SetCG(int nSP, int nCG)
@@ -350,6 +357,7 @@ hll_unimplemented(SACT2, StringPopFront);
 // int Mouse_GetPos(ref int pnX, ref int pnY)
 hll_defun(Mouse_GetPos, args)
 {
+	handle_events();
 	mouse_get_pos(args[0].iref, args[1].iref);
 	hll_return(mouse_focus && keyboard_focus);
 }
