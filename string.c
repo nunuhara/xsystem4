@@ -18,10 +18,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "heap.h"
 #include "system4.h"
+#include "utfsjis.h"
 #include "vm.h"
 #include "vm_string.h"
-#include "utfsjis.h"
 
 struct string EMPTY_STRING = {
 	.cow = true,

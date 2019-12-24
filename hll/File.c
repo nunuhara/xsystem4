@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 #include "hll.h"
 #include "../file.h"
+#include "../heap.h"
 #include "../savedata.h"
 #include "../system4.h"
 
@@ -73,7 +74,7 @@ hll_defun(Close, args)
 //int Read(ref struct pIVMStruct)
 hll_defun(Read, args)
 {
-	struct page *page = vm_get_page(args[0].i);
+	struct page *page = heap_get_page(args[0].i);
 	if (page->type != STRUCT_PAGE) {
 		VM_ERROR("File.Read of non-struct");
 	}

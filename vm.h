@@ -32,31 +32,9 @@ union vm_value {
 	float *fref;
 };
 
-enum vm_pointer_type {
-	VM_PAGE,
-	VM_STRING
-};
-
-#define NR_VM_POINTER_TYPES (VM_STRING+1)
-
 struct string;
 struct page;
 enum ain_data_type;
-
-// Heap-backed objects. Reference counted.
-struct vm_pointer {
-	int ref;
-	enum vm_pointer_type type;
-	union {
-		struct string *s;
-		struct page *page;
-	};
-#ifdef DEBUG_HEAP
-	size_t alloc_addr;
-	size_t ref_addr;
-	size_t free_addr;
-#endif
-};
 
 struct hll_function {
 	char *name;
@@ -70,14 +48,9 @@ struct library {
 
 struct ain;
 
-struct vm_pointer *heap;
 union vm_value *stack;
 int32_t stack_ptr;
 struct ain *ain;
-
-int32_t heap_alloc_slot(enum vm_pointer_type type);
-void heap_ref(int slot);
-void heap_unref(int slot);
 
 static inline union vm_value _vm_id(union vm_value v)
 {
@@ -126,12 +99,10 @@ static inline void stack_push_value(union vm_value v)
 #define stack_push(v) (stack_push_value(vm_value_cast(v)))
 union vm_value stack_pop(void);
 
-void heap_set_page(int slot, struct page *page);
-
 union vm_value global_get(int varno);
 void global_set(int varno, union vm_value val);
+bool heap_index_valid(int index);
 bool page_index_valid(int index);
-struct page *vm_get_page(int index);
 struct page *local_page(void);
 
 int vm_string_ref(struct string *s);

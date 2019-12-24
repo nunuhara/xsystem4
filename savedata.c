@@ -18,11 +18,12 @@
 #include <string.h>
 #include <errno.h>
 #include "system4.h"
-#include "savedata.h"
 #include "ain.h"
-#include "page.h"
-#include "vm.h"
 #include "cJSON.h"
+#include "heap.h"
+#include "page.h"
+#include "savedata.h"
+#include "vm.h"
 
 static int current_global;
 
@@ -44,7 +45,7 @@ static char *savedir_path(const char *filename)
 
 static cJSON *page_to_json(int index)
 {
-	struct page *page = vm_get_page(index);
+	struct page *page = heap_get_page(index);
 	if (!page)
 		return cJSON_CreateNull();
 

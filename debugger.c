@@ -17,9 +17,10 @@
 #include <stdio.h>
 #include <chibi/eval.h>
 
-#include "vm.h"
+#include "heap.h"
 #include "page.h"
 #include "utfsjis.h"
+#include "vm.h"
 
 struct variable {
 	enum ain_data_type data_type;
@@ -49,7 +50,7 @@ static struct page *get_page(int pageno)
 {
 	if (!page_index_valid(pageno))
 		return NULL;
-	return vm_get_page(pageno);
+	return heap_get_page(pageno);
 }
 
 static struct variable *get_global_by_name(const char *name)

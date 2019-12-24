@@ -16,9 +16,10 @@
 
 #include "system4.h"
 #include "ain.h"
+#include "heap.h"
+#include "page.h"
 #include "vm.h"
 #include "vm_string.h"
-#include "page.h"
 
 #define NR_CACHES 8
 #define CACHE_SIZE 64

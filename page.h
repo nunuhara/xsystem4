@@ -19,8 +19,8 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "vm.h"
 #include "ain.h"
+#include "vm.h"
 
 struct ain_variable;
 enum ain_data_type;
@@ -60,16 +60,6 @@ struct page {
 	int nr_vars;
 	union vm_value values[];
 };
-
-static inline union vm_value page_get(int pageno, int varno)
-{
-	return heap[pageno].page->values[varno];
-}
-
-static inline void page_set(int pageno, int varno, union vm_value v)
-{
-	heap[pageno].page->values[varno] = v;
-}
 
 // variables
 union vm_value variable_initval(enum ain_data_type type);

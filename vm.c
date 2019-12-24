@@ -26,6 +26,7 @@
 #include "page.h"
 #include "ain.h"
 #include "file.h"
+#include "heap.h"
 #include "instructions.h"
 #include "little_endian.h"
 #include "savedata.h"
@@ -33,8 +34,6 @@
 #include "debugger.h"
 
 #define INITIAL_STACK_SIZE 4096
-#define INITIAL_HEAP_SIZE  4096
-#define HEAP_ALLOC_STEP    4096
 #define HLL_MAX_ARGS 64
 
 // When the IP is set to VM_RETURN, the VM halts
@@ -56,16 +55,6 @@ struct function_call {
 union vm_value *stack = NULL; // the stack
 int32_t stack_ptr = 0;        // pointer to the top of the stack
 static size_t stack_size;     // current size of the stack
-
-// The heap
-// An array of pointers to heap-allocated objects, plus reference counts.
-struct vm_pointer *heap;
-static size_t heap_size;
-
-// Heap free list
-// This is a list of unused indices into the 'heap' array.
-static int32_t *heap_free_stack;
-static size_t heap_free_ptr = 0;
 
 // Stack of function call frames
 static struct function_call call_stack[4096];
@@ -100,87 +89,6 @@ static const char *current_instruction_name(void)
 	if (opcode >= 0 && opcode < NR_OPCODES)
 		return instructions[opcode].name;
 	return "UNKNOWN OPCODE";
-}
-
-int32_t heap_alloc_slot(enum vm_pointer_type type)
-{
-	// grow heap if needed
-	if (heap_free_ptr >= heap_size) {
-		heap = xrealloc(heap, sizeof(struct vm_pointer) * (heap_size+HEAP_ALLOC_STEP));
-		heap_free_stack = xrealloc(heap_free_stack, sizeof(int32_t) * (heap_size+HEAP_ALLOC_STEP));
-		for (size_t i = heap_size; i < heap_size+HEAP_ALLOC_STEP; i++) {
-			heap_free_stack[i] = i;
-		}
-		heap_size += HEAP_ALLOC_STEP;
-	}
-
-	int32_t slot = heap_free_stack[heap_free_ptr++];
-	heap[slot].ref = 1;
-	heap[slot].type = type;
-#ifdef DEBUG_HEAP
-	heap[slot].alloc_addr = instr_ptr;
-	heap[slot].ref_addr = 0;
-#endif
-	return slot;
-}
-
-static void heap_free_slot(int32_t slot)
-{
-	heap_free_stack[--heap_free_ptr] = slot;
-}
-
-void heap_ref(int32_t slot)
-{
-	if (slot == -1)
-		return;
-	heap[slot].ref++;
-#ifdef DEBUG_HEAP
-	heap[slot].ref_addr = instr_ptr;
-#endif
-}
-
-static const char *vm_ptrtype_strtab[] = {
-	[VM_PAGE] = "VM_PAGE",
-	[VM_STRING] = "VM_STRING",
-};
-
-static const char *vm_ptrtype_string(enum vm_pointer_type type) {
-	if (type < NR_VM_POINTER_TYPES)
-		return vm_ptrtype_strtab[type];
-	return "INVALID POINTER TYPE";
-}
-
-void heap_unref(int slot)
-{
-	if (heap[slot].ref <= 0) {
-#ifdef DEBUG_HEAP
-		VM_ERROR("double free of slot %d (%s)\nOriginally allocd at %X\nOriginally freed at %X",
-			 slot, vm_ptrtype_string(heap[slot].type), heap[slot].alloc_addr, heap[slot].free_addr);
-#endif
-		VM_ERROR("double free of slot %d (%s)", slot, vm_ptrtype_string(heap[slot].type));
-	}
-	if (--heap[slot].ref <= 0) {
-#ifdef DEBUG_HEAP
-		heap[slot].free_addr = instr_ptr;
-#endif
-		switch (heap[slot].type) {
-		case VM_PAGE:
-			if (heap[slot].page) {
-				delete_page(heap[slot].page);
-				free_page(heap[slot].page);
-			}
-			break;
-		case VM_STRING:
-			free_string(heap[slot].s);
-			break;
-		}
-		heap_free_slot(slot);
-	}
-}
-
-void heap_set_page(int slot, struct page *page)
-{
-	heap[slot].page = page;
 }
 
 static int local_page_slot(void)
@@ -238,18 +146,6 @@ static union vm_value *struct_page(void)
 	return heap[struct_page_slot()].page->values;
 }
 
-bool page_index_valid(int index)
-{
-	return index >= 0 && (size_t)index < heap_size && heap[index].ref > 0 && heap[index].type == VM_PAGE;
-}
-
-struct page *vm_get_page(int index)
-{
-	if (!page_index_valid(index))
-		VM_ERROR("Invalid page index: %d", index);
-	return heap[index].page;
-}
-
 static union vm_value stack_peek(int n)
 {
 	return stack[stack_ptr - (1 + n)];
@@ -271,7 +167,7 @@ static union vm_value *stack_pop_var(void)
 {
 	int32_t page_index = stack_pop().i;
 	int32_t heap_index = stack_pop().i;
-	if (heap_index < 0 || (size_t)heap_index >= heap_size)
+	if (!heap_index_valid(heap_index))
 		VM_ERROR("Out of bounds heap index: %d/%d", heap_index, page_index);
 	if (!heap[heap_index].page || page_index >= heap[heap_index].page->nr_vars)
 		VM_ERROR("Out of bounds page index: %d/%d", heap_index, page_index);
@@ -1705,14 +1601,7 @@ void vm_execute_ain(struct ain *program)
 	stack = xmalloc(INITIAL_STACK_SIZE * sizeof(union vm_value));
 	stack_ptr = 0;
 
-	heap_size = INITIAL_HEAP_SIZE;
-	heap = xmalloc(INITIAL_HEAP_SIZE * sizeof(struct vm_pointer));
-
-	heap_free_stack = xmalloc(INITIAL_HEAP_SIZE * sizeof(int32_t));
-	for (size_t i = 0; i < INITIAL_HEAP_SIZE; i++) {
-		heap_free_stack[i] = i;
-	}
-	heap_free_ptr = 1; // global page at index 0
+	heap_init();
 
 	ain = program;
 

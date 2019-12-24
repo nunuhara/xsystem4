@@ -22,6 +22,7 @@
  */
 
 #include "../vm.h"
+#include "../heap.h"
 #include "../page.h"
 #include "../system4.h"
 
