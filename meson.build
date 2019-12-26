@@ -9,6 +9,7 @@ system4 = ['ain.c',
 ]
 
 xsystem4 = ['ald.c',
+            'audio.c',
             'cJSON.c',
             'cg.c',
             'draw.c',
@@ -47,9 +48,10 @@ zlib = dependency('zlib')
 libm = meson.get_compiler('c').find_library('m', required: false)
 sdl2 = dependency('sdl2')
 sdl2ttf = dependency('SDL2_ttf')
+sdl2mixer = dependency('SDL2_mixer')
 gl = dependency('GL')
 glew = dependency('glew')
-xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, gl, glew]
+xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, gl, glew]
 
 chibi = dependency('chibi-scheme', required : get_option('debugger'))
 if chibi.found()

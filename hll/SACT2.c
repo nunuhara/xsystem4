@@ -17,13 +17,14 @@
 #include <math.h>
 #include <time.h>
 #include "hll.h"
-#include "../system4.h"
-#include "../vm.h"
+#include "../audio.h"
 #include "../cg.h"
 #include "../input.h"
 #include "../queue.h"
 #include "../gfx_core.h"
 #include "../sact.h"
+#include "../system4.h"
+#include "../vm.h"
 
 // int Init(imain_system pIMainSystem, int nCGCacheSize)
 hll_defun_inline(Init, sact_Init());
@@ -436,7 +437,7 @@ hll_unimplemented(SACT2, CSV_SetInt);
 // void CSV_Realloc(int nLines, int nColumns)
 hll_unimplemented(SACT2, CSV_Realloc);
 // int Music_IsExist(int nNum)
-hll_warn_unimplemented(SACT2, Music_IsExist, 1);
+hll_defun_inline(Music_IsExist, music_exists(a[0].i - 1));
 // int Music_Prepare(int nCh, int nNum)
 hll_warn_unimplemented(SACT2, Music_Prepare, 1);
 // int Music_Unprepare(int nCh)
@@ -478,7 +479,7 @@ hll_warn_unimplemented(SACT2, Music_GetSampleLength, 1);
 // int Music_Seek(int nCh, int dwPos)
 hll_warn_unimplemented(SACT2, Music_Seek, 1);
 // int Sound_IsExist(int nNum)
-hll_warn_unimplemented(SACT2, Sound_IsExist, 0);
+hll_defun_inline(Sound_IsExist, sound_exists(a[0].i - 1));
 // int Sound_GetUnuseChannel(void)
 hll_unimplemented(SACT2, Sound_GetUnuseChannel);
 // int Sound_Prepare(int nCh, int nNum)

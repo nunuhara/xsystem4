@@ -16,6 +16,7 @@
 
 #include "system4.h"
 #include "sact.h"
+#include "audio.h"
 #include "cg.h"
 #include "input.h"
 #include "gfx_core.h"
@@ -101,6 +102,7 @@ int sact_Init(void)
 {
 	gfx_init();
 	gfx_font_init();
+	audio_init();
 
 	nr_sprites = 256;
 	sprites = xmalloc(sizeof(struct sact_sprite*) * 257);
