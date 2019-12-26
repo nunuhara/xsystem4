@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#define VM_PRIVATE
+
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -44,24 +46,17 @@
  *       System40.exe uses a JIT compiler, and we should too.
  */
 
-struct function_call {
-	int32_t fno;
-	uint32_t return_address;
-	int32_t page_slot;
-	int32_t struct_page;
-};
-
 // The stack
 union vm_value *stack = NULL; // the stack
 int32_t stack_ptr = 0;        // pointer to the top of the stack
 static size_t stack_size;     // current size of the stack
 
 // Stack of function call frames
-static struct function_call call_stack[4096];
-static int32_t call_stack_ptr = 0; // 0 = imaginary frame before main()
+struct function_call call_stack[4096];
+int32_t call_stack_ptr = 0;
 
 struct ain *ain;
-static size_t instr_ptr = 0;
+size_t instr_ptr = 0;
 
 // Read the opcode at ADDR.
 static int16_t get_opcode(size_t addr)
@@ -367,6 +362,8 @@ enum syscall_code {
 	SYS_UNLOCK_PEEK          = 0x04,
 	SYS_OUTPUT               = 0x06,
 	SYS_MSGBOX               = 0x07,
+	SYS_RESUME_SAVE          = 0x08,
+	SYS_RESUME_LOAD          = 0x09,
 	SYS_EXISTS_FILE          = 0x0A,
 	SYS_GET_SAVE_FOLDER_NAME = 0x0C,
 	SYS_GET_TIME             = 0x0D,
@@ -421,6 +418,28 @@ static void system_call(int32_t code)
 		char *utf = sjis2utf(str->text, str->size);
 		SDL_ShowSimpleMessageBox(0, "xsystem4", utf, NULL);
 		free(utf);
+		// XXX: caller S_POPs
+		break;
+	}
+	case SYS_RESUME_SAVE: {
+		union vm_value *success = stack_pop_var();
+		struct string *filename = stack_peek_string(0);
+		struct string *keyname = stack_peek_string(1);
+		success->i = vm_save_image(keyname->text, filename->text);
+		heap_unref(stack_pop().i);
+		heap_unref(stack_pop().i);
+		stack_push(1);
+		break;
+	}
+	case SYS_RESUME_LOAD: {
+		int filename_slot = stack_pop().i;
+		int key_slot = stack_pop().i;
+		vm_load_image(heap[key_slot].s->text, heap[filename_slot].s->text);
+		//heap_unref(stack_pop().i);
+		//heap_unref(stack_pop().i);
+		stack_pop();
+		stack_pop();
+		stack_push(0);
 		break;
 	}
 	case SYS_EXISTS_FILE: { // system.ExistsFile(string szFileName)
@@ -435,7 +454,7 @@ static void system_call(int32_t code)
 		if (config.save_dir) {
 			char *sjis = utf2sjis(config.save_dir, strlen(config.save_dir));
 			stack_push_string(make_string(sjis, strlen(sjis)));
-			//stack_push_string(make_string(config.save_dir, strlen(config.save_dir)));
+			free(sjis);
 		} else {
 			stack_push_string(string_ref(&EMPTY_STRING));
 		}

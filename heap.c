@@ -23,12 +23,12 @@
 #define HEAP_ALLOC_STEP    4096
 
 struct vm_pointer *heap;
-static size_t heap_size;
+size_t heap_size;
 
 // Heap free list
 // This is a list of unused indices into the 'heap' array.
-static int32_t *heap_free_stack;
-static size_t heap_free_ptr = 0;
+int32_t *heap_free_stack;
+size_t heap_free_ptr = 0;
 
 static const char *vm_ptrtype_strtab[] = {
 	[VM_PAGE] = "VM_PAGE",
@@ -44,7 +44,7 @@ static const char *vm_ptrtype_string(enum vm_pointer_type type) {
 void heap_init(void)
 {
 	heap_size = INITIAL_HEAP_SIZE;
-	heap = xmalloc(INITIAL_HEAP_SIZE * sizeof(struct vm_pointer));
+	heap = xcalloc(1, INITIAL_HEAP_SIZE * sizeof(struct vm_pointer));
 
 	heap_free_stack = xmalloc(INITIAL_HEAP_SIZE * sizeof(int32_t));
 	for (size_t i = 0; i < INITIAL_HEAP_SIZE; i++) {
@@ -60,6 +60,7 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 		heap = xrealloc(heap, sizeof(struct vm_pointer) * (heap_size+HEAP_ALLOC_STEP));
 		heap_free_stack = xrealloc(heap_free_stack, sizeof(int32_t) * (heap_size+HEAP_ALLOC_STEP));
 		for (size_t i = heap_size; i < heap_size+HEAP_ALLOC_STEP; i++) {
+			heap[i].ref = 0;
 			heap_free_stack[i] = i;
 		}
 		heap_size += HEAP_ALLOC_STEP;
@@ -139,4 +140,3 @@ void heap_set_page(int slot, struct page *page)
 {
 	heap[slot].page = page;
 }
-

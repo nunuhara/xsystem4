@@ -24,6 +24,7 @@ cJSON *vm_value_to_json(enum ain_data_type type, union vm_value val);
 void json_load_page(struct page *page, cJSON *vars);
 union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json);
 
+int save_json(const char *filename, cJSON *json);
 int save_globals(const char *keyname, const char *filename);
 int save_group(const char *keyname, const char *filename, const char *group_name, int *n);
 int load_globals(const char *keyname, const char *filename, const char *group_name, int *n);

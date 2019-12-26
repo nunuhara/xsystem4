@@ -490,7 +490,7 @@ hll_unimplemented(SACT2, Sound_Play);
 // int Sound_Stop(int nCh)
 hll_unimplemented(SACT2, Sound_Stop);
 // int Sound_IsPlay(int nCh)
-hll_unimplemented(SACT2, Sound_IsPlay);
+hll_warn_unimplemented(SACT2, Sound_IsPlay, 0);
 // int Sound_SetLoopCount(int nCh, int nCount)
 hll_unimplemented(SACT2, Sound_SetLoopCount);
 // int Sound_GetLoopCount(int nCh)

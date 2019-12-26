@@ -21,6 +21,11 @@
 #include <stdint.h>
 #include "system4.h"
 
+struct ain;
+enum ain_data_type;
+struct page;
+struct string;
+
 // Non-heap values. Stored in pages and on the stack.
 union vm_value {
 	int32_t i;
@@ -32,10 +37,6 @@ union vm_value {
 	float *fref;
 };
 
-struct string;
-struct page;
-enum ain_data_type;
-
 struct hll_function {
 	char *name;
 	union vm_value (*fun)(union vm_value *_args);
@@ -46,11 +47,10 @@ struct library {
 	struct hll_function **functions;
 };
 
-struct ain;
+struct ain *ain;
 
 union vm_value *stack;
 int32_t stack_ptr;
-struct ain *ain;
 
 static inline union vm_value _vm_id(union vm_value v)
 {
@@ -101,8 +101,6 @@ union vm_value stack_pop(void);
 
 union vm_value global_get(int varno);
 void global_set(int varno, union vm_value val);
-bool heap_index_valid(int index);
-bool page_index_valid(int index);
 struct page *local_page(void);
 
 int vm_string_ref(struct string *s);
@@ -119,4 +117,22 @@ noreturn void vm_exit(int code);
 #define VM_ERROR(fmt, ...) \
 	_vm_error("*ERROR*(%s:%s:%d): " fmt "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
 
+#ifdef VM_PRIVATE
+
+struct function_call {
+	int32_t fno;
+	uint32_t return_address;
+	int32_t page_slot;
+	int32_t struct_page;
+};
+
+struct function_call call_stack[4096];
+int32_t call_stack_ptr;
+
+size_t instr_ptr;
+
+int vm_save_image(const char *key, const char *path);
+void vm_load_image(const char *key, const char *path);
+
+#endif /* VM_PRIVATE */
 #endif /* SYSTEM4_VM_H */

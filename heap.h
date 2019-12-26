@@ -17,6 +17,8 @@
 #ifndef SYSTEM4_HEAP_H
 #define SYSTEM4_HEAP_H
 
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct string;
@@ -44,13 +46,25 @@ struct vm_pointer {
 };
 
 struct vm_pointer *heap;
+size_t heap_size;
 
 void heap_init(void);
+void heap_delete(void);
+
 int32_t heap_alloc_slot(enum vm_pointer_type type);
 void heap_ref(int slot);
 void heap_unref(int slot);
 
+bool heap_index_valid(int index);
+bool page_index_valid(int index);
+
 struct page *heap_get_page(int index);
 void heap_set_page(int slot, struct page *page);
 
+#ifdef VM_PRIVATE
+
+int32_t *heap_free_stack;
+size_t heap_free_ptr;
+
+#endif /* VM_PRIVATE */
 #endif /* SYSTEM4_HEAP_H */

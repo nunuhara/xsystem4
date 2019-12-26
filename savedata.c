@@ -34,15 +34,6 @@ static int current_global;
 		free(str);						\
 	}
 
-static char *savedir_path(const char *filename)
-{
-	char *path = xmalloc(strlen(config.save_dir) + 1 + strlen(filename) + 1);
-	strcpy(path, config.save_dir);
-	strcat(path, "/");
-	strcat(path, filename);
-	return path;
-}
-
 static cJSON *page_to_json(int index)
 {
 	struct page *page = heap_get_page(index);
@@ -103,7 +94,7 @@ static void add_global(struct global_save_data *data, int global, union vm_value
 	cJSON_AddItemToArray(data->globals, obj);
 }
 
-static int write_save_data(struct global_save_data *data, const char *filename)
+int save_json(const char *filename, cJSON *json)
 {
 	char *path = savedir_path(filename);
 	FILE *f = fopen(path, "w");
@@ -114,8 +105,7 @@ static int write_save_data(struct global_save_data *data, const char *filename)
 	}
 	free(path);
 
-	char *str = cJSON_Print(data->save);
-	cJSON_Delete(data->save);
+	char *str = cJSON_Print(json);
 
 	if (fwrite(str, strlen(str), 1, f) != 1) {
 		WARNING("Failed to write save file: %s", strerror(errno));
@@ -129,6 +119,14 @@ static int write_save_data(struct global_save_data *data, const char *filename)
 	}
 	free(str);
 	return 1;
+
+}
+
+static int write_save_data(struct global_save_data *data, const char *filename)
+{
+	int r = save_json(filename, data->save);
+	cJSON_Delete(data->save);
+	return r;
 }
 
 int save_globals(const char *keyname, const char *filename)

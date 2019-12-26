@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <string.h>
 #include "system4.h"
 #include "ain.h"
 #include "heap.h"
@@ -49,9 +50,11 @@ struct page *_alloc_page(int nr_vars)
 {
 	int cache_nr = nr_vars - 1;
 	if (cache_nr < NR_CACHES && page_cache[cache_nr].cached) {
-		return page_cache[cache_nr].pages[--page_cache[cache_nr].cached];
+		struct page *page = page_cache[cache_nr].pages[--page_cache[cache_nr].cached];
+		memset(page->values, 0, sizeof(union vm_value) * nr_vars);
+		return page;
 	}
-	return xmalloc(sizeof(struct page) + sizeof(union vm_value) * nr_vars);
+	return xcalloc(1, sizeof(struct page) + sizeof(union vm_value) * nr_vars);
 }
 
 void free_page(struct page *page)

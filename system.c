@@ -121,3 +121,12 @@ char *gamedir_path(const char *path)
 	free(utf);
 	return gamepath;
 }
+
+char *savedir_path(const char *filename)
+{
+	char *path = xmalloc(strlen(config.save_dir) + 1 + strlen(filename) + 1);
+	strcpy(path, config.save_dir);
+	strcat(path, "/");
+	strcat(path, filename);
+	return path;
+}

@@ -83,5 +83,6 @@ struct config config;
 
 char *unix_path(const char *path);
 char *gamedir_path(const char *path);
+char *savedir_path(const char *filename);
 
 #endif /* SYSTEM4_H */
