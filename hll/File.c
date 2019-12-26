@@ -65,6 +65,8 @@ hll_defun(Close, args)
 	}
 	int r = !fclose(current_file);
 	current_file = NULL;
+	if (file_contents)
+		free(file_contents);
 	file_contents = NULL;
 	file_size = 0;
 	file_cursor = 0;
@@ -168,8 +170,10 @@ hll_defun(GetTime, args)
 
 	if (stat(path, &s) < 0) {
 		WARNING("stat failed: %s", strerror(errno));
+		free(path);
 		hll_return(0);
 	}
+	free(path);
 
 	struct tm *tm = localtime(&s.st_mtime);
 	if (!tm) {

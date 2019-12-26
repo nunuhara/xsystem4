@@ -41,8 +41,10 @@ hll_defun(Load, args)
 
 	if (!(fp = fopen(path, "rb"))) {
 		WARNING("ACXLoader.Load: Failed to open %s", path);
+		free(path);
 		hll_return(false);
 	}
+	free(path);
 
 	// get size of ACX file
 	fseek(fp, 0, SEEK_END);
@@ -67,6 +69,7 @@ hll_defun(Load, args)
 	unsigned long size = acx.size;
 	if (Z_OK != uncompress(acx.data_raw, &size, buf+16, len-16)) {
 		WARNING("ACXLoader.Load: uncompress failed");
+		free(buf);
 		hll_return(false);
 	}
 
@@ -74,6 +77,7 @@ hll_defun(Load, args)
 	acx.nr_lines = LittleEndian_getDW(acx.data_raw, 4 + acx.nr_columns * 4);
 	acx.data = acx.data_raw + (8 + acx.nr_columns * 4);
 
+	free(buf);
 	hll_return(true);
 }
 

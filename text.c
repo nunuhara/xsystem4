@@ -333,6 +333,7 @@ void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text)
 	get_glyph(font->font, &glyph, conv, font_metrics.color);
 	render_glyph(dst, &glyph, pos);
 	gfx_delete_texture(&glyph);
+	free(conv);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
@@ -354,6 +355,7 @@ void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text)
 	get_glyph(font->font, &glyph, conv, font_metrics.color);
 	render_glyph(dst, &glyph, pos);
 	gfx_delete_texture(&glyph);
+	free(conv);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }

@@ -79,6 +79,7 @@ static GLuint load_shader_file(const char *path, GLenum type)
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &shader_compiled);
 	if (!shader_compiled)
 		ERROR("Failed to compile shader: %s", path);
+	free((char*)source);
 	return shader;
 }
 
