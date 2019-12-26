@@ -365,55 +365,57 @@ int array_fill(struct page *dst, int dst_i, int n, union vm_value v)
 	return n;
 }
 
-void array_pushback(struct page **dst, union vm_value v, enum ain_data_type data_type, int struct_type)
+struct page *array_pushback(struct page *dst, union vm_value v, enum ain_data_type data_type, int struct_type)
 {
-	if (*dst) {
-		if ((*dst)->type != ARRAY_PAGE)
+	if (dst) {
+		if (dst->type != ARRAY_PAGE)
 			ERROR("Not an array");
-		if ((*dst)->rank != 1)
+		if (dst->rank != 1)
 			ERROR("Tried pushing to a multi-dimensional array");
 
-		int index = (*dst)->nr_vars;
+		int index = dst->nr_vars;
 		union vm_value dims[1] = { (union vm_value) { .i = index + 1 } };
-		*dst = realloc_array(*dst, 1, dims, (*dst)->a_type, (*dst)->struct_type, false);
-		(*dst)->values[index] = v;
+		dst = realloc_array(dst, 1, dims, dst->a_type, dst->struct_type, false);
+		dst->values[index] = v;
 	} else {
 		union vm_value dims[1] = { (union vm_value) { .i = 1 } };
-		*dst = alloc_array(1, dims, data_type, struct_type, false);
-		(*dst)->values[0] = v;
+		dst = alloc_array(1, dims, data_type, struct_type, false);
+		dst->values[0] = v;
 	}
+	return dst;
 }
 
-void array_popback(struct page **dst)
+struct page *array_popback(struct page *dst)
 {
-	if (!(*dst))
-		return;
-	if ((*dst)->type != ARRAY_PAGE)
+	if (!dst)
+		return NULL;
+	if (dst->type != ARRAY_PAGE)
 		ERROR("Not an array");
-	if ((*dst)->rank != 1)
+	if (dst->rank != 1)
 		ERROR("Tried popping from a multi-dimensional array");
 
-	union vm_value dims[1] = { (union vm_value) { .i = (*dst)->nr_vars - 1 } };
-	*dst = realloc_array(*dst, 1, dims, (*dst)->a_type, (*dst)->struct_type, false);
+	union vm_value dims[1] = { (union vm_value) { .i = dst->nr_vars - 1 } };
+	dst = realloc_array(dst, 1, dims, dst->a_type, dst->struct_type, false);
+	return dst;
 }
 
-bool array_erase(struct page **_page, int i)
+struct page *array_erase(struct page *page, int i, bool *success)
 {
-	struct page *page = *_page;
+	*success = false;
 	if (!page)
-		return false;
+		return NULL;
 	if (page->type != ARRAY_PAGE)
 		ERROR("Not an array");
 	if (page->rank != 1)
 		ERROR("Tried erasing from a multi-dimensional array");
 	if (!array_index_ok(page, i))
-		return false;
+		return page;
 
 	// if array will be empty...
 	if (page->nr_vars == 1) {
 		delete_page(page);
-		*_page = NULL;
-		return true;
+		*success = true;
+		return NULL;
 	}
 
 	// delete variable, shift subsequent variables, then realloc page
@@ -422,17 +424,16 @@ bool array_erase(struct page **_page, int i)
 		page->values[j-1] = page->values[j];
 	}
 	page->nr_vars--;
-	*_page = page = xrealloc(page, sizeof(struct page) + sizeof(union vm_value) * page->nr_vars);
+	page = xrealloc(page, sizeof(struct page) + sizeof(union vm_value) * page->nr_vars);
 
-	return true;
+	*success = true;
+	return page;
 }
 
-void array_insert(struct page **_page, int i, union vm_value v, enum ain_data_type data_type, int struct_type)
+struct page *array_insert(struct page *page, int i, union vm_value v, enum ain_data_type data_type, int struct_type)
 {
-	struct page *page = *_page;
 	if (!page) {
-		array_pushback(_page, v, data_type, struct_type);
-		return;
+		return array_pushback(NULL, v, data_type, struct_type);
 	}
 	if (page->type != ARRAY_PAGE)
 		ERROR("Not an array");
@@ -446,11 +447,12 @@ void array_insert(struct page **_page, int i, union vm_value v, enum ain_data_ty
 		i = 0;
 
 	page->nr_vars++;
-	*_page = page = xrealloc(page, sizeof(struct page) + sizeof(union vm_value) * page->nr_vars);
+	page = xrealloc(page, sizeof(struct page) + sizeof(union vm_value) * page->nr_vars);
 	for (int j = page->nr_vars - 1; j > i; j--) {
 		page->values[j] = page->values[j-1];
 	}
 	page->values[i] = v;
+	return page;
 }
 
 static int current_sort_function;
@@ -471,7 +473,7 @@ void array_sort(struct page *page, int compare_fno)
 		return;
 
 	current_sort_function = compare_fno;
-	qsort(page->values, sizeof(union vm_value), page->nr_vars, array_compare);
+	qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare);
 }
 
 int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno)

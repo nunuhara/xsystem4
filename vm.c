@@ -1469,11 +1469,12 @@ static void execute_instruction(enum opcode opcode)
 		int pageno = stack_pop().i;
 		int array = heap[pageno].page->values[varno].i;
 		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type, NULL);
-		array_pushback(&heap[array].page, val, data_type, struct_type);
+		heap_set_page(array, array_pushback(heap[array].page, val, data_type, struct_type));
 		break;
 	}
 	case A_POPBACK: {
-		array_popback(&heap[stack_pop_var()->i].page);
+		int array = stack_pop_var()->i;
+		heap_set_page(array, array_popback(heap[array].page));
 		break;
 	}
 	case A_EMPTY: {
@@ -1484,7 +1485,9 @@ static void execute_instruction(enum opcode opcode)
 	case A_ERASE: {
 		int i = stack_pop().i;
 		int array = stack_pop_var()->i;
-		stack_push(array_erase(&heap[array].page, i));
+		bool success = false;
+		heap_set_page(array, array_erase(heap[array].page, i, &success));
+		stack_push(success);
 		break;
 	}
 	case A_INSERT: {
@@ -1495,7 +1498,7 @@ static void execute_instruction(enum opcode opcode)
 		int pageno = stack_pop().i;
 		int array = heap[pageno].page->values[varno].i;
 		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type, NULL);
-		array_insert(&heap[array].page, i, val, data_type, struct_type);
+		heap_set_page(array, array_insert(heap[array].page, i, val, data_type, struct_type));
 		break;
 	}
 	case A_SORT: {
