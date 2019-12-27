@@ -70,11 +70,13 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 struct page *alloc_page(enum page_type type, int type_index, int nr_vars);
 void free_page(struct page *page);
 struct page *copy_page(struct page *page);
-void delete_page(struct page *page);
+void delete_page_vars(struct page *page);
+void delete_page(int slot);
 
 // structs
 int alloc_struct(int no);
 void init_struct(int no, int slot);
+void delete_struct(int no, int slot);
 void create_struct(int no, union vm_value *var);
 
 // arrays

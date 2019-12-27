@@ -1390,8 +1390,7 @@ static void execute_instruction(enum opcode opcode)
 		if (lval == -1)
 			VM_ERROR("Assignment to null-pointer");
 		if (heap[lval].page) {
-			delete_page(heap[lval].page);
-			free_page(heap[lval].page);
+			delete_page(lval);
 		}
 		heap_set_page(lval, copy_page(heap[rval].page));
 		stack_push(rval);
@@ -1425,7 +1424,7 @@ static void execute_instruction(enum opcode opcode)
 	case A_FREE: {
 		int array = stack_pop_var()->i;
 		if (heap[array].page) {
-			delete_page(heap[array].page);
+			delete_page_vars(heap[array].page);
 			free_page(heap[array].page);
 			heap_set_page(array, NULL);
 		}
@@ -1751,7 +1750,7 @@ noreturn void vm_exit(int code)
 		heap_unref(call_stack[i].page_slot);
 	}
 	// free globals
-	heap_unref(0);
+	exit_unref(0);
 #ifdef DEBUG_HEAP
 	for (size_t i = 0; i < heap_size; i++) {
 		if (heap[i].ref > 0)

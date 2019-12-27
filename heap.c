@@ -100,23 +100,68 @@ void heap_unref(int slot)
 #endif
 		VM_ERROR("double free of slot %d (%s)", slot, vm_ptrtype_string(heap[slot].type));
 	}
-	if (--heap[slot].ref <= 0) {
-#ifdef DEBUG_HEAP
-		heap[slot].free_addr = instr_ptr;
-#endif
-		switch (heap[slot].type) {
-		case VM_PAGE:
-			if (heap[slot].page) {
-				delete_page(heap[slot].page);
-				free_page(heap[slot].page);
-			}
-			break;
-		case VM_STRING:
-			free_string(heap[slot].s);
-			break;
-		}
-		heap_free_slot(slot);
+	if (heap[slot].ref > 1) {
+		heap[slot].ref--;
+		return;
 	}
+#ifdef DEBUG_HEAP
+	heap[slot].free_addr = instr_ptr;
+#endif
+	switch (heap[slot].type) {
+	case VM_PAGE:
+		if (heap[slot].page) {
+			delete_page(slot);
+		}
+		break;
+	case VM_STRING:
+		free_string(heap[slot].s);
+		break;
+	}
+	heap[slot].ref = 0;
+	heap_free_slot(slot);
+}
+
+// XXX: special version of heap_unref which avoids calling destructors
+void exit_unref(int slot)
+{
+	if (slot < 0 || (size_t)slot >= heap_size) {
+		WARNING("out of bounds heap index: %d", slot);
+		return;
+	}
+	if (heap[slot].ref <= 0) {
+		WARNING("double free of slot %d", slot);
+		return;
+	}
+	if (heap[slot].ref > 1) {
+		heap[slot].ref--;
+		return;
+	}
+	switch (heap[slot].type) {
+	case VM_PAGE:
+		if (heap[slot].page) {
+			struct page *page = heap[slot].page;
+			for (int i = 0; i < page->nr_vars; i++) {
+				switch (variable_type(page, i, NULL, NULL)) {
+				case AIN_STRING:
+				case AIN_STRUCT:
+				case AIN_ARRAY_TYPE:
+				case AIN_REF_TYPE:
+					if (page->values[i].i == -1)
+						break;
+					exit_unref(page->values[i].i);
+					break;
+				default:
+					break;
+				}
+			}
+		}
+		break;
+	case VM_STRING:
+		free_string(heap[slot].s);
+		break;
+	}
+	heap[slot].ref = 0;
+	heap_free_slot(slot);
 }
 
 bool heap_index_valid(int index)

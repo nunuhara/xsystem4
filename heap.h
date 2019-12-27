@@ -54,6 +54,7 @@ void heap_delete(void);
 int32_t heap_alloc_slot(enum vm_pointer_type type);
 void heap_ref(int slot);
 void heap_unref(int slot);
+void exit_unref(int slot);
 
 bool heap_index_valid(int index);
 bool page_index_valid(int index);

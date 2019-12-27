@@ -176,11 +176,21 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 	return AIN_VOID;
 }
 
-void delete_page(struct page *page)
+void delete_page_vars(struct page *page)
 {
 	for (int i = 0; i < page->nr_vars; i++) {
 		variable_fini(page->values[i], variable_type(page, i, NULL, NULL));
 	}
+}
+
+void delete_page(int slot)
+{
+	struct page *page = heap[slot].page;
+	if (page->type == STRUCT_PAGE) {
+		delete_struct(page->index, slot);
+	}
+	delete_page_vars(page);
+	free_page(page);
 }
 
 /*
@@ -224,6 +234,14 @@ void init_struct(int no, int slot)
 	}
 	if (s->constructor > 0) {
 		vm_call(s->constructor, slot);
+	}
+}
+
+void delete_struct(int no, int slot)
+{
+	struct ain_struct *s = &ain->structures[no];
+	if (s->destructor > 0) {
+		vm_call(s->destructor, slot);
 	}
 }
 
@@ -272,7 +290,7 @@ struct page *realloc_array(struct page *src, int rank, union vm_value *dimension
 	if (src->rank != rank)
 		ERROR("Attempt to reallocate array with different rank");
 	if (!dimensions->i) {
-		delete_page(src);
+		delete_page_vars(src);
 		return NULL;
 	}
 
@@ -413,7 +431,7 @@ struct page *array_erase(struct page *page, int i, bool *success)
 
 	// if array will be empty...
 	if (page->nr_vars == 1) {
-		delete_page(page);
+		delete_page_vars(page);
 		*success = true;
 		return NULL;
 	}
