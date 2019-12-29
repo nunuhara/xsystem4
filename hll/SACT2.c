@@ -437,27 +437,27 @@ hll_unimplemented(SACT2, CSV_SetInt);
 // void CSV_Realloc(int nLines, int nColumns)
 hll_unimplemented(SACT2, CSV_Realloc);
 // int Music_IsExist(int nNum)
-hll_defun_inline(Music_IsExist, music_exists(a[0].i - 1));
+hll_defun_inline(Music_IsExist, audio_exists(AUDIO_MUSIC, a[0].i - 1));
 // int Music_Prepare(int nCh, int nNum)
-hll_warn_unimplemented(SACT2, Music_Prepare, 1);
+hll_defun_inline(Music_Prepare, audio_prepare(AUDIO_MUSIC, a[0].i, a[1].i - 1));
 // int Music_Unprepare(int nCh)
-hll_warn_unimplemented(SACT2, Music_Unprepare, 1);
+hll_defun_inline(Music_Unprepare, audio_unprepare(AUDIO_MUSIC, a[0].i));
 // int Music_Play(int nCh)
-hll_warn_unimplemented(SACT2, Music_Play, 1);
+hll_defun_inline(Music_Play, audio_play(AUDIO_MUSIC, a[0].i));
 // int Music_Stop(int nCh)
-hll_warn_unimplemented(SACT2, Music_Stop, 1);
+hll_defun_inline(Music_Stop, audio_stop(AUDIO_MUSIC, a[0].i));
 // int Music_IsPlay(int nCh)
-hll_warn_unimplemented(SACT2, Music_IsPlay, 1);
+hll_defun_inline(Music_IsPlay, audio_is_playing(AUDIO_MUSIC, a[0].i));
 // int Music_SetLoopCount(int nCh, int nCount)
 hll_warn_unimplemented(SACT2, Music_SetLoopCount, 1);
 // int Music_GetLoopCount(int nCh)
 hll_warn_unimplemented(SACT2, Music_GetLoopCount, 1);
 // int Music_SetLoopStartPos(int nCh, int dwPos)
-hll_warn_unimplemented(SACT2, Music_SetLoopStartPos, 1);
+hll_unimplemented(SACT2, Music_SetLoopStartPos);
 // int Music_SetLoopEndPos(int nCh, int dwPos)
-hll_warn_unimplemented(SACT2, Music_SetLoopEndPos, 1);
+hll_unimplemented(SACT2, Music_SetLoopEndPos);
 // int Music_Fade(int nCh, int nTime, int nVolume, int bStop)
-hll_warn_unimplemented(SACT2, Music_Fade, 1);
+hll_defun_inline(Music_Fade, audio_fade(AUDIO_MUSIC, a[0].i, a[1].i, a[2].i, a[3].i));
 // int Music_StopFade(int nCh)
 hll_warn_unimplemented(SACT2, Music_StopFade, 1);
 // int Music_IsFade(int nCh)
@@ -479,25 +479,25 @@ hll_warn_unimplemented(SACT2, Music_GetSampleLength, 1);
 // int Music_Seek(int nCh, int dwPos)
 hll_warn_unimplemented(SACT2, Music_Seek, 1);
 // int Sound_IsExist(int nNum)
-hll_defun_inline(Sound_IsExist, sound_exists(a[0].i - 1));
+hll_defun_inline(Sound_IsExist, audio_exists(AUDIO_SOUND, a[0].i - 1));
 // int Sound_GetUnuseChannel(void)
-hll_unimplemented(SACT2, Sound_GetUnuseChannel);
+hll_defun_inline(Sound_GetUnuseChannel, audio_get_unused_channel(AUDIO_SOUND));
 // int Sound_Prepare(int nCh, int nNum)
-hll_unimplemented(SACT2, Sound_Prepare);
+hll_defun_inline(Sound_Prepare, audio_prepare(AUDIO_SOUND, a[0].i, a[1].i - 1));
 // int Sound_Unprepare(int nCh)
-hll_warn_unimplemented(SACT2, Sound_Unprepare, 1);
+hll_defun_inline(Sound_Unprepare, audio_unprepare(AUDIO_SOUND, a[0].i));
 // int Sound_Play(int nCh)
-hll_unimplemented(SACT2, Sound_Play);
+hll_defun_inline(Sound_Play, audio_play(AUDIO_SOUND, a[0].i));
 // int Sound_Stop(int nCh)
-hll_unimplemented(SACT2, Sound_Stop);
+hll_defun_inline(Sound_Stop, audio_stop(AUDIO_SOUND, a[0].i));
 // int Sound_IsPlay(int nCh)
-hll_warn_unimplemented(SACT2, Sound_IsPlay, 0);
+hll_defun_inline(Sound_IsPlay, audio_is_playing(AUDIO_SOUND, a[0].i));
 // int Sound_SetLoopCount(int nCh, int nCount)
 hll_unimplemented(SACT2, Sound_SetLoopCount);
 // int Sound_GetLoopCount(int nCh)
 hll_unimplemented(SACT2, Sound_GetLoopCount);
 // int Sound_Fade(int nCh, int nTime, int nVolume, int bStop)
-hll_unimplemented(SACT2, Sound_Fade);
+hll_defun_inline(Sound_Fade, audio_fade(AUDIO_SOUND, a[0].i, a[1].i, a[2].i, a[3].i));
 // int Sound_StopFade(int nCh)
 hll_unimplemented(SACT2, Sound_StopFade);
 // int Sound_IsFade(int nCh)
@@ -507,11 +507,11 @@ hll_unimplemented(SACT2, Sound_GetPos);
 // int Sound_GetLength(int nCh)
 hll_unimplemented(SACT2, Sound_GetLength);
 // int Sound_ReverseLR(int nCh)
-hll_unimplemented(SACT2, Sound_ReverseLR);
+hll_warn_unimplemented(SACT2, Sound_ReverseLR, 1);
 // int Sound_GetVolume(int nCh)
 hll_unimplemented(SACT2, Sound_GetVolume);
 // int Sound_GetTimeLength(int nCh)
-hll_unimplemented(SACT2, Sound_GetTimeLength);
+hll_defun_inline(Sound_GetTimeLength, audio_get_time_length(AUDIO_SOUND, a[0].i));
 // int Sound_GetGroupNum(int nCh)
 hll_unimplemented(SACT2, Sound_GetGroupNum);
 // bool Sound_PrepareFromFile(int nCh, string szFileName)

@@ -430,6 +430,9 @@ static struct ain_function_type *read_function_types(struct ain_reader *r, int c
 
 static bool read_tag(struct ain_reader *r, struct ain *ain)
 {
+	if (r->index + 4 >= r->size)
+		return false;
+
 	uint8_t *tag_loc = r->buf + r->index;
 	r->index += 4;
 
