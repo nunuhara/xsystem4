@@ -88,6 +88,7 @@ void gfx_init_texture_blank(struct texture *t, int w, int h);
 void gfx_init_texture_with_cg(struct texture *t, struct cg *cg);
 void gfx_init_texture_with_color(struct texture *t, int w, int h, SDL_Color color);
 void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels, GLenum format);
+void gfx_copy_main_surface(struct texture *dst);
 void gfx_delete_texture(struct texture *t);
 GLuint gfx_set_framebuffer(GLenum target, Texture *t, int x, int y, int w, int h);
 void gfx_reset_framebuffer(GLenum target, GLuint fbo);

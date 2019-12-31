@@ -173,6 +173,7 @@ int gfx_init(void)
 	gfx_draw_init();
 	gfx_set_window_size(config.view_width, config.view_height);
 	atexit(gfx_fini);
+	gfx_clear();
 	return 0;
 }
 
@@ -354,8 +355,13 @@ void gfx_render_texture(struct texture *t, Rectangle *r)
 		break;
 	}
 
-	t->world_transform[12] = r->x;
-	t->world_transform[13] = r->y;
+	if (r) {
+		t->world_transform[12] = r->x;
+		t->world_transform[13] = r->y;
+	} else {
+		t->world_transform[12] = 0;
+		t->world_transform[13] = 0;
+	}
 
 	struct gfx_render_job job = {
 		.shader = &default_shader.s,
@@ -370,7 +376,7 @@ void gfx_render_texture(struct texture *t, Rectangle *r)
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
-void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels, GLenum format)
+static void init_texture(struct texture *t, int w, int h)
 {
 	glGenTextures(1, &t->handle);
 	glBindTexture(GL_TEXTURE_2D, t->handle);
@@ -378,8 +384,8 @@ void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels,
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, format, GL_UNSIGNED_BYTE, pixels);
 
+	memset(t->world_transform, 0, sizeof(GLfloat)*16);
 	t->world_transform[0] = w;
 	t->world_transform[5] = h;
 	t->world_transform[10] = 1;
@@ -392,6 +398,13 @@ void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels,
 	t->has_alpha = true;
 	t->alpha_mod = 255;
 	t->draw_method = DRAW_METHOD_NORMAL;
+
+}
+
+void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels, GLenum format)
+{
+	init_texture(t, w, h);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, format, GL_UNSIGNED_BYTE, pixels);
 }
 
 void gfx_init_texture_with_cg(struct texture *t, struct cg *cg)
@@ -418,6 +431,12 @@ void gfx_init_texture_blank(struct texture *t, int w, int h)
 	gfx_init_texture_with_pixels(t, w, h, NULL, GL_RGBA);
 }
 
+void gfx_copy_main_surface(struct texture *dst)
+{
+	init_texture(dst, main_surface.w, main_surface.h);
+	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, main_surface.w, main_surface.h, 0);
+}
+
 void gfx_delete_texture(struct texture *t)
 {
 	if (t->handle)
@@ -429,7 +448,7 @@ GLuint gfx_set_framebuffer(GLenum target, Texture *t, int x, int y, int w, int h
 {
 	GLuint fbo;
 	glGenFramebuffers(1, &fbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glBindFramebuffer(target, fbo);
 	glFramebufferTexture2D(target, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t->handle, 0);
 	glViewport(x, y, w, h);
 

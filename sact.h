@@ -49,6 +49,8 @@ struct sact_sprite {
 struct sact_sprite *sact_get_sprite(int sp);
 struct texture *sact_get_texture(int sp_no);
 
+void sact_render_scene(void);
+
 int sact_Init(void);
 int sact_SetWP(int cg_no);
 int sact_Update(void);
