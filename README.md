@@ -4,7 +4,9 @@ xsystem4
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
 operating systems.
 
-NOTE: This is a work in progress. Very little is implemented so far.
+NOTE: This is a work in progress. Some simple ADV games run more or less okay,
+      but most games are not fully working or have game-breaking bug when run
+      with xsystem4.
 
 Building
 --------
@@ -18,7 +20,10 @@ xsystem4 uses the meson build system.
 Running
 -------
 
-You will need to create an AIN file using the System 4 SDK compiler. Then simply
-pass it to the system4 executable.
+You can run a game by passing the path to its "System40.ini" to the xsystem4
+executable.
 
-    build/system4 ???.ain
+    build/src/xsystem4 /path/to/System40.ini
+
+For now, xsystem4 needs to be run in the top-level project directory (i.e. the
+directory that contains this README file). This will change in the future.
