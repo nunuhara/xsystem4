@@ -1032,52 +1032,52 @@ static void execute_instruction(enum opcode opcode)
 		break;
 	}
 	case LI_PLUSA: {
-		int64_t n = stack_pop().i;
+		int64_t n = stack_pop().li;
 		stack_push(stack_pop_var()->li += n);
 		break;
 	}
 	case LI_MINUSA: {
-		int64_t n = stack_pop().i;
+		int64_t n = stack_pop().li;
 		stack_push(stack_pop_var()->li -= n);
 		break;
 	}
 	case LI_MULA: {
-		int64_t n = stack_pop().i;
+		int64_t n = stack_pop().li;
 		stack_push(stack_pop_var()->li *= n);
 		break;
 	}
 	case LI_DIVA: {
-		int64_t n = stack_pop().i;
+		int64_t n = stack_pop().li;
 		stack_push(stack_pop_var()->li /= n);
 		break;
 	}
 	case LI_MODA: {
-		int64_t n = stack_pop().i;
+		int64_t n = stack_pop().li;
 		stack_push(stack_pop_var()->li %= n);
 		break;
 	}
 	case LI_ANDA: {
-		int64_t n = stack_pop().i;
+		int64_t n = stack_pop().li;
 		stack_push(stack_pop_var()->li &= n);
 		break;
 	}
 	case LI_ORA: {
-		int64_t n = stack_pop().i;
+		int64_t n = stack_pop().li;
 		stack_push(stack_pop_var()->li |= n);
 		break;
 	}
 	case LI_XORA: {
-		int64_t n = stack_pop().i;
+		int64_t n = stack_pop().li;
 		stack_push(stack_pop_var()->li ^= n);
 		break;
 	}
 	case LI_LSHIFTA: {
-		int64_t n = stack_pop().i;
+		int64_t n = stack_pop().li;
 		stack_push(stack_pop_var()->li <<= n);
 		break;
 	}
 	case LI_RSHIFTA: {
-		int64_t n = stack_pop().i;
+		int64_t n = stack_pop().li;
 		stack_push(stack_pop_var()->li >>= n);
 		break;
 	}
