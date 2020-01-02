@@ -475,8 +475,8 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		ain->nr_libraries = read_int32(r);
 		ain->libraries = read_libraries(r, ain->nr_libraries);
 	} else if (TAG_EQ("SWI0")) {
-		int32_t count = read_int32(r);
-		ain->switches = read_switches(r, count);
+		ain->nr_switches = read_int32(r);
+		ain->switches = read_switches(r, ain->nr_switches);
 	} else if (TAG_EQ("GVER")) {
 		ain->game_version = read_int32(r);
 	} else if (TAG_EQ("STR0")) {
@@ -493,8 +493,8 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		ain->function_types = read_function_types(r, ain->nr_function_types, ain);
 	} else if (TAG_EQ("DELG")) {
 		read_int32(r); // ???
-		int32_t count = read_int32(r);
-		ain->delegates = read_function_types(r, count, ain);
+		ain->nr_delegates = read_int32(r);
+		ain->delegates = read_function_types(r, ain->nr_delegates, ain);
 	} else if (TAG_EQ("OBJG")) {
 		ain->nr_global_groups = read_int32(r);
 		ain->global_group_names = read_strings(r, ain->nr_global_groups);
@@ -655,7 +655,96 @@ err:
 	return NULL;
 }
 
+static void ain_free_variables(struct ain_variable *vars, int nr_vars)
+{
+	for (int i = 0; i < nr_vars; i++) {
+		free(vars[i].name);
+		free(vars[i].name2);
+	}
+	free(vars);
+}
+
+static void ain_free_function_types(struct ain_function_type *funs, int n)
+{
+	for (int i = 0; i < n; i++) {
+		free(funs[i].name);
+		ain_free_variables(funs[i].variables, funs[i].nr_variables);
+	}
+	free(funs);
+}
+
+static void ain_free_strings(struct string **strings, int n)
+{
+	for (int i = 0; i < n; i++) {
+		free_string(strings[i]);
+	}
+	free(strings);
+}
+
+static void ain_free_cstrings(char **strings, int n)
+{
+	for (int i = 0; i < n; i++) {
+		free(strings[i]);
+	}
+	free(strings);
+}
+
 void ain_free(struct ain *ain)
 {
+	free(ain->code);
+
+	for (int f = 0; f < ain->nr_functions; f++) {
+		free(ain->functions[f].name);
+		ain_free_variables(ain->functions[f].vars, ain->functions[f].nr_vars);
+	}
+	free(ain->functions);
+
+	for (int i = 0; i < ain->nr_globals; i++) {
+		free(ain->globals[i].name);
+		free(ain->globals[i].name2);
+	}
+	free(ain->globals);
+
+	for (int i = 0; i < ain->nr_initvals; i++) {
+		if (ain->global_initvals[i].data_type != AIN_STRING)
+			continue;
+		free(ain->global_initvals[i].string_value);
+	}
+	free(ain->global_initvals);
+
+	for (int s = 0; s < ain->nr_structures; s++) {
+		free(ain->structures[s].name);
+		ain_free_variables(ain->structures[s].members, ain->structures[s].nr_members);
+	}
+	free(ain->structures);
+
+	for (int lib = 0; lib < ain->nr_libraries; lib++) {
+		free(ain->libraries[lib].name);
+		for (int f = 0; f < ain->libraries[lib].nr_functions; f++) {
+			free(ain->libraries[lib].functions[f].name);
+			for (int a = 0; a < ain->libraries[lib].functions[f].nr_arguments; a++) {
+				free(ain->libraries[lib].functions[f].arguments[a].name);
+			}
+			free(ain->libraries[lib].functions[f].arguments);
+		}
+		free(ain->libraries[lib].functions);
+	}
+	free(ain->libraries);
+
+	for (int i = 0; i < ain->nr_switches; i++) {
+		free(ain->switches[i].cases);
+	}
+	free(ain->switches);
+
+	ain_free_function_types(ain->function_types, ain->nr_function_types);
+	ain_free_function_types(ain->delegates, ain->nr_delegates);
+
+	ain_free_strings(ain->strings, ain->nr_strings);
+	ain_free_strings(ain->messages, ain->nr_messages);
+
+	ain_free_cstrings(ain->filenames, ain->nr_filenames);
+	ain_free_cstrings(ain->global_group_names, ain->nr_global_groups);
+	ain_free_cstrings(ain->enums, ain->nr_enums);
+
 	free(ain);
 }

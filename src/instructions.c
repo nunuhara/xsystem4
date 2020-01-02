@@ -21,6 +21,32 @@
 #include "system4.h"
 #include "system4/instructions.h"
 
+const char * const syscalls[NR_SYSCALLS] = {
+	[SYS_EXIT]                 = "system.Exit",
+	[SYS_GLOBAL_SAVE]          = "system.GlobalSave",
+	[SYS_GLOBAL_LOAD]          = "system.GlobalLoad",
+	[SYS_LOCK_PEEK]            = "system.LockPeek",
+	[SYS_UNLOCK_PEEK]          = "system.UnlockPeek",
+	[SYS_RESET]                = "system.Reset",
+	[SYS_OUTPUT]               = "system.Output",
+	[SYS_MSGBOX]               = "system.MsgBox",
+	[SYS_RESUME_SAVE]          = "system.ResumeSave",
+	[SYS_RESUME_LOAD]          = "system.ResumeLoad",
+	[SYS_EXISTS_FILE]          = "system.ExistsFile",
+	[SYS_OPEN_WEB]             = "system.OpenWeb",
+	[SYS_GET_SAVE_FOLDER_NAME] = "system.GetSaveFolderName",
+	[SYS_GET_TIME]             = "system.GetTime",
+	[SYS_ERROR]                = "system.Error",
+	[SYS_EXISTS_SAVE_FILE]     = "system.ExistsSaveFile",
+	[SYS_IS_DEBUG_MODE]        = "system.IsDebugMode",
+	[SYS_MSGBOX_OK_CANCEL]     = "system.MsgBoxOkCancel",
+	[SYS_GET_FUNC_STACK_NAME]  = "system.GetFuncStackName",
+	[SYS_PEEK]                 = "system.Peek",
+	[SYS_SLEEP]                = "system.Sleep",
+	[SYS_GROUP_SAVE]           = "system.GroupSave",
+	[SYS_GROUP_LOAD]           = "system.GroupLoad"
+};
+
 // JMP = instruction that modifies the instruction pointer
 // OP  = everything else
 #define OP(code, nargs, ...)			\
@@ -41,7 +67,7 @@
 	}
 
 const struct instruction instructions[NR_OPCODES] = {
-	OP(PUSH, 1, INSTR_INT),
+	OP(PUSH, 1, T_INT),
         OP(POP, 0),
         OP(REF, 0),
         OP(REFREF, 0),
@@ -89,11 +115,11 @@ const struct instruction instructions[NR_OPCODES] = {
 
         OP(CMP, 0), // TODO
 
-        JMP(JUMP, 1, INSTR_PTR),
-        JMP(IFZ, 1, INSTR_PTR),
-        JMP(IFNZ, 1, INSTR_PTR),
+        JMP(JUMP, 1, T_ADDR),
+        JMP(IFZ, 1, T_ADDR),
+        JMP(IFNZ, 1, T_ADDR),
         JMP(RETURN, 0),
-        JMP(CALLFUNC, 1, INSTR_FUN),
+        JMP(CALLFUNC, 1, T_FUNC),
         OP(INC, 0),
         OP(DEC, 0),
         OP(FTOI, 0),
@@ -109,8 +135,8 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(F_GTE, 0),
         OP(F_NOTE, 0),
         OP(F_EQUALE, 0),
-        OP(F_PUSH, 1, INSTR_FLO),
-        OP(S_PUSH, 1, INSTR_STR),
+        OP(F_PUSH, 1, T_FLOAT),
+        OP(S_PUSH, 1, T_STRING),
         OP(S_POP, 0),
         OP(S_ADD, 0),
         OP(S_ASSIGN, 0),
@@ -125,7 +151,7 @@ const struct instruction instructions[NR_OPCODES] = {
 
         OP(SR_POP, 0),
         OP(SR_ASSIGN, 0),
-        OP(SR_REF, 1, INSTR_INT),
+        OP(SR_REF, 1, T_STRUCT),
         OP(SR_REFREF, 0), // TODO
         OP(A_ALLOC, 0),
         OP(A_REALLOC, 0),
@@ -135,21 +161,21 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(A_FILL, 0),
         OP(C_REF, 0),
         OP(C_ASSIGN, 0),
-        JMP(MSG, 1, INSTR_INT),
-        OP(CALLHLL, 2, INSTR_INT, INSTR_INT),
+        JMP(MSG, 1, T_MSG),
+        OP(CALLHLL, 2, T_HLL, T_HLLFUNC),
         OP(PUSHSTRUCTPAGE, 0),
-        JMP(CALLMETHOD, 1, INSTR_FUN),
-        OP(SH_GLOBALREF, 1, INSTR_INT),
-        OP(SH_LOCALREF, 1, INSTR_INT),
-        JMP(SWITCH, 1),
-        JMP(STRSWITCH, 1),
-        OP(FUNC, 1, INSTR_FUN),
-        OP(_EOF, 1, INSTR_FILE),
-        OP(CALLSYS, 1, INSTR_INT),
+        JMP(CALLMETHOD, 1, T_FUNC),
+        OP(SH_GLOBALREF, 1, T_GLOBAL),
+        OP(SH_LOCALREF, 1, T_LOCAL),
+        JMP(SWITCH, 1, T_INT),
+        JMP(STRSWITCH, 1, T_INT),
+        OP(FUNC, 1, T_FUNC),
+        OP(_EOF, 1, T_FILE),
+        OP(CALLSYS, 1, T_SYSCALL),
         JMP(SJUMP, 0),
         OP(CALLONJUMP, 0),
         OP(SWAP, 0),
-        OP(SH_STRUCTREF, 1, INSTR_INT),
+        OP(SH_STRUCTREF, 1, T_INT),
         OP(S_LENGTH, 0),
         OP(S_LENGTHBYTE, 0),
         OP(I_STRING, 0),
@@ -172,11 +198,11 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(DUP_U2, 0),
         OP(SP_INC, 0),
         OP(SP_DEC, 0), // TODO
-        OP(ENDFUNC, 1, INSTR_FUN),
+        OP(ENDFUNC, 1, T_FUNC),
         OP(R_EQUALE, 0), // TODO
         OP(R_NOTE, 0), // TODO
-        OP(SH_LOCALCREATE, 2),
-        OP(SH_LOCALDELETE, 1),
+        OP(SH_LOCALCREATE, 2, T_LOCAL, T_STRUCT),
+        OP(SH_LOCALDELETE, 1, T_LOCAL),
         OP(STOI, 0), // TODO
         OP(A_PUSHBACK, 0),
         OP(A_POPBACK, 0),
@@ -184,9 +210,9 @@ const struct instruction instructions[NR_OPCODES] = {
         OP(A_EMPTY, 0),
         OP(A_ERASE, 0),
         OP(A_INSERT, 0),
-        OP(SH_LOCALINC, 1, INSTR_INT),
-        OP(SH_LOCALDEC, 1, INSTR_INT),
-        OP(SH_LOCALASSIGN, 2, INSTR_INT, INSTR_INT),
+        OP(SH_LOCALINC, 1, T_LOCAL),
+        OP(SH_LOCALDEC, 1, T_LOCAL),
+        OP(SH_LOCALASSIGN, 2, T_LOCAL, T_INT),
         OP(ITOB, 0),
         OP(S_FIND, 0),
         OP(S_GETPART, 0),

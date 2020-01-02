@@ -24,6 +24,35 @@
 
 #define INSTRUCTION_MAX_ARGS 4 // FIXME: determine the real maximum
 
+enum syscall_code {
+	SYS_EXIT                 = 0x00,
+	SYS_GLOBAL_SAVE          = 0x01,
+	SYS_GLOBAL_LOAD          = 0x02,
+	SYS_LOCK_PEEK            = 0x03,
+	SYS_UNLOCK_PEEK          = 0x04,
+	SYS_RESET                = 0x05,
+	SYS_OUTPUT               = 0x06,
+	SYS_MSGBOX               = 0x07,
+	SYS_RESUME_SAVE          = 0x08,
+	SYS_RESUME_LOAD          = 0x09,
+	SYS_EXISTS_FILE          = 0x0A,
+	SYS_OPEN_WEB             = 0x0B,
+	SYS_GET_SAVE_FOLDER_NAME = 0x0C,
+	SYS_GET_TIME             = 0x0D,
+	SYS_ERROR                = 0x0F,
+	SYS_EXISTS_SAVE_FILE     = 0x10,
+	SYS_IS_DEBUG_MODE        = 0x11,
+	SYS_MSGBOX_OK_CANCEL     = 0x12,
+	SYS_GET_FUNC_STACK_NAME  = 0x13,
+	SYS_PEEK                 = 0x14,
+	SYS_SLEEP                = 0x15,
+	SYS_GROUP_SAVE           = 0x18,
+	SYS_GROUP_LOAD           = 0x19,
+	NR_SYSCALLS
+};
+
+const char * const syscalls[NR_SYSCALLS];
+
 enum opcode
 {
         PUSH           = 0x00,
@@ -290,12 +319,19 @@ enum opcode
 };
 
 enum instruction_argtype {
-	INSTR_INT = 0,
-	INSTR_FLO,
-	INSTR_PTR,
-	INSTR_FUN,
-	INSTR_STR,
-	INSTR_FILE
+	T_INT,
+	T_FLOAT,
+	T_ADDR,
+	T_FUNC,
+	T_STRING,
+	T_MSG,
+	T_LOCAL,
+	T_GLOBAL,
+	T_STRUCT,
+	T_SYSCALL,
+	T_HLL,
+	T_HLLFUNC,
+	T_FILE,
 };
 
 struct instruction {

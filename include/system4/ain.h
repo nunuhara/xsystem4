@@ -208,6 +208,7 @@ struct ain {
 	int32_t msgf;
 	int32_t nr_libraries;
 	struct ain_library *libraries;
+	int32_t nr_switches;
 	struct ain_switch *switches;
 	int32_t game_version;
 	int32_t nr_strings;
@@ -217,6 +218,7 @@ struct ain {
 	int32_t ojmp;
 	int nr_function_types;
 	struct ain_function_type *function_types;
+	int nr_delegates;
 	struct ain_function_type *delegates;
 	int32_t nr_global_groups;
 	char **global_group_names;

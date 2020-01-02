@@ -62,7 +62,7 @@ executable('xsystem4', xsystem4,
            include_directories : incdir,
            link_with : libsys4)
 
-executable('aindump', ['aindump.c'],
+executable('aindump', ['aindump/aindump.c', 'aindump/dasm.c'],
            dependencies : [libm, zlib],
            include_directories : incdir,
            link_with : libsys4)

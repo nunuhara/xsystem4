@@ -26,6 +26,8 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
+void disassemble_ain(struct ain *ain, FILE *out);
+
 static void usage(void)
 {
 	puts("Usage: aindump <options> <ainfile>");
@@ -54,20 +56,6 @@ static void print_sjis(const char *s)
 static void ain_dump_version(struct ain *ain)
 {
 	printf("AIN VERSION %d\n", ain->version);
-}
-
-static void ain_dump_code(struct ain *ain)
-{
-	for (size_t i = 0; i < ain->code_size;) {
-		uint16_t opcode = LittleEndian_getW(ain->code, i);
-		const struct instruction *instr = &instructions[opcode];
-		printf("%s", instr->name);
-		for (int j = 0; j < instr->nr_args; j++) {
-			printf(" 0x%x", LittleEndian_getDW(ain->code, i + 2 + j*4));
-		}
-		putchar('\n');
-		i += instruction_width(opcode);
-	}
 }
 
 static void print_arglist(struct ain *ain, struct ain_variable *args, int nr_args)
@@ -342,5 +330,7 @@ int main(int argc, char *argv[])
 	if (dump_enums)
 		ain_dump_enums(ain);
 	if (dump_code)
-		ain_dump_code(ain);
+		disassemble_ain(ain, stdout);
+
+	ain_free(ain);
 }

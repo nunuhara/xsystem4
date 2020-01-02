@@ -354,30 +354,7 @@ static void function_return(void)
 	call_stack_ptr--;
 }
 
-enum syscall_code {
-	SYS_EXIT                 = 0x00,
-	SYS_GLOBAL_SAVE          = 0x01,
-	SYS_GLOBAL_LOAD          = 0x02,
-	SYS_LOCK_PEEK            = 0x03,
-	SYS_UNLOCK_PEEK          = 0x04,
-	SYS_OUTPUT               = 0x06,
-	SYS_MSGBOX               = 0x07,
-	SYS_RESUME_SAVE          = 0x08,
-	SYS_RESUME_LOAD          = 0x09,
-	SYS_EXISTS_FILE          = 0x0A,
-	SYS_GET_SAVE_FOLDER_NAME = 0x0C,
-	SYS_GET_TIME             = 0x0D,
-	SYS_ERROR                = 0x0F,
-	SYS_EXISTS_SAVE_FILE     = 0x10,
-	SYS_IS_DEBUG_MODE        = 0x11,
-	SYS_GET_FUNC_STACK_NAME  = 0x13,
-	SYS_PEEK                 = 0x14,
-	SYS_SLEEP                = 0x15,
-	SYS_GROUP_SAVE           = 0x18,
-	SYS_GROUP_LOAD           = 0x19
-};
-
-static void system_call(int32_t code)
+static void system_call(enum syscall_code code)
 {
 	switch (code) {
 	case SYS_EXIT: {// system.Exit(int nResult)
