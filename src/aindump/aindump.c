@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <getopt.h>
 #include "little_endian.h"
 #include "system4.h"
@@ -37,7 +38,7 @@ static void usage(void)
 	puts("    -c, --code               Dump code section");
 	puts("    -f, --functions          Dump functions section");
 	puts("    -g, --globals            Dump globals section");
-	puts("    -o, --structures         Dump structures section");
+	puts("    -S, --structures         Dump structures section");
 	puts("    -m, --messages           Dump messages section");
 	puts("    -l, --libraries          Dump libraries section");
 	puts("        --function-types     Dump function type section");
@@ -46,168 +47,168 @@ static void usage(void)
 	//puts("    -j, --json               Dump to JSON format"); // TODO
 }
 
-static void print_sjis(const char *s)
+static void print_sjis(FILE *f, const char *s)
 {
 	char *u = sjis2utf(s, strlen(s));
-	printf("%s", u);
+	fprintf(f, "%s", u);
 	free(u);
 }
 
-static void ain_dump_version(struct ain *ain)
+static void ain_dump_version(FILE *f, struct ain *ain)
 {
-	printf("AIN VERSION %d\n", ain->version);
+	fprintf(f, "AIN VERSION %d\n", ain->version);
 }
 
-static void print_arglist(struct ain *ain, struct ain_variable *args, int nr_args)
+static void print_arglist(FILE *f, struct ain *ain, struct ain_variable *args, int nr_args)
 {
 	if (!nr_args) {
-		printf("(void)");
+		fprintf(f, "(void)");
 		return;
 	}
-	putchar('(');
+	fputc('(', f);
 	for (int i = 0; i < nr_args; i++) {
 		if (args[i].data_type == AIN_VOID)
 			continue;
 		if (i > 0)
-			printf(", ");
-		print_sjis(ain_strtype(ain, args[i].data_type, args[i].struct_type));
-		putchar(' ');
-		print_sjis(args[i].name);
+			fprintf(f, ", ");
+		print_sjis(f, ain_strtype(ain, args[i].data_type, args[i].struct_type));
+		fputc(' ', f);
+		print_sjis(f, args[i].name);
 	}
-	putchar(')');
+	fputc(')', f);
 }
 
-static void print_function(struct ain *ain, struct ain_function *f)
+static void print_function(FILE *out, struct ain *ain, struct ain_function *f)
 {
-	print_sjis(ain_strtype(ain, f->data_type, f->struct_type));
-	putchar(' ');
-	print_sjis(f->name);
-	print_arglist(ain, f->vars, f->nr_args);
-	putchar('\n');
+	print_sjis(out, ain_strtype(ain, f->data_type, f->struct_type));
+	fputc(' ', out);
+	print_sjis(out, f->name);
+	print_arglist(out, ain, f->vars, f->nr_args);
+	fputc('\n', out);
 }
 
-static void ain_dump_functions(struct ain *ain)
+static void ain_dump_functions(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_functions; i++) {
-		print_function(ain, &ain->functions[i]);
+		print_function(f, ain, &ain->functions[i]);
 	}
 }
 
-static void ain_dump_globals(struct ain *ain)
+static void ain_dump_globals(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_globals; i++) {
 		struct ain_global *g = &ain->globals[i];
 		if (g->data_type == AIN_VOID)
 			continue;
-		print_sjis(ain_strtype(ain, g->data_type, g->struct_type));
-		putchar(' ');
-		print_sjis(g->name);
-		putchar('\n');
+		print_sjis(f, ain_strtype(ain, g->data_type, g->struct_type));
+		fputc(' ', f);
+		print_sjis(f, g->name);
+		fputc('\n', f);
 	}
 }
 
-static void print_structure(struct ain *ain, struct ain_struct *s)
+static void print_structure(FILE *f, struct ain *ain, struct ain_struct *s)
 {
-	printf("struct ");
-	print_sjis(s->name);
-	printf(" {\n");
+	fprintf(f, "struct ");
+	print_sjis(f, s->name);
+	fprintf(f, " {\n");
 	for (int i = 0; i < s->nr_members; i++) {
 		struct ain_variable *m = &s->members[i];
 		if (m->data_type == AIN_VOID)
 			continue;
-		printf("    ");
-		print_sjis(ain_strtype(ain, m->data_type, m->struct_type));
-		putchar(' ');
-		print_sjis(m->name);
-		printf(";\n");
+		fprintf(f, "    ");
+		print_sjis(f, ain_strtype(ain, m->data_type, m->struct_type));
+		fputc(' ', f);
+		print_sjis(f, m->name);
+		fprintf(f, ";\n");
 	}
-	printf("};\n\n");
+	fprintf(f, "};\n\n");
 }
 
-static void ain_dump_structures(struct ain *ain)
+static void ain_dump_structures(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_structures; i++) {
-		print_structure(ain, &ain->structures[i]);
+		print_structure(f, ain, &ain->structures[i]);
 	}
 }
 
-static void ain_dump_messages(struct ain *ain)
+static void ain_dump_messages(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_messages; i++) {
-		print_sjis(ain->messages[i]->text);
-		//printf("\n---\n");
+		print_sjis(f, ain->messages[i]->text);
+		//fprintf(f, "\n---\n");
 	}
 }
 
-static void ain_dump_libraries(struct ain *ain)
+static void ain_dump_libraries(FILE *out, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_libraries; i++) {
-		printf("--- ");
-		print_sjis(ain->libraries[i].name);
-		printf(" ---\n");
+		fprintf(out, "--- ");
+		print_sjis(out, ain->libraries[i].name);
+		fprintf(out, " ---\n");
 		for (int j = 0; j < ain->libraries[i].nr_functions; j++) {
 			struct ain_hll_function *f = &ain->libraries[i].functions[j];
-			print_sjis(ain_strtype(ain, f->data_type, -1));
-			putchar(' ');
-			print_sjis(f->name);
-			putchar('(');
+			print_sjis(out, ain_strtype(ain, f->data_type, -1));
+			fputc(' ', out);
+			print_sjis(out, f->name);
+			fputc('(', out);
 			for (int k = 0; k < f->nr_arguments; k++) {
 				struct ain_hll_argument *a = &f->arguments[k];
 				if (a->data_type == AIN_VOID)
 					continue;
 				if (k > 0)
-					printf(", ");
-				print_sjis(ain_strtype(ain, a->data_type, -1));
-				putchar(' ');
-				print_sjis(a->name);
+					fprintf(out, ", ");
+				print_sjis(out, ain_strtype(ain, a->data_type, -1));
+				fputc(' ', out);
+				print_sjis(out, a->name);
 			}
-			printf(")\n");
+			fprintf(out, ")\n");
 		}
 	}
 }
 
-static void ain_dump_strings(struct ain *ain)
+static void ain_dump_strings(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_strings; i++) {
-		print_sjis(ain->strings[i]->text);
-		//printf("\n---\n");
+		print_sjis(f, ain->strings[i]->text);
+		//fprintf(f, "\n---\n");
 	}
 }
 
-static void ain_dump_filenames(struct ain *ain)
+static void ain_dump_filenames(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_filenames; i++) {
-		print_sjis(ain->filenames[i]);
-		putchar('\n');
+		print_sjis(f, ain->filenames[i]);
+		fputc('\n', f);
 	}
 }
 
-static void ain_dump_functypes(struct ain *ain)
+static void ain_dump_functypes(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_function_types; i++) {
 		struct ain_function_type *t = &ain->function_types[i];
-		printf("functype ");
-		print_sjis(ain_strtype(ain, t->data_type, t->struct_type));
-		putchar(' ');
-		print_sjis(t->name);
-		print_arglist(ain, t->variables, t->nr_arguments);
-		putchar('\n');
+		fprintf(f, "functype ");
+		print_sjis(f, ain_strtype(ain, t->data_type, t->struct_type));
+		fputc(' ', f);
+		print_sjis(f, t->name);
+		print_arglist(f, ain, t->variables, t->nr_arguments);
+		fputc('\n', f);
 	}
 }
 
-static void ain_dump_global_group_names(struct ain *ain)
+static void ain_dump_global_group_names(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_global_groups; i++) {
-		print_sjis(ain->global_group_names[i]);
-		putchar('\n');
+		print_sjis(f, ain->global_group_names[i]);
+		fputc('\n', f);
 	}
 }
 
-static void ain_dump_enums(struct ain *ain)
+static void ain_dump_enums(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_enums; i++) {
-		print_sjis(ain->enums[i]);
-		putchar('\n');
+		print_sjis(f, ain->enums[i]);
+		fputc('\n', f);
 	}
 }
 
@@ -225,29 +226,32 @@ int main(int argc, char *argv[])
 	bool dump_functypes = false;
 	bool dump_global_group_names = false;
 	bool dump_enums = false;
+	char *output_file = NULL;
+	FILE *output = stdout;
 	int err = AIN_SUCCESS;
 	struct ain *ain;
 
 	while (1) {
 		static struct option long_options[] = {
-			{ "help",               no_argument, 0, 'h' },
-			{ "ain-version",        no_argument, 0, 'a' },
-			{ "code",               no_argument, 0, 'c' },
-			{ "functions",          no_argument, 0, 'f' },
-			{ "globals",            no_argument, 0, 'g' },
-			{ "structures",         no_argument, 0, 'o' },
-			{ "messages",           no_argument, 0, 'm' },
-			{ "libraries",          no_argument, 0, 'l' },
-			{ "strings",            no_argument, 0, 's' },
-			{ "filenames",          no_argument, 0, 'n' },
-			{ "function-types",     no_argument, 0, 't' },
-			{ "global-group-names", no_argument, 0, 'r' },
-			{ "enums",              no_argument, 0, 'e' },
+			{ "help",               no_argument,       0, 'h' },
+			{ "ain-version",        no_argument,       0, 'V' },
+			{ "code",               no_argument,       0, 'c' },
+			{ "functions",          no_argument,       0, 'f' },
+			{ "globals",            no_argument,       0, 'g' },
+			{ "structures",         no_argument,       0, 'S' },
+			{ "messages",           no_argument,       0, 'm' },
+			{ "libraries",          no_argument,       0, 'l' },
+			{ "strings",            no_argument,       0, 's' },
+			{ "filenames",          no_argument,       0, 'F' },
+			{ "function-types",     no_argument,       0, 't' },
+			{ "global-group-names", no_argument,       0, 'r' },
+			{ "enums",              no_argument,       0, 'e' },
+			{ "output",             required_argument, 0, 'o' },
 		};
 		int option_index = 0;
 		int c;
 
-		c = getopt_long(argc, argv, "hacfgomlse", long_options, &option_index);
+		c = getopt_long(argc, argv, "hVcfgSmlsFeo:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -255,7 +259,7 @@ int main(int argc, char *argv[])
 		case 'h':
 			usage();
 			return 0;
-		case 'a':
+		case 'V':
 			dump_version = true;
 			break;
 		case 'c':
@@ -267,7 +271,7 @@ int main(int argc, char *argv[])
 		case 'g':
 			dump_globals = true;
 			break;
-		case 'o':
+		case 'S':
 			dump_structures = true;
 			break;
 		case 'm':
@@ -279,58 +283,70 @@ int main(int argc, char *argv[])
 		case 's':
 			dump_strings = true;
 			break;
-		case 'n':
+		case 'F':
 			dump_filenames = true;
 			break;
 		case 't':
 			dump_functypes = true;
 			break;
-		case 'r':
+		case 'G':
 			dump_global_group_names = true;
 			break;
 		case 'e':
 			dump_enums = true;
 			break;
+		case 'o':
+			output_file = xstrdup(optarg);
+			break;
+		case '?':
+			ERROR("Unkown command line argument");
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	if (argc != 1) {
-		printf("ERROR: Wrong number of arguments.\n");
 		usage();
+		ERROR("Wrong number of arguments.\n");
 		return 1;
 	}
 
+	if (output_file) {
+		if (!(output = fopen(output_file, "w"))) {
+			ERROR("Failed to open output file '%s': %s", output_file, strerror(errno));
+		}
+		free(output_file);
+	}
+
 	if (!(ain = ain_open(argv[0], &err))) {
-		printf("ERROR: %s\n", ain_strerror(err));
+		ERROR("Failed to open ain file: %s\n", ain_strerror(err));
 		return 1;
 	}
 
 	if (dump_version)
-		ain_dump_version(ain);
+		ain_dump_version(output, ain);
 	if (dump_structures)
-		ain_dump_structures(ain);
+		ain_dump_structures(output, ain);
 	if (dump_functypes)
-		ain_dump_functypes(ain);
+		ain_dump_functypes(output, ain);
 	if (dump_global_group_names)
-		ain_dump_global_group_names(ain);
+		ain_dump_global_group_names(output, ain);
 	if (dump_globals)
-		ain_dump_globals(ain);
+		ain_dump_globals(output, ain);
 	if (dump_libraries)
-		ain_dump_libraries(ain);
+		ain_dump_libraries(output, ain);
 	if (dump_functions)
-		ain_dump_functions(ain);
+		ain_dump_functions(output, ain);
 	if (dump_messages)
-		ain_dump_messages(ain);
+		ain_dump_messages(output, ain);
 	if (dump_strings)
-		ain_dump_strings(ain);
+		ain_dump_strings(output, ain);
 	if (dump_filenames)
-		ain_dump_filenames(ain);
+		ain_dump_filenames(output, ain);
 	if (dump_enums)
-		ain_dump_enums(ain);
+		ain_dump_enums(output, ain);
 	if (dump_code)
-		disassemble_ain(ain, stdout);
+		disassemble_ain(ain, output);
 
 	ain_free(ain);
 }
