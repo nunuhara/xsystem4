@@ -22,7 +22,6 @@
 #include <stddef.h>
 
 struct string;
-union vm_value;
 
 enum ain_error {
 	AIN_SUCCESS,
@@ -154,7 +153,6 @@ struct ain_hll_argument {
 
 struct ain_hll_function {
 	char *name;
-	union vm_value (*fun)(union vm_value *args);
 	int32_t data_type;
 	int32_t nr_arguments;
 	struct ain_hll_argument *arguments;

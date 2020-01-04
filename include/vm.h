@@ -37,14 +37,14 @@ union vm_value {
 	float *fref;
 };
 
-struct hll_function {
+struct static_hll_function {
 	char *name;
 	union vm_value (*fun)(union vm_value *_args);
 };
 
-struct library {
+struct static_library {
 	char *name;
-	struct hll_function **functions;
+	struct static_hll_function **functions;
 };
 
 struct ain *ain;

@@ -41,6 +41,12 @@
 // When the IP is set to VM_RETURN, the VM halts
 #define VM_RETURN 0xFFFFFFFF
 
+struct hll_function {
+	union vm_value (*fun)(union vm_value *_args);
+};
+
+static struct hll_function **libraries;
+
 /*
  * NOTE: The current implementation is a simple bytecode interpreter.
  *       System40.exe uses a JIT compiler, and we should too.
@@ -311,7 +317,12 @@ void vm_call(int fno, int struct_page)
 static void hll_call(int libno, int fno)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
-	if (!f->fun)
+
+	if (!libraries[libno])
+		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
+
+	struct hll_function *fun = &libraries[libno][fno];
+	if (!fun->fun)
 		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
 
 	union vm_value args[HLL_MAX_ARGS];
@@ -331,7 +342,7 @@ static void hll_call(int libno, int fno)
 			args[i] = stack[stack_ptr];
 		}
 	}
-	union vm_value r = f->fun(args);
+	union vm_value r = fun->fun(args);
 	for (int i = 0; i < f->nr_arguments; i++) {
 		// XXX: We don't increase the ref count when passing ref arguments to HLL
 		//      functions, so we need to avoid decreasing it via variable_fini
@@ -1523,23 +1534,23 @@ static void vm_execute(void)
 	}
 }
 
-extern struct library lib_ACXLoader;
-extern struct library lib_AliceLogo;
-extern struct library lib_AliceLogo2;
-extern struct library lib_AliceLogo3;
-extern struct library lib_Confirm2;
-extern struct library lib_DrawGraph;
-extern struct library lib_DrawPluginManager;
-extern struct library lib_File;
-extern struct library lib_Math;
-extern struct library lib_MsgLogManager;
-extern struct library lib_MsgSkip;
-extern struct library lib_OutputLog;
-extern struct library lib_PlayMovie;
-extern struct library lib_SACT2;
-extern struct library lib_SystemServiceEx;
+extern struct static_library lib_ACXLoader;
+extern struct static_library lib_AliceLogo;
+extern struct static_library lib_AliceLogo2;
+extern struct static_library lib_AliceLogo3;
+extern struct static_library lib_Confirm2;
+extern struct static_library lib_DrawGraph;
+extern struct static_library lib_DrawPluginManager;
+extern struct static_library lib_File;
+extern struct static_library lib_Math;
+extern struct static_library lib_MsgLogManager;
+extern struct static_library lib_MsgSkip;
+extern struct static_library lib_OutputLog;
+extern struct static_library lib_PlayMovie;
+extern struct static_library lib_SACT2;
+extern struct static_library lib_SystemServiceEx;
 
-struct library *libraries[] = {
+static struct static_library *static_libraries[] = {
 	&lib_ACXLoader,
 	&lib_AliceLogo,
 	&lib_AliceLogo2,
@@ -1558,36 +1569,40 @@ struct library *libraries[] = {
 	NULL
 };
 
-static void link_library(struct ain_library *ainlib, struct library *lib)
+/*
+ * "Link" a library that has been compiled into the xsystem4 executable.
+ */
+static struct hll_function *link_static_library(struct ain_library *ainlib, struct static_library *lib)
 {
+	struct hll_function *dst = xcalloc(ainlib->nr_functions, sizeof(struct hll_function));
+
 	for (int i = 0; i < ainlib->nr_functions; i++) {
-		bool linked = false;
 		for (int j = 0; lib->functions[j]; j++) {
 			if (!strcmp(ainlib->functions[i].name, lib->functions[j]->name)) {
-				ainlib->functions[i].fun = lib->functions[j]->fun;
-				linked = true;
+				dst[i].fun = lib->functions[j]->fun;
 				break;
 			}
 		}
-		if (!linked)
+		if (!dst[i].fun)
 			WARNING("Unimplemented library function: %s", ainlib->functions[i].name);
 		else if (ainlib->functions[i].nr_arguments >= HLL_MAX_ARGS)
 			ERROR("Too many arguments to library function: %s", ainlib->functions[i].name);
 	}
+	return dst;
 }
 
 static void link_libraries(void)
 {
+	libraries = xcalloc(ain->nr_libraries, sizeof(struct hll_function*));
+
 	for (int i = 0; i < ain->nr_libraries; i++) {
-		bool linked = false;
-		for (int j = 0; libraries[j]; j++) {
-			if (!strcmp(ain->libraries[i].name, libraries[j]->name)) {
-				link_library(&ain->libraries[i], libraries[j]);
-				linked = true;
+		for (int j = 0; static_libraries[j]; j++) {
+			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
+				libraries[i] = link_static_library(&ain->libraries[i], static_libraries[j]);
 				break;
 			}
 		}
-		if (!linked)
+		if (!libraries[i])
 			WARNING("Unimplemented library: %s", ain->libraries[i].name);
 	}
 }

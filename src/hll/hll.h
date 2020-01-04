@@ -28,7 +28,7 @@
 
 #define hll_defun(fname, args)						\
 	static union vm_value _hllfun_ ## fname(possibly_unused union vm_value *args); \
-	static struct hll_function _hllstruct_ ## fname = {		\
+	static struct static_hll_function _hllstruct_ ## fname = {	\
 		.name = #fname,						\
 		.fun = _hllfun_ ## fname				\
 	};								\
@@ -55,13 +55,13 @@
 
 #define hll_export(fname) &_hllstruct_ ## fname
 
-#define hll_deflib(lname, ...)				\
-	static struct hll_function *_lib_ ## lname[];	\
-	struct library lib_ ## lname = {		\
-		.name = #lname,				\
-		.functions = _lib_ ## lname		\
-	};						\
-	static struct hll_function *_lib_ ## lname[] = 
+#define hll_deflib(lname, ...)					\
+	static struct static_hll_function *_lib_ ## lname[];	\
+	struct static_library lib_ ## lname = {			\
+		.name = #lname,					\
+		.functions = _lib_ ## lname			\
+	};							\
+	static struct static_hll_function *_lib_ ## lname[] = 
 
 #define hll_return(v) return vm_value_cast(v)
 
