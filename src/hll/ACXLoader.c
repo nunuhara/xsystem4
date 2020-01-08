@@ -20,6 +20,7 @@
 #include "hll.h"
 #include "little_endian.h"
 #include "system4/string.h"
+#include "vm/page.h"
 
 struct acx_file {
 	int compressed_size;
@@ -33,17 +34,17 @@ struct acx_file {
 static struct acx_file acx;
 
 //bool Load(string pIFileName)
-hll_defun(Load, args)
+bool ACXLoader_Load(struct string *filename)
 {
 	FILE *fp;
 	long len;
 	uint8_t *buf = NULL;
-	char *path = gamedir_path(heap[args[0].i].s->text);
+	char *path = gamedir_path(filename->text);
 
 	if (!(fp = fopen(path, "rb"))) {
 		WARNING("ACXLoader.Load: Failed to open %s", path);
 		free(path);
-		hll_return(false);
+		return false;
 	}
 	free(path);
 
@@ -60,7 +61,7 @@ hll_defun(Load, args)
 	// check magic
 	if (strncmp((char*)buf, "ACX\0\0\0\0", 0)) {
 		free(buf);
-		hll_return(false);
+		return false;
 	}
 
 	acx.compressed_size = LittleEndian_getDW(buf, 8);
@@ -71,7 +72,7 @@ hll_defun(Load, args)
 	if (Z_OK != uncompress(acx.data_raw, &size, buf+16, len-16)) {
 		WARNING("ACXLoader.Load: uncompress failed");
 		free(buf);
-		hll_return(false);
+		return false;
 	}
 
 	acx.nr_columns = LittleEndian_getDW(acx.data_raw, 0);
@@ -79,70 +80,59 @@ hll_defun(Load, args)
 	acx.data = acx.data_raw + (8 + acx.nr_columns * 4);
 
 	free(buf);
-	hll_return(true);
+	return true;
 }
 
-//void Release()
-hll_defun(Release, args)
+void ACXLoader_Release(void)
 {
 	free(acx.data_raw);
 	memset(&acx, 0, sizeof(struct acx_file));
-	hll_return(0);
 }
 
-//int GetNumofLine()
-hll_defun(GetNumofLine, args)
+int ACXLoader_GetNumofLine(void)
 {
-	hll_return(acx.nr_lines);
+	return acx.nr_lines;
 }
 
-//int GetNumofColumn()
-hll_defun(GetNumofColumn, args)
+int ACXLoader_GetNumofColumn(void)
 {
-	hll_return(acx.nr_columns);
+	return acx.nr_columns;
 }
 
-//bool GetDataInt(int nLine, int nColumn, ref int pnData)
-hll_defun(GetDataInt, args)
+bool ACXLoader_GetDataInt(int line, int col, int *ptr)
 {
-	int line = args[0].i;
-	int col = args[1].i;
 
 	if (line < 0 || line >= acx.nr_lines || col < 0 || col >= acx.nr_columns)
-		hll_return(false);
+		return false;
 
 	uint8_t *data = acx.data + (line * acx.nr_columns * 4) + (col * 4);
-	*args[2].iref = LittleEndian_getDW(data, 0);
+	*ptr = LittleEndian_getDW(data, 0);
 
-	hll_return(true);
+	return true;
 }
 
-//bool GetDataString(int nLine, int nColumn, ref string pIData)
-hll_unimplemented(ACXLoader, GetDataString);
+HLL_UNIMPLEMENTED(bool, ACXLoader, GetDataString, int line, int col, struct string *data);
 
-//bool GetDataStruct(int nLine, ref struct pIVMStruct2)
-hll_defun(GetDataStruct, args)
+bool ACXLoader_GetDataStruct(int line, struct page **page)
 {
-	int line = args[0].i;
-	union vm_value *s = hll_struct_ref(args[1].i);
+	union vm_value *s = (*page)->values;
 
 	if (line >= acx.nr_lines)
-		hll_return(false);
+		return false;
 
 	uint8_t *data = acx.data + (line * acx.nr_columns * 4);
 	for (int i = 0; i < acx.nr_columns; i++) {
 		s[i].i = LittleEndian_getDW(data, i*4);
 	}
 
-	hll_return(true);
+	return true;
 }
 
-hll_deflib(ACXLoader) {
-	hll_export(Load),
-	hll_export(Release),
-	hll_export(GetNumofLine),
-	hll_export(GetNumofColumn),
-	hll_export(GetDataInt),
-	hll_export(GetDataString),
-	hll_export(GetDataStruct)
-};
+HLL_LIBRARY(ACXLoader,
+	    HLL_EXPORT(Load, ACXLoader_Load),
+	    HLL_EXPORT(Release, ACXLoader_Release),
+	    HLL_EXPORT(GetNumofLine, ACXLoader_GetNumofLine),
+	    HLL_EXPORT(GetNumofColumn, ACXLoader_GetNumofColumn),
+	    HLL_EXPORT(GetDataInt, ACXLoader_GetDataInt),
+	    HLL_EXPORT(GetDataString, ACXLoader_GetDataString),
+	    HLL_EXPORT(GetDataStruct, ACXLoader_GetDataStruct));

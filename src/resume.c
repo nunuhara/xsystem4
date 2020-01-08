@@ -54,7 +54,7 @@ static cJSON *value_to_json(union vm_value v)
 	return cJSON_CreateNumber(v.li);
 }
 
-static cJSON *page_to_json(struct page *page)
+static cJSON *resume_page_to_json(struct page *page)
 {
 	if (!page)
 		return cJSON_CreateNull();
@@ -89,7 +89,7 @@ static cJSON *heap_to_json(void)
 		cJSON_AddItemToArray(item, cJSON_CreateNumber(heap[i].ref));
 		switch (heap[i].type) {
 		case VM_PAGE:
-			cJSON_AddItemToArray(item, page_to_json(heap[i].page));
+			cJSON_AddItemToArray(item, resume_page_to_json(heap[i].page));
 			break;
 		case VM_STRING:
 			cJSON_AddItemToArray(item, cJSON_CreateString(heap[i].s->text));

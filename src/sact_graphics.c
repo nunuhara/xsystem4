@@ -24,6 +24,7 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 #include "vm.h"
+#include "vm/page.h"
 
 static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
 
@@ -99,7 +100,7 @@ static void realloc_sprite_table(int n)
 	memset(sprites + old_nr_sprites, 0, sizeof(struct sact_sprite*) * (nr_sprites - old_nr_sprites));
 }
 
-int sact_Init(void)
+int sact_Init(possibly_unused void *_, possibly_unused int cg_cache_size)
 {
 	gfx_init();
 	gfx_font_init();
@@ -133,6 +134,27 @@ int sact_SetWP(int cg_no)
 	gfx_init_texture_with_cg(&wp.texture, cg);
 	cg_free(cg);
 	return 1;
+}
+
+int sact_SetWP_Color(int r, int g, int b)
+{
+	gfx_set_clear_color(r, g, b, 255);
+	return 1;
+}
+
+int sact_GetScreenWidth(void)
+{
+	return config.view_width;
+}
+
+int sact_GetScreenHeight(void)
+{
+	return config.view_height;
+}
+
+int sact_GetMainSurfaceNumber(void)
+{
+	return -1;
 }
 
 void sact_render_scene(void)
@@ -184,12 +206,13 @@ int sact_SP_Count(void)
 	return count;
 }
 
-int sact_SP_Enum(union vm_value *array, int size)
+int sact_SP_Enum(struct page **array)
 {
 	int count = 0;
+	int size = (*array)->nr_vars;
 	for (int i = 0; i < nr_sprites && count < size; i++) {
 		if (sprites[i]) {
-			array[count++].i = i;
+			(*array)->values[count++].i = i;
 		}
 	}
 	return count;
@@ -262,6 +285,31 @@ int sact_SP_Delete(int sp_no)
 	return 1;
 }
 
+int sact_SP_SetPos(int sp_no, int x, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 1;
+	sp->rect.x = x;
+	sp->rect.y = y;
+	return 1;
+}
+
+int sact_SP_SetX(int sp_no, int x)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sp->rect.x = x;
+	return 1;
+}
+
+int sact_SP_SetY(int sp_no, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sp->rect.y = y;
+	return 1;
+}
+
 int sact_SP_SetZ(int sp_no, int z)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
@@ -322,11 +370,90 @@ int sact_SP_GetDrawMethod(int sp_no)
 	return t->draw_method;
 }
 
+int sact_SP_IsUsing(int sp_no)
+{
+	return sact_get_sprite(sp_no) != NULL;
+}
+
 int sact_SP_ExistsAlpha(int sp_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sp->texture.has_alpha;
+}
+
+int sact_SP_GetPosX(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->rect.x;
+}
+
+int sact_SP_GetPosY(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->rect.y;
+}
+
+int sact_SP_GetWidth(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->rect.w;
+}
+
+int sact_SP_GetHeight(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->rect.h;
+}
+
+int sact_SP_GetZ(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->z;
+}
+
+int sact_SP_GetShow(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->show;
+}
+
+int sact_SP_SetTextHome(int sp_no, int x, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sp->text.home = (Point) { .x = x, .y = y };
+	return 1;
+}
+
+int sact_SP_SetTextLineSpace(int sp_no, int px)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 1;
+	sp->text.line_space = px;
+	return 1;
+}
+
+int sact_SP_SetTextCharSpace(int sp_no, int px)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 1;
+	sp->text.char_space = px;
+	return 1;
+}
+
+int sact_SP_SetTextPos(int sp_no, int x, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sp->text.pos = (Point) { .x = x, .y = y };
+	return 1;
 }
 
 static void init_text_metrics(struct text_metrics *tm, union vm_value *_tm)
@@ -354,14 +481,14 @@ static void init_text_metrics(struct text_metrics *tm, union vm_value *_tm)
 	};
 }
 
-int sact_SP_TextDraw(int sp_no, struct string *text, union vm_value *_tm)
+int sact_SP_TextDraw(int sp_no, struct string *text, struct page *_tm)
 {
 
 	struct text_metrics tm;
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
 
-	init_text_metrics(&tm, _tm);
+	init_text_metrics(&tm, _tm->values);
 
 	if (!sp->text.texture.handle) {
 		SDL_Color c;
@@ -387,6 +514,23 @@ int sact_SP_TextClear(int sp_no)
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
 	clear_text(sp);
+	return 1;
+}
+
+int sact_SP_TextHome(int sp_no, possibly_unused int size)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	// FIXME: do something with nTextSize
+	sp->text.pos = sp->text.home;
+	return 1;
+}
+
+int sact_SP_TextNewLine(int sp_no, int size)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sp->text.pos = POINT(sp->text.home.x, sp->text.home.y + size);
 	return 1;
 }
 
@@ -418,6 +562,48 @@ int sact_SP_TextCopy(int dno, int sno)
 	return 1;
 }
 
+int sact_SP_GetTextHomeX(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->text.home.x;
+}
+
+int sact_SP_GetTextHomeY(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->text.home.y;
+}
+
+int sact_SP_GetTextCharSpace(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->text.char_space;
+}
+
+int sact_SP_GetTextPosX(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->text.pos.x;
+}
+
+int sact_SP_GetTextPosY(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->text.pos.y;
+}
+
+int sact_SP_GetTextLineSpace(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->text.line_space;
+}
+
 int sact_SP_IsPtIn(int sp_no, int x, int y)
 {
 	Point p = POINT(x, y);
@@ -431,10 +617,19 @@ int sact_SP_IsPtIn(int sp_no, int x, int y)
 	return !!c.a;
 }
 
-int sact_CG_GetMetrics(int cg_no, union vm_value *cgm)
+int sact_SP_IsPtInRect(int sp_no, int x, int y)
 {
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	Point p = { .x = x, .y = y };
+	if (!sp) return 0;
+	return !!SDL_PointInRect(&p, &sp->rect);
+}
+
+int sact_CG_GetMetrics(int cg_no, struct page **page)
+{
+	union vm_value *cgm = (*page)->values;
 	struct cg_metrics metrics;
-	if (!cg_get_metrics(ald[ALDFILE_CG], cg_no, &metrics))
+	if (!cg_get_metrics(ald[ALDFILE_CG], cg_no - 1, &metrics))
 		return 0;
 	cgm[0].i = metrics.w;
 	cgm[1].i = metrics.h;

@@ -18,48 +18,43 @@
 #include "hll.h"
 
 static bool enabled = false;
-//int Init(string szName)
-hll_warn_unimplemented(MsgSkip, Init, 1);
-//void UseFlag(int nUse)
-hll_warn_unimplemented(MsgSkip, UseFlag, 0);
+static int state = 0;
 
-//void SetEnable(int nEnable)
-hll_defun(SetEnable, args)
+void MsgSkip_SetEnable(int enable)
 {
-	enabled = !!args[0].i;
-	hll_return(0);
+	enabled = !!enable;
 }
 
-//void SetState(int nState)
-hll_warn_unimplemented(MsgSkip, SetState, 0);
-//void SetFlag(int nMsgNum)
-hll_warn_unimplemented(MsgSkip, SetFlag, 0);
-
-//int GetEnable(void)
-hll_defun(GetEnable, args)
+int MsgSkip_GetEnable(void)
 {
-	hll_return(enabled);
+	return enabled;
 }
 
-//int GetState(void)
-hll_ignore_unimplemented(GetState, 0);
-//int GetFlag(int nMsgNum)
-hll_warn_unimplemented(MsgSkip, GetFlag, 0);
-//int GetNumofMsg(void)
-hll_warn_unimplemented(MsgSkip, GetNumofMsg, 0);
-//int GetNumofFlag(void)
-hll_warn_unimplemented(MsgSkip, GetNumofFlag, 0);
+void MsgSkip_SetState(int _state)
+{
+	state = _state;
+}
 
-hll_deflib(MsgSkip) {
-	hll_export(Init),
-	hll_export(UseFlag),
-	hll_export(SetEnable),
-	hll_export(SetState),
-	hll_export(SetFlag),
-	hll_export(GetEnable),
-	hll_export(GetState),
-	hll_export(GetFlag),
-	hll_export(GetNumofMsg),
-	hll_export(GetNumofFlag),
-	NULL
-};
+int MsgSkip_GetState(void)
+{
+	return state;
+}
+
+HLL_WARN_UNIMPLEMENTED(1, int,  MsgSkip, Init, struct string *name);
+HLL_WARN_UNIMPLEMENTED( , void, MsgSkip, UseFlag, int use);
+HLL_WARN_UNIMPLEMENTED( , void, MsgSkip, SetFlag, int msgnum);
+HLL_WARN_UNIMPLEMENTED(0, int,  MsgSkip, GetFlag, int msgnum);
+HLL_WARN_UNIMPLEMENTED(0, int,  MsgSkip, GetNumofMsg, void);
+HLL_WARN_UNIMPLEMENTED(0, int,  MsgSkip, GetNumofFlag, void);
+
+HLL_LIBRARY(MsgSkip,
+	    HLL_EXPORT(Init, MsgSkip_Init),
+	    HLL_EXPORT(UseFlag, MsgSkip_UseFlag),
+	    HLL_EXPORT(SetEnable, MsgSkip_SetEnable),
+	    HLL_EXPORT(SetState, MsgSkip_SetState),
+	    HLL_EXPORT(SetFlag, MsgSkip_SetFlag),
+	    HLL_EXPORT(GetEnable, MsgSkip_GetEnable),
+	    HLL_EXPORT(GetState, MsgSkip_GetState),
+	    HLL_EXPORT(GetFlag, MsgSkip_GetFlag),
+	    HLL_EXPORT(GetNumofMsg, MsgSkip_GetNumofMsg),
+	    HLL_EXPORT(GetNumofFlag, MsgSkip_GetNumofFlag));

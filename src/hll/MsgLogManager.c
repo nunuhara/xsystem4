@@ -16,27 +16,25 @@
 
 #include "hll.h"
 
-hll_warn_unimplemented(MsgLogManager, Numof, 0);
-hll_warn_unimplemented(MsgLogManager, AddInt, 0);
-hll_warn_unimplemented(MsgLogManager, AddString, 0);
-hll_warn_unimplemented(MsgLogManager, GetType, 0);
-hll_warn_unimplemented(MsgLogManager, GetInt, 0);
-hll_warn_unimplemented(MsgLogManager, GetString, 0);
-hll_warn_unimplemented(MsgLogManager, Save, 0);
-hll_warn_unimplemented(MsgLogManager, Load, 0);
-hll_warn_unimplemented(MsgLogManager, SetLineMax, 0);
-hll_warn_unimplemented(MsgLogManager, GetInterface, 0);
+HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, Numof, void);
+HLL_WARN_UNIMPLEMENTED( , void, MsgLogManager, AddInt, int type, int value);
+HLL_WARN_UNIMPLEMENTED( , void, MsgLogManager, AddString, int type, struct string *str);
+HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, GetType, int index);
+HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, GetInt, int index);
+HLL_WARN_UNIMPLEMENTED( , void, MsgLogManager, GetString, int index, struct string **str);
+HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, Save, struct string *filename);
+HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, Load, struct string *filename);
+HLL_WARN_UNIMPLEMENTED( , void, MsgLogManager, SetLineMax, int line_max);
+HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, GetInterface, void);
 
-hll_deflib(MsgLogManager) {
-	hll_export(Numof),
-	hll_export(AddInt),
-	hll_export(AddString),
-	hll_export(GetType),
-	hll_export(GetInt),
-	hll_export(GetString),
-	hll_export(Save),
-	hll_export(Load),
-	hll_export(SetLineMax),
-	hll_export(GetInterface),
-	NULL
-};
+HLL_LIBRARY(MsgLogManager,
+	    HLL_EXPORT(Numof, MsgLogManager_Numof),
+	    HLL_EXPORT(AddInt, MsgLogManager_AddInt),
+	    HLL_EXPORT(AddString, MsgLogManager_AddString),
+	    HLL_EXPORT(GetType, MsgLogManager_GetType),
+	    HLL_EXPORT(GetInt, MsgLogManager_GetInt),
+	    HLL_EXPORT(GetString, MsgLogManager_GetString),
+	    HLL_EXPORT(Save, MsgLogManager_Save),
+	    HLL_EXPORT(Load, MsgLogManager_Load),
+	    HLL_EXPORT(SetLineMax, MsgLogManager_SetLineMax),
+	    HLL_EXPORT(GetInterface, MsgLogManager_GetInterface));

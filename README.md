@@ -11,7 +11,17 @@ NOTE: This is a work in progress. Some simple ADV games run more or less okay,
 Building
 --------
 
-xsystem4 uses the meson build system.
+First install the dependencies (corresponding Debian package in parentheses):
+
+* chibi-scheme [optional, for debugger]
+* meson (meson)
+* libffi (libffi-dev)
+* SDL2 (libsdl2-dev)
+* SDL2_mixer (libsdl2-mixer-dev)
+* SDL2_ttf (libsdl2-ttf-dev)
+* zlib (zlib1g-dev)
+
+Then build the xsystem4 executable with meson,
 
     mkdir build
     meson build

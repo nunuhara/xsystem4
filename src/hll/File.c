@@ -26,41 +26,40 @@
 #include "system4.h"
 #include "system4/string.h"
 #include "vm/heap.h"
+#include "vm/page.h"
 
 static FILE *current_file = NULL;
 static char *file_contents = NULL;
 static size_t file_size = 0;
 static size_t file_cursor = 0;
 
-//int Open(string szName, int nType)
-hll_defun(Open, args)
+int File_Open(struct string *filename, int type)
 {
 	const char *mode;
-	if (args[1].i == 1) {
+	if (type == 1) {
 		mode = "r";
-	} else if (args[1].i == 2) {
+	} else if (type == 2) {
 		mode = "w";
 	} else {
-		WARNING("Unknown mode in File.Open: %d", args[1].i);
-		hll_return(0);
+		WARNING("Unknown mode in File.Open: %d", type);
+		return 0;
 	}
 	if (current_file) {
 		WARNING("Previously opened file wasn't closed");
 		fclose(current_file);
 	}
 
-	char *path = unix_path(hll_string_ref(args[0].i)->text);
+	char *path = unix_path(filename->text);
 	current_file = fopen(path, mode);
 	if (!current_file) {
 		WARNING("Failed to open file '%s': %s", path, strerror(errno));
 	}
 
 	free(path);
-	hll_return(!!current_file);
+	return !!current_file;
 }
 
-//int Close()
-hll_defun(Close, args)
+int File_Close(void)
 {
 	if (!current_file) {
 		VM_ERROR("File.Close called, but no open file");
@@ -72,13 +71,12 @@ hll_defun(Close, args)
 	file_contents = NULL;
 	file_size = 0;
 	file_cursor = 0;
-	hll_return(r);
+	return r;
 }
 
-//int Read(ref struct pIVMStruct)
-hll_defun(Read, args)
+int File_Read(struct page **_page)
 {
-	struct page *page = heap_get_page(args[0].i);
+	struct page *page = *_page;
 	if (page->type != STRUCT_PAGE) {
 		VM_ERROR("File.Read of non-struct");
 	}
@@ -97,7 +95,7 @@ hll_defun(Read, args)
 		if (fread(file_contents, file_size, 1, current_file) != 1) {
 			WARNING("File.Read failed (fread): %s", strerror(errno));
 			free(file_contents);
-			hll_return(0);
+			return 0;
 		}
 		file_contents[file_size] = '\0';
 	}
@@ -106,81 +104,73 @@ hll_defun(Read, args)
 	cJSON *json = cJSON_ParseWithOpts(file_contents+file_cursor, &end, false);
 	if (!json) {
 		WARNING("File.Read failed to parse JSON");
-		hll_return(0);
+		return 0;
 	}
 	if (!cJSON_IsArray(json)) {
 		WARNING("File.Read incorrect type in parsed JSON");
-		hll_return(0);
+		return 0;
 	}
 
 	file_cursor = end - file_contents;
 
 	json_load_page(page, json);
 	cJSON_Delete(json);
-	hll_return(0);
+	return 1;
 }
 
-//int Write(struct pIVMStruct)
-hll_defun(Write, args)
+int File_Write(struct page *page)
 {
 	if (!current_file) {
 		VM_ERROR("File.Write called, but no open file");
-		hll_return(0);
+		return 0;
 	}
 
-	cJSON *json = vm_value_to_json(AIN_STRUCT, args[0]);
+	cJSON *json = page_to_json(page);
 	char *str = cJSON_Print(json);
 	cJSON_Delete(json);
 
 	if (fwrite(str, strlen(str), 1, current_file) != 1) {
 		WARNING("File.Write failed (fwrite): %s", strerror(errno));
 		free(str);
-		hll_return(0);
+		return 0;
 	}
 	fflush(current_file);
 
 	free(str);
-	hll_return(1);
+	return 1;
 }
-
-//int Copy(string szSrcName, string szDstName)
-hll_unimplemented(File, Copy);
-
-//int Delete(string szName)
-hll_unimplemented(File, Delete);
 
 /*
 
-  struct tagSaveDate {
-      int m_nYear;
-      int m_nMonth;
-      int m_nDay;
-      int m_nHour;
-      int m_nMinute;
-      int m_nSecond;
-      int m_nDayOfWeek;
-  };
+struct tagSaveDate {
+    int m_nYear;
+    int m_nMonth;
+    int m_nDay;
+    int m_nHour;
+    int m_nMinute;
+    int m_nSecond;
+    int m_nDayOfWeek;
+};
 
  */
 
-//int GetTime(string szName, ref struct pIVMStruct)
-hll_defun(GetTime, args)
+int File_GetTime(struct string *filename, struct page **page)
 {
 	struct stat s;
-	char *path = unix_path(hll_string_ref(args[0].i)->text);
-	union vm_value *date = hll_struct_ref(args[1].i);
+	char *path = unix_path(filename->text);
+	union vm_value *date = (*page)->values;
 
 	if (stat(path, &s) < 0) {
 		WARNING("stat failed: %s", strerror(errno));
 		free(path);
-		hll_return(0);
+		return 0;
 	}
 	free(path);
 
 	struct tm *tm = localtime(&s.st_mtime);
 	if (!tm) {
 		WARNING("localtime failed: %s", strerror(errno));
-		hll_return(0);
+		return 0;
 	}
 
 	date[0].i = tm->tm_year;
@@ -191,26 +181,24 @@ hll_defun(GetTime, args)
 	date[5].i = tm->tm_sec;
 	date[6].i = tm->tm_wday;
 
-	hll_return(1);
+	return 1;
 }
 
-//int SetFind(string szName)
-hll_unimplemented(File, SetFind);
-//int GetFind(ref string szName)
-hll_unimplemented(File, GetFind);
-//int MakeDirectory(string szName)
-hll_unimplemented(File, MakeDirectory);
+HLL_UNIMPLEMENTED(int, File, Copy, struct string *src, struct string *dst);
+HLL_UNIMPLEMENTED(int, File, Delete, struct string *name);
+HLL_UNIMPLEMENTED(int, File, SetFind, struct string *name);
+HLL_UNIMPLEMENTED(int, File, GetFind, struct string **name);
+HLL_UNIMPLEMENTED(int, File, MakeDirectory, struct string *name);
 
-hll_deflib(File) {
-	hll_export(Open),
-	hll_export(Close),
-	hll_export(Read),
-	hll_export(Write),
-	hll_export(Copy),
-	hll_export(Delete),
-	hll_export(GetTime),
-	hll_export(SetFind),
-	hll_export(GetFind),
-	hll_export(MakeDirectory),
-	NULL
-};
+HLL_LIBRARY(File,
+	    HLL_EXPORT(Open, File_Open),
+	    HLL_EXPORT(Close, File_Close),
+	    HLL_EXPORT(Read, File_Read),
+	    HLL_EXPORT(Write, File_Write),
+	    HLL_EXPORT(File, File_Copy),
+	    HLL_EXPORT(File, File_Delete),
+	    HLL_EXPORT(GetTime, File_GetTime),
+	    HLL_EXPORT(File, File_SetFind),
+	    HLL_EXPORT(File, File_GetFind),
+	    HLL_EXPORT(File, File_MakeDirectory));
+

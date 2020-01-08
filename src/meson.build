@@ -14,6 +14,7 @@ xsystem4 = ['audio.c',
             'cJSON.c',
             'draw.c',
             'effect.c',
+            'ffi.c',
             'file.c',
             'format.c',
             'heap.c',
@@ -45,7 +46,7 @@ xsystem4 = ['audio.c',
             'hll/SystemServiceEx.c',
 ]
 
-xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, gl, glew]
+xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, ffi, gl, glew]
 if chibi.found()
     xsystem4_deps += chibi
     xsystem4 += 'debugger.c'

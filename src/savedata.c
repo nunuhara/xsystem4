@@ -36,9 +36,8 @@ static int current_global;
 		free(str);						\
 	}
 
-static cJSON *page_to_json(int index)
+cJSON *page_to_json(struct page *page)
 {
-	struct page *page = heap_get_page(index);
 	if (!page)
 		return cJSON_CreateNull();
 
@@ -66,7 +65,7 @@ cJSON *vm_value_to_json(enum ain_data_type type, union vm_value val)
 		return cJSON_CreateString(heap[val.i].s->text);
 	case AIN_STRUCT:
 	case AIN_ARRAY_TYPE:
-		return page_to_json(val.i);
+		return page_to_json(heap_get_page(val.i));
 	case AIN_REF_TYPE:
 		return cJSON_CreateNumber(-1);
 	default:

@@ -21,298 +21,288 @@
 
 #define TEX(sp_no) sact_get_texture(sp_no)
 
-//void Copy(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(Copy, (gfx_copy(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
-//void CopyBright(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nRate)
-hll_defun_inline(CopyBright, (gfx_copy_bright(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
-//void CopyAMap(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(CopyAMap, (gfx_copy_amap(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
-//void CopySprite(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nR, int nG, int nB)
-hll_defun_inline(CopySprite, (gfx_copy_sprite(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, COLOR(a[8].i, a[9].i, a[10].i, 0)), 0));
-//void CopyColorReverse(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, CopyColorReverse);
-//void CopyUseAMapUnder(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
-hll_defun_inline(CopyUseAMapUnder, (gfx_copy_use_amap_under(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
-//void CopyUseAMapBorder(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
-hll_defun_inline(CopyUseAMapBorder, (gfx_copy_use_amap_border(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
-//void CopyAMapMax(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(CopyAMapMax, (gfx_copy_amap_max(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
-//void CopyAMapMin(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(CopyAMapMin, (gfx_copy_amap_min(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
-//void Blend(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
-hll_unimplemented(DrawGraph, Blend);
-//void BlendSrcBright(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha, int nRate)
-hll_unimplemented(DrawGraph, BlendSrcBright);
-//void BlendAddSatur(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, BlendAddSatur);
-//void BlendAMap(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(BlendAMap, (gfx_blend_amap(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
-//void BlendAMapSrcOnly(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, BlendAMapSrcOnly);
-//void BlendAMapColor(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nR, int nG, int nB)
-hll_unimplemented(DrawGraph, BlendAMapColor);
-//void BlendAMapColorAlpha(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nR, int nG, int nB, int nAlpha)
-hll_unimplemented(DrawGraph, BlendAMapColorAlpha);
-//void BlendAMapAlpha(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
-hll_defun_inline(BlendAMapAlpha, (gfx_blend_amap_alpha(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
-//void BlendAMapBright(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nRate)
-hll_unimplemented(DrawGraph, BlendAMapBright);
-//void BlendAMapAlphaSrcBright(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha, int nRate)
-hll_unimplemented(DrawGraph, BlendAMapAlphaSrcBright);
-//void BlendUseAMapColor(int nDest, int nDx, int nDy, int nAlpha, int nAx, int nAy, int nWidth, int nHeight, int nR, int nG, int nB, int nRate)
-hll_unimplemented(DrawGraph, BlendUseAMapColor);
-//void BlendScreen(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, BlendScreen);
-//void BlendMultiply(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, BlendMultiply);
-//void BlendScreenAlpha(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nAlpha)
-hll_unimplemented(DrawGraph, BlendScreenAlpha);
-//void Fill(int nDest, int nX, int nY, int nWidth, int nHeight, int nR, int nG, int nB)
-hll_defun_inline(Fill, (gfx_fill(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i), 0));
-//void FillAlphaColor(int nDest, int nX, int nY, int nWidth, int nHeight, int nR, int nG, int nB, int nRate)
-hll_defun_inline(FillAlphaColor, (gfx_fill_alpha_color(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
-//void FillAMap(int nDest, int nX, int nY, int nWidth, int nHeight, int nAlpha)
-hll_defun_inline(FillAMap, (gfx_fill_amap(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, a[5].i), 0));
-//void FillAMapOverBorder(int nDest, int nX, int nY, int nWidth, int nHeight, int nAlpha, int nBorder)
-hll_unimplemented(DrawGraph, FillAMapOverBorder);
-//void FillAMapUnderBorder(int nDest, int nX, int nY, int nWidth, int nHeight, int nAlpha, int nBorder)
-hll_unimplemented(DrawGraph, FillAMapUnderBorder);
-//void FillAMapGradationUD(int nDest, int nX, int nY, int nWidth, int nHeight, int nUpA, int nDownA)
-hll_unimplemented(DrawGraph, FillAMapGradationUD);
-//void FillScreen(int nDest, int nX, int nY, int nWidth, int nHeight, int nR, int nG, int nB)
-hll_unimplemented(DrawGraph, FillScreen);
-//void FillMultiply(int nDest, int nX, int nY, int nWidth, int nHeight, int nR, int nG, int nB)
-hll_unimplemented(DrawGraph, FillMultiply);
-//void SaturDP_DPxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, SaturDP);
-//void ScreenDA_DAxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, ScreenDA_DAxSA);
-//void AddDA_DAxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(AddDA_DAxSA, (gfx_add_da_daxsa(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
-//void SpriteCopyAMap(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nColorKey)
-hll_unimplemented(DrawGraph, SpriteCopyAMap);
-//void BlendDA_DAxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, BlendDA);
-//void SubDA_DAxSA(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, SubDA);
-//void BrightDestOnly(int nDest, int nX, int nY, int nWidth, int nHeight, int nRate)
-hll_unimplemented(DrawGraph, BrightDestOnly);
-//void CopyTextureWrap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight, int nU, int nV)
-hll_unimplemented(DrawGraph, CopyTextureWrap);
-//void CopyTextureWrapAlpha(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight, int nU, int nV, int nAlpha)
-hll_unimplemented(DrawGraph, CopyTextureWrapAlpha);
-//void CopyStretch(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_defun_inline(CopyStretch, (gfx_copy_stretch(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, TEX(a[5].i), a[6].i, a[7].i, a[8].i, a[9].i), 0));
-//void CopyStretchBlend(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight, int nAlpha)
-hll_unimplemented(DrawGraph, CopyStretchBlend);
-//void CopyStretchBlendAMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_unimplemented(DrawGraph, CopyStretchBlendAMap);
-//void CopyStretchAMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_defun_inline(CopyStretchAMap, (gfx_copy_stretch_amap(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, TEX(a[5].i), a[6].i, a[7].i, a[8].i, a[9].i), 0));
-//void CopyStretchInterp(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_unimplemented(DrawGraph, CopyStretchInterp);
-//void CopyStretchAMapInterp(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_unimplemented(DrawGraph, CopyStretchAMapInterp);
-//void CopyReduce(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_defun_inline(CopyReduce, (gfx_copy_stretch(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, TEX(a[5].i), a[6].i, a[7].i, a[8].i, a[9].i), 0));
-//void CopyReduceAMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight)
-hll_defun_inline(CopyReduceAMap, (gfx_copy_stretch_amap(TEX(a[0].i), a[1].i, a[2].i, a[3].i, a[4].i, TEX(a[5].i), a[6].i, a[7].i, a[8].i, a[9].i), 0));
-//void DrawTextToPMap(int nDest, int nX, int nY, string szText)
-hll_defun_inline(DrawTextToPMap, (gfx_draw_text_to_pmap(TEX(a[0].i), a[1].i, a[2].i, hll_string_ref(a[3].i)->text), 0));
-//void DrawTextToAMap(int nDest, int nX, int nY, string szText)
-hll_defun_inline(DrawTextToAMap, (gfx_draw_text_to_amap(TEX(a[0].i), a[1].i, a[2].i, hll_string_ref(a[3].i)->text), 0));
-//void SetFontSize(int nSize)
-hll_defun_inline(SetFontSize, gfx_set_font_size(a[0].i));
-//void SetFontName(string pIText)
-hll_warn_unimplemented(DrawGraph, SetFontName, 0);
-//void SetFontWeight(int nWeight)
-hll_defun_inline(SetFontWeight, gfx_set_font_weight(a[0].i));
-//void SetFontUnderline(int nFlag)
-hll_defun_inline(SetFontUnderline, gfx_set_font_underline(a[0].i));
-//void SetFontStrikeOut(int nFlag)
-hll_defun_inline(SetFontStrikeOut, gfx_set_font_strikeout(a[0].i));
-//void SetFontSpace(int nSpace)
-hll_defun_inline(SetFontSpace, gfx_set_font_space(a[0].i));
-//void SetFontColor(int nR, int nG, int nB)
-hll_defun_inline(SetFontColor, gfx_set_font_color(COLOR(a[0].i, a[1].i, a[2].i, 255)));
-//int GetFontSize()
-hll_defun_inline(GetFontSize, gfx_get_font_size());
-//string GetFontName()
-hll_warn_unimplemented(DrawGraph, GetFontName, vm_string_ref(&EMPTY_STRING)); // FIXME
-//int GetFontWeight()
-hll_defun_inline(GetFontWeight, (int)gfx_get_font_weight());
-//int GetFontUnderline()
-hll_defun_inline(GetFontUnderline, gfx_get_font_underline());
-//int GetFontStrikeOut()
-hll_defun_inline(GetFontStrikeOut, gfx_get_font_strikeout());
-//int GetFontSpace()
-hll_defun_inline(GetFontSpace, gfx_get_font_space());
-
-//void GetFontColor(ref int pnR, ref int pnG, ref int pnB)
-hll_defun(GetFontColor, args)
+void DrawGraph_Copy(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
-	SDL_Color c = gfx_get_font_color();
-	*args[0].iref = c.r;
-	*args[1].iref = c.g;
-	*args[2].iref = c.b;
-	hll_return(0);
+	gfx_copy(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
 }
 
-//void CopyRotZoom(int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_defun_inline(CopyRotZoom, (gfx_copy_rot_zoom(TEX(a[0].i), TEX(a[1].i), a[2].i, a[3].i, a[4].i, a[5].i, a[6].f, a[7].f), 0));
-//void CopyRotZoomAMap(int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_defun_inline(CopyRotZoomAMap, (gfx_copy_rot_zoom_amap(TEX(a[0].i), TEX(a[1].i), a[2].i, a[3].i, a[4].i, a[5].i, a[6].f, a[7].f), 0));
-//void CopyRotZoomUseAMap(int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_defun_inline(CopyRotZoomUseAMap, (gfx_copy_rot_zoom_use_amap(TEX(a[0].i), TEX(a[1].i), a[2].i, a[3].i, a[4].i, a[5].i, a[6].f, a[7].f), 0));
-//void CopyRotZoom2Bilinear(int nDest, float fCx, float fCy, int nSrc, float fSrcCx, float fSrcCy, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotZoom2Bilinear);
-//void CopyRotateY(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateY);
-//void CopyRotateYUseAMap(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateYUseAMap);
-//void CopyRotateYFixL(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateYFixL);
-//void CopyRotateYFixR(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateYFixR);
-//void CopyRotateYFixLUseAMap(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateYFixLUseAMap);
-//void CopyRotateYFixRUseAMap(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateYFixRUseAMap);
-//void CopyRotatex(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateX);
-//void CopyRotateXUseAMap(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateXUseAMap);
-//void CopyRotateXFixU(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateXFixU);
-//void CopyRotateXFixD(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateXFixD);
-//void CopyRotateXFixUUseAMap(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateXFixUUseAMap);
-//void CopyRotateXFixDUseAMap(int nWrite, int nDest, int nSrc, int nSx, int nSy, int nWidth, int nHeight, float fRotate, float fMag)
-hll_unimplemented(DrawGraph, CopyRotateXFixDUseAMap);
-//void CopyReverseLR(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(CopyReverseLR, (gfx_copy_reverse_LR(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
-//void CopyReverseUD(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, CopyReverseUD);
-//void CopyReverseAMapLR(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_defun_inline(CopyReverseAMapLR, (gfx_copy_reverse_amap_LR(TEX(a[0].i), a[1].i, a[2].i, TEX(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i), 0));
-//void CopyReverseAMapUD(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight)
-hll_unimplemented(DrawGraph, CopyReverseAMapUD);
-//void CopyWidthBlur(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nBlur)
-hll_unimplemented(DrawGraph, CopyWidthBlur);
-//void CopyHeightBlur(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nBlur)
-hll_unimplemented(DrawGraph, CopyHeightBlur);
-//void CopyAMapWidthBlur(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nBlur)
-hll_unimplemented(DrawGraph, CopyAMapWidthBlur);
-//void CopyAMapHeightBlur(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nBlur)
-hll_unimplemented(DrawGraph, CopyAMapHeightBlur);
-//void DrawLine(int nDest, int nX0, int nY0, int nX1, int nY1, int nR, int nG, int nB)
-hll_unimplemented(DrawGraph, DrawLine);
-//void DrawLineToAMap(int nDest, int nX0, int nY0, int nX1, int nY1, int nAlpha)
-hll_unimplemented(DrawGraph, DrawLineToAMap);
-//bool GetPixelColor(int nSurface, int nX, int nY, ref int nR, ref int nG, ref int nB)
-hll_defun_inline(GetPixelColor, sact_SP_GetPixelValue(a[0].i, a[1].i, a[2].i, a[3].iref, a[4].iref, a[5].iref));
-//bool GetAlphaColor(int nSurface, int nX, int nY, ref int nA)
-hll_defun_inline(GetAlphaColor, (*a[3].iref = sact_SP_GetAMapValue(a[0].i, a[1].i, a[2].i), 1));
-//void DrawPolygon(int nDest, int nTex, float fX0, float fY0, float fZ0, float fU0, float fV0, float fX1, float fY1, float fZ1, float fU1, float fV1, float fX2, float fY2, float fZ2, float fU2, float fV2)
-hll_unimplemented(DrawGraph, DrawPolygon);
-//void DrawColorPolygon(int nDest, float fX0, float fY0, float fZ0, int nR0, int nG0, int nB0, int nA0, float fX1, float fY1, float fZ1, int nR1, int nG1, int nB1, int nA1, float fX2, float fY2, float fZ2, int nR2, int nG2, int nB2, int nA2)
-hll_unimplemented(DrawGraph, DrawColorPolygon);
+void DrawGraph_CopyBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int rate)
+{
+	gfx_copy_bright(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, rate);
+}
 
-hll_deflib(DrawGraph) {
-	hll_export(Copy),
-	hll_export(CopyBright),
-	hll_export(CopyAMap),
-	hll_export(CopySprite),
-	hll_export(CopyColorReverse),
-	hll_export(CopyUseAMapUnder),
-	hll_export(CopyUseAMapBorder),
-	hll_export(CopyAMapMax),
-	hll_export(CopyAMapMin),
-	hll_export(Blend),
-	hll_export(BlendSrcBright),
-	hll_export(BlendAddSatur),
-	hll_export(BlendAMap),
-	hll_export(BlendAMapSrcOnly),
-	hll_export(BlendAMapColor),
-	hll_export(BlendAMapColorAlpha),
-	hll_export(BlendAMapAlpha),
-	hll_export(BlendAMapBright),
-	hll_export(BlendAMapAlphaSrcBright),
-	hll_export(BlendUseAMapColor),
-	hll_export(BlendScreen),
-	hll_export(BlendMultiply),
-	hll_export(BlendScreenAlpha),
-	hll_export(Fill),
-	hll_export(FillAlphaColor),
-	hll_export(FillAMap),
-	hll_export(FillAMapOverBorder),
-	hll_export(FillAMapUnderBorder),
-	hll_export(FillAMapGradationUD),
-	hll_export(FillScreen),
-	hll_export(FillMultiply),
-	hll_export(SaturDP),
-	hll_export(ScreenDA_DAxSA),
-	hll_export(AddDA_DAxSA),
-	hll_export(SpriteCopyAMap),
-	hll_export(BlendDA),
-	hll_export(SubDA),
-	hll_export(BrightDestOnly),
-	hll_export(CopyTextureWrap),
-	hll_export(CopyTextureWrapAlpha),
-	hll_export(CopyStretch),
-	hll_export(CopyStretchBlend),
-	hll_export(CopyStretchBlendAMap),
-	hll_export(CopyStretchAMap),
-	hll_export(CopyStretchInterp),
-	hll_export(CopyStretchAMapInterp),
-	hll_export(CopyReduce),
-	hll_export(CopyReduceAMap),
-	hll_export(DrawTextToPMap),
-	hll_export(DrawTextToAMap),
-	hll_export(SetFontSize),
-	hll_export(SetFontName),
-	hll_export(SetFontWeight),
-	hll_export(SetFontUnderline),
-	hll_export(SetFontStrikeOut),
-	hll_export(SetFontSpace),
-	hll_export(SetFontColor),
-	hll_export(GetFontSize),
-	hll_export(GetFontName),
-	hll_export(GetFontWeight),
-	hll_export(GetFontUnderline),
-	hll_export(GetFontStrikeOut),
-	hll_export(GetFontSpace),
-	hll_export(GetFontColor),
-	hll_export(CopyRotZoom),
-	hll_export(CopyRotZoomAMap),
-	hll_export(CopyRotZoomUseAMap),
-	hll_export(CopyRotZoom2Bilinear),
-	hll_export(CopyRotateY),
-	hll_export(CopyRotateYUseAMap),
-	hll_export(CopyRotateYFixL),
-	hll_export(CopyRotateYFixR),
-	hll_export(CopyRotateYFixLUseAMap),
-	hll_export(CopyRotateYFixRUseAMap),
-	hll_export(CopyRotateX),
-	hll_export(CopyRotateXUseAMap),
-	hll_export(CopyRotateXFixU),
-	hll_export(CopyRotateXFixD),
-	hll_export(CopyRotateXFixUUseAMap),
-	hll_export(CopyRotateXFixDUseAMap),
-	hll_export(CopyReverseLR),
-	hll_export(CopyReverseUD),
-	hll_export(CopyReverseAMapLR),
-	hll_export(CopyReverseAMapUD),
-	hll_export(CopyWidthBlur),
-	hll_export(CopyHeightBlur),
-	hll_export(CopyAMapWidthBlur),
-	hll_export(CopyAMapHeightBlur),
-	hll_export(DrawLine),
-	hll_export(DrawLineToAMap),
-	hll_export(GetPixelColor),
-	hll_export(GetAlphaColor),
-	hll_export(DrawPolygon),
-	hll_export(DrawColorPolygon),
-	NULL
-};
+void DrawGraph_CopyAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_amap(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+}
+
+void DrawGraph_CopySprite(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b)
+{
+	gfx_copy_sprite(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, COLOR(r, g, b, 0));
+}
+
+void DrawGraph_CopyUseAMapUnder(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
+{
+	gfx_copy_use_amap_under(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, alpha);
+}
+
+void DrawGraph_CopyUseAMapBorder(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
+{
+	gfx_copy_use_amap_border(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, alpha);
+}
+
+void DrawGraph_CopyAMapMax(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_amap_max(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+}
+
+void DrawGraph_CopyAMapMin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_amap_min(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+}
+
+void DrawGraph_BlendAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_blend_amap(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+}
+
+void DrawGraph_BlendAMapAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
+{
+	gfx_blend_amap_alpha(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, alpha);
+}
+
+void DrawGraph_Fill(int dst, int x, int y, int w, int h, int r, int g, int b)
+{
+	gfx_fill(TEX(dst), x, y, w, h, r, g, b);
+}
+
+void DrawGraph_FillAlphaColor(int dst, int x, int y, int w, int h, int r, int g, int b, int rate)
+{
+	gfx_fill_alpha_color(TEX(dst), x, y, w, h, r, g, b, rate);
+}
+
+void DrawGraph_FillAMap(int dst, int x, int y, int w, int h, int alpha)
+{
+	gfx_fill_amap(TEX(dst), x, y, w, h, alpha);
+}
+
+void DrawGraph_AddDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_add_da_daxsa(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+}
+
+void DrawGraph_CopyStretch(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
+{
+	gfx_copy_stretch(TEX(dst), dx, dy, dw, dh, TEX(src), sx, sy, sw, sh);
+}
+
+void DrawGraph_CopyStretchAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
+{
+	gfx_copy_stretch_amap(TEX(dst), dx, dy, dw, dh, TEX(src), sx, sy, sw, sh);
+}
+
+void DrawGraph_DrawTextToPMap(int dst, int x, int y, struct string *s)
+{
+	gfx_draw_text_to_pmap(TEX(dst), x, y, s->text);
+}
+
+void DrawGraph_DrawTextToAMap(int dst, int x, int y, struct string *s)
+{
+	gfx_draw_text_to_amap(TEX(dst), x, y, s->text);
+}
+
+void DrawGraph_SetFontColor(int r, int g, int b)
+{
+	gfx_set_font_color(COLOR(r, g, b, 255));
+}
+
+void DrawGraph_GetFontColor(int *r, int *g, int *b)
+{
+	SDL_Color c = gfx_get_font_color();
+	*r = c.r;
+	*g = c.g;
+	*b = c.b;
+}
+
+void DrawGraph_CopyRotZoom(int dst, int src, int sx, int sy, int w, int h, float rotate, float mag)
+{
+	gfx_copy_rot_zoom(TEX(dst), TEX(src), sx, sy, w, h, rotate, mag);
+}
+
+void DrawGraph_CopyRotZoomAMap(int dst, int src, int sx, int sy, int w, int h, float rotate, float mag)
+{
+	gfx_copy_rot_zoom_amap(TEX(dst), TEX(src), sx, sy, w, h, rotate, mag);
+}
+
+void DrawGraph_CopyRotZoomUseAMap(int dst, int src, int sx, int sy, int w, int h, float rotate, float mag)
+{
+	gfx_copy_rot_zoom_use_amap(TEX(dst), TEX(src), sx, sy, w, h, rotate, mag);
+}
+
+void DrawGraph_CopyReverseLR(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_reverse_LR(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+}
+
+void DrawGraph_CopyReverseAMapLR(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_reverse_amap_LR(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+}
+
+bool DrawGraph_GetAlphaColor(int surface, int x, int y, int *a)
+{
+	*a = sact_SP_GetAMapValue(surface, x, y);
+	return true;
+}
+
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyColorReverse, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, Blend, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendSrcBright, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendAddSatur, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendAMapSrcOnly, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendAMapColor, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendAMapColorAlpha, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b, int a);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendAMapBright, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int rate);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendAMapAlphaSrcBright, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendUseAMapColor, int dst, int dx, int dy, int alpha, int ax, int ay, int w, int h, int r, int g, int b, int rate);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendScreen, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendMultiply, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendScreenAlpha, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha);
+HLL_UNIMPLEMENTED(void, DrawGraph, FillAMapOverBorder, int dst, int x, int y, int w, int h, int alpha, int border);
+HLL_UNIMPLEMENTED(void, DrawGraph, FillAMapUnderBorder, int dst, int x, int y, int w, int h, int alpha, int border);
+HLL_UNIMPLEMENTED(void, DrawGraph, FillAMapGradationUD, int dst, int x, int y, int w, int h, int up_a, int down_a);
+HLL_UNIMPLEMENTED(void, DrawGraph, FillScreen, int dst, int x, int y, int w, int h, int r, int g, int b);
+HLL_UNIMPLEMENTED(void, DrawGraph, FillMultiply, int dst, int x, int y, int w, int h, int r, int g, int b);
+HLL_UNIMPLEMENTED(void, DrawGraph, SaturDP_DPxSA, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, ScreenDA_DAxSA, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, SpriteCopyAMap, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int key);
+HLL_UNIMPLEMENTED(void, DrawGraph, BlendDA_DAxSA, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, SubDA_DAxSA, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, BrightDestOnly, int dst, int x, int y, int w, int h, int rate);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyTextureWrap, int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyTextureWrapAlpha, int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v, int alpha);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyStretchBlend, int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int alpha);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyStretchBlendAMap, int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyStretchInterp, int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyStretchAMapInterp, int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
+HLL_WARN_UNIMPLEMENTED( , void, DrawGraph, SetFontName, struct string *text);
+HLL_WARN_UNIMPLEMENTED(&EMPTY_STRING, struct string*, DrawGraph, GetFontName, void);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotZoom2Bilinear, int dst, float cx, float cy, int src, float scx, float scy, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateY, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateYUseAMap, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateYFixL, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateYFixR, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateYFixLUseAMap, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateYFixRUseAMap, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateX, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateXUseAMap, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateXFixU, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateXFixD, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateXFixUUseAMap, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateXFixDUseAMap, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyReverseUD, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyReverseAMapUD, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyWidthBlur, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int blur);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyHeightBlur, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int blur);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyAMapWidthBlur, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int blur);
+HLL_UNIMPLEMENTED(void, DrawGraph, CopyAMapHeightBlur, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int blur);
+HLL_UNIMPLEMENTED(void, DrawGraph, DrawLine, int dst, int x0, int y0, int x1, int y1, int r, int g, int b);
+HLL_UNIMPLEMENTED(void, DrawGraph, DrawLineToAMap, int dst, int x0, int y0, int x1, int y1, int alpha);
+HLL_UNIMPLEMENTED(void, DrawGraph, DrawPolygon, int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2);
+HLL_UNIMPLEMENTED(void, DrawGraph, DrawColorPolygon, int dst, int tex, float x0, float y0, float z0, int r0, int g0, int b0, int a0, float x1, float y1, float z1, int r1, int g1, int b1, int a1, float x2, float y2, float z2, int r2, int g2, int b2, int a2);
+
+HLL_LIBRARY(DrawGraph,
+	    HLL_EXPORT(Copy, DrawGraph_Copy),
+	    HLL_EXPORT(CopyBright, DrawGraph_CopyBright),
+	    HLL_EXPORT(CopyAMap, DrawGraph_CopyAMap),
+	    HLL_EXPORT(CopySprite, DrawGraph_CopySprite),
+	    HLL_EXPORT(CopyColorReverse, DrawGraph_CopyColorReverse),
+	    HLL_EXPORT(CopyUseAMapUnder, DrawGraph_CopyUseAMapUnder),
+	    HLL_EXPORT(CopyUseAMapBorder, DrawGraph_CopyUseAMapBorder),
+	    HLL_EXPORT(CopyAMapMax, DrawGraph_CopyAMapMax),
+	    HLL_EXPORT(CopyAMapMin, DrawGraph_CopyAMapMin),
+	    HLL_EXPORT(Blend, DrawGraph_Blend),
+	    HLL_EXPORT(BlendSrcBright, DrawGraph_BlendSrcBright),
+	    HLL_EXPORT(BlendAddSatur, DrawGraph_BlendAddSatur),
+	    HLL_EXPORT(BlendAMap, DrawGraph_BlendAMap),
+	    HLL_EXPORT(BlendAMapSrcOnly, DrawGraph_BlendAMapSrcOnly),
+	    HLL_EXPORT(BlendAMapColor, DrawGraph_BlendAMapColor),
+	    HLL_EXPORT(BlendAMapColorAlpha, DrawGraph_BlendAMapColorAlpha),
+	    HLL_EXPORT(BlendAMapAlpha, DrawGraph_BlendAMapAlpha),
+	    HLL_EXPORT(BlendAMapBright, DrawGraph_BlendAMapBright),
+	    HLL_EXPORT(BlendAMapAlphaSrcBright, DrawGraph_BlendAMapAlphaSrcBright),
+	    HLL_EXPORT(BlendUseAMapColor, DrawGraph_BlendUseAMapColor),
+	    HLL_EXPORT(BlendScreen, DrawGraph_BlendScreen),
+	    HLL_EXPORT(BlendMultiply, DrawGraph_BlendMultiply),
+	    HLL_EXPORT(BlendScreenAlpha, DrawGraph_BlendScreenAlpha),
+	    HLL_EXPORT(Fill, DrawGraph_Fill),
+	    HLL_EXPORT(FillAlphaColor, DrawGraph_FillAlphaColor),
+	    HLL_EXPORT(FillAMap, DrawGraph_FillAMap),
+	    HLL_EXPORT(FillAMapOverBorder, DrawGraph_FillAMapOverBorder),
+	    HLL_EXPORT(FillAMapUnderBorder, DrawGraph_FillAMapUnderBorder),
+	    HLL_EXPORT(FillAMapGradationUD, DrawGraph_FillAMapGradationUD),
+	    HLL_EXPORT(FillScreen, DrawGraph_FillScreen),
+	    HLL_EXPORT(FillMultiply, DrawGraph_FillMultiply),
+	    HLL_EXPORT(SaturDP_DPxSA, DrawGraph_SaturDP_DPxSA),
+	    HLL_EXPORT(ScreenDA_DAxSA, DrawGraph_ScreenDA_DAxSA),
+	    HLL_EXPORT(AddDA_DAxSA, DrawGraph_AddDA_DAxSA),
+	    HLL_EXPORT(SpriteCopyAMap, DrawGraph_SpriteCopyAMap),
+	    HLL_EXPORT(BlendDA_DAxSA, DrawGraph_BlendDA_DAxSA),
+	    HLL_EXPORT(SubDA_DAxSA, DrawGraph_SubDA_DAxSA),
+	    HLL_EXPORT(BrightDestOnly, DrawGraph_BrightDestOnly),
+	    HLL_EXPORT(CopyTextureWrap, DrawGraph_CopyTextureWrap),
+	    HLL_EXPORT(CopyTextureWrapAlpha, DrawGraph_CopyTextureWrapAlpha),
+	    HLL_EXPORT(CopyStretch, DrawGraph_CopyStretch),
+	    HLL_EXPORT(CopyStretchBlend, DrawGraph_CopyStretchBlend),
+	    HLL_EXPORT(CopyStretchBlendAMap, DrawGraph_CopyStretchBlendAMap),
+	    HLL_EXPORT(CopyStretchAMap, DrawGraph_CopyStretchAMap),
+	    HLL_EXPORT(CopyStretchInterp, DrawGraph_CopyStretchInterp),
+	    HLL_EXPORT(CopyStretchAMapInterp, DrawGraph_CopyStretchAMapInterp),
+	    HLL_EXPORT(CopyReduce, DrawGraph_CopyStretch),
+	    HLL_EXPORT(CopyReduceAMap, DrawGraph_CopyStretchAMap),
+	    HLL_EXPORT(DrawTextToPMap, DrawGraph_DrawTextToPMap),
+	    HLL_EXPORT(DrawTextToAMap, DrawGraph_DrawTextToAMap),
+	    HLL_EXPORT(SetFontSize, gfx_set_font_size),
+	    HLL_EXPORT(SetFontName, DrawGraph_SetFontName),
+	    HLL_EXPORT(SetFontWeight, gfx_set_font_weight),
+	    HLL_EXPORT(SetFontUnderline, gfx_set_font_underline),
+	    HLL_EXPORT(SetFontStrikeOut, gfx_set_font_strikeout),
+	    HLL_EXPORT(SetFontSpace, gfx_set_font_space),
+	    HLL_EXPORT(SetFontColor, DrawGraph_SetFontColor),
+	    HLL_EXPORT(GetFontSize, gfx_get_font_size),
+	    HLL_EXPORT(GetFontName, DrawGraph_GetFontName),
+	    HLL_EXPORT(GetFontWeight, gfx_get_font_weight),
+	    HLL_EXPORT(GetFontUnderline, gfx_get_font_underline),
+	    HLL_EXPORT(GetFontStrikeOut, gfx_get_font_strikeout),
+	    HLL_EXPORT(GetFontSpace, gfx_get_font_space),
+	    HLL_EXPORT(GetFontColor, DrawGraph_GetFontColor),
+	    HLL_EXPORT(CopyRotZoom, DrawGraph_CopyRotZoom),
+	    HLL_EXPORT(CopyRotZoomAMap, DrawGraph_CopyRotZoomAMap),
+	    HLL_EXPORT(CopyRotZoomUseAMap, DrawGraph_CopyRotZoomUseAMap),
+	    HLL_EXPORT(CopyRotZoom2Bilinear, DrawGraph_CopyRotZoom2Bilinear),
+	    HLL_EXPORT(CopyRotateY, DrawGraph_CopyRotateY),
+	    HLL_EXPORT(CopyRotateYUseAMap, DrawGraph_CopyRotateYUseAMap),
+	    HLL_EXPORT(CopyRotateYFixL, DrawGraph_CopyRotateYFixL),
+	    HLL_EXPORT(CopyRotateYFixR, DrawGraph_CopyRotateYFixR),
+	    HLL_EXPORT(CopyRotateYFixLUseAMap, DrawGraph_CopyRotateYFixLUseAMap),
+	    HLL_EXPORT(CopyRotateYFixRUseAMap, DrawGraph_CopyRotateYFixRUseAMap),
+	    HLL_EXPORT(CopyRotateX, DrawGraph_CopyRotateX),
+	    HLL_EXPORT(CopyRotateXUseAMap, DrawGraph_CopyRotateXUseAMap),
+	    HLL_EXPORT(CopyRotateXFixU, DrawGraph_CopyRotateXFixU),
+	    HLL_EXPORT(CopyRotateXFixD, DrawGraph_CopyRotateXFixD),
+	    HLL_EXPORT(CopyRotateXFixUUseAMap, DrawGraph_CopyRotateXFixUUseAMap),
+	    HLL_EXPORT(CopyRotateXFixDUseAMap, DrawGraph_CopyRotateXFixDUseAMap),
+	    HLL_EXPORT(CopyReverseLR, DrawGraph_CopyReverseLR),
+	    HLL_EXPORT(CopyReverseUD, DrawGraph_CopyReverseUD),
+	    HLL_EXPORT(CopyReverseAMapLR, DrawGraph_CopyReverseAMapLR),
+	    HLL_EXPORT(CopyReverseAMapUD, DrawGraph_CopyReverseAMapUD),
+	    HLL_EXPORT(CopyWidthBlur, DrawGraph_CopyWidthBlur),
+	    HLL_EXPORT(CopyHeightBlur, DrawGraph_CopyHeightBlur),
+	    HLL_EXPORT(CopyAMapWidthBlur, DrawGraph_CopyAMapWidthBlur),
+	    HLL_EXPORT(CopyAMapHeightBlur, DrawGraph_CopyAMapHeightBlur),
+	    HLL_EXPORT(DrawLine, DrawGraph_DrawLine),
+	    HLL_EXPORT(DrawLineToAMap, DrawGraph_DrawLineToAMap),
+	    HLL_EXPORT(GetPixelColor, sact_SP_GetPixelValue),
+	    HLL_EXPORT(GetAlphaColor, DrawGraph_GetAlphaColor),
+	    HLL_EXPORT(DrawPolygon, DrawGraph_DrawPolygon),
+	    HLL_EXPORT(DrawColorPolygon, DrawGraph_DrawColorPolygon));

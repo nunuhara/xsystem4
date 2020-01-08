@@ -22,70 +22,28 @@
  */
 
 #include "vm.h"
-#include "vm/heap.h"
-#include "vm/page.h"
 #include "system4.h"
 
-#define hll_defun(fname, args)						\
-	static union vm_value _hllfun_ ## fname(possibly_unused union vm_value *args); \
-	static struct static_hll_function _hllstruct_ ## fname = {	\
-		.name = #fname,						\
-		.fun = _hllfun_ ## fname				\
-	};								\
-	static union vm_value _hllfun_ ## fname(possibly_unused union vm_value *args)
-
-#define hll_defun_inline(fname, expr)			\
-	hll_defun(fname, a) { hll_return(expr); }
-
-#define hll_unimplemented(libname, fname)				\
-	hll_defun(fname, args) {					\
+#define HLL_UNIMPLEMENTED(rtype, libname, fname, ...)		\
+	static rtype libname ## _ ## fname(__VA_ARGS__) {	\
 		VM_ERROR("Unimplemented HLL function: " #libname "." #fname); \
 	}
 
-#define hll_unimplemented_warning(libname, fname)			\
-	WARNING("Unimplemented HLL function: " #libname "." #fname)
-
-#define hll_warn_unimplemented(libname, fname, rval)			\
-	hll_defun(fname, args) {					\
-		hll_unimplemented_warning(libname, fname);		\
-		hll_return(rval);					\
+#define HLL_WARN_UNIMPLEMENTED(rval, rtype, libname, fname, ...)\
+	static rtype libname ## _ ## fname(__VA_ARGS__) {	\
+		WARNING("Unimplemented HLL function: " #libname "." #fname); \
+		return rval;					\
 	}
 
-#define hll_ignore_unimplemented(fname, rval) hll_defun_inline(fname, rval)
+#define HLL_EXPORT(fname, funptr) { .name = #fname, .fun = funptr }
 
-#define hll_export(fname) &_hllstruct_ ## fname
-
-#define hll_deflib(lname, ...)					\
-	static struct static_hll_function *_lib_ ## lname[];	\
-	struct static_library lib_ ## lname = {			\
-		.name = #lname,					\
-		.functions = _lib_ ## lname			\
-	};							\
-	static struct static_hll_function *_lib_ ## lname[] = 
-
-#define hll_return(v) return vm_value_cast(v)
-
-static inline union vm_value *hll_struct_ref(int pageno)
-{
-	if (pageno < 0 || heap[pageno].type != VM_PAGE || !heap[pageno].page || heap[pageno].page->type != STRUCT_PAGE)
-		return NULL;
-	return heap[pageno].page->values;
-}
-
-static inline union vm_value *hll_array_ref(int pageno, int *size)
-{
-	if (pageno < 0 || heap[pageno].type != VM_PAGE || !heap[pageno].page || heap[pageno].page->type != ARRAY_PAGE)
-		return NULL;
-	if (size)
-		*size = heap[pageno].page->nr_vars;
-	return heap[pageno].page->values;
-}
-
-static inline struct string *hll_string_ref(int slot)
-{
-	if (slot < 0 || heap[slot].type != VM_STRING)
-		return NULL;
-	return heap[slot].s;
-}
+#define HLL_LIBRARY(lname, ...)				\
+	struct static_library lib_ ## lname = {		\
+		.name = #lname,				\
+		.functions = {				\
+			__VA_ARGS__,			\
+			{ .name = NULL, .fun = NULL }	\
+		}					\
+	}
 
 #endif /* SYSTEM4_HLL_H */

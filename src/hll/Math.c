@@ -28,128 +28,78 @@ static inline float deg2rad(float deg)
 	return deg * (M_PI / 180.0);
 }
 
-hll_defun(Cos, args)
+float Math_Cos(float x)
 {
-	hll_return(cosf(deg2rad(args[0].f)));
+	return cosf(deg2rad(x));
 }
 
-hll_defun(Sin, args)
+float Math_Sin(float x)
 {
-	hll_return(sinf(deg2rad(args[0].f)));
+	return sinf(deg2rad(x));
 }
 
-hll_defun(Sqrt, args)
+int Math_Min(int a, int b)
 {
-	hll_return(sqrtf(args[0].f));
+	return a < b ? a : b;
 }
 
-hll_defun(Atan, args)
+float Math_MinF(float a, float b)
 {
-	hll_return(atanf(args[0].f));
+	return a < b ? a : b;
 }
 
-hll_defun(Atan2, args)
+int Math_Max(int a, int b)
 {
-	hll_return(atan2f(args[0].f, args[1].f));
+	return a > b ? a : b;
 }
 
-hll_defun(Abs, args)
+float Math_MaxF(float a, float b)
 {
-	hll_return(abs(args[0].i));
+	return a > b ? a : b;
 }
 
-hll_defun(AbsF, args)
+void Math_Swap(int *a, int *b)
 {
-	hll_return(fabsf(args[0].f));
+	int tmp = *a;
+	*a = *b;
+	*b = tmp;
 }
 
-hll_defun(Pow, args)
+void Math_SwapF(float *a, float *b)
 {
-	hll_return(powf(args[0].f, args[1].f));
+	float tmp = *a;
+	*a = *b;
+	*b = tmp;
 }
 
-hll_defun(SetSeed, args)
-{
-	srand(args[0].i);
-	hll_return(0);
-}
+HLL_UNIMPLEMENTED(void, Math, SetRandMode, int mode);
+HLL_UNIMPLEMENTED(float, Math, RandF, void);
+HLL_UNIMPLEMENTED(void, Math, RandTableInit, int num, int size);
+HLL_UNIMPLEMENTED(int, Math, RandTable, int num);
+HLL_UNIMPLEMENTED(void, Math, RandTable2Init, int num, struct page *array);
+HLL_UNIMPLEMENTED(int, Math, RandTable2, int num);
 
-hll_unimplemented(Math, SetRandMode)
+HLL_LIBRARY(Math,
+	    HLL_EXPORT(Cos, Math_Cos),
+	    HLL_EXPORT(Sin, Math_Sin),
+	    HLL_EXPORT(Sqrt, sqrtf),
+	    HLL_EXPORT(Atan, atanf),
+	    HLL_EXPORT(Atan2, atan2f),
+	    HLL_EXPORT(Abs, abs),
+	    HLL_EXPORT(AbsF, fabsf),
+	    HLL_EXPORT(Pow, powf),
+	    HLL_EXPORT(SetSeed, srand),
+	    HLL_EXPORT(SetRandMode, Math_SetRandMode),
+	    HLL_EXPORT(Rand, rand),
+	    HLL_EXPORT(RandF, Math_RandF),
+	    HLL_EXPORT(RandTableInit, Math_RandTableInit),
+	    HLL_EXPORT(RandTable, Math_RandTable),
+	    HLL_EXPORT(RandTable2Init, Math_RandTable2Init),
+	    HLL_EXPORT(RandTable2, Math_RandTable2),
+	    HLL_EXPORT(Min, Math_Min),
+	    HLL_EXPORT(MinF, Math_MinF),
+	    HLL_EXPORT(Max, Math_Max),
+	    HLL_EXPORT(MaxF, Math_MaxF),
+	    HLL_EXPORT(Swap, Math_Swap),
+	    HLL_EXPORT(SwapF, Math_SwapF));
 
-hll_defun(Rand, args)
-{
-	hll_return(rand());
-}
-
-// TODO
-hll_unimplemented(Math, RandF)
-hll_unimplemented(Math, RandTableInit)
-hll_unimplemented(Math, RandTable)
-hll_unimplemented(Math, RandTable2Init)
-hll_unimplemented(Math, RandTable2)
-
-hll_defun(Min, args)
-{
-	int a = args[0].i, b = args[1].i;
-	hll_return(a < b ? a : b);
-}
-
-hll_defun(MinF, args)
-{
-	float a = args[0].f, b = args[1].f;
-	hll_return(a < b ? a : b);
-}
-
-hll_defun(Max, args)
-{
-	int a = args[0].i, b = args[1].i;
-	hll_return(a > b ? a : b);
-}
-
-hll_defun(MaxF, args)
-{
-	float a = args[0].f, b = args[1].f;
-	hll_return(a > b ? a : b);
-}
-
-hll_defun(Swap, args)
-{
-	int tmp = *args[0].iref;
-	*args[0].iref = *args[1].iref;
-	*args[1].iref = tmp;
-	hll_return(0);
-}
-
-hll_defun(SwapF, args)
-{
-	float tmp = *args[0].fref;
-	*args[0].fref = *args[1].fref;
-	*args[1].fref = tmp;
-	hll_return(0);
-}
-
-hll_deflib(Math) {
-	hll_export(Cos),
-	hll_export(Sin),
-	hll_export(Sqrt),
-	hll_export(Atan),
-	hll_export(Atan2),
-	hll_export(Abs),
-	hll_export(AbsF),
-	hll_export(Pow),
-	hll_export(SetSeed),
-	hll_export(SetRandMode),
-	hll_export(Rand),
-	hll_export(RandF),
-	hll_export(RandTableInit),
-	hll_export(RandTable),
-	hll_export(RandTable2Init),
-	hll_export(RandTable2),
-	hll_export(Min),
-	hll_export(MinF),
-	hll_export(Max),
-	hll_export(MaxF),
-	hll_export(Swap),
-	hll_export(SwapF),
-	NULL
-};

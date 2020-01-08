@@ -16,16 +16,11 @@
 
 #include "hll.h"
 
-// int Init(imain_system pIMainSystem)
-hll_warn_unimplemented(AliceLogo, Init, 1);
-// void SetWaveNum(int nNum, int nWave)
-hll_warn_unimplemented(AliceLogo, SetWaveNum, 0);
-// void Run(int nType, int nLoopFlag)
-hll_warn_unimplemented(AliceLogo, Run, 0);
+HLL_WARN_UNIMPLEMENTED(1, int,  AliceLogo, Init, void *imainsystem);
+HLL_WARN_UNIMPLEMENTED( , void, AliceLogo, SetWaveNum, int n, int wave);
+HLL_WARN_UNIMPLEMENTED( , void, AliceLogo, Run, int type, int loop_flag);
 
-hll_deflib(AliceLogo) {
-	hll_export(Init),
-	hll_export(SetWaveNum),
-	hll_export(Run),
-	NULL
-};
+HLL_LIBRARY(AliceLogo,
+	    HLL_EXPORT(Init, AliceLogo_Init),
+	    HLL_EXPORT(SetWaveNum, AliceLogo_SetWaveNum),
+	    HLL_EXPORT(Run, AliceLogo_Run));

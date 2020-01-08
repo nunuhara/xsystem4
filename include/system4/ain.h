@@ -83,6 +83,17 @@ enum ain_data_type {
 	case AIN_ARRAY_LONG_INT:		\
 	case AIN_ARRAY_DELEGATE
 
+#define AIN_REF_ARRAY_TYPE	       \
+	AIN_REF_ARRAY_INT:	       \
+	case AIN_REF_ARRAY_FLOAT:      \
+	case AIN_REF_ARRAY_STRING:     \
+	case AIN_REF_ARRAY_STRUCT:     \
+	case AIN_REF_ARRAY_FUNC_TYPE:  \
+	case AIN_REF_ARRAY_BOOL:       \
+	case AIN_REF_ARRAY_LONG_INT:   \
+	case AIN_REF_ARRAY_DELEGATE
+
+
 #define AIN_REF_TYPE				\
 	AIN_REF_INT:				\
 	case AIN_REF_FLOAT:			\

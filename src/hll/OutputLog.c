@@ -19,27 +19,23 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
-hll_warn_unimplemented(OutputLog, Create, 0)
-
-hll_defun(Output, args) {
-	struct string *s = heap[args[1].i].s;
+void OutputLog_Output(int handle, struct string *s)
+{
 	char *u = sjis2utf(s->text, s->size);
 	printf("%s", u);
 	free(u);
-	hll_return(0);
 }
 
-hll_warn_unimplemented(OutputLog, Clear, 0)
-hll_warn_unimplemented(OutputLog, Save, 0)
-hll_warn_unimplemented(OutputLog, EnableAutoSave, 0)
-hll_warn_unimplemented(OutputLog, DisableAutoSave, 0)
+HLL_WARN_UNIMPLEMENTED(0, int,  OutputLog, Create, struct string *name);
+HLL_WARN_UNIMPLEMENTED( , void, OutputLog, Clear, int handle);
+HLL_WARN_UNIMPLEMENTED(0, int,  OutputLog, Save, int handle, struct string *filename);
+HLL_WARN_UNIMPLEMENTED(0, bool, OutputLog, EnableAutoSave, int handle, struct string *filename);
+HLL_WARN_UNIMPLEMENTED(0, bool, OutputLog, DisableAutoSave, int handle);
 
-hll_deflib(OutputLog) {
-	hll_export(Create),
-	hll_export(Output),
-	hll_export(Clear),
-	hll_export(Save),
-	hll_export(EnableAutoSave),
-	hll_export(DisableAutoSave),
-	NULL
-};
+HLL_LIBRARY(OutputLog,
+	    HLL_EXPORT(Create, OutputLog_Create),
+	    HLL_EXPORT(Output, OutputLog_Output),
+	    HLL_EXPORT(Clear, OutputLog_Clear),
+	    HLL_EXPORT(Save, OutputLog_Save),
+	    HLL_EXPORT(EnableAutoSave, OutputLog_EnableAutoSave),
+	    HLL_EXPORT(DisableAutoSave, OutputLog_DisableAutoSave));

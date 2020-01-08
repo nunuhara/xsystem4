@@ -23,691 +23,406 @@
 #include "gfx/gfx.h"
 #include "sact.h"
 #include "system4.h"
+#include "system4/ain.h"
 #include "system4/ald.h"
 #include "system4/cg.h"
 #include "system4/string.h"
 
-// int Init(imain_system pIMainSystem, int nCGCacheSize)
-hll_defun_inline(Init, sact_Init());
-// int Error(string strErr)
-hll_unimplemented(SACT2, Error);
-// int SetWP(int nCG)
-hll_defun_inline(SetWP, sact_SetWP(a[0].i));
-// int SetWP_Color(int nR, int nG, int nB)
-hll_defun_inline(SetWP_Color, (gfx_set_clear_color(a[0].i, a[1].i, a[2].i, 255), 1));
-// int WP_GetSP(int nSP)
-hll_unimplemented(SACT2, WP_GetSP);
-// int WP_SetSP(int nSP)
-hll_unimplemented(SACT2, WP_SetSP);
-// int GetScreenWidth(void)
-hll_defun_inline(GetScreenWidth, config.view_width);
-// int GetScreenHeight(void)
-hll_defun_inline(GetScreenHeight, config.view_height);
-// int GetMainSurfaceNumber(void)
-hll_defun_inline(GetMainSurfaceNumber, -1);
-// int Update(void)
-hll_defun_inline(Update, sact_Update());
-// int Effect(int nType, int nTime, int nfKey)
-hll_defun_inline(Effect, sact_Effect(a[0].i, a[1].i, a[2].i));
-// int EffectSetMask(int nCG)
-hll_warn_unimplemented(SACT2, EffectSetMask, 1);
-// int EffectSetMaskSP(int nSP)
-hll_unimplemented(SACT2, EffectSetMaskSP);
-// void QuakeScreen(int nAmplitudeX, int nAmplitudeY, int nTime, int nfKey)
-hll_warn_unimplemented(SACT2, QuakeScreen, 0);
-// void QUAKE_SET_CROSS(int nAmpX, int nAmpY)
-hll_unimplemented(SACT2, QUAKE_SET_CROSS);
-// void QUAKE_SET_ROTATION(int nAmp, int nCycle)
-hll_unimplemented(SACT2, QUAKE_SET_ROTATION);
-// int SP_GetUnuseNum(int nMin)
-hll_defun_inline(SP_GetUnuseNum, sact_SP_GetUnuseNum(a[0].i));
-// int SP_Count(void)
-hll_defun_inline(SP_Count, sact_SP_Count());
-
-// int SP_Enum(ref array@int anSP)
-hll_defun(SP_Enum, args)
+int sact_GAME_MSG_GetNumOf(void)
 {
-	int size;
-	union vm_value *array = hll_array_ref(args[0].i, &size);
-	hll_return(sact_SP_Enum(array, size));
+	return ain->nr_messages;
 }
 
-// int SP_GetMaxZ(void)
-hll_defun_inline(SP_GetMaxZ, sact_SP_GetMaxZ());
-// int SP_SetCG(int nSP, int nCG)
-hll_defun_inline(SP_SetCG, sact_SP_SetCG(a[0].i, a[1].i));
-// int SP_SetCGFromFile(int nSP, string pIStringFileName)
-hll_unimplemented(SACT2, SP_SetCGFromFile);
-// int SP_SaveCG(int nSP, string pIStringFileName)
-hll_unimplemented(SACT2, SP_SaveCG);
-// int SP_Create(int nSP, int nWidth, int nHeight, int nR, int nG, int nB, int nBlendRate)
-hll_defun_inline(SP_Create, sact_SP_Create(a[0].i, a[1].i, a[2].i, a[3].i, a[4].i, a[5].i, a[6].i));
-// int SP_CreatePixelOnly(int nSP, int nWidth, int nHeight)
-hll_defun_inline(SP_CreatePixelOnly, sact_SP_CreatePixelOnly(a[0].i, a[1].i, a[2].i));
-// int SP_CreateCustom(int nSP)
-hll_unimplemented(SACT2, SP_CreateCustom);
-// int SP_Delete(int nSP)
-hll_defun_inline(SP_Delete, sact_SP_Delete(a[0].i));
-
-// int SP_SetPos(int nSP, int nX, int nY)
-hll_defun(SP_SetPos, args)
+void sact_IntToZenkaku(struct string **s, int value, int figures, int zero_pad)
 {
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(1);
-	sp->rect.x = args[1].i;
-	sp->rect.y = args[2].i;
-	hll_return(1);
-}
-
-// int SP_SetX(int nSP, int nX)
-hll_defun(SP_SetX, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	sp->rect.x = args[1].i;
-	hll_return(1);
-}
-
-// int SP_SetY(int nSP, int nY)
-hll_defun(SP_SetY, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	sp->rect.y = args[1].i;
-	hll_return(1);
-}
-
-// int SP_SetZ(int nSP, int nZ)
-hll_defun_inline(SP_SetZ, sact_SP_SetZ(a[0].i, a[1].i));
-
-// int SP_SetBlendRate(int nSP, int nBlendRate)
-hll_defun_inline(SP_SetBlendRate, sact_SP_SetBlendRate(a[0].i, a[1].i));
-
-// int SP_SetShow(int nSP, int nfShow)
-hll_defun_inline(SP_SetShow, sact_SP_SetShow(a[0].i, a[1].i));
-// int SP_SetDrawMethod(int nSP, int nMethod)
-hll_defun_inline(SP_SetDrawMethod, sact_SP_SetDrawMethod(a[0].i, a[1].i));
-
-// int SP_IsUsing(int nSP)
-hll_defun_inline(SP_IsUsing, sact_get_sprite(a[0].i) != NULL);
-
-// int SP_ExistAlpha(int nSP)
-hll_defun_inline(SP_ExistAlpha, sact_SP_ExistsAlpha(a[0].i));
-
-// int SP_GetPosX(int nSP)
-hll_defun(SP_GetPosX, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->rect.x);
-}
-
-// int SP_GetPosY(int nSP)
-hll_defun(SP_GetPosY, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->rect.y);
-}
-
-// int SP_GetWidth(int nSP)
-hll_defun(SP_GetWidth, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->rect.w);
-}
-
-// int SP_GetHeight(int nSP)
-hll_defun(SP_GetHeight, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->rect.h);
-}
-
-// int SP_GetZ(int nSP)
-hll_defun(SP_GetZ, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->z);
-}
-
-// int SP_GetBlendRate(int nSP)
-hll_defun_inline(SP_GetBlendRate, sact_SP_GetBlendRate(a[0].i));
-
-// int SP_GetShow(int nSP)
-hll_defun(SP_GetShow, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->show);
-}
-
-// int SP_GetDrawMethod(int nSP)
-hll_defun_inline(SP_GetDrawMethod, sact_SP_GetDrawMethod(a[0].i));
-
-// int SP_SetTextHome(int nSP, int nX, int nY)
-hll_defun(SP_SetTextHome, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	sp->text.home = (Point) { .x = args[1].i, .y = args[2].i };
-	hll_return(1);
-}
-
-// int SP_SetTextLineSpace(int nSP, int nPx)
-hll_defun(SP_SetTextLineSpace, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(1);
-	sp->text.line_space = args[1].i;
-	hll_return(1);
-}
-
-// int SP_SetTextCharSpace(int nSP, int nPx)
-hll_defun(SP_SetTextCharSpace, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(1);
-	sp->text.char_space = args[1].i;
-	hll_return(1);
-}
-
-// int SP_SetTextPos(int nSP, int nX, int nY)
-hll_defun(SP_SetTextPos, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	sp->text.pos = (Point) { .x = args[1].i, .y = args[2].i };
-	hll_return(1);
-}
-
-// int SP_TextDraw(int nSP, string text, struct tm)
-hll_defun_inline(SP_TextDraw, sact_SP_TextDraw(a[0].i, heap[a[1].i].s, heap[a[2].i].page->values));
-// int SP_TextClear(int nSP)
-hll_defun_inline(SP_TextClear, sact_SP_TextClear(a[0].i));
-
-// int SP_TextHome(int nSP, int nTextSize)
-hll_defun(SP_TextHome, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	// FIXME: do something with nTextSize
-	sp->text.pos = sp->text.home;
-	hll_return(1);
-}
-
-// int SP_TextNewLine(int nSP, int nTextSize)
-hll_defun(SP_TextNewLine, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	sp->text.pos = POINT(sp->text.home.x, sp->text.home.y + args[0].i);
-	hll_return(1);
-}
-
-// int SP_TextBackSpace(int nSP)
-hll_unimplemented(SACT2, SP_TextBackSpace);
-// int SP_TextCopy(int nDstSP, int nSrcSP)
-hll_defun_inline(SP_TextCopy, sact_SP_TextCopy(a[0].i, a[1].i));
-
-// int SP_GetTextHomeX(int nSP)
-hll_defun(SP_GetTextHomeX, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->text.home.x);
-}
-
-// int SP_GetTextHomeY(int nSP)
-hll_defun(SP_GetTextHomeY, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->text.home.y);
-}
-
-// int SP_GetTextCharSpace(int nSP)
-hll_defun(SP_GetTextCharSpace, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->text.char_space);
-}
-
-// int SP_GetTextPosX(int nSP)
-hll_defun(SP_GetTextPosX, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->text.pos.x);
-}
-
-// int SP_GetTextPosY(int nSP)
-hll_defun(SP_GetTextPosY, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->text.pos.y);
-}
-
-// int SP_GetTextLineSpace(int nSP)
-hll_defun(SP_GetTextLineSpace, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	if (!sp) hll_return(0);
-	hll_return(sp->text.line_space);
-}
-// int SP_IsPtIn(int nSP, int nX, int nY)
-hll_defun_inline(SP_IsPtIn, sact_SP_IsPtIn(a[0].i, a[1].i, a[2].i));
-
-// int SP_IsPtInRect(int nSP, int nX, int nY)
-hll_defun(SP_IsPtInRect, args)
-{
-	struct sact_sprite *sp = sact_get_sprite(args[0].i);
-	Point p = { .x = args[1].i, .y = args[2].i };
-	if (!sp) hll_return(0);
-	hll_return(!!SDL_PointInRect(&p, &sp->rect));
-}
-
-// int GAME_MSG_GetNumof(void)
-hll_defun_inline(GAME_MSG_GetNumof, ain->nr_messages);
-// void GAME_MSG_Get(int nIndex, ref string text)
-hll_unimplemented(SACT2, GAME_MSG_Get);
-
-// void IntToZenkaku(ref string s, int nValue, int nFigures, int nfZeroPadding)
-hll_defun(IntToZenkaku, args)
-{
-	int slot = args[0].i;
-	int val = args[1].i;
-	int fig = args[2].i;
-	bool zero_pad = args[3].i;
-	char buf[512];
 	int i;
-
-	if (heap[slot].s)
-		free_string(heap[slot].s);
-
-	i = int_to_cstr(buf, 1024, val, fig, zero_pad, true);
-	heap[slot].s = make_string(buf, i);
-	hll_return(0);
-}
-
-// void IntToHankaku(ref string s, int nValue, int nFigures, int nfZeroPadding)
-hll_defun(IntToHankaku, args)
-{
-	int slot = args[0].i;
-	int val = args[1].i;
-	int fig = args[2].i;
-	bool zero_pad = args[3].i;
 	char buf[512];
-	int i;
 
-	if (heap[slot].s)
-		free_string(heap[slot].s);
-
-	i = int_to_cstr(buf, 1024, val, fig, zero_pad, false);
-	heap[slot].s = make_string(buf, i);
-	hll_return(0);
+	string_clear(*s);
+	i = int_to_cstr(buf, 512, value, figures, zero_pad, true);
+	string_append_cstr(s, buf, i);
 }
 
-// int StringPopFront(ref string sDst, ref string sSrc)
-hll_unimplemented(SACT2, StringPopFront);
+void sact_IntToHankaku(struct string **s, int value, int figures, int zero_pad)
+{
+	int i;
+	char buf[512];
 
-// int Mouse_GetPos(ref int pnX, ref int pnY)
-hll_defun(Mouse_GetPos, args)
+	string_clear(*s);
+	i = int_to_cstr(buf, 512, value, figures, zero_pad, false);
+	string_append_cstr(s, buf, i);
+}
+
+int sact_Mouse_GetPos(int *x, int *y)
 {
 	handle_events();
-	mouse_get_pos(args[0].iref, args[1].iref);
-	hll_return(mouse_focus && keyboard_focus);
+	mouse_get_pos(x, y);
+	return mouse_focus && keyboard_focus;
 }
 
-// int Mouse_SetPos(int nX, int nY)
-hll_warn_unimplemented(SACT2, Mouse_SetPos, 1);
-// void Mouse_ClearWheel(void)
-hll_defun_inline(Mouse_ClearWheel, 0);
-
-// void Mouse_GetWheel(ref int pnForward, ref int pnBack)
-hll_defun(Mouse_GetWheel, args)
+void sact_Mouse_ClearWheel(void)
 {
-	//hll_unimplemented_warning(SACT2, Mouse_GetWheel);
-	*args[0].iref = 0;
-	*args[1].iref = 0;
-	hll_return(0);
+	// TODO
 }
 
-// void Joypad_ClearKeyDownFlag(int nNum)
-hll_defun_inline(Joypad_ClearKeyDownFlag, 0);
-// int Joypad_IsKeyDown(int nNum, int nKey)
-hll_defun_inline(Joypad_IsKeyDown, 0);
-// int Joypad_GetNumof(void)
-hll_unimplemented(SACT2, Joypad_GetNumof);
-// void JoypadQuake_Set(int nNum, int nType, int nMagnitude)
-hll_warn_unimplemented(SACT2, JoypadQuake_Set, 0);
-
-// bool Joypad_GetAnalogStickStatus(int nNum, int nType, ref float pfDegree, ref float pfPower)
-hll_defun(Joypad_GetAnalogStickStatus, args)
+void sact_Mouse_GetWheel(int *forward, int *back)
 {
-	hll_unimplemented_warning(SACT2, Joypad_GetAnalogStickStatus);
-	*args[2].fref = 0.0;
-	*args[3].fref = 0.0;
-	hll_return(1);
+	// TODO
+	*forward = 0;
+	*back    = 0;
 }
 
-// bool Joypad_GetDigitalStickStatus(int nNum, int nType, ref bool pbLeft, ref bool pbRight, ref bool pbUp, ref bool pbDown)
-hll_defun(Joypad_GetDigitalStickStatus, args)
+void sact_Joypad_ClearKeyDownFlag(int n)
+{
+	// TODO
+}
+
+int sact_Joypad_IsKeyDown(int num, int key)
+{
+	return 0; // TODO
+}
+
+bool sact_Joypad_GetAnalogStickStatus(int num, int type, float *degree, float *power)
+{
+	//hll_unimplemented_warning(SACT2, Joypad_GetAnalogStickStatus);
+	*degree = 0.0;
+	*power  = 0.0;
+	return true;
+}
+
+bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *right, bool *up, bool *down)
 {
 	//hll_unimplemented_warning(SACT2, Joypad_GetDigitalStickStatus);
-	*args[2].iref = 0;
-	*args[3].iref = 0;
-	*args[4].iref = 0;
-	*args[5].iref = 0;
-	hll_return(1);
+	*left  = false;
+	*right = false;
+	*up    = false;
+	*down  = false;
+	return 1;
 }
 
-// int Key_ClearFlag(void)
-hll_defun_inline(Key_ClearFlag, (key_clear_flag(), 1));
-// int Key_IsDown(int nKeyCode)
-hll_defun_inline(Key_IsDown, (handle_events(), key_is_down(a[0].i)));
-// int Timer_Get(void)
-hll_defun_inline(Timer_Get, vm_time());
-// int CG_IsExist(int nCG)
-hll_defun(CG_IsExist, args)
+int sact_Key_ClearFlag(void)
 {
-	hll_return(ald[ALDFILE_CG] && ald_data_exists(ald[ALDFILE_CG], args[0].i - 1));
+	key_clear_flag();
+	return 1;
 }
-// int CG_GetMetrics(int nCG, ref struct cm)
-hll_defun_inline(CG_GetMetrics, sact_CG_GetMetrics(a[0].i - 1, heap[a[1].i].page->values));
-// int CSV_Load(string pIStringFileName)
-hll_unimplemented(SACT2, CSV_Load);
-// int CSV_Save(void)
-hll_unimplemented(SACT2, CSV_Save);
-// int CSV_SaveAs(string pIStringFileName)
-hll_unimplemented(SACT2, CSV_SaveAs);
-// int CSV_CountLines(void)
-hll_unimplemented(SACT2, CSV_CountLines);
-// int CSV_CountColumns(void)
-hll_unimplemented(SACT2, CSV_CountColumns);
-// void CSV_Get(ref string pIString, int nLine, int nColumn)
-hll_unimplemented(SACT2, CSV_Get);
-// int CSV_Set(int nLine, int nColumn, string pIStringData)
-hll_unimplemented(SACT2, CSV_Set);
-// int CSV_GetInt(int nLine, int nColumn)
-hll_unimplemented(SACT2, CSV_GetInt);
-// void CSV_SetInt(int nLine, int nColumn, int nData)
-hll_unimplemented(SACT2, CSV_SetInt);
-// void CSV_Realloc(int nLines, int nColumns)
-hll_unimplemented(SACT2, CSV_Realloc);
-// int Music_IsExist(int nNum)
-hll_defun_inline(Music_IsExist, audio_exists(AUDIO_MUSIC, a[0].i - 1));
-// int Music_Prepare(int nCh, int nNum)
-hll_defun_inline(Music_Prepare, audio_prepare(AUDIO_MUSIC, a[0].i, a[1].i - 1));
-// int Music_Unprepare(int nCh)
-hll_defun_inline(Music_Unprepare, audio_unprepare(AUDIO_MUSIC, a[0].i));
-// int Music_Play(int nCh)
-hll_defun_inline(Music_Play, audio_play(AUDIO_MUSIC, a[0].i));
-// int Music_Stop(int nCh)
-hll_defun_inline(Music_Stop, audio_stop(AUDIO_MUSIC, a[0].i));
-// int Music_IsPlay(int nCh)
-hll_defun_inline(Music_IsPlay, audio_is_playing(AUDIO_MUSIC, a[0].i));
-// int Music_SetLoopCount(int nCh, int nCount)
-hll_warn_unimplemented(SACT2, Music_SetLoopCount, 1);
-// int Music_GetLoopCount(int nCh)
-hll_warn_unimplemented(SACT2, Music_GetLoopCount, 1);
-// int Music_SetLoopStartPos(int nCh, int dwPos)
-hll_unimplemented(SACT2, Music_SetLoopStartPos);
-// int Music_SetLoopEndPos(int nCh, int dwPos)
-hll_unimplemented(SACT2, Music_SetLoopEndPos);
-// int Music_Fade(int nCh, int nTime, int nVolume, int bStop)
-hll_defun_inline(Music_Fade, audio_fade(AUDIO_MUSIC, a[0].i, a[1].i, a[2].i, a[3].i));
-// int Music_StopFade(int nCh)
-hll_warn_unimplemented(SACT2, Music_StopFade, 1);
-// int Music_IsFade(int nCh)
-hll_warn_unimplemented(SACT2, Music_IsFade, 0);
-// int Music_Pause(int nCh)
-hll_warn_unimplemented(SACT2, Music_Pause, 1);
-// int Music_Restart(int nCh)
-hll_warn_unimplemented(SACT2, Music_Restart, 1);
-// int Music_IsPause(int nCh)
-hll_warn_unimplemented(SACT2, Music_IsPause, 1);
-// int Music_GetPos(int nCh)
-hll_warn_unimplemented(SACT2, Music_GetPos, 1);
-// int Music_GetLength(int nCh)
-hll_warn_unimplemented(SACT2, Music_GetLength, 1);
-// int Music_GetSamplePos(int nCh)
-hll_warn_unimplemented(SACT2, Music_GetSamplePos, 1);
-// int Music_GetSampleLength(int nCh)
-hll_warn_unimplemented(SACT2, Music_GetSampleLength, 1);
-// int Music_Seek(int nCh, int dwPos)
-hll_warn_unimplemented(SACT2, Music_Seek, 1);
-// int Sound_IsExist(int nNum)
-hll_defun_inline(Sound_IsExist, audio_exists(AUDIO_SOUND, a[0].i - 1));
-// int Sound_GetUnuseChannel(void)
-hll_defun_inline(Sound_GetUnuseChannel, audio_get_unused_channel(AUDIO_SOUND));
-// int Sound_Prepare(int nCh, int nNum)
-hll_defun_inline(Sound_Prepare, audio_prepare(AUDIO_SOUND, a[0].i, a[1].i - 1));
-// int Sound_Unprepare(int nCh)
-hll_defun_inline(Sound_Unprepare, audio_unprepare(AUDIO_SOUND, a[0].i));
-// int Sound_Play(int nCh)
-hll_defun_inline(Sound_Play, audio_play(AUDIO_SOUND, a[0].i));
-// int Sound_Stop(int nCh)
-hll_defun_inline(Sound_Stop, audio_stop(AUDIO_SOUND, a[0].i));
-// int Sound_IsPlay(int nCh)
-hll_defun_inline(Sound_IsPlay, audio_is_playing(AUDIO_SOUND, a[0].i));
-// int Sound_SetLoopCount(int nCh, int nCount)
-hll_unimplemented(SACT2, Sound_SetLoopCount);
-// int Sound_GetLoopCount(int nCh)
-hll_unimplemented(SACT2, Sound_GetLoopCount);
-// int Sound_Fade(int nCh, int nTime, int nVolume, int bStop)
-hll_defun_inline(Sound_Fade, audio_fade(AUDIO_SOUND, a[0].i, a[1].i, a[2].i, a[3].i));
-// int Sound_StopFade(int nCh)
-hll_unimplemented(SACT2, Sound_StopFade);
-// int Sound_IsFade(int nCh)
-hll_unimplemented(SACT2, Sound_IsFade);
-// int Sound_GetPos(int nCh)
-hll_unimplemented(SACT2, Sound_GetPos);
-// int Sound_GetLength(int nCh)
-hll_unimplemented(SACT2, Sound_GetLength);
-// int Sound_ReverseLR(int nCh)
-hll_warn_unimplemented(SACT2, Sound_ReverseLR, 1);
-// int Sound_GetVolume(int nCh)
-hll_unimplemented(SACT2, Sound_GetVolume);
-// int Sound_GetTimeLength(int nCh)
-hll_defun_inline(Sound_GetTimeLength, audio_get_time_length(AUDIO_SOUND, a[0].i));
-// int Sound_GetGroupNum(int nCh)
-hll_unimplemented(SACT2, Sound_GetGroupNum);
-// bool Sound_PrepareFromFile(int nCh, string szFileName)
-hll_unimplemented(SACT2, Sound_PrepareFromFile);
 
-// void System_GetDate(ref int pnYear, ref int pnMonth, ref int pnDay, ref int pnDayOfWeek)
-hll_defun(System_GetDate, args)
+int sact_Key_IsDown(int keycode)
+{
+	handle_events();
+	return key_is_down(keycode);
+}
+
+int sact_CG_IsExist(int cg_no)
+{
+	return ald[ALDFILE_CG] && ald_data_exists(ald[ALDFILE_CG], cg_no - 1);
+}
+
+int sact_Music_IsExist(int n)
+{
+	return audio_exists(AUDIO_MUSIC, n - 1);
+}
+
+int sact_Music_Prepare(int ch, int n)
+{
+	return audio_prepare(AUDIO_MUSIC, ch, n - 1);
+}
+
+int sact_Music_Unprepare(int ch)
+{
+	return audio_unprepare(AUDIO_MUSIC, ch);
+}
+
+int sact_Music_Play(int ch)
+{
+	return audio_play(AUDIO_MUSIC, ch);
+}
+
+int sact_Music_Stop(int ch)
+{
+	return audio_stop(AUDIO_MUSIC, ch);
+}
+
+int sact_Music_IsPlay(int ch)
+{
+	return audio_is_playing(AUDIO_MUSIC, ch);
+}
+
+int sact_Music_Fade(int ch, int time, int volume, int stop)
+{
+	return audio_fade(AUDIO_MUSIC, ch, time, volume, stop);
+}
+
+int sact_Sound_IsExist(int n)
+{
+	return audio_exists(AUDIO_SOUND, n - 1);
+}
+
+int sact_Sound_GetUnuseChannel(void)
+{
+	return audio_get_unused_channel(AUDIO_SOUND);
+}
+
+int sact_Sound_Prepare(int ch, int n)
+{
+	return audio_prepare(AUDIO_SOUND, ch, n - 1);
+}
+
+int sact_Sound_Unprepare(int ch)
+{
+	return audio_unprepare(AUDIO_SOUND, ch);
+}
+
+int sact_Sound_Play(int ch)
+{
+	return audio_play(AUDIO_SOUND, ch);
+}
+
+int sact_Sound_Stop(int ch)
+{
+	return audio_stop(AUDIO_SOUND, ch);
+}
+
+int sact_Sound_IsPlay(int ch)
+{
+	return audio_is_playing(AUDIO_SOUND, ch);
+}
+
+int sact_Sound_Fade(int ch, int time, int volume, int stop)
+{
+	return audio_fade(AUDIO_SOUND, ch, time, volume, stop);
+}
+
+int sact_Sound_GetTimeLength(int ch)
+{
+	return audio_get_time_length(AUDIO_SOUND, ch);
+}
+
+void sact_System_GetDate(int *year, int *month, int *mday, int *wday)
 {
 	time_t t = time(NULL);
 	struct tm *tm = localtime(&t);
 
-	*args[0].iref = tm->tm_year;
-	*args[1].iref = tm->tm_mon;
-	*args[2].iref = tm->tm_mday;
-	*args[3].iref = tm->tm_wday;
-	hll_return(0);
+	*year  = tm->tm_year;
+	*month = tm->tm_mon;
+	*mday  = tm->tm_mday;
+	*wday  = tm->tm_wday;
 }
 
-// void System_GetTime(ref int pnHour, ref int pnMinute, ref int pnSecond, ref int pnMilliSeconds)
-hll_defun(System_GetTime, args)
+void sact_System_GetTime(int *hour, int *min, int *sec, int *ms)
 {
 	time_t t = time(NULL);
 	struct tm *tm = localtime(&t);
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME, &ts);
 
-	*args[0].iref = tm->tm_hour;
-	*args[1].iref = tm->tm_min;
-	*args[2].iref = ts.tv_sec;
-	*args[3].iref = ts.tv_nsec / 1000000;
-	hll_return(0);
+	*hour = tm->tm_hour;
+	*min  = tm->tm_min;
+	*sec  = ts.tv_sec;
+	*ms   = ts.tv_nsec / 1000000;
 }
 
-// void CG_RotateRGB(int nDest, int nDx, int nDy, int nWidth, int nHeight, int nRotateType)
-hll_unimplemented(SACT2, CG_RotateRGB);
-// void CG_BlendAMapBin(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight, int nBorder)
-hll_defun_inline(CG_BlendAMapBin, (gfx_copy_use_amap_border(sact_get_texture(a[0].i), a[1].i, a[2].i, sact_get_texture(a[3].i), a[4].i, a[5].i, a[6].i, a[7].i, a[8].i), 0));
-// void Debug_Pause(void)
-hll_unimplemented(SACT2, Debug_Pause);
-// void Debug_GetFuncStack(ref string sz, int nNest)
-hll_unimplemented(SACT2, Debug_GetFuncStack);
-// int SP_GetAMapValue(int nSP, int nX, int nY)
-hll_defun_inline(SP_GetAMapValue, sact_SP_GetAMapValue(a[0].i, a[1].i, a[2].i));
-// bool SP_GetPixelValue(int nSP, int nX, int nY, ref int pnR, ref int pnG, ref int pnB)
-hll_defun_inline(SP_GetPixelValue, sact_SP_GetPixelValue(a[0].i, a[1].i, a[2].i, a[3].iref, a[4].iref, a[5].iref));
-// int SP_SetBrightness(int nSP, int nBrightness)
-hll_unimplemented(SACT2, SP_SetBrightness);
-// int SP_GetBrightness(int nSP)
-hll_unimplemented(SACT2, SP_GetBrightness);
+void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int border)
+{
+	gfx_copy_use_amap_border(sact_get_texture(dst), dx, dy, sact_get_texture(src), sx, sy, w, h, border);
+}
 
-hll_deflib(SACT2) {
-	hll_export(Init),
-	hll_export(Error),
-	hll_export(SetWP),
-	hll_export(SetWP_Color),
-	hll_export(WP_GetSP),
-	hll_export(WP_SetSP),
-	hll_export(GetScreenWidth),
-	hll_export(GetScreenHeight),
-	hll_export(GetMainSurfaceNumber),
-	hll_export(Update),
-	hll_export(Effect),
-	hll_export(EffectSetMask),
-	hll_export(EffectSetMaskSP),
-	hll_export(QuakeScreen),
-	hll_export(QUAKE_SET_CROSS),
-	hll_export(QUAKE_SET_ROTATION),
-	hll_export(SP_GetUnuseNum),
-	hll_export(SP_Count),
-	hll_export(SP_Enum),
-	hll_export(SP_GetMaxZ),
-	hll_export(SP_SetCG),
-	hll_export(SP_SetCGFromFile),
-	hll_export(SP_SaveCG),
-	hll_export(SP_Create),
-	hll_export(SP_CreatePixelOnly),
-	hll_export(SP_CreateCustom),
-	hll_export(SP_Delete),
-	hll_export(SP_SetPos),
-	hll_export(SP_SetX),
-	hll_export(SP_SetY),
-	hll_export(SP_SetZ),
-	hll_export(SP_SetBlendRate),
-	hll_export(SP_SetShow),
-	hll_export(SP_SetDrawMethod),
-	hll_export(SP_IsUsing),
-	hll_export(SP_ExistAlpha),
-	hll_export(SP_GetPosX),
-	hll_export(SP_GetPosY),
-	hll_export(SP_GetWidth),
-	hll_export(SP_GetHeight),
-	hll_export(SP_GetZ),
-	hll_export(SP_GetBlendRate),
-	hll_export(SP_GetShow),
-	hll_export(SP_GetDrawMethod),
-	hll_export(SP_SetTextHome),
-	hll_export(SP_SetTextLineSpace),
-	hll_export(SP_SetTextCharSpace),
-	hll_export(SP_SetTextPos),
-	hll_export(SP_TextDraw),
-	hll_export(SP_TextClear),
-	hll_export(SP_TextHome),
-	hll_export(SP_TextNewLine),
-	hll_export(SP_TextBackSpace),
-	hll_export(SP_TextCopy),
-	hll_export(SP_GetTextHomeX),
-	hll_export(SP_GetTextHomeY),
-	hll_export(SP_GetTextCharSpace),
-	hll_export(SP_GetTextPosX),
-	hll_export(SP_GetTextPosY),
-	hll_export(SP_GetTextLineSpace),
-	hll_export(SP_IsPtIn),
-	hll_export(SP_IsPtInRect),
-	hll_export(GAME_MSG_GetNumof),
-	hll_export(GAME_MSG_Get),
-	hll_export(IntToZenkaku),
-	hll_export(IntToHankaku),
-	hll_export(StringPopFront),
-	hll_export(Mouse_GetPos),
-	hll_export(Mouse_SetPos),
-	hll_export(Mouse_ClearWheel),
-	hll_export(Mouse_GetWheel),
-	hll_export(Joypad_ClearKeyDownFlag),
-	hll_export(Joypad_IsKeyDown),
-	hll_export(Joypad_GetNumof),
-	hll_export(JoypadQuake_Set),
-	hll_export(Joypad_GetAnalogStickStatus),
-	hll_export(Joypad_GetDigitalStickStatus),
-	hll_export(Key_ClearFlag),
-	hll_export(Key_IsDown),
-	hll_export(Timer_Get),
-	hll_export(CG_IsExist),
-	hll_export(CG_GetMetrics),
-	hll_export(CSV_Load),
-	hll_export(CSV_Save),
-	hll_export(CSV_SaveAs),
-	hll_export(CSV_CountLines),
-	hll_export(CSV_CountColumns),
-	hll_export(CSV_Get),
-	hll_export(CSV_Set),
-	hll_export(CSV_GetInt),
-	hll_export(CSV_SetInt),
-	hll_export(CSV_Realloc),
-	hll_export(Music_IsExist),
-	hll_export(Music_Prepare),
-	hll_export(Music_Unprepare),
-	hll_export(Music_Play),
-	hll_export(Music_Stop),
-	hll_export(Music_IsPlay),
-	hll_export(Music_SetLoopCount),
-	hll_export(Music_GetLoopCount),
-	hll_export(Music_SetLoopStartPos),
-	hll_export(Music_SetLoopEndPos),
-	hll_export(Music_Fade),
-	hll_export(Music_StopFade),
-	hll_export(Music_IsFade),
-	hll_export(Music_Pause),
-	hll_export(Music_Restart),
-	hll_export(Music_IsPause),
-	hll_export(Music_GetPos),
-	hll_export(Music_GetLength),
-	hll_export(Music_GetSamplePos),
-	hll_export(Music_GetSampleLength),
-	hll_export(Music_Seek),
-	hll_export(Sound_IsExist),
-	hll_export(Sound_GetUnuseChannel),
-	hll_export(Sound_Prepare),
-	hll_export(Sound_Unprepare),
-	hll_export(Sound_Play),
-	hll_export(Sound_Stop),
-	hll_export(Sound_IsPlay),
-	hll_export(Sound_SetLoopCount),
-	hll_export(Sound_GetLoopCount),
-	hll_export(Sound_Fade),
-	hll_export(Sound_StopFade),
-	hll_export(Sound_IsFade),
-	hll_export(Sound_GetPos),
-	hll_export(Sound_GetLength),
-	hll_export(Sound_ReverseLR),
-	hll_export(Sound_GetVolume),
-	hll_export(Sound_GetTimeLength),
-	hll_export(Sound_GetGroupNum),
-	hll_export(Sound_PrepareFromFile),
-	hll_export(System_GetDate),
-	hll_export(System_GetTime),
-	hll_export(CG_RotateRGB),
-	hll_export(CG_BlendAMapBin),
-	hll_export(Debug_Pause),
-	hll_export(Debug_GetFuncStack),
-	hll_export(SP_GetAMapValue),
-	hll_export(SP_GetPixelValue),
-	hll_export(SP_SetBrightness),
-	hll_export(SP_GetBrightness),
-	NULL
-};
+HLL_UNIMPLEMENTED(int, SACT2, Error, struct string *err);
+HLL_UNIMPLEMENTED(int, SACT2, WP_GetSP, int sp);
+HLL_UNIMPLEMENTED(int, SACT2, WP_SetSP, int sp);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, EffectSetMask, int cg);
+HLL_UNIMPLEMENTED(int, SACT2, EffectSetMaskSP, int sp);
+HLL_WARN_UNIMPLEMENTED( , void, SACT2, QuakeScreen, int amp_x, int amp_y, int time, int key);
+HLL_UNIMPLEMENTED(void, SACT2, QUAKE_SET_CROSS, int amp_x, int amp_y);
+HLL_UNIMPLEMENTED(void, SACT2, QUAKE_SET_ROTATION, int amp, int cycle);
+HLL_UNIMPLEMENTED(int, SACT2, SP_SetCGFromFile, int sp, struct string *filename);
+HLL_UNIMPLEMENTED(int, SACT2, SP_SaveCG, int sp, struct string *filename);
+HLL_UNIMPLEMENTED(int, SACT2, SP_CreateCustom, int sp);
+HLL_UNIMPLEMENTED(int, SACT2, SP_TextBackSpace, int sp_no);
+HLL_UNIMPLEMENTED(void, SACT2, GAME_MSG_Get, int index, struct string **text);
+HLL_UNIMPLEMENTED(int, SACT2, StringPopFront, struct string **dst, struct string **src);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Mouse_SetPos, int x, int y);
+HLL_UNIMPLEMENTED(int, SACT2, Joypad_GetNumof, void);
+HLL_WARN_UNIMPLEMENTED( , void, SACT2, JoypadQuake_Set, int num, int type, int magnitude);
+HLL_UNIMPLEMENTED(int,  SACT2, CSV_Load, struct string *filename);
+HLL_UNIMPLEMENTED(int,  SACT2, CSV_Save, void);
+HLL_UNIMPLEMENTED(int,  SACT2, CSV_SaveAs, struct string *filename);
+HLL_UNIMPLEMENTED(int,  SACT2, CSV_CountLines, void);
+HLL_UNIMPLEMENTED(int,  SACT2, CSV_CountColumns, void);
+HLL_UNIMPLEMENTED(void, SACT2, CSV_Get, struct string **s, int line, int column);
+HLL_UNIMPLEMENTED(int,  SACT2, CSV_Set, int line, int column, struct string *data);
+HLL_UNIMPLEMENTED(int,  SACT2, CSV_GetInt, int line, int column);
+HLL_UNIMPLEMENTED(void, SACT2, CSV_SetInt, int line, int column, int data);
+HLL_UNIMPLEMENTED(void, SACT2, CSV_Realloc, int lines, int columns);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_SetLoopCount, int ch, int count);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetLoopCount, int ch);
+HLL_UNIMPLEMENTED(int, SACT2, Music_SetLoopStartPos, int ch, int pos);
+HLL_UNIMPLEMENTED(int, SACT2, Music_SetLoopEndPos, int ch, int pos);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_StopFade, int ch);
+HLL_WARN_UNIMPLEMENTED(0, int, SACT2, Music_IsFade, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Pause, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Restart, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_IsPause, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetPos, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetLength, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetSamplePos, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetSampleLength, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Seek, int ch, int pos);
+HLL_UNIMPLEMENTED(int, SACT2, Sound_SetLoopCount, int ch, int count);
+HLL_UNIMPLEMENTED(int, SACT2, Sound_GetLoopCount, int ch);
+HLL_UNIMPLEMENTED(int, SACT2, Sound_StopFade, int ch);
+HLL_UNIMPLEMENTED(int, SACT2, Sound_IsFade, int ch);
+HLL_UNIMPLEMENTED(int, SACT2, Sound_GetPos, int ch);
+HLL_UNIMPLEMENTED(int, SACT2, Sound_GetLength, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Sound_ReverseLR, int ch);
+HLL_UNIMPLEMENTED(int, SACT2, Sound_GetVolume, int ch);
+HLL_UNIMPLEMENTED(int, SACT2, Sound_GetGroupNum, int ch);
+HLL_UNIMPLEMENTED(bool, SACT2, Sound_PrepareFromFile, int ch, struct string *filename);
+HLL_UNIMPLEMENTED(void, SACT2, CG_RotateRGB, int dst, int dx, int dy, int w, int h, int rotate_type);
+HLL_UNIMPLEMENTED(void, SACT2, Debug_Pause, void);
+HLL_UNIMPLEMENTED(void, SACT2, Debug_GetFuncStack, struct string **s, int nest);
+HLL_UNIMPLEMENTED(int, SACT2, SP_SetBrightness, int sp_no, int brightness);
+HLL_UNIMPLEMENTED(int, SACT2, SP_GetBrightness, int sp_no);
+
+HLL_LIBRARY(SACT2,
+	    HLL_EXPORT(Init, sact_Init),
+	    HLL_EXPORT(Error, SACT2_Error),
+	    HLL_EXPORT(SetWP, sact_SetWP),
+	    HLL_EXPORT(SetWP_Color, sact_SetWP_Color),
+	    HLL_EXPORT(WP_GetSP, SACT2_WP_GetSP),
+	    HLL_EXPORT(WP_SetSP, SACT2_WP_SetSP),
+	    HLL_EXPORT(GetScreenWidth, sact_GetScreenWidth),
+	    HLL_EXPORT(GetScreenHeight, sact_GetScreenHeight),
+	    HLL_EXPORT(GetMainSurfaceNumber, sact_GetMainSurfaceNumber),
+	    HLL_EXPORT(Update, sact_Update),
+	    HLL_EXPORT(Effect, sact_Effect),
+	    HLL_EXPORT(EffectSetMask, SACT2_EffectSetMask),
+	    HLL_EXPORT(EffectSetMaskSP, SACT2_EffectSetMaskSP),
+	    HLL_EXPORT(QuakeScreen, SACT2_QuakeScreen),
+	    HLL_EXPORT(QUAKE_SET_CROSS, SACT2_QUAKE_SET_CROSS),
+	    HLL_EXPORT(QUAKE_SET_ROTATION, SACT2_QUAKE_SET_ROTATION),
+	    HLL_EXPORT(SP_GetUnuseNum, sact_SP_GetUnuseNum),
+	    HLL_EXPORT(SP_Count, sact_SP_Count),
+	    HLL_EXPORT(SP_Enum, sact_SP_Enum),
+	    HLL_EXPORT(SP_GetMaxZ, sact_SP_GetMaxZ),
+	    HLL_EXPORT(SP_SetCG, sact_SP_SetCG),
+	    HLL_EXPORT(SP_SetCGFromFile, SACT2_SP_SetCGFromFile),
+	    HLL_EXPORT(SP_SaveCG, SACT2_SP_SaveCG),
+	    HLL_EXPORT(SP_Create, sact_SP_Create),
+	    HLL_EXPORT(SP_CreatePixelOnly, sact_SP_CreatePixelOnly),
+	    HLL_EXPORT(SP_CreateCustom, SACT2_SP_CreateCustom),
+	    HLL_EXPORT(SP_Delete, sact_SP_Delete),
+	    HLL_EXPORT(SP_SetPos, sact_SP_SetPos),
+	    HLL_EXPORT(SP_SetX, sact_SP_SetX),
+	    HLL_EXPORT(SP_SetY, sact_SP_SetY),
+	    HLL_EXPORT(SP_SetZ, sact_SP_SetZ),
+	    HLL_EXPORT(SP_SetBlendRate, sact_SP_SetBlendRate),
+	    HLL_EXPORT(SP_SetShow, sact_SP_SetShow),
+	    HLL_EXPORT(SP_SetDrawMethod, sact_SP_SetDrawMethod),
+	    HLL_EXPORT(SP_IsUsing, sact_SP_IsUsing),
+	    HLL_EXPORT(SP_ExistAlpha, sact_SP_ExistsAlpha),
+	    HLL_EXPORT(SP_GetPosX, sact_SP_GetPosX),
+	    HLL_EXPORT(SP_GetPosY, sact_SP_GetPosY),
+	    HLL_EXPORT(SP_GetWidth, sact_SP_GetWidth),
+	    HLL_EXPORT(SP_GetHeight, sact_SP_GetHeight),
+	    HLL_EXPORT(SP_GetZ, sact_SP_GetZ),
+	    HLL_EXPORT(SP_GetBlendRate, sact_SP_GetBlendRate),
+	    HLL_EXPORT(SP_GetShow, sact_SP_GetShow),
+	    HLL_EXPORT(SP_GetDrawMethod, sact_SP_GetDrawMethod),
+	    HLL_EXPORT(SP_SetTextHome, sact_SP_SetTextHome),
+	    HLL_EXPORT(SP_SetTextLineSpace, sact_SP_SetTextLineSpace),
+	    HLL_EXPORT(SP_SetTextCharSpace, sact_SP_SetTextCharSpace),
+	    HLL_EXPORT(SP_SetTextPos, sact_SP_SetTextPos),
+	    HLL_EXPORT(SP_TextDraw, sact_SP_TextDraw),
+	    HLL_EXPORT(SP_TextClear, sact_SP_TextClear),
+	    HLL_EXPORT(SP_TextHome, sact_SP_TextHome),
+	    HLL_EXPORT(SP_TextNewLine, sact_SP_TextNewLine),
+	    HLL_EXPORT(SP_TextBackSpace, SACT2_SP_TextBackSpace),
+	    HLL_EXPORT(SP_TextCopy, sact_SP_TextCopy),
+	    HLL_EXPORT(SP_GetTextHomeX, sact_SP_GetTextHomeX),
+	    HLL_EXPORT(SP_GetTextHomeY, sact_SP_GetTextHomeY),
+	    HLL_EXPORT(SP_GetTextCharSpace, sact_SP_GetTextCharSpace),
+	    HLL_EXPORT(SP_GetTextPosX, sact_SP_GetTextPosX),
+	    HLL_EXPORT(SP_GetTextPosY, sact_SP_GetTextPosY),
+	    HLL_EXPORT(SP_GetTextLineSpace, sact_SP_GetTextLineSpace),
+	    HLL_EXPORT(SP_IsPtIn, sact_SP_IsPtIn),
+	    HLL_EXPORT(SP_IsPtInRect, sact_SP_IsPtInRect),
+	    HLL_EXPORT(GAME_MSG_GetNumof, sact_GAME_MSG_GetNumOf),
+	    HLL_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get),
+	    HLL_EXPORT(IntToZenkaku, sact_IntToZenkaku),
+	    HLL_EXPORT(IntToHankaku, sact_IntToHankaku),
+	    HLL_EXPORT(StringPopFront, SACT2_StringPopFront),
+	    HLL_EXPORT(Mouse_GetPos, sact_Mouse_GetPos),
+	    HLL_EXPORT(Mouse_SetPos, SACT2_Mouse_SetPos),
+	    HLL_EXPORT(Mouse_ClearWheel, sact_Mouse_ClearWheel),
+	    HLL_EXPORT(Mouse_GetWheel, sact_Mouse_GetWheel),
+	    HLL_EXPORT(Joypad_ClearKeyDownFlag, sact_Joypad_ClearKeyDownFlag),
+	    HLL_EXPORT(Joypad_IsKeyDown, sact_Joypad_IsKeyDown),
+	    HLL_EXPORT(Joypad_GetNumof, SACT2_Joypad_GetNumof),
+	    HLL_EXPORT(JoypadQuake_Set, SACT2_JoypadQuake_Set),
+	    HLL_EXPORT(Joypad_GetAnalogStickStatus, sact_Joypad_GetAnalogStickStatus),
+	    HLL_EXPORT(Joypad_GetDigitalStickStatus, sact_Joypad_GetDigitalStickStatus),
+	    HLL_EXPORT(Key_ClearFlag, sact_Key_ClearFlag),
+	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown),
+	    HLL_EXPORT(Timer_Get, vm_time),
+	    HLL_EXPORT(CG_IsExist, sact_CG_IsExist),
+	    HLL_EXPORT(CG_GetMetrics, sact_CG_GetMetrics),
+	    HLL_EXPORT(CSV_Load, SACT2_CSV_Load),
+	    HLL_EXPORT(CSV_Save, SACT2_CSV_Save),
+	    HLL_EXPORT(CSV_SaveAs, SACT2_CSV_SaveAs),
+	    HLL_EXPORT(CSV_CountLines, SACT2_CSV_CountLines),
+	    HLL_EXPORT(CSV_CountColumns, SACT2_CSV_CountColumns),
+	    HLL_EXPORT(CSV_Get, SACT2_CSV_Get),
+	    HLL_EXPORT(CSV_Set, SACT2_CSV_Set),
+	    HLL_EXPORT(CSV_GetInt, SACT2_CSV_GetInt),
+	    HLL_EXPORT(CSV_SetInt, SACT2_CSV_SetInt),
+	    HLL_EXPORT(CSV_Realloc, SACT2_CSV_Realloc),
+	    HLL_EXPORT(Music_IsExist, sact_Music_IsExist),
+	    HLL_EXPORT(Music_Prepare, sact_Music_Prepare),
+	    HLL_EXPORT(Music_Unprepare, sact_Music_Unprepare),
+	    HLL_EXPORT(Music_Play, sact_Music_Play),
+	    HLL_EXPORT(Music_Stop, sact_Music_Stop),
+	    HLL_EXPORT(Music_IsPlay, sact_Music_IsPlay),
+	    HLL_EXPORT(Music_SetLoopCount, SACT2_Music_SetLoopCount),
+	    HLL_EXPORT(Music_GetLoopCount, SACT2_Music_GetLoopCount),
+	    HLL_EXPORT(Music_SetLoopStartPos, SACT2_Music_SetLoopStartPos),
+	    HLL_EXPORT(Music_SetLoopEndPos, SACT2_Music_SetLoopEndPos),
+	    HLL_EXPORT(Music_Fade, sact_Music_Fade),
+	    HLL_EXPORT(Music_StopFade, SACT2_Music_StopFade),
+	    HLL_EXPORT(Music_IsFade, SACT2_Music_IsFade),
+	    HLL_EXPORT(Music_Pause, SACT2_Music_Pause),
+	    HLL_EXPORT(Music_Restart, SACT2_Music_Restart),
+	    HLL_EXPORT(Music_IsPause, SACT2_Music_IsPause),
+	    HLL_EXPORT(Music_GetPos, SACT2_Music_GetPos),
+	    HLL_EXPORT(Music_GetLength, SACT2_Music_GetLength),
+	    HLL_EXPORT(Music_GetSamplePos, SACT2_Music_GetSamplePos),
+	    HLL_EXPORT(Music_GetSampleLength, SACT2_Music_GetSampleLength),
+	    HLL_EXPORT(Music_Seek, SACT2_Music_Seek),
+	    HLL_EXPORT(Sound_IsExist, sact_Sound_IsExist),
+	    HLL_EXPORT(Sound_GetUnuseChannel, sact_Sound_GetUnuseChannel),
+	    HLL_EXPORT(Sound_Prepare, sact_Sound_Prepare),
+	    HLL_EXPORT(Sound_Unprepare, sact_Sound_Unprepare),
+	    HLL_EXPORT(Sound_Play, sact_Sound_Play),
+	    HLL_EXPORT(Sound_Stop, sact_Sound_Stop),
+	    HLL_EXPORT(Sound_IsPlay, sact_Sound_IsPlay),
+	    HLL_EXPORT(Sound_SetLoopCount, SACT2_Sound_SetLoopCount),
+	    HLL_EXPORT(Sound_GetLoopCount, SACT2_Sound_GetLoopCount),
+	    HLL_EXPORT(Sound_Fade, sact_Sound_Fade),
+	    HLL_EXPORT(Sound_StopFade, SACT2_Sound_StopFade),
+	    HLL_EXPORT(Sound_IsFade, SACT2_Sound_IsFade),
+	    HLL_EXPORT(Sound_GetPos, SACT2_Sound_GetPos),
+	    HLL_EXPORT(Sound_GetLength, SACT2_Sound_GetLength),
+	    HLL_EXPORT(Sound_ReverseLR, SACT2_Sound_ReverseLR),
+	    HLL_EXPORT(Sound_GetVolume, SACT2_Sound_GetVolume),
+	    HLL_EXPORT(Sound_GetTimeLength, sact_Sound_GetTimeLength),
+	    HLL_EXPORT(Sound_GetGroupNum, SACT2_Sound_GetGroupNum),
+	    HLL_EXPORT(Sound_PrepareFromFile, SACT2_Sound_PrepareFromFile),
+	    HLL_EXPORT(System_GetDate, sact_System_GetDate),
+	    HLL_EXPORT(System_GetTime, sact_System_GetTime),
+	    HLL_EXPORT(CG_RotateRGB, SACT2_CG_RotateRGB),
+	    HLL_EXPORT(CG_BlendAMapBin, sact_CG_BlendAMapBin),
+	    HLL_EXPORT(Debug_Pause, SACT2_Debug_Pause),
+	    HLL_EXPORT(Debug_GetFuncStack, SACT2_Debug_GetFuncStack),
+	    HLL_EXPORT(SP_GetAMapValue, sact_SP_GetAMapValue),
+	    HLL_EXPORT(SP_GetPixelValue, sact_SP_GetPixelValue),
+	    HLL_EXPORT(SP_SetBrightness, SACT2_SP_SetBrightness),
+	    HLL_EXPORT(SP_GetBrightness, SACT2_SP_GetBrightness));

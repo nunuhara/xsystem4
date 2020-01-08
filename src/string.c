@@ -235,6 +235,12 @@ void string_erase(struct string **s, int index)
 	(*s)->text[(*s)->size] = '\0';
 }
 
+void string_clear(struct string *s)
+{
+	s->size = 0;
+	s->text[0] = '\0';
+}
+
 int string_find(const struct string *haystack, const struct string *needle)
 {
 	int c = 0;

@@ -20,6 +20,7 @@
 #include "cJSON.h"
 #include "vm.h"
 
+cJSON *page_to_json(struct page *page);
 cJSON *vm_value_to_json(enum ain_data_type type, union vm_value val);
 void json_load_page(struct page *page, cJSON *vars);
 union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json);

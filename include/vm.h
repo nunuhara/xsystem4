@@ -31,20 +31,17 @@ union vm_value {
 	int32_t i;
 	int64_t li;
 	float f;
-	// HLL only
-	void *ref;
-	int *iref;
-	float *fref;
+	void *ref; // for casting HLL return value
 };
 
 struct static_hll_function {
 	char *name;
-	union vm_value (*fun)(union vm_value *_args);
+	void *fun;
 };
 
 struct static_library {
 	char *name;
-	struct static_hll_function **functions;
+	struct static_hll_function functions[];
 };
 
 struct ain *ain;
@@ -110,6 +107,9 @@ union vm_value vm_copy(union vm_value v, enum ain_data_type type);
 void vm_execute_ain(struct ain *program);
 void vm_call(int fno, int struct_page);
 int vm_time(void);
+
+void hll_call(int libno, int fno);
+void link_libraries(void);
 
 void vm_stack_trace(void);
 noreturn void _vm_error(const char *fmt, ...);

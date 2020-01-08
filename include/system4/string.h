@@ -50,6 +50,7 @@ void string_append_cstr(struct string **a, const char *b, size_t b_size);
 void string_push_back(struct string **s, int c);
 void string_pop_back(struct string **s);
 void string_erase(struct string **s, int index);
+void string_clear(struct string *s);
 
 // queries
 int string_find(const struct string *haystack, const struct string *needle);

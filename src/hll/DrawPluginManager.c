@@ -16,11 +16,9 @@
 
 #include "hll.h"
 
-hll_warn_unimplemented(DrawPluginManager, Load, 1);
-hll_warn_unimplemented(DrawPluginManager, IsLoad, 1);
+HLL_WARN_UNIMPLEMENTED(1, int, DrawPluginManager, Load, struct string *plugin_name);
+HLL_WARN_UNIMPLEMENTED(1, int, DrawPluginManager, IsLoad, struct string *plugin_name);
 
-hll_deflib(DrawPluginManager) {
-	hll_export(Load),
-	hll_export(IsLoad),
-	NULL
-};
+HLL_LIBRARY(DrawPluginManager,
+	    HLL_EXPORT(Load, DrawPluginManager_Load),
+	    HLL_EXPORT(IsLoad, DrawPluginManager_IsLoad));

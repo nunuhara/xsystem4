@@ -16,19 +16,13 @@
 
 #include "hll.h"
 
-// void Init(imain_system pIMainSystem)
-hll_warn_unimplemented(Confirm2, Init, 0);
-// int ExistKeyFile(string pIFileName, int nKeyNum)
-hll_warn_unimplemented(Confirm2, ExistKeyFile, 1);
-// int CheckProtectFile(string pIFileName, int nKeyNum)
-hll_unimplemented(Confirm2, CheckProtectFile);
-// int CreateKeyFile(string pIFileName, int nKeyNum)
-hll_unimplemented(Confirm2, CreateKeyFile);
+HLL_WARN_UNIMPLEMENTED( , void, Confirm2, Init, void *imainsystem);
+HLL_WARN_UNIMPLEMENTED(1, int,  Confirm2, ExistKeyFile, struct string *filename, int keynum);
+HLL_UNIMPLEMENTED(int, Confirm2, CheckProtectFile, struct string *filename, int keynum);
+HLL_UNIMPLEMENTED(int, Confirm2, CreateKeyFile, struct string *filename, int keynum);
 
-hll_deflib(Confirm2) {
-	hll_export(Init),
-	hll_export(ExistKeyFile),
-	hll_export(CheckProtectFile),
-	hll_export(CreateKeyFile),
-	NULL
-};
+HLL_LIBRARY(Confirm2,
+	    HLL_EXPORT(Init, Confirm2_Init),
+	    HLL_EXPORT(ExistKeyFile, Confirm2_ExistKeyFile),
+	    HLL_EXPORT(CheckProtectFile, Confirm2_CheckProtectFile),
+	    HLL_EXPORT(CreateKeyFile, Confirm2_CreateKeyFile));
