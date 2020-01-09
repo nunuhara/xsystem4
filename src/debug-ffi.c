@@ -114,12 +114,6 @@ sexp sexp_vm_value_get_i (sexp ctx, sexp self, sexp_sint_t n, sexp x) {
   return sexp_make_integer(ctx, ((union vm_value*)sexp_cpointer_value(x))->i);
 }
 
-sexp sexp_vm_value_get_li (sexp ctx, sexp self, sexp_sint_t n, sexp x) {
-  if (! (sexp_pointerp(x) && (sexp_pointer_tag(x) == sexp_unbox_fixnum(sexp_opcode_arg1_type(self)))))
-    return sexp_type_exception(ctx, self, sexp_unbox_fixnum(sexp_opcode_arg1_type(self)), x);
-  return sexp_make_integer(ctx, ((union vm_value*)sexp_cpointer_value(x))->li);
-}
-
 sexp sexp_vm_value_get_f (sexp ctx, sexp self, sexp_sint_t n, sexp x) {
   if (! (sexp_pointerp(x) && (sexp_pointer_tag(x) == sexp_unbox_fixnum(sexp_opcode_arg1_type(self)))))
     return sexp_type_exception(ctx, self, sexp_unbox_fixnum(sexp_opcode_arg1_type(self)), x);
@@ -267,10 +261,9 @@ sexp sexp_init_library (sexp ctx, sexp self, sexp_sint_t n, sexp env, const char
   sexp_env_define(ctx, env, tmp, sexp_vm_value_type_obj);
   sexp_type_slots(sexp_vm_value_type_obj) = SEXP_NULL;
   sexp_push(ctx, sexp_type_slots(sexp_vm_value_type_obj), sexp_intern(ctx, "f", -1));
-  sexp_push(ctx, sexp_type_slots(sexp_vm_value_type_obj), sexp_intern(ctx, "li", -1));
   sexp_push(ctx, sexp_type_slots(sexp_vm_value_type_obj), sexp_intern(ctx, "i", -1));
-  sexp_type_getters(sexp_vm_value_type_obj) = sexp_make_vector(ctx, SEXP_THREE, SEXP_FALSE);
-  sexp_type_setters(sexp_vm_value_type_obj) = sexp_make_vector(ctx, SEXP_THREE, SEXP_FALSE);
+  sexp_type_getters(sexp_vm_value_type_obj) = sexp_make_vector(ctx, SEXP_TWO, SEXP_FALSE);
+  sexp_type_setters(sexp_vm_value_type_obj) = sexp_make_vector(ctx, SEXP_TWO, SEXP_FALSE);
   tmp = sexp_make_type_predicate(ctx, name, sexp_vm_value_type_obj);
   name = sexp_intern(ctx, "vm-value?", 9);
   sexp_env_define(ctx, env, name, tmp);
@@ -329,12 +322,6 @@ sexp sexp_init_library (sexp ctx, sexp self, sexp_sint_t n, sexp env, const char
   op = sexp_define_foreign(ctx, env, "vm-value-float", 1, sexp_vm_value_get_f);
   if (sexp_opcodep(op)) {
     sexp_opcode_return_type(op) = sexp_make_fixnum(SEXP_FLONUM);
-    sexp_opcode_arg1_type(op) = sexp_make_fixnum(sexp_type_tag(sexp_vm_value_type_obj));
-  }
-  if (sexp_vectorp(sexp_type_getters(sexp_vm_value_type_obj))) sexp_vector_set(sexp_type_getters(sexp_vm_value_type_obj), SEXP_TWO, op);
-  op = sexp_define_foreign(ctx, env, "vm-value-long", 1, sexp_vm_value_get_li);
-  if (sexp_opcodep(op)) {
-    sexp_opcode_return_type(op) = sexp_make_fixnum(SEXP_FIXNUM);
     sexp_opcode_arg1_type(op) = sexp_make_fixnum(sexp_type_tag(sexp_vm_value_type_obj));
   }
   if (sexp_vectorp(sexp_type_getters(sexp_vm_value_type_obj))) sexp_vector_set(sexp_type_getters(sexp_vm_value_type_obj), SEXP_ONE, op);

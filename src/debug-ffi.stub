@@ -69,7 +69,6 @@
 (define-c-union vm_value
   predicate: vm-value?
   (int i vm-value-int)
-  (long li vm-value-long)
   (float f vm-value-float))
 
 (define-c (free string) (vm-value-string vm_value_string) (vm_value))

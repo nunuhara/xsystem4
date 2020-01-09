@@ -56,11 +56,10 @@ cJSON *vm_value_to_json(enum ain_data_type type, union vm_value val)
 	case AIN_BOOL:
 	case AIN_FUNC_TYPE:
 	case AIN_DELEGATE:
+	case AIN_LONG_INT:
 		return cJSON_CreateNumber(val.i);
 	case AIN_FLOAT:
 		return cJSON_CreateNumber(val.f);
-	case AIN_LONG_INT:
-		return cJSON_CreateNumber(val.li);
 	case AIN_STRING:
 		return cJSON_CreateString(heap[val.i].s->text);
 	case AIN_STRUCT:
@@ -206,6 +205,7 @@ union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type stru
 	switch (type) {
 	case AIN_INT:
 	case AIN_BOOL:
+	case AIN_LONG_INT:
 		if (!cJSON_IsNumber(json)) {
 			invalid_save_data("Not a number", json);
 			return vm_int(0);
@@ -217,12 +217,6 @@ union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type stru
 			return vm_float(0);
 		}
 		return vm_float(json->valuedouble);
-	case AIN_LONG_INT:
-		if (!cJSON_IsNumber(json)) {
-			invalid_save_data("Not a number", json);
-			return vm_long(0);
-		}
-		return vm_long(json->valueint);
 	case AIN_STRING:
 		slot = heap_alloc_slot(VM_STRING);
 		if (!cJSON_IsString(json)) {

@@ -50,8 +50,7 @@ static enum page_type string_to_page_type(const char *str)
 
 static cJSON *value_to_json(union vm_value v)
 {
-	// XXX: type punning through int64_t
-	return cJSON_CreateNumber(v.li);
+	return cJSON_CreateNumber(v.i);
 }
 
 static cJSON *resume_page_to_json(struct page *page)
@@ -204,7 +203,7 @@ static void load_page(int slot, cJSON *json)
 	int i = 0;
 	cJSON *item;
 	cJSON_ArrayForEach(item, values) {
-		page->values[i].li = item->valuedouble; // XXX: using valueint would truncate longs
+		page->values[i].i = item->valueint;
 		i++;
 	}
 
@@ -309,7 +308,7 @@ static void load_stack(cJSON *json)
 	cJSON *item;
 	cJSON_ArrayForEach(item, json) {
 		type_check(cJSON_Number, item);
-		stack_push_value(vm_long(item->valuedouble));
+		stack_push_value(vm_int(item->valueint));
 	}
 }
 

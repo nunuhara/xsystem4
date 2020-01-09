@@ -35,6 +35,15 @@
 #include "vm/heap.h"
 #include "vm/page.h"
 
+static inline int32_t lint_clamp(int64_t n)
+{
+	if (n < 0)
+		return 0;
+	if (n > INT32_MAX)
+		return INT32_MAX;
+	return (int32_t)n;
+}
+
 #define INITIAL_STACK_SIZE 4096
 
 // When the IP is set to VM_RETURN, the VM halts
@@ -935,95 +944,117 @@ static void execute_instruction(enum opcode opcode)
 	// --- 64-bit integers ---
 	//
 	case ITOLI: {
-		stack_set(0, (int64_t)stack_peek(0).i);
+		stack_set(0, lint_clamp(stack_peek(0).i));
 		break;
 	}
 	case LI_ADD: {
-		stack[stack_ptr-2].li += stack[stack_ptr-1].li;
+		int64_t a = stack[stack_ptr-2].i;
+		int64_t b = stack[stack_ptr-1].i;
+		stack[stack_ptr-2].i = lint_clamp(a + b);
 		stack_ptr--;
 		break;
 	}
 	case LI_SUB: {
-		stack[stack_ptr-2].li -= stack[stack_ptr-1].li;
+		int64_t a = stack[stack_ptr-2].i;
+		int64_t b = stack[stack_ptr-1].i;
+		stack[stack_ptr-2].i = lint_clamp(a - b);
 		stack_ptr--;
 		break;
 	}
 	case LI_MUL: {
-		stack[stack_ptr-2].li *= stack[stack_ptr-1].li;
+		int64_t a = stack[stack_ptr-2].i;
+		int64_t b = stack[stack_ptr-1].i;
+		stack[stack_ptr-2].i = lint_clamp(a * b);
 		stack_ptr--;
 		break;
 	}
 	case LI_DIV: {
-		stack[stack_ptr-2].li /= stack[stack_ptr-1].li;
+		int64_t a = stack[stack_ptr-2].i;
+		int64_t b = stack[stack_ptr-1].i;
+		stack[stack_ptr-2].i = lint_clamp(a / b);
 		stack_ptr--;
 		break;
 	}
 	case LI_MOD: {
-		stack[stack_ptr-2].li %= stack[stack_ptr-1].li;
+		int64_t a = stack[stack_ptr-2].i;
+		int64_t b = stack[stack_ptr-1].i;
+		stack[stack_ptr-2].i = lint_clamp(a % b);
 		stack_ptr--;
 		break;
 	}
 	case LI_ASSIGN: {
-		int64_t v = stack_pop().li;
-		stack_push(stack_pop_var()->li = v);
+		int64_t v = stack_pop().i;
+		stack_push(stack_pop_var()->i = lint_clamp(v));
 		break;
 	}
 	case LI_PLUSA: {
-		int64_t n = stack_pop().li;
-		stack_push(stack_pop_var()->li += n);
+		int64_t n = stack_pop().i;
+		union vm_value *v = stack_pop_var();
+		stack_push(v->i = lint_clamp((int64_t)v->i + n));
 		break;
 	}
 	case LI_MINUSA: {
-		int64_t n = stack_pop().li;
-		stack_push(stack_pop_var()->li -= n);
+		int64_t n = stack_pop().i;
+		union vm_value *v = stack_pop_var();
+		stack_push(v->i = lint_clamp((int64_t)v->i - n));
 		break;
 	}
 	case LI_MULA: {
-		int64_t n = stack_pop().li;
-		stack_push(stack_pop_var()->li *= n);
+		int64_t n = stack_pop().i;
+		union vm_value *v = stack_pop_var();
+		stack_push(v->i = lint_clamp((int64_t)v->i * n));
 		break;
 	}
 	case LI_DIVA: {
-		int64_t n = stack_pop().li;
-		stack_push(stack_pop_var()->li /= n);
+		int64_t n = stack_pop().i;
+		union vm_value *v = stack_pop_var();
+		stack_push(v->i = lint_clamp((int64_t)v->i / n));
 		break;
 	}
 	case LI_MODA: {
-		int64_t n = stack_pop().li;
-		stack_push(stack_pop_var()->li %= n);
+		int64_t n = stack_pop().i;
+		union vm_value *v = stack_pop_var();
+		stack_push(v->i = lint_clamp((int64_t)v->i % n));
 		break;
 	}
 	case LI_ANDA: {
-		int64_t n = stack_pop().li;
-		stack_push(stack_pop_var()->li &= n);
+		int64_t n = stack_pop().i;
+		union vm_value *v = stack_pop_var();
+		stack_push(v->i = lint_clamp((int64_t)v->i & n));
 		break;
 	}
 	case LI_ORA: {
-		int64_t n = stack_pop().li;
-		stack_push(stack_pop_var()->li |= n);
+		int64_t n = stack_pop().i;
+		union vm_value *v = stack_pop_var();
+		stack_push(v->i = lint_clamp((int64_t)v->i | n));
 		break;
 	}
 	case LI_XORA: {
-		int64_t n = stack_pop().li;
-		stack_push(stack_pop_var()->li ^= n);
+		int64_t n = stack_pop().i;
+		union vm_value *v = stack_pop_var();
+		stack_push(v->i = lint_clamp((int64_t)v->i ^ n));
 		break;
 	}
 	case LI_LSHIFTA: {
-		int64_t n = stack_pop().li;
-		stack_push(stack_pop_var()->li <<= n);
+		int64_t n = stack_pop().i;
+		union vm_value *v = stack_pop_var();
+		stack_push(v->i = lint_clamp((int64_t)v->i << n));
 		break;
 	}
 	case LI_RSHIFTA: {
-		int64_t n = stack_pop().li;
-		stack_push(stack_pop_var()->li >>= n);
+		int64_t n = stack_pop().i;
+		union vm_value *v = stack_pop_var();
+		stack_push(v->i = lint_clamp((int64_t)v->i >> n));
 		break;
 	}
 	case LI_INC: {
-		stack_pop_var()->li++;
+		union vm_value *v = stack_pop_var();
+		v->i = lint_clamp((int64_t)v->i + (int64_t)1);
 		break;
 	}
 	case LI_DEC: {
-		stack_pop_var()->li--;
+		union vm_value *v = stack_pop_var();
+		v->i = lint_clamp((int64_t)v->i - (int64_t)1);
 		break;
 	}
 	//

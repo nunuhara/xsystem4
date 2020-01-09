@@ -29,7 +29,6 @@ struct string;
 // Non-heap values. Stored in pages and on the stack.
 union vm_value {
 	int32_t i;
-	int64_t li;
 	float f;
 	void *ref; // for casting HLL return value
 };
@@ -59,11 +58,6 @@ static inline union vm_value vm_int(int32_t v)
 	return (union vm_value) { .i = v };
 }
 
-static inline union vm_value vm_long(int64_t v)
-{
-	return (union vm_value) { .li = v };
-}
-
 static inline union vm_value vm_bool(bool b)
 {
 	return (union vm_value) { .i = !!b };
@@ -77,7 +71,6 @@ static inline union vm_value vm_float(float v)
 #define vm_value_cast(v) _Generic((v),				\
 				  union vm_value: _vm_id,	\
 				  int32_t: vm_int,		\
-				  int64_t: vm_long,		\
 				  bool: vm_bool,		\
 				  float: vm_float)(v)
 
