@@ -594,12 +594,10 @@ static bool ain_is_encrypted(uint8_t *buf)
 	return !strncmp((char*)magic, "VERS", 4) && !magic[5] && !magic[6] && !magic[7];
 }
 
-struct ain *ain_open(const char *path, int *error)
+uint8_t *ain_read(const char *path, long *len, int *error)
 {
 	FILE *fp;
-	long len;
 	uint8_t *buf = NULL;
-	struct ain *ain = NULL;
 
 	if (!(fp = fopen(path, "rb"))) {
 		*error = AIN_FILE_ERROR;
@@ -608,17 +606,17 @@ struct ain *ain_open(const char *path, int *error)
 
 	// get size of AIN file
 	fseek(fp, 0, SEEK_END);
-	len = ftell(fp);
+	*len = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 
 	// read AIN file into memory
-	buf = xmalloc(len + 4); // why +4?
-	fread(buf, 1, len, fp);
+	buf = xmalloc(*len + 4); // why +4?
+	fread(buf, 1, *len, fp);
 	fclose(fp);
 
 	// check magic
 	if (!strncmp((char*)buf, "AI2\0\0\0\0", 8)) {
-		uint8_t *uc = decompress_ain(buf, &len);
+		uint8_t *uc = decompress_ain(buf, len);
 		if (!uc) {
 			*error = AIN_INVALID;
 			goto err;
@@ -626,12 +624,24 @@ struct ain *ain_open(const char *path, int *error)
 		free(buf);
 		buf = uc;
 	} else if (ain_is_encrypted(buf)) {
-		decrypt_ain(buf, len);
+		decrypt_ain(buf, *len);
 	} else {
 		printf("%.4s\n", buf);
 		*error = AIN_UNRECOGNIZED_FORMAT;
 		goto err;
 	}
+
+	return buf;
+err:
+	free(buf);
+	return NULL;
+}
+
+struct ain *ain_open(const char *path, int *error)
+{
+	long len;
+	struct ain *ain = NULL;
+	uint8_t *buf = ain_read(path, &len, error);
 
 	// read data into ain struct
 	struct ain_reader r = {

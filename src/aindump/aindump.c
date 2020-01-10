@@ -92,6 +92,7 @@ static void print_function(FILE *out, struct ain *ain, struct ain_function *f)
 static void ain_dump_functions(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_functions; i++) {
+		fprintf(f, "0x%x:\t", i);
 		print_function(f, ain, &ain->functions[i]);
 	}
 }
@@ -244,6 +245,21 @@ static void ain_audit(FILE *f, struct ain *ain)
 	fflush(f);
 }
 
+static void ain_decrypt(FILE *f, const char *path)
+{
+	int err;
+	long len;
+	uint8_t *ain;
+
+	if (!(ain = ain_read(path, &len, &err))) {
+		ERROR("Failed to open ain file: %s\n", ain_strerror(err));
+	}
+
+	fwrite(ain, len, 1, f);
+	fflush(f);
+	free(ain);
+}
+
 int main(int argc, char *argv[])
 {
 	bool dump_version = false;
@@ -260,6 +276,7 @@ int main(int argc, char *argv[])
 	bool dump_global_group_names = false;
 	bool dump_enums = false;
 	bool audit = false;
+	bool decrypt = false;
 	char *output_file = NULL;
 	FILE *output = stdout;
 	int err = AIN_SUCCESS;
@@ -282,12 +299,13 @@ int main(int argc, char *argv[])
 			{ "global-group-names", no_argument,       0, 'r' },
 			{ "enums",              no_argument,       0, 'e' },
 			{ "audit",              no_argument,       0, 'A' },
+			{ "decrypt",            no_argument,       0, 'd' },
 			{ "output",             required_argument, 0, 'o' },
 		};
 		int option_index = 0;
 		int c;
 
-		c = getopt_long(argc, argv, "hVcCfgSmlsFeAo:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hVcCfgSmlsFeAdo:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -337,6 +355,9 @@ int main(int argc, char *argv[])
 		case 'A':
 			audit = true;
 			break;
+		case 'd':
+			decrypt = true;
+			break;
 		case 'o':
 			output_file = xstrdup(optarg);
 			break;
@@ -358,6 +379,11 @@ int main(int argc, char *argv[])
 			ERROR("Failed to open output file '%s': %s", output_file, strerror(errno));
 		}
 		free(output_file);
+	}
+
+	if (decrypt) {
+		ain_decrypt(output, argv[0]);
+		return 0;
 	}
 
 	if (!(ain = ain_open(argv[0], &err))) {
@@ -395,4 +421,5 @@ int main(int argc, char *argv[])
 		ain_audit(output, ain);
 
 	ain_free(ain);
+	return 0;
 }

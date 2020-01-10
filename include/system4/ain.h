@@ -237,6 +237,7 @@ struct ain {
 
 const char *ain_strerror(int error);
 const char *ain_strtype(struct ain *ain, enum ain_data_type type, int struct_type);
+uint8_t *ain_read(const char *path, long *len, int *error);
 struct ain *ain_open(const char *path, int *error);
 void ain_free(struct ain *ain);
 
