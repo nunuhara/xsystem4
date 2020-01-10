@@ -27,7 +27,7 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
-void disassemble_ain(struct ain *ain, FILE *out);
+void disassemble_ain(FILE *out, struct ain *ain, bool raw);
 
 static void usage(void)
 {
@@ -36,6 +36,7 @@ static void usage(void)
 	puts("");
 	puts("    -h, --help               Display this message and exit");
 	puts("    -c, --code               Dump code section");
+	puts("    -C, --raw-code           Dump code section (raw)");
 	puts("    -f, --functions          Dump functions section");
 	puts("    -g, --globals            Dump globals section");
 	puts("    -S, --structures         Dump structures section");
@@ -247,6 +248,7 @@ int main(int argc, char *argv[])
 {
 	bool dump_version = false;
 	bool dump_code = false;
+	bool dump_raw_code = false;
 	bool dump_functions = false;
 	bool dump_globals = false;
 	bool dump_structures = false;
@@ -268,6 +270,7 @@ int main(int argc, char *argv[])
 			{ "help",               no_argument,       0, 'h' },
 			{ "ain-version",        no_argument,       0, 'V' },
 			{ "code",               no_argument,       0, 'c' },
+			{ "raw-code",           no_argument,       0, 'C' },
 			{ "functions",          no_argument,       0, 'f' },
 			{ "globals",            no_argument,       0, 'g' },
 			{ "structures",         no_argument,       0, 'S' },
@@ -284,7 +287,7 @@ int main(int argc, char *argv[])
 		int option_index = 0;
 		int c;
 
-		c = getopt_long(argc, argv, "hVcfgSmlsFeAo:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hVcCfgSmlsFeAo:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -297,6 +300,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 			dump_code = true;
+			break;
+		case 'C':
+			dump_raw_code = true;
 			break;
 		case 'f':
 			dump_functions = true;
@@ -382,7 +388,9 @@ int main(int argc, char *argv[])
 	if (dump_enums)
 		ain_dump_enums(output, ain);
 	if (dump_code)
-		disassemble_ain(ain, output);
+		disassemble_ain(output, ain, false);
+	if (dump_raw_code)
+		disassemble_ain(output, ain, true);
 	if (audit)
 		ain_audit(output, ain);
 

@@ -29,6 +29,7 @@ struct dasm_state {
 	FILE *out;
 	size_t addr;
 	int func;
+	bool raw;
 };
 
 #define NR_LABEL_BUCKETS 128
@@ -136,6 +137,10 @@ static void print_string(struct dasm_state *dasm, struct string *s)
 
 static void print_argument(struct dasm_state *dasm, int32_t arg, enum instruction_argtype type)
 {
+	if (dasm->raw) {
+		fprintf(dasm->out, "0x%x", arg);
+		return;
+	}
 	char *label;
 	struct ain *ain = dasm->ain;
 	switch (type) {
@@ -227,6 +232,9 @@ static void print_arguments(struct dasm_state *dasm, const struct instruction *i
 
 static void print_instruction(struct dasm_state *dasm, const struct instruction *instr)
 {
+	if (dasm->raw) {
+		fprintf(dasm->out, "0x%08lX:\t", dasm->addr);
+	}
 	switch (instr->opcode) {
 	case FUNC:
 		dasm->func = LittleEndian_getDW(dasm->ain->code, dasm->addr + 2);
@@ -266,29 +274,32 @@ static char *genlabel(size_t addr)
 	return strdup(name);
 }
 
-void disassemble_ain(struct ain *ain, FILE *out)
+void disassemble_ain(FILE *out, struct ain *ain, bool raw)
 {
 	struct dasm_state dasm = {
 		.ain  = ain,
 		.out  = out,
 		.addr = 0,
-		.func = -1
+		.func = -1,
+		.raw  = raw
 	};
 
-	// first pass to generate labels
-	for (dasm.addr = 0; dasm.addr < dasm.ain->code_size;) {
-		const struct instruction *instr = get_instruction(&dasm);
-		switch (instr->opcode) {
-		case JUMP:
-		case IFZ:
-		case IFNZ: {
-			int32_t arg = LittleEndian_getDW(dasm.ain->code, dasm.addr + 2);
-			add_label(genlabel(arg), arg);
-			break;
+	if (!raw) {
+		// first pass to generate labels
+		for (dasm.addr = 0; dasm.addr < dasm.ain->code_size;) {
+			const struct instruction *instr = get_instruction(&dasm);
+			switch (instr->opcode) {
+			case JUMP:
+			case IFZ:
+			case IFNZ: {
+				int32_t arg = LittleEndian_getDW(dasm.ain->code, dasm.addr + 2);
+				add_label(genlabel(arg), arg);
+				break;
+			}
+			default: break;
+			}
+			dasm.addr += instruction_width(instr->opcode);
 		}
-		default: break;
-		}
-		dasm.addr += instruction_width(instr->opcode);
 	}
 
 	for (dasm.addr = 0; dasm.addr < dasm.ain->code_size;) {
