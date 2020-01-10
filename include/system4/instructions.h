@@ -340,6 +340,7 @@ enum instruction_argtype {
 	T_HLL,
 	T_HLLFUNC,
 	T_FILE,
+	T_DLG,
 };
 
 struct instruction {

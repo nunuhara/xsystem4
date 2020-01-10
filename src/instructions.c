@@ -249,7 +249,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP   ( S_PLUSA2,       0 ),
         OP   ( OBJSWAP,        0 ),
         TODO ( S_ERASE,        0 ),
-        TODO ( SR_REF2,        0 ),
+        TODO ( SR_REF2,        1, T_INT ),
         OP   ( S_ERASE2,       0 ),
         OP   ( S_PUSHBACK2,    0 ),
         OP   ( S_POPBACK2,     0 ),
@@ -286,23 +286,23 @@ const struct instruction instructions[NR_OPCODES] = {
         TODO ( SH_IF_LOC_LT_IMM, 3, T_LOCAL, T_INT, T_ADDR ),
         TODO ( SH_IF_LOC_GE_IMM, 3, T_LOCAL, T_INT, T_ADDR ),
         TODO ( SH_LOCREF_ASSIGN_MEM, 2, T_INT, T_INT ),
-        TODO ( PAGE_REF, 0 ), // TODO: args?
+        TODO ( PAGE_REF, 1, T_INT ),
         TODO ( SH_GLOBAL_ASSIGN_LOCAL, 2, T_GLOBAL, T_LOCAL ),
         TODO ( SH_STRUCTREF_GT_IMM, 2, T_INT, T_INT ),
         TODO ( SH_STRUCT_ASSIGN_LOCALREF_ITOB, 2, T_INT, T_INT ),
         TODO ( SH_LOCAL_ASSIGN_STRUCTREF, 2, T_INT, T_INT ),
         TODO ( SH_IF_STRUCTREF_NE_LOCALREF, 3, T_STRUCT, T_LOCAL, T_ADDR ),
         TODO ( SH_IF_STRUCTREF_GT_IMM, 3, T_INT, T_INT, T_ADDR ),
-        TODO ( SH_STRUCTREF_CALLMETHOD_NO_PARAM, 0 ), // TODO: args?
-        TODO ( SH_STRUCTREF2, 0 ), // TODO: args?
-        TODO ( SH_REF_STRUCTREF2, 0 ), // TODO: args?
-        TODO ( SH_STRUCTREF3, 0 ), // TODO: args?
-        TODO ( SH_STRUCTREF2_CALLMETHOD_NO_PARAM, 0 ), // TODO: args?
+        TODO ( SH_STRUCTREF_CALLMETHOD_NO_PARAM, 2, T_INT, T_FUNC ),
+        TODO ( SH_STRUCTREF2, 2, T_INT, T_INT ),
+        TODO ( SH_REF_STRUCTREF2, 2, T_INT, T_INT ),
+        TODO ( SH_STRUCTREF3, 3, T_INT, T_INT, T_INT ),
+        TODO ( SH_STRUCTREF2_CALLMETHOD_NO_PARAM, 3, T_INT, T_INT, T_FUNC ),
         TODO ( SH_IF_STRUCTREF_Z, 2, T_INT, T_ADDR ),
         TODO ( SH_IF_STRUCT_A_NOT_EMPTY, 2, T_INT, T_ADDR ),
         TODO ( SH_IF_LOC_GT_IMM, 3, T_INT, T_INT, T_ADDR ),
         TODO ( SH_IF_STRUCTREF_NE_IMM, 3, T_INT, T_INT, T_ADDR ),
-        TODO ( THISCALLMETHOD_NOPARAM, 0 ), // TODO: args?
+        TODO ( THISCALLMETHOD_NOPARAM, 1, T_FUNC ),
         TODO ( SH_IF_LOC_NE_IMM, 3, T_LOCAL, T_INT, T_ADDR ),
         TODO ( SH_IF_STRUCTREF_EQ_IMM, 3, T_INT, T_INT, T_ADDR ),
         TODO ( SH_GLOBAL_ASSIGN_IMM, 2, T_GLOBAL, T_INT ),
@@ -320,7 +320,7 @@ const struct instruction instructions[NR_OPCODES] = {
         TODO ( SH_LOCALSREF_NE_STR0, 2, T_INT, T_INT ),
         TODO ( SH_STRUCT_SR_REF, 2, T_INT, T_INT ),
         TODO ( SH_STRUCT_S_REF, 1, T_INT ),
-        TODO ( S_REF2, 0 ), // TODO: args?
+        TODO ( S_REF2, 1, T_INT ),
         TODO ( SH_REF_LOCAL_ASSIGN_STRUCTREF2, 0 ),
         TODO ( SH_GLOBAL_S_REF, 1, T_GLOBAL ),
         TODO ( SH_LOCAL_S_REF, 1, T_INT ),
@@ -344,7 +344,7 @@ const struct instruction instructions[NR_OPCODES] = {
         TODO ( A_SORT_MEM, 0 ),
         TODO ( DG_ADD, 0 ),
         TODO ( DG_SET, 0 ),
-        TODO ( DG_CALL, 0 ),
+        TODO ( DG_CALL, 2, T_DLG, T_ADDR ),
         TODO ( DG_NUMOF, 0 ),
         TODO ( DG_EXIST, 0 ),
         TODO ( DG_ERASE, 0 ),
@@ -355,7 +355,7 @@ const struct instruction instructions[NR_OPCODES] = {
         TODO ( DG_POP, 0 ),
         TODO ( DG_NEW_FROM_METHOD, 0 ),
         TODO ( DG_MINUSA, 0 ),
-        TODO ( DG_CALLBEGIN, 0 ),
+        TODO ( DG_CALLBEGIN, 1, T_DLG ),
         TODO ( DG_NEW, 0 ),
         TODO ( DG_STR_TO_METHOD, 0 ),
 };

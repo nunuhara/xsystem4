@@ -198,7 +198,7 @@ static void skip_ainv8_unknown_variable_data(struct ain_reader *r, enum ain_data
 	case 1:
 		switch (type) {
 		case AIN_STRING:
-			read_string(r);
+			free(read_string(r));
 			break;
 		case AIN_DELEGATE:
 		case AIN_REF_TYPE:
