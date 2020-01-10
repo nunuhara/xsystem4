@@ -187,9 +187,9 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 		print_sjis(dasm, ain->structures[arg].name);
 		break;
 	case T_SYSCALL:
-		if (arg < 0 || arg >= NR_SYSCALLS || !syscalls[arg])
+		if (arg < 0 || arg >= NR_SYSCALLS || !syscalls[arg].name)
 			DASM_ERROR(dasm, "Invalid/unknown syscall number: %d", arg);
-		fprintf(dasm->out, "%s", syscalls[arg]);
+		fprintf(dasm->out, "%s", syscalls[arg].name);
 		break;
 	case T_HLL:
 		if (arg < 0 || arg >= ain->nr_libraries)

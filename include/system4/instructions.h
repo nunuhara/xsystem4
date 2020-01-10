@@ -19,6 +19,7 @@
 #ifndef SYSTEM4_INSTRUCTIONS_H
 #define SYSTEM4_INSTRUCTIONS_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "system4.h"
 
@@ -48,10 +49,17 @@ enum syscall_code {
 	SYS_SLEEP                = 0x15,
 	SYS_GROUP_SAVE           = 0x18,
 	SYS_GROUP_LOAD           = 0x19,
+	SYS_COPY_SAVE_FILE       = 0x1C,
 	NR_SYSCALLS
 };
 
-const char * const syscalls[NR_SYSCALLS];
+struct syscall {
+	const enum syscall_code code;
+	const char * const name;
+	const bool implemented;
+};
+
+const struct syscall syscalls[NR_SYSCALLS];
 
 enum opcode
 {
@@ -339,6 +347,7 @@ struct instruction {
 	const char * const name;  // assembler name
 	const int nr_args;        // number of arguments (???: always 1 or 0?)
 	const int ip_inc;         // amount to increment instruction pointer after instruction
+	const bool implemented;   // implemented in xsystem4
 	const int args[INSTRUCTION_MAX_ARGS]; // argument data types
 };
 

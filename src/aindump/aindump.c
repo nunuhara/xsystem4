@@ -44,6 +44,7 @@ static void usage(void)
 	puts("        --function-types     Dump function type section");
 	puts("        --global-group-names Dump global group names section");
 	puts("    -e, --enums              Dump enums section");
+	puts("    -A, --audit              Audit AIN file for xsystem4 compatibility");
 	//puts("    -j, --json               Dump to JSON format"); // TODO
 }
 
@@ -212,6 +213,36 @@ static void ain_dump_enums(FILE *f, struct ain *ain)
 	}
 }
 
+static void ain_audit(FILE *f, struct ain *ain)
+{
+	for (size_t addr = 0; addr < ain->code_size;) {
+		uint16_t opcode = LittleEndian_getW(ain->code, addr);
+		const struct instruction *instr = &instructions[opcode];
+		if (opcode >= NR_OPCODES) {
+			ERROR("0x%08lx: Invalid/unknown opcode: %x", opcode);
+		}
+		if (!instr->implemented) {
+			fprintf(f, "0x%08lx: %s (unimplemented instruction)\n", addr, instr->name);
+		}
+		if (opcode == CALLSYS) {
+			uint32_t syscode = LittleEndian_getDW(ain->code, addr + 2);
+			if (syscode >= NR_SYSCALLS) {
+				ERROR("0x%08lx: CALLSYS system.(0x%x)\n", addr, syscode);
+			}
+			const char * const name = syscalls[syscode].name;
+			if (!name) {
+				fprintf(f, "0x%08lx: CALLSYS system.(0x%x)\n", addr, syscode);
+			} else if (!syscalls[syscode].implemented) {
+				fprintf(f, "0x%08lx: CALLSYS %s (unimplemented system call)\n", addr, name);
+			}
+
+		}
+		// TODO: audit library calls
+		addr += instruction_width(opcode);
+	}
+	fflush(f);
+}
+
 int main(int argc, char *argv[])
 {
 	bool dump_version = false;
@@ -226,6 +257,7 @@ int main(int argc, char *argv[])
 	bool dump_functypes = false;
 	bool dump_global_group_names = false;
 	bool dump_enums = false;
+	bool audit = false;
 	char *output_file = NULL;
 	FILE *output = stdout;
 	int err = AIN_SUCCESS;
@@ -246,12 +278,13 @@ int main(int argc, char *argv[])
 			{ "function-types",     no_argument,       0, 't' },
 			{ "global-group-names", no_argument,       0, 'r' },
 			{ "enums",              no_argument,       0, 'e' },
+			{ "audit",              no_argument,       0, 'A' },
 			{ "output",             required_argument, 0, 'o' },
 		};
 		int option_index = 0;
 		int c;
 
-		c = getopt_long(argc, argv, "hVcfgSmlsFeo:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hVcfgSmlsFeAo:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -294,6 +327,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'e':
 			dump_enums = true;
+			break;
+		case 'A':
+			audit = true;
 			break;
 		case 'o':
 			output_file = xstrdup(optarg);
@@ -347,6 +383,8 @@ int main(int argc, char *argv[])
 		ain_dump_enums(output, ain);
 	if (dump_code)
 		disassemble_ain(ain, output);
+	if (audit)
+		ain_audit(output, ain);
 
 	ain_free(ain);
 }
