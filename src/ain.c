@@ -440,6 +440,11 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 	// FIXME: need to check len or could segfault on currupt AIN file
 	if (TAG_EQ("VERS")) {
 		ain->version = read_int32(r);
+		if (ain->version > 8) {
+			instructions[CALLHLL].nr_args = 3;
+			instructions[S_MOD].nr_args = 1;
+			instructions[OBJSWAP].nr_args = 1;
+		}
 	} else if (TAG_EQ("KEYC")) {
 		ain->keycode = read_int32(r);
 	} else if (TAG_EQ("CODE")) {

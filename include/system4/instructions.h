@@ -323,6 +323,11 @@ enum opcode
         DG_NEW,
         DG_STR_TO_METHOD,
 
+	OP_0x102 = 0x102,
+	OP_0x103 = 0x103,
+	OP_0x104 = 0x104,
+	OP_0x105 = 0x105,
+
 	NR_OPCODES
 };
 
@@ -346,13 +351,13 @@ enum instruction_argtype {
 struct instruction {
 	const enum opcode opcode; // the opcode
 	const char * const name;  // assembler name
-	const int nr_args;        // number of arguments (???: always 1 or 0?)
+	int nr_args;              // number of arguments (???: always 1 or 0?)
 	const int ip_inc;         // amount to increment instruction pointer after instruction
 	const bool implemented;   // implemented in xsystem4
 	const int args[INSTRUCTION_MAX_ARGS]; // argument data types
 };
 
-const struct instruction instructions[NR_OPCODES];
+struct instruction instructions[NR_OPCODES];
 
 static const_pure inline int32_t instruction_width(enum opcode opcode)
 {

@@ -94,7 +94,7 @@ const struct syscall syscalls[NR_SYSCALLS] = {
 		.args = { __VA_ARGS__ }		\
 	}
 
-const struct instruction instructions[NR_OPCODES] = {
+struct instruction instructions[NR_OPCODES] = {
 //      TYPE   OPCODE          NR_ARGS, ARG_TYPES...
 	OP   ( PUSH,           1, T_INT ),
         OP   ( POP,            0 ),
@@ -187,7 +187,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP   ( C_REF,          0 ),
         OP   ( C_ASSIGN,       0 ),
         JMP  ( MSG,            1, T_MSG ),
-        OP   ( CALLHLL,        2, T_HLL, T_HLLFUNC ),
+        OP   ( CALLHLL,        2, T_HLL, T_HLLFUNC, T_INT ), // XXX: changed in ain version > 8
         OP   ( PUSHSTRUCTPAGE, 0 ),
         JMP  ( CALLMETHOD,     1, T_FUNC ),
         OP   ( SH_GLOBALREF,   1, T_GLOBAL ),
@@ -215,7 +215,7 @@ const struct instruction instructions[NR_OPCODES] = {
         OP   ( S_GTE,          0 ),
         OP   ( S_LENGTH2,      0 ),
         TODO ( S_LENGTHBYTE2,  0 ),
-        TODO ( NEW,            0 ),
+        TODO ( NEW,            2, T_INT, T_INT ),
         OP   ( DELETE,         0 ),
         TODO ( CHECKUDO,       0 ),
         OP   ( A_REF,          0 ),
@@ -245,9 +245,9 @@ const struct instruction instructions[NR_OPCODES] = {
         TODO ( S_PUSHBACK,     0 ),
         TODO ( S_POPBACK,      0 ),
         OP   ( FTOS,           0 ),
-        OP   ( S_MOD,          0 ),
+        OP   ( S_MOD,          0, T_INT ), // XXX: changed in ain version > 8
         OP   ( S_PLUSA2,       0 ),
-        OP   ( OBJSWAP,        0 ),
+        OP   ( OBJSWAP,        0, T_INT ), // XXX: changed in ain version > 8
         TODO ( S_ERASE,        0 ),
         TODO ( SR_REF2,        1, T_INT ),
         OP   ( S_ERASE2,       0 ),
@@ -357,5 +357,10 @@ const struct instruction instructions[NR_OPCODES] = {
         TODO ( DG_MINUSA, 0 ),
         TODO ( DG_CALLBEGIN, 1, T_DLG ),
         TODO ( DG_NEW, 0 ),
-        TODO ( DG_STR_TO_METHOD, 0 ),
+        TODO ( DG_STR_TO_METHOD, 1, T_INT ),
+
+	TODO ( OP_0x102, 0 ),
+	TODO ( OP_0x103, 2, T_INT, T_INT ),
+	TODO ( OP_0x104, 0 ),
+	TODO ( OP_0x105, 1, T_INT, T_INT ),
 };

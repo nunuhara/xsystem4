@@ -205,6 +205,10 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 		fprintf(dasm->out, "0x%x", arg);
 		break;
 	case T_FILE:
+		if (!ain->nr_filenames) {
+			fprintf(dasm->out, "%d", arg);
+			break;
+		}
 		if (arg < 0 || arg >= ain->nr_filenames)
 			DASM_ERROR(dasm, "Invalid file number: %d", arg);
 		print_sjis(dasm, ain->filenames[arg]);
