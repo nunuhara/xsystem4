@@ -42,10 +42,12 @@ static void usage(void)
 	puts("    -S, --structures         Dump structures section");
 	puts("    -m, --messages           Dump messages section");
 	puts("    -l, --libraries          Dump libraries section");
-	puts("        --function-types     Dump function type section");
+	puts("        --function-types     Dump function types section");
+	puts("        --delegates          Dump delegate types section");
 	puts("        --global-group-names Dump global group names section");
 	puts("    -e, --enums              Dump enums section");
 	puts("    -A, --audit              Audit AIN file for xsystem4 compatibility");
+	puts("    -d, --decrypt            Dump decrypted AIN file");
 	//puts("    -j, --json               Dump to JSON format"); // TODO
 }
 
@@ -80,19 +82,38 @@ static void print_arglist(FILE *f, struct ain *ain, struct ain_variable *args, i
 	fputc(')', f);
 }
 
+static void print_varlist(FILE *f, struct ain *ain, struct ain_variable *vars, int nr_vars)
+{
+	if (!nr_vars) {
+		fputc(';', f);
+		return;
+	}
+
+	for (int i = 0; i < nr_vars; i++) {
+		if (i > 0)
+			fputc(',', f);
+		fputc(' ', f);
+		print_sjis(f, ain_strtype(ain, vars[i].data_type, vars[i].struct_type));
+		fputc(' ', f);
+		print_sjis(f, vars[i].name);
+	}
+	fputc(';', f);
+}
+
 static void print_function(FILE *out, struct ain *ain, struct ain_function *f)
 {
 	print_sjis(out, ain_strtype(ain, f->data_type, f->struct_type));
 	fputc(' ', out);
 	print_sjis(out, f->name);
 	print_arglist(out, ain, f->vars, f->nr_args);
+	print_varlist(out, ain, f->vars+f->nr_args, f->nr_vars - f->nr_args);
 	fputc('\n', out);
 }
 
 static void ain_dump_functions(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_functions; i++) {
-		fprintf(f, "0x%x:\t", i);
+		fprintf(f, "/* 0x%08x */\t", i);
 		print_function(f, ain, &ain->functions[i]);
 	}
 }
@@ -131,6 +152,7 @@ static void print_structure(FILE *f, struct ain *ain, struct ain_struct *s)
 static void ain_dump_structures(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_structures; i++) {
+		fprintf(f, "//0x%08x:\n", i);
 		print_structure(f, ain, &ain->structures[i]);
 	}
 }
@@ -138,8 +160,8 @@ static void ain_dump_structures(FILE *f, struct ain *ain)
 static void ain_dump_messages(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_messages; i++) {
+		fprintf(f, "0x%08x:\t", i);
 		print_sjis(f, ain->messages[i]->text);
-		//fprintf(f, "\n---\n");
 	}
 }
 
@@ -173,24 +195,29 @@ static void ain_dump_libraries(FILE *out, struct ain *ain)
 static void ain_dump_strings(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_strings; i++) {
+		fprintf(f, "0x%08x:\t", i);
 		print_sjis(f, ain->strings[i]->text);
-		//fprintf(f, "\n---\n");
+		fputc('\n', f);
 	}
 }
 
 static void ain_dump_filenames(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_filenames; i++) {
+		fprintf(f, "0x%08x:\t", i);
 		print_sjis(f, ain->filenames[i]);
 		fputc('\n', f);
 	}
 }
 
-static void ain_dump_functypes(FILE *f, struct ain *ain)
+static void ain_dump_functypes(FILE *f, struct ain *ain, bool delegates)
 {
-	for (int i = 0; i < ain->nr_function_types; i++) {
-		struct ain_function_type *t = &ain->function_types[i];
-		fprintf(f, "functype ");
+	struct ain_function_type *types = delegates ? ain->delegates : ain->function_types;
+	int n = delegates ? ain->nr_delegates : ain->nr_function_types;
+	for (int i = 0; i < n; i++) {
+		fprintf(f, "/* 0x%08x */\t", i);
+		struct ain_function_type *t = &types[i];
+		fprintf(f, delegates ? "delegate " : "functype ");
 		print_sjis(f, ain_strtype(ain, t->data_type, t->struct_type));
 		fputc(' ', f);
 		print_sjis(f, t->name);
@@ -202,6 +229,7 @@ static void ain_dump_functypes(FILE *f, struct ain *ain)
 static void ain_dump_global_group_names(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_global_groups; i++) {
+		fprintf(f, "0x%08x:\t", i);
 		print_sjis(f, ain->global_group_names[i]);
 		fputc('\n', f);
 	}
@@ -210,6 +238,7 @@ static void ain_dump_global_group_names(FILE *f, struct ain *ain)
 static void ain_dump_enums(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_enums; i++) {
+		fprintf(f, "0x%08x:\t", i);
 		print_sjis(f, ain->enums[i]);
 		fputc('\n', f);
 	}
@@ -273,6 +302,7 @@ int main(int argc, char *argv[])
 	bool dump_strings = false;
 	bool dump_filenames = false;
 	bool dump_functypes = false;
+	bool dump_delegates = false;
 	bool dump_global_group_names = false;
 	bool dump_enums = false;
 	bool audit = false;
@@ -296,6 +326,7 @@ int main(int argc, char *argv[])
 			{ "strings",            no_argument,       0, 's' },
 			{ "filenames",          no_argument,       0, 'F' },
 			{ "function-types",     no_argument,       0, 't' },
+			{ "delegates",          no_argument,       0, 'D' },
 			{ "global-group-names", no_argument,       0, 'r' },
 			{ "enums",              no_argument,       0, 'e' },
 			{ "audit",              no_argument,       0, 'A' },
@@ -345,6 +376,9 @@ int main(int argc, char *argv[])
 			break;
 		case 't':
 			dump_functypes = true;
+			break;
+		case 'D':
+			dump_delegates = true;
 			break;
 		case 'G':
 			dump_global_group_names = true;
@@ -396,7 +430,9 @@ int main(int argc, char *argv[])
 	if (dump_structures)
 		ain_dump_structures(output, ain);
 	if (dump_functypes)
-		ain_dump_functypes(output, ain);
+		ain_dump_functypes(output, ain, false);
+	if (dump_delegates)
+		ain_dump_functypes(output, ain, true);
 	if (dump_global_group_names)
 		ain_dump_global_group_names(output, ain);
 	if (dump_globals)

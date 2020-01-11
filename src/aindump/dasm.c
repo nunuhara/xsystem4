@@ -164,6 +164,11 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 			DASM_ERROR(dasm, "Invalid function number: %d", arg);
 		print_sjis(dasm, ain->functions[arg].name);
 		break;
+	case T_DLG:
+		if (arg < 0 || arg >= ain->nr_delegates)
+			DASM_ERROR(dasm, "Invalid delegate number: %d", arg);
+		print_sjis(dasm, ain->delegates[arg].name);
+		break;
 	case T_STRING:
 		if (arg < 0 || arg >= ain->nr_strings)
 			DASM_ERROR(dasm, "Invalid string number: %d", arg);
@@ -214,7 +219,7 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 		print_sjis(dasm, ain->filenames[arg]);
 		break;
 	default:
-		fprintf(dasm->out, "<UNKNOWN ARG TYPE?>");
+		fprintf(dasm->out, "<UNKNOWN ARG TYPE: %d>", type);
 		break;
 	}
 }
@@ -278,6 +283,20 @@ static char *genlabel(size_t addr)
 	return strdup(name);
 }
 
+static void generate_labels(struct dasm_state *dasm)
+{
+	for (dasm->addr = 0; dasm->addr < dasm->ain->code_size;) {
+		const struct instruction *instr = get_instruction(dasm);
+		for (int i = 0; i < instr->nr_args; i++) {
+			if (instr->args[i] != T_ADDR)
+				continue;
+			int32_t arg = LittleEndian_getDW(dasm->ain->code, dasm->addr + 2 + i*4);
+			add_label(genlabel(arg), arg);
+		}
+		dasm->addr += instruction_width(instr->opcode);
+	}
+}
+
 void disassemble_ain(FILE *out, struct ain *ain, bool raw)
 {
 	struct dasm_state dasm = {
@@ -288,23 +307,8 @@ void disassemble_ain(FILE *out, struct ain *ain, bool raw)
 		.raw  = raw
 	};
 
-	if (!raw) {
-		// first pass to generate labels
-		for (dasm.addr = 0; dasm.addr < dasm.ain->code_size;) {
-			const struct instruction *instr = get_instruction(&dasm);
-			switch (instr->opcode) {
-			case JUMP:
-			case IFZ:
-			case IFNZ: {
-				int32_t arg = LittleEndian_getDW(dasm.ain->code, dasm.addr + 2);
-				add_label(genlabel(arg), arg);
-				break;
-			}
-			default: break;
-			}
-			dasm.addr += instruction_width(instr->opcode);
-		}
-	}
+	if (!raw)
+		generate_labels(&dasm);
 
 	for (dasm.addr = 0; dasm.addr < dasm.ain->code_size;) {
 		const struct instruction *instr = get_instruction(&dasm);
