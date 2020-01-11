@@ -40,6 +40,7 @@ enum syscall_code {
 	SYS_OPEN_WEB             = 0x0B,
 	SYS_GET_SAVE_FOLDER_NAME = 0x0C,
 	SYS_GET_TIME             = 0x0D,
+	SYS_GET_GAME_NAME        = 0x0E,
 	SYS_ERROR                = 0x0F,
 	SYS_EXISTS_SAVE_FILE     = 0x10,
 	SYS_IS_DEBUG_MODE        = 0x11,
@@ -47,8 +48,12 @@ enum syscall_code {
 	SYS_GET_FUNC_STACK_NAME  = 0x13,
 	SYS_PEEK                 = 0x14,
 	SYS_SLEEP                = 0x15,
+	SYS_RESUME_WRITE_COMMENT = 0x16,
+	SYS_RESUME_READ_COMMENT  = 0x17,
 	SYS_GROUP_SAVE           = 0x18,
 	SYS_GROUP_LOAD           = 0x19,
+	SYS_DELETE_SAVE_FILE     = 0x1A,
+	SYS_EXIST_FUNC           = 0x1B,
 	SYS_COPY_SAVE_FILE       = 0x1C,
 	NR_SYSCALLS
 };
@@ -347,6 +352,19 @@ enum instruction_argtype {
 	T_FILE,
 	T_DLG,
 };
+
+// TODO: Need to know which class a method belongs to
+//       in order to use this. Should be replaced with
+//       "this.<member-name>" in disassembled output.
+#define T_MEMB T_INT
+
+// TODO: As above, but for member of a member, etc.
+#define T_MEMB2 T_INT
+#define T_MEMB3 T_INT
+
+// TODO: Similar to above, but for member of local variable.
+//       Only used in one instruction--maybe special case?
+#define T_LOCMEMB T_INT
 
 struct instruction {
 	const enum opcode opcode; // the opcode
