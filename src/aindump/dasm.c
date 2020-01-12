@@ -98,41 +98,71 @@ static void print_sjis(struct dasm_state *dasm, const char *s)
 	free(u);
 }
 
-static void print_string(struct dasm_state *dasm, struct string *s)
+static char *prepare_string(const char *str, const char *escape_chars, const char *replace_chars)
 {
-	int i, escapes = 0;
-	char *u = sjis2utf(s->text, s->size);
+	int escapes = 0;
+	char *u = sjis2utf(str, strlen(str));
 
-	// check for characters that need escaping
-	for (i = 0; u[i]; i++) {
-		if (u[i] == '"' || u[i] == '\n') {
-			escapes++;
+	// count number of required escapes
+	for (int i = 0; str[i]; i++) {
+		for (int j = 0; escape_chars[j]; j++) {
+			if (str[i] == escape_chars[j]) {
+				escapes++;
+				break;
+			}
 		}
 	}
 
 	// add backslash escapes
 	if (escapes > 0) {
-		int j = 0;
-		char *tmp = xmalloc(i + escapes + 1);
-		for (int i = 0; u[i];) {
-			if (u[i] == '"') {
-				tmp[j++] = '\\';
-				tmp[j++] = u[i++];
-			} else if (u[i] == '\n') {
-				tmp[j++] = '\\';
-				tmp[j++] = 'n';
-				i++;
-			} else {
-				tmp[j++] = u[i++];
+		int dst = 0;
+		int len = strlen(u);
+		char *tmp = xmalloc(len + escapes + 1);
+		for (int i = 0; u[i]; i++) {
+			bool escaped = false;
+			for (int j = 0; escape_chars[j]; j++) {
+				if (u[i] == escape_chars[j]) {
+					tmp[dst++] = '\\';
+					tmp[dst++] = replace_chars[j];
+					escaped = true;
+					break;
+				}
 			}
+			if (!escaped)
+				tmp[dst++] = u[i];
 		}
-		tmp[i+escapes] = '\0';
+		tmp[len+escapes] = '\0';
 		free(u);
 		u = tmp;
 	}
 
+	return u;
+}
+
+static void print_string(struct dasm_state *dasm, const char *str)
+{
+	const char escape_chars[]  = { '\\', '\"', '\n', 0 };
+	const char replace_chars[] = { '\\', '\"', 'n',  0  };
+	char *u = prepare_string(str, escape_chars, replace_chars);
 	fprintf(dasm->out, "\"%s\"", u);
 	free(u);
+}
+
+static void print_identifier(struct dasm_state *dasm, const char *str)
+{
+	// if the identifier contains spaces, it must be quoted
+	for (int i = 0; str[i]; i++) {
+		if (SJIS_2BYTE(str[i])) {
+			i++;
+			continue;
+		}
+		if (str[i] == ' ') {
+			print_string(dasm, str);
+			return;
+		}
+	}
+
+	print_sjis(dasm, str);
 }
 
 static void print_argument(struct dasm_state *dasm, int32_t arg, enum instruction_argtype type)
@@ -162,39 +192,39 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 	case T_FUNC:
 		if (arg < 0 || arg >= ain->nr_functions)
 			DASM_ERROR(dasm, "Invalid function number: %d", arg);
-		print_sjis(dasm, ain->functions[arg].name);
+		print_identifier(dasm, ain->functions[arg].name);
 		break;
 	case T_DLG:
 		if (arg < 0 || arg >= ain->nr_delegates)
 			DASM_ERROR(dasm, "Invalid delegate number: %d", arg);
-		print_sjis(dasm, ain->delegates[arg].name);
+		print_identifier(dasm, ain->delegates[arg].name);
 		break;
 	case T_STRING:
 		if (arg < 0 || arg >= ain->nr_strings)
 			DASM_ERROR(dasm, "Invalid string number: %d", arg);
-		print_string(dasm, ain->strings[arg]);
+		print_string(dasm, ain->strings[arg]->text);
 		break;
 	case T_MSG:
 		if (arg < 0 || arg >= ain->nr_messages)
 			DASM_ERROR(dasm, "Invalid message number: %d", arg);
-		print_string(dasm, ain->messages[arg]);
+		print_string(dasm, ain->messages[arg]->text);
 		break;
 	case T_LOCAL:
 		if (dasm->func < 0)
 			DASM_ERROR(dasm, "Attempt to access local variable outside of function");
 		if (arg < 0 || arg >= ain->functions[dasm->func].nr_vars)
 			DASM_ERROR(dasm, "Invalid variable number: %d", arg);
-		print_sjis(dasm, ain->functions[dasm->func].vars[arg].name);
+		print_identifier(dasm, ain->functions[dasm->func].vars[arg].name);
 		break;
 	case T_GLOBAL:
 		if (arg < 0 || arg >= ain->nr_globals)
 			DASM_ERROR(dasm, "Invalid global number: %d", arg);
-		print_sjis(dasm, ain->globals[arg].name);
+		print_identifier(dasm, ain->globals[arg].name);
 		break;
 	case T_STRUCT:
 		if (arg < 0 || arg >= ain->nr_structures)
 			DASM_ERROR(dasm, "Invalid struct number: %d", arg);
-		print_sjis(dasm, ain->structures[arg].name);
+		print_identifier(dasm, ain->structures[arg].name);
 		break;
 	case T_SYSCALL:
 		if (arg < 0 || arg >= NR_SYSCALLS || !syscalls[arg].name)
@@ -204,7 +234,7 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 	case T_HLL:
 		if (arg < 0 || arg >= ain->nr_libraries)
 			DASM_ERROR(dasm, "Invalid HLL library number: %d", arg);
-		print_sjis(dasm, ain->libraries[arg].name);
+		print_identifier(dasm, ain->libraries[arg].name);
 		break;
 	case T_HLLFUNC:
 		fprintf(dasm->out, "0x%x", arg);
@@ -216,7 +246,7 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 		}
 		if (arg < 0 || arg >= ain->nr_filenames)
 			DASM_ERROR(dasm, "Invalid file number: %d", arg);
-		print_sjis(dasm, ain->filenames[arg]);
+		print_identifier(dasm, ain->filenames[arg]);
 		break;
 	default:
 		fprintf(dasm->out, "<UNKNOWN ARG TYPE: %d>", type);
