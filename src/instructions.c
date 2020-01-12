@@ -365,7 +365,7 @@ struct instruction instructions[NR_OPCODES] = {
         TODO ( DG_STR_TO_METHOD, 0, T_DLG ), // XXX: changed in ain version > 8
 
 	TODO ( OP_0x102, 0 ),
-	TODO ( OP_0x103, 2, T_INT, T_INT ),
+	TODO ( OP_0x103, 0 ),
 	TODO ( OP_0x104, 0 ),
-	TODO ( OP_0x105, 1, T_INT, T_INT ),
+	TODO ( OP_0x105, 1, T_STRUCT ),
 };

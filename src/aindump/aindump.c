@@ -121,6 +121,7 @@ static void ain_dump_functions(FILE *f, struct ain *ain)
 static void ain_dump_globals(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_globals; i++) {
+		fprintf(f, "/* 0x%08x */\t", i);
 		struct ain_global *g = &ain->globals[i];
 		if (g->data_type == AIN_VOID)
 			continue;
