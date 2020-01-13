@@ -75,9 +75,7 @@ static void print_arglist(FILE *f, struct ain *ain, struct ain_variable *args, i
 			continue;
 		if (i > 0)
 			fprintf(f, ", ");
-		print_sjis(f, ain_strtype(ain, args[i].data_type, args[i].struct_type));
-		fputc(' ', f);
-		print_sjis(f, args[i].name);
+		print_sjis(f, ain_variable_to_string(ain, &args[i]));
 	}
 	fputc(')', f);
 }
@@ -93,9 +91,7 @@ static void print_varlist(FILE *f, struct ain *ain, struct ain_variable *vars, i
 		if (i > 0)
 			fputc(',', f);
 		fputc(' ', f);
-		print_sjis(f, ain_strtype(ain, vars[i].data_type, vars[i].struct_type));
-		fputc(' ', f);
-		print_sjis(f, vars[i].name);
+		print_sjis(f, ain_variable_to_string(ain, &vars[i]));
 	}
 	fputc(';', f);
 }
@@ -136,6 +132,17 @@ static void print_structure(FILE *f, struct ain *ain, struct ain_struct *s)
 {
 	fprintf(f, "struct ");
 	print_sjis(f, s->name);
+
+	if (s->nr_interfaces) {
+		fprintf(f, " implements");
+		for (int i = 0; i < s->nr_interfaces; i++) {
+			if (i > 0)
+				fputc(',', f);
+			fputc(' ', f);
+			print_sjis(f, ain->structures[s->interfaces[i].struct_type].name);
+		}
+	}
+
 	fprintf(f, " {\n");
 	for (int i = 0; i < s->nr_members; i++) {
 		struct ain_variable *m = &s->members[i];
@@ -153,7 +160,7 @@ static void print_structure(FILE *f, struct ain *ain, struct ain_struct *s)
 static void ain_dump_structures(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_structures; i++) {
-		fprintf(f, "//0x%08x:\n", i);
+		fprintf(f, "// %d\n", i);
 		print_structure(f, ain, &ain->structures[i]);
 	}
 }

@@ -210,8 +210,12 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 		print_string(dasm, ain->messages[arg]->text);
 		break;
 	case T_LOCAL:
-		if (dasm->func < 0)
-			DASM_ERROR(dasm, "Attempt to access local variable outside of function");
+		if (dasm->func < 0) {
+			//DASM_ERROR(dasm, "Attempt to access local variable outside of function");
+			WARNING("Attempt to access local variable outside of function");
+			print_string(dasm, "???");
+			break;
+		}
 		if (arg < 0 || arg >= ain->functions[dasm->func].nr_vars)
 			DASM_ERROR(dasm, "Invalid variable number: %d", arg);
 		print_identifier(dasm, ain->functions[dasm->func].vars[arg].name);
