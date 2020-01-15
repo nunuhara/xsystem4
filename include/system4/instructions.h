@@ -372,7 +372,7 @@ struct instruction {
 	int nr_args;              // number of arguments (???: always 1 or 0?)
 	const int ip_inc;         // amount to increment instruction pointer after instruction
 	const bool implemented;   // implemented in xsystem4
-	const int args[INSTRUCTION_MAX_ARGS]; // argument data types
+	int args[INSTRUCTION_MAX_ARGS]; // argument data types
 };
 
 struct instruction instructions[NR_OPCODES];

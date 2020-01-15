@@ -541,6 +541,7 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 			instructions[S_MOD].nr_args = 1;
 			instructions[OBJSWAP].nr_args = 1;
 			instructions[DG_STR_TO_METHOD].nr_args = 1;
+			instructions[CALLMETHOD].args[0] = T_INT;
 		}
 	} else if (TAG_EQ("KEYC")) {
 		ain->keycode = read_int32(r);
