@@ -126,7 +126,7 @@ union vm_value global_get(int varno)
 
 void global_set(int varno, union vm_value val)
 {
-	switch (ain->globals[varno].data_type) {
+	switch (ain->globals[varno].type.data) {
 	case AIN_STRING:
 	case AIN_STRUCT:
 	case AIN_ARRAY_TYPE:
@@ -237,7 +237,7 @@ static int alloc_scenario_page(const char *fname)
 	slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
 	for (int i = 0; i < f->nr_vars; i++) {
-		heap[slot].page->values[i] = variable_initval(f->vars[i].data_type);
+		heap[slot].page->values[i] = variable_initval(f->vars[i].type.data);
 	}
 	return slot;
 }
@@ -281,15 +281,16 @@ static void function_call(int fno, int return_address)
 	// pop arguments, store in local page
 	for (int i = f->nr_args - 1; i >= 0; i--) {
 		heap[slot].page->values[i] = stack_pop();
-		switch (f->vars[i].data_type) {
+		switch (f->vars[i].type.data) {
 		case AIN_REF_TYPE:
 			heap_ref(heap[slot].page->values[i].i);
 			break;
+		default: break;
 		}
 	}
 	// initialize local variables
 	for (int i = f->nr_args; i < f->nr_vars; i++) {
-		heap[slot].page->values[i] = variable_initval(f->vars[i].data_type);
+		heap[slot].page->values[i] = variable_initval(f->vars[i].type.data);
 	}
 	// jump to function start
 	instr_ptr = ain->functions[fno].address;
@@ -1531,12 +1532,12 @@ void vm_execute_ain(struct ain *program)
 	heap[0].ref = 1;
 	heap_set_page(0, alloc_page(GLOBAL_PAGE, 0, ain->nr_globals));
 	for (int i = 0; i < ain->nr_globals; i++) {
-		if (ain->globals[i].data_type == AIN_STRUCT) {
+		if (ain->globals[i].type.data == AIN_STRUCT) {
 			// XXX: need to allocate storage for global structs BEFORE calling
 			//      constructors.
-			heap[0].page->values[i].i = alloc_struct(ain->globals[i].struct_type);
+			heap[0].page->values[i].i = alloc_struct(ain->globals[i].type.struc);
 		} else {
-			heap[0].page->values[i] = variable_initval(ain->globals[i].data_type);
+			heap[0].page->values[i] = variable_initval(ain->globals[i].type.data);
 		}
 	}
 	for (int i = 0; i < ain->nr_initvals; i++) {
@@ -1559,8 +1560,8 @@ void vm_execute_ain(struct ain *program)
 	// XXX: global constructors must be called AFTER initializing non-struct variables
 	//      otherwise a global set in a constructor will be clobbered by its initval
 	for (int i = 0; i < ain->nr_globals; i++) {
-		if (ain->globals[i].data_type == AIN_STRUCT)
-			init_struct(ain->globals[i].struct_type, heap[0].page->values[i].i);
+		if (ain->globals[i].type.data == AIN_STRUCT)
+			init_struct(ain->globals[i].type.struc, heap[0].page->values[i].i);
 	}
 
 	vm_call(ain->main, -1);

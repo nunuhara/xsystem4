@@ -121,27 +121,24 @@ enum ain_variable_type {
 	AIN_VAR_MEMBER
 };
 
+struct ain_type {
+	enum ain_data_type data;  // data type
+	int32_t struc;            // struct type (index into ain->structures)
+	int32_t rank;             // array rank (if array type)
+	struct ain_type *array_type;
+};
+
 struct ain_variable {
 	char *name;
 	char *name2;
-	int32_t data_type;
-	int32_t struct_type;
-	int32_t array_dimensions;
-
-	int32_t array_data_type;
-	int32_t array_struct_type;
-	int32_t array_array_rank;
-	int32_t array2_data_type;
-	int32_t array2_struct_type;
-	int32_t array2_array_rank;
-
+	struct ain_type type;
 	int32_t has_initval;
 	union {
 		char *s;
 		int32_t i;
 		float f;
 	} initval;
-
+	int32_t group_index;
 	enum ain_variable_type var_type;
 };
 
@@ -149,38 +146,12 @@ struct ain_function {
 	int32_t address;
 	char *name;
 	bool is_label;
-	int32_t data_type;
-	int32_t struct_type;
-
-	// NOTE: for new array type in ain v11+
-	int32_t uk_data_exists;
-	int32_t uk_data_type;
-	int32_t uk_struct_type;
-	int32_t uk_array_rank;
-
+	struct ain_type return_type;
 	int32_t nr_args;
 	int32_t nr_vars;
-
-	// NOTE: ain v11+
 	int32_t is_lambda;
-
 	int32_t crc;
 	struct ain_variable *vars;
-};
-
-struct ain_global {
-	char *name;
-	char *name2;
-	int32_t data_type;
-	int32_t struct_type;
-	int32_t array_dimensions;
-
-	// NOTE: for new array type in ain v11+
-	int32_t array_data_type;
-	int32_t array_struct_type;
-	int32_t array_array_rank;
-
-	int32_t group_index;
 };
 
 struct ain_initval {
@@ -199,11 +170,8 @@ struct ain_interface {
 
 struct ain_struct {
 	char *name;
-
-	// NOTE: ain v11+
 	int32_t nr_interfaces;
 	struct ain_interface *interfaces;
-
 	int32_t constructor;
 	int32_t destructor;
 	int32_t nr_members;
@@ -242,15 +210,7 @@ struct ain_switch {
 
 struct ain_function_type {
 	char *name;
-	int32_t data_type;
-	int32_t struct_type;
-
-	// NOTE: for new array type in ain v11+
-	int32_t uk_data_exists;
-	int32_t uk_data_type;
-	int32_t uk_struct_type;
-	int32_t uk_array_rank;
-
+	struct ain_type return_type;
 	int32_t nr_arguments;
 	int32_t nr_variables;
 	struct ain_variable *variables;
@@ -265,7 +225,7 @@ struct ain {
 	int32_t nr_functions;
 	struct ain_function *functions;
 	int32_t nr_globals;
-	struct ain_global *globals;
+	struct ain_variable *globals;
 	int32_t nr_initvals;
 	struct ain_initval *global_initvals;
 	int32_t nr_structures;
@@ -297,6 +257,7 @@ struct ain {
 
 const char *ain_strerror(int error);
 const char *ain_strtype(struct ain *ain, enum ain_data_type type, int struct_type);
+char *ain_strtype_d(struct ain *ain, struct ain_type *v);
 const char *ain_variable_to_string(struct ain *ain, struct ain_variable *v);
 uint8_t *ain_read(const char *path, long *len, int *error);
 struct ain *ain_open(const char *path, int *error);

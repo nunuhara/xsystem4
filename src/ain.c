@@ -16,6 +16,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -48,81 +49,126 @@ const char *ain_strerror(int error)
 const char *ain_strtype(struct ain *ain, enum ain_data_type type, int struct_type)
 {
 	static char buf[1024] = { [1023] = '\0' };
-	switch (type) {
-	case AIN_VOID:                return "void";
-	case AIN_INT:                 return "int";
-	case AIN_FLOAT:               return "float";
-	case AIN_STRING:              return "string";
+	struct ain_type t = { .data = type, .struc = struct_type, .rank = 0 };
+	char *str = ain_strtype_d(ain, &t);
+	strncpy(buf, str, 1023);
+	free(str);
+	return buf;
+}
+
+static char *type_sprintf(const char *fmt, ...)
+{
+	va_list ap;
+	char *buf = xmalloc(1024);
+	va_start(ap, fmt);
+
+	vsnprintf(buf, 1023, fmt, ap);
+	buf[1023] = '\0';
+
+	va_end(ap);
+
+	return buf;
+}
+
+static char *array_type_string(const char *str, int rank)
+{
+	if (rank <= 1)
+		return strdup(str);
+	return type_sprintf("%s@%d", str, rank);
+}
+
+static char *array2_type_string(struct ain *ain, struct ain_type *t)
+{
+	char *buf = xmalloc(1024);
+	char *type = ain_strtype_d(ain, t->array_type);
+
+	snprintf(buf, 1023, "%sarray<%s>", t->data == AIN_REF_ARRAY ? "ref " : "", type);
+
+	free(type);
+	buf[1023] = '\0';
+	return buf;
+}
+
+char *ain_strtype_d(struct ain *ain, struct ain_type *v)
+{
+	char buf[1024];
+	switch (v->data) {
+	case AIN_VOID:                return strdup("void");
+	case AIN_INT:                 return strdup("int");
+	case AIN_FLOAT:               return strdup("float");
+	case AIN_STRING:              return strdup("string");
 	case AIN_STRUCT:
-		if (struct_type == -1 || !ain)
-			return "struct";
-		return ain->structures[struct_type].name;
-	case AIN_ARRAY_INT:           return "array@int";
-	case AIN_ARRAY_FLOAT:         return "array@float";
-	case AIN_ARRAY_STRING:        return "array@string";
+		if (v->struc == -1 || !ain)
+			return strdup("struct");
+		if (v->struc < 0 || v->struc >= ain->nr_structures)
+			ERROR("WTF: %d, %d", v->struc, ain->nr_structures);
+		return strdup(ain->structures[v->struc].name);
+	case AIN_ARRAY_INT:           return array_type_string("array@int", v->rank);
+	case AIN_ARRAY_FLOAT:         return array_type_string("array@float", v->rank);
+	case AIN_ARRAY_STRING:        return array_type_string("array@string", v->rank);
 	case AIN_ARRAY_STRUCT:
-		if (struct_type == -1 || !ain)
-			return "array@struct";
-		snprintf(buf, 1023, "array@%s", ain->structures[struct_type].name);
-		return buf;
-	case AIN_REF_INT:             return "ref int";
-	case AIN_REF_FLOAT:           return "ref float";
-	case AIN_REF_STRING:          return "ref string";
+		if (v->struc == -1 || !ain)
+			return array_type_string("array@struct", v->rank);
+		snprintf(buf, 1024, "array@%s", ain->structures[v->struc].name);
+		return array_type_string(buf, v->rank);
+	case AIN_REF_INT:             return strdup("ref int");
+	case AIN_REF_FLOAT:           return strdup("ref float");
+	case AIN_REF_STRING:          return strdup("ref string");
 	case AIN_REF_STRUCT:
-		if (struct_type == -1 || !ain)
-			return "ref struct";
-		snprintf(buf, 1023, "ref %s", ain->structures[struct_type].name);
-		return buf;
-	case AIN_REF_ARRAY_INT:       return "ref array@int";
-	case AIN_REF_ARRAY_FLOAT:     return "ref array@float";
-	case AIN_REF_ARRAY_STRING:    return "ref array@string";
+		if (v->struc == -1 || !ain)
+			return strdup("ref struct");
+		return type_sprintf("ref %s", ain->structures[v->struc].name);
+	case AIN_REF_ARRAY_INT:       return array_type_string("ref array@int", v->rank);
+	case AIN_REF_ARRAY_FLOAT:     return array_type_string("ref array@float", v->rank);
+	case AIN_REF_ARRAY_STRING:    return array_type_string("ref array@string", v->rank);
 	case AIN_REF_ARRAY_STRUCT:
-		if (struct_type == -1 || !ain)
-			return "ref array@struct";
-		snprintf(buf, 1023, "ref array@%s", ain->structures[struct_type].name);
-		return buf;
-	case AIN_IMAIN_SYSTEM:        return "imain_system";
-	case AIN_FUNC_TYPE:           return "functype";
-	case AIN_ARRAY_FUNC_TYPE:     return "array@functype";
-	case AIN_REF_FUNC_TYPE:       return "ref functype";
-	case AIN_REF_ARRAY_FUNC_TYPE: return "ref array@functype";
-	case AIN_BOOL:                return "bool";
-	case AIN_ARRAY_BOOL:          return "array@bool";
-	case AIN_REF_BOOL:            return "ref bool";
-	case AIN_REF_ARRAY_BOOL:      return "ref array@bool";
-	case AIN_LONG_INT:            return "lint";
-	case AIN_ARRAY_LONG_INT:      return "array@lint";
-	case AIN_REF_LONG_INT:        return "ref lint";
-	case AIN_REF_ARRAY_LONG_INT:  return "ref array@lint";
-	case AIN_DELEGATE:            return "delegate";
-	case AIN_ARRAY_DELEGATE:      return "array@delegate";
-	case AIN_REF_ARRAY_DELEGATE:  return "ref array@delegate";
-	case AIN_UNKNOWN_TYPE_67:     return "type_67";
-	case AIN_UNKNOWN_TYPE_74:     return "type_74";
-	case AIN_UNKNOWN_TYPE_75:     return "type_75";
-	case AIN_ARRAY:               return "array<?>";
-	case AIN_REF_ARRAY:           return "ref array<?>";
-	case AIN_UNKNOWN_TYPE_82:     return "type_82";
-	case AIN_UNKNOWN_TYPE_86:     return "type_86";
-	case AIN_UNKNOWN_TYPE_89:     return "type_89";
-	case AIN_UNKNOWN_TYPE_92:     return "type_92";
-	case AIN_UNKNOWN_TYPE_93:     return "type_93";
-	case AIN_UNKNOWN_TYPE_95:     return "type_95";
+		if (v->struc == -1 || !ain)
+			return strdup("ref array@struct");
+		snprintf(buf, 1024, "ref array@%s", ain->structures[v->struc].name);
+		return array_type_string(buf, v->rank);
+	case AIN_IMAIN_SYSTEM:        return strdup("imain_system");
+	case AIN_FUNC_TYPE:           return strdup("functype");
+	case AIN_ARRAY_FUNC_TYPE:     return array_type_string("array@functype", v->rank);
+	case AIN_REF_FUNC_TYPE:       return strdup("ref functype");
+	case AIN_REF_ARRAY_FUNC_TYPE: return array_type_string("ref array@functype", v->rank);
+	case AIN_BOOL:                return strdup("bool");
+	case AIN_ARRAY_BOOL:          return array_type_string("array@bool", v->rank);
+	case AIN_REF_BOOL:            return strdup("ref bool");
+	case AIN_REF_ARRAY_BOOL:      return array_type_string("ref array@bool", v->rank);
+	case AIN_LONG_INT:            return strdup("lint");
+	case AIN_ARRAY_LONG_INT:      return array_type_string("array@lint", v->rank);
+	case AIN_REF_LONG_INT:        return strdup("ref lint");
+	case AIN_REF_ARRAY_LONG_INT:  return array_type_string("ref array@lint", v->rank);
+	case AIN_DELEGATE:            return strdup("delegate");
+	case AIN_ARRAY_DELEGATE:      return array_type_string("array@delegate", v->rank);
+	case AIN_REF_ARRAY_DELEGATE:  return array_type_string("ref array@delegate", v->rank);
+	case AIN_UNKNOWN_TYPE_67:     return strdup("type_67");
+	case AIN_UNKNOWN_TYPE_74:     return strdup("type_74");
+	case AIN_UNKNOWN_TYPE_75:     return strdup("type_75");
+	case AIN_ARRAY:
+	case AIN_REF_ARRAY:
+		return array2_type_string(ain, v);
+	case AIN_UNKNOWN_TYPE_82:     return strdup("type_82");
+	case AIN_UNKNOWN_TYPE_86:     return strdup("type_86");
+	case AIN_UNKNOWN_TYPE_89:     return strdup("type_89");
+	case AIN_UNKNOWN_TYPE_92:     return strdup("type_92");
+	case AIN_UNKNOWN_TYPE_93:     return strdup("type_93");
+	case AIN_UNKNOWN_TYPE_95:     return strdup("type_95");
 	default:
-		WARNING("Unknown type: %d", type);
-		snprintf(buf, 1023, "unknown_type_%d", type);
-		return buf;
+		WARNING("Unknown type: %d", v->data);
+		return type_sprintf("unknown_type_%d", v->data);
 	}
 }
 
 const char *ain_variable_to_string(struct ain *ain, struct ain_variable *v)
 {
 	static char buf[2048] = { [2047] = '\0' };
-	const char *type = ain_strtype(ain, v->data_type, v->struct_type);
-
+	char *type = ain_strtype_d(ain, &v->type);
 	int i = snprintf(buf, 2047, "%s %s", type, v->name);
+	free(type);
+
 	if (v->has_initval) {
-		switch (v->data_type) {
+		switch (v->type.data) {
 		case AIN_STRING: {
 			// FIXME: string needs escaping
 			snprintf(buf+i, 2047-i, " = \"%s\"", v->initval.s);
@@ -225,27 +271,36 @@ static struct string **read_msg1_strings(struct ain_reader *r, int count)
 	return strings;
 }
 
-static void read_ainv8_variable_data(struct ain_reader *r, struct ain_variable *v)
+static struct ain_type *read_array_type(struct ain_reader *r)
 {
-	// read array type
-	if (v->data_type == 79 || v->data_type == 80 || v->data_type == 82) {
-		v->array_data_type = read_int32(r);
-		v->array_struct_type = read_int32(r);
-		v->array_array_rank = read_int32(r);
-		if (v->array_data_type == 79) {
-			v->array2_data_type = read_int32(r);
-			v->array2_struct_type = read_int32(r);
-			v->array2_array_rank = read_int32(r);
-		}
-		// FIXME: Probably this is an array of array_array_rank + 1 elements.
-		//        An array<array<array<...>>> would likely break this.
+	int32_t data_type   = read_int32(r);
+	int32_t struct_type = read_int32(r);
+	int32_t array_rank  = read_int32(r);
+
+	if (array_rank < 0)
+		ERROR("Invalid array rank: %d", array_rank);
+
+	struct ain_type *type = xcalloc(array_rank+1, sizeof(struct ain_type));
+	type[0].data  = data_type;
+	type[0].struc = struct_type;
+	type[0].rank  = array_rank;
+
+	for (int i = 0; i < array_rank; i++) {
+		type[i+1].data  = read_int32(r);
+		type[i+1].struc = read_int32(r);
+		type[i+1].rank  = read_int32(r);
+		type[i].array_type = type + i + 1;
 	}
 
-	// read initval
+	return type;
+}
+
+static void read_variable_initval(struct ain_reader *r, struct ain_variable *v)
+{
 	if ((v->has_initval = read_int32(r))) {
 		if (v->has_initval != 1)
 			ERROR("variable->has_initval is not boolean? %d (at %p)", v->has_initval, r->index - 4);
-		switch (v->data_type) {
+		switch (v->type.data) {
 		case AIN_STRING:
 			v->initval.s = read_string(r);
 			break;
@@ -258,21 +313,41 @@ static void read_ainv8_variable_data(struct ain_reader *r, struct ain_variable *
 	}
 }
 
+static void read_variable_type(struct ain_reader *r, struct ain_type *t)
+{
+	t->data  = read_int32(r);
+	t->struc = read_int32(r);
+	t->rank  = read_int32(r);
+
+	if (t->data == AIN_ARRAY || t->data == AIN_REF_ARRAY || t->data == 82 || t->data == 86)
+		t->array_type = read_array_type(r);
+}
+
 static struct ain_variable *read_variables(struct ain_reader *r, int count, struct ain *ain, enum ain_variable_type var_type)
 {
 	struct ain_variable *variables = calloc(count, sizeof(struct ain_variable));
 	for (int i = 0; i < count; i++) {
-		variables[i].var_type = var_type;
-		variables[i].name = read_string(r);
+		struct ain_variable *v = &variables[i];
+		v->var_type = var_type;
+		v->name = read_string(r);
 		if (ain->version >= 12)
-			variables[i].name2 = read_string(r); // duplicate name?
-		variables[i].data_type = read_int32(r);
-		variables[i].struct_type = read_int32(r);
-		variables[i].array_dimensions = read_int32(r);
+			v->name2 = read_string(r); // ???
+		read_variable_type(r, &v->type);
 		if (ain->version >= 8)
-			read_ainv8_variable_data(r, &variables[i]);
+			read_variable_initval(r, v);
 	}
 	return variables;
+}
+
+static void read_return_type(struct ain_reader *r, struct ain_type *t, struct ain *ain)
+{
+	if (ain->version >= 11) {
+		read_variable_type(r, t);
+		return;
+	}
+
+	t->data  = read_int32(r);
+	t->struc = read_int32(r);
 }
 
 static struct ain_function *read_functions(struct ain_reader *r, int count, struct ain *ain)
@@ -283,22 +358,11 @@ static struct ain_function *read_functions(struct ain_reader *r, int count, stru
 		funs[i].name = read_string(r);
 		if (!strcmp(funs[i].name, "0"))
 			ain->alloc = i;
+
 		if (ain->version > 0 && ain->version < 7)
 			funs[i].is_label = read_int32(r);
-		funs[i].data_type = read_int32(r);
-		funs[i].struct_type = read_int32(r);
 
-		if (ain->version >= 11) {
-			funs[i].uk_data_exists = read_int32(r); // known values: 0, 1
-			if (funs[i].uk_data_exists == 1) {
-				// NOTE: only present for return type in (79,80,86)
-				funs[i].uk_data_type   = read_int32(r);
-				funs[i].uk_struct_type = read_int32(r);
-				funs[i].uk_array_rank  = read_int32(r);
-			} else if (funs[i].uk_data_exists) {
-				ERROR("function->uk_data_exists is not a boolean? %d (at %p)", funs[i].uk_data_exists, r->index - 4);
-			}
-		}
+		read_return_type(r, &funs[i].return_type, ain);
 
 		funs[i].nr_args = read_int32(r);
 		funs[i].nr_vars = read_int32(r);
@@ -320,24 +384,16 @@ static struct ain_function *read_functions(struct ain_reader *r, int count, stru
 	return funs;
 }
 
-static struct ain_global *read_globals(struct ain_reader *r, int count, struct ain *ain)
+static struct ain_variable *read_globals(struct ain_reader *r, int count, struct ain *ain)
 {
-	struct ain_global *globals = calloc(count, sizeof(struct ain_global));
+	struct ain_variable *globals = calloc(count, sizeof(struct ain_variable));
 	for (int i = 0; i < count; i++) {
 		globals[i].name = read_string(r);
 		if (ain->version >= 12)
 			globals[i].name2 = read_string(r);
-		globals[i].data_type = read_int32(r);
-		globals[i].struct_type = read_int32(r);
-		globals[i].array_dimensions = read_int32(r);
-		if (globals[i].data_type == AIN_ARRAY) {
-			globals[i].array_data_type = read_int32(r); // array data type?
-			globals[i].array_struct_type = read_int32(r); // always matches struct_type?
-			globals[i].array_array_rank = read_int32(r); // always 0?
-		}
-		if (ain->version >= 5) {
+		read_variable_type(r, &globals[i].type);
+		if (ain->version >= 5)
 			globals[i].group_index = read_int32(r);
-		}
 	}
 	return globals;
 }
@@ -438,18 +494,7 @@ static struct ain_function_type *read_function_types(struct ain_reader *r, int c
 	struct ain_function_type *types = calloc(count, sizeof(struct ain_function_type));
 	for (int i = 0; i < count; i++) {
 		types[i].name = read_string(r);
-		types[i].data_type = read_int32(r);
-		types[i].struct_type = read_int32(r);
-		if (ain->version >= 11) {
-			types[i].uk_data_exists = read_int32(r);
-			if (types[i].uk_data_exists == 1) {
-				types[i].uk_data_type   = read_int32(r);
-				types[i].uk_struct_type = read_int32(r);
-				types[i].uk_array_rank  = read_int32(r);
-			} else if (types[i].uk_data_exists) {
-				ERROR("functype->uk_data_exists is not a boolean? %d (at %p)", types[i].uk_data_exists, r->index - 4);
-			}
-		}
+		read_return_type(r, &types[i].return_type, ain);
 		types[i].nr_arguments = read_int32(r);
 		types[i].nr_variables = read_int32(r);
 		types[i].variables = read_variables(r, types[i].nr_variables, ain, AIN_VAR_LOCAL);
@@ -469,7 +514,7 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 	// FIXME: need to check len or could segfault on currupt AIN file
 	if (TAG_EQ("VERS")) {
 		ain->version = read_int32(r);
-		if (ain->version > 8) {
+		if (ain->version >= 11) {
 			instructions[CALLHLL].nr_args = 3;
 			instructions[S_MOD].nr_args = 1;
 			instructions[OBJSWAP].nr_args = 1;
@@ -485,9 +530,6 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		ain->functions = read_functions(r, ain->nr_functions, ain);
 	} else if (TAG_EQ("GLOB")) {
 		ain->nr_globals = read_int32(r);
-		// FIXME: why off by one?
-		if (ain->version >= 12)
-			ain->nr_globals++;
 		ain->globals = read_globals(r, ain->nr_globals, ain);
 	} else if (TAG_EQ("GSET")) {
 		ain->nr_initvals = read_int32(r);
@@ -705,7 +747,8 @@ static void ain_free_variables(struct ain_variable *vars, int nr_vars)
 	for (int i = 0; i < nr_vars; i++) {
 		free(vars[i].name);
 		free(vars[i].name2);
-		if (vars[i].has_initval && vars[i].data_type == AIN_STRING)
+		free(vars[i].type.array_type);
+		if (vars[i].has_initval && vars[i].type.data == AIN_STRING)
 			free(vars[i].initval.s);
 	}
 	free(vars);
@@ -715,6 +758,7 @@ static void ain_free_function_types(struct ain_function_type *funs, int n)
 {
 	for (int i = 0; i < n; i++) {
 		free(funs[i].name);
+		free(funs[i].return_type.array_type);
 		ain_free_variables(funs[i].variables, funs[i].nr_variables);
 	}
 	free(funs);
@@ -742,15 +786,12 @@ void ain_free(struct ain *ain)
 
 	for (int f = 0; f < ain->nr_functions; f++) {
 		free(ain->functions[f].name);
+		free(ain->functions[f].return_type.array_type);
 		ain_free_variables(ain->functions[f].vars, ain->functions[f].nr_vars);
 	}
 	free(ain->functions);
 
-	for (int i = 0; i < ain->nr_globals; i++) {
-		free(ain->globals[i].name);
-		free(ain->globals[i].name2);
-	}
-	free(ain->globals);
+	ain_free_variables(ain->globals, ain->nr_globals);
 
 	for (int i = 0; i < ain->nr_initvals; i++) {
 		if (ain->global_initvals[i].data_type != AIN_STRING)

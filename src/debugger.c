@@ -59,8 +59,8 @@ static struct variable *get_global_by_name(const char *name)
 	for (int i = 0; i < ain->nr_globals; i++) {
 		if (!strcmp(ain->globals[i].name, name)) {
 			struct variable *v = malloc(sizeof(struct variable));
-			v->data_type = ain->globals[i].data_type;
-			v->struct_type = ain->globals[i].struct_type;
+			v->data_type = ain->globals[i].type.data;
+			v->struct_type = ain->globals[i].type.struc;
 			v->name = to_utf(ain->globals[i].name);
 			v->varno = i;
 			v->value = &heap[0].page->values[i];
@@ -78,8 +78,8 @@ static struct variable *get_local_by_name(const char *name)
 	for (int i = 0; i < f->nr_vars; i++) {
 		if (!strcmp(f->vars[i].name, name)) {
 			struct variable *v = malloc(sizeof(struct variable));
-			v->data_type = f->vars[i].data_type;
-			v->struct_type = f->vars[i].struct_type;
+			v->data_type = f->vars[i].type.data;
+			v->struct_type = f->vars[i].type.struc;
 			v->name = to_utf(ain->globals[i].name);
 			v->varno = i;
 			v->value = &page->values[i];

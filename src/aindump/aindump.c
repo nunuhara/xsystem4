@@ -58,6 +58,13 @@ static void print_sjis(FILE *f, const char *s)
 	free(u);
 }
 
+static void print_type(FILE *f, struct ain *ain, struct ain_type *t)
+{
+	char *str = ain_strtype_d(ain, t);
+	print_sjis(f, str);
+	free(str);
+}
+
 static void ain_dump_version(FILE *f, struct ain *ain)
 {
 	fprintf(f, "AIN VERSION %d\n", ain->version);
@@ -71,7 +78,7 @@ static void print_arglist(FILE *f, struct ain *ain, struct ain_variable *args, i
 	}
 	fputc('(', f);
 	for (int i = 0; i < nr_args; i++) {
-		if (args[i].data_type == AIN_VOID)
+		if (args[i].type.data == AIN_VOID)
 			continue;
 		if (i > 0)
 			fprintf(f, ", ");
@@ -98,7 +105,7 @@ static void print_varlist(FILE *f, struct ain *ain, struct ain_variable *vars, i
 
 static void print_function(FILE *out, struct ain *ain, struct ain_function *f)
 {
-	print_sjis(out, ain_strtype(ain, f->data_type, f->struct_type));
+	print_type(out, ain, &f->return_type);
 	fputc(' ', out);
 	print_sjis(out, f->name);
 	print_arglist(out, ain, f->vars, f->nr_args);
@@ -118,13 +125,11 @@ static void ain_dump_globals(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_globals; i++) {
 		fprintf(f, "/* 0x%08x */\t", i);
-		struct ain_global *g = &ain->globals[i];
-		if (g->data_type == AIN_VOID)
+		struct ain_variable *g = &ain->globals[i];
+		if (g->type.data == AIN_VOID)
 			continue;
-		print_sjis(f, ain_strtype(ain, g->data_type, g->struct_type));
-		fputc(' ', f);
-		print_sjis(f, g->name);
-		fputc('\n', f);
+		print_sjis(f, ain_variable_to_string(ain, g));
+		fprintf(f, ";\n");
 	}
 }
 
@@ -146,12 +151,10 @@ static void print_structure(FILE *f, struct ain *ain, struct ain_struct *s)
 	fprintf(f, " {\n");
 	for (int i = 0; i < s->nr_members; i++) {
 		struct ain_variable *m = &s->members[i];
-		if (m->data_type == AIN_VOID)
+		if (m->type.data == AIN_VOID)
 			continue;
 		fprintf(f, "    ");
-		print_sjis(f, ain_strtype(ain, m->data_type, m->struct_type));
-		fputc(' ', f);
-		print_sjis(f, m->name);
+		print_sjis(f, ain_variable_to_string(ain, m));
 		fprintf(f, ";\n");
 	}
 	fprintf(f, "};\n\n");
@@ -226,10 +229,12 @@ static void ain_dump_functypes(FILE *f, struct ain *ain, bool delegates)
 		fprintf(f, "/* 0x%08x */\t", i);
 		struct ain_function_type *t = &types[i];
 		fprintf(f, delegates ? "delegate " : "functype ");
-		print_sjis(f, ain_strtype(ain, t->data_type, t->struct_type));
+
+		print_type(f, ain, &t->return_type);
 		fputc(' ', f);
 		print_sjis(f, t->name);
 		print_arglist(f, ain, t->variables, t->nr_arguments);
+		print_varlist(f, ain, t->variables+t->nr_arguments, t->nr_variables-t->nr_arguments);
 		fputc('\n', f);
 	}
 }

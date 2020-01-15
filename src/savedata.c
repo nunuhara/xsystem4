@@ -90,7 +90,7 @@ static void add_global(struct global_save_data *data, int global, union vm_value
 {
 	cJSON *obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(obj, "index", global);
-	cJSON_AddItemToObject(obj, "value", vm_value_to_json(ain->globals[global].data_type, val));
+	cJSON_AddItemToObject(obj, "value", vm_value_to_json(ain->globals[global].type.data, val));
 	cJSON_AddItemToArray(data->globals, obj);
 }
 
@@ -344,7 +344,7 @@ int load_globals(const char *keyname, const char *filename, const char *group_na
 			goto cleanup;
 		}
 		current_global = i;
-		global_set(i, json_to_vm_value(ain->globals[i].data_type, ain->globals[i].struct_type, ain->globals[i].array_dimensions, value));
+		global_set(i, json_to_vm_value(ain->globals[i].type.data, ain->globals[i].type.struc, ain->globals[i].type.rank, value));
 		if (n)
 			(*n)++;
 	}

@@ -150,22 +150,22 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 	switch (page->type) {
 	case GLOBAL_PAGE:
 		if (struct_type)
-			*struct_type = ain->globals[varno].struct_type;
+			*struct_type = ain->globals[varno].type.struc;
 		if (array_rank)
-			*array_rank = ain->globals[varno].array_dimensions;
-		return ain->globals[varno].data_type;
+			*array_rank = ain->globals[varno].type.rank;
+		return ain->globals[varno].type.data;
 	case LOCAL_PAGE:
 		if (struct_type)
-			*struct_type = ain->functions[page->index].vars[varno].struct_type;
+			*struct_type = ain->functions[page->index].vars[varno].type.struc;
 		if (array_rank)
-			*array_rank = ain->functions[page->index].vars[varno].array_dimensions;
-		return ain->functions[page->index].vars[varno].data_type;
+			*array_rank = ain->functions[page->index].vars[varno].type.rank;
+		return ain->functions[page->index].vars[varno].type.data;
 	case STRUCT_PAGE:
 		if (struct_type)
-			*struct_type = ain->structures[page->index].members[varno].struct_type;
+			*struct_type = ain->structures[page->index].members[varno].type.struc;
 		if (array_rank)
-			*array_rank = ain->structures[page->index].members[varno].array_dimensions;
-		return ain->structures[page->index].members[varno].data_type;
+			*array_rank = ain->structures[page->index].members[varno].type.rank;
+		return ain->structures[page->index].members[varno].type.data;
 	case ARRAY_PAGE:
 		if (struct_type)
 			*struct_type = page->struct_type;
@@ -215,10 +215,10 @@ int alloc_struct(int no)
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(STRUCT_PAGE, no, s->nr_members));
 	for (int i = 0; i < s->nr_members; i++) {
-		if (s->members[i].data_type == AIN_STRUCT) {
-			heap[slot].page->values[i].i = alloc_struct(s->members[i].struct_type);
+		if (s->members[i].type.data == AIN_STRUCT) {
+			heap[slot].page->values[i].i = alloc_struct(s->members[i].type.struc);
 		} else {
-			heap[slot].page->values[i] = variable_initval(s->members[i].data_type);
+			heap[slot].page->values[i] = variable_initval(s->members[i].type.data);
 		}
 	}
 	return slot;
@@ -228,8 +228,8 @@ void init_struct(int no, int slot)
 {
 	struct ain_struct *s = &ain->structures[no];
 	for (int i = 0; i < s->nr_members; i++) {
-		if (s->members[i].data_type == AIN_STRUCT) {
-			init_struct(s->members[i].struct_type, heap[slot].page->values[i].i);
+		if (s->members[i].type.data == AIN_STRUCT) {
+			init_struct(s->members[i].type.struc, heap[slot].page->values[i].i);
 		}
 	}
 	if (s->constructor > 0) {
