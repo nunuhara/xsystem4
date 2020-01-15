@@ -77,12 +77,17 @@ static char *array_type_string(const char *str, int rank)
 	return type_sprintf("%s@%d", str, rank);
 }
 
-static char *array2_type_string(struct ain *ain, struct ain_type *t)
+static char *container_type_string(struct ain *ain, struct ain_type *t)
 {
 	char *buf = xmalloc(1024);
 	char *type = ain_strtype_d(ain, t->array_type);
+	const char *container_type
+		= t->data == AIN_ARRAY     ? "array"
+		: t->data == AIN_REF_ARRAY ? "ref array"
+		: t->data == AIN_ITERATOR  ? "iter"
+		: "unknown_container";
 
-	snprintf(buf, 1023, "%sarray<%s>", t->data == AIN_REF_ARRAY ? "ref " : "", type);
+	snprintf(buf, 1023, "%s<%s>", container_type, type);
 
 	free(type);
 	buf[1023] = '\0';
@@ -92,6 +97,8 @@ static char *array2_type_string(struct ain *ain, struct ain_type *t)
 char *ain_strtype_d(struct ain *ain, struct ain_type *v)
 {
 	char buf[1024];
+	if (!v)
+		return strdup("?");
 	switch (v->data) {
 	case AIN_VOID:                return strdup("void");
 	case AIN_INT:                 return strdup("int");
@@ -147,12 +154,27 @@ char *ain_strtype_d(struct ain *ain, struct ain_type *v)
 	case AIN_UNKNOWN_TYPE_75:     return strdup("type_75");
 	case AIN_ARRAY:
 	case AIN_REF_ARRAY:
-		return array2_type_string(ain, v);
-	case AIN_UNKNOWN_TYPE_82:     return strdup("type_82");
-	case AIN_UNKNOWN_TYPE_86:     return strdup("type_86");
-	case AIN_UNKNOWN_TYPE_89:     return strdup("type_89");
-	case AIN_UNKNOWN_TYPE_92:     return strdup("type_92");
-	case AIN_UNKNOWN_TYPE_93:     return strdup("type_93");
+	case AIN_ITERATOR:
+		return container_type_string(ain, v);
+	case AIN_ENUM1:
+		if (!v->array_type || v->array_type->struc == -1 || !ain)
+			return strdup("enum");
+		//return strdup(ain->enums[v->array_type->struc]);
+		return type_sprintf("%s#86", ain->enums[v->array_type->struc]);
+	case AIN_IFACE:
+		if (v->struc == -1 || !ain)
+			return strdup("interface");
+		return strdup(ain->structures[v->struc].name);
+	case AIN_ENUM2:
+	case AIN_ENUM3:
+		if (v->struc == -1 || !ain)
+			return strdup("enum");
+		//return strdup(ain->enums[v->struc]);
+		return type_sprintf("%s#%d", ain->enums[v->struc], v->data);
+	case AIN_REF_ENUM:
+		if (v->struc == -1 || !ain)
+			return strdup("enum");
+		return type_sprintf("ref %s", ain->enums[v->struc]);
 	case AIN_UNKNOWN_TYPE_95:     return strdup("type_95");
 	default:
 		WARNING("Unknown type: %d", v->data);

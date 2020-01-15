@@ -70,11 +70,12 @@ enum ain_data_type {
 	AIN_UNKNOWN_TYPE_75 = 75, // generic array value? (ref?)
 	AIN_ARRAY = 79,
 	AIN_REF_ARRAY = 80,
-	AIN_UNKNOWN_TYPE_82 = 82, // array iterator?
-	AIN_UNKNOWN_TYPE_86 = 86,
-	AIN_UNKNOWN_TYPE_89 = 89,
-	AIN_UNKNOWN_TYPE_92 = 92,
-	AIN_UNKNOWN_TYPE_93 = 93,
+	AIN_ITERATOR = 82, // array iterator
+	AIN_ENUM1 = 86, // return value of EnumType::Parse; has type 91 in array type
+	AIN_IFACE = 89, // 2 values: [0] = struct page, [1] = vtable offset to inteface methods
+	AIN_ENUM2 = 91, // used as array type of type 86; has enum type in struct type
+	AIN_ENUM3 = 92, // used as argument type, and array type in EnumType::GetList; has enum type in struct type
+	AIN_REF_ENUM = 93,
 	AIN_UNKNOWN_TYPE_95 = 95, // function?
 };
 
@@ -149,7 +150,7 @@ struct ain_function {
 	struct ain_type return_type;
 	int32_t nr_args;
 	int32_t nr_vars;
-	int32_t is_lambda;
+	int32_t is_lambda; // XXX: if this = 1, then function is a lambda; but not all lambdas have this = 1
 	int32_t crc;
 	struct ain_variable *vars;
 };
