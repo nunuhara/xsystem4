@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "khash.h"
 #include "little_endian.h"
 #include "system4/ain.h"
 #include "system4/instructions.h"
@@ -32,51 +33,32 @@ struct dasm_state {
 	bool raw;
 };
 
-#define NR_LABEL_BUCKETS 128
+KHASH_MAP_INIT_INT(label_table, char*);
+khash_t(label_table) *label_table;
 
-struct label {
-	char *name;
-	size_t addr;
-};
-
-struct label_bucket {
-	int nr_labels;
-	struct label *labels;
-};
-
-struct label_bucket label_table[NR_LABEL_BUCKETS];
-
-static struct label_bucket *get_bucket(size_t addr)
+static void label_table_init(void)
 {
-	return &label_table[(addr>>4) % NR_LABEL_BUCKETS];
+	label_table = kh_init(label_table);
+}
+static char *get_label(unsigned int addr)
+{
+	khiter_t k;
+	k = kh_get(label_table, label_table, addr);
+	if (k == kh_end(label_table))
+		return NULL;
+	return kh_value(label_table, k);
 }
 
-static char *get_label(size_t addr)
+static void add_label(char *name, unsigned int addr)
 {
-	struct label_bucket *bucket = get_bucket(addr);
-	for (int i = 0; i < bucket->nr_labels; i++) {
-		if (bucket->labels[i].addr == addr)
-			return bucket->labels[i].name;
-	}
-	return NULL;
-}
-
-static void add_label(char *name, size_t addr)
-{
-	// NOTE: first registered label takes precedence
-	if (get_label(addr)) {
+	int ret;
+	khiter_t k = kh_put(label_table, label_table, addr, &ret);
+	if (!ret) {
+		// key already present: first label takes precedence
 		free(name);
 		return;
 	}
-
-	struct label_bucket *bucket = get_bucket(addr);
-	int n = bucket->nr_labels;
-
-	bucket->labels = xrealloc(bucket->labels, sizeof(struct label) * (n + 1));
-	bucket->nr_labels = n+1;
-
-	bucket->labels[n].name = name;
-	bucket->labels[n].addr = addr;
+	kh_value(label_table, k) = name;
 }
 
 union float_cast {
@@ -319,6 +301,7 @@ static char *genlabel(size_t addr)
 
 static void generate_labels(struct dasm_state *dasm)
 {
+	label_table_init();
 	for (dasm->addr = 0; dasm->addr < dasm->ain->code_size;) {
 		const struct instruction *instr = get_instruction(dasm);
 		for (int i = 0; i < instr->nr_args; i++) {
@@ -354,10 +337,6 @@ void disassemble_ain(FILE *out, struct ain *ain, bool raw)
 	}
 	fflush(dasm.out);
 
-	for (int i = 0; i < NR_LABEL_BUCKETS; i++) {
-		for (int j = 0; j < label_table[i].nr_labels; j++) {
-			free(label_table[i].labels[j].name);
-		}
-		free(label_table[i].labels);
-	}
+	char *label;
+	kh_foreach_value(label_table, label, free(label));
 }

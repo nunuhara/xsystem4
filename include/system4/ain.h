@@ -217,6 +217,14 @@ struct ain_function_type {
 	struct ain_variable *variables;
 };
 
+struct ain_enum {
+	char *name;
+	int nr_symbols;
+	char **symbols;
+};
+
+struct kh_func_ht_s;
+
 struct ain {
 	char *ain_path;
 	int32_t version;
@@ -253,7 +261,9 @@ struct ain {
 	int32_t nr_global_groups;
 	char **global_group_names;
 	int32_t nr_enums;
-	char **enums;
+	struct ain_enum *enums;
+
+	struct kh_func_ht_s *_func_ht;
 };
 
 const char *ain_strerror(int error);

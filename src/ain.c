@@ -25,12 +25,55 @@
 #include <string.h>
 #include <zlib.h>
 
+#include "khash.h"
 #include "little_endian.h"
 #include "system4.h"
 #include "system4/ain.h"
 #include "system4/instructions.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
+
+struct func_list {
+	int nr_slots;
+	struct ain_function *slots[];
+};
+#define func_list_size(nr_slots) (sizeof(struct func_list) + sizeof(struct ain_function*)*(nr_slots))
+
+KHASH_MAP_INIT_STR(func_ht, struct func_list*);
+
+static void init_func_ht(struct ain *ain)
+{
+	ain->_func_ht = kh_init(func_ht);
+	for (int i = 0; i < ain->nr_functions; i++) {
+		int ret;
+		khiter_t k = kh_put(func_ht, ain->_func_ht, ain->functions[i].name, &ret);
+		if (!ret) {
+			// entry with this name already exists: add to list
+			struct func_list *list = kh_value(ain->_func_ht, k);
+			list = xrealloc(list, func_list_size(list->nr_slots+1));
+			list->slots[list->nr_slots] = &ain->functions[i];
+			list->nr_slots++;
+			kh_value(ain->_func_ht, k) = list;
+		} else if (ret == 1) {
+			// empty bucket: create list
+			struct func_list *list = xmalloc(func_list_size(1));
+			list->nr_slots = 1;
+			list->slots[0] = &ain->functions[i];
+			kh_value(ain->_func_ht, k) = list;
+		} else {
+			ERROR("Failed to insert function into hash table (%d)", ret);
+		}
+	}
+}
+
+static struct func_list *get_function(struct ain *ain, const char *name)
+{
+	int ret;
+	khiter_t k = kh_put(func_ht, ain->_func_ht, name, &ret);
+	if (ret)
+		return NULL;
+	return kh_value(ain->_func_ht, k);
+}
 
 static const char *errtab[AIN_MAX_ERROR] = {
 	[AIN_SUCCESS]             = "Success",
@@ -524,6 +567,62 @@ static struct ain_function_type *read_function_types(struct ain_reader *r, int c
 	return types;
 }
 
+#define for_each_instruction(ain, addr, instr, start, user_code)	\
+	do {								\
+		const struct instruction *instr;			\
+		for (size_t addr = start; addr < ain->code_size; addr += instruction_width(instr->opcode)) { \
+			int16_t _fei_opcode = LittleEndian_getW(ain->code, addr); \
+			if (_fei_opcode >= NR_OPCODES)			\
+				ERROR("Unknown/invalid opcode: %u", _fei_opcode); \
+			instr = &instructions[_fei_opcode];		\
+			if (addr + instr->nr_args * 4 >= ain->code_size) \
+				ERROR("CODE section truncated?");	\
+			user_code;					\
+		}							\
+	} while (0)
+
+struct ain_enum *read_enums(struct ain_reader *r, int count, struct ain *ain)
+{
+	char **names = read_strings(r, count);
+	struct ain_enum *enums = xcalloc(count, sizeof(struct ain_enum));
+
+	for (int i = 0; i < count; i++) {
+		char buf[1024] = { [1023] = '\0' };
+		snprintf(buf, 1023, "%s@String", names[i]);
+
+		struct func_list *funs = get_function(ain, buf);
+		if (!funs || funs->nr_slots != 1) {
+			WARNING("Failed to parse enum: %s", names[i]);
+			continue;
+		}
+
+		int j = 0;
+		for_each_instruction(ain, addr, instr, funs->slots[0]->address, {
+			if (instr->opcode == ENDFUNC)
+				break;
+			if (instr->opcode != S_PUSH)
+				continue;
+
+			int32_t strno = LittleEndian_getDW(ain->code, addr + 2);
+			if (strno < 0 || strno >= ain->nr_strings) {
+				WARNING("Encountered invalid string number when parsing enums");
+				continue;
+			}
+			if (!ain->strings[strno]->size)
+				continue;
+
+			enums[i].symbols = xrealloc(enums[i].symbols, sizeof(char*) * (j+1));
+			enums[i].symbols[j] = ain->strings[strno]->text;
+			enums[i].nr_symbols = j + 1;
+			j++;
+		});
+		enums[i].name = names[i];
+	}
+
+	free(names);
+	return enums;
+}
+
 static bool read_tag(struct ain_reader *r, struct ain *ain)
 {
 	if (r->index + 4 >= r->size)
@@ -551,6 +650,7 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 	} else if (TAG_EQ("FUNC")) {
 		ain->nr_functions = read_int32(r);
 		ain->functions = read_functions(r, ain->nr_functions, ain);
+		init_func_ht(ain);
 	} else if (TAG_EQ("GLOB")) {
 		ain->nr_globals = read_int32(r);
 		ain->globals = read_globals(r, ain->nr_globals, ain);
@@ -600,7 +700,7 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		ain->global_group_names = read_strings(r, ain->nr_global_groups);
 	} else if (TAG_EQ("ENUM")) {
 		ain->nr_enums = read_int32(r);
-		ain->enums = read_strings(r, ain->nr_enums);
+		ain->enums = read_enums(r, ain->nr_enums, ain);
 	} else {
 		return false;
 	}
@@ -848,6 +948,12 @@ void ain_free(struct ain *ain)
 	}
 	free(ain->switches);
 
+	for (int i = 0; i < ain->nr_enums; i++) {
+		free(ain->enums[i].name);
+		free(ain->enums[i].symbols);
+	}
+	free(ain->enums);
+
 	ain_free_function_types(ain->function_types, ain->nr_function_types);
 	ain_free_function_types(ain->delegates, ain->nr_delegates);
 
@@ -856,7 +962,10 @@ void ain_free(struct ain *ain)
 
 	ain_free_cstrings(ain->filenames, ain->nr_filenames);
 	ain_free_cstrings(ain->global_group_names, ain->nr_global_groups);
-	ain_free_cstrings(ain->enums, ain->nr_enums);
+
+	struct func_list *list;
+	kh_foreach_value(ain->_func_ht, list, free(list));
+	kh_destroy(func_ht, ain->_func_ht);
 
 	free(ain);
 }

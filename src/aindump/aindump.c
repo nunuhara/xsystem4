@@ -251,9 +251,16 @@ static void ain_dump_global_group_names(FILE *f, struct ain *ain)
 static void ain_dump_enums(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_enums; i++) {
-		fprintf(f, "0x%08x:\t", i);
-		print_sjis(f, ain->enums[i]);
-		fputc('\n', f);
+		fprintf(f, "// %d\nenum ", i);
+		print_sjis(f, ain->enums[i].name);
+		fprintf(f, " {");
+		for (int j = 0; j < ain->enums[i].nr_symbols; j++) {
+			if (j)
+				fputc(',', f);
+			fprintf(f, "\n\t");
+			print_sjis(f, ain->enums[i].symbols[j]);
+		}
+		fprintf(f, "\n};\n\n");
 	}
 }
 
