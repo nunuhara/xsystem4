@@ -455,7 +455,12 @@ static void system_call(enum syscall_code code)
 		break;
 	}
 	case SYS_SLEEP: {// system.Sleep(int nSleep)
-		stack_pop();
+		int ms = stack_pop().i;
+		struct timespec ts = {
+			.tv_sec = ms / 1000,
+			.tv_nsec = (ms % 1000) * 1000000L
+		};
+		nanosleep(&ts, NULL);
 		break;
 	}
 	case SYS_GROUP_SAVE: { // system.GroupSave(string szKeyName, string szFileName, string szGroupName, ref int nNumofLoad)
