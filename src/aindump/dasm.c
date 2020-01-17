@@ -26,12 +26,15 @@
 
 #define DASM_ERROR(dasm, fmt, ...) ERROR("At 0x%x: " fmt, dasm->addr, ##__VA_ARGS__)
 
+#define DASM_FUNC_STACK_SIZE 16
+
 struct dasm_state {
 	struct ain *ain;
 	FILE *out;
 	size_t addr;
 	int func;
 	bool raw;
+	int func_stack[DASM_FUNC_STACK_SIZE];
 };
 
 KHASH_MAP_INIT_INT(label_table, char*);
@@ -261,19 +264,37 @@ static void print_arguments(struct dasm_state *dasm, const struct instruction *i
 	}
 }
 
+static void dasm_enter_function(struct dasm_state *dasm, int fno)
+{
+	if (fno < 0 || fno >= dasm->ain->nr_functions)
+		DASM_ERROR(dasm, "Invalid function number: %d", fno);
+
+	for (int i = 1; i < DASM_FUNC_STACK_SIZE; i++) {
+		dasm->func_stack[i] = dasm->func_stack[i-1];
+	}
+	dasm->func_stack[0] = dasm->func;
+	dasm->func = fno;
+}
+
+static void dasm_leave_function(struct dasm_state *dasm)
+{
+	dasm->func = dasm->func_stack[0];
+	for (int i = 1; i < DASM_FUNC_STACK_SIZE; i++) {
+		dasm->func_stack[i-1] = dasm->func_stack[i];
+	}
+}
+
 static void print_instruction(struct dasm_state *dasm, const struct instruction *instr)
 {
-	if (dasm->raw) {
+	if (dasm->raw)
 		fprintf(dasm->out, "0x%08lX:\t", dasm->addr);
-	}
+
 	switch (instr->opcode) {
 	case FUNC:
-		dasm->func = LittleEndian_getDW(dasm->ain->code, dasm->addr + 2);
-		if (dasm->func < 0 || dasm->func >= dasm->ain->nr_functions)
-			DASM_ERROR(dasm, "Invalid function number: %d", dasm->func);
+		dasm_enter_function(dasm, LittleEndian_getDW(dasm->ain->code, dasm->addr + 2));
 		break;
 	case ENDFUNC:
-		dasm->func = -1;
+		dasm_leave_function(dasm);
 		break;
 	case _EOF:
 		break;
@@ -320,15 +341,23 @@ static void generate_labels(struct dasm_state *dasm)
 	}
 }
 
+void dasm_init(struct dasm_state *dasm, FILE *out, struct ain *ain, bool raw)
+{
+	dasm->out = out;
+	dasm->ain = ain;
+	dasm->addr = 0;
+	dasm->raw = raw;
+	dasm->func = -1;
+
+	for (int i = 0; i < DASM_FUNC_STACK_SIZE; i++) {
+		dasm->func_stack[i] = -1;
+	}
+}
+
 void disassemble_ain(FILE *out, struct ain *ain, bool raw)
 {
-	struct dasm_state dasm = {
-		.ain  = ain,
-		.out  = out,
-		.addr = 0,
-		.func = -1,
-		.raw  = raw
-	};
+	struct dasm_state dasm;
+	dasm_init(&dasm, out, ain, raw);
 
 	if (!raw)
 		generate_labels(&dasm);
