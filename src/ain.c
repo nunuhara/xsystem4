@@ -203,7 +203,7 @@ char *ain_strtype_d(struct ain *ain, struct ain_type *v)
 		if (!v->array_type || v->array_type->struc == -1 || !ain)
 			return strdup("enum");
 		//return strdup(ain->enums[v->array_type->struc]);
-		return type_sprintf("%s#86", ain->enums[v->array_type->struc]);
+		return type_sprintf("%s#86", ain->enums[v->array_type->struc].name);
 	case AIN_IFACE:
 		if (v->struc == -1 || !ain)
 			return strdup("interface");
@@ -213,11 +213,11 @@ char *ain_strtype_d(struct ain *ain, struct ain_type *v)
 		if (v->struc == -1 || !ain)
 			return strdup("enum");
 		//return strdup(ain->enums[v->struc]);
-		return type_sprintf("%s#%d", ain->enums[v->struc], v->data);
+		return type_sprintf("%s#%d", ain->enums[v->struc].name, v->data);
 	case AIN_REF_ENUM:
 		if (v->struc == -1 || !ain)
 			return strdup("enum");
-		return type_sprintf("ref %s", ain->enums[v->struc]);
+		return type_sprintf("ref %s", ain->enums[v->struc].name);
 	case AIN_UNKNOWN_TYPE_95:     return strdup("type_95");
 	default:
 		WARNING("Unknown type: %d", v->data);

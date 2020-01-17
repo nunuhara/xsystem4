@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "aindump.h"
 #include "khash.h"
 #include "little_endian.h"
 #include "system4/ain.h"
@@ -246,6 +247,11 @@ static void print_arguments(struct dasm_state *dasm, const struct instruction *i
 		int32_t lib = LittleEndian_getDW(dasm->ain->code, dasm->addr + 2);
 		int32_t fun = LittleEndian_getDW(dasm->ain->code, dasm->addr + 6);
 		fprintf(dasm->out, " %s.%s", dasm->ain->libraries[lib].name, dasm->ain->libraries[lib].functions[fun].name);
+		return;
+	}
+	if (instr->opcode == FUNC) {
+		fputc(' ', dasm->out);
+		ain_dump_function(dasm->out, dasm->ain, &dasm->ain->functions[dasm->func]);
 		return;
 	}
 

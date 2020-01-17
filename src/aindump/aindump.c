@@ -89,35 +89,29 @@ static void print_arglist(FILE *f, struct ain *ain, struct ain_variable *args, i
 
 static void print_varlist(FILE *f, struct ain *ain, struct ain_variable *vars, int nr_vars)
 {
-	if (!nr_vars) {
-		fputc(';', f);
-		return;
-	}
-
 	for (int i = 0; i < nr_vars; i++) {
 		if (i > 0)
 			fputc(',', f);
 		fputc(' ', f);
 		print_sjis(f, ain_variable_to_string(ain, &vars[i]));
 	}
-	fputc(';', f);
 }
 
-static void print_function(FILE *out, struct ain *ain, struct ain_function *f)
+void ain_dump_function(FILE *out, struct ain *ain, struct ain_function *f)
 {
 	print_type(out, ain, &f->return_type);
 	fputc(' ', out);
 	print_sjis(out, f->name);
 	print_arglist(out, ain, f->vars, f->nr_args);
 	print_varlist(out, ain, f->vars+f->nr_args, f->nr_vars - f->nr_args);
-	fputc('\n', out);
 }
 
 static void ain_dump_functions(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_functions; i++) {
 		fprintf(f, "/* 0x%08x */\t", i);
-		print_function(f, ain, &ain->functions[i]);
+		ain_dump_function(f, ain, &ain->functions[i]);
+		fprintf(f, ";\n");
 	}
 }
 
