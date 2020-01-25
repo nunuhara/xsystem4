@@ -274,6 +274,8 @@ static void dasm_enter_function(struct dasm_state *dasm, int fno)
 	}
 	dasm->func_stack[0] = dasm->func;
 	dasm->func = fno;
+
+	fprintf(dasm->out, "; FUNC 0x%x\n", fno);
 }
 
 static void dasm_leave_function(struct dasm_state *dasm)
@@ -364,14 +366,18 @@ void disassemble_ain(FILE *out, struct ain *ain, bool raw)
 
 	for (dasm.addr = 0; dasm.addr < dasm.ain->code_size;) {
 		const struct instruction *instr = get_instruction(&dasm);
-		char *label = get_label(dasm.addr);
-		if (label)
-			fprintf(dasm.out, "%s:\n", label);
+		if (!raw) {
+			char *label = get_label(dasm.addr);
+			if (label)
+				fprintf(dasm.out, "%s:\n", label);
+		}
 		print_instruction(&dasm, instr);
 		dasm.addr += instruction_width(instr->opcode);
 	}
 	fflush(dasm.out);
 
-	char *label;
-	kh_foreach_value(label_table, label, free(label));
+	if (!raw) {
+		char *label;
+		kh_foreach_value(label_table, label, free(label));
+	}
 }
