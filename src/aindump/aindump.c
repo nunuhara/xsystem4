@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include <getopt.h>
+#include "aindump.h"
 #include "little_endian.h"
 #include "system4.h"
 #include "system4/ain.h"
@@ -48,7 +49,7 @@ static void usage(void)
 	puts("    -e, --enums              Dump enums section");
 	puts("    -A, --audit              Audit AIN file for xsystem4 compatibility");
 	puts("    -d, --decrypt            Dump decrypted AIN file");
-	//puts("    -j, --json               Dump to JSON format"); // TODO
+	puts("    -j, --json               Dump to JSON format");
 }
 
 static void print_sjis(FILE *f, const char *s)
@@ -319,6 +320,7 @@ int main(int argc, char *argv[])
 	bool dump_delegates = false;
 	bool dump_global_group_names = false;
 	bool dump_enums = false;
+	bool dump_json = false;
 	bool audit = false;
 	bool decrypt = false;
 	char *output_file = NULL;
@@ -345,12 +347,13 @@ int main(int argc, char *argv[])
 			{ "enums",              no_argument,       0, 'e' },
 			{ "audit",              no_argument,       0, 'A' },
 			{ "decrypt",            no_argument,       0, 'd' },
+			{ "json",               no_argument,       0, 'j' },
 			{ "output",             required_argument, 0, 'o' },
 		};
 		int option_index = 0;
 		int c;
 
-		c = getopt_long(argc, argv, "hVcCfgSmlsFeAdo:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hVcCfgSmlsFeAdjo:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -405,6 +408,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'd':
 			decrypt = true;
+			break;
+		case 'j':
+			dump_json = true;
 			break;
 		case 'o':
 			output_file = xstrdup(optarg);
@@ -467,6 +473,8 @@ int main(int argc, char *argv[])
 		disassemble_ain(output, ain, false);
 	if (dump_raw_code)
 		disassemble_ain(output, ain, true);
+	if (dump_json)
+		ain_dump_json(output, ain);
 	if (audit)
 		ain_audit(output, ain);
 

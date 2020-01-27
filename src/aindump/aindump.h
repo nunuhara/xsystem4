@@ -23,5 +23,6 @@ struct ain;
 struct ain_function;
 
 void ain_dump_function(FILE *out, struct ain *ain, struct ain_function *f);
+void ain_dump_json(FILE *out, struct ain *ain);
 
 #endif /* AINDUMP_H */

@@ -384,7 +384,7 @@ static void read_variable_type(struct ain_reader *r, struct ain_type *t)
 	t->struc = read_int32(r);
 	t->rank  = read_int32(r);
 
-	if (t->data == AIN_ARRAY || t->data == AIN_REF_ARRAY || t->data == 82 || t->data == 86)
+	if (t->data == AIN_ARRAY || t->data == AIN_REF_ARRAY || t->data == AIN_ITERATOR || t->data == AIN_ENUM1)
 		t->array_type = read_array_type(r);
 }
 
@@ -709,6 +709,17 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 	return true;
 }
 
+static void distribute_initvals(struct ain *ain)
+{
+	for (int i = 0; i < ain->nr_initvals; i++) {
+		struct ain_variable *g = &ain->globals[ain->global_initvals[i].global_index];
+		if (ain->global_initvals[i].data_type == AIN_STRING)
+			g->initval.s = ain->global_initvals[i].string_value;
+		else
+			g->initval.i = ain->global_initvals[i].int_value;
+	}
+}
+
 static uint8_t *decompress_ain(uint8_t *in, long *len)
 {
 	uint8_t *out;
@@ -855,6 +866,7 @@ struct ain *ain_open(const char *path, int *error)
 		*error = AIN_INVALID;
 		goto err;
 	}
+	distribute_initvals(ain);
 
 	free(buf);
 	*error = AIN_SUCCESS;
