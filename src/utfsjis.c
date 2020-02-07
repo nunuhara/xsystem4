@@ -81,7 +81,7 @@ char *sjis2utf(const char *_src, size_t len) {
 }
 
 static int unicode_to_sjis(int u) {
-	for (int b1 = 0x80; b1 <= 0xff; b1++) {
+	for (int b1 = 0x81; b1 <= 0xff; b1++) {
 		if (b1 >= 0xa0 && b1 <= 0xdf)
 			continue;
 		for (int b2 = 0x40; b2 <= 0xff; b2++) {
