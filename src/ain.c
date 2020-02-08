@@ -40,10 +40,10 @@ struct func_list {
 #define func_list_size(nr_slots) (sizeof(struct func_list) + sizeof(struct ain_function*)*(nr_slots))
 
 KHASH_MAP_INIT_STR(func_ht, struct func_list*);
+KHASH_MAP_INIT_STR(struct_ht, struct ain_struct*);
 
 static void init_func_ht(struct ain *ain)
 {
-	ain->_func_ht = kh_init(func_ht);
 	for (int i = 0; i < ain->nr_functions; i++) {
 		int ret;
 		khiter_t k = kh_put(func_ht, ain->_func_ht, ain->functions[i].name, &ret);
@@ -66,6 +66,21 @@ static void init_func_ht(struct ain *ain)
 	}
 }
 
+static void init_struct_ht(struct ain *ain)
+{
+	for (int i = 0; i < ain->nr_structures; i++) {
+		int ret;
+		khiter_t k = kh_put(struct_ht, ain->_struct_ht, ain->structures[i].name, &ret);
+		if (!ret) {
+			ERROR("Duplicate structure names: '%s'", ain->structures[i].name);
+		} else if (ret == 1) {
+			kh_value(ain->_struct_ht, k) = &ain->structures[i];
+		} else {
+			ERROR("Failed to insert struct into hash table (%d)", ret);
+		}
+	}
+}
+
 static struct func_list *get_function(struct ain *ain, const char *name)
 {
 	int ret;
@@ -73,6 +88,51 @@ static struct func_list *get_function(struct ain *ain, const char *name)
 	if (ret)
 		return NULL;
 	return kh_value(ain->_func_ht, k);
+}
+
+struct ain_function *ain_get_function(struct ain *ain, char *name)
+{
+	size_t len;
+	long n = 0;
+
+	// handle name#index syntax
+	for (len = 0; name[len]; len++) {
+		if (name[len] == '#') {
+			char *endptr;
+			n = strtol(name+len+1, &endptr, 10);
+			if (!name[len+1] || *endptr || n < 0)
+				ERROR("Invalid function name: '%s'", name);
+			name[len] = '\0';
+			break;
+		}
+	}
+
+	struct func_list *funs = get_function(ain, name);
+	if (!funs || n >= funs->nr_slots)
+		return NULL;
+	return funs->slots[n];
+}
+
+int ain_get_function_index(struct ain *ain, struct ain_function *f)
+{
+	struct func_list *funs = get_function(ain, f->name);
+	if (!funs)
+		goto err;
+
+	for (int i = 0; i < funs->nr_slots; i++) {
+		if (funs->slots[i] == f)
+			return i;
+	}
+err:
+	ERROR("Invalid function: '%s'", f->name);
+}
+
+struct ain_struct *ain_get_struct(struct ain *ain, char *name)
+{
+	khiter_t k = kh_get(struct_ht, ain->_struct_ht, name);
+	if (k == kh_end(ain->_struct_ht))
+		return NULL;
+	return kh_value(ain->_struct_ht, k);
 }
 
 static const char *errtab[AIN_MAX_ERROR] = {
@@ -150,8 +210,6 @@ char *ain_strtype_d(struct ain *ain, struct ain_type *v)
 	case AIN_STRUCT:
 		if (v->struc == -1 || !ain)
 			return strdup("struct");
-		if (v->struc < 0 || v->struc >= ain->nr_structures)
-			ERROR("WTF: %d, %d", v->struc, ain->nr_structures);
 		return strdup(ain->structures[v->struc].name);
 	case AIN_ARRAY_INT:           return array_type_string("array@int", v->rank);
 	case AIN_ARRAY_FLOAT:         return array_type_string("array@float", v->rank);
@@ -257,6 +315,7 @@ struct ain_reader {
 	uint8_t *buf;
 	size_t size;
 	size_t index;
+	struct ain_section *section;
 };
 
 static int32_t read_int32(struct ain_reader *r)
@@ -623,17 +682,31 @@ struct ain_enum *read_enums(struct ain_reader *r, int count, struct ain *ain)
 	return enums;
 }
 
+static void start_section(struct ain_reader *r, struct ain_section *section)
+{
+	if (r->section)
+		r->section->size = r->index - r->section->addr;
+	r->section = section;
+	if (section) {
+		r->section->addr = r->index;
+		r->section->present = true;
+		r->index += 4;
+	}
+}
+
 static bool read_tag(struct ain_reader *r, struct ain *ain)
 {
-	if (r->index + 4 >= r->size)
+	if (r->index + 4 >= r->size) {
+		start_section(r, NULL);
 		return false;
+	}
 
 	uint8_t *tag_loc = r->buf + r->index;
-	r->index += 4;
 
 #define TAG_EQ(tag) !strncmp((char*)tag_loc, tag, 4)
 	// FIXME: need to check len or could segfault on currupt AIN file
 	if (TAG_EQ("VERS")) {
+		start_section(r, &ain->VERS);
 		ain->version = read_int32(r);
 		if (ain->version >= 11) {
 			instructions[CALLHLL].nr_args = 3;
@@ -643,65 +716,89 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 			instructions[CALLMETHOD].args[0] = T_INT;
 		}
 	} else if (TAG_EQ("KEYC")) {
+		start_section(r, &ain->KEYC);
 		ain->keycode = read_int32(r);
 	} else if (TAG_EQ("CODE")) {
+		start_section(r, &ain->CODE);
 		ain->code_size = read_int32(r);
 		ain->code = read_bytes(r, ain->code_size);
 	} else if (TAG_EQ("FUNC")) {
+		start_section(r, &ain->FUNC);
 		ain->nr_functions = read_int32(r);
 		ain->functions = read_functions(r, ain->nr_functions, ain);
 		init_func_ht(ain);
 	} else if (TAG_EQ("GLOB")) {
+		start_section(r, &ain->GLOB);
 		ain->nr_globals = read_int32(r);
 		ain->globals = read_globals(r, ain->nr_globals, ain);
 	} else if (TAG_EQ("GSET")) {
+		start_section(r, &ain->GSET);
 		ain->nr_initvals = read_int32(r);
 		ain->global_initvals = read_initvals(r, ain->nr_initvals);
 	} else if (TAG_EQ("STRT")) {
+		start_section(r, &ain->STRT);
 		ain->nr_structures = read_int32(r);
 		ain->structures = read_structures(r, ain->nr_structures, ain);
+		init_struct_ht(ain);
 	} else if (TAG_EQ("MSG0")) {
+		start_section(r, &ain->MSG0);
 		ain->nr_messages = read_int32(r);
 		ain->messages = read_vm_strings(r, ain->nr_messages);
 	} else if (TAG_EQ("MSG1")) {
+		start_section(r, &ain->MSG1);
 		ain->nr_messages = read_int32(r);
-		read_int32(r); // ???
+		ain->msg1_uk = read_int32(r); // ???
 		ain->messages = read_msg1_strings(r, ain->nr_messages);
 	} else if (TAG_EQ("MAIN")) {
+		start_section(r, &ain->MAIN);
 		ain->main = read_int32(r);
 	} else if (TAG_EQ("MSGF")) {
+		start_section(r, &ain->MSGF);
 		ain->msgf = read_int32(r);
 	} else if (TAG_EQ("HLL0")) {
+		start_section(r, &ain->HLL0);
 		ain->nr_libraries = read_int32(r);
 		ain->libraries = read_libraries(r, ain->nr_libraries);
 	} else if (TAG_EQ("SWI0")) {
+		start_section(r, &ain->SWI0);
 		ain->nr_switches = read_int32(r);
 		ain->switches = read_switches(r, ain->nr_switches);
 	} else if (TAG_EQ("GVER")) {
+		start_section(r, &ain->GVER);
 		ain->game_version = read_int32(r);
 	} else if (TAG_EQ("STR0")) {
+		start_section(r, &ain->STR0);
 		ain->nr_strings = read_int32(r);
 		ain->strings = read_vm_strings(r, ain->nr_strings);
 	} else if (TAG_EQ("FNAM")) {
+		start_section(r, &ain->FNAM);
 		ain->nr_filenames = read_int32(r);
 		ain->filenames = read_strings(r, ain->nr_filenames);
 	} else if (TAG_EQ("OJMP")) {
+		start_section(r, &ain->OJMP);
 		ain->ojmp = read_int32(r);
 	} else if (TAG_EQ("FNCT")) {
-		read_int32(r); // ???
+		start_section(r, &ain->FNCT);
+		ain->fnct_size = read_int32(r);
 		ain->nr_function_types = read_int32(r);
 		ain->function_types = read_function_types(r, ain->nr_function_types, ain);
 	} else if (TAG_EQ("DELG")) {
-		read_int32(r); // ???
+		start_section(r, &ain->DELG);
+		ain->delg_size = read_int32(r);
 		ain->nr_delegates = read_int32(r);
 		ain->delegates = read_function_types(r, ain->nr_delegates, ain);
 	} else if (TAG_EQ("OBJG")) {
+		start_section(r, &ain->OBJG);
 		ain->nr_global_groups = read_int32(r);
 		ain->global_group_names = read_strings(r, ain->nr_global_groups);
 	} else if (TAG_EQ("ENUM")) {
+		start_section(r, &ain->ENUM);
+		ain->ENUM.present = true;
 		ain->nr_enums = read_int32(r);
 		ain->enums = read_enums(r, ain->nr_enums, ain);
 	} else {
+		start_section(r, NULL);
+		WARNING("Junk at end of AIN file?");
 		return false;
 	}
 #undef TAG_EQ
@@ -713,6 +810,7 @@ static void distribute_initvals(struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_initvals; i++) {
 		struct ain_variable *g = &ain->globals[ain->global_initvals[i].global_index];
+		g->has_initval = true;
 		if (ain->global_initvals[i].data_type == AIN_STRING)
 			g->initval.s = ain->global_initvals[i].string_value;
 		else
@@ -730,7 +828,14 @@ static uint8_t *decompress_ain(uint8_t *in, long *len)
 		return NULL;
 
 	out = xmalloc(out_len);
-	if (Z_OK != uncompress(out, (unsigned long*)&out_len, in+16, in_len)) {
+	int r = uncompress(out, (unsigned long*)&out_len, in+16, in_len);
+	if (r != Z_OK) {
+		if (r == Z_BUF_ERROR)
+			WARNING("uncompress failed: Z_BUF_ERROR");
+		else if (r == Z_MEM_ERROR)
+			WARNING("uncompress failed: Z_MEM_ERROR");
+		else if (r == Z_DATA_ERROR)
+			WARNING("uncompress failed: Z_DATA_ERROR");
 		free(out);
 		return NULL;
 	}
@@ -773,7 +878,7 @@ static void update(uint32_t *state)
 	}
 }
 
-static void decrypt_ain(uint8_t *buf, size_t len)
+void ain_decrypt(uint8_t *buf, size_t len)
 {
 	uint32_t state[0x270];
 	uint32_t key = 0x5D3E3;
@@ -800,7 +905,7 @@ static bool ain_is_encrypted(uint8_t *buf)
 	uint8_t magic[8];
 
 	memcpy(magic, buf, 8);
-	decrypt_ain(magic, 8);
+	ain_decrypt(magic, 8);
 
 	return !strncmp((char*)magic, "VERS", 4) && !magic[5] && !magic[6] && !magic[7];
 }
@@ -835,7 +940,7 @@ uint8_t *ain_read(const char *path, long *len, int *error)
 		free(buf);
 		buf = uc;
 	} else if (ain_is_encrypted(buf)) {
-		decrypt_ain(buf, *len);
+		ain_decrypt(buf, *len);
 	} else {
 		printf("%.4s\n", buf);
 		*error = AIN_UNRECOGNIZED_FORMAT;
@@ -853,6 +958,8 @@ struct ain *ain_open(const char *path, int *error)
 	long len;
 	struct ain *ain = NULL;
 	uint8_t *buf = ain_read(path, &len, error);
+	if (!buf)
+		goto err;
 
 	// read data into ain struct
 	struct ain_reader r = {
@@ -861,6 +968,8 @@ struct ain *ain_open(const char *path, int *error)
 		.size = len
 	};
 	ain = calloc(1, sizeof(struct ain));
+	ain->_func_ht = kh_init(func_ht);
+	ain->_struct_ht = kh_init(struct_ht);
 	while (read_tag(&r, ain));
 	if (!ain->version) {
 		*error = AIN_INVALID;
@@ -889,7 +998,7 @@ static void ain_free_variables(struct ain_variable *vars, int nr_vars)
 	free(vars);
 }
 
-static void ain_free_function_types(struct ain_function_type *funs, int n)
+static void _ain_free_function_types(struct ain_function_type *funs, int n)
 {
 	for (int i = 0; i < n; i++) {
 		free(funs[i].name);
@@ -899,7 +1008,7 @@ static void ain_free_function_types(struct ain_function_type *funs, int n)
 	free(funs);
 }
 
-static void ain_free_strings(struct string **strings, int n)
+static void ain_free_vmstrings(struct string **strings, int n)
 {
 	for (int i = 0; i < n; i++) {
 		free_string(strings[i]);
@@ -915,33 +1024,53 @@ static void ain_free_cstrings(char **strings, int n)
 	free(strings);
 }
 
-void ain_free(struct ain *ain)
+void ain_free_functions(struct ain *ain)
 {
-	free(ain->code);
-
 	for (int f = 0; f < ain->nr_functions; f++) {
 		free(ain->functions[f].name);
 		free(ain->functions[f].return_type.array_type);
 		ain_free_variables(ain->functions[f].vars, ain->functions[f].nr_vars);
 	}
 	free(ain->functions);
+	ain->functions = NULL;
+	ain->nr_functions = 0;
+}
 
+void ain_free_globals(struct ain *ain)
+{
 	ain_free_variables(ain->globals, ain->nr_globals);
+	ain->globals = NULL;
+	ain->nr_globals = 0;
+}
 
-	for (int i = 0; i < ain->nr_initvals; i++) {
-		if (ain->global_initvals[i].data_type != AIN_STRING)
-			continue;
-		free(ain->global_initvals[i].string_value);
-	}
+void ain_free_initvals(struct ain *ain)
+{
 	free(ain->global_initvals);
+	ain->global_initvals = NULL;
+	ain->nr_initvals = 0;
+}
 
+void ain_free_structures(struct ain *ain)
+{
 	for (int s = 0; s < ain->nr_structures; s++) {
 		free(ain->structures[s].name);
 		free(ain->structures[s].interfaces);
 		ain_free_variables(ain->structures[s].members, ain->structures[s].nr_members);
 	}
 	free(ain->structures);
+	ain->structures = NULL;
+	ain->nr_structures = 0;
+}
 
+void ain_free_messages(struct ain *ain)
+{
+	ain_free_vmstrings(ain->messages, ain->nr_messages);
+	ain->messages = NULL;
+	ain->nr_messages = 0;
+}
+
+void ain_free_libraries(struct ain *ain)
+{
 	for (int lib = 0; lib < ain->nr_libraries; lib++) {
 		free(ain->libraries[lib].name);
 		for (int f = 0; f < ain->libraries[lib].nr_functions; f++) {
@@ -954,30 +1083,88 @@ void ain_free(struct ain *ain)
 		free(ain->libraries[lib].functions);
 	}
 	free(ain->libraries);
+	ain->libraries = NULL;
+	ain->nr_libraries = 0;
+}
 
+void ain_free_switches(struct ain *ain)
+{
 	for (int i = 0; i < ain->nr_switches; i++) {
 		free(ain->switches[i].cases);
 	}
 	free(ain->switches);
+	ain->switches = NULL;
+	ain->nr_switches = 0;
+}
 
+void ain_free_strings(struct ain *ain)
+{
+	ain_free_vmstrings(ain->strings, ain->nr_strings);
+	ain->strings = NULL;
+	ain->nr_strings = 0;
+}
+
+void ain_free_filenames(struct ain *ain)
+{
+	ain_free_cstrings(ain->filenames, ain->nr_filenames);
+	ain->filenames = NULL;
+	ain->nr_filenames = 0;
+}
+
+void ain_free_function_types(struct ain *ain)
+{
+	_ain_free_function_types(ain->function_types, ain->nr_function_types);
+	ain->function_types = NULL;
+	ain->nr_function_types = 0;
+}
+
+void ain_free_delegates(struct ain *ain)
+{
+	_ain_free_function_types(ain->delegates, ain->nr_delegates);
+	ain->delegates = NULL;
+	ain->nr_delegates = 0;
+}
+
+void ain_free_global_groups(struct ain *ain)
+{
+	ain_free_cstrings(ain->global_group_names, ain->nr_global_groups);
+	ain->global_group_names = NULL;
+	ain->nr_global_groups = 0;
+}
+
+void ain_free_enums(struct ain *ain)
+{
 	for (int i = 0; i < ain->nr_enums; i++) {
 		free(ain->enums[i].name);
 		free(ain->enums[i].symbols);
 	}
 	free(ain->enums);
+	ain->enums = NULL;
+	ain->nr_enums = 0;
+}
 
-	ain_free_function_types(ain->function_types, ain->nr_function_types);
-	ain_free_function_types(ain->delegates, ain->nr_delegates);
+void ain_free(struct ain *ain)
+{
+	free(ain->code);
 
-	ain_free_strings(ain->strings, ain->nr_strings);
-	ain_free_strings(ain->messages, ain->nr_messages);
-
-	ain_free_cstrings(ain->filenames, ain->nr_filenames);
-	ain_free_cstrings(ain->global_group_names, ain->nr_global_groups);
+	ain_free_functions(ain);
+	ain_free_globals(ain);
+	ain_free_initvals(ain);
+	ain_free_structures(ain);
+	ain_free_messages(ain);
+	ain_free_libraries(ain);
+	ain_free_switches(ain);
+	ain_free_strings(ain);
+	ain_free_filenames(ain);
+	ain_free_function_types(ain);
+	ain_free_delegates(ain);
+	ain_free_global_groups(ain);
+	ain_free_enums(ain);
 
 	struct func_list *list;
 	kh_foreach_value(ain->_func_ht, list, free(list));
 	kh_destroy(func_ht, ain->_func_ht);
+	kh_destroy(struct_ht, ain->_struct_ht);
 
 	free(ain);
 }

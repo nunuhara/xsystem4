@@ -30,6 +30,7 @@
 
 struct dasm_state {
 	struct ain *ain;
+	uint32_t flags;
 	FILE *out;
 	size_t addr;
 	int func;
@@ -90,9 +91,11 @@ static char *prepare_string(const char *str, const char *escape_chars, const cha
 	char *u = sjis2utf(str, strlen(str));
 
 	// count number of required escapes
-	for (int i = 0; str[i]; i++) {
+	for (int i = 0; u[i]; i++) {
+		if (u[i] & 0x80)
+			continue;
 		for (int j = 0; escape_chars[j]; j++) {
-			if (str[i] == escape_chars[j]) {
+			if (u[i] == escape_chars[j]) {
 				escapes++;
 				break;
 			}
@@ -151,7 +154,64 @@ static void print_identifier(struct dasm_state *dasm, const char *str)
 	print_sjis(dasm, str);
 }
 
-static void print_argument(struct dasm_state *dasm, int32_t arg, enum instruction_argtype type)
+static void print_local_variable(struct dasm_state *dasm, struct ain_function *func, int varno)
+{
+	int dup_no = 0; // nr of duplicate-named variables preceding varno
+	for (int i = 0; i < func->nr_vars; i++) {
+		if (i == varno)
+			break;
+		if (!strcmp(func->vars[i].name, func->vars[varno].name))
+			dup_no++;
+	}
+
+	// if variable name is ambiguous, add #n suffix
+	char *name;
+	char buf[512];
+	if (dup_no) {
+		snprintf(buf, 512, "%s#%d", func->vars[varno].name, dup_no);
+		name = buf;
+	} else {
+		name = func->vars[varno].name;
+	}
+
+	print_identifier(dasm, name);
+}
+
+static void print_function_name(struct dasm_state *dasm, struct ain_function *func)
+{
+	int i = ain_get_function_index(dasm->ain, func);
+
+	char *name = func->name;
+	char buf[512];
+	if (i > 0) {
+		snprintf(buf, 512, "%s#%d", func->name, i);
+		name = buf;
+	}
+
+	print_identifier(dasm, name);
+}
+
+static void print_hll_function_name(struct dasm_state *dasm, struct ain_library *lib, int fno)
+{
+	int dup_no = 0;
+	for (int i = 0; i < lib->nr_functions; i++) {
+		if (i == fno)
+			break;
+		if (!strcmp(lib->functions[i].name, lib->functions[fno].name))
+			dup_no++;
+	}
+
+	char *name = lib->functions[fno].name;
+	char buf[512];
+	if (dup_no) {
+		snprintf(buf, 512, "%s#%d", lib->functions[fno].name, dup_no);
+		name = buf;
+	}
+
+	print_identifier(dasm, name);
+}
+
+static void print_argument(struct dasm_state *dasm, int32_t arg, enum instruction_argtype type, possibly_unused const char **comment)
 {
 	if (dasm->raw) {
 		fprintf(dasm->out, "0x%x", arg);
@@ -178,7 +238,7 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 	case T_FUNC:
 		if (arg < 0 || arg >= ain->nr_functions)
 			DASM_ERROR(dasm, "Invalid function number: %d", arg);
-		print_identifier(dasm, ain->functions[arg].name);
+		print_function_name(dasm, &ain->functions[arg]);
 		break;
 	case T_DLG:
 		if (arg < 0 || arg >= ain->nr_delegates)
@@ -188,11 +248,15 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 	case T_STRING:
 		if (arg < 0 || arg >= ain->nr_strings)
 			DASM_ERROR(dasm, "Invalid string number: %d", arg);
+		//fprintf(dasm->out, "0x%x ", arg);
+		//*comment = ain->strings[arg]->text;
 		print_string(dasm, ain->strings[arg]->text);
 		break;
 	case T_MSG:
 		if (arg < 0 || arg >= ain->nr_messages)
 			DASM_ERROR(dasm, "Invalid message number: %d", arg);
+		//fprintf(dasm->out, "0x%x ", arg);
+		//*comment = ain->messages[arg]->text;
 		print_string(dasm, ain->messages[arg]->text);
 		break;
 	case T_LOCAL:
@@ -204,7 +268,8 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 		}
 		if (arg < 0 || arg >= ain->functions[dasm->func].nr_vars)
 			DASM_ERROR(dasm, "Invalid variable number: %d", arg);
-		print_identifier(dasm, ain->functions[dasm->func].vars[arg].name);
+		print_local_variable(dasm, &ain->functions[dasm->func], arg);
+		//print_identifier(dasm, ain->functions[dasm->func].vars[arg].name);
 		break;
 	case T_GLOBAL:
 		if (arg < 0 || arg >= ain->nr_globals)
@@ -249,18 +314,28 @@ static void print_arguments(struct dasm_state *dasm, const struct instruction *i
 	if (instr->opcode == CALLHLL) {
 		int32_t lib = LittleEndian_getDW(dasm->ain->code, dasm->addr + 2);
 		int32_t fun = LittleEndian_getDW(dasm->ain->code, dasm->addr + 6);
-		fprintf(dasm->out, " %s.%s", dasm->ain->libraries[lib].name, dasm->ain->libraries[lib].functions[fun].name);
+		fprintf(dasm->out, " %s ", dasm->ain->libraries[lib].name);
+		print_hll_function_name(dasm, &dasm->ain->libraries[lib], fun);
+		if (dasm->ain->version >= 11) {
+			fprintf(dasm->out, " %d", LittleEndian_getDW(dasm->ain->code, dasm->addr + 10));
+		}
 		return;
 	}
 	if (instr->opcode == FUNC) {
 		fputc(' ', dasm->out);
-		ain_dump_function(dasm->out, dasm->ain, &dasm->ain->functions[dasm->func]);
+		fprintf(dasm->out, "0x%x", dasm->func);
+		//ain_dump_function(dasm->out, dasm->ain, &dasm->ain->functions[dasm->func]);
 		return;
 	}
 
+	const char *comment = NULL;
 	for (int i = 0; i < instr->nr_args; i++) {
 		fputc(' ', dasm->out);
-		print_argument(dasm, LittleEndian_getDW(dasm->ain->code, dasm->addr + 2 + i*4), instr->args[i]);
+		print_argument(dasm, LittleEndian_getDW(dasm->ain->code, dasm->addr + 2 + i*4), instr->args[i], &comment);
+	}
+	if (comment) {
+		fprintf(dasm->out, "; ");
+		print_string(dasm, comment);
 	}
 }
 
@@ -275,7 +350,10 @@ static void dasm_enter_function(struct dasm_state *dasm, int fno)
 	dasm->func_stack[0] = dasm->func;
 	dasm->func = fno;
 
-	fprintf(dasm->out, "; FUNC 0x%x\n", fno);
+	fprintf(dasm->out, "; ");
+	ain_dump_function(dasm->out, dasm->ain, &dasm->ain->functions[fno]);
+	fputc('\n', dasm->out);
+	//fprintf(dasm->out, "; FUNC 0x%x\n", fno);
 }
 
 static void dasm_leave_function(struct dasm_state *dasm)
@@ -328,6 +406,20 @@ static char *genlabel(size_t addr)
 	return strdup(name);
 }
 
+static char *switch_label(int switch_id, possibly_unused int type, struct ain_switch_case *c)
+{
+	// TODO: replace with CASE pseudo-op, e.g.
+	//                ...
+	//                STRSWITCH
+	//            CASE "case one"
+	//                ...
+	//            CASE "case two"
+	//                ...
+	char name[512];
+	snprintf(name, 512, "switch%d_case_%d", switch_id, c->value);
+	return strdup(name);
+}
+
 static void generate_labels(struct dasm_state *dasm)
 {
 	label_table_init();
@@ -340,6 +432,12 @@ static void generate_labels(struct dasm_state *dasm)
 			add_label(genlabel(arg), arg);
 		}
 		dasm->addr += instruction_width(instr->opcode);
+	}
+	for (int i = 0; i < dasm->ain->nr_switches; i++) {
+		for (int j = 0; j < dasm->ain->switches[i].nr_cases; j++) {
+			struct ain_switch_case *c = &dasm->ain->switches[i].cases[j];
+			add_label(switch_label(i, dasm->ain->switches[i].case_type, c), c->address);
+		}
 	}
 }
 

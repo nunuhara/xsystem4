@@ -328,10 +328,10 @@ enum opcode
         DG_NEW,
         DG_STR_TO_METHOD,
 
-	OP_0x102 = 0x102,
-	OP_0x103 = 0x103,
-	OP_0x104 = 0x104,
-	OP_0x105 = 0x105,
+	OP_0X102 = 0x102,
+	OP_0X103 = 0x103,
+	OP_0X104 = 0x104,
+	OP_0X105 = 0x105,
 
 	NR_OPCODES
 };

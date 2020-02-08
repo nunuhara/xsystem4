@@ -115,7 +115,8 @@ enum ain_data_type {
 	case AIN_REF_ARRAY_BOOL:		\
 	case AIN_REF_LONG_INT:			\
 	case AIN_REF_ARRAY_LONG_INT:		\
-	case AIN_REF_ARRAY_DELEGATE
+	case AIN_REF_ARRAY_DELEGATE:		\
+	case AIN_REF_ARRAY
 
 enum ain_variable_type {
 	AIN_VAR_LOCAL,
@@ -224,6 +225,13 @@ struct ain_enum {
 };
 
 struct kh_func_ht_s;
+struct kh_struct_ht_s;
+
+struct ain_section {
+	uint32_t addr;
+	uint32_t size;
+	bool present;
+};
 
 struct ain {
 	char *ain_path;
@@ -240,6 +248,7 @@ struct ain {
 	int32_t nr_structures;
 	struct ain_struct *structures;
 	int32_t nr_messages;
+	int32_t msg1_uk;
 	struct string **messages;
 	int32_t main;
 	int32_t alloc;
@@ -254,16 +263,42 @@ struct ain {
 	int32_t nr_filenames;
 	char **filenames;
 	int32_t ojmp;
-	int nr_function_types;
+	int32_t nr_function_types;
+	int32_t fnct_size;
 	struct ain_function_type *function_types;
-	int nr_delegates;
+	int32_t nr_delegates;
+	int32_t delg_size;
 	struct ain_function_type *delegates;
 	int32_t nr_global_groups;
 	char **global_group_names;
 	int32_t nr_enums;
 	struct ain_enum *enums;
 
+	// file map
+	struct ain_section VERS;
+	struct ain_section KEYC;
+	struct ain_section CODE;
+	struct ain_section FUNC;
+	struct ain_section GLOB;
+	struct ain_section GSET;
+	struct ain_section STRT;
+	struct ain_section MSG0;
+	struct ain_section MSG1;
+	struct ain_section MAIN;
+	struct ain_section MSGF;
+	struct ain_section HLL0;
+	struct ain_section SWI0;
+	struct ain_section GVER;
+	struct ain_section STR0;
+	struct ain_section FNAM;
+	struct ain_section OJMP;
+	struct ain_section FNCT;
+	struct ain_section DELG;
+	struct ain_section OBJG;
+	struct ain_section ENUM;
+
 	struct kh_func_ht_s *_func_ht;
+	struct kh_struct_ht_s *_struct_ht;
 };
 
 const char *ain_strerror(int error);
@@ -272,6 +307,25 @@ char *ain_strtype_d(struct ain *ain, struct ain_type *v);
 const char *ain_variable_to_string(struct ain *ain, struct ain_variable *v);
 uint8_t *ain_read(const char *path, long *len, int *error);
 struct ain *ain_open(const char *path, int *error);
+void ain_decrypt(uint8_t *buf, size_t len);
+
+struct ain_function *ain_get_function(struct ain *ain, char *name);
+int ain_get_function_index(struct ain *ain, struct ain_function *f);
+struct ain_struct *ain_get_struct(struct ain *ain, char *name);
+
 void ain_free(struct ain *ain);
+void ain_free_functions(struct ain *ain);
+void ain_free_globals(struct ain *ain);
+void ain_free_initvals(struct ain *ain);
+void ain_free_structures(struct ain *ain);
+void ain_free_messages(struct ain *ain);
+void ain_free_libraries(struct ain *ain);
+void ain_free_switches(struct ain *ain);
+void ain_free_strings(struct ain *ain);
+void ain_free_filenames(struct ain *ain);
+void ain_free_function_types(struct ain *ain);
+void ain_free_delegates(struct ain *ain);
+void ain_free_global_groups(struct ain *ain);
+void ain_free_enums(struct ain *ain);
 
 #endif /* SYSTEM4_AIN_H */

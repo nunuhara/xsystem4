@@ -69,6 +69,16 @@ const struct syscall syscalls[NR_SYSCALLS] = {
 
 // JMP = instruction that modifies the instruction pointer
 // OP  = everything else
+#define _OP(code, opname, nargs, ...)		\
+	[code] = {				\
+		.opcode = code,			\
+		.name = opname,			\
+		.nr_args = nargs,		\
+		.ip_inc = 2 + nargs * 4,	\
+		.implemented = true,		\
+		.args = { __VA_ARGS__ }		\
+	}
+
 #define OP(code, nargs, ...)			\
 	[code] = {				\
 		.opcode = code,			\
@@ -200,12 +210,12 @@ struct instruction instructions[NR_OPCODES] = {
         JMP  ( SWITCH,         1, T_INT ),
         JMP  ( STRSWITCH,      1, T_INT ),
         OP   ( FUNC,           1, T_FUNC ),
-        OP   ( _EOF,           1, T_FILE ),
+        _OP  ( _EOF, "EOF",    1, T_FILE ),
         OP   ( CALLSYS,        1, T_SYSCALL ),
         JMP  ( SJUMP,          0 ),
         OP   ( CALLONJUMP,     0 ),
         OP   ( SWAP,           0 ),
-        OP   ( SH_STRUCTREF,   1, T_INT ),
+        OP   ( SH_STRUCTREF,   1, T_MEMB ),
         OP   ( S_LENGTH,       0 ),
         OP   ( S_LENGTHBYTE,   0 ),
         OP   ( I_STRING,       0 ),
@@ -220,7 +230,7 @@ struct instruction instructions[NR_OPCODES] = {
         OP   ( S_GTE,          0 ),
         OP   ( S_LENGTH2,      0 ),
         TODO ( S_LENGTHBYTE2,  0 ),
-        TODO ( NEW,            2, T_INT, T_INT ),
+        TODO ( NEW,            2, T_STRUCT, T_INT ), // FIXME: 2nd arg is T_FUNC *OR* -1
         OP   ( DELETE,         0 ),
         TODO ( CHECKUDO,       0 ),
         OP   ( A_REF,          0 ),
@@ -280,7 +290,6 @@ struct instruction instructions[NR_OPCODES] = {
         OP   ( A_FIND,         0 ),
         OP   ( A_REVERSE,      0 ),
 
-	// FIXME: all types are guesses
         TODO ( SH_SR_ASSIGN, 0 ),
         TODO ( SH_MEM_ASSIGN_LOCAL, 2, T_MEMB, T_LOCAL ),
         TODO ( A_NUMOF_GLOB_1, 1, T_GLOBAL ),
@@ -364,8 +373,8 @@ struct instruction instructions[NR_OPCODES] = {
         TODO ( DG_NEW, 0 ),
         TODO ( DG_STR_TO_METHOD, 0, T_DLG ), // XXX: changed in ain version > 8
 
-	TODO ( OP_0x102, 0 ),
-	TODO ( OP_0x103, 0 ),
-	TODO ( OP_0x104, 0 ),
-	TODO ( OP_0x105, 1, T_STRUCT ),
+	TODO ( OP_0X102, 0 ),
+	TODO ( OP_0X103, 0 ),
+	TODO ( OP_0X104, 0 ),
+	TODO ( OP_0X105, 1, T_STRUCT ),
 };

@@ -50,6 +50,7 @@ static void usage(void)
 	puts("    -A, --audit              Audit AIN file for xsystem4 compatibility");
 	puts("    -d, --decrypt            Dump decrypted AIN file");
 	puts("    -j, --json               Dump to JSON format");
+	puts("        --map                Dump AIN file map");
 }
 
 static void print_sjis(FILE *f, const char *s)
@@ -289,7 +290,41 @@ static void ain_audit(FILE *f, struct ain *ain)
 	fflush(f);
 }
 
-static void ain_decrypt(FILE *f, const char *path)
+static void print_section(FILE *f, const char *name, struct ain_section *section)
+{
+	if (section->present)
+		fprintf(f, "%s: %08x -> %08x\n", name, section->addr, section->addr + section->size);
+}
+
+static void ain_dump_map(FILE *f, struct ain *ain)
+{
+	print_section(f, "VERS", &ain->VERS);
+	print_section(f, "KEYC", &ain->KEYC);
+	print_section(f, "CODE", &ain->CODE);
+	print_section(f, "FUNC", &ain->FUNC);
+	print_section(f, "GLOB", &ain->GLOB);
+	print_section(f, "GSET", &ain->GSET);
+	print_section(f, "STRT", &ain->STRT);
+	print_section(f, "MSG0", &ain->MSG0);
+	print_section(f, "MSG1", &ain->MSG1);
+	print_section(f, "MAIN", &ain->MAIN);
+	print_section(f, "MSGF", &ain->MSGF);
+	print_section(f, "HLL0", &ain->HLL0);
+	print_section(f, "SWI0", &ain->SWI0);
+	print_section(f, "GVER", &ain->GVER);
+	print_section(f, "STR0", &ain->STR0);
+	print_section(f, "FNAM", &ain->FNAM);
+	print_section(f, "OJMP", &ain->OJMP);
+	print_section(f, "FNCT", &ain->FNCT);
+	print_section(f, "DELG", &ain->DELG);
+	print_section(f, "OBJG", &ain->OBJG);
+	print_section(f, "ENUM", &ain->ENUM);
+
+	fprintf(f, "FNCT_SIZE = %d\n", ain->delg_size);
+	fprintf(f, "FNCT.SIZE = %d\n", ain->DELG.size);
+}
+
+static void dump_decrypted(FILE *f, const char *path)
 {
 	int err;
 	long len;
@@ -321,6 +356,7 @@ int main(int argc, char *argv[])
 	bool dump_global_group_names = false;
 	bool dump_enums = false;
 	bool dump_json = false;
+	bool dump_map = false;
 	bool audit = false;
 	bool decrypt = false;
 	char *output_file = NULL;
@@ -348,6 +384,7 @@ int main(int argc, char *argv[])
 			{ "audit",              no_argument,       0, 'A' },
 			{ "decrypt",            no_argument,       0, 'd' },
 			{ "json",               no_argument,       0, 'j' },
+			{ "map",                no_argument,       0, 'M' },
 			{ "output",             required_argument, 0, 'o' },
 		};
 		int option_index = 0;
@@ -412,6 +449,9 @@ int main(int argc, char *argv[])
 		case 'j':
 			dump_json = true;
 			break;
+		case 'M':
+			dump_map = true;
+			break;
 		case 'o':
 			output_file = xstrdup(optarg);
 			break;
@@ -436,7 +476,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (decrypt) {
-		ain_decrypt(output, argv[0]);
+		dump_decrypted(output, argv[0]);
 		return 0;
 	}
 
@@ -475,6 +515,8 @@ int main(int argc, char *argv[])
 		disassemble_ain(output, ain, true);
 	if (dump_json)
 		ain_dump_json(output, ain);
+	if (dump_map)
+		ain_dump_map(output, ain);
 	if (audit)
 		ain_audit(output, ain);
 

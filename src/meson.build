@@ -46,12 +46,8 @@ xsystem4 = ['audio.c',
             'hll/SystemServiceEx.c',
 ]
 
-# sources for aindump
-aindump = ['cJSON.c',
-           'aindump/aindump.c',
-           'aindump/dasm.c',
-           'aindump/json.c',
-]
+flex = find_program('flex', required: false)
+bison = find_program('bison', required: false)
 
 xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, ffi, gl, glew]
 if chibi.found()
@@ -70,7 +66,5 @@ executable('xsystem4', xsystem4,
            include_directories : incdir,
            link_with : libsys4)
 
-executable('aindump', aindump,
-           dependencies : [libm, zlib],
-           include_directories : incdir,
-           link_with : libsys4)
+subdir('aindump')
+subdir('ainedit')

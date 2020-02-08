@@ -141,7 +141,7 @@ static cJSON *ain_library_to_json(struct ain_library *lib)
 	for (int i = 0; i < lib->nr_functions; i++) {
 		cJSON *f = cJSON_CreateObject();
 		cJSON_AddStringToObject(f, "name", lib->functions[i].name);
-		cJSON_AddNumberToObject(f, "type", lib->functions[i].data_type);
+		cJSON_AddNumberToObject(f, "return-type", lib->functions[i].data_type);
 
 		cJSON *args = cJSON_CreateArray();
 		for (int j = 0; j < lib->functions[i].nr_arguments; j++) {
@@ -237,8 +237,6 @@ static cJSON *ain_to_json(struct ain *ain)
 	}
 	cJSON_AddItemToObject(j, "globals", a);
 
-	// TODO: use initval in ain_variable structure for global initvals
-
 	// STRT: structures
 	a = cJSON_CreateArray();
 	for (int i = 0; i < ain->nr_structures; i++) {
@@ -279,7 +277,7 @@ static cJSON *ain_to_json(struct ain *ain)
 	// OJMP: ???
 	cJSON_AddNumberToObject(j, "ojmp", ain->ojmp);
 
-	// FUNCT: function types
+	// FNCT: function types
 	if (ain->nr_function_types > 0) {
 		a = cJSON_CreateArray();
 		for (int i = 0; i < ain->nr_function_types; i++) {
