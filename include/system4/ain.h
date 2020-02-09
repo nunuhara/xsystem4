@@ -21,6 +21,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+typedef uint32_t ain_addr_t;
+
 struct string;
 
 enum ain_error {
@@ -198,13 +200,19 @@ struct ain_library {
 	struct ain_hll_function *functions;
 };
 
+enum ain_switch_type {
+	AIN_SWITCH_INT    = 2,
+	AIN_SWITCH_STRING = 4,
+};
+
 struct ain_switch_case {
 	int32_t value;
 	int32_t address;
+	struct ain_switch *parent;
 };
 
 struct ain_switch {
-	int32_t case_type;
+	enum ain_switch_type case_type;
 	int32_t default_address;
 	int32_t nr_cases;
 	struct ain_switch_case *cases;

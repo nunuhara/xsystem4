@@ -22,6 +22,13 @@
 struct ain;
 struct ain_function;
 
+enum {
+	DASM_RAW = 1,
+	DASM_NO_STRINGS = 2,
+};
+
+void disassemble_ain(FILE *out, struct ain *ain, unsigned int flags);;
+
 void ain_dump_function(FILE *out, struct ain *ain, struct ain_function *f);
 void ain_dump_json(FILE *out, struct ain *ain);
 

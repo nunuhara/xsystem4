@@ -18,6 +18,7 @@
 #include <string.h>
 #include "aindump.h"
 #include "khash.h"
+#include "kvec.h"
 #include "little_endian.h"
 #include "system4/ain.h"
 #include "system4/instructions.h"
@@ -34,18 +35,23 @@ struct dasm_state {
 	FILE *out;
 	size_t addr;
 	int func;
-	bool raw;
 	int func_stack[DASM_FUNC_STACK_SIZE];
 };
 
 KHASH_MAP_INIT_INT(label_table, char*);
 khash_t(label_table) *label_table;
 
+kv_decl(case_list, struct ain_switch_case*);
+
+KHASH_MAP_INIT_INT(case_table, case_list*);
+khash_t(case_table) *case_table;
+
 static void label_table_init(void)
 {
 	label_table = kh_init(label_table);
+	case_table = kh_init(case_table);
 }
-static char *get_label(unsigned int addr)
+static char *get_label(ain_addr_t addr)
 {
 	khiter_t k;
 	k = kh_get(label_table, label_table, addr);
@@ -54,7 +60,7 @@ static char *get_label(unsigned int addr)
 	return kh_value(label_table, k);
 }
 
-static void add_label(char *name, unsigned int addr)
+static void add_label(char *name, ain_addr_t addr)
 {
 	int ret;
 	khiter_t k = kh_put(label_table, label_table, addr, &ret);
@@ -64,6 +70,34 @@ static void add_label(char *name, unsigned int addr)
 		return;
 	}
 	kh_value(label_table, k) = name;
+}
+
+static case_list *get_cases(ain_addr_t addr)
+{
+	khiter_t k = kh_get(case_table, case_table, addr);
+	if (k == kh_end(case_table))
+		return NULL;
+
+	return kh_value(case_table, k);
+}
+
+static void add_case(struct ain_switch_case *c)
+{
+	int ret;
+	khiter_t k = kh_put(case_table, case_table, c->address, &ret);
+	if (!ret) {
+		// add to list
+		case_list *list = kh_value(case_table, k);
+		kv_push(struct ain_switch_case*, *list, c);
+	} else if (ret == 1) {
+		// create list
+		case_list *list = xmalloc(sizeof(case_list));
+		kv_init(*list);
+		kv_push(struct ain_switch_case*, *list, c);
+		kh_value(case_table, k) = list;
+	} else {
+		ERROR("Failed to insert switch case into hash table (%d)", ret);
+	}
 }
 
 union float_cast {
@@ -213,7 +247,7 @@ static void print_hll_function_name(struct dasm_state *dasm, struct ain_library 
 
 static void print_argument(struct dasm_state *dasm, int32_t arg, enum instruction_argtype type, possibly_unused const char **comment)
 {
-	if (dasm->raw) {
+	if (dasm->flags & DASM_RAW) {
 		fprintf(dasm->out, "0x%x", arg);
 		return;
 	}
@@ -221,6 +255,7 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 	struct ain *ain = dasm->ain;
 	switch (type) {
 	case T_INT:
+	case T_SWITCH:
 		fprintf(dasm->out, "0x%x", arg);
 		break;
 	case T_FLOAT:
@@ -248,28 +283,33 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 	case T_STRING:
 		if (arg < 0 || arg >= ain->nr_strings)
 			DASM_ERROR(dasm, "Invalid string number: %d", arg);
-		//fprintf(dasm->out, "0x%x ", arg);
-		//*comment = ain->strings[arg]->text;
-		print_string(dasm, ain->strings[arg]->text);
+		if (dasm->flags & DASM_NO_STRINGS) {
+			fprintf(dasm->out, "0x%x ", arg);
+			*comment = ain->strings[arg]->text;
+		} else {
+			print_string(dasm, ain->strings[arg]->text);
+		}
 		break;
 	case T_MSG:
 		if (arg < 0 || arg >= ain->nr_messages)
 			DASM_ERROR(dasm, "Invalid message number: %d", arg);
-		//fprintf(dasm->out, "0x%x ", arg);
-		//*comment = ain->messages[arg]->text;
-		print_string(dasm, ain->messages[arg]->text);
+		if (dasm->flags & DASM_NO_STRINGS) {
+			fprintf(dasm->out, "0x%x ", arg);
+			*comment = ain->messages[arg]->text;
+		} else {
+			print_string(dasm, ain->messages[arg]->text);
+		}
 		break;
 	case T_LOCAL:
 		if (dasm->func < 0) {
-			//DASM_ERROR(dasm, "Attempt to access local variable outside of function");
-			WARNING("Attempt to access local variable outside of function");
-			print_string(dasm, "???");
+			DASM_ERROR(dasm, "Attempt to access local variable outside of function");
+			//WARNING("Attempt to access local variable outside of function");
+			//print_string(dasm, "???");
 			break;
 		}
 		if (arg < 0 || arg >= ain->functions[dasm->func].nr_vars)
 			DASM_ERROR(dasm, "Invalid variable number: %d", arg);
 		print_local_variable(dasm, &ain->functions[dasm->func], arg);
-		//print_identifier(dasm, ain->functions[dasm->func].vars[arg].name);
 		break;
 	case T_GLOBAL:
 		if (arg < 0 || arg >= ain->nr_globals)
@@ -366,7 +406,7 @@ static void dasm_leave_function(struct dasm_state *dasm)
 
 static void print_instruction(struct dasm_state *dasm, const struct instruction *instr)
 {
-	if (dasm->raw)
+	if (dasm->flags & DASM_RAW)
 		fprintf(dasm->out, "0x%08lX:\t", dasm->addr);
 
 	switch (instr->opcode) {
@@ -399,6 +439,29 @@ static const struct instruction *get_instruction(struct dasm_state *dasm)
 	return instr;
 }
 
+static void print_switch_case(struct dasm_state *dasm, struct ain_switch_case *c)
+{
+	fprintf(dasm->out, ".CASE %ld:%ld ", c->parent - dasm->ain->switches, c - c->parent->cases);
+	switch (c->parent->case_type) {
+	case AIN_SWITCH_INT:
+		fprintf(dasm->out, "%d", c->value);
+		break;
+	case AIN_SWITCH_STRING:
+		if (dasm->flags & DASM_NO_STRINGS) {
+			fprintf(dasm->out, "%d ; ", c->value);
+			print_string(dasm, dasm->ain->strings[c->value]->text);
+		} else {
+			print_string(dasm, dasm->ain->strings[c->value]->text);
+		}
+		break;
+	default:
+		WARNING("Unknown switch case type: %d", c->parent->case_type);
+		fprintf(dasm->out, "0x%x", c->value);
+		break;
+	}
+	fputc('\n', dasm->out);
+}
+
 static char *genlabel(size_t addr)
 {
 	char name[64];
@@ -406,47 +469,35 @@ static char *genlabel(size_t addr)
 	return strdup(name);
 }
 
-static char *switch_label(int switch_id, possibly_unused int type, struct ain_switch_case *c)
-{
-	// TODO: replace with CASE pseudo-op, e.g.
-	//                ...
-	//                STRSWITCH
-	//            CASE "case one"
-	//                ...
-	//            CASE "case two"
-	//                ...
-	char name[512];
-	snprintf(name, 512, "switch%d_case_%d", switch_id, c->value);
-	return strdup(name);
-}
-
 static void generate_labels(struct dasm_state *dasm)
 {
 	label_table_init();
-	for (dasm->addr = 0; dasm->addr < dasm->ain->code_size;) {
-		const struct instruction *instr = get_instruction(dasm);
-		for (int i = 0; i < instr->nr_args; i++) {
-			if (instr->args[i] != T_ADDR)
-				continue;
-			int32_t arg = LittleEndian_getDW(dasm->ain->code, dasm->addr + 2 + i*4);
-			add_label(genlabel(arg), arg);
+
+	if (!(dasm->flags & DASM_RAW)) {
+		for (dasm->addr = 0; dasm->addr < dasm->ain->code_size;) {
+			const struct instruction *instr = get_instruction(dasm);
+			for (int i = 0; i < instr->nr_args; i++) {
+				if (instr->args[i] != T_ADDR)
+					continue;
+				int32_t arg = LittleEndian_getDW(dasm->ain->code, dasm->addr + 2 + i*4);
+				add_label(genlabel(arg), arg);
+			}
+			dasm->addr += instruction_width(instr->opcode);
 		}
-		dasm->addr += instruction_width(instr->opcode);
 	}
 	for (int i = 0; i < dasm->ain->nr_switches; i++) {
 		for (int j = 0; j < dasm->ain->switches[i].nr_cases; j++) {
-			struct ain_switch_case *c = &dasm->ain->switches[i].cases[j];
-			add_label(switch_label(i, dasm->ain->switches[i].case_type, c), c->address);
+			add_case(&dasm->ain->switches[i].cases[j]);
 		}
 	}
 }
 
-void dasm_init(struct dasm_state *dasm, FILE *out, struct ain *ain, bool raw)
+void dasm_init(struct dasm_state *dasm, FILE *out, struct ain *ain, uint32_t flags)
 {
 	dasm->out = out;
 	dasm->ain = ain;
+	dasm->flags = flags;
 	dasm->addr = 0;
-	dasm->raw = raw;
 	dasm->func = -1;
 
 	for (int i = 0; i < DASM_FUNC_STACK_SIZE; i++) {
@@ -454,27 +505,32 @@ void dasm_init(struct dasm_state *dasm, FILE *out, struct ain *ain, bool raw)
 	}
 }
 
-void disassemble_ain(FILE *out, struct ain *ain, bool raw)
+void disassemble_ain(FILE *out, struct ain *ain, unsigned int flags)
 {
 	struct dasm_state dasm;
-	dasm_init(&dasm, out, ain, raw);
+	dasm_init(&dasm, out, ain, flags);
 
-	if (!raw)
-		generate_labels(&dasm);
+	generate_labels(&dasm);
 
 	for (dasm.addr = 0; dasm.addr < dasm.ain->code_size;) {
 		const struct instruction *instr = get_instruction(&dasm);
-		if (!raw) {
+		if (!(flags & DASM_RAW)) {
 			char *label = get_label(dasm.addr);
 			if (label)
 				fprintf(dasm.out, "%s:\n", label);
+		}
+		case_list *cases = get_cases(dasm.addr);
+		if (cases) {
+			for (size_t i = 0; i < kv_size(*cases); i++) {
+				print_switch_case(&dasm, kv_A(*cases, i));
+			}
 		}
 		print_instruction(&dasm, instr);
 		dasm.addr += instruction_width(instr->opcode);
 	}
 	fflush(dasm.out);
 
-	if (!raw) {
+	if (!(flags & DASM_RAW)) {
 		char *label;
 		kh_foreach_value(label_table, label, free(label));
 	}

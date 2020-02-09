@@ -28,8 +28,6 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
-void disassemble_ain(FILE *out, struct ain *ain, bool raw);
-
 static void usage(void)
 {
 	puts("Usage: aindump <options> <ainfile>");
@@ -343,7 +341,6 @@ int main(int argc, char *argv[])
 {
 	bool dump_version = false;
 	bool dump_code = false;
-	bool dump_raw_code = false;
 	bool dump_functions = false;
 	bool dump_globals = false;
 	bool dump_structures = false;
@@ -362,6 +359,7 @@ int main(int argc, char *argv[])
 	char *output_file = NULL;
 	FILE *output = stdout;
 	int err = AIN_SUCCESS;
+	unsigned int flags = 0;
 	struct ain *ain;
 
 	while (1) {
@@ -385,6 +383,7 @@ int main(int argc, char *argv[])
 			{ "decrypt",            no_argument,       0, 'd' },
 			{ "json",               no_argument,       0, 'j' },
 			{ "map",                no_argument,       0, 'M' },
+			{ "no-strings",         no_argument,       0, 'R' },
 			{ "output",             required_argument, 0, 'o' },
 		};
 		int option_index = 0;
@@ -405,7 +404,8 @@ int main(int argc, char *argv[])
 			dump_code = true;
 			break;
 		case 'C':
-			dump_raw_code = true;
+			dump_code = true;
+			flags |= DASM_RAW;
 			break;
 		case 'f':
 			dump_functions = true;
@@ -451,6 +451,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'M':
 			dump_map = true;
+			break;
+		case 'R':
+			flags |= DASM_NO_STRINGS;
 			break;
 		case 'o':
 			output_file = xstrdup(optarg);
@@ -510,9 +513,7 @@ int main(int argc, char *argv[])
 	if (dump_enums)
 		ain_dump_enums(output, ain);
 	if (dump_code)
-		disassemble_ain(output, ain, false);
-	if (dump_raw_code)
-		disassemble_ain(output, ain, true);
+		disassemble_ain(output, ain, flags);
 	if (dump_json)
 		ain_dump_json(output, ain);
 	if (dump_map)

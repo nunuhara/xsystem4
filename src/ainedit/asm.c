@@ -35,6 +35,20 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 // TODO: better error messages
 #define ASM_ERROR(state, ...) ERROR(__VA_ARGS__)
 
+#define PSEUDO_OP(code, nargs, ...)	\
+	[code - PSEUDO_OP_OFFSET] = {	\
+		.opcode = code,		\
+		.name = "." #code ,	\
+		.nr_args = nargs,	\
+		.ip_inc = 0,		\
+		.implemented = false,	\
+		.args = { __VA_ARGS__ } \
+	}
+
+const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
+	PSEUDO_OP(CASE, 2)
+};
+
 struct string_table {
 	struct string **strings;
 	size_t size;
@@ -47,8 +61,8 @@ struct asm_state {
 	uint8_t *buf;
 	size_t buf_ptr;
 	size_t buf_len;
-	int func;
-	int lib;
+	int32_t func;
+	int32_t lib;
 	struct string_table strings;
 	struct string_table messages;
 	khash_t(string_ht) *strings_index;
@@ -134,8 +148,14 @@ static void asm_write_argument(struct asm_state *state, uint32_t arg)
 	state->buf[state->buf_ptr++] = (arg & 0xFF000000) >> 24;
 }
 
-struct instruction *asm_get_instruction(const char *name)
+const struct instruction *asm_get_instruction(const char *name)
 {
+	if (name[0] == '.') {
+		for (int i = 0; i < NR_PSEUDO_OPS; i++) {
+			if (!strcmp(name, asm_pseudo_ops[i].name))
+				return &asm_pseudo_ops[i];
+		}
+	}
 	for (int i = 0; i < NR_OPCODES; i++) {
 		if (!strcmp(name, instructions[i].name))
 			return &instructions[i];
@@ -193,6 +213,12 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum instruction_argtyp
 		if (errno || *endptr != '\0')
 			ASM_ERROR(state, "Invalid float: %s", arg);
 		return v.i;
+	}
+	case T_SWITCH: {
+		int i = parse_integer_constant(state, arg);
+		if (i < 0 || i >= state->ain->nr_switches)
+			ASM_ERROR(state, "Invalid switch number: %d", i);
+		return i;
 	}
 	case T_ADDR: {
 		khiter_t k;
@@ -325,6 +351,41 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum instruction_argtyp
 	}
 }
 
+void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
+{
+	switch (instr->opcode) {
+	case CASE: {
+		char *s_switch = kv_A(*instr->args, 0)->text;
+		char *s_case = strchr(s_switch, ':');
+		if (!s_case)
+			ASM_ERROR(state, "Invalid switch/case index: '%s'", s_switch);
+
+		*s_case++ = '\0';
+		int n_switch = parse_integer_constant(state, s_switch);
+		int n_case = parse_integer_constant(state, s_case);
+		if (n_switch < 0 || n_switch >= state->ain->nr_switches)
+			ASM_ERROR(state, "Invalid switch index: %d", n_switch);
+		if (n_case < 0 || n_case >= state->ain->switches[n_switch].nr_cases)
+			ASM_ERROR(state, "Invalid case index: %d", n_case);
+
+		int c;
+		struct ain_switch *swi = &state->ain->switches[n_switch];
+		if (swi->case_type == AIN_SWITCH_STRING && !(state->flags & ASM_NO_STRINGS)) {
+			c = asm_add_string(state, kv_A(*instr->args, 1)->text);
+		} else {
+			c = parse_integer_constant(state, kv_A(*instr->args, 1)->text);
+		}
+		if ((size_t)swi->cases[n_case].address != state->buf_ptr)
+			ASM_ERROR(state, "ADDR NO MATCH");
+		if (swi->cases[n_case].value != c)
+			ASM_ERROR(state, "VALUE NO MATCH");
+		swi->cases[n_case].address = state->buf_ptr;
+		swi->cases[n_case].value = c;
+		break;
+	}
+	}
+}
+
 void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 {
 	struct asm_state state;
@@ -345,6 +406,11 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 	NOTICE("Encoding...");
 	for (size_t i = 0; i < kv_size(*parsed_code); i++) {
 		struct parse_instruction *instr = kv_A(*parsed_code, i);
+		if (instr->opcode >= PSEUDO_OP_OFFSET) {
+			handle_pseudo_op(&state, instr);
+			continue;
+		}
+
 		struct instruction *idef = &instructions[instr->opcode];
 
 		// NOTE: special case: we need to record the new function address in the ain structure
@@ -371,17 +437,6 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 		}
 	}
 
-	for (int i = 0; i < ain->nr_switches; i++) {
-		if (ain->switches[i].case_type != 4)
-			continue;
-		for (int j = 0; j < ain->switches[i].nr_cases; j++) {
-			if (ain->switches[i].cases[j].value >= ain->nr_strings)
-				ERROR("Invalid string switch case");
-			int c = asm_add_string(&state, ain->strings[ain->switches[i].cases[j].value]->text);
-			ain->switches[i].cases[j].value = c;
-		}
-	}
-
 	/*
 	if (state.buf_ptr != ain->code_size)
 		WARNING("CODE SIZE CHANGED");
@@ -391,19 +446,19 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 		WARNING("NR MESSAGES CHANGED (%d -> %lu)", ain->nr_messages, state.messages.size);
 	*/
 
-	// TODO: rebuild switch table (use CASE pseudo-op)
-
 	free(ain->code);
 	ain->code = state.buf;
 	ain->code_size = state.buf_ptr;
 
-	ain_free_strings(ain);
-	ain->strings = state.strings.strings;
-	ain->nr_strings = state.strings.size;
+	if (!(state.flags & ASM_NO_STRINGS)) {
+		ain_free_strings(ain);
+		ain->strings = state.strings.strings;
+		ain->nr_strings = state.strings.size;
 
-	ain_free_messages(ain);
-	ain->messages = state.messages.strings;
-	ain->nr_messages = state.messages.size;
+		ain_free_messages(ain);
+		ain->messages = state.messages.strings;
+		ain->nr_messages = state.messages.size;
+	}
 
 	// TODO: verify integrity of ain file (e.g. does MAIN still point to a valid function? etc.)
 

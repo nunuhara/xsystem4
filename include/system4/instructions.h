@@ -351,6 +351,7 @@ enum instruction_argtype {
 	T_HLLFUNC,
 	T_FILE,
 	T_DLG,
+	T_SWITCH,
 };
 
 // TODO: Need to know which class a method belongs to

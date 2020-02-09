@@ -591,12 +591,13 @@ static struct ain_library *read_libraries(struct ain_reader *r, int count)
 	return libraries;
 }
 
-static struct ain_switch_case *read_switch_cases(struct ain_reader *r, int count)
+static struct ain_switch_case *read_switch_cases(struct ain_reader *r, int count, struct ain_switch *parent)
 {
 	struct ain_switch_case *cases = calloc(count, sizeof(struct ain_switch));
 	for (int i = 0; i < count; i++) {
 		cases[i].value = read_int32(r);
 		cases[i].address = read_int32(r);
+		cases[i].parent = parent;
 	}
 	return cases;
 }
@@ -608,7 +609,7 @@ static struct ain_switch *read_switches(struct ain_reader *r, int count)
 		switches[i].case_type = read_int32(r);
 		switches[i].default_address = read_int32(r);
 		switches[i].nr_cases = read_int32(r);
-		switches[i].cases = read_switch_cases(r, switches[i].nr_cases);
+		switches[i].cases = read_switch_cases(r, switches[i].nr_cases, &switches[i]);
 	}
 	return switches;
 }

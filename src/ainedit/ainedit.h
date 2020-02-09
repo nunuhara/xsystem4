@@ -26,9 +26,24 @@ enum {
 	ASM_NO_STRINGS = 2,
 };
 
+#define PSEUDO_OP_OFFSET 0xF000
+enum asm_pseudo_opcode {
+	CASE = PSEUDO_OP_OFFSET,
+	NR_PSEUDO_OPS
+};
+
+const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET];
+
 // asm.c
 void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags);
-struct instruction *asm_get_instruction(const char *name);
+const struct instruction *asm_get_instruction(const char *name);
+
+static const_pure inline int32_t asm_instruction_width(int opcode)
+{
+	if (opcode >= PSEUDO_OP_OFFSET)
+		return 0;
+	return instruction_width(opcode);
+}
 
 // json.c
 void read_declarations(const char *filename, struct ain *ain);

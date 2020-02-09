@@ -52,7 +52,7 @@ static parse_instruction_list *make_program(void)
 static void push_instruction(parse_instruction_list *program, struct parse_instruction *instr)
 {
     kv_push(struct parse_instruction*, *program, instr);
-    instr_ptr += instruction_width(instr->opcode);
+    instr_ptr += asm_instruction_width(instr->opcode);
 }
 
 static struct parse_instruction *make_instruction(struct string *name, parse_argument_list *args)
@@ -61,7 +61,7 @@ static struct parse_instruction *make_instruction(struct string *name, parse_arg
         name->text[i] = toupper(name->text[i]);
     }
     // check opcode
-    struct instruction *info = asm_get_instruction(name->text);
+    const struct instruction *info = asm_get_instruction(name->text);
     if (!info)
         ERROR("Invalid instruction: %s", name->text);
     // check argument count
