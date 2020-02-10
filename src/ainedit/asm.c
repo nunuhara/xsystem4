@@ -46,9 +46,10 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 	}
 
 const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
-	PSEUDO_OP(PO_CASE, ".CASE", 2),
-	PSEUDO_OP(PO_STR,  ".STR",  2),
-	PSEUDO_OP(PO_MSG,  ".MSG",  2),
+	PSEUDO_OP(PO_CASE,    ".CASE",    2),
+	PSEUDO_OP(PO_DEFAULT, ".DEFAULT", 1),
+	PSEUDO_OP(PO_STR,     ".STR",     2),
+	PSEUDO_OP(PO_MSG,     ".MSG",     2),
 };
 
 struct string_table {
@@ -353,24 +354,32 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum instruction_argtyp
 	}
 }
 
+static void decompose_switch_index(struct asm_state *state, char *in, int *switch_out, int *case_out)
+{
+	char *tmp = strchr(in, ':');
+	if (!tmp)
+		ASM_ERROR(state, "Invalid switch:case index: '%s'", in);
+
+	*tmp++ = '\0';
+
+	int n_switch = parse_integer_constant(state, in);
+	int n_case = parse_integer_constant(state, tmp);
+	if (n_switch < 0 || n_switch >= state->ain->nr_switches)
+		ASM_ERROR(state, "Invalid switch index: %d", n_switch);
+	if (n_case < 0 || n_case >= state->ain->switches[n_switch].nr_cases)
+		ASM_ERROR(state, "Invalid case index: %d", n_case);
+
+	*switch_out = n_switch;
+	*case_out = n_case;
+}
+
 void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 {
 	switch (instr->opcode) {
 	case PO_CASE: {
-		char *s_switch = kv_A(*instr->args, 0)->text;
-		char *s_case = strchr(s_switch, ':');
-		if (!s_case)
-			ASM_ERROR(state, "Invalid switch/case index: '%s'", s_switch);
+		int n_switch, n_case, c;
+		decompose_switch_index(state, kv_A(*instr->args, 0)->text, &n_switch, &n_case);
 
-		*s_case++ = '\0';
-		int n_switch = parse_integer_constant(state, s_switch);
-		int n_case = parse_integer_constant(state, s_case);
-		if (n_switch < 0 || n_switch >= state->ain->nr_switches)
-			ASM_ERROR(state, "Invalid switch index: %d", n_switch);
-		if (n_case < 0 || n_case >= state->ain->switches[n_switch].nr_cases)
-			ASM_ERROR(state, "Invalid case index: %d", n_case);
-
-		int c;
 		struct ain_switch *swi = &state->ain->switches[n_switch];
 		if (swi->case_type == AIN_SWITCH_STRING && !(state->flags & ASM_NO_STRINGS)) {
 			c = asm_add_string(state, kv_A(*instr->args, 1)->text);
@@ -379,6 +388,13 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		}
 		swi->cases[n_case].address = state->buf_ptr;
 		swi->cases[n_case].value = c;
+		break;
+	}
+	case PO_DEFAULT: {
+		int n_switch = parse_integer_constant(state, kv_A(*instr->args, 0)->text);
+		if (n_switch < 0 || n_switch >= state->ain->nr_switches)
+			ASM_ERROR(state, "Invalid switch index: %d", n_switch);
+		state->ain->switches[n_switch].default_address = state->buf_ptr;
 		break;
 	}
 	case PO_STR: {

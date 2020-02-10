@@ -29,6 +29,7 @@ enum {
 #define PSEUDO_OP_OFFSET 0xF000
 enum asm_pseudo_opcode {
 	PO_CASE = PSEUDO_OP_OFFSET,
+	PO_DEFAULT,
 	PO_STR,
 	PO_MSG,
 	NR_PSEUDO_OPS

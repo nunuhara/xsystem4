@@ -38,66 +38,123 @@ struct dasm_state {
 	int func_stack[DASM_FUNC_STACK_SIZE];
 };
 
-KHASH_MAP_INIT_INT(label_table, char*);
-khash_t(label_table) *label_table;
+enum jump_target_type {
+	JMP_LABEL,
+	JMP_CASE,
+	JMP_DEFAULT
+};
 
-kv_decl(case_list, struct ain_switch_case*);
+struct jump_target {
+	enum jump_target_type type;
+	union {
+		char *label;
+		struct ain_switch_case *switch_case;
+		struct ain_switch *switch_default;
+	};
+};
 
-KHASH_MAP_INIT_INT(case_table, case_list*);
-khash_t(case_table) *case_table;
+kv_decl(jump_list, struct jump_target*);
 
-static void label_table_init(void)
+KHASH_MAP_INIT_INT(jump_table, jump_list*);
+khash_t(jump_table) *jump_table;
+
+static void jump_table_init(void)
 {
-	label_table = kh_init(label_table);
-	case_table = kh_init(case_table);
+	jump_table = kh_init(jump_table);
 }
+
+static void free_jump_targets(jump_list *list)
+{
+	if (!list)
+		return;
+	for (size_t i = 0; i < kv_size(*list); i++) {
+		struct jump_target *t = kv_A(*list, i);
+		if (t->type == JMP_LABEL)
+			free(t->label);
+		free(t);
+	}
+}
+
+static void jump_table_fini(void)
+{
+	jump_list *list;
+	kh_foreach_value(jump_table, list, free_jump_targets(list));
+}
+
+static jump_list *get_jump_targets(ain_addr_t addr)
+{
+	khiter_t k = kh_get(jump_table, jump_table, addr);
+	if (k == kh_end(jump_table))
+		return NULL;
+	return kh_value(jump_table, k);
+}
+
 static char *get_label(ain_addr_t addr)
 {
-	khiter_t k;
-	k = kh_get(label_table, label_table, addr);
-	if (k == kh_end(label_table))
-		return NULL;
-	return kh_value(label_table, k);
+	jump_list *list = get_jump_targets(addr);
+	for (size_t i = 0; i < kv_size(*list); i++) {
+		struct jump_target *t = kv_A(*list, i);
+		if (t->type == JMP_LABEL)
+			return t->label;
+	}
+	return NULL;
+}
+
+static void add_jump_target(struct jump_target *target, ain_addr_t addr)
+{
+	int ret;
+	khiter_t k = kh_put(jump_table, jump_table, addr, &ret);
+	if (!ret) {
+		// add to list
+		jump_list *list = kh_value(jump_table, k);
+		kv_push(struct jump_target*, *list, target);
+	} else if (ret == 1) {
+		// create list
+		jump_list *list = xmalloc(sizeof(jump_list));
+		kv_init(*list);
+		kv_push(struct jump_target*, *list, target);
+		kh_value(jump_table, k) = list;
+	} else {
+		ERROR("Failed to insert target into jump table (%d)", ret);
+	}
 }
 
 static void add_label(char *name, ain_addr_t addr)
 {
-	int ret;
-	khiter_t k = kh_put(label_table, label_table, addr, &ret);
-	if (!ret) {
-		// key already present: first label takes precedence
-		free(name);
+	// check for duplicate label
+	jump_list *list = get_jump_targets(addr);
+	if (list) {
+		for (size_t i = 0; i < kv_size(*list); i++) {
+			struct jump_target *t = kv_A(*list, i);
+			if (t->type == JMP_LABEL) {
+				free(name);
+				return;
+			}
+		}
+	}
+
+	struct jump_target *t = xmalloc(sizeof(struct jump_target));
+	t->type = JMP_LABEL;
+	t->label = name;
+	add_jump_target(t, addr);
+}
+
+static void add_switch_case(struct ain_switch_case *c)
+{
+	struct jump_target *t = xmalloc(sizeof(struct jump_target));
+	t->type = JMP_CASE;
+	t->switch_case = c;
+	add_jump_target(t, c->address);
+}
+
+static void add_switch_default(struct ain_switch *s)
+{
+	if (s->default_address == -1)
 		return;
-	}
-	kh_value(label_table, k) = name;
-}
-
-static case_list *get_cases(ain_addr_t addr)
-{
-	khiter_t k = kh_get(case_table, case_table, addr);
-	if (k == kh_end(case_table))
-		return NULL;
-
-	return kh_value(case_table, k);
-}
-
-static void add_case(struct ain_switch_case *c)
-{
-	int ret;
-	khiter_t k = kh_put(case_table, case_table, c->address, &ret);
-	if (!ret) {
-		// add to list
-		case_list *list = kh_value(case_table, k);
-		kv_push(struct ain_switch_case*, *list, c);
-	} else if (ret == 1) {
-		// create list
-		case_list *list = xmalloc(sizeof(case_list));
-		kv_init(*list);
-		kv_push(struct ain_switch_case*, *list, c);
-		kh_value(case_table, k) = list;
-	} else {
-		ERROR("Failed to insert switch case into hash table (%d)", ret);
-	}
+	struct jump_target *t = xmalloc(sizeof(struct jump_target));
+	t->type = JMP_DEFAULT;
+	t->switch_default = s;
+	add_jump_target(t, s->default_address);
 }
 
 union float_cast {
@@ -471,7 +528,7 @@ static char *genlabel(size_t addr)
 
 static void generate_labels(struct dasm_state *dasm)
 {
-	label_table_init();
+	jump_table_init();
 
 	if (!(dasm->flags & DASM_RAW)) {
 		for (dasm->addr = 0; dasm->addr < dasm->ain->code_size;) {
@@ -486,8 +543,9 @@ static void generate_labels(struct dasm_state *dasm)
 		}
 	}
 	for (int i = 0; i < dasm->ain->nr_switches; i++) {
+		add_switch_default(&dasm->ain->switches[i]);
 		for (int j = 0; j < dasm->ain->switches[i].nr_cases; j++) {
-			add_case(&dasm->ain->switches[i].cases[j]);
+			add_switch_case(&dasm->ain->switches[i].cases[j]);
 		}
 	}
 }
@@ -514,15 +572,21 @@ void disassemble_ain(FILE *out, struct ain *ain, unsigned int flags)
 
 	for (dasm.addr = 0; dasm.addr < dasm.ain->code_size;) {
 		const struct instruction *instr = get_instruction(&dasm);
-		if (!(flags & DASM_RAW)) {
-			char *label = get_label(dasm.addr);
-			if (label)
-				fprintf(dasm.out, "%s:\n", label);
-		}
-		case_list *cases = get_cases(dasm.addr);
-		if (cases) {
-			for (size_t i = 0; i < kv_size(*cases); i++) {
-				print_switch_case(&dasm, kv_A(*cases, i));
+		jump_list *targets = get_jump_targets(dasm.addr);
+		if (targets) {
+			for (size_t i = 0; i < kv_size(*targets); i++) {
+				struct jump_target *t = kv_A(*targets, i);
+				switch (t->type) {
+				case JMP_LABEL:
+					fprintf(dasm.out, "%s:\n", t->label);
+					break;
+				case JMP_CASE:
+					print_switch_case(&dasm, t->switch_case);
+					break;
+				case JMP_DEFAULT:
+					fprintf(dasm.out, ".DEFAULT %ld\n", t->switch_default - dasm.ain->switches);
+					break;
+				}
 			}
 		}
 		print_instruction(&dasm, instr);
@@ -530,8 +594,5 @@ void disassemble_ain(FILE *out, struct ain *ain, unsigned int flags)
 	}
 	fflush(dasm.out);
 
-	if (!(flags & DASM_RAW)) {
-		char *label;
-		kh_foreach_value(label_table, label, free(label));
-	}
+	jump_table_fini();
 }
