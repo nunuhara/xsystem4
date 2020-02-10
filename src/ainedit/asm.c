@@ -35,18 +35,20 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 // TODO: better error messages
 #define ASM_ERROR(state, ...) ERROR(__VA_ARGS__)
 
-#define PSEUDO_OP(code, nargs, ...)	\
-	[code - PSEUDO_OP_OFFSET] = {	\
-		.opcode = code,		\
-		.name = "." #code ,	\
-		.nr_args = nargs,	\
-		.ip_inc = 0,		\
-		.implemented = false,	\
-		.args = { __VA_ARGS__ } \
+#define PSEUDO_OP(code, _name, nargs, ...)	\
+	[code - PSEUDO_OP_OFFSET] = {		\
+		.opcode = code,			\
+		.name = _name,			\
+		.nr_args = nargs,		\
+		.ip_inc = 0,			\
+		.implemented = false,		\
+		.args = { __VA_ARGS__ }		\
 	}
 
 const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
-	PSEUDO_OP(CASE, 2)
+	PSEUDO_OP(PO_CASE, ".CASE", 2),
+	PSEUDO_OP(PO_STR,  ".STR",  2),
+	PSEUDO_OP(PO_MSG,  ".MSG",  2),
 };
 
 struct string_table {
@@ -151,7 +153,7 @@ static void asm_write_argument(struct asm_state *state, uint32_t arg)
 const struct instruction *asm_get_instruction(const char *name)
 {
 	if (name[0] == '.') {
-		for (int i = 0; i < NR_PSEUDO_OPS; i++) {
+		for (int i = 0; i < NR_PSEUDO_OPS - PSEUDO_OP_OFFSET; i++) {
 			if (!strcmp(name, asm_pseudo_ops[i].name))
 				return &asm_pseudo_ops[i];
 		}
@@ -354,7 +356,7 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum instruction_argtyp
 void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 {
 	switch (instr->opcode) {
-	case CASE: {
+	case PO_CASE: {
 		char *s_switch = kv_A(*instr->args, 0)->text;
 		char *s_case = strchr(s_switch, ':');
 		if (!s_case)
@@ -375,12 +377,24 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		} else {
 			c = parse_integer_constant(state, kv_A(*instr->args, 1)->text);
 		}
-		if ((size_t)swi->cases[n_case].address != state->buf_ptr)
-			ASM_ERROR(state, "ADDR NO MATCH");
-		if (swi->cases[n_case].value != c)
-			ASM_ERROR(state, "VALUE NO MATCH");
 		swi->cases[n_case].address = state->buf_ptr;
 		swi->cases[n_case].value = c;
+		break;
+	}
+	case PO_STR: {
+		int n_str = parse_integer_constant(state, kv_A(*instr->args, 0)->text);
+		if (n_str < 0 || n_str >= state->ain->nr_strings)
+			ASM_ERROR(state, "Invalid string index: %d", n_str);
+		free_string(state->ain->strings[n_str]);
+		state->ain->strings[n_str] = string_dup(kv_A(*instr->args, 1));
+		break;
+	}
+	case PO_MSG: {
+		int n_msg = parse_integer_constant(state, kv_A(*instr->args, 0)->text);
+		if (n_msg < 0 || n_msg >= state->ain->nr_messages)
+			ASM_ERROR(state, "Invalid message index: %d", n_msg);
+		free_string(state->ain->messages[n_msg]);
+		state->ain->messages[n_msg] = string_dup(kv_A(*instr->args, 1));
 		break;
 	}
 	}
