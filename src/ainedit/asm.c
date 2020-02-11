@@ -200,11 +200,44 @@ static int32_t parse_integer_constant(possibly_unused struct asm_state *state, c
 	return i;
 }
 
-static uint32_t asm_resolve_arg(struct asm_state *state, enum instruction_argtype type, const char *arg)
+static void realloc_switch_table(struct ain *ain, int i)
+{
+	if (i < ain->nr_switches)
+		return;
+	ain->switches = xrealloc_array(ain->switches, ain->nr_switches, i+1, sizeof(struct ain_switch));
+	ain->nr_switches = i+1;
+}
+
+static void realloc_switch_cases(struct ain_switch *swi, int i)
+{
+	if (i < swi->nr_cases)
+		return;
+	swi->cases = xrealloc_array(swi->cases, swi->nr_cases, i+1, sizeof(struct ain_switch_case));
+	swi->nr_cases = i+1;
+}
+
+static void realloc_string_table(struct ain *ain, int i)
+{
+	if (i < ain->nr_strings)
+		return;
+	ain->strings = xrealloc_array(ain->strings, ain->nr_strings, i+1, sizeof(struct string*));
+	ain->nr_strings = i+1;
+}
+
+static void realloc_message_table(struct ain *ain, int i)
+{
+	if (i < ain->nr_messages)
+		return;
+	ain->messages = xrealloc_array(ain->messages, ain->nr_messages, i+1, sizeof(struct string*));
+	ain->nr_messages = i+1;
+}
+
+static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enum instruction_argtype type, const char *arg)
 {
 	if (state->flags & ASM_RAW)
 		type = T_INT;
 
+	struct ain *ain = state->ain;
 	switch (type) {
 	case T_INT:
 		return parse_integer_constant(state, arg);
@@ -219,8 +252,13 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum instruction_argtyp
 	}
 	case T_SWITCH: {
 		int i = parse_integer_constant(state, arg);
-		if (i < 0 || i >= state->ain->nr_switches)
+		if (i < 0)
 			ASM_ERROR(state, "Invalid switch number: %d", i);
+		realloc_switch_table(ain, i);
+		if (opcode == SWITCH)
+			ain->switches[i].case_type = AIN_SWITCH_INT;
+		else if (opcode == STRSWITCH)
+			ain->switches[i].case_type = AIN_SWITCH_STRING;
 		return i;
 	}
 	case T_ADDR: {
@@ -232,17 +270,18 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum instruction_argtyp
 	}
 	case T_FUNC: {
 		char *u = utf2sjis(arg, strlen(arg));
-		struct ain_function *f = ain_get_function(state->ain, u);
+		struct ain_function *f = ain_get_function(ain, u);
 		free(u);
 		if (!f)
 			ASM_ERROR(state, "Unable to resolve function: '%s'", arg);
-		return f - state->ain->functions;
+		return f - ain->functions;
 	}
 	case T_STRING: {
 		if (state->flags & ASM_NO_STRINGS) {
 			int32_t i = parse_integer_constant(state, arg);
-			if (i < 0 || i >= state->ain->nr_strings)
+			if (i < 0)
 				ASM_ERROR(state, "String index out of bounds: '%s'", arg);
+			realloc_string_table(ain, i);
 			return i;
 		}
 		return asm_add_string(state, arg);
@@ -250,8 +289,9 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum instruction_argtyp
 	case T_MSG: {
 		if (state->flags & ASM_NO_STRINGS) {
 			int32_t i = parse_integer_constant(state, arg);
-			if (i < 0 || i >= state->ain->nr_messages)
+			if (i < 0)
 				ASM_ERROR(state, "Message index out of bounds: '%s'", arg);
+			realloc_message_table(ain, i);
 			return i;
 		}
 		return asm_add_message(state, arg);
@@ -386,6 +426,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		} else {
 			c = parse_integer_constant(state, kv_A(*instr->args, 1)->text);
 		}
+		realloc_switch_cases(swi, n_case);
 		swi->cases[n_case].address = state->buf_ptr;
 		swi->cases[n_case].value = c;
 		break;
@@ -399,20 +440,58 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 	}
 	case PO_STR: {
 		int n_str = parse_integer_constant(state, kv_A(*instr->args, 0)->text);
-		if (n_str < 0 || n_str >= state->ain->nr_strings)
+		if (n_str < 0 || n_str)
 			ASM_ERROR(state, "Invalid string index: %d", n_str);
-		free_string(state->ain->strings[n_str]);
+		realloc_string_table(state->ain, n_str);
+		if (state->ain->strings[n_str])
+			free_string(state->ain->strings[n_str]);
 		state->ain->strings[n_str] = string_dup(kv_A(*instr->args, 1));
 		break;
 	}
 	case PO_MSG: {
 		int n_msg = parse_integer_constant(state, kv_A(*instr->args, 0)->text);
-		if (n_msg < 0 || n_msg >= state->ain->nr_messages)
+		if (n_msg < 0)
 			ASM_ERROR(state, "Invalid message index: %d", n_msg);
-		free_string(state->ain->messages[n_msg]);
+		realloc_message_table(state->ain, n_msg);
+		if (state->ain->messages[n_msg])
+			free_string(state->ain->messages[n_msg]);
 		state->ain->messages[n_msg] = string_dup(kv_A(*instr->args, 1));
 		break;
 	}
+	}
+}
+
+static void validate_ain(struct ain *ain)
+{
+	for (int i = 0; i < ain->nr_strings; i++) {
+		if (ain->strings[i])
+			continue;
+		WARNING("String 0x%x unallocated", i);
+		ain->strings[i] = make_string("", 0);
+	}
+
+	for (int i = 0; i < ain->nr_messages; i++) {
+		if (ain->messages[i])
+			continue;
+		WARNING("Message 0x%x unallocated", i);
+		ain->messages[i] = make_string("", 0);
+	}
+
+	for (int i = 0; i < ain->nr_switches; i++) {
+		if (!ain->switches[i].nr_cases)
+			WARNING("Switch 0x%x unallocated", i);
+	}
+
+	if (ain->main < 0 || ain->main >= ain->nr_functions)
+		ERROR("Invalid main function: %d", ain->main);
+	if (strcmp(ain->functions[ain->main].name, "main"))
+		WARNING("Main function is not named 'main': '%s'", ain->functions[ain->main].name);
+
+	if (ain->MSGF.present) {
+		if (ain->msgf < 0 || ain->msgf >= ain->nr_functions)
+			ERROR("Invalid message function: %d", ain->msgf);
+		if (strcmp(ain->functions[ain->msgf].name, "message"))
+			WARNING("Message function is not named 'message': '%s' (%d)", ain->functions[ain->msgf].name, ain->msgf);
 	}
 }
 
@@ -445,7 +524,7 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 
 		// NOTE: special case: we need to record the new function address in the ain structure
 		if (idef->opcode == FUNC) {
-			state.func = asm_resolve_arg(&state, T_INT, kv_A(*instr->args, 0)->text);
+			state.func = asm_resolve_arg(&state, FUNC, T_INT, kv_A(*instr->args, 0)->text);
 			state.ain->functions[state.func].address = state.buf_ptr + 6;
 			asm_write_opcode(&state, FUNC);
 			asm_write_argument(&state, state.func);
@@ -454,7 +533,7 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 
 		asm_write_opcode(&state, instr->opcode);
 		for (int a = 0; a < idef->nr_args; a++) {
-			asm_write_argument(&state, asm_resolve_arg(&state, idef->args[a], kv_A(*instr->args, a)->text));
+			asm_write_argument(&state, asm_resolve_arg(&state, idef->opcode, idef->args[a], kv_A(*instr->args, a)->text));
 		}
 	}
 
@@ -490,7 +569,7 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 		ain->nr_messages = state.messages.size;
 	}
 
-	// TODO: verify integrity of ain file (e.g. does MAIN still point to a valid function? etc.)
+	validate_ain(ain);
 
 	fini_asm_state(&state);
 }

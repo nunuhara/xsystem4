@@ -58,6 +58,14 @@ mem_alloc char *_xstrdup(const char *in, const char *func)
 	return out;
 }
 
+mem_alloc void *xrealloc_array(void *dst, size_t old_nmemb, size_t new_nmemb, size_t size)
+{
+	dst = xrealloc(dst, new_nmemb * size);
+	if (new_nmemb > old_nmemb)
+		memset((char*)dst + old_nmemb*size, 0, (new_nmemb - old_nmemb) * size);
+	return dst;
+}
+
 noreturn void sys_verror(const char *fmt, va_list ap)
 {
 	vfprintf(stderr, fmt, ap);

@@ -55,6 +55,8 @@ mem_alloc void *_xrealloc(void *ptr, size_t size, const char *func);
 #define xstrdup(str) _xstrdup(str, __func__)
 mem_alloc char *_xstrdup(const char *in, const char *func);
 
+mem_alloc void *xrealloc_array(void *dst, size_t old_nmemb, size_t new_nmemb, size_t size);
+
 #define max(a, b)				\
 	({					\
 		__typeof__ (a) _a = (a);	\
