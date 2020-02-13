@@ -1,6 +1,7 @@
 aindump = ['../cJSON.c',
            'aindump.c',
            'dasm.c',
+           'guess_filenames.c',
            'json.c',
 ]
 

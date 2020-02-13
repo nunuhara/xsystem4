@@ -44,6 +44,7 @@ static void usage(void)
 	puts("        --function-types     Dump function types section");
 	puts("        --delegates          Dump delegate types section");
 	puts("        --global-group-names Dump global group names section");
+	puts("    -F, --filenames          Dump filenames");
 	puts("    -e, --enums              Dump enums section");
 	puts("    -A, --audit              Audit AIN file for xsystem4 compatibility");
 	puts("    -d, --decrypt            Dump decrypted AIN file");
@@ -508,8 +509,11 @@ int main(int argc, char *argv[])
 		ain_dump_messages(output, ain);
 	if (dump_strings)
 		ain_dump_strings(output, ain);
-	if (dump_filenames)
+	if (dump_filenames) {
+		if (!ain->FNAM.present)
+			guess_filenames(ain);
 		ain_dump_filenames(output, ain);
+	}
 	if (dump_enums)
 		ain_dump_enums(output, ain);
 	if (dump_code)

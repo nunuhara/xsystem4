@@ -27,9 +27,16 @@ enum {
 	DASM_NO_STRINGS = 2,
 };
 
+// guess_filenames.c
+void guess_filenames(struct ain *ain);
+
+// dasm.c
 void disassemble_ain(FILE *out, struct ain *ain, unsigned int flags);;
 
+// aindump.c
 void ain_dump_function(FILE *out, struct ain *ain, struct ain_function *f);
+
+// json.c
 void ain_dump_json(FILE *out, struct ain *ain);
 
 #endif /* AINDUMP_H */

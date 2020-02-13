@@ -52,7 +52,7 @@ int main() {
 
 #define kv_roundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
 
-//#define kvec_t(type) struct { size_t n, m; type *a; }
+#define kvec_t(type) struct { size_t n, m; type *a; }
 #define kv_decl(name, type) typedef struct { size_t n, m; type *a; } name
 #define kv_init(v) ((v).n = (v).m = 0, (v).a = 0)
 #define kv_destroy(v) free((v).a)
