@@ -24,49 +24,10 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
-struct code_reader {
-	struct ain *ain;
-	size_t addr;
-	const struct instruction *instr;
-};
-
 struct guesser_state {
 	kvec_t(struct ain_function*) functions;
 	char *guess;
 };
-
-int32_t code_reader_get_arg(struct code_reader *r, int n)
-{
-	if (n < 0 || n >= r->instr->nr_args)
-		ERROR("Invalid argument number for '%s': %d", r->instr->name, n);
-	return LittleEndian_getDW(r->ain->code, r->addr + 2 + n*4);
-}
-
-void for_each_instruction(struct ain *ain, void(*fun)(struct code_reader*, void*), void(*err)(struct code_reader*, char*), void *data)
-{
-	struct code_reader r = { .ain = ain };
-
-	for (r.addr = 0; r.addr < ain->code_size;) {
-		uint16_t opcode = LittleEndian_getW(ain->code, r.addr);
-		if (opcode >= NR_OPCODES) {
-			char buf[512];
-			snprintf(buf, 512, "Unknown/invalid opcode: %u", opcode);
-			err(&r, buf);
-			return;
-		}
-
-		r.instr = &instructions[opcode];
-		if (r.addr + r.instr->nr_args * 4 >= ain->code_size) {
-			err(&r, "CODE section truncated?");
-			return;
-		}
-
-		fun(&r, data);
-
-		r.addr += instruction_width(r.instr->opcode);
-		r.instr = NULL;
-	}
-}
 
 static size_t get_prefix_length(char *a, char *b)
 {

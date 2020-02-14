@@ -28,6 +28,47 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
+int32_t code_reader_get_arg(struct code_reader *r, int n)
+{
+	if (n < 0 || n >= r->instr->nr_args)
+		ERROR("Invalid argument number for '%s': %d", r->instr->name, n);
+	return LittleEndian_getDW(r->ain->code, r->addr + 2 + n*4);
+}
+
+static void for_each_instruction_default_error(possibly_unused struct code_reader *r, char *msg)
+{
+	ERROR("%s", msg);
+}
+
+void for_each_instruction(struct ain *ain, void(*fun)(struct code_reader*, void*), void(*err)(struct code_reader*, char*), void *data)
+{
+	struct code_reader r = { .ain = ain };
+
+	if (!err)
+		err = for_each_instruction_default_error;
+
+	for (r.addr = 0; r.addr < ain->code_size;) {
+		uint16_t opcode = LittleEndian_getW(ain->code, r.addr);
+		if (opcode >= NR_OPCODES) {
+			char buf[512];
+			snprintf(buf, 512, "Unknown/invalid opcode: %u", opcode);
+			err(&r, buf);
+			return;
+		}
+
+		r.instr = &instructions[opcode];
+		if (r.addr + r.instr->nr_args * 4 >= ain->code_size) {
+			err(&r, "CODE section truncated?");
+			return;
+		}
+
+		fun(&r, data);
+
+		r.addr += instruction_width(r.instr->opcode);
+		r.instr = NULL;
+	}
+}
+
 static void usage(void)
 {
 	puts("Usage: aindump <options> <ainfile>");
@@ -36,6 +77,7 @@ static void usage(void)
 	puts("    -h, --help               Display this message and exit");
 	puts("    -c, --code               Dump code section");
 	puts("    -C, --raw-code           Dump code section (raw)");
+	puts("    -t, --text               Dump strings and messages, sorted by function");
 	puts("    -f, --functions          Dump functions section");
 	puts("    -g, --globals            Dump globals section");
 	puts("    -S, --structures         Dump structures section");
@@ -161,6 +203,83 @@ static void ain_dump_structures(FILE *f, struct ain *ain)
 		fprintf(f, "// %d\n", i);
 		print_structure(f, ain, &ain->structures[i]);
 	}
+}
+
+struct dump_text_data {
+	FILE *out;
+	struct ain_function *fun;
+};
+
+static void dump_text_function(struct dump_text_data *data)
+{
+	if (!data->fun)
+		return;
+
+	char *u = sjis2utf(data->fun->name, strlen(data->fun->name));
+	fprintf(data->out, "\n; %s\n", u);
+	free(u);
+
+	data->fun = NULL;
+}
+
+static void dump_text_string(struct dump_text_data *data, struct ain *ain, int no)
+{
+	if (no < 0 || no >= ain->nr_strings)
+		ERROR("Invalid string index: %d", no);
+
+	// skip empty string
+	if (!ain->strings[no]->size)
+		return;
+
+	dump_text_function(data);
+
+	char *u = escape_string(ain->strings[no]->text);
+	fprintf(data->out, ";s[%d] = \"%s\"\n", no, u);
+	free(u);
+}
+
+static void dump_text_message(struct dump_text_data *data, struct ain *ain, int no)
+{
+	dump_text_function(data);
+
+	if (no < 0 || no >= ain->nr_messages)
+		ERROR("Invalid message index: %d", no);
+
+	char *u = escape_string(ain->messages[no]->text);
+	fprintf(data->out, ";m[%d] = \"%s\"\n", no, u);
+	free(u);
+}
+
+static void dump_text_instruction(struct code_reader *r, void *_data)
+{
+	int n;
+	struct dump_text_data *data = _data;
+	switch (r->instr->opcode) {
+	case FUNC:
+		n = code_reader_get_arg(r, 0);
+		if (n < 0 || n >= r->ain->nr_functions)
+			ERROR("Invalid function index: %d", n);
+		data->fun = &r->ain->functions[n];
+		break;
+	case S_PUSH:
+		dump_text_string(data, r->ain, code_reader_get_arg(r, 0));
+		break;
+	// TODO: other instructions with string arguments
+	case MSG:
+		dump_text_message(data, r->ain, code_reader_get_arg(r, 0));
+		break;
+	default:
+		break;
+	}
+}
+
+static void ain_dump_text(FILE *f, struct ain *ain)
+{
+	struct dump_text_data data = {
+		.out = f,
+		.fun = NULL
+	};
+	for_each_instruction(ain, dump_text_instruction, NULL, &data);
 }
 
 static void ain_dump_messages(FILE *f, struct ain *ain)
@@ -342,6 +461,7 @@ int main(int argc, char *argv[])
 {
 	bool dump_version = false;
 	bool dump_code = false;
+	bool dump_text = false;
 	bool dump_functions = false;
 	bool dump_globals = false;
 	bool dump_structures = false;
@@ -369,6 +489,7 @@ int main(int argc, char *argv[])
 			{ "ain-version",        no_argument,       0, 'V' },
 			{ "code",               no_argument,       0, 'c' },
 			{ "raw-code",           no_argument,       0, 'C' },
+			{ "text",               no_argument,       0, 't' },
 			{ "functions",          no_argument,       0, 'f' },
 			{ "globals",            no_argument,       0, 'g' },
 			{ "structures",         no_argument,       0, 'S' },
@@ -376,7 +497,7 @@ int main(int argc, char *argv[])
 			{ "libraries",          no_argument,       0, 'l' },
 			{ "strings",            no_argument,       0, 's' },
 			{ "filenames",          no_argument,       0, 'F' },
-			{ "function-types",     no_argument,       0, 't' },
+			{ "function-types",     no_argument,       0, 'T' },
 			{ "delegates",          no_argument,       0, 'D' },
 			{ "global-group-names", no_argument,       0, 'r' },
 			{ "enums",              no_argument,       0, 'e' },
@@ -390,7 +511,7 @@ int main(int argc, char *argv[])
 		int option_index = 0;
 		int c;
 
-		c = getopt_long(argc, argv, "hVcCfgSmlsFeAdjo:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hVcCtfgSmlsFeAdjo:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -407,6 +528,9 @@ int main(int argc, char *argv[])
 		case 'C':
 			dump_code = true;
 			flags |= DASM_RAW;
+			break;
+		case 't':
+			dump_text = true;
 			break;
 		case 'f':
 			dump_functions = true;
@@ -429,7 +553,7 @@ int main(int argc, char *argv[])
 		case 'F':
 			dump_filenames = true;
 			break;
-		case 't':
+		case 'T':
 			dump_functypes = true;
 			break;
 		case 'D':
@@ -518,6 +642,8 @@ int main(int argc, char *argv[])
 		ain_dump_enums(output, ain);
 	if (dump_code)
 		disassemble_ain(output, ain, flags);
+	if (dump_text)
+		ain_dump_text(output, ain);
 	if (dump_json)
 		ain_dump_json(output, ain);
 	if (dump_map)

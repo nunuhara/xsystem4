@@ -176,7 +176,7 @@ static void print_sjis(struct dasm_state *dasm, const char *s)
 	free(u);
 }
 
-static char *prepare_string(const char *str, const char *escape_chars, const char *replace_chars)
+static char *_escape_string(const char *str, const char *escape_chars, const char *replace_chars)
 {
 	int escapes = 0;
 	char *u = sjis2utf(str, strlen(str));
@@ -219,11 +219,16 @@ static char *prepare_string(const char *str, const char *escape_chars, const cha
 	return u;
 }
 
-static void print_string(struct dasm_state *dasm, const char *str)
+char *escape_string(const char *str)
 {
 	const char escape_chars[]  = { '\\', '\"', '\n', 0 };
 	const char replace_chars[] = { '\\', '\"', 'n',  0  };
-	char *u = prepare_string(str, escape_chars, replace_chars);
+	return _escape_string(str, escape_chars, replace_chars);
+}
+
+static void print_string(struct dasm_state *dasm, const char *str)
+{
+	char *u = escape_string(str);
 	fprintf(dasm->out, "\"%s\"", u);
 	free(u);
 }
