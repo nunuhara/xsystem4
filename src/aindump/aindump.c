@@ -74,24 +74,30 @@ static void usage(void)
 	puts("Usage: aindump <options> <ainfile>");
 	puts("    Display information from AIN files.");
 	puts("");
+	puts("Commonly used options:");
 	puts("    -h, --help               Display this message and exit");
 	puts("    -c, --code               Dump code section");
-	puts("    -C, --raw-code           Dump code section (raw)");
+	puts("    -j, --json               Dump to JSON format");
 	puts("    -t, --text               Dump strings and messages, sorted by function");
+	puts("    -o, --output             Set output file path");
+	puts("");
+	puts("Less used options:");
+	puts("    -C, --raw-code           Dump code section (raw)");
 	puts("    -f, --functions          Dump functions section");
 	puts("    -g, --globals            Dump globals section");
 	puts("    -S, --structures         Dump structures section");
 	puts("    -m, --messages           Dump messages section");
+	puts("    -s, --strings            Dump strings section");
 	puts("    -l, --libraries          Dump libraries section");
+	puts("    -F, --filenames          Dump filenames");
 	puts("        --function-types     Dump function types section");
 	puts("        --delegates          Dump delegate types section");
 	puts("        --global-group-names Dump global group names section");
-	puts("    -F, --filenames          Dump filenames");
 	puts("    -e, --enums              Dump enums section");
 	puts("    -A, --audit              Audit AIN file for xsystem4 compatibility");
 	puts("    -d, --decrypt            Dump decrypted AIN file");
-	puts("    -j, --json               Dump to JSON format");
 	puts("        --map                Dump AIN file map");
+	puts("        --inline-strings     Dump code in inline-strings mode");
 }
 
 static void print_sjis(FILE *f, const char *s)
@@ -328,6 +334,9 @@ static void ain_dump_strings(FILE *f, struct ain *ain)
 
 static void ain_dump_filenames(FILE *f, struct ain *ain)
 {
+	if (!ain->FNAM.present)
+		guess_filenames(ain);
+
 	for (int i = 0; i < ain->nr_filenames; i++) {
 		fprintf(f, "0x%08x:\t", i);
 		print_sjis(f, ain->filenames[i]);
@@ -437,9 +446,6 @@ static void ain_dump_map(FILE *f, struct ain *ain)
 	print_section(f, "DELG", &ain->DELG);
 	print_section(f, "OBJG", &ain->OBJG);
 	print_section(f, "ENUM", &ain->ENUM);
-
-	fprintf(f, "FNCT_SIZE = %d\n", ain->delg_size);
-	fprintf(f, "FNCT.SIZE = %d\n", ain->DELG.size);
 }
 
 static void dump_decrypted(FILE *f, const char *path)
@@ -457,131 +463,159 @@ static void dump_decrypted(FILE *f, const char *path)
 	free(ain);
 }
 
+enum {
+	LOPT_HELP = 256,
+	LOPT_AIN_VERSION,
+	LOPT_CODE,
+	LOPT_RAW_CODE,
+	LOPT_JSON,
+	LOPT_TEXT,
+	LOPT_OUTPUT,
+	LOPT_FUNCTIONS,
+	LOPT_GLOBALS,
+	LOPT_STRUCTURES,
+	LOPT_MESSAGES,
+	LOPT_STRINGS,
+	LOPT_LIBRARIES,
+	LOPT_FILENAMES,
+	LOPT_FUNCTION_TYPES,
+	LOPT_DELEGATES,
+	LOPT_GLOBAL_GROUPS,
+	LOPT_ENUMS,
+	LOPT_AUDIT,
+	LOPT_DECRYPT,
+	LOPT_MAP,
+	LOPT_INLINE_STRINGS,
+};
+
 int main(int argc, char *argv[])
 {
-	bool dump_version = false;
-	bool dump_code = false;
-	bool dump_text = false;
-	bool dump_functions = false;
-	bool dump_globals = false;
-	bool dump_structures = false;
-	bool dump_messages = false;
-	bool dump_libraries = false;
-	bool dump_strings = false;
-	bool dump_filenames = false;
-	bool dump_functypes = false;
-	bool dump_delegates = false;
-	bool dump_global_group_names = false;
-	bool dump_enums = false;
-	bool dump_json = false;
-	bool dump_map = false;
-	bool audit = false;
 	bool decrypt = false;
 	char *output_file = NULL;
 	FILE *output = stdout;
 	int err = AIN_SUCCESS;
-	unsigned int flags = 0;
+	unsigned int flags = DASM_NO_STRINGS;
 	struct ain *ain;
+
+	int dump_targets[256];
+	int dump_ptr = 0;
 
 	while (1) {
 		static struct option long_options[] = {
-			{ "help",               no_argument,       0, 'h' },
-			{ "ain-version",        no_argument,       0, 'V' },
-			{ "code",               no_argument,       0, 'c' },
-			{ "raw-code",           no_argument,       0, 'C' },
-			{ "text",               no_argument,       0, 't' },
-			{ "functions",          no_argument,       0, 'f' },
-			{ "globals",            no_argument,       0, 'g' },
-			{ "structures",         no_argument,       0, 'S' },
-			{ "messages",           no_argument,       0, 'm' },
-			{ "libraries",          no_argument,       0, 'l' },
-			{ "strings",            no_argument,       0, 's' },
-			{ "filenames",          no_argument,       0, 'F' },
-			{ "function-types",     no_argument,       0, 'T' },
-			{ "delegates",          no_argument,       0, 'D' },
-			{ "global-group-names", no_argument,       0, 'r' },
-			{ "enums",              no_argument,       0, 'e' },
-			{ "audit",              no_argument,       0, 'A' },
-			{ "decrypt",            no_argument,       0, 'd' },
-			{ "json",               no_argument,       0, 'j' },
-			{ "map",                no_argument,       0, 'M' },
-			{ "no-strings",         no_argument,       0, 'R' },
-			{ "output",             required_argument, 0, 'o' },
+			{ "help",               no_argument,       0, LOPT_HELP },
+			{ "code",               no_argument,       0, LOPT_CODE },
+			{ "raw-code",           no_argument,       0, LOPT_RAW_CODE },
+			{ "json",               no_argument,       0, LOPT_JSON },
+			{ "text",               no_argument,       0, LOPT_TEXT },
+			{ "output",             required_argument, 0, LOPT_OUTPUT },
+			{ "ain-version",        no_argument,       0, LOPT_AIN_VERSION },
+			{ "functions",          no_argument,       0, LOPT_FUNCTIONS },
+			{ "globals",            no_argument,       0, LOPT_GLOBALS },
+			{ "structures",         no_argument,       0, LOPT_STRUCTURES },
+			{ "messages",           no_argument,       0, LOPT_MESSAGES },
+			{ "strings",            no_argument,       0, LOPT_STRINGS },
+			{ "libraries",          no_argument,       0, LOPT_LIBRARIES },
+			{ "filenames",          no_argument,       0, LOPT_FILENAMES },
+			{ "function-types",     no_argument,       0, LOPT_FUNCTION_TYPES },
+			{ "delegates",          no_argument,       0, LOPT_DELEGATES },
+			{ "global-group-names", no_argument,       0, LOPT_GLOBAL_GROUPS },
+			{ "enums",              no_argument,       0, LOPT_ENUMS },
+			{ "audit",              no_argument,       0, LOPT_AUDIT },
+			{ "decrypt",            no_argument,       0, LOPT_DECRYPT },
+			{ "map",                no_argument,       0, LOPT_MAP },
+			{ "inline-strings",     no_argument,       0, LOPT_INLINE_STRINGS },
 		};
 		int option_index = 0;
 		int c;
 
-		c = getopt_long(argc, argv, "hVcCtfgSmlsFeAdjo:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hcCjto:VfgSmslFeAd", long_options, &option_index);
 		if (c == -1)
 			break;
 
 		switch (c) {
 		case 'h':
+		case LOPT_HELP:
 			usage();
 			return 0;
-		case 'V':
-			dump_version = true;
-			break;
 		case 'c':
-			dump_code = true;
+		case LOPT_CODE:
+			dump_targets[dump_ptr++] = LOPT_CODE;
 			break;
 		case 'C':
-			dump_code = true;
+		case LOPT_RAW_CODE:
+			dump_targets[dump_ptr++] = LOPT_CODE;
 			flags |= DASM_RAW;
 			break;
-		case 't':
-			dump_text = true;
-			break;
-		case 'f':
-			dump_functions = true;
-			break;
-		case 'g':
-			dump_globals = true;
-			break;
-		case 'S':
-			dump_structures = true;
-			break;
-		case 'm':
-			dump_messages = true;
-			break;
-		case 'l':
-			dump_libraries = true;
-			break;
-		case 's':
-			dump_strings = true;
-			break;
-		case 'F':
-			dump_filenames = true;
-			break;
-		case 'T':
-			dump_functypes = true;
-			break;
-		case 'D':
-			dump_delegates = true;
-			break;
-		case 'G':
-			dump_global_group_names = true;
-			break;
-		case 'e':
-			dump_enums = true;
-			break;
-		case 'A':
-			audit = true;
-			break;
-		case 'd':
-			decrypt = true;
-			break;
 		case 'j':
-			dump_json = true;
+		case LOPT_JSON:
+			dump_targets[dump_ptr++] = LOPT_JSON;
 			break;
-		case 'M':
-			dump_map = true;
-			break;
-		case 'R':
-			flags |= DASM_NO_STRINGS;
+		case 't':
+		case LOPT_TEXT:
+			dump_targets[dump_ptr++] = LOPT_TEXT;
 			break;
 		case 'o':
+		case LOPT_OUTPUT:
 			output_file = xstrdup(optarg);
+			break;
+		case 'V':
+		case LOPT_AIN_VERSION:
+			dump_targets[dump_ptr++] = LOPT_AIN_VERSION;
+			break;
+		case 'f':
+		case LOPT_FUNCTIONS:
+			dump_targets[dump_ptr++] = LOPT_FUNCTIONS;
+			break;
+		case 'g':
+		case LOPT_GLOBALS:
+			dump_targets[dump_ptr++] = LOPT_GLOBALS;
+			break;
+		case 'S':
+		case LOPT_STRUCTURES:
+			dump_targets[dump_ptr++] = LOPT_STRUCTURES;
+			break;
+		case 'm':
+		case LOPT_MESSAGES:
+			dump_targets[dump_ptr++] = LOPT_MESSAGES;
+			break;
+		case 's':
+		case LOPT_STRINGS:
+			dump_targets[dump_ptr++] = LOPT_STRINGS;
+			break;
+		case 'l':
+		case LOPT_LIBRARIES:
+			dump_targets[dump_ptr++] = LOPT_LIBRARIES;
+			break;
+		case 'F':
+		case LOPT_FILENAMES:
+			dump_targets[dump_ptr++] = LOPT_FILENAMES;
+			break;
+		case LOPT_FUNCTION_TYPES:
+			dump_targets[dump_ptr++] = LOPT_FUNCTION_TYPES;
+			break;
+		case LOPT_DELEGATES:
+			dump_targets[dump_ptr++] = LOPT_DELEGATES;
+			break;
+		case LOPT_GLOBAL_GROUPS:
+			dump_targets[dump_ptr++] = LOPT_GLOBAL_GROUPS;
+			break;
+		case 'e':
+		case LOPT_ENUMS:
+			dump_targets[dump_ptr++] = LOPT_ENUMS;
+			break;
+		case 'A':
+		case LOPT_AUDIT:
+			dump_targets[dump_ptr++] = LOPT_AUDIT;
+			break;
+		case 'd':
+		case LOPT_DECRYPT:
+			decrypt = true;
+			break;
+		case LOPT_MAP:
+			dump_targets[dump_ptr++] = LOPT_MAP;
+			break;
+		case LOPT_INLINE_STRINGS:
+			flags &= ~DASM_NO_STRINGS;
 			break;
 		case '?':
 			ERROR("Unkown command line argument");
@@ -613,43 +647,27 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (dump_version)
-		ain_dump_version(output, ain);
-	if (dump_structures)
-		ain_dump_structures(output, ain);
-	if (dump_functypes)
-		ain_dump_functypes(output, ain, false);
-	if (dump_delegates)
-		ain_dump_functypes(output, ain, true);
-	if (dump_global_group_names)
-		ain_dump_global_group_names(output, ain);
-	if (dump_globals)
-		ain_dump_globals(output, ain);
-	if (dump_libraries)
-		ain_dump_libraries(output, ain);
-	if (dump_functions)
-		ain_dump_functions(output, ain);
-	if (dump_messages)
-		ain_dump_messages(output, ain);
-	if (dump_strings)
-		ain_dump_strings(output, ain);
-	if (dump_filenames) {
-		if (!ain->FNAM.present)
-			guess_filenames(ain);
-		ain_dump_filenames(output, ain);
+	for (int i = 0; i < dump_ptr; i++) {
+		switch (dump_targets[i]) {
+		case LOPT_CODE:           disassemble_ain(output, ain, flags); break;
+		case LOPT_JSON:           ain_dump_json(output, ain); break;
+		case LOPT_TEXT:           ain_dump_text(output, ain); break;
+		case LOPT_AIN_VERSION:    ain_dump_version(output, ain); break;
+		case LOPT_FUNCTIONS:      ain_dump_functions(output, ain); break;
+		case LOPT_GLOBALS:        ain_dump_globals(output, ain); break;
+		case LOPT_STRUCTURES:     ain_dump_structures(output, ain); break;
+		case LOPT_MESSAGES:       ain_dump_messages(output, ain); break;
+		case LOPT_STRINGS:        ain_dump_strings(output, ain); break;
+		case LOPT_LIBRARIES:      ain_dump_libraries(output, ain); break;
+		case LOPT_FILENAMES:      ain_dump_filenames(output, ain); break;
+		case LOPT_FUNCTION_TYPES: ain_dump_functypes(output, ain, false); break;
+		case LOPT_DELEGATES:      ain_dump_functypes(output, ain, true); break;
+		case LOPT_GLOBAL_GROUPS:  ain_dump_global_group_names(output, ain); break;
+		case LOPT_ENUMS:          ain_dump_enums(output, ain); break;
+		case LOPT_AUDIT:          ain_audit(output, ain); break;
+		case LOPT_MAP:            ain_dump_map(output, ain); break;
+		}
 	}
-	if (dump_enums)
-		ain_dump_enums(output, ain);
-	if (dump_code)
-		disassemble_ain(output, ain, flags);
-	if (dump_text)
-		ain_dump_text(output, ain);
-	if (dump_json)
-		ain_dump_json(output, ain);
-	if (dump_map)
-		ain_dump_map(output, ain);
-	if (audit)
-		ain_audit(output, ain);
 
 	ain_free(ain);
 	return 0;

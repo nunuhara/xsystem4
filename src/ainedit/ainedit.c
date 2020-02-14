@@ -33,11 +33,21 @@ static void usage(void)
 	puts("    -t, --text <text-file>       Update strings/messages");
 	puts("    -o, --output <path>          Set output file path");
 	puts("        --raw                    Read code in raw mode");
-	puts("        --no-strings             Read code in no-strings mode");
+	puts("        --inline-strings         Read code in inline-strings mode");
 	//puts("    -p,--project <pje-file>      Build AIN from project file");
 }
 
 extern int text_parse(void);
+
+enum {
+	LOPT_HELP = 256,
+	LOPT_CODE,
+	LOPT_JSON,
+	LOPT_TEXT,
+	LOPT_OUTPUT,
+	LOPT_RAW,
+	LOPT_INLINE_STRINGS,
+};
 
 int main(int argc, char *argv[])
 {
@@ -47,16 +57,16 @@ int main(int argc, char *argv[])
 	const char *decl_file = NULL;
 	const char *text_file = NULL;
 	const char *output_file = NULL;
-	uint32_t flags = 0;
+	uint32_t flags = ASM_NO_STRINGS;
 	while (1) {
 		static struct option long_options[] = {
-			{ "help",       no_argument,       0, 'h' },
-			{ "code",       required_argument, 0, 'c' },
-			{ "json",       required_argument, 0, 'j' },
-			{ "text",       required_argument, 0, 't' },
-			{ "output",     required_argument, 0, 'o' },
-			{ "raw",        no_argument,       0, 'R' },
-			{ "no-strings", no_argument,       0, 'N' },
+			{ "help",           no_argument,       0, LOPT_HELP },
+			{ "code",           required_argument, 0, LOPT_CODE },
+			{ "json",           required_argument, 0, LOPT_JSON },
+			{ "text",           required_argument, 0, LOPT_TEXT },
+			{ "output",         required_argument, 0, LOPT_OUTPUT },
+			{ "raw",            no_argument,       0, LOPT_RAW },
+			{ "inline-strings", no_argument,       0, LOPT_INLINE_STRINGS },
 		};
 		int option_index = 0;
 		int c;
@@ -67,25 +77,31 @@ int main(int argc, char *argv[])
 
 		switch (c) {
 		case 'h':
+		case LOPT_HELP:
 			usage();
 			return 0;
 		case 'c':
+		case LOPT_CODE:
 			code_file = optarg;
 			break;
 		case 'j':
+		case LOPT_JSON:
 			decl_file = optarg;
 			break;
 		case 't':
+		case LOPT_TEXT:
 			text_file = optarg;
 			break;
 		case 'o':
+		case LOPT_OUTPUT:
 			output_file = optarg;
 			break;
-		case 'R':
+		case LOPT_RAW:
 			flags |= ASM_RAW;
 			break;
-		case 'N':
-			flags |= ASM_NO_STRINGS;
+		case LOPT_INLINE_STRINGS:
+			WARNING("Inline strings mode doesn't quite work yet...");
+			flags &= ~ASM_NO_STRINGS;
 			break;
 		case '?':
 			ERROR("Unknown command line argument");
