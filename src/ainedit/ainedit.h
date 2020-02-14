@@ -54,4 +54,7 @@ void read_declarations(const char *filename, struct ain *ain);
 // repack.c
 void ain_write(const char *filename, struct ain *ain);
 
+// text.c
+void read_text(const char *filename, struct ain *ain);
+
 #endif /* AINEDIT_AINEDIT_H */

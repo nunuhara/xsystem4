@@ -30,11 +30,14 @@ static void usage(void)
 	puts("    -h, --help                   Display this message and exit");
 	puts("    -c, --code <jam-file>        Update the CODE section (assemble .jam file)");
 	puts("    -j, --json <json-file>       Update AIN file from JSON data");
+	puts("    -t, --text <text-file>       Update strings/messages");
 	puts("    -o, --output <path>          Set output file path");
 	puts("        --raw                    Read code in raw mode");
 	puts("        --no-strings             Read code in no-strings mode");
 	//puts("    -p,--project <pje-file>      Build AIN from project file");
 }
+
+extern int text_parse(void);
 
 int main(int argc, char *argv[])
 {
@@ -42,6 +45,7 @@ int main(int argc, char *argv[])
 	int err = AIN_SUCCESS;
 	const char *code_file = NULL;
 	const char *decl_file = NULL;
+	const char *text_file = NULL;
 	const char *output_file = NULL;
 	uint32_t flags = 0;
 	while (1) {
@@ -49,6 +53,7 @@ int main(int argc, char *argv[])
 			{ "help",       no_argument,       0, 'h' },
 			{ "code",       required_argument, 0, 'c' },
 			{ "json",       required_argument, 0, 'j' },
+			{ "text",       required_argument, 0, 't' },
 			{ "output",     required_argument, 0, 'o' },
 			{ "raw",        no_argument,       0, 'R' },
 			{ "no-strings", no_argument,       0, 'N' },
@@ -56,7 +61,7 @@ int main(int argc, char *argv[])
 		int option_index = 0;
 		int c;
 
-		c = getopt_long(argc, argv, "hc:j:o:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hc:j:t:o:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -69,6 +74,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'j':
 			decl_file = optarg;
+			break;
+		case 't':
+			text_file = optarg;
 			break;
 		case 'o':
 			output_file = optarg;
@@ -100,12 +108,16 @@ int main(int argc, char *argv[])
 		ERROR("Failed to open ain file: %s", ain_strerror(err));
 	}
 
+	if (decl_file) {
+		read_declarations(decl_file, ain);
+	}
+
 	if (code_file) {
 		asm_assemble_jam(code_file, ain, flags);
 	}
 
-	if (decl_file) {
-		read_declarations(decl_file, ain);
+	if (text_file) {
+		read_text(text_file, ain);
 	}
 
 	NOTICE("Writing AIN file...");

@@ -4,26 +4,25 @@ ainedit = ['../cJSON.c',
            'asm.c',
            'json.c',
            'repack.c',
-           #'ainedit/parser.c',
-           #'ainedit/tokens.c',
+           'text.c',
 ]
 
 if flex.found()
     lgen = generator(flex,
                      output : '@BASENAME@.yy.c',
                      arguments : ['-o', '@OUTPUT@', '@INPUT@'])
-    lfiles = lgen.process('asm_lexer.l')
+    lfiles = lgen.process('asm_lexer.l', 'text_lexer.l')
 else
-    lfiles = 'asm_lexer.yy.c'
+    lfiles = ['asm_lexer.yy.c', 'text_lexer.yy.c']
 endif
 
 if bison.found()
     pgen = generator(bison,
                      output: ['@BASENAME@.tab.c', '@BASENAME@.tab.h'],
                      arguments : ['@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@'])
-    pfiles = pgen.process('asm_parser.y')
+    pfiles = pgen.process('asm_parser.y', 'text_parser.y')
 else
-    pfiles = ['asm_parser.tab.c', 'asm_parser.tab.h']
+    pfiles = ['asm_parser.tab.c', 'asm_parser.tab.h', 'text_parser.tab.c', 'text_parser.tab.h']
 endif
 
 executable('ainedit', ainedit, lfiles, pfiles,
