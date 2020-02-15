@@ -318,7 +318,7 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 	switch (type) {
 	case T_INT:
 	case T_SWITCH:
-		fprintf(dasm->out, "0x%x", arg);
+		fprintf(dasm->out, "%d", arg);
 		break;
 	case T_FLOAT:
 		fprintf(dasm->out, "%f", arg_to_float(arg));
@@ -469,7 +469,7 @@ static void dasm_leave_function(struct dasm_state *dasm)
 static void print_instruction(struct dasm_state *dasm, const struct instruction *instr)
 {
 	if (dasm->flags & DASM_RAW)
-		fprintf(dasm->out, "0x%08lX:\t", dasm->addr);
+		fprintf(dasm->out, "0x%08" SIZE_T_FMT "X:\t", dasm->addr);
 
 	switch (instr->opcode) {
 	case FUNC:
@@ -503,7 +503,7 @@ static const struct instruction *get_instruction(struct dasm_state *dasm)
 
 static void print_switch_case(struct dasm_state *dasm, struct ain_switch_case *c)
 {
-	fprintf(dasm->out, ".CASE %ld:%ld ", c->parent - dasm->ain->switches, c - c->parent->cases);
+	fprintf(dasm->out, ".CASE %" SIZE_T_FMT "d:%" SIZE_T_FMT "d ", c->parent - dasm->ain->switches, c - c->parent->cases);
 	switch (c->parent->case_type) {
 	case AIN_SWITCH_INT:
 		fprintf(dasm->out, "%d", c->value);
@@ -527,7 +527,7 @@ static void print_switch_case(struct dasm_state *dasm, struct ain_switch_case *c
 static char *genlabel(size_t addr)
 {
 	char name[64];
-	snprintf(name, 64, "0x%lx", addr);
+	snprintf(name, 64, "0x%" SIZE_T_FMT "x", addr);
 	return strdup(name);
 }
 
@@ -589,7 +589,7 @@ void disassemble_ain(FILE *out, struct ain *ain, unsigned int flags)
 					print_switch_case(&dasm, t->switch_case);
 					break;
 				case JMP_DEFAULT:
-					fprintf(dasm.out, ".DEFAULT %ld\n", t->switch_default - dasm.ain->switches);
+					fprintf(dasm.out, ".DEFAULT %" SIZE_T_FMT "d\n", t->switch_default - dasm.ain->switches);
 					break;
 				}
 			}

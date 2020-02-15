@@ -51,6 +51,7 @@ enum {
 
 int main(int argc, char *argv[])
 {
+	initialize_instructions();
 	struct ain *ain;
 	int err = AIN_SUCCESS;
 	const char *code_file = NULL;

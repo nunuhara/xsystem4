@@ -23,10 +23,18 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <fcntl.h>
 #include "little_endian.h"
+#include "system4.h"
 #include "system4/ald.h"
+
+#ifdef _WIN32
+#define mmap(...) (ERROR("mmap not supported on Windows"), NULL)
+#define munmap(...) ERROR("munmap not supported on Windows")
+#define MAP_FAILED 0
+#else
+#include <sys/mman.h>
+#endif
 
 static const char *errtab[ALD_MAX_ERROR] = {
 	[ALD_SUCCESS]           = "Success",
@@ -257,6 +265,10 @@ struct ald_archive *ald_open(char **files, int count, int flags, int *error)
 	long filesize;
 	struct ald_archive *ar = calloc(1, sizeof(struct ald_archive));
 	bool gotmap = false;
+
+#ifdef _WIN32
+	flags &= ~ALD_MMAP;
+#endif
 
 	for (int i = 0; i < count; i++) {
 		// XXX: why allow this?

@@ -26,6 +26,7 @@
 #include "system4.h"
 #include "system4/ain.h"
 #include "system4/ald.h"
+#include "system4/instructions.h"
 #include "system4/utfsjis.h"
 #include "vm.h"
 
@@ -196,6 +197,7 @@ static void config_init(void)
 
 int main(int argc, char *argv[])
 {
+	initialize_instructions();
 	size_t len;
 	char *ainfile;
 	int err = AIN_SUCCESS;

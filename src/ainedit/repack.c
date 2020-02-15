@@ -427,7 +427,7 @@ void ain_write(const char *filename, struct ain *ain)
 	else
 		buf = ain_compress(buf, &len);
 
-	FILE *out = fopen(filename, "w");
+	FILE *out = fopen(filename, "wb");
 	if (!out)
 		ERROR("Failed to open '%s': %s", filename, strerror(errno));
 	if (fwrite(buf, len, 1, out) != 1)

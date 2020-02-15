@@ -631,7 +631,7 @@ static struct ain_function_type *read_function_types(struct ain_reader *r, int c
 	do {								\
 		const struct instruction *instr;			\
 		for (size_t addr = start; addr < ain->code_size; addr += instruction_width(instr->opcode)) { \
-			int16_t _fei_opcode = LittleEndian_getW(ain->code, addr); \
+			uint16_t _fei_opcode = LittleEndian_getW(ain->code, addr); \
 			if (_fei_opcode >= NR_OPCODES)			\
 				ERROR("Unknown/invalid opcode: %u", _fei_opcode); \
 			instr = &instructions[_fei_opcode];		\

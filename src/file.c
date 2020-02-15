@@ -60,6 +60,13 @@ bool file_exists(const char *path)
 	return access(path, F_OK) != -1;
 }
 
+#if (defined(_WIN32) || defined(__WIN32__))
+#include <direct.h>
+#define make_dir(path, mode) _mkdir(path)
+#else
+#define make_dir(path, mode) mkdir(path, mode)
+#endif
+
 // Adapted from http://stackoverflow.com/a/2336245/119527
 int mkdir_p(const char *path)
 {
@@ -82,7 +89,7 @@ int mkdir_p(const char *path)
 			// Temporarily truncate
 			*p = '\0';
 
-			if (mkdir(_path, S_IRWXU) != 0) {
+			if (make_dir(_path, S_IRWXU) != 0) {
 				if (errno != EEXIST)
 					return -1;
 			}
@@ -91,7 +98,7 @@ int mkdir_p(const char *path)
 		}
 	}
 
-	if (mkdir(_path, S_IRWXU) != 0) {
+	if (make_dir(_path, S_IRWXU) != 0) {
 		if (errno != EEXIST)
 			return -1;
 	}

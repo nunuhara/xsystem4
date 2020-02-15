@@ -378,3 +378,9 @@ struct instruction instructions[NR_OPCODES] = {
 	TODO ( OP_0X104, 0 ),
 	TODO ( OP_0X105, 1, T_STRUCT ),
 };
+
+void initialize_instructions(void)
+{
+	// this is a dumb hack to force linking/initialization of the above
+	// arrays on Windows.
+}

@@ -42,7 +42,7 @@ static size_t get_prefix_length(char *a, char *b)
 static char *guess_itoa(possibly_unused struct guesser_state *state, size_t n)
 {
 	char buf[512];
-	snprintf(buf, 512, "%lu", n);
+	snprintf(buf, 512, "%" SIZE_T_FMT "u", n);
 	return strdup(buf);
 }
 

@@ -393,21 +393,21 @@ static void ain_audit(FILE *f, struct ain *ain)
 		uint16_t opcode = LittleEndian_getW(ain->code, addr);
 		const struct instruction *instr = &instructions[opcode];
 		if (opcode >= NR_OPCODES) {
-			ERROR("0x%08lx: Invalid/unknown opcode: %x", opcode);
+			ERROR("0x%08" SIZE_T_FMT "x: Invalid/unknown opcode: %x", opcode);
 		}
 		if (!instr->implemented) {
-			fprintf(f, "0x%08lx: %s (unimplemented instruction)\n", addr, instr->name);
+			fprintf(f, "0x%08" SIZE_T_FMT "x: %s (unimplemented instruction)\n", addr, instr->name);
 		}
 		if (opcode == CALLSYS) {
 			uint32_t syscode = LittleEndian_getDW(ain->code, addr + 2);
 			if (syscode >= NR_SYSCALLS) {
-				ERROR("0x%08lx: CALLSYS system.(0x%x)\n", addr, syscode);
+				ERROR("0x%08" SIZE_T_FMT "x: CALLSYS system.(0x%x)\n", addr, syscode);
 			}
 			const char * const name = syscalls[syscode].name;
 			if (!name) {
-				fprintf(f, "0x%08lx: CALLSYS system.(0x%x)\n", addr, syscode);
+				fprintf(f, "0x%08" SIZE_T_FMT "x: CALLSYS system.(0x%x)\n", addr, syscode);
 			} else if (!syscalls[syscode].implemented) {
-				fprintf(f, "0x%08lx: CALLSYS %s (unimplemented system call)\n", addr, name);
+				fprintf(f, "0x%08" SIZE_T_FMT "x: CALLSYS %s (unimplemented system call)\n", addr, name);
 			}
 
 		}
@@ -490,6 +490,7 @@ enum {
 
 int main(int argc, char *argv[])
 {
+	initialize_instructions();
 	bool decrypt = false;
 	char *output_file = NULL;
 	FILE *output = stdout;

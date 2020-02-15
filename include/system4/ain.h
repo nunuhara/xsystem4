@@ -147,7 +147,7 @@ struct ain_variable {
 };
 
 struct ain_function {
-	int32_t address;
+	ain_addr_t address;
 	char *name;
 	bool is_label;
 	struct ain_type return_type;

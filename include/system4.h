@@ -87,4 +87,10 @@ char *unix_path(const char *path);
 char *gamedir_path(const char *path);
 char *savedir_path(const char *filename);
 
+#ifdef _WIN32
+#define SIZE_T_FMT "I"
+#else
+#define SIZE_T_FMT "z"
+#endif
+
 #endif /* SYSTEM4_H */

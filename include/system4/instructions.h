@@ -378,6 +378,8 @@ struct instruction {
 
 struct instruction instructions[NR_OPCODES];
 
+void initialize_instructions(void);
+
 static const_pure inline int32_t instruction_width(enum opcode opcode)
 {
 	return 2 + instructions[opcode].nr_args * 4;
