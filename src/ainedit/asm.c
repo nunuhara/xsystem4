@@ -445,7 +445,9 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		realloc_string_table(state->ain, n_str);
 		if (state->ain->strings[n_str])
 			free_string(state->ain->strings[n_str]);
-		state->ain->strings[n_str] = string_dup(kv_A(*instr->args, 1));
+		char *sjis = utf2sjis(kv_A(*instr->args, 1)->text, 0);
+		state->ain->strings[n_str] = make_string(sjis, strlen(sjis));
+		free(sjis);
 		break;
 	}
 	case PO_MSG: {
@@ -455,7 +457,9 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		realloc_message_table(state->ain, n_msg);
 		if (state->ain->messages[n_msg])
 			free_string(state->ain->messages[n_msg]);
-		state->ain->messages[n_msg] = string_dup(kv_A(*instr->args, 1));
+		char *sjis = utf2sjis(kv_A(*instr->args, 1)->text, 0);
+		state->ain->messages[n_msg] = make_string(sjis, strlen(sjis));
+		free(sjis);
 		break;
 	}
 	}

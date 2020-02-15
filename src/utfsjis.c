@@ -46,6 +46,8 @@ int sjis_index(const char *_src, int index)
 }
 
 char *sjis2utf(const char *_src, size_t len) {
+	if (!len)
+		len = strlen(_src);
 	const uint8_t *src = (uint8_t*)_src;
 	uint8_t* dst = malloc(len * 3 + 1);
 	uint8_t* dstp = dst;
@@ -93,6 +95,8 @@ static int unicode_to_sjis(int u) {
 }
 
 char *utf2sjis(const char *_src, size_t len) {
+	if (!len)
+		len = strlen(_src);
 	const uint8_t *src = (uint8_t*)_src;
 	uint8_t* dst = malloc(len + 1);
 	uint8_t* dstp = dst;
