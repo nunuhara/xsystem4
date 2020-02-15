@@ -23,6 +23,7 @@
 #include "text_parser.tab.h"
 #include "system4.h"
 #include "system4/string.h"
+#include "system4/utfsjis.h"
 
 char string_buf[65536];
 char *string_buf_ptr;
@@ -52,7 +53,9 @@ s                         return STRINGS;
     \" {
         BEGIN(INITIAL);
         *string_buf_ptr = '\0';
-        text_lval.string = make_string(string_buf, strlen(string_buf));
+        char *sjis = utf2sjis(string_buf, strlen(string_buf));
+        text_lval.string = make_string(sjis, strlen(sjis));
+        free(sjis);
         return STRING;
     }
 

@@ -746,13 +746,14 @@ char *yytext;
 #include "text_parser.tab.h"
 #include "system4.h"
 #include "system4/string.h"
+#include "system4/utfsjis.h"
 
 char string_buf[65536];
 char *string_buf_ptr;
 
-#line 754 "src/ainedit/48087cf@@ainedit@exe/text_lexer.yy.c"
+#line 755 "src/ainedit/48087cf@@ainedit@exe/text_lexer.yy.c"
 
-#line 756 "src/ainedit/48087cf@@ainedit@exe/text_lexer.yy.c"
+#line 757 "src/ainedit/48087cf@@ainedit@exe/text_lexer.yy.c"
 
 #define INITIAL 0
 #define str 1
@@ -970,10 +971,10 @@ YY_DECL
 		}
 
 	{
-#line 37 "../src/ainedit/text_lexer.l"
+#line 38 "../src/ainedit/text_lexer.l"
 
 
-#line 977 "src/ainedit/48087cf@@ainedit@exe/text_lexer.yy.c"
+#line 978 "src/ainedit/48087cf@@ainedit@exe/text_lexer.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1032,107 +1033,109 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 39 "../src/ainedit/text_lexer.l"
+#line 40 "../src/ainedit/text_lexer.l"
 ;
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 40 "../src/ainedit/text_lexer.l"
+#line 41 "../src/ainedit/text_lexer.l"
 return NEWLINE;
 	YY_BREAK
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 41 "../src/ainedit/text_lexer.l"
+#line 42 "../src/ainedit/text_lexer.l"
 return NEWLINE;
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 42 "../src/ainedit/text_lexer.l"
+#line 43 "../src/ainedit/text_lexer.l"
 return LBRACKET;
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 43 "../src/ainedit/text_lexer.l"
+#line 44 "../src/ainedit/text_lexer.l"
 return RBRACKET;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 44 "../src/ainedit/text_lexer.l"
+#line 45 "../src/ainedit/text_lexer.l"
 return EQUAL;
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 45 "../src/ainedit/text_lexer.l"
+#line 46 "../src/ainedit/text_lexer.l"
 text_lval.integer = atoi(text_text); return NUMBER;
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 46 "../src/ainedit/text_lexer.l"
+#line 47 "../src/ainedit/text_lexer.l"
 return MESSAGES;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 47 "../src/ainedit/text_lexer.l"
+#line 48 "../src/ainedit/text_lexer.l"
 return STRINGS;
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 49 "../src/ainedit/text_lexer.l"
+#line 50 "../src/ainedit/text_lexer.l"
 string_buf_ptr = string_buf; BEGIN(str);
 	YY_BREAK
 
 case 11:
 YY_RULE_SETUP
-#line 52 "../src/ainedit/text_lexer.l"
+#line 53 "../src/ainedit/text_lexer.l"
 {
         BEGIN(INITIAL);
         *string_buf_ptr = '\0';
-        text_lval.string = make_string(string_buf, strlen(string_buf));
+        char *sjis = utf2sjis(string_buf, strlen(string_buf));
+        text_lval.string = make_string(sjis, strlen(sjis));
+        free(sjis);
         return STRING;
     }
 	YY_BREAK
 case 12:
 /* rule 12 can match eol */
 YY_RULE_SETUP
-#line 59 "../src/ainedit/text_lexer.l"
+#line 62 "../src/ainedit/text_lexer.l"
 ERROR("Unterminated string literal");
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 61 "../src/ainedit/text_lexer.l"
+#line 64 "../src/ainedit/text_lexer.l"
 *string_buf_ptr++ = '\n';
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 62 "../src/ainedit/text_lexer.l"
+#line 65 "../src/ainedit/text_lexer.l"
 *string_buf_ptr++ = '\t';
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 63 "../src/ainedit/text_lexer.l"
+#line 66 "../src/ainedit/text_lexer.l"
 *string_buf_ptr++ = '\r';
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 64 "../src/ainedit/text_lexer.l"
+#line 67 "../src/ainedit/text_lexer.l"
 *string_buf_ptr++ = '\b';
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 65 "../src/ainedit/text_lexer.l"
+#line 68 "../src/ainedit/text_lexer.l"
 *string_buf_ptr++ = '\f';
 	YY_BREAK
 case 18:
 /* rule 18 can match eol */
 YY_RULE_SETUP
-#line 67 "../src/ainedit/text_lexer.l"
+#line 70 "../src/ainedit/text_lexer.l"
 *string_buf_ptr++ = text_text[1];
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 69 "../src/ainedit/text_lexer.l"
+#line 72 "../src/ainedit/text_lexer.l"
 {
         char *yptr = text_text;
         while (*yptr)
@@ -1142,10 +1145,10 @@ YY_RULE_SETUP
 
 case 20:
 YY_RULE_SETUP
-#line 76 "../src/ainedit/text_lexer.l"
+#line 79 "../src/ainedit/text_lexer.l"
 ECHO;
 	YY_BREAK
-#line 1149 "src/ainedit/48087cf@@ainedit@exe/text_lexer.yy.c"
+#line 1152 "src/ainedit/48087cf@@ainedit@exe/text_lexer.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(str):
 	yyterminate();
@@ -2151,6 +2154,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 76 "../src/ainedit/text_lexer.l"
+#line 79 "../src/ainedit/text_lexer.l"
 
 
