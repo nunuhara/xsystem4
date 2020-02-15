@@ -711,6 +711,7 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 		ain->version = read_int32(r);
 		if (ain->version >= 11) {
 			instructions[CALLHLL].nr_args = 3;
+			instructions[NEW].nr_args = 2;
 			instructions[S_MOD].nr_args = 1;
 			instructions[OBJSWAP].nr_args = 1;
 			instructions[DG_STR_TO_METHOD].nr_args = 1;

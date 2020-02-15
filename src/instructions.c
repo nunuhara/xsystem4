@@ -230,7 +230,7 @@ struct instruction instructions[NR_OPCODES] = {
         OP   ( S_GTE,          0 ),
         OP   ( S_LENGTH2,      0 ),
         TODO ( S_LENGTHBYTE2,  0 ),
-        TODO ( NEW,            2, T_STRUCT, T_INT ), // FIXME: 2nd arg is T_FUNC *OR* -1
+        TODO ( NEW,            0, T_STRUCT, T_INT ), // FIXME: 2nd arg is T_FUNC *OR* -1
         OP   ( DELETE,         0 ),
         TODO ( CHECKUDO,       0 ),
         OP   ( A_REF,          0 ),
