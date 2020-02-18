@@ -2,6 +2,7 @@
 system4 = ['ain.c',
            'ald.c',
            'cg.c',
+           'ex.c',
            'instructions.c',
            'qnt.c',
            'string.c',
@@ -68,3 +69,4 @@ executable('xsystem4', xsystem4,
 
 subdir('aindump')
 subdir('ainedit')
+subdir('exdump')
