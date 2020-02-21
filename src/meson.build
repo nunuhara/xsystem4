@@ -47,9 +47,6 @@ xsystem4 = ['audio.c',
             'hll/SystemServiceEx.c',
 ]
 
-flex = find_program('flex', required: false)
-bison = find_program('bison', required: false)
-
 xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, ffi, gl, glew]
 if chibi.found()
     xsystem4_deps += chibi
@@ -67,6 +64,4 @@ executable('xsystem4', xsystem4,
            include_directories : incdir,
            link_with : libsys4)
 
-subdir('aindump')
-subdir('ainedit')
-subdir('exdump')
+subdir('tools')

@@ -36,13 +36,6 @@ static void indent(FILE *out)
 	}
 }
 
-static void print_string(FILE *out, struct string *s)
-{
-	char *u = sjis2utf(s->text, s->size);
-	fprintf(out, "%s", u);
-	free(u);
-}
-
 static const char *ex_strtype(enum ex_value_type type)
 {
 	switch (type) {
@@ -113,10 +106,55 @@ static void ex_dump_string(FILE *out, struct string *str)
 	free(u);
 }
 
+static void ex_dump_identifier(FILE *out, struct string *s)
+{
+	// empty identifier
+	if (s->size == 0) {
+		fprintf(out, "\"\"");
+		return;
+	}
+	// identifier beginning with a digit
+	if (s->text[0] >= '0' && s->text[0] <= '9') {
+		ex_dump_string(out, s);
+		return;
+	}
+	// identifier containing special character
+	for (int i = 0; i < s->size; i++) {
+		switch (s->text[i]) {
+		case ' ':
+		case '\t':
+		case '\r':
+		case '\n':
+		case '\\':
+		case '(':
+		case ')':
+		case '[':
+		case ']':
+		case '{':
+		case '}':
+		case '=':
+		case ',':
+		case '.':
+		case ';':
+		case '"':
+		case '-':
+			ex_dump_string(out, s);
+			return;
+		}
+		if (SJIS_2BYTE(s->text[i]))
+			i++;
+	}
+
+	// safe identifier: print unquoted
+	char *u = sjis2utf(s->text, s->size);
+	fprintf(out, "%s", u);
+	free(u);
+}
+
 static void ex_dump_field(FILE *out, struct ex_field *field)
 {
 	fprintf(out, "%s ", ex_strtype(field->type));
-	print_string(out, field->name);
+	ex_dump_identifier(out, field->name);
 	if (field->uk0 || field->uk1) {
 		if (field->uk0)
 			fprintf(out, "[%d,%d,%d]", field->uk0, field->uk1, field->uk2);
@@ -177,7 +215,7 @@ static void ex_dump_table(FILE *out, struct ex_table *table)
 			if (i+1 < table->nr_fields)
 				fprintf(out, ", ");
 		}
-		fprintf(out, " }\n");
+		fprintf(out, " },\n");
 	}
 	for (uint32_t i = 0; i < table->nr_rows; i++) {
 		if (toplevel)
@@ -235,7 +273,7 @@ static void ex_dump_tree(FILE *out, struct ex_tree *tree, int level)
 	indent_level++;
 	for (uint32_t i = 0; i < tree->nr_children; i++) {
 		indent(out);
-		print_string(out, tree->children[i].name);
+		ex_dump_identifier(out, tree->children[i].name);
 		fprintf(out, " = ");
 		ex_dump_tree(out, &tree->children[i], level+1);
 		fprintf(out, ",\n");
@@ -254,7 +292,7 @@ void ex_dump(FILE *out, struct ex *ex)
 
 		// type name =
 		fprintf(out, "%s ", ex_strtype(block->val.type));
-		print_string(out, block->name);
+		ex_dump_identifier(out, block->name);
 		fprintf(out, " = ");
 
 		// rvalue
@@ -271,16 +309,5 @@ void ex_dump(FILE *out, struct ex *ex)
 		if (i+1 < ex->nr_blocks)
 			fprintf(out, "\n\n");
 	}
-}
-
-int main(int argc, char *argv[])
-{
-	if (argc != 2)
-		ERROR("Wrong number of arguments.");
-
-	struct ex *ex = ex_read(argv[1]);
-	ex_dump(stdout, ex);
-	ex_free(ex);
-
-	return 0;
+	fputc('\n', out);
 }
