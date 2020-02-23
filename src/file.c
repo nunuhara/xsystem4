@@ -25,6 +25,32 @@
 #include <sys/stat.h>
 #include "system4.h"
 
+#if (defined(_WIN32) || defined(__WIN32__))
+#include <Windows.h>
+#include <direct.h>
+#define make_dir(path, mode) _mkdir(path)
+#else
+#define make_dir(path, mode) mkdir(path, mode)
+#endif
+
+FILE *file_open_utf8(const char *path, const char *mode)
+{
+#ifdef _WIN32
+	int nr_wchars = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0);
+	wchar_t *wpath = xmalloc(nr_wchars * sizeof(wchar_t));
+	MultiByteToWideChar(CP_UTF8, 0, path, -1, wpath, nr_wchars);
+
+	wchar_t wmode[64];
+	mbstowcs(wmode, mode, 64);
+
+	FILE *f = _wfopen(wpath, wmode);
+	free(wpath);
+	return f;
+#else
+	return fopen(path, mode);
+#endif
+}
+
 void *file_read(const char *path, size_t *len_out)
 {
 	FILE *fp;
@@ -59,13 +85,6 @@ bool file_exists(const char *path)
 {
 	return access(path, F_OK) != -1;
 }
-
-#if (defined(_WIN32) || defined(__WIN32__))
-#include <direct.h>
-#define make_dir(path, mode) _mkdir(path)
-#else
-#define make_dir(path, mode) mkdir(path, mode)
-#endif
 
 // Adapted from http://stackoverflow.com/a/2336245/119527
 int mkdir_p(const char *path)

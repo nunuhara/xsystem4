@@ -127,11 +127,6 @@ the current directory containing the data from "Rance10EX.ex". The file "out.x"
 should contain a list of `#include "..."` directives which will stitch the full
 dump back together when rebuilding with exbuild.
 
-On Windows, the -s,--split option produces garbled filenames due to encoding
-issues. If you want, you can rename the files to something memorable so long
-as the names contain only ASCII characters and you make sure to change the
-`#include` directives in out.x accordingly.
-
 Known Limitations/Bugs
 ----------------------
 
@@ -141,8 +136,6 @@ Known Limitations/Bugs
 * aindump only supports dumping to a single file, which can be quite large.
 * The "--inline-strings" option, which reads/writes strings directly into the
   disassembled bytecode, does not work correctly.
-* The --split option to exdump produces garbled filenames on Windows (it should
-  still work, but its hard to know which file to edit).
 
 Source Code
 -----------

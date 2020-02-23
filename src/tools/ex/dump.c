@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <zlib.h>
+#include "file.h"
 #include "little_endian.h"
 #include "system4.h"
 #include "system4/ex.h"
@@ -323,7 +324,7 @@ void ex_dump_split(FILE *manifest, struct ex *ex, const char *dir)
 		char *name = sjis2utf(ex->blocks[i].name->text, ex->blocks[i].name->size);
 		snprintf(buf, PATH_MAX, "%s/%u_%s.x", dir, i, name);
 
-		FILE *out = fopen(buf, "w");
+		FILE *out = file_open_utf8(buf, "w");
 		if (!out)
 			ERROR("Failed to open file '%s': %s", buf, strerror(errno));
 
