@@ -7,7 +7,9 @@ pfiles = bisongen.process('ex_parser.y')
 
 exbuild = ['ast.c',
            'dump.c',
-           'exbuild.c']
+           'exbuild.c',
+           'pack.c',
+]
 
 executable('exdump', exdump,
            dependencies : [libm, zlib],
