@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -25,6 +26,7 @@
 #include "ast.h"
 
 void ex_write(FILE *out, struct ex *ex);
+extern bool columns_first;
 
 static void usage(void)
 {
@@ -33,11 +35,13 @@ static void usage(void)
 	puts("");
 	puts("    -h, --help      Display this message and exit");
 	puts("    -o, --output    Set the output file path");
+	puts("        --old       Use this for pre-Evenicle .ex files");
 }
 
 enum {
 	LOPT_HELP = 256,
 	LOPT_OUTPUT,
+	LOPT_OLD,
 };
 
 int main(int argc, char *argv[])
@@ -48,6 +52,7 @@ int main(int argc, char *argv[])
 		static struct option long_options[] = {
 			{ "help",   no_argument,       0, LOPT_HELP },
 			{ "output", required_argument, 0, LOPT_OUTPUT },
+			{ "old",    no_argument,       0, LOPT_OLD },
 		};
 		int option_index = 0;
 		int c;
@@ -64,6 +69,9 @@ int main(int argc, char *argv[])
 		case 'o':
 		case LOPT_OUTPUT:
 			output_file = optarg;
+			break;
+		case LOPT_OLD:
+			columns_first = true;
 			break;
 		case '?':
 			ERROR("Unknown command line argument");
