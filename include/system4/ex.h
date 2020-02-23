@@ -99,7 +99,10 @@ struct ex {
 	struct ex_block *blocks;
 };
 
+uint8_t *ex_decrypt(const char *path, size_t *size, uint32_t *nr_blocks);
 struct ex *ex_read(const char *path);
 void ex_free(struct ex *ex);
+
+void ex_encode(uint8_t *buf, size_t size);
 
 #endif /* SYSTE4_EX_H */
