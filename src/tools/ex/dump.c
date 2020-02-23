@@ -321,7 +321,7 @@ void ex_dump_split(FILE *manifest, struct ex *ex, const char *dir)
 	for (uint32_t i = 0; i < ex->nr_blocks; i++) {
 		char buf[PATH_MAX];
 		char *name = sjis2utf(ex->blocks[i].name->text, ex->blocks[i].name->size);
-		snprintf(buf, PATH_MAX, "%s/%s.x", dir, name);
+		snprintf(buf, PATH_MAX, "%s/%u_%s.x", dir, i, name);
 
 		FILE *out = fopen(buf, "w");
 		if (!out)
@@ -332,7 +332,7 @@ void ex_dump_split(FILE *manifest, struct ex *ex, const char *dir)
 		if (fclose(out))
 			ERROR("Failed to close file '%s': %s", buf, strerror(errno));
 
-		fprintf(manifest, "#include \"%s.x\"\n", name);
+		fprintf(manifest, "#include \"%u_%s.x\"\n", i, name);
 		free(name);
 	}
 }
