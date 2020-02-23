@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 #include <zlib.h>
 #include "little_endian.h"
 #include "system4.h"
@@ -284,30 +285,54 @@ static void ex_dump_tree(FILE *out, struct ex_tree *tree, int level)
 	fprintf(out, "}");
 }
 
-void ex_dump(FILE *out, struct ex *ex)
+static void ex_dump_block(FILE *out, struct ex_block *block)
 {
 	indent_level = 0;
+	// type name =
+	fprintf(out, "%s ", ex_strtype(block->val.type));
+	ex_dump_identifier(out, block->name);
+	fprintf(out, " = ");
+
+	// rvalue
+	switch (block->val.type) {
+	case EX_INT:    fprintf(out, "%d", block->val.i); break;
+	case EX_FLOAT:  fprintf(out, "%f", block->val.f); break;
+	case EX_STRING: ex_dump_string(out, block->val.s); break;
+	case EX_TABLE:  ex_dump_table(out, block->val.t); break;
+	case EX_LIST:   ex_dump_list(out, block->val.list, false); break;
+	case EX_TREE:   ex_dump_tree(out, block->val.tree, 0); break;
+	}
+
+	fputc(';', out);
+}
+
+void ex_dump(FILE *out, struct ex *ex)
+{
 	for (uint32_t i = 0; i < ex->nr_blocks; i++) {
-		struct ex_block *block = &ex->blocks[i];
-
-		// type name =
-		fprintf(out, "%s ", ex_strtype(block->val.type));
-		ex_dump_identifier(out, block->name);
-		fprintf(out, " = ");
-
-		// rvalue
-		switch (block->val.type) {
-		case EX_INT:    fprintf(out, "%d", block->val.i); break;
-		case EX_FLOAT:  fprintf(out, "%f", block->val.f); break;
-		case EX_STRING: ex_dump_string(out, block->val.s); break;
-		case EX_TABLE:  ex_dump_table(out, block->val.t); break;
-		case EX_LIST:   ex_dump_list(out, block->val.list, false); break;
-		case EX_TREE:   ex_dump_tree(out, block->val.tree, 0); break;
-		}
-
-		fputc(';', out);
+		ex_dump_block(out, &ex->blocks[i]);
 		if (i+1 < ex->nr_blocks)
 			fprintf(out, "\n\n");
 	}
 	fputc('\n', out);
+}
+
+void ex_dump_split(FILE *manifest, struct ex *ex, const char *dir)
+{
+	for (uint32_t i = 0; i < ex->nr_blocks; i++) {
+		char buf[PATH_MAX];
+		char *name = sjis2utf(ex->blocks[i].name->text, ex->blocks[i].name->size);
+		snprintf(buf, PATH_MAX, "%s/%s.x", dir, name);
+
+		FILE *out = fopen(buf, "w");
+		if (!out)
+			ERROR("Failed to open file '%s': %s", buf, strerror(errno));
+
+		ex_dump_block(out, &ex->blocks[i]);
+
+		if (fclose(out))
+			ERROR("Failed to close file '%s': %s", buf, strerror(errno));
+
+		fprintf(manifest, "#include \"%s.x\"\n", name);
+		free(name);
+	}
 }

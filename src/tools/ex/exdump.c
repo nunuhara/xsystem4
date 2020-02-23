@@ -21,6 +21,7 @@
 #include <string.h>
 #include <errno.h>
 #include <getopt.h>
+#include <libgen.h>
 #include "little_endian.h"
 #include "system4.h"
 #include "system4/ex.h"
@@ -28,6 +29,7 @@
 #include "system4/utfsjis.h"
 
 int ex_dump(FILE *out, struct ex *ex);
+int ex_dump_split(FILE *out, struct ex *ex, const char *dir);
 
 static void usage(void)
 {
@@ -37,29 +39,33 @@ static void usage(void)
 	puts("    -h, --help       Display this message and exit");
 	puts("    -d, --decrypt    Decrypt the EX file only");
 	puts("    -o, --output     Set the output file path");
+	puts("    -s, --split      Split output into multiple files");
 }
 
 enum {
 	LOPT_HELP = 256,
 	LOPT_DECRYPT,
 	LOPT_OUTPUT,
+	LOPT_SPLIT,
 };
 
 int main(int argc, char *argv[])
 {
 	bool decrypt = false;
-	const char *output_file = NULL;
+	bool split = false;
+	char *output_file = NULL;
 
 	while (1) {
 		static struct option long_options[] = {
 			{ "help",    no_argument,       0, LOPT_HELP },
 			{ "decrypt", no_argument,       0, LOPT_DECRYPT },
 			{ "output",  required_argument, 0, LOPT_OUTPUT },
+			{ "split",   no_argument,       0, LOPT_SPLIT },
 		};
 		int option_index = 0;
 		int c;
 
-		c = getopt_long(argc, argv, "hdo:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hdo:s", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -75,6 +81,10 @@ int main(int argc, char *argv[])
 		case 'o':
 		case LOPT_OUTPUT:
 			output_file = optarg;
+			break;
+		case 's':
+		case LOPT_SPLIT:
+			split = true;
 			break;
 		case '?':
 			ERROR("Unknown command line argument");
@@ -106,7 +116,16 @@ int main(int argc, char *argv[])
 	}
 
 	struct ex *ex = ex_read(argv[0]);
-	ex_dump(out, ex);
+	if (split) {
+		const char *dir;
+		if (output_file)
+			dir = dirname(output_file);
+		else
+			dir = ".";
+		ex_dump_split(out, ex, dir);
+	} else {
+		ex_dump(out, ex);
+	}
 	ex_free(ex);
 
 	return 0;

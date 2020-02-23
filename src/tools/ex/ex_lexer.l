@@ -20,6 +20,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include "ex_parser.tab.h"
 #include "system4.h"
 #include "system4/string.h"
@@ -44,6 +46,7 @@ unsigned long yex_line = 1;
 %option prefix="yex_"
 
 %x str
+%x incl
 
 id_char [^ \t\r\n\(\)\{\}\[\]=,\.;\"-]
 id_head [^ \t\r\n\(\)\{\}\[\]=,\.;\"-0123456789]
@@ -99,6 +102,27 @@ tree                      return TREE;
         char *yptr = yex_text;
         while (*yptr)
             *string_buf_ptr++ = *yptr++;
+    }
+}
+
+#include    BEGIN(incl);
+
+<incl>{
+    [ \t]*         ;
+    \"[^ \t\r\n]+\" {
+        yex_text[yex_leng-1] = '\0';
+        yex_in = fopen(yex_text+1, "r");
+        if (!yex_in)
+            ERROR("Failed to open included file '%s': %s", yex_text, strerror(errno));
+        yex_push_buffer_state(yex__create_buffer(yex_in, YY_BUF_SIZE));
+        BEGIN(INITIAL);
+    }
+}
+
+<<EOF>> {
+    yex_pop_buffer_state();
+    if (!YY_CURRENT_BUFFER) {
+        yyterminate();
     }
 }
 

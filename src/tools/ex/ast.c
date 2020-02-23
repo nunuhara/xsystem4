@@ -15,6 +15,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include "system4.h"
 #include "system4/ex.h"
 #include "system4/string.h"
@@ -38,15 +39,7 @@ struct ex *ex_parse(FILE *in)
 {
 	yex_in = in;
 	yex_parse();
-
-	struct ex *ex = ex_data;
-	for (uint32_t i = 0; i < ex->nr_blocks; i++) {
-		if (ex->blocks[i].val.type == EX_TREE) {
-			
-		}
-	}
-
-	return ex;
+	return ex_data;
 }
 
 /*
