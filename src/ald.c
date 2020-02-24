@@ -36,19 +36,17 @@
 #include <sys/mman.h>
 #endif
 
-static const char *errtab[ALD_MAX_ERROR] = {
-	[ALD_SUCCESS]           = "Success",
-	[ALD_FILE_ERROR]        = "Error opening ALD file",
-	[ALD_BAD_ARCHIVE_ERROR] = "Invalid ALD file"
-};
+static bool ald_exists(struct archive *ar, int no);
+static struct archive_data *ald_get(struct archive *ar, int no);
+static void ald_free_data(struct archive_data *data);
+static void ald_free(struct archive *ar);
 
-/* Get a message describing an error. */
-const char *ald_strerror(int error)
-{
-	if (error < ALD_MAX_ERROR)
-		return errtab[error];
-	return "Invalid error number";
-}
+struct archive_ops ald_archive_ops = {
+	.exists = ald_exists,
+	.get = ald_get,
+	.free_data = ald_free_data,
+	.free = ald_free,
+};
 
 /* Get the size of a file in bytes. */
 static long get_file_size(FILE *fp)
@@ -188,25 +186,26 @@ static int _ald_get(struct ald_archive *ar, int no, int *disk_out, int *dataptr_
 	return dataptr2 - dataptr;
 }
 
-bool ald_data_exists(struct ald_archive *ar, int no)
+static bool ald_exists(struct archive *ar, int no)
 {
 	int disk, dataptr;
-	return ar && !!_ald_get(ar, no, &disk, &dataptr);
+	return ar && !!_ald_get((struct ald_archive*)ar, no, &disk, &dataptr);
 }
 
 /* Get a piece of data from an ALD archive. */
-struct archive_data *ald_get(struct ald_archive *ar, int no)
+struct archive_data *ald_get(struct archive *_ar, int no)
 {
-	if (!ar)
+	if (!_ar)
 		return NULL;
 
 	uint8_t *data;
 	struct archive_data *dfile;
 	int disk, dataptr, ptr, size;
+	struct ald_archive *ar = (struct ald_archive*)_ar;
 	int readsize = _ald_get(ar, no, &disk, &dataptr);
 
 	// get data top
-	if (ar->mmapped) {
+	if (ar->ar.mmapped) {
 		data = ar->files[disk].data + dataptr;
 	} else {
 		//int readsize = dataptr2 - dataptr;
@@ -228,28 +227,31 @@ struct archive_data *ald_get(struct ald_archive *ar, int no)
 	dfile->data = data + ptr;
 	dfile->size = size;
 	dfile->name = strdup((char*)data + 16);
-	dfile->archive = ar;
+	dfile->archive = &ar->ar;
 	return dfile;
 }
 
 /* Free an ald_data strcture returned by `ald_get`. */
-void ald_free_data(struct archive_data *data)
+static void ald_free_data(struct archive_data *data)
 {
 	if (!data)
 		return;
-	if (!((struct ald_archive*)data->archive)->mmapped)
+	if (!data->archive->mmapped)
 		free(data->data);
 	free(data->name);
 	free(data);
 }
 
 /* Free an ald_archive structure returned by `ald_open`. */
-void ald_free_archive(struct ald_archive *ar)
+static void ald_free(struct archive *_ar)
 {
-	if (!ar)
+	if (!_ar)
 		return;
+
+	struct ald_archive *ar = (struct ald_archive*)_ar;
+
 	// unmap mmap files
-	if (ar->mmapped) {
+	if (ar->ar.mmapped) {
 		for (int i = 0; i < ALD_FILEMAX; i++) {
 			if (ar->files[i].data)
 				munmap(ar->files[i].data, ar->files[i].size);
@@ -259,7 +261,7 @@ void ald_free_archive(struct ald_archive *ar)
 }
 
 /* Open an ALD archive, optionally memory-mapping it. */
-struct ald_archive *ald_open(char **files, int count, int flags, int *error)
+struct archive *ald_open(char **files, int count, int flags, int *error)
 {
 	FILE *fp;
 	long filesize;
@@ -267,7 +269,7 @@ struct ald_archive *ald_open(char **files, int count, int flags, int *error)
 	bool gotmap = false;
 
 #ifdef _WIN32
-	flags &= ~ALD_MMAP;
+	flags &= ~ARCHIVE_MMAP;
 #endif
 
 	for (int i = 0; i < count; i++) {
@@ -275,12 +277,12 @@ struct ald_archive *ald_open(char **files, int count, int flags, int *error)
 		if (!files[i])
 			continue;
 		if (!(fp = fopen(files[i], "r"))) {
-			*error = ALD_FILE_ERROR;
+			*error = ARCHIVE_FILE_ERROR;
 			goto exit_err;
 		}
 		// check if it's a valid archive
 		if (!file_check(fp)) {
-			*error = ALD_BAD_ARCHIVE_ERROR;
+			*error = ARCHIVE_BAD_ARCHIVE_ERROR;
 			fclose(fp);
 			goto exit_err;
 		}
@@ -297,16 +299,16 @@ struct ald_archive *ald_open(char **files, int count, int flags, int *error)
 		ar->files[i].name = strdup(files[i]);
 		// close
 		fclose(fp);
-		if (flags & ALD_MMAP) {
+		if (flags & ARCHIVE_MMAP) {
 			int fd;
 			if (0 > (fd = open(files[i], O_RDONLY))) {
-				*error = ALD_FILE_ERROR;
+				*error = ARCHIVE_FILE_ERROR;
 				goto exit_err;
 			}
 			ar->files[i].data = mmap(0, filesize, PROT_READ, MAP_SHARED, fd, 0);
 			close(fd);
 			if (ar->files[i].data == MAP_FAILED) {
-				*error = ALD_FILE_ERROR;
+				*error = ARCHIVE_FILE_ERROR;
 				goto exit_err;
 			}
 			ar->files[i].size = filesize;
@@ -318,10 +320,12 @@ struct ald_archive *ald_open(char **files, int count, int flags, int *error)
 			continue;
 		c++;
 	}
-	ar->mmapped = flags & ALD_MMAP;
+	ar->ar.mmapped = flags & ARCHIVE_MMAP;
 	ar->nr_files = count;
-	return ar;
+	ar->ar.ops = &ald_archive_ops;
+	return &ar->ar;
 exit_err:
 	free(ar);
 	return NULL;
 }
+

@@ -101,7 +101,7 @@ static int audio_type_to_archive_type(enum audio_type type)
 bool audio_exists(enum audio_type type, int no)
 {
 	int archive = audio_type_to_archive_type(type);
-	return ald[archive] && ald_data_exists(ald[archive], no);
+	return ald[archive] && archive_exists(ald[archive], no);
 }
 
 static Mix_Chunk *load_chunk(enum audio_type type, int no)
@@ -109,13 +109,13 @@ static Mix_Chunk *load_chunk(enum audio_type type, int no)
 	struct archive_data *dfile;
 	int archive = audio_type_to_archive_type(type);
 
-	if (!(dfile = ald_get(ald[archive], no))) {
+	if (!(dfile = archive_get(ald[archive], no))) {
 		WARNING("Failed to load %s %d", archive == ALDFILE_BGM ? "BGM" : "WAV", no);
 		return NULL;
 	}
 
 	Mix_Chunk *chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(dfile->data, dfile->size), 1);
-	ald_free_data(dfile);
+	archive_free_data(dfile);
 
 	if (!chunk) {
 		WARNING("%s %d: not a valid audio file", archive == ALDFILE_BGM ? "BGM" : "WAV", no);

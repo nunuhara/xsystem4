@@ -24,23 +24,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "system4/archive.h"
 
 #define ALD_FILEMAX 255
 #define ALD_DATAMAX 65535
 
-enum ald_error {
-	ALD_SUCCESS,
-	ALD_FILE_ERROR,
-	ALD_BAD_ARCHIVE_ERROR,
-	ALD_MAX_ERROR
-};
-
-enum {
-	ALD_MMAP = 1
-};
-
 struct ald_archive {
-	bool mmapped;
+	struct archive ar;
 	int nr_files;
 	struct {
 		uint8_t *data;
@@ -57,14 +47,6 @@ struct ald_archive {
 	int *fileptr[ALD_FILEMAX];
 };
 
-struct archive_data {
-	size_t size;
-	uint8_t *data;
-	uint8_t *data_raw;
-	char *name;
-	struct ald_archive *archive;
-};
-
 enum {
 	ALDFILE_BGM,
 	ALDFILE_CG,
@@ -72,36 +54,11 @@ enum {
 	ALDFILETYPE_MAX
 };
 
-struct ald_archive *ald[ALDFILETYPE_MAX];
-
-/*
- * Returns a human readable description of an error.
- */
-const char *ald_strerror(int error);
+struct archive *ald[ALDFILETYPE_MAX];
 
 /*
  * Open an ALD archive.
  */
-struct ald_archive *ald_open(char **files, int count, int flags, int *error);
-
-/*
- * Check if data exists in an ALD archive.
- */
-bool ald_data_exists(struct ald_archive *ar, int no);
-
-/*
- * Retrieve a piece of data from an ALD archive.
- */
-struct archive_data *ald_get(struct ald_archive *archive, int no);
-
-/*
- * Free an ald_data structure returned by `ald_get`.
- */
-void ald_free_data(struct archive_data *data);
-
-/*
- * Free an ald_archive structure returned by `ald_open`.
- */
-void ald_free_archive(struct ald_archive *ar);
+struct archive *ald_open(char **files, int count, int flags, int *error);
 
 #endif /* SYSTEM4_ALD_H */

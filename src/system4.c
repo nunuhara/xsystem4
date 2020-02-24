@@ -75,10 +75,10 @@ static int ald_count[ALDFILETYPE_MAX];
 
 void ald_init(int type, char **files, int count)
 {
-	int error = ALD_SUCCESS;
-	ald[type] = ald_open(files, count, ALD_MMAP, &error);
+	int error = ARCHIVE_SUCCESS;
+	ald[type] = ald_open(files, count, ARCHIVE_MMAP, &error);
 	if (error)
-		ERROR("Failed to open ALD file: %s\n", ald_strerror(error));
+		ERROR("Failed to open ALD file: %s\n", archive_strerror(error));
 }
 
 static void init_gamedata_dir(const char *path)

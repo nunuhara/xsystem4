@@ -1,6 +1,7 @@
 # sources for libsys4.a
 system4 = ['ain.c',
            'ald.c',
+           'archive.c',
            'buffer.c',
            'cg.c',
            'ex.c',

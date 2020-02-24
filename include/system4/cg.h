@@ -22,7 +22,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-struct ald_archive;
+struct archive;
 
 /*
  * Available CG formats
@@ -53,8 +53,8 @@ struct cg {
 	void *pixels;
 };
 
-bool cg_get_metrics(struct ald_archive *ar, int no, struct cg_metrics *dst);
-struct cg *cg_load(struct ald_archive *ar, int no);
+bool cg_get_metrics(struct archive *ar, int no, struct cg_metrics *dst);
+struct cg *cg_load(struct archive *ar, int no);
 void cg_free(struct cg *cg);
 
 #endif /* SYSTEM4_CG_H */

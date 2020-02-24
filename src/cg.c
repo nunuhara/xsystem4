@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "system4.h"
-#include "system4/ald.h"
+#include "system4/archive.h"
 #include "system4/cg.h"
 #include "system4/qnt.h"
 
@@ -35,11 +35,11 @@ static enum cg_type check_cgformat(uint8_t *data)
 	return ALCG_UNKNOWN;
 }
 
-bool cg_get_metrics(struct ald_archive *ar, int no, struct cg_metrics *dst)
+bool cg_get_metrics(struct archive *ar, int no, struct cg_metrics *dst)
 {
 	struct archive_data *dfile;
 
-	if (!(dfile = ald_get(ar, no)))
+	if (!(dfile = archive_get(ar, no)))
 		return false;
 
 	switch (check_cgformat(dfile->data)) {
@@ -48,10 +48,10 @@ bool cg_get_metrics(struct ald_archive *ar, int no, struct cg_metrics *dst)
 		break;
 	default:
 		WARNING("Unknown CG type (CG %d)", no);
-		ald_free_data(dfile);
+		archive_free_data(dfile);
 		return false;
 	}
-	ald_free_data(dfile);
+	archive_free_data(dfile);
 	return true;
 }
 
@@ -72,13 +72,13 @@ void cg_free(struct cg *cg)
  *  no: file no ( >= 0)
  *  return: cg object(extracted)
 */
-struct cg *cg_load(struct ald_archive *ar, int no)
+struct cg *cg_load(struct archive *ar, int no)
 {
 	struct cg *cg;
 	struct archive_data *dfile;
 	int type;
 
-	if (!(dfile = ald_get(ar, no))) {
+	if (!(dfile = archive_get(ar, no))) {
 		WARNING("Failed to load CG %d", no);
 		return NULL;
 	}
@@ -104,7 +104,7 @@ struct cg *cg_load(struct ald_archive *ar, int no)
 	}
 
 	// ok to free
-	ald_free_data(dfile);
+	archive_free_data(dfile);
 
 	if (cg->pixels)
 		return cg;
