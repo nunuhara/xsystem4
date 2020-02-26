@@ -28,14 +28,6 @@
 #include "system4.h"
 #include "system4/ald.h"
 
-#ifdef _WIN32
-#define mmap(...) (ERROR("mmap not supported on Windows"), NULL)
-#define munmap(...) ERROR("munmap not supported on Windows")
-#define MAP_FAILED 0
-#else
-#include <sys/mman.h>
-#endif
-
 static bool ald_exists(struct archive *ar, int no);
 static struct archive_data *ald_get(struct archive *ar, int no);
 static void ald_free_data(struct archive_data *data);

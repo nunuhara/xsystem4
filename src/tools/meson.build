@@ -16,4 +16,5 @@ endif
 
 subdir('aindump')
 subdir('ainedit')
+subdir('ar')
 subdir('ex')

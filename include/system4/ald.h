@@ -54,6 +54,7 @@ enum {
 	ALDFILETYPE_MAX
 };
 
+// FIXME: this doesn't belong in a libsys4 header
 struct archive *ald[ALDFILETYPE_MAX];
 
 /*

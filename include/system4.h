@@ -93,4 +93,12 @@ char *savedir_path(const char *filename);
 #define SIZE_T_FMT "z"
 #endif
 
+#ifdef _WIN32
+#define mmap(...) (ERROR("mmap not supported on Windows"), NULL)
+#define munmap(...) ERROR("munmap not supported on Windows")
+#define MAP_FAILED 0
+#else
+#include <sys/mman.h>
+#endif
+
 #endif /* SYSTEM4_H */
