@@ -34,6 +34,7 @@ static void usage(void)
 	puts("    -c, --code <jam-file>          Update the CODE section (assemble .jam file)");
 	puts("    -j, --json <json-file>         Update AIN file from JSON data");
 	puts("    -t, --text <text-file>         Update strings/messages");
+	puts("        --transcode <enc>          Change the AIN file's text encoding");
 	puts("    -o, --output <path>            Set output file path");
 	puts("        --raw                      Read code in raw mode");
 	puts("        --inline-strings           Read code in inline-strings mode");
@@ -49,6 +50,7 @@ enum {
 	LOPT_CODE,
 	LOPT_JSON,
 	LOPT_TEXT,
+	LOPT_TRANSCODE,
 	LOPT_OUTPUT,
 	LOPT_RAW,
 	LOPT_INLINE_STRINGS,
@@ -78,6 +80,7 @@ int main(int argc, char *argv[])
 	const char *output_file = NULL;
 	const char *input_encoding = "UTF-8";
 	const char *output_encoding = "SJIS-WIN";
+	bool transcode = false;
 	uint32_t flags = ASM_NO_STRINGS;
 	while (1) {
 		static struct option long_options[] = {
@@ -85,6 +88,7 @@ int main(int argc, char *argv[])
 			{ "code",            required_argument, 0, LOPT_CODE },
 			{ "json",            required_argument, 0, LOPT_JSON },
 			{ "text",            required_argument, 0, LOPT_TEXT },
+			{ "transcode",       required_argument, 0, LOPT_TRANSCODE },
 			{ "output",          required_argument, 0, LOPT_OUTPUT },
 			{ "raw",             no_argument,       0, LOPT_RAW },
 			{ "inline-strings",  no_argument,       0, LOPT_INLINE_STRINGS },
@@ -114,6 +118,11 @@ int main(int argc, char *argv[])
 		case 't':
 		case LOPT_TEXT:
 			text_file = optarg;
+			break;
+		case LOPT_TRANSCODE:
+			transcode = true;
+			input_encoding = "SJIS-WIN";
+			output_encoding = optarg;
 			break;
 		case 'o':
 		case LOPT_OUTPUT:
@@ -160,6 +169,11 @@ int main(int argc, char *argv[])
 		ERROR("Failed to open ain file: %s", ain_strerror(err));
 	}
 
+	if (transcode) {
+		ain_transcode(ain);
+		goto write_ain_file;
+	}
+
 	if (decl_file) {
 		read_declarations(decl_file, ain);
 	}
@@ -172,6 +186,7 @@ int main(int argc, char *argv[])
 		read_text(text_file, ain);
 	}
 
+write_ain_file:
 	NOTICE("Writing AIN file...");
 	ain_write(output_file, ain);
 

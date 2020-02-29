@@ -6,6 +6,7 @@ ainedit = ['../../cJSON.c',
            'json.c',
            'repack.c',
            'text.c',
+           'transcode.c',
 ]
 
 if flex.found()
