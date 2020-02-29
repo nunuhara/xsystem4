@@ -1,12 +1,13 @@
-exdump = ['dump.c',
+exdump = ['../conv.c',
+          'dump.c',
           'exdump.c',
 ]
 
 lfiles = flexgen.process('ex_lexer.l')
 pfiles = bisongen.process('ex_parser.y')
 
-exbuild = ['ast.c',
-           'dump.c',
+exbuild = ['../conv.c',
+           'ast.c',
            'exbuild.c',
            'pack.c',
 ]

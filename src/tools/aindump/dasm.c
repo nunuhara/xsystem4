@@ -23,7 +23,6 @@
 #include "system4/ain.h"
 #include "system4/instructions.h"
 #include "system4/string.h"
-#include "system4/utfsjis.h"
 
 #define DASM_ERROR(dasm, fmt, ...) ERROR("At 0x%x: " fmt, dasm->addr, ##__VA_ARGS__)
 
@@ -171,7 +170,7 @@ static float arg_to_float(int32_t arg)
 
 static void print_sjis(struct dasm_state *dasm, const char *s)
 {
-	char *u = sjis2utf(s, strlen(s));
+	char *u = encode_text_output(s);
 	fprintf(dasm->out, "%s", u);
 	free(u);
 }
@@ -179,7 +178,7 @@ static void print_sjis(struct dasm_state *dasm, const char *s)
 static char *_escape_string(const char *str, const char *escape_chars, const char *replace_chars)
 {
 	int escapes = 0;
-	char *u = sjis2utf(str, strlen(str));
+	char *u = encode_text_output(str);
 
 	// count number of required escapes
 	for (int i = 0; u[i]; i++) {
@@ -235,19 +234,12 @@ static void print_string(struct dasm_state *dasm, const char *str)
 
 static void print_identifier(struct dasm_state *dasm, const char *str)
 {
-	// if the identifier contains spaces, it must be quoted
-	for (int i = 0; str[i]; i++) {
-		if (SJIS_2BYTE(str[i])) {
-			i++;
-			continue;
-		}
-		if (str[i] == ' ') {
-			print_string(dasm, str);
-			return;
-		}
-	}
-
-	print_sjis(dasm, str);
+	char *u = encode_text_utf8(str);
+	if (strchr(u, ' '))
+		print_string(dasm, str);
+	else
+		print_sjis(dasm, str);
+	free(u);
 }
 
 static void print_local_variable(struct dasm_state *dasm, struct ain_function *func, int varno)

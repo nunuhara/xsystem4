@@ -57,4 +57,6 @@ void ain_write(const char *filename, struct ain *ain);
 // text.c
 void read_text(const char *filename, struct ain *ain);
 
+char *encode_text(const char *str);
+
 #endif /* AINEDIT_AINEDIT_H */

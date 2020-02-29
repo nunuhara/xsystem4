@@ -34,8 +34,8 @@
 /* Undocumented macros, especially those whose name start with YY_,
    are private implementation details.  Do not rely on them.  */
 
-#ifndef YY_YY_SRC_AINEDIT_48087CF_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED
-# define YY_YY_SRC_AINEDIT_48087CF_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED
+#ifndef YY_YY_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED
+# define YY_YY_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -44,7 +44,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 9 "../src/ainedit/asm_parser.y" /* yacc.c:1921  */
+#line 9 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1921  */
 
     #include <stdint.h>
     #include "khash.h"
@@ -64,7 +64,7 @@ extern int yydebug;
     KHASH_MAP_INIT_STR(label_table, uint32_t);
     khash_t(label_table) *label_table;
 
-#line 68 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.h" /* yacc.c:1921  */
+#line 68 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.h" /* yacc.c:1921  */
 
 /* Token type.  */
 #ifndef YYTOKENTYPE
@@ -82,7 +82,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 1 "../src/ainedit/asm_parser.y" /* yacc.c:1921  */
+#line 1 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1921  */
 
     int token;
     struct string *string;
@@ -90,7 +90,7 @@ union YYSTYPE
     struct parse_instruction *instr;
     parse_instruction_list *program;
 
-#line 94 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.h" /* yacc.c:1921  */
+#line 94 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.h" /* yacc.c:1921  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -103,4 +103,4 @@ extern YYSTYPE yylval;
 
 int yyparse (void);
 
-#endif /* !YY_YY_SRC_AINEDIT_48087CF_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED  */
+#endif /* !YY_YY_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED  */

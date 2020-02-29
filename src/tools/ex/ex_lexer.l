@@ -25,14 +25,15 @@
 #include "ex_parser.tab.h"
 #include "system4.h"
 #include "system4/string.h"
-#include "system4/utfsjis.h"
+
+char *encode_text(const char *str);
 
 char string_buf[65536];
 char *string_buf_ptr;
 
 struct string *make_string_from_utf8(const char *str, size_t len)
 {
-    char *sjis = utf2sjis(str, len);
+    char *sjis = encode_text(str);
     struct string *s = make_string(sjis, strlen(sjis));
     free(sjis);
     return s;
@@ -82,7 +83,7 @@ tree                      return TREE;
     \" {
         BEGIN(INITIAL);
         *string_buf_ptr = '\0';
-        char *sjis = utf2sjis(string_buf, strlen(string_buf));
+        char *sjis = encode_text(string_buf);
         yex_lval.s = make_string(sjis, strlen(sjis));
         free(sjis);
         return CONST_STRING;

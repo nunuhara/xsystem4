@@ -19,40 +19,57 @@
 #include <string.h>
 #include <errno.h>
 #include <getopt.h>
+#include <iconv.h>
 #include "system4.h"
 #include "system4/ex.h"
 #include "system4/string.h"
-#include "system4/utfsjis.h"
 #include "ast.h"
 
 void ex_write(FILE *out, struct ex *ex);
 extern bool columns_first;
+
+iconv_t output_conv;
+
+char *convert_text(iconv_t cd, const char *str);
+
+char *encode_text(const char *str)
+{
+	return convert_text(output_conv, str);
+}
 
 static void usage(void)
 {
 	puts("Usage: exbuild [options...] input-file");
 	puts("    Build EX files.");
 	puts("");
-	puts("    -h, --help      Display this message and exit");
-	puts("    -o, --output    Set the output file path");
-	puts("        --old       Use this for pre-Evenicle .ex files");
+	puts("    -h, --help                     Display this message and exit");
+	puts("    -o, --output                   Set the output file path");
+	puts("        --old                      Use this for pre-Evenicle .ex files");
+	puts("        --input-encoding <enc>     Specify the encoding of the input file (default: UTF-8)");
+	puts("        --output-encoding <enc>    Specify the encoding of the output file (default: SJIS-WIN)");
 }
 
 enum {
 	LOPT_HELP = 256,
 	LOPT_OUTPUT,
 	LOPT_OLD,
+	LOPT_INPUT_ENCODING,
+	LOPT_OUTPUT_ENCODING,
 };
 
 int main(int argc, char *argv[])
 {
 	const char *output_file = NULL;
+	const char *input_encoding = "UTF-8";
+	const char *output_encoding = "SJIS-WIN";
 
 	while (1) {
 		static struct option long_options[] = {
-			{ "help",   no_argument,       0, LOPT_HELP },
-			{ "output", required_argument, 0, LOPT_OUTPUT },
-			{ "old",    no_argument,       0, LOPT_OLD },
+			{ "help",            no_argument,       0, LOPT_HELP },
+			{ "output",          required_argument, 0, LOPT_OUTPUT },
+			{ "old",             no_argument,       0, LOPT_OLD },
+			{ "input-encoding",  required_argument, 0, LOPT_INPUT_ENCODING },
+			{ "output-encoding", required_argument, 0, LOPT_OUTPUT_ENCODING },
 		};
 		int option_index = 0;
 		int c;
@@ -72,6 +89,12 @@ int main(int argc, char *argv[])
 			break;
 		case LOPT_OLD:
 			columns_first = true;
+			break;
+		case LOPT_INPUT_ENCODING:
+			input_encoding = optarg;
+			break;
+		case LOPT_OUTPUT_ENCODING:
+			output_encoding = optarg;
 			break;
 		case '?':
 			ERROR("Unknown command line argument");
@@ -99,6 +122,10 @@ int main(int argc, char *argv[])
 		in = fopen(argv[0], "rb");
 	if (!in)
 		ERROR("fopen failed: %s", strerror(errno));
+
+	if ((output_conv = iconv_open(output_encoding, input_encoding)) == (iconv_t)-1) {
+		ERROR("iconv_open: %s", strerror(errno));
+	}
 
 	struct ex *ex = ex_parse(in);
 	ex_write(out, ex);

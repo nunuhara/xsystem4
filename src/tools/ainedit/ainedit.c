@@ -17,7 +17,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 #include <getopt.h>
+#include <iconv.h>
 #include "ainedit.h"
 #include "system4.h"
 #include "system4/ain.h"
@@ -27,13 +30,15 @@ static void usage(void)
 	puts("Usage: ainedit [options...] input-file");
 	puts("    Edit AIN files.");
 	puts("");
-	puts("    -h, --help                   Display this message and exit");
-	puts("    -c, --code <jam-file>        Update the CODE section (assemble .jam file)");
-	puts("    -j, --json <json-file>       Update AIN file from JSON data");
-	puts("    -t, --text <text-file>       Update strings/messages");
-	puts("    -o, --output <path>          Set output file path");
-	puts("        --raw                    Read code in raw mode");
-	puts("        --inline-strings         Read code in inline-strings mode");
+	puts("    -h, --help                     Display this message and exit");
+	puts("    -c, --code <jam-file>          Update the CODE section (assemble .jam file)");
+	puts("    -j, --json <json-file>         Update AIN file from JSON data");
+	puts("    -t, --text <text-file>         Update strings/messages");
+	puts("    -o, --output <path>            Set output file path");
+	puts("        --raw                      Read code in raw mode");
+	puts("        --inline-strings           Read code in inline-strings mode");
+	puts("        --input-encoding <enc>     Specify the text encoding of the input file(s) (default: UTF-8)");
+	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: SJIS-WIN)");
 	//puts("    -p,--project <pje-file>      Build AIN from project file");
 }
 
@@ -47,7 +52,20 @@ enum {
 	LOPT_OUTPUT,
 	LOPT_RAW,
 	LOPT_INLINE_STRINGS,
+	LOPT_INPUT_ENCODING,
+	LOPT_OUTPUT_ENCODING,
 };
+
+iconv_t ain_conv;
+iconv_t print_conv;
+
+char *convert_text(iconv_t cd, const char *str);
+
+// encode text for AIN file
+char *encode_text(const char *str)
+{
+	return convert_text(ain_conv, str);
+}
 
 int main(int argc, char *argv[])
 {
@@ -58,16 +76,20 @@ int main(int argc, char *argv[])
 	const char *decl_file = NULL;
 	const char *text_file = NULL;
 	const char *output_file = NULL;
+	const char *input_encoding = "UTF-8";
+	const char *output_encoding = "SJIS-WIN";
 	uint32_t flags = ASM_NO_STRINGS;
 	while (1) {
 		static struct option long_options[] = {
-			{ "help",           no_argument,       0, LOPT_HELP },
-			{ "code",           required_argument, 0, LOPT_CODE },
-			{ "json",           required_argument, 0, LOPT_JSON },
-			{ "text",           required_argument, 0, LOPT_TEXT },
-			{ "output",         required_argument, 0, LOPT_OUTPUT },
-			{ "raw",            no_argument,       0, LOPT_RAW },
-			{ "inline-strings", no_argument,       0, LOPT_INLINE_STRINGS },
+			{ "help",            no_argument,       0, LOPT_HELP },
+			{ "code",            required_argument, 0, LOPT_CODE },
+			{ "json",            required_argument, 0, LOPT_JSON },
+			{ "text",            required_argument, 0, LOPT_TEXT },
+			{ "output",          required_argument, 0, LOPT_OUTPUT },
+			{ "raw",             no_argument,       0, LOPT_RAW },
+			{ "inline-strings",  no_argument,       0, LOPT_INLINE_STRINGS },
+			{ "input-encoding",  required_argument, 0, LOPT_INPUT_ENCODING },
+			{ "output-encoding", required_argument, 0, LOPT_OUTPUT_ENCODING },
 		};
 		int option_index = 0;
 		int c;
@@ -104,6 +126,12 @@ int main(int argc, char *argv[])
 			WARNING("Inline strings mode doesn't quite work yet...");
 			flags &= ~ASM_NO_STRINGS;
 			break;
+		case LOPT_INPUT_ENCODING:
+			input_encoding = optarg;
+			break;
+		case LOPT_OUTPUT_ENCODING:
+			output_encoding = optarg;
+			break;
 		case '?':
 			ERROR("Unknown command line argument");
 		}
@@ -119,6 +147,13 @@ int main(int argc, char *argv[])
 	if (!output_file) {
 		usage();
 		ERROR("No output file given");
+	}
+
+	if ((ain_conv = iconv_open(output_encoding, input_encoding)) == (iconv_t)-1) {
+		ERROR("iconv_open: %s", strerror(errno));
+	}
+	if ((print_conv = iconv_open("utf8", output_encoding)) == (iconv_t)-1) {
+		ERROR("iconv_open: %s", strerror(errno));
 	}
 
 	if (!(ain = ain_open(argv[0], &err))) {

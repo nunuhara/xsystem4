@@ -20,13 +20,30 @@
 #include <string.h>
 #include <errno.h>
 #include <getopt.h>
+#include <iconv.h>
 #include "aindump.h"
 #include "little_endian.h"
 #include "system4.h"
 #include "system4/ain.h"
 #include "system4/instructions.h"
 #include "system4/string.h"
-#include "system4/utfsjis.h"
+
+iconv_t output_conv;
+iconv_t utf8_conv;
+
+char *convert_text(iconv_t cd, const char *str);
+
+// encode text in output encoding
+char *encode_text_output(const char *str)
+{
+	return convert_text(output_conv, str);
+}
+
+// encode text as UTF-8
+char *encode_text_utf8(const char *str)
+{
+	return convert_text(utf8_conv, str);
+}
 
 int32_t code_reader_get_arg(struct code_reader *r, int n)
 {
@@ -75,34 +92,36 @@ static void usage(void)
 	puts("    Display information from AIN files.");
 	puts("");
 	puts("Commonly used options:");
-	puts("    -h, --help               Display this message and exit");
-	puts("    -c, --code               Dump code section");
-	puts("    -j, --json               Dump to JSON format");
-	puts("    -t, --text               Dump strings and messages, sorted by function");
-	puts("    -o, --output             Set output file path");
+	puts("    -h, --help                     Display this message and exit");
+	puts("    -c, --code                     Dump code section");
+	puts("    -j, --json                     Dump to JSON format");
+	puts("    -t, --text                     Dump strings and messages, sorted by function");
+	puts("    -o, --output                   Set output file path");
 	puts("");
 	puts("Less used options:");
-	puts("    -C, --raw-code           Dump code section (raw)");
-	puts("    -f, --functions          Dump functions section");
-	puts("    -g, --globals            Dump globals section");
-	puts("    -S, --structures         Dump structures section");
-	puts("    -m, --messages           Dump messages section");
-	puts("    -s, --strings            Dump strings section");
-	puts("    -l, --libraries          Dump libraries section");
-	puts("    -F, --filenames          Dump filenames");
-	puts("        --function-types     Dump function types section");
-	puts("        --delegates          Dump delegate types section");
-	puts("        --global-group-names Dump global group names section");
-	puts("    -e, --enums              Dump enums section");
-	puts("    -A, --audit              Audit AIN file for xsystem4 compatibility");
-	puts("    -d, --decrypt            Dump decrypted AIN file");
-	puts("        --map                Dump AIN file map");
-	puts("        --inline-strings     Dump code in inline-strings mode");
+	puts("    -C, --raw-code                 Dump code section (raw)");
+	puts("    -f, --functions                Dump functions section");
+	puts("    -g, --globals                  Dump globals section");
+	puts("    -S, --structures               Dump structures section");
+	puts("    -m, --messages                 Dump messages section");
+	puts("    -s, --strings                  Dump strings section");
+	puts("    -l, --libraries                Dump libraries section");
+	puts("    -F, --filenames                Dump filenames");
+	puts("        --function-types           Dump function types section");
+	puts("        --delegates                Dump delegate types section");
+	puts("        --global-group-names       Dump global group names section");
+	puts("    -e, --enums                    Dump enums section");
+	puts("    -A, --audit                    Audit AIN file for xsystem4 compatibility");
+	puts("    -d, --decrypt                  Dump decrypted AIN file");
+	puts("        --map                      Dump AIN file map");
+	puts("        --inline-strings           Dump code in inline-strings mode");
+	puts("        --input-encoding <enc>     Specify the text encoding of the AIN file (default: SJIS-WIN)");
+	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: UTF-8)");
 }
 
 static void print_sjis(FILE *f, const char *s)
 {
-	char *u = sjis2utf(s, strlen(s));
+	char *u = encode_text_output(s);
 	fprintf(f, "%s", u);
 	free(u);
 }
@@ -221,7 +240,7 @@ static void dump_text_function(struct dump_text_data *data)
 	if (!data->fun)
 		return;
 
-	char *u = sjis2utf(data->fun->name, strlen(data->fun->name));
+	char *u = encode_text_output(data->fun->name);
 	fprintf(data->out, "\n; %s\n", u);
 	free(u);
 
@@ -486,6 +505,8 @@ enum {
 	LOPT_DECRYPT,
 	LOPT_MAP,
 	LOPT_INLINE_STRINGS,
+	LOPT_INPUT_ENCODING,
+	LOPT_OUTPUT_ENCODING
 };
 
 int main(int argc, char *argv[])
@@ -494,6 +515,8 @@ int main(int argc, char *argv[])
 	bool decrypt = false;
 	char *output_file = NULL;
 	FILE *output = stdout;
+	char *input_encoding = "SJIS-WIN";
+	char *output_encoding = "UTF-8";
 	int err = AIN_SUCCESS;
 	unsigned int flags = DASM_NO_STRINGS;
 	struct ain *ain;
@@ -525,6 +548,8 @@ int main(int argc, char *argv[])
 			{ "decrypt",            no_argument,       0, LOPT_DECRYPT },
 			{ "map",                no_argument,       0, LOPT_MAP },
 			{ "inline-strings",     no_argument,       0, LOPT_INLINE_STRINGS },
+			{ "input-encoding",     required_argument, 0, LOPT_INPUT_ENCODING },
+			{ "output-encoding",    required_argument, 0, LOPT_OUTPUT_ENCODING },
 		};
 		int option_index = 0;
 		int c;
@@ -618,6 +643,12 @@ int main(int argc, char *argv[])
 		case LOPT_INLINE_STRINGS:
 			flags &= ~DASM_NO_STRINGS;
 			break;
+		case LOPT_INPUT_ENCODING:
+			input_encoding = optarg;
+			break;
+		case LOPT_OUTPUT_ENCODING:
+			output_encoding = optarg;
+			break;
 		case '?':
 			ERROR("Unkown command line argument");
 		}
@@ -636,6 +667,13 @@ int main(int argc, char *argv[])
 			ERROR("Failed to open output file '%s': %s", output_file, strerror(errno));
 		}
 		free(output_file);
+	}
+
+	if ((output_conv = iconv_open(output_encoding, input_encoding)) == (iconv_t)-1) {
+		ERROR("iconv_open: %s", strerror(errno));
+	}
+	if ((utf8_conv = iconv_open("utf8", input_encoding)) == (iconv_t)-1) {
+		ERROR("iconv_open: %s", strerror(errno));
 	}
 
 	if (decrypt) {

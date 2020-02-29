@@ -34,8 +34,8 @@
 /* Undocumented macros, especially those whose name start with YY_,
    are private implementation details.  Do not rely on them.  */
 
-#ifndef YY_TEXT_SRC_AINEDIT_48087CF_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED
-# define YY_TEXT_SRC_AINEDIT_48087CF_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED
+#ifndef YY_TEXT_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED
+# define YY_TEXT_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef TEXT_DEBUG
 # if defined YYDEBUG
@@ -52,7 +52,7 @@
 extern int text_debug;
 #endif
 /* "%code requires" blocks.  */
-#line 11 "../src/ainedit/text_parser.y" /* yacc.c:1921  */
+#line 11 "../src/tools/ainedit/text_parser.y" /* yacc.c:1921  */
 
     #include "kvec.h"
 
@@ -67,7 +67,7 @@ extern int text_debug;
     assignment_list *statements;
 
 
-#line 71 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.h" /* yacc.c:1921  */
+#line 71 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.h" /* yacc.c:1921  */
 
 /* Token type.  */
 #ifndef TEXT_TOKENTYPE
@@ -90,7 +90,7 @@ extern int text_debug;
 
 union TEXT_STYPE
 {
-#line 3 "../src/ainedit/text_parser.y" /* yacc.c:1921  */
+#line 3 "../src/tools/ainedit/text_parser.y" /* yacc.c:1921  */
 
     int token;
     int integer;
@@ -98,7 +98,7 @@ union TEXT_STYPE
     struct text_assignment *assign;
     assignment_list *program;
 
-#line 102 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.h" /* yacc.c:1921  */
+#line 102 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.h" /* yacc.c:1921  */
 };
 
 typedef union TEXT_STYPE TEXT_STYPE;
@@ -111,4 +111,4 @@ extern TEXT_STYPE text_lval;
 
 int text_parse (void);
 
-#endif /* !YY_TEXT_SRC_AINEDIT_48087CF_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED  */
+#endif /* !YY_TEXT_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED  */

@@ -1,5 +1,6 @@
 # sources for ainedit
 ainedit = ['../../cJSON.c',
+           '../conv.c',
            'ainedit.c',
            'asm.c',
            'json.c',

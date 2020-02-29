@@ -1,6 +1,6 @@
-#line 2 "src/ainedit/48087cf@@ainedit@exe/asm_lexer.yy.c"
+#line 2 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_lexer.yy.c"
 
-#line 4 "src/ainedit/48087cf@@ainedit@exe/asm_lexer.yy.c"
+#line 4 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_lexer.yy.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -470,7 +470,7 @@ int yy_flex_debug = 0;
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
-#line 1 "../src/ainedit/asm_lexer.l"
+#line 1 "../src/tools/ainedit/asm_lexer.l"
 /* Copyright (C) 2019 Nunuhara Cabbage <nunuhara@haniwa.technology>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -486,7 +486,7 @@ char *yytext;
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
-#line 18 "../src/ainedit/asm_lexer.l"
+#line 18 "../src/tools/ainedit/asm_lexer.l"
 
 #pragma GCC diagnostic ignored "-Wunused-function"
 
@@ -500,9 +500,9 @@ char *yytext;
 char string_buf[65536];
 char *string_buf_ptr;
 
-#line 504 "src/ainedit/48087cf@@ainedit@exe/asm_lexer.yy.c"
+#line 504 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_lexer.yy.c"
 
-#line 506 "src/ainedit/48087cf@@ainedit@exe/asm_lexer.yy.c"
+#line 506 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_lexer.yy.c"
 
 #define INITIAL 0
 #define str 1
@@ -720,10 +720,10 @@ YY_DECL
 		}
 
 	{
-#line 39 "../src/ainedit/asm_lexer.l"
+#line 39 "../src/tools/ainedit/asm_lexer.l"
 
 
-#line 727 "src/ainedit/48087cf@@ainedit@exe/asm_lexer.yy.c"
+#line 727 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_lexer.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -782,40 +782,40 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 41 "../src/ainedit/asm_lexer.l"
+#line 41 "../src/tools/ainedit/asm_lexer.l"
 ;
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 42 "../src/ainedit/asm_lexer.l"
+#line 42 "../src/tools/ainedit/asm_lexer.l"
 return NEWLINE;
 	YY_BREAK
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 43 "../src/ainedit/asm_lexer.l"
+#line 43 "../src/tools/ainedit/asm_lexer.l"
 return NEWLINE;
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 44 "../src/ainedit/asm_lexer.l"
+#line 44 "../src/tools/ainedit/asm_lexer.l"
 yylval.string = make_string(yytext, yyleng-1); return LABEL;
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 45 "../src/ainedit/asm_lexer.l"
+#line 45 "../src/tools/ainedit/asm_lexer.l"
 yylval.string = make_string(yytext, yyleng);   return IDENTIFIER;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 48 "../src/ainedit/asm_lexer.l"
+#line 48 "../src/tools/ainedit/asm_lexer.l"
 string_buf_ptr = string_buf; BEGIN(str);
 	YY_BREAK
 
 case 7:
 YY_RULE_SETUP
-#line 51 "../src/ainedit/asm_lexer.l"
+#line 51 "../src/tools/ainedit/asm_lexer.l"
 {
         BEGIN(INITIAL);
         *string_buf_ptr = '\0';
@@ -826,43 +826,43 @@ YY_RULE_SETUP
 case 8:
 /* rule 8 can match eol */
 YY_RULE_SETUP
-#line 58 "../src/ainedit/asm_lexer.l"
+#line 58 "../src/tools/ainedit/asm_lexer.l"
 ERROR("Unterminated string literal");
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 60 "../src/ainedit/asm_lexer.l"
+#line 60 "../src/tools/ainedit/asm_lexer.l"
 *string_buf_ptr++ = '\n';
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 61 "../src/ainedit/asm_lexer.l"
+#line 61 "../src/tools/ainedit/asm_lexer.l"
 *string_buf_ptr++ = '\t';
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 62 "../src/ainedit/asm_lexer.l"
+#line 62 "../src/tools/ainedit/asm_lexer.l"
 *string_buf_ptr++ = '\r';
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 63 "../src/ainedit/asm_lexer.l"
+#line 63 "../src/tools/ainedit/asm_lexer.l"
 *string_buf_ptr++ = '\b';
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 64 "../src/ainedit/asm_lexer.l"
+#line 64 "../src/tools/ainedit/asm_lexer.l"
 *string_buf_ptr++ = '\f';
 	YY_BREAK
 case 14:
 /* rule 14 can match eol */
 YY_RULE_SETUP
-#line 66 "../src/ainedit/asm_lexer.l"
+#line 66 "../src/tools/ainedit/asm_lexer.l"
 *string_buf_ptr++ = yytext[1];
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 68 "../src/ainedit/asm_lexer.l"
+#line 68 "../src/tools/ainedit/asm_lexer.l"
 {
         char *yptr = yytext;
         while (*yptr)
@@ -872,10 +872,10 @@ YY_RULE_SETUP
 
 case 16:
 YY_RULE_SETUP
-#line 75 "../src/ainedit/asm_lexer.l"
+#line 75 "../src/tools/ainedit/asm_lexer.l"
 ECHO;
 	YY_BREAK
-#line 879 "src/ainedit/48087cf@@ainedit@exe/asm_lexer.yy.c"
+#line 879 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_lexer.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(str):
 	yyterminate();
@@ -1881,6 +1881,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 75 "../src/ainedit/asm_lexer.l"
+#line 75 "../src/tools/ainedit/asm_lexer.l"
 
 

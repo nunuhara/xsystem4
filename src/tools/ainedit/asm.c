@@ -25,7 +25,6 @@
 #include "system4/ain.h"
 #include "system4/instructions.h"
 #include "system4/string.h"
-#include "system4/utfsjis.h"
 #include "asm_parser.tab.h"
 
 extern FILE *yyin;
@@ -88,7 +87,7 @@ static int string_table_add(struct string_table *t, const char *s)
 
 static int asm_add_message(struct asm_state *state, const char *s)
 {
-	char *u = utf2sjis(s, strlen(s));
+	char *u = encode_text(s);
 	int i = string_table_add(&state->messages, u);
 	free(u);
 	return i;
@@ -97,7 +96,7 @@ static int asm_add_message(struct asm_state *state, const char *s)
 static int asm_add_string(struct asm_state *state, const char *s)
 {
 	int ret;
-	char *u = utf2sjis(s, strlen(s));
+	char *u = encode_text(s);
 	khiter_t k = kh_put(string_ht, state->strings_index, u, &ret);
 	if (!ret) {
 		// nothing
@@ -269,7 +268,7 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enu
 		return kh_value(label_table, k);
 	}
 	case T_FUNC: {
-		char *u = utf2sjis(arg, strlen(arg));
+		char *u = encode_text(arg);
 		struct ain_function *f = ain_get_function(ain, u);
 		free(u);
 		if (!f)
@@ -298,7 +297,7 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enu
 	}
 	case T_LOCAL: {
 		int n, count = 0;
-		char *u = utf2sjis(arg, strlen(arg));
+		char *u = encode_text(arg);
 		u = parse_identifier(state, u, &n);
 		struct ain_function *f = &state->ain->functions[state->func];
 		for (int i = 0; i < f->nr_vars; i++) {
@@ -314,7 +313,7 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enu
 		ASM_ERROR(state, "Unable to resolve local variable: '%s'", arg);
 	}
 	case T_GLOBAL: {
-		char *u = utf2sjis(arg, strlen(arg));
+		char *u = encode_text(arg);
 		for (int i = 0; i < state->ain->nr_globals; i++) {
 			if (!strcmp(u, state->ain->globals[i].name)) {
 				free(u);
@@ -324,7 +323,7 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enu
 		ASM_ERROR(state, "Unable to resolve global variable: '%s'", arg);
 	}
 	case T_STRUCT: {
-		char *u = utf2sjis(arg, strlen(arg));
+		char *u = encode_text(arg);
 		struct ain_struct *s = ain_get_struct(state->ain, u);
 		free(u);
 		if (!s)
@@ -351,7 +350,7 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enu
 		if (state->lib < 0)
 			ERROR("Tried to resolve library function without active library?");
 		int n, count = 0;
-		char *u = utf2sjis(arg, strlen(arg));
+		char *u = encode_text(arg);
 		u = parse_identifier(state, u, &n);
 		for (int i = 0; i < state->ain->libraries[state->lib].nr_functions; i++) {
 			if (strcmp(u, state->ain->libraries[state->lib].functions[i].name))
@@ -370,7 +369,7 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enu
 	case T_FILE: {
 		if (!state->ain->nr_filenames)
 			return atoi(arg);
-		char *u = utf2sjis(arg, strlen(arg));
+		char *u = encode_text(arg);
 		for (int i = 0; i < state->ain->nr_filenames; i++) {
 			if (!strcmp(u, state->ain->filenames[i])) {
 				free(u);
@@ -380,7 +379,7 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enu
 		ASM_ERROR(state, "Unable to resolve filename: '%s'", arg);
 	}
 	case T_DLG: {
-		char *u = utf2sjis(arg, strlen(arg));
+		char *u = encode_text(arg);
 		for (int i = 0; i < state->ain->nr_delegates; i++) {
 			if (!strcmp(u, state->ain->delegates[i].name)) {
 				free(u);
@@ -445,7 +444,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		realloc_string_table(state->ain, n_str);
 		if (state->ain->strings[n_str])
 			free_string(state->ain->strings[n_str]);
-		char *sjis = utf2sjis(kv_A(*instr->args, 1)->text, 0);
+		char *sjis = encode_text(kv_A(*instr->args, 1)->text);
 		state->ain->strings[n_str] = make_string(sjis, strlen(sjis));
 		free(sjis);
 		break;
@@ -457,7 +456,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		realloc_message_table(state->ain, n_msg);
 		if (state->ain->messages[n_msg])
 			free_string(state->ain->messages[n_msg]);
-		char *sjis = utf2sjis(kv_A(*instr->args, 1)->text, 0);
+		char *sjis = encode_text(kv_A(*instr->args, 1)->text);
 		state->ain->messages[n_msg] = make_string(sjis, strlen(sjis));
 		free(sjis);
 		break;

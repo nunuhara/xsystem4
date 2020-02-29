@@ -50,4 +50,7 @@ void for_each_instruction(struct ain *ain, void(*fun)(struct code_reader*, void*
 // json.c
 void ain_dump_json(FILE *out, struct ain *ain);
 
+char *encode_text_output(const char *str);
+char *encode_text_utf8(const char *str);
+
 #endif /* AINDUMP_H */

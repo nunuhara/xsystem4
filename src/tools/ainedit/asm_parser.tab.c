@@ -88,8 +88,8 @@
 
 /* In a future release of Bison, this section will be replaced
    by #include "asm_parser.tab.h".  */
-#ifndef YY_YY_SRC_AINEDIT_48087CF_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED
-# define YY_YY_SRC_AINEDIT_48087CF_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED
+#ifndef YY_YY_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED
+# define YY_YY_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -98,7 +98,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 9 "../src/ainedit/asm_parser.y" /* yacc.c:352  */
+#line 9 "../src/tools/ainedit/asm_parser.y" /* yacc.c:352  */
 
     #include <stdint.h>
     #include "khash.h"
@@ -118,7 +118,7 @@ extern int yydebug;
     KHASH_MAP_INIT_STR(label_table, uint32_t);
     khash_t(label_table) *label_table;
 
-#line 122 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:352  */
+#line 122 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:352  */
 
 /* Token type.  */
 #ifndef YYTOKENTYPE
@@ -136,7 +136,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 1 "../src/ainedit/asm_parser.y" /* yacc.c:352  */
+#line 1 "../src/tools/ainedit/asm_parser.y" /* yacc.c:352  */
 
     int token;
     struct string *string;
@@ -144,7 +144,7 @@ union YYSTYPE
     struct parse_instruction *instr;
     parse_instruction_list *program;
 
-#line 148 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:352  */
+#line 148 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:352  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -157,10 +157,10 @@ extern YYSTYPE yylval;
 
 int yyparse (void);
 
-#endif /* !YY_YY_SRC_AINEDIT_48087CF_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED  */
+#endif /* !YY_YY_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_ASM_PARSER_TAB_H_INCLUDED  */
 
 /* Second part of user prologue.  */
-#line 29 "../src/ainedit/asm_parser.y" /* yacc.c:354  */
+#line 29 "../src/tools/ainedit/asm_parser.y" /* yacc.c:354  */
 
 
 #include <stdio.h>
@@ -245,7 +245,7 @@ static void push_label(char *name)
 }
 
 
-#line 249 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:354  */
+#line 249 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:354  */
 
 #ifdef short
 # undef short
@@ -1315,61 +1315,61 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 125 "../src/ainedit/asm_parser.y" /* yacc.c:1652  */
+#line 125 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1652  */
     { parsed_code = (yyvsp[0].program); }
-#line 1321 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
+#line 1321 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 3:
-#line 128 "../src/ainedit/asm_parser.y" /* yacc.c:1652  */
+#line 128 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1652  */
     { (yyval.program) = make_program(); if ((yyvsp[0].instr)) { push_instruction((yyval.program), (yyvsp[0].instr)); } }
-#line 1327 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
+#line 1327 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 4:
-#line 129 "../src/ainedit/asm_parser.y" /* yacc.c:1652  */
+#line 129 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1652  */
     { if ((yyvsp[0].instr)) { push_instruction((yyvsp[-1].program), (yyvsp[0].instr)); } }
-#line 1333 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
+#line 1333 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 5:
-#line 132 "../src/ainedit/asm_parser.y" /* yacc.c:1652  */
+#line 132 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1652  */
     { (yyval.instr) = NULL; }
-#line 1339 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
+#line 1339 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 6:
-#line 133 "../src/ainedit/asm_parser.y" /* yacc.c:1652  */
+#line 133 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1652  */
     { push_label((yyvsp[0].string)->text); (yyval.instr) = NULL; }
-#line 1345 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
+#line 1345 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 7:
-#line 134 "../src/ainedit/asm_parser.y" /* yacc.c:1652  */
+#line 134 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1652  */
     { (yyval.instr) = make_instruction((yyvsp[-1].string), NULL); }
-#line 1351 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
+#line 1351 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 8:
-#line 135 "../src/ainedit/asm_parser.y" /* yacc.c:1652  */
+#line 135 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1652  */
     { (yyval.instr) = make_instruction((yyvsp[-2].string), (yyvsp[-1].args)); }
-#line 1357 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
+#line 1357 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 9:
-#line 137 "../src/ainedit/asm_parser.y" /* yacc.c:1652  */
+#line 137 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1652  */
     { (yyval.args) = make_arglist(); push_arg((yyval.args), (yyvsp[0].string)); }
-#line 1363 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
+#line 1363 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 10:
-#line 138 "../src/ainedit/asm_parser.y" /* yacc.c:1652  */
+#line 138 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1652  */
     { push_arg((yyvsp[-1].args), (yyvsp[0].string)); }
-#line 1369 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
+#line 1369 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
     break;
 
 
-#line 1373 "src/ainedit/48087cf@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
+#line 1373 "src/tools/ainedit/659eb3d@@ainedit@exe/asm_parser.tab.c" /* yacc.c:1652  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1600,5 +1600,5 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 141 "../src/ainedit/asm_parser.y" /* yacc.c:1918  */
+#line 141 "../src/tools/ainedit/asm_parser.y" /* yacc.c:1918  */
 

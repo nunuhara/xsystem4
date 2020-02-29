@@ -97,8 +97,8 @@
 
 /* In a future release of Bison, this section will be replaced
    by #include "text_parser.tab.h".  */
-#ifndef YY_TEXT_SRC_AINEDIT_48087CF_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED
-# define YY_TEXT_SRC_AINEDIT_48087CF_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED
+#ifndef YY_TEXT_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED
+# define YY_TEXT_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef TEXT_DEBUG
 # if defined YYDEBUG
@@ -115,7 +115,7 @@
 extern int text_debug;
 #endif
 /* "%code requires" blocks.  */
-#line 11 "../src/ainedit/text_parser.y" /* yacc.c:352  */
+#line 11 "../src/tools/ainedit/text_parser.y" /* yacc.c:352  */
 
     #include "kvec.h"
 
@@ -130,7 +130,7 @@ extern int text_debug;
     assignment_list *statements;
 
 
-#line 134 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.c" /* yacc.c:352  */
+#line 134 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.c" /* yacc.c:352  */
 
 /* Token type.  */
 #ifndef TEXT_TOKENTYPE
@@ -153,7 +153,7 @@ extern int text_debug;
 
 union TEXT_STYPE
 {
-#line 3 "../src/ainedit/text_parser.y" /* yacc.c:352  */
+#line 3 "../src/tools/ainedit/text_parser.y" /* yacc.c:352  */
 
     int token;
     int integer;
@@ -161,7 +161,7 @@ union TEXT_STYPE
     struct text_assignment *assign;
     assignment_list *program;
 
-#line 165 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.c" /* yacc.c:352  */
+#line 165 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.c" /* yacc.c:352  */
 };
 
 typedef union TEXT_STYPE TEXT_STYPE;
@@ -174,10 +174,10 @@ extern TEXT_STYPE text_lval;
 
 int text_parse (void);
 
-#endif /* !YY_TEXT_SRC_AINEDIT_48087CF_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED  */
+#endif /* !YY_TEXT_SRC_TOOLS_AINEDIT_659EB3D_AINEDIT_EXE_TEXT_PARSER_TAB_H_INCLUDED  */
 
 /* Second part of user prologue.  */
-#line 26 "../src/ainedit/text_parser.y" /* yacc.c:354  */
+#line 26 "../src/tools/ainedit/text_parser.y" /* yacc.c:354  */
 
 
 #include <stdio.h>
@@ -209,7 +209,7 @@ static struct text_assignment *make_assignment(int type, int index, struct strin
 }
 
 
-#line 213 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.c" /* yacc.c:354  */
+#line 213 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.c" /* yacc.c:354  */
 
 #ifdef short
 # undef short
@@ -1283,43 +1283,43 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 69 "../src/ainedit/text_parser.y" /* yacc.c:1652  */
+#line 69 "../src/tools/ainedit/text_parser.y" /* yacc.c:1652  */
     { statements = (yyvsp[0].program); }
-#line 1289 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
+#line 1289 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 3:
-#line 72 "../src/ainedit/text_parser.y" /* yacc.c:1652  */
+#line 72 "../src/tools/ainedit/text_parser.y" /* yacc.c:1652  */
     { (yyval.program) = make_program(); if ((yyvsp[0].assign)) { push_statement((yyval.program), (yyvsp[0].assign)); } }
-#line 1295 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
+#line 1295 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 4:
-#line 73 "../src/ainedit/text_parser.y" /* yacc.c:1652  */
+#line 73 "../src/tools/ainedit/text_parser.y" /* yacc.c:1652  */
     { if ((yyvsp[0].assign)) { push_statement((yyvsp[-1].program), (yyvsp[0].assign)); } }
-#line 1301 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
+#line 1301 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 5:
-#line 76 "../src/ainedit/text_parser.y" /* yacc.c:1652  */
+#line 76 "../src/tools/ainedit/text_parser.y" /* yacc.c:1652  */
     { (yyval.assign) = NULL; }
-#line 1307 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
+#line 1307 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 6:
-#line 77 "../src/ainedit/text_parser.y" /* yacc.c:1652  */
+#line 77 "../src/tools/ainedit/text_parser.y" /* yacc.c:1652  */
     { (yyval.assign) = make_assignment(MESSAGES, (yyvsp[-4].integer), (yyvsp[-1].string)); }
-#line 1313 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
+#line 1313 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
     break;
 
   case 7:
-#line 78 "../src/ainedit/text_parser.y" /* yacc.c:1652  */
+#line 78 "../src/tools/ainedit/text_parser.y" /* yacc.c:1652  */
     { (yyval.assign) = make_assignment(STRINGS,  (yyvsp[-4].integer), (yyvsp[-1].string)); }
-#line 1319 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
+#line 1319 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
     break;
 
 
-#line 1323 "src/ainedit/48087cf@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
+#line 1323 "src/tools/ainedit/659eb3d@@ainedit@exe/text_parser.tab.c" /* yacc.c:1652  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1550,5 +1550,5 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 81 "../src/ainedit/text_parser.y" /* yacc.c:1918  */
+#line 81 "../src/tools/ainedit/text_parser.y" /* yacc.c:1918  */
 

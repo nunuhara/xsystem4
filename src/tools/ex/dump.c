@@ -27,7 +27,9 @@
 #include "system4.h"
 #include "system4/ex.h"
 #include "system4/string.h"
-#include "system4/utfsjis.h"
+
+char *encode_text(const char *str);
+char *encode_text_utf8(const char *str);
 
 int indent_level = 0;
 
@@ -54,7 +56,7 @@ static const char *ex_strtype(enum ex_value_type type)
 static char *_escape_string(const char *str, const char *escape_chars, const char *replace_chars)
 {
 	int escapes = 0;
-	char *u = sjis2utf(str, strlen(str));
+	char *u = encode_text(str);
 
 	// count number of required escapes
 	for (int i = 0; u[i]; i++) {
@@ -115,40 +117,26 @@ static void ex_dump_identifier(FILE *out, struct string *s)
 		fprintf(out, "\"\"");
 		return;
 	}
+
+	char *u = encode_text_utf8(s->text);
+
 	// identifier beginning with a digit
 	if (s->text[0] >= '0' && s->text[0] <= '9') {
+		free(u);
 		ex_dump_string(out, s);
 		return;
 	}
-	// identifier containing special character
-	for (int i = 0; i < s->size; i++) {
-		switch (s->text[i]) {
-		case ' ':
-		case '\t':
-		case '\r':
-		case '\n':
-		case '\\':
-		case '(':
-		case ')':
-		case '[':
-		case ']':
-		case '{':
-		case '}':
-		case '=':
-		case ',':
-		case '.':
-		case ';':
-		case '"':
-		case '-':
-			ex_dump_string(out, s);
-			return;
-		}
-		if (SJIS_2BYTE(s->text[i]))
-			i++;
+
+	size_t i = strcspn(u, " \t\r\n\\()[]{}=,.;\"-");
+	if (u[i]) {
+		free(u);
+		ex_dump_string(out, s);
+		return;
 	}
 
-	// safe identifier: print unquoted
-	char *u = sjis2utf(s->text, s->size);
+	// FIXME: don't reencode if output format is UTF-8 (the default)
+	free(u);
+	u = encode_text(s->text);
 	fprintf(out, "%s", u);
 	free(u);
 }
@@ -321,7 +309,7 @@ void ex_dump_split(FILE *manifest, struct ex *ex, const char *dir)
 {
 	for (uint32_t i = 0; i < ex->nr_blocks; i++) {
 		char buf[PATH_MAX];
-		char *name = sjis2utf(ex->blocks[i].name->text, ex->blocks[i].name->size);
+		char *name = encode_text(ex->blocks[i].name->text);
 		snprintf(buf, PATH_MAX, "%s/%u_%s.x", dir, i, name);
 
 		FILE *out = file_open_utf8(buf, "w");
