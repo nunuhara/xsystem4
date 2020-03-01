@@ -134,7 +134,7 @@ Known Limitations/Bugs
   rename any files with Japanese characters in their name before using these
   tools on them.
 * aindump only supports dumping to a single file, which can be quite large.
-* The "--inline-strings" option, which reads/writes strings directly into the
+* The `--inline-strings` option, which reads/writes strings directly into the
   disassembled bytecode, does not work correctly.
 
 Source Code
@@ -150,6 +150,15 @@ nunuhara@haniwa.technology, or find me on /haniho/.
 
 Version History
 ---------------
+
+### [Version 0.2.1](https://haniwa.technology/alice-tools/alice-tools-0.2.1.zip)
+
+* Added `--input-encoding` and `--output-encoding` options to control the text
+  encoding of input and output files
+* Added a `--transcode` option to ainedit to change the text encoding of an ain
+  file
+* Fixed an issue where the `--split` option to exdump would produce garbled
+  filenames on Windows
 
 ### [Version 0.2.0](https://haniwa.technology/alice-tools/alice-tools-0.2.0.zip)
 
