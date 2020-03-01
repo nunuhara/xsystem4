@@ -115,7 +115,7 @@ static void usage(void)
 	puts("    -d, --decrypt                  Dump decrypted AIN file");
 	puts("        --map                      Dump AIN file map");
 	puts("        --inline-strings           Dump code in inline-strings mode");
-	puts("        --input-encoding <enc>     Specify the text encoding of the AIN file (default: SJIS-WIN)");
+	puts("        --input-encoding <enc>     Specify the text encoding of the AIN file (default: CP932)");
 	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: UTF-8)");
 }
 
@@ -515,7 +515,7 @@ int main(int argc, char *argv[])
 	bool decrypt = false;
 	char *output_file = NULL;
 	FILE *output = stdout;
-	char *input_encoding = "SJIS-WIN";
+	char *input_encoding = "CP932";
 	char *output_encoding = "UTF-8";
 	int err = AIN_SUCCESS;
 	unsigned int flags = DASM_NO_STRINGS;
@@ -672,7 +672,7 @@ int main(int argc, char *argv[])
 	if ((output_conv = iconv_open(output_encoding, input_encoding)) == (iconv_t)-1) {
 		ERROR("iconv_open: %s", strerror(errno));
 	}
-	if ((utf8_conv = iconv_open("utf8", input_encoding)) == (iconv_t)-1) {
+	if ((utf8_conv = iconv_open("UTF-8", input_encoding)) == (iconv_t)-1) {
 		ERROR("iconv_open: %s", strerror(errno));
 	}
 

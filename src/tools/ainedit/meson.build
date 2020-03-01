@@ -23,7 +23,7 @@ endif
 
 
 executable('ainedit', ainedit, lfiles, pfiles,
-           dependencies : [libm, zlib],
+           dependencies : tool_deps,
            c_args : ['-Wno-unused-parameter'],
            include_directories : incdir,
            link_with : libsys4)

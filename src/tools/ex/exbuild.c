@@ -46,7 +46,7 @@ static void usage(void)
 	puts("    -o, --output                   Set the output file path");
 	puts("        --old                      Use this for pre-Evenicle .ex files");
 	puts("        --input-encoding <enc>     Specify the encoding of the input file (default: UTF-8)");
-	puts("        --output-encoding <enc>    Specify the encoding of the output file (default: SJIS-WIN)");
+	puts("        --output-encoding <enc>    Specify the encoding of the output file (default: CP932)");
 }
 
 enum {
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 {
 	const char *output_file = NULL;
 	const char *input_encoding = "UTF-8";
-	const char *output_encoding = "SJIS-WIN";
+	const char *output_encoding = "CP932";
 
 	while (1) {
 		static struct option long_options[] = {

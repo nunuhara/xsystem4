@@ -55,7 +55,7 @@ static void usage(void)
 	puts("    -d, --decrypt                  Decrypt the EX file only");
 	puts("    -o, --output                   Set the output file path");
 	puts("    -s, --split                    Split output into multiple files");
-	puts("        --input-encoding <enc>     Specify the encoding of the EX file (default: SJIS-WIN)");
+	puts("        --input-encoding <enc>     Specify the encoding of the EX file (default: CP932)");
 	puts("        --output-encoding <enc>    Specify the encoding of the output file (default UTF-8)");
 }
 
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	bool decrypt = false;
 	bool split = false;
 	char *output_file = NULL;
-	char *input_encoding = "SJIS-WIN";
+	char *input_encoding = "CP932";
 	char *output_encoding = "UTF-8";
 
 	while (1) {

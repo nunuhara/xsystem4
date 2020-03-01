@@ -39,7 +39,7 @@ static void usage(void)
 	puts("        --raw                      Read code in raw mode");
 	puts("        --inline-strings           Read code in inline-strings mode");
 	puts("        --input-encoding <enc>     Specify the text encoding of the input file(s) (default: UTF-8)");
-	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: SJIS-WIN)");
+	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: CP932)");
 	//puts("    -p,--project <pje-file>      Build AIN from project file");
 }
 
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
 	const char *text_file = NULL;
 	const char *output_file = NULL;
 	const char *input_encoding = "UTF-8";
-	const char *output_encoding = "SJIS-WIN";
+	const char *output_encoding = "CP932";
 	bool transcode = false;
 	uint32_t flags = ASM_NO_STRINGS;
 	while (1) {
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
 			break;
 		case LOPT_TRANSCODE:
 			transcode = true;
-			input_encoding = "SJIS-WIN";
+			input_encoding = "CP932";
 			output_encoding = optarg;
 			break;
 		case 'o':
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
 	if ((ain_conv = iconv_open(output_encoding, input_encoding)) == (iconv_t)-1) {
 		ERROR("iconv_open: %s", strerror(errno));
 	}
-	if ((print_conv = iconv_open("utf8", output_encoding)) == (iconv_t)-1) {
+	if ((print_conv = iconv_open("UTF-8", output_encoding)) == (iconv_t)-1) {
 		ERROR("iconv_open: %s", strerror(errno));
 	}
 

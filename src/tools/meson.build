@@ -14,6 +14,13 @@ if bison.found()
                          arguments : ['@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@'])
 endif
 
+if build_machine.system() == 'windows'
+    iconv = dependency('iconv')
+    tool_deps = [libm, zlib, iconv]
+else
+    tool_deps = [libm, zlib]
+endif
+
 subdir('aindump')
 subdir('ainedit')
 subdir('ar')
