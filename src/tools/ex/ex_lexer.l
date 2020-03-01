@@ -23,6 +23,7 @@
 #include <string.h>
 #include <errno.h>
 #include "ex_parser.tab.h"
+#include "file.h"
 #include "system4.h"
 #include "system4/string.h"
 
@@ -112,7 +113,7 @@ tree                      return TREE;
     [ \t]*         ;
     \"[^ \t\r\n]+\" {
         yex_text[yex_leng-1] = '\0';
-        yex_in = fopen(yex_text+1, "r");
+        yex_in = file_open_utf8(yex_text+1, "r");
         if (!yex_in)
             ERROR("Failed to open included file '%s': %s", yex_text, strerror(errno));
         yex_push_buffer_state(yex__create_buffer(yex_in, YY_BUF_SIZE));
