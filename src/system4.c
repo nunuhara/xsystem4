@@ -20,6 +20,8 @@
 #include <libgen.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <signal.h>
+#include <sys/wait.h>
 #include "debugger.h"
 #include "file.h"
 #include "ini.h"
@@ -195,6 +197,11 @@ static void config_init(void)
 	mkdir_p(new_save_dir);
 }
 
+void cleanup(int signal)
+{
+	while (waitpid((pid_t)-1, 0, WNOHANG) > 0);
+}
+
 int main(int argc, char *argv[])
 {
 	initialize_instructions();
@@ -225,6 +232,8 @@ int main(int argc, char *argv[])
 	} else  {
 		ERROR("Not an AIN/INI file: %s", &argv[1][len - 4]);
 	}
+
+	signal(SIGCHLD, cleanup);
 
 	config_init();
 

@@ -20,6 +20,8 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <errno.h>
+#include <spawn.h>
 #include <SDL.h> // for system.MsgBox
 
 #include "debugger.h"
@@ -34,6 +36,8 @@
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+
+extern char **environ;
 
 static inline int32_t lint_clamp(int64_t n)
 {
@@ -397,6 +401,22 @@ static void system_call(enum syscall_code code)
 		free(path);
 		break;
 	}
+	case SYS_OPEN_WEB: {
+		struct string *url = stack_peek_string(0);
+		char *browser = getenv("BROWSER");
+		if (!browser || !*browser) {
+			WARNING("$BROWSER not set, assuming Firefox");
+			browser = "firefox";
+		}
+		int err;
+		pid_t child;
+		char *argv[] = { browser, url->text, NULL };
+		if ((err = posix_spawnp(&child, browser, NULL, NULL, argv, environ))) {
+			WARNING("posix_spawn failed: %s", strerror(err));
+		}
+		heap_unref(stack_pop().i);
+		break;
+	};
 	case SYS_GET_SAVE_FOLDER_NAME: {// system.GetSaveFolderName(void)
 		if (config.save_dir) {
 			char *sjis = utf2sjis(config.save_dir, strlen(config.save_dir));

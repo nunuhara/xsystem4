@@ -47,7 +47,7 @@ const struct syscall syscalls[NR_SYSCALLS] = {
 	SYS  ( SYS_RESUME_SAVE,          ResumeSave ),
 	SYS  ( SYS_RESUME_LOAD,          ResumeLoad ),
 	SYS  ( SYS_EXISTS_FILE,          ExistsFile ),
-	TODO ( SYS_OPEN_WEB,             OpenWeb ),
+	SYS  ( SYS_OPEN_WEB,             OpenWeb ),
 	SYS  ( SYS_GET_SAVE_FOLDER_NAME, GetSaveFolderName ),
 	SYS  ( SYS_GET_TIME,             GetTime ),
 	TODO ( SYS_GET_GAME_NAME,        GetGameName ),
