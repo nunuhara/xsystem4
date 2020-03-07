@@ -328,6 +328,11 @@ static void function_return(void)
 	call_stack_ptr--;
 }
 
+static const SDL_MessageBoxButtonData buttons[] = {
+	{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "OK" },
+	{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Cancel" },
+};
+
 static void system_call(enum syscall_code code)
 {
 	switch (code) {
@@ -370,6 +375,29 @@ static void system_call(enum syscall_code code)
 		SDL_ShowSimpleMessageBox(0, "xsystem4", utf, NULL);
 		free(utf);
 		// XXX: caller S_POPs
+		break;
+	}
+	case SYS_MSGBOX_OK_CANCEL: {
+		int result = 0;
+		struct string *str = stack_peek_string(0);
+		char *utf = sjis2utf(str->text, str->size);
+
+		const SDL_MessageBoxData mbox = {
+			SDL_MESSAGEBOX_INFORMATION,
+			NULL,
+			"xsystem4",
+			str->text,
+			SDL_arraysize(buttons),
+			buttons,
+			NULL
+		};
+		if (SDL_ShowMessageBox(&mbox, &result)) {
+			WARNING("Error displaying message box");
+		}
+		// ...
+		free(utf);
+		heap_unref(stack_pop().i);
+		stack_push(result);
 		break;
 	}
 	case SYS_RESUME_SAVE: {
