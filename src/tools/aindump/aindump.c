@@ -111,7 +111,6 @@ static void usage(void)
 	puts("        --delegates                Dump delegate types section");
 	puts("        --global-group-names       Dump global group names section");
 	puts("    -e, --enums                    Dump enums section");
-	puts("    -A, --audit                    Audit AIN file for xsystem4 compatibility");
 	puts("    -d, --decrypt                  Dump decrypted AIN file");
 	puts("        --map                      Dump AIN file map");
 	puts("        --inline-strings           Dump code in inline-strings mode");
@@ -406,36 +405,6 @@ static void ain_dump_enums(FILE *f, struct ain *ain)
 	}
 }
 
-static void ain_audit(FILE *f, struct ain *ain)
-{
-	for (size_t addr = 0; addr < ain->code_size;) {
-		uint16_t opcode = LittleEndian_getW(ain->code, addr);
-		const struct instruction *instr = &instructions[opcode];
-		if (opcode >= NR_OPCODES) {
-			ERROR("0x%08" SIZE_T_FMT "x: Invalid/unknown opcode: %x", opcode);
-		}
-		if (!instr->implemented) {
-			fprintf(f, "0x%08" SIZE_T_FMT "x: %s (unimplemented instruction)\n", addr, instr->name);
-		}
-		if (opcode == CALLSYS) {
-			uint32_t syscode = LittleEndian_getDW(ain->code, addr + 2);
-			if (syscode >= NR_SYSCALLS) {
-				ERROR("0x%08" SIZE_T_FMT "x: CALLSYS system.(0x%x)\n", addr, syscode);
-			}
-			const char * const name = syscalls[syscode].name;
-			if (!name) {
-				fprintf(f, "0x%08" SIZE_T_FMT "x: CALLSYS system.(0x%x)\n", addr, syscode);
-			} else if (!syscalls[syscode].implemented) {
-				fprintf(f, "0x%08" SIZE_T_FMT "x: CALLSYS %s (unimplemented system call)\n", addr, name);
-			}
-
-		}
-		// TODO: audit library calls
-		addr += instruction_width(opcode);
-	}
-	fflush(f);
-}
-
 static void print_section(FILE *f, const char *name, struct ain_section *section)
 {
 	if (section->present)
@@ -501,7 +470,6 @@ enum {
 	LOPT_DELEGATES,
 	LOPT_GLOBAL_GROUPS,
 	LOPT_ENUMS,
-	LOPT_AUDIT,
 	LOPT_DECRYPT,
 	LOPT_MAP,
 	LOPT_INLINE_STRINGS,
@@ -544,7 +512,6 @@ int main(int argc, char *argv[])
 			{ "delegates",          no_argument,       0, LOPT_DELEGATES },
 			{ "global-group-names", no_argument,       0, LOPT_GLOBAL_GROUPS },
 			{ "enums",              no_argument,       0, LOPT_ENUMS },
-			{ "audit",              no_argument,       0, LOPT_AUDIT },
 			{ "decrypt",            no_argument,       0, LOPT_DECRYPT },
 			{ "map",                no_argument,       0, LOPT_MAP },
 			{ "inline-strings",     no_argument,       0, LOPT_INLINE_STRINGS },
@@ -629,10 +596,6 @@ int main(int argc, char *argv[])
 		case LOPT_ENUMS:
 			dump_targets[dump_ptr++] = LOPT_ENUMS;
 			break;
-		case 'A':
-		case LOPT_AUDIT:
-			dump_targets[dump_ptr++] = LOPT_AUDIT;
-			break;
 		case 'd':
 		case LOPT_DECRYPT:
 			decrypt = true;
@@ -703,7 +666,6 @@ int main(int argc, char *argv[])
 		case LOPT_DELEGATES:      ain_dump_functypes(output, ain, true); break;
 		case LOPT_GLOBAL_GROUPS:  ain_dump_global_group_names(output, ain); break;
 		case LOPT_ENUMS:          ain_dump_enums(output, ain); break;
-		case LOPT_AUDIT:          ain_audit(output, ain); break;
 		case LOPT_MAP:            ain_dump_map(output, ain); break;
 		}
 	}

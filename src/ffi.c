@@ -33,6 +33,16 @@ struct hll_function {
 
 static struct hll_function **libraries;
 
+bool library_exists(int libno)
+{
+	return libraries[libno];
+}
+
+bool library_function_exists(int libno, int fno)
+{
+	return libraries[libno] && libraries[libno][fno].fun;
+}
+
 void hll_call(int libno, int fno)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
