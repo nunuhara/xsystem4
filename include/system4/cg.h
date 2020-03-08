@@ -31,10 +31,20 @@ enum cg_type {
 	ALCG_UNKNOWN = 1,
 	ALCG_QNT     = 2,
 	ALCG_AJP     = 3,
-	ALCG_PNG     = 4
+	ALCG_PNG     = 4,
+	ALCG_PMS8    = 5,
+	ALCG_PMS16   = 6,
+};
+
+struct cg_palette {
+	uint8_t red[256];
+	uint8_t green[256];
+	uint8_t blue[256];
 };
 
 struct cg_metrics {
+	int x;
+	int y;
 	int w;
 	int h;
 	int bpp;
@@ -50,6 +60,7 @@ struct cg_metrics {
 struct cg {
 	enum cg_type type; // cg format type
 	struct cg_metrics metrics;
+	struct cg_palette *pal;
 	void *pixels;
 };
 

@@ -21,6 +21,7 @@
 #include "little_endian.h"
 #include "system4.h"
 #include "system4/cg.h"
+#include "system4/pms.h"
 
 bool ajp_checkfmt(const uint8_t *data)
 {
@@ -31,7 +32,7 @@ bool ajp_checkfmt(const uint8_t *data)
 
 static const uint8_t ajp_key[] = {
 	0x5d, 0x91, 0xae, 0x87,
-	0x4a, 0x56, 0x51, 0xcd,
+	0x4a, 0x56, 0x41, 0xcd,
 	0x83, 0xec, 0x4c, 0x92,
 	0xb5, 0xcb, 0x16, 0x34
 };
@@ -98,10 +99,6 @@ void ajp_extract(uint8_t *data, size_t size, struct cg *cg)
 	ajp_decrypt(jpeg_data, ajp.jpeg_size);
 	ajp_decrypt(mask_data, ajp.mask_size);
 
-	if (ajp.mask_size) {
-		WARNING("AJP mask not implemented");
-	}
-
 	tjhandle decompressor = tjInitDecompress();
 	tjDecompressHeader2(decompressor, jpeg_data, ajp.jpeg_size, &width, &height, &subsamp);
 	if ((uint32_t)width != ajp.width)
@@ -116,15 +113,25 @@ void ajp_extract(uint8_t *data, size_t size, struct cg *cg)
 		goto cleanup;
 	}
 
-	// XXX: add solid alpha mask
+	uint8_t *mask;
+	if (ajp.mask_size && pms8_checkfmt(mask_data)) {
+		mask = pms_extract_mask(mask_data, ajp.mask_size);
+	} else {
+		if (ajp.mask_size)
+			WARNING("Unsupported AJP mask format");
+		mask = xmalloc(width * height);
+		memset(mask, 0xFF, width * height);
+	}
+
 	uint8_t *tmp = xmalloc(width * height * 4);
 	for (int i = 0; i < width * height; i++) {
 		tmp[i*4+0] = buf[i*3+0];
 		tmp[i*4+1] = buf[i*3+1];
 		tmp[i*4+2] = buf[i*3+2];
-		tmp[i*4+3] = 0xFF;
+		tmp[i*4+3] = mask[i];
 	}
 	free(buf);
+	free(mask);
 	buf = tmp;
 
 	cg->type = ALCG_AJP;
