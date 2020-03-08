@@ -221,7 +221,7 @@ static void extract_alpha(struct qnt_header *qnt, uint8_t *pic, uint8_t *b)
  *
  *   return: true if data is qnt
  */
-bool qnt_checkfmt(uint8_t *data)
+bool qnt_checkfmt(const uint8_t *data)
 {
 	if (data[0] != 'Q' || data[1] != 'N' || data[2] != 'T') return false;
 	return true;
@@ -259,14 +259,14 @@ void qnt_extract(uint8_t *data, struct cg *cg)
 	extract_header(data, &qnt);
 	qnt_init_metrics(&qnt, &cg->metrics);
 
-	uint8_t *pixels = calloc(1, sizeof(uint8_t) * ((qnt.width+10) * (qnt.height+10) * 3));
+	uint8_t *pixels = xcalloc(3, (qnt.width+10) * (qnt.height+10));
 	extract_pixel(&qnt, pixels, data + qnt.hdr_size);
 
 	cg->type = ALCG_QNT;
 
 	// combine color/alpha data
-	uint8_t *alpha = malloc(sizeof(uint8_t) * ((qnt.width+10) * (qnt.height+10)));
-	uint8_t *tmp = malloc((qnt.width+10) * (qnt.height+10) * 4);
+	uint8_t *alpha = xmalloc((qnt.width+10) * (qnt.height+10));
+	uint8_t *tmp = xmalloc((qnt.width+10) * (qnt.height+10) * 4);
 	if (qnt.alpha_size) {
 		extract_alpha(&qnt, alpha, data + qnt.hdr_size + qnt.pixel_size);
 	} else {

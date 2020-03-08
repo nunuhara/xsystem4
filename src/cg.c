@@ -20,6 +20,7 @@
 #include "system4.h"
 #include "system4/archive.h"
 #include "system4/cg.h"
+#include "system4/ajp.h"
 #include "system4/qnt.h"
 
 /*
@@ -31,6 +32,8 @@ static enum cg_type check_cgformat(uint8_t *data)
 {
 	if (qnt_checkfmt(data)) {
 		return ALCG_QNT;
+	} else if (ajp_checkfmt(data)) {
+		return ALCG_AJP;
 	}
 	return ALCG_UNKNOWN;
 }
@@ -45,6 +48,11 @@ bool cg_get_metrics(struct archive *ar, int no, struct cg_metrics *dst)
 	switch (check_cgformat(dfile->data)) {
 	case ALCG_QNT:
 		qnt_get_metrics(dfile->data, dst);
+		break;
+	case ALCG_AJP:
+		WARNING("AJP GetMetrics not implemented");
+		archive_free_data(dfile);
+		return false;
 		break;
 	default:
 		WARNING("Unknown CG type (CG %d)", no);
@@ -93,7 +101,7 @@ struct cg *cg_load(struct archive *ar, int no)
 		qnt_extract(dfile->data, cg);
 		break;
 	case ALCG_AJP:
-		WARNING("Unimplemented CG type: AJP");
+		ajp_extract(dfile->data, dfile->size, cg);
 		break;
 	case ALCG_PNG:
 		WARNING("Unimplemented CG type: PNG");

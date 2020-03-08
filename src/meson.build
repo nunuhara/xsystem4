@@ -1,6 +1,7 @@
 # sources for libsys4.a
 system4 = ['afa.c',
            'ain.c',
+           'ajp.c',
            'ald.c',
            'archive.c',
            'buffer.c',
@@ -58,7 +59,7 @@ if chibi.found()
 endif
 
 libsys4 = static_library('sys4', system4,
-                         dependencies : [libm, zlib],
+                         dependencies : [libm, zlib, tj],
                          include_directories : incdir)
 
 executable('xsystem4', xsystem4,

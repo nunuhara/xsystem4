@@ -10,6 +10,7 @@ sdl2mixer = dependency('SDL2_mixer')
 ffi = dependency('libffi')
 gl = dependency('GL')
 glew = dependency('glew')
+tj = dependency('libturbojpeg')
 chibi = dependency('chibi-scheme', required : get_option('debugger'))
 
 incdir = include_directories('include')
