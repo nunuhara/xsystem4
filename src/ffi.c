@@ -141,6 +141,7 @@ extern struct static_library lib_DrawPluginManager;
 extern struct static_library lib_File;
 extern struct static_library lib_Math;
 extern struct static_library lib_MsgLogManager;
+extern struct static_library lib_MsgLogViewer;
 extern struct static_library lib_MsgSkip;
 extern struct static_library lib_OutputLog;
 extern struct static_library lib_PlayMovie;
@@ -158,6 +159,7 @@ static struct static_library *static_libraries[] = {
 	&lib_File,
 	&lib_Math,
 	&lib_MsgLogManager,
+	&lib_MsgLogViewer,
 	&lib_MsgSkip,
 	&lib_OutputLog,
 	&lib_PlayMovie,

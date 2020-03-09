@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdbool.h>
 #include <SDL.h>
 #include "system4.h"
 #include "gfx/private.h"
@@ -51,6 +52,19 @@ void key_clear_flag(void)
 void mouse_get_pos(int *x, int *y)
 {
 	SDL_GetMouseState(x, y);
+}
+
+static int wheel_dir = 0;
+
+void mouse_get_wheel(int *forward, int *back)
+{
+	*forward = wheel_dir > 0;
+	*back = wheel_dir < 0;
+}
+
+void mouse_clear_wheel(void)
+{
+	wheel_dir = 0;
 }
 
 static void key_event(SDL_KeyboardEvent *e, bool pressed)
@@ -105,6 +119,9 @@ void handle_events(void)
 		case SDL_MOUSEBUTTONUP:
 		case SDL_MOUSEBUTTONDOWN:
 			mouse_event(&e.button);
+			break;
+		case SDL_MOUSEWHEEL:
+			wheel_dir = e.wheel.y;
 			break;
 		default:
 			break;

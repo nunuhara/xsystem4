@@ -14,11 +14,66 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
+#include <string.h>
+#include "system4.h"
+#include "system4/string.h"
 #include "hll.h"
+#include "MsgLogManager.h"
 
-HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, Numof, void);
-HLL_WARN_UNIMPLEMENTED( , void, MsgLogManager, AddInt, int type, int value);
-HLL_WARN_UNIMPLEMENTED( , void, MsgLogManager, AddString, int type, struct string *str);
+static size_t msg_log_size = 0;
+static size_t msg_log_i = 0;
+struct msg_log_entry *msg_log = NULL;
+
+#define LOG_MAX 2048
+
+static void msg_log_alloc(void)
+{
+	if (msg_log_i < msg_log_size)
+		return;
+	if (!msg_log_size)
+		msg_log_size = 1;
+
+	// rotate log
+	if (msg_log_i >= LOG_MAX) {
+		for (size_t i = 0; i < msg_log_i - LOG_MAX/2; i++) {
+			if (msg_log[i].data_type == MSG_LOG_STRING)
+				free_string(msg_log[i].s);
+		}
+		memcpy(msg_log, msg_log + (msg_log_i - LOG_MAX/2), sizeof(struct msg_log_entry) * LOG_MAX/2);
+		msg_log_i = LOG_MAX/2;
+		return;
+	}
+
+	msg_log = xrealloc(msg_log, sizeof(struct msg_log_entry) * msg_log_size * 2);
+	msg_log_size *= 2;
+}
+
+int MsgLogManager_Numof(void)
+{
+	return msg_log_i;
+}
+
+static void MsgLogManager_AddInt(int type, int value)
+{
+	msg_log_alloc();
+	msg_log[msg_log_i++] = (struct msg_log_entry) {
+		.data_type = MSG_LOG_INT,
+		.type = type,
+		.i = value
+	};
+}
+
+static void MsgLogManager_AddString(int type, struct string *str)
+{
+	msg_log_alloc();
+	msg_log[msg_log_i++] = (struct msg_log_entry) {
+		.data_type = MSG_LOG_STRING,
+		.type = type,
+		.s = string_ref(str)
+	};
+}
+
 HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, GetType, int index);
 HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, GetInt, int index);
 HLL_WARN_UNIMPLEMENTED( , void, MsgLogManager, GetString, int index, struct string **str);

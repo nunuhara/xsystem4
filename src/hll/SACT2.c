@@ -62,14 +62,12 @@ int sact_Mouse_GetPos(int *x, int *y)
 
 void sact_Mouse_ClearWheel(void)
 {
-	// TODO
+	mouse_clear_wheel();
 }
 
 void sact_Mouse_GetWheel(int *forward, int *back)
 {
-	// TODO
-	*forward = 0;
-	*back    = 0;
+	mouse_get_wheel(forward, back);
 }
 
 void sact_Joypad_ClearKeyDownFlag(int n)

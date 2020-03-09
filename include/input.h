@@ -141,5 +141,7 @@ void handle_events(void);
 bool key_is_down(enum sact_keycode code);
 void key_clear_flag(void);
 void mouse_get_pos(int *x, int *y);
+void mouse_get_wheel(int *forward, int *back);
+void mouse_clear_wheel(void);
 
 #endif /* SYSTEM4_INPUT_H */
