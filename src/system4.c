@@ -25,12 +25,13 @@
 #include <getopt.h>
 #include "debugger.h"
 #include "file.h"
-#include "ini.h"
 #include "little_endian.h"
 #include "system4.h"
 #include "system4/ain.h"
 #include "system4/ald.h"
+#include "system4/ini.h"
 #include "system4/instructions.h"
+#include "system4/string.h"
 #include "system4/utfsjis.h"
 #include "vm.h"
 
@@ -44,34 +45,40 @@ struct config config = {
 	.view_height = 600
 };
 
-// XXX: need to remove quotes from ini strings
-static char *config_strdup(const char *str)
+static struct string *ini_string(struct ini_entry *entry)
 {
-	if (*str != '"')
-		ERROR("Not a string: %s", str);
-	char *out = strdup(str+1);
-	size_t len = strlen(out);
-	if (!len || out[len-1] != '"')
-		ERROR("Not a string: %s", str);
-	out[len-1] = '\0';
-	return out;
+	if (entry->value.type != INI_STRING)
+		ERROR("ini value for '%s' is not a string", entry->name->text);
+	return entry->value.s;
 }
 
-static int config_handler(void *user, possibly_unused const char *section, const char *name, const char *value)
+static int ini_integer(struct ini_entry *entry)
 {
-	struct config *config = (struct config*)user;
-	if (!strcmp(name, "GameName")) {
-		config->game_name = config_strdup(value);
-	} else if (!strcmp(name, "CodeName")) {
-		config->ain_filename = config_strdup(value);
-	} else if (!strcmp(name, "SaveFolder")) {
-		config->save_dir = config_strdup(value);
-	} else if (!strcmp(name, "ViewWidth")) {
-		config->view_width = atoi(value);
-	} else if (!strcmp(name, "ViewHeight")) {
-		config->view_height = atoi(value);
+	if (entry->value.type != INI_INTEGER)
+		ERROR("ini value for '%s' is not an integer", entry->name->text);
+	return entry->value.i;
+}
+
+static void read_config(const char *path)
+{
+	size_t ini_size;
+	struct ini_entry *ini = ini_parse(path, &ini_size);
+
+	for (size_t i = 0; i < ini_size; i++) {
+		if (!strcmp(ini[i].name->text, "GameName")) {
+			config.game_name = strdup(ini_string(&ini[i])->text);
+		} else if (!strcmp(ini[i].name->text, "CodeName")) {
+			config.ain_filename = strdup(ini_string(&ini[i])->text);
+		} else if (!strcmp(ini[i].name->text, "SaveFolder")) {
+			config.save_dir = strdup(ini_string(&ini[i])->text);
+		} else if (!strcmp(ini[i].name->text, "ViewWidth")) {
+			config.view_width = ini_integer(&ini[i]);
+		} else if (!strcmp(ini[i].name->text, "ViewHeight")) {
+			config.view_height = ini_integer(&ini[i]);
+		}
+		ini_free_entry(&ini[i]);
 	}
-	return 1;
+	free(ini);
 }
 
 static char *ald_filenames[ALDFILETYPE_MAX][ALD_FILEMAX];
@@ -299,8 +306,7 @@ int main(int argc, char *argv[])
 
 	len = strlen(argv[0]);
 	if (len > 4 && !strcasecmp(&argv[0][len - 4], ".ini")) {
-		if (ini_parse(argv[0], config_handler, &config) < 0)
-			ERROR("Can't parse %s as ini", argv[0]);
+		read_config(argv[0]);
 		if (!config.ain_filename)
 			ERROR("No AIN filename specified in %s", argv[0]);
 

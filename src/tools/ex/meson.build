@@ -3,14 +3,14 @@ exdump = ['../conv.c',
           'exdump.c',
 ]
 
-lfiles = flexgen.process('ex_lexer.l')
-pfiles = bisongen.process('ex_parser.y')
-
 exbuild = ['../conv.c',
            'ast.c',
            'exbuild.c',
            'pack.c',
 ]
+
+exbuild += flexgen.process('ex_lexer.l')
+exbuild += bisongen.process('ex_parser.y')
 
 executable('exdump', exdump,
            dependencies : tool_deps,
@@ -18,7 +18,7 @@ executable('exdump', exdump,
            include_directories : incdir,
            link_with : libsys4)
 
-executable('exbuild', exbuild, lfiles, pfiles,
+executable('exbuild', exbuild,
            dependencies : tool_deps,
            c_args : ['-Wno-unused-parameter'],
            include_directories : incdir,

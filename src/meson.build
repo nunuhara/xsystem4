@@ -60,6 +60,17 @@ if chibi.found()
     add_project_arguments('-DDEBUGGER_ENABLED', language : 'c')
 endif
 
+flexgen = generator(flex,
+                    output : '@BASENAME@.yy.c',
+                    arguments : ['-o', '@OUTPUT@', '@INPUT@'])
+
+bisongen = generator(bison,
+                     output: ['@BASENAME@.tab.c', '@BASENAME@.tab.h'],
+                     arguments : ['@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@'])
+
+xsystem4 += flexgen.process('ini_lexer.l')
+xsystem4 += bisongen.process('ini_parser.y')
+
 libsys4 = static_library('sys4', system4,
                          dependencies : [libm, zlib, tj],
                          include_directories : incdir)

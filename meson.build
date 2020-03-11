@@ -13,6 +13,9 @@ glew = dependency('glew')
 tj = dependency('libturbojpeg')
 chibi = dependency('chibi-scheme', required : get_option('debugger'))
 
+flex = find_program('flex')
+bison = find_program('bison')
+
 incdir = include_directories('include')
 
 subdir('src')
