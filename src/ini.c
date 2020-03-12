@@ -25,8 +25,24 @@
 
 extern FILE *yini_in;
 
+static void list_assign(struct ini_value *list, size_t i, struct ini_value *item)
+{
+	// grow list if needed
+	if (i >= list->list_size) {
+		list->list = xrealloc(list->list, (i+1) * sizeof(struct ini_value));
+		for (size_t j = list->list_size; j < i; j++) {
+			list->list[j].type = INI_NULL;
+		}
+		list->list_size = i+1;
+	}
+
+	list->list[i] = *item;
+}
+
 struct ini_entry *ini_parse(const char *path, size_t *nr_entries)
 {
+	struct ini_entry _e;
+
 	if (!(yini_in = fopen(path, "rb")))
 		ERROR("failed to open '%s': %s", path, strerror(errno));
 	yini_parse();
@@ -34,10 +50,45 @@ struct ini_entry *ini_parse(const char *path, size_t *nr_entries)
 	kvec_t(struct ini_entry) entries;
 	kv_init(entries);
 
-	// TODO: combine _INI_LIST_ENTRY entries
 	for (size_t i = 0; i < kv_size(*yini_entries); i++) {
-		kv_push(struct ini_entry, entries, *kv_A(*yini_entries, i));
-		free(kv_A(*yini_entries, i));
+		struct ini_entry *e = kv_A(*yini_entries, i);
+
+		if (e->value.type != _INI_LIST_ENTRY) {
+			kv_push(struct ini_entry, entries, *e);
+			free(e);
+			continue;
+		}
+
+		// try to find existing list to put entry into
+		struct ini_entry *list = NULL;
+		for (size_t i = 0; i < kv_size(entries); i++) {
+			struct ini_entry *other = &kv_A(entries, i);
+			if (strcmp(e->name->text, other->name->text))
+				continue;
+			if (other->value.type != INI_LIST)
+				ERROR("list assignment to non-list: %s[%" SIZE_T_FMT "]", e->name, e->value._list_pos);
+			free_string(e->name);
+			list = other;
+			break;
+		}
+
+		// create new list if not found
+		if (!list) {
+			_e = (struct ini_entry) {
+				.name = e->name,
+				.value = {
+					.type = INI_LIST,
+					.list_size = 0,
+					.list = NULL
+				}
+			};
+			list = kv_pushp(struct ini_entry, entries);
+			*list = _e;
+		}
+
+		list_assign(&list->value, e->value._list_pos, e->value._list_value);
+		free(e->value._list_value);
+		free(e);
 	}
 	kv_destroy(*yini_entries);
 	free(yini_entries);
