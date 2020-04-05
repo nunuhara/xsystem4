@@ -248,8 +248,11 @@ int sact_SP_SetCG(int sp_no, int cg_no)
 static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r, int g, int b, int a)
 {
 	struct sact_sprite *sp;
-	if (sp_no < 0 || sp_no >= nr_sprites)
+	if (sp_no < 0)
 		VM_ERROR("Invalid sprite number: %d", sp_no);
+	if (sp_no >= nr_sprites) {
+		realloc_sprite_table(sp_no+256);
+	}
 	if (!(sp = sact_get_sprite(sp_no)))
 		sp = alloc_sprite(sp_no);
 	sp->color = (SDL_Color) { .r = r, .g = g, .b = b, .a = (a >= 0 ? a : 255) };
