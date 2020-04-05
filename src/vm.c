@@ -716,6 +716,12 @@ static void execute_instruction(enum opcode opcode)
 		stack_push(src_var);
 		break;
 	}
+	case NEW: {
+		union vm_value v;
+		create_struct(stack_pop().i, &v);
+		stack_push(v);
+		break;
+	}
 	case DELETE: {
 		int slot = stack_pop().i;
 		if (slot != -1)

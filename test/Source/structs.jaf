@@ -56,4 +56,9 @@ void test_structs(void)
 	a.a = 42;
 	b = a;
 	test_equal("struct assign", b.a, 42);
+
+	ref my_struct r;
+	r <- new my_struct;
+	test_equal("r.a (uninitialized)", r.a, 0);
+	test_equal("r.a = 12", (r.a = 12, r.a), 12);
 }
