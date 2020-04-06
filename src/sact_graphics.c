@@ -484,26 +484,31 @@ static void init_text_metrics(struct text_metrics *tm, union vm_value *_tm)
 	};
 }
 
-int sact_SP_TextDraw(int sp_no, struct string *text, struct page *_tm)
+int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_metrics *tm)
 {
-
-	struct text_metrics tm;
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
 
-	init_text_metrics(&tm, _tm->values);
-
 	if (!sp->text.texture.handle) {
 		SDL_Color c;
-		if (tm.outline_left || tm.outline_right || tm.outline_up || tm.outline_down)
-			c = tm.outline_color;
+		if (tm->outline_left || tm->outline_right || tm->outline_up || tm->outline_down)
+			c = tm->outline_color;
 		else
-			c = tm.color;
+			c = tm->color;
 		c.a = 0;
 		gfx_init_texture_with_color(&sp->text.texture, sp->rect.w, sp->rect.h, c);
 	}
 
-	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos, text->text, &tm);
+	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos, text->text, tm);
+	return 1;
+
+}
+
+int sact_SP_TextDraw(int sp_no, struct string *text, struct page *_tm)
+{
+	struct text_metrics tm;
+	init_text_metrics(&tm, _tm->values);
+	_sact_SP_TextDraw(sp_no, text, &tm);
 	return 1;
 }
 

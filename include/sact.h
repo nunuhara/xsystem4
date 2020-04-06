@@ -89,6 +89,7 @@ int sact_SP_SetTextHome(int sp_no, int x, int y);
 int sact_SP_SetTextLineSpace(int sp_no, int px);
 int sact_SP_SetTextCharSpace(int sp_no, int px);
 int sact_SP_SetTextPos(int sp_no, int x, int y);
+int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_metrics *tm);
 int sact_SP_TextDraw(int sp_no, struct string *text, struct page *tm);
 int sact_SP_TextClear(int sp_no);
 int sact_SP_TextHome(int sp_no, int size);

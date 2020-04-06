@@ -278,8 +278,8 @@ HLL_UNIMPLEMENTED(bool, SACT2, Sound_PrepareFromFile, int ch, struct string *fil
 HLL_UNIMPLEMENTED(void, SACT2, CG_RotateRGB, int dst, int dx, int dy, int w, int h, int rotate_type);
 HLL_UNIMPLEMENTED(void, SACT2, Debug_Pause, void);
 HLL_UNIMPLEMENTED(void, SACT2, Debug_GetFuncStack, struct string **s, int nest);
-HLL_UNIMPLEMENTED(int, SACT2, SP_SetBrightness, int sp_no, int brightness);
-HLL_UNIMPLEMENTED(int, SACT2, SP_GetBrightness, int sp_no);
+HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_SetBrightness, int sp_no, int brightness);
+HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_GetBrightness, int sp_no);
 
 HLL_LIBRARY(SACT2,
 	    HLL_EXPORT(Init, sact_Init),

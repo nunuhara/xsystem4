@@ -50,6 +50,7 @@ xsystem4 = ['audio.c',
             'hll/OutputLog.c',
             'hll/PlayMovie.c',
             'hll/SACT2.c',
+            'hll/SengokuRanceFont.c',
             'hll/SystemServiceEx.c',
 ]
 

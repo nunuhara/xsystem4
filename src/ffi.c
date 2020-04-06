@@ -146,6 +146,7 @@ extern struct static_library lib_MsgSkip;
 extern struct static_library lib_OutputLog;
 extern struct static_library lib_PlayMovie;
 extern struct static_library lib_SACT2;
+extern struct static_library lib_SengokuRanceFont;
 extern struct static_library lib_SystemServiceEx;
 
 static struct static_library *static_libraries[] = {
@@ -164,6 +165,7 @@ static struct static_library *static_libraries[] = {
 	&lib_OutputLog,
 	&lib_PlayMovie,
 	&lib_SACT2,
+	&lib_SengokuRanceFont,
 	&lib_SystemServiceEx,
 	NULL
 };
