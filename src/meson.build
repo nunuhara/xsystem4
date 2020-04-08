@@ -14,6 +14,7 @@ system4 = ['afa.c',
            'string.c',
            'system.c',
            'utfsjis.c',
+           'webp.c',
 ]
 
 # sources for xsystem4
@@ -73,7 +74,7 @@ xsystem4 += flexgen.process('ini_lexer.l')
 xsystem4 += bisongen.process('ini_parser.y')
 
 libsys4 = static_library('sys4', system4,
-                         dependencies : [libm, zlib, tj],
+                         dependencies : [libm, zlib, tj, webp],
                          include_directories : incdir)
 
 executable('xsystem4', xsystem4,

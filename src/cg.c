@@ -22,6 +22,7 @@
 #include "system4/cg.h"
 #include "system4/ajp.h"
 #include "system4/qnt.h"
+#include "system4/webp.h"
 
 /*
  * Identify cg format
@@ -34,6 +35,8 @@ static enum cg_type check_cgformat(uint8_t *data)
 		return ALCG_QNT;
 	} else if (ajp_checkfmt(data)) {
 		return ALCG_AJP;
+	} else if (webp_checkfmt(data)) {
+		return ALCG_WEBP;
 	}
 	return ALCG_UNKNOWN;
 }
@@ -53,6 +56,9 @@ bool cg_get_metrics(struct archive *ar, int no, struct cg_metrics *dst)
 		WARNING("AJP GetMetrics not implemented");
 		archive_free_data(dfile);
 		return false;
+		break;
+	case ALCG_WEBP:
+		webp_get_metrics(dfile->data, dfile->size, dst);
 		break;
 	default:
 		WARNING("Unknown CG type (CG %d)", no);
@@ -105,6 +111,9 @@ struct cg *cg_load(struct archive *ar, int no)
 		break;
 	case ALCG_PNG:
 		WARNING("Unimplemented CG type: PNG");
+		break;
+	case ALCG_WEBP:
+		webp_extract(dfile->data, dfile->size, cg);
 		break;
 	default:
 		WARNING("Unknown CG type (CG %d)", no);

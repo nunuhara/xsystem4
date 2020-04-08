@@ -16,7 +16,9 @@
 
 #include "system4/string.h"
 #include "gfx/gfx.h"
+#include "vm/page.h"
 #include "sact.h"
+#include "kvec.h"
 #include "hll.h"
 
 struct text_metrics sr_tm = {
@@ -25,7 +27,19 @@ struct text_metrics sr_tm = {
 	.size = 16,
 	.weight = FW_NORMAL,
 	.face = FONT_MINCHO,
+	.outline_left = 1,
+	.outline_up = 1,
+	.outline_right = 1,
+	.outline_down = 1
 };
+
+kvec_t(struct text_metrics) sp_tm;
+
+static struct text_metrics *get_sp_metrics(int sp_no)
+{
+	(void)kv_a(struct text_metrics, sp_tm, sp_no);
+	return &kv_A(sp_tm, sp_no);
+}
 
 void SengokuRanceFont_AlphaComposite(int spriteNumberDest, int destX, int destY, int spriteNumberSrc, int srcX, int srcY, int w, int h);
 
@@ -88,9 +102,15 @@ void SengokuRanceFont_SetCharacterSpacing(float characterSpacing);
 void SengokuRanceFont_SetSpaceScaleX(float spaceScaleX);
 void SengokuRanceFont_SetReduceDescender(int reduceDescender);
 
-void SengokuRanceFont_SP_ClearState(int spriteNumber)
+void SengokuRanceFont_SP_ClearState(int sp_no)
 {
-	
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp)
+		return;
+	sp->text.home.x = 0;
+	sp->text.home.y = 0;
+	sp->text.pos.x = 0;
+	sp->text.pos.y = 0;
 }
 
 float SengokuRanceFont_SP_GetTextCharSpace(int spriteNumber);
@@ -107,7 +127,12 @@ void SengokuRanceFont_SP_SetTextHome(int sp_no, float x, int y)
 }
 
 //void SengokuRanceFont_SP_SetTextLineSpace(int spriteNumber, int lineSpacing) {}
-//void SengokuRanceFont_SP_SetTextPos(int spriteNumber, float xPos, int yPos) {}
+
+void SengokuRanceFont_SP_SetTextPos(int sp_no, float x, int y)
+{
+	sact_SP_SetTextPos(sp_no, x, y);
+}
+
 //void SengokuRanceFont_SP_TextClear(int spriteNumber) {}
 //void SengokuRanceFont_SP_TextCopy(int destSpriteNumber, int sourceSpriteNumber) {}
 
@@ -117,18 +142,59 @@ void SengokuRanceFont_SP_TextHome(int sp_no, float size)
 }
 
 void SengokuRanceFont_SP_TextNewLine(int spriteNumber, float fontSize);
-void SengokuRanceFont_SP_SetTextMetricsClassic(int spriteNumber, struct page *tm);
 
-void SengokuRanceFont_SP_SetTextStyle(int spriteNumber, struct page *textStyle)
+void SengokuRanceFont_SP_SetTextMetricsClassic(int sp_no, struct page *page)
 {
-	// ???
+	struct text_metrics *tm = get_sp_metrics(sp_no);
+	tm->color.r         = page->values[0].i;
+	tm->color.g         = page->values[1].i;
+	tm->color.b         = page->values[2].i;
+	tm->color.a         = 255;
+	tm->size            = page->values[3].i;
+	tm->weight          = page->values[4].i;
+	//tm->face            = page->values[5].i;
+	tm->face            = FONT_MINCHO;
+	tm->outline_left    = page->values[6].i;
+	tm->outline_up      = page->values[7].i;
+	tm->outline_right   = page->values[8].i;
+	tm->outline_down    = page->values[9].i;
+	tm->outline_color.r = page->values[10].i;
+	tm->outline_color.g = page->values[11].i;
+	tm->outline_color.b = page->values[12].i;
+	tm->outline_color.a = 255;
 }
 
-void SengokuRanceFont_SP_TextDrawClassic(int spriteNumber, struct string *text);
+void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *ts)
+{
+	struct text_metrics *tm = get_sp_metrics(sp_no);
+	// FontType
+	tm->size            = ts->values[1].f;
+	// BoldWidth
+	tm->color.r         = ts->values[3].i;
+	tm->color.g         = ts->values[4].i;
+	tm->color.b         = ts->values[5].i;
+	tm->outline_left    = ts->values[6].f;
+	tm->outline_up      = ts->values[6].f;
+	tm->outline_right   = ts->values[6].f;
+	tm->outline_down    = ts->values[6].f;
+	tm->outline_color.r = ts->values[7].i;
+	tm->outline_color.g = ts->values[8].i;
+	tm->outline_color.b = ts->values[9].i;
+	// ScaleX
+	// SpaceScaleX
+	// FontSpacing
+}
+
+void SengokuRanceFont_SP_TextDrawClassic(int sp_no, struct string *text)
+{
+	//_sact_SP_TextDraw(sp_no, text, get_sp_metrics(sp_no));
+	_sact_SP_TextDraw(sp_no, text, &sr_tm);
+}
 
 void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
 {
-	_sact_SP_TextDraw(sp_no, text, &sr_tm);
+	_sact_SP_TextDraw(sp_no, text, get_sp_metrics(sp_no));
+	//_sact_SP_TextDraw(sp_no, text, &sr_tm);
 }
 
 void SengokuRanceFont_SP_TextDrawPreload(int spriteNumber, struct string *text);
@@ -194,14 +260,14 @@ HLL_LIBRARY(SengokuRanceFont,
 	    //HLL_EXPORT(SP_SetTextCharSpace, SengokuRanceFont_SP_SetTextCharSpace),
 	    HLL_EXPORT(SP_SetTextHome, SengokuRanceFont_SP_SetTextHome),
 	    HLL_EXPORT(SP_SetTextLineSpace, sact_SP_SetTextLineSpace),
-	    HLL_EXPORT(SP_SetTextPos, sact_SP_SetTextPos),
+	    HLL_EXPORT(SP_SetTextPos, SengokuRanceFont_SP_SetTextPos),
 	    HLL_EXPORT(SP_TextClear, sact_SP_TextClear),
 	    HLL_EXPORT(SP_TextCopy, sact_SP_TextCopy),
 	    HLL_EXPORT(SP_TextHome, SengokuRanceFont_SP_TextHome),
 	    //HLL_EXPORT(SP_TextNewLine, SengokuRanceFont_SP_TextNewLine),
-	    //HLL_EXPORT(SP_SetTextMetricsClassic, SengokuRanceFont_SP_SetTextMetricsClassic),
+	    HLL_EXPORT(SP_SetTextMetricsClassic, SengokuRanceFont_SP_SetTextMetricsClassic),
 	    HLL_EXPORT(SP_SetTextStyle, SengokuRanceFont_SP_SetTextStyle),
-	    //HLL_EXPORT(SP_TextDrawClassic, SengokuRanceFont_SP_TextDrawClassic),
+	    HLL_EXPORT(SP_TextDrawClassic, SengokuRanceFont_SP_TextDrawClassic),
 	    HLL_EXPORT(SP_TextDraw, SengokuRanceFont_SP_TextDraw),
 	    //HLL_EXPORT(SP_TextDrawPreload, SengokuRanceFont_SP_TextDrawPreload),
 	    //HLL_EXPORT(SP_SetFontSize, SengokuRanceFont_SP_SetFontSize),

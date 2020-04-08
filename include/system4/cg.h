@@ -34,6 +34,7 @@ enum cg_type {
 	ALCG_PNG     = 4,
 	ALCG_PMS8    = 5,
 	ALCG_PMS16   = 6,
+	ALCG_WEBP    = 7,
 };
 
 struct cg_palette {
