@@ -37,6 +37,22 @@ int32_t buffer_read_int32(struct buffer *r)
 	return v;
 }
 
+uint8_t buffer_read_u8(struct buffer *r)
+{
+	if (r->index + 1 > r->size)
+		ERROR("Out of bounds buffer read");
+	return r->buf[r->index++];
+}
+
+uint16_t buffer_read_u16(struct buffer *r)
+{
+	if (r->index + 2 > r->size)
+		ERROR("Out of bounds buffer read");
+	uint16_t v = LittleEndian_getW(r->buf, r->index);
+	r->index += 2;
+	return v;
+}
+
 float buffer_read_float(struct buffer *r)
 {
 	union { int32_t i; float f; } v;

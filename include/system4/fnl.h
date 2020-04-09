@@ -14,16 +14,41 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#ifndef SYSTEM4_FILE_H
-#define SYSTEM4_FILE_H
+#ifndef SYSTEM4_FNL_H
+#define SYSTEM4_FNL_H
 
-#include <stddef.h>
-#include <stdbool.h>
-#include <stdio.h>
+#include <stdint.h>
 
-FILE *file_open_utf8(const char *path, const char *mode);
-void *file_read(const char *path, size_t *len_out);
-bool file_exists(const char *path);
-int mkdir_p(const char *path);
+struct fnl {
+	uint32_t filesize;
+	uint32_t uk;
+	uint32_t data_offset;
+	uint32_t nr_fonts;
+	struct fnl_font *fonts;
+};
 
-#endif /* SYSTEM4_FILE_H */
+struct fnl_font {
+	uint32_t nr_faces;
+	struct fnl_font_face *faces;
+};
+
+struct fnl_font_face {
+	uint32_t height;
+	uint32_t uk;
+	uint32_t nr_glyphs;
+	struct fnl_glyph *glyphs;
+};
+
+struct fnl_glyph {
+	uint16_t real_width;
+	uint32_t data_pos;
+	uint32_t data_compsize;
+	// uncompressed data
+	unsigned long data_size;
+	uint8_t *data;
+};
+
+struct fnl *fnl_open(const char *path);
+void fnl_free(struct fnl *fnl);
+
+#endif /* SYSTEM4_FNL_H */

@@ -28,6 +28,8 @@ struct buffer {
 
 void buffer_init(struct buffer *r, uint8_t *buf, size_t size);
 int32_t buffer_read_int32(struct buffer *r);
+uint8_t buffer_read_u8(struct buffer *r);
+uint16_t buffer_read_u16(struct buffer *r);
 float buffer_read_float(struct buffer *r);
 struct string *buffer_read_pascal_string(struct buffer *r);
 void buffer_skip(struct buffer *r, size_t off);
