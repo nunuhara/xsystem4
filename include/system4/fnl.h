@@ -51,4 +51,6 @@ struct fnl_glyph {
 struct fnl *fnl_open(const char *path);
 void fnl_free(struct fnl *fnl);
 
+struct fnl_glyph *fnl_get_glyph(struct fnl_font_face *font, uint16_t code);
+
 #endif /* SYSTEM4_FNL_H */

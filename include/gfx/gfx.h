@@ -175,4 +175,15 @@ int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text);
 void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text);
 
+struct fnl_font_inst {
+	struct fnl_font_face *font;
+	float scale;
+	SDL_Color color;
+	SDL_Color outline_color;
+	int outline_size;
+};
+
+struct fnl_font_face;
+int fnl_draw_text(struct fnl_font_inst *font, Texture *dst, int x, int y, char *text);
+
 #endif /* SYSTEM4_SDL_CORE_H */

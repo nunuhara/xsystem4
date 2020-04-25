@@ -20,13 +20,48 @@
 #include "system4.h"
 #include "system4/buffer.h"
 #include "system4/fnl.h"
+#include "system4/utfsjis.h"
 #include "file.h"
 #include "little_endian.h"
 
+static unsigned int sjis_code_to_index(uint16_t code)
+{
+	// one byte
+	if (code < 0x20)
+		return 0;
+	if (code < 0x7f)
+		return code - 0x20;
+	if (code < 0xa1)
+		return 0;
+	if (code < 0xe0)
+		return code - 0x42;
+
+	// two byte
+	uint8_t fst = code >> 8;
+	uint8_t snd = code & 0xFF;
+
+	if (fst < 0x81)
+		return 0;
+	if (snd < 0x40 || snd == 0x7f || snd > 0xfc)
+		return 0;
+
+	return code - (0x80a2 + (68 * (fst - 0x81)) + (snd > 0x7f ? 1 : 0));
+}
+
+struct fnl_glyph *fnl_get_glyph(struct fnl_font_face *font, uint16_t code)
+{
+	unsigned int index = sjis_code_to_index(code);
+
+	if (index >= font->nr_glyphs)
+		index = 0;
+	if (!font->glyphs[index].data_size)
+		index = 0;
+
+	return &font->glyphs[index];
+}
+
 static void fnl_read_glyph(struct buffer *r, uint32_t height, struct fnl_glyph *dst)
 {
-	//dst->uk0 = buffer_read_u8(r);
-	//dst->uk1 = buffer_read_u8(r);
 	dst->real_width = buffer_read_u16(r);
 	dst->data_pos = buffer_read_int32(r);
 	dst->data_compsize = buffer_read_int32(r);

@@ -39,4 +39,19 @@ extern int   sjis_count_char(const char *src);
 extern void  sjis_toupper(char *src);
 extern char* sjis_toupper2(const char *src, size_t len);
 
+// Returns (big-endian) SJIS codepoint for first character in a string.
+static inline uint16_t sjis_code(const char *_str)
+{
+	uint8_t *str = (uint8_t*)_str;
+	if (SJIS_2BYTE(*str)) {
+		return (*str << 8) | *(str+1);
+	}
+	return *str;
+}
+
+static inline char *sjis_skip_char(char *str)
+{
+	return str + (SJIS_2BYTE(*str) ? 2 : 1);
+}
+
 #endif /* SYSTEM4_UTFSJIS */

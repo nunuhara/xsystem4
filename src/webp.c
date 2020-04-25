@@ -96,3 +96,26 @@ void webp_extract(uint8_t *data, size_t size, struct cg *cg)
 
 	cg_free(base_cg);
 }
+
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <webp/encode.h>
+
+void webp_save(const char *path, uint8_t *pixels, int w, int h, bool alpha)
+{
+	size_t len;
+	uint8_t *output;
+	FILE *f = fopen(path, "wb");
+	if (!f)
+		ERROR("fopen failed: %s", strerror(errno));
+	if (alpha) {
+		len = WebPEncodeLosslessRGBA(pixels, w, h, w*4, &output);
+	} else {
+		len = WebPEncodeLosslessRGB(pixels, w, h, w*3, &output);
+	}
+	if (!fwrite(output, len, 1, f))
+		ERROR("fwrite failed: %s", strerror(errno));
+	fclose(f);
+	WebPFree(output);
+}

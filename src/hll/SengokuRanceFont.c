@@ -14,12 +14,19 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <dirent.h>
+#include "system4.h"
+#include "system4/fnl.h"
 #include "system4/string.h"
 #include "gfx/gfx.h"
 #include "vm/page.h"
 #include "sact.h"
 #include "kvec.h"
 #include "hll.h"
+
+static struct fnl *fontlib;
 
 struct text_metrics sr_tm = {
 	.color = { 255, 255, 255, 255 },
@@ -82,7 +89,6 @@ void SengokuRanceFont_SetEdgeWidth(float w)
 
 float SengokuRanceFont_GetTextWidth(struct string *str)
 {
-	// FIXME: use sdl_ttf
 	return str->size * 8;
 }
 
@@ -164,15 +170,21 @@ void SengokuRanceFont_SP_SetTextMetricsClassic(int sp_no, struct page *page)
 	tm->outline_color.a = 255;
 }
 
+static float boldwidth = 0;
+
 void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *ts)
 {
 	struct text_metrics *tm = get_sp_metrics(sp_no);
 	// FontType
+	tm->weight = FW_NORMAL;
+	tm->face = FONT_MINCHO;
 	tm->size            = ts->values[1].f;
 	// BoldWidth
+	boldwidth = ts->values[2].f;
 	tm->color.r         = ts->values[3].i;
 	tm->color.g         = ts->values[4].i;
 	tm->color.b         = ts->values[5].i;
+	tm->color.a         = 255;
 	tm->outline_left    = ts->values[6].f;
 	tm->outline_up      = ts->values[6].f;
 	tm->outline_right   = ts->values[6].f;
@@ -180,6 +192,7 @@ void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *ts)
 	tm->outline_color.r = ts->values[7].i;
 	tm->outline_color.g = ts->values[8].i;
 	tm->outline_color.b = ts->values[9].i;
+	tm->outline_color.a = 255;
 	// ScaleX
 	// SpaceScaleX
 	// FontSpacing
@@ -187,14 +200,49 @@ void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *ts)
 
 void SengokuRanceFont_SP_TextDrawClassic(int sp_no, struct string *text)
 {
-	//_sact_SP_TextDraw(sp_no, text, get_sp_metrics(sp_no));
 	_sact_SP_TextDraw(sp_no, text, &sr_tm);
+}
+
+static struct fnl_font_face *get_font(uint32_t height)
+{
+	int min_diff = 9999;
+	struct fnl_font_face *closest = NULL;
+	for (uint32_t i = 0; i < fontlib->fonts[0].nr_faces; i++) {
+		if (fontlib->fonts[0].faces[i].height == height)
+			return &fontlib->fonts[0].faces[i];
+		int diff = abs((int)height - (int)fontlib->fonts[0].faces[i].height);
+		if (diff < min_diff) {
+			min_diff = diff;
+			closest = &fontlib->fonts[0].faces[i];
+		}
+	}
+	return closest;
 }
 
 void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
 {
-	_sact_SP_TextDraw(sp_no, text, get_sp_metrics(sp_no));
-	//_sact_SP_TextDraw(sp_no, text, &sr_tm);
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct text_metrics *tm = get_sp_metrics(sp_no);
+	struct fnl_font_face *font = get_font(tm->size);
+	if (!font) {
+		WARNING("No font for size %u", tm->size);
+		return;
+	}
+
+	if (!sp->text.texture.handle) {
+		SDL_Color c = tm->color;
+		c.a = 0;
+		gfx_init_texture_with_color(&sp->text.texture, sp->rect.w, sp->rect.h, c);
+	}
+
+	struct fnl_font_inst inst = {
+		.font = font,
+		.scale = 1.0 / (font->height / tm->size),
+		.color = tm->color,
+		.outline_color = tm->outline_color,
+		.outline_size = tm->outline_left
+	};
+	sp->text.pos.x += fnl_draw_text(&inst, &sp->text.texture, sp->text.pos.x, sp->text.pos.y, text->text);
 }
 
 void SengokuRanceFont_SP_TextDrawPreload(int spriteNumber, struct string *text);
@@ -230,7 +278,33 @@ void SengokuRanceFont_SP_SetReduceDescender(int spriteNumber, int reduceDescende
 	
 }
 
+void SengokuRanceFont_ModuleInit(void)
+{
+	DIR *dir;
+	struct dirent *d;
+	char path[PATH_MAX];
+
+	if (!(dir = opendir(config.game_dir))) {
+		ERROR("Failed to open directory: %s", config.game_dir);
+	}
+
+	while ((d = readdir(dir))) {
+		size_t name_len = strlen(d->d_name);
+		if (name_len > 4 && strcasecmp(d->d_name+name_len-4, ".fnl"))
+			continue;
+
+		snprintf(path, PATH_MAX, "%s/%s", config.game_dir, d->d_name);
+		fontlib = fnl_open(path);
+		if (!(fontlib = fnl_open(path)))
+			ERROR("Error opening font library '%s'", path);
+		break;
+	}
+
+	closedir(dir);
+}
+
 HLL_LIBRARY(SengokuRanceFont,
+	    HLL_EXPORT(_ModuleInit, SengokuRanceFont_ModuleInit),
 	    //HLL_EXPORT(AlphaComposite, SengokuRanceFont_AlphaComposite),
 	    HLL_EXPORT(SetFontType, SengokuRanceFont_SetFontType),
 	    HLL_EXPORT(SetFontSize, SengokuRanceFont_SetFontSize),
