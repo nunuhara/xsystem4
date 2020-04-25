@@ -17,8 +17,12 @@
 #include "hll.h"
 #include "gfx/gfx.h"
 
+int SystemServiceEx_GetOverlayPresent(void)
+{
+	return 0;
+}
+
 HLL_UNIMPLEMENTED(int, SystemServiceEx, GetUpdateResult, void);
-HLL_WARN_UNIMPLEMENTED(0, int, SystemServiceEx, GetOverlayPresent, void);
 HLL_WARN_UNIMPLEMENTED(0, int, SystemServiceEx, GetOverlayActive, void);
 HLL_UNIMPLEMENTED(void, SystemServiceEx, UpdateMainSurface, int x, int y, int w, int h);
 HLL_UNIMPLEMENTED(int, SystemServiceEx, GetHasPresented, void);
