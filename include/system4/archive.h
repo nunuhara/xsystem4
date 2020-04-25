@@ -39,7 +39,11 @@ struct archive {
 
 struct archive_ops {
 	bool (*exists)(struct archive *ar, int no);
+	bool (*exists_by_name)(struct archive *ar, const char *name);
 	struct archive_data *(*get)(struct archive *ar, int no);
+	struct archive_data *(*get_by_name)(struct archive *ar, const char *name);
+	bool (*load_file)(struct archive_data *data);
+	void (*for_each)(struct archive *ar, void (*iter)(struct archive_data *data, void *user), void *user);
 	void (*free_data)(struct archive_data *data);
 	void (*free)(struct archive *ar);
 };
@@ -47,8 +51,9 @@ struct archive_ops {
 struct archive_data {
 	size_t size;
 	uint8_t *data;
-	uint8_t *data_raw;
 	char *name;
+	int no;
+	void *private;
 	struct archive *archive;
 };
 
@@ -62,15 +67,43 @@ const char *archive_strerror(int error);
  */
 static inline bool archive_exists(struct archive *ar, int no)
 {
-	return ar->ops->exists(ar, no);
+	return ar->ops->exists ? ar->ops->exists(ar, no) : false;
+}
+
+static inline bool archive_exists_by_name(struct archive *ar, const char *name)
+{
+	return ar->ops->exists_by_name ? ar->ops->exists_by_name(ar, name) : false;
 }
 
 /*
- * Retrieve a piece of data from an ALD archive.
+ * Retrieve a file from an archive by ID.
  */
 static inline struct archive_data *archive_get(struct archive *ar, int no)
 {
-	return ar->ops->get(ar, no);
+	return ar->ops->get ? ar->ops->get(ar, no) : NULL;
+}
+
+/*
+ * Retrieve a file from an archive by name.
+ */
+static inline struct archive_data *archive_get_by_name(struct archive *ar, const char *name)
+{
+	return ar->ops->get_by_name ? ar->ops->get_by_name(ar, name) : NULL;
+}
+
+/*
+ * Load a file into memory, given an uninitialized descriptor.
+ * This should be used in conjunction with archive_for_each.
+ */
+static inline bool archive_load_file(struct archive_data *data)
+{
+	return data->archive->ops->load_file ? data->archive->ops->load_file(data) : false;
+}
+
+static inline void archive_for_each(struct archive *ar, void (*iter)(struct archive_data *data, void *user), void *user)
+{
+	if (ar->ops->for_each)
+		ar->ops->for_each(ar, iter, user);
 }
 
 /*

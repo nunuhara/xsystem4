@@ -30,12 +30,18 @@
 
 static bool ald_exists(struct archive *ar, int no);
 static struct archive_data *ald_get(struct archive *ar, int no);
+static struct archive_data *ald_get_by_name(struct archive *_ar, const char *name);
+static bool ald_load_file(struct archive_data *data);
+static void ald_for_each(struct archive *_ar, void (*iter)(struct archive_data *data, void *user), void *user);
 static void ald_free_data(struct archive_data *data);
 static void ald_free(struct archive *ar);
 
 struct archive_ops ald_archive_ops = {
 	.exists = ald_exists,
 	.get = ald_get,
+	.get_by_name = ald_get_by_name,
+	.load_file = ald_load_file,
+	.for_each = ald_for_each,
 	.free_data = ald_free_data,
 	.free = ald_free,
 };
@@ -184,43 +190,108 @@ static bool ald_exists(struct archive *ar, int no)
 	return ar && !!_ald_get((struct ald_archive*)ar, no, &disk, &dataptr);
 }
 
-/* Get a piece of data from an ALD archive. */
-struct archive_data *ald_get(struct archive *_ar, int no)
+/* Get a descriptor for a file in an ALD archive. */
+struct archive_data *ald_get_descriptor(struct archive *_ar, int no)
 {
 	if (!_ar)
 		return NULL;
 
-	uint8_t *data;
-	struct archive_data *dfile;
-	int disk, dataptr, ptr, size;
 	struct ald_archive *ar = (struct ald_archive*)_ar;
-	int readsize = _ald_get(ar, no, &disk, &dataptr);
+	struct ald_archive_data *dfile = calloc(1, sizeof(struct ald_archive_data));
 
-	// get data top
-	if (ar->ar.mmapped) {
-		data = ar->files[disk].data + dataptr;
-	} else {
-		//int readsize = dataptr2 - dataptr;
-		FILE *fp;
-		// FIXME: check return values
-		data = malloc(sizeof(char) * readsize);
-		fp = fopen(ar->files[disk].name, "r");
-		fseek(fp, dataptr, SEEK_SET);
-		fread(data, 1, readsize, fp);
-		fclose(fp);
+	if (!_ald_get(ar, no, &dfile->disk, &dfile->dataptr)) {
+		free(dfile);
+		return NULL;
 	}
 
-	// get real data and size
-	ptr  = LittleEndian_getDW(data, 0);
-	size = LittleEndian_getDW(data, 4);
+	// read header
+	if (ar->ar.mmapped) {
+		uint8_t *hdr  = ar->files[dfile->disk].data + dfile->dataptr;
+		dfile->hdr_size = LittleEndian_getDW(hdr, 0);
+		dfile->data.size = LittleEndian_getDW(hdr, 4);
+		dfile->data.name = strdup((char*)hdr + 16);
+	} else {
+		uint8_t *hdr = xmalloc(8);
+		FILE *fp = ar->files[dfile->disk].fp;
 
-	dfile = calloc(1, sizeof(struct archive_data));
-	dfile->data_raw = data;
-	dfile->data = data + ptr;
-	dfile->size = size;
-	dfile->name = strdup((char*)data + 16);
-	dfile->archive = &ar->ar;
-	return dfile;
+		// read header size, file size
+		fseek(fp, dfile->dataptr, SEEK_SET);
+		fread(hdr, 8, 1, fp);
+		dfile->hdr_size = LittleEndian_getDW(hdr, 0);
+		dfile->data.size = LittleEndian_getDW(hdr, 4);
+
+		// read name
+		dfile->data.name = xcalloc(dfile->hdr_size-8, 1);
+		fread(dfile->data.name, dfile->hdr_size-8, 1, fp);
+
+		free(hdr);
+	}
+
+	dfile->data.no = no;
+	dfile->data.archive = &ar->ar;
+	return &dfile->data;
+}
+
+/* Get a file from an ALD archive. */
+struct archive_data *ald_get(struct archive *ar, int no)
+{
+	if (!ar)
+		return NULL;
+
+	struct archive_data *data = ald_get_descriptor(ar, no);
+	if (!data)
+		return NULL;
+
+	if (!ald_load_file(data)) {
+		ald_free_data(data);
+		return NULL;
+	}
+
+	return data;
+}
+
+static struct archive_data *ald_get_by_name(struct archive *_ar, const char *name)
+{
+	struct ald_archive *ar = (struct ald_archive*)_ar;
+	for (int i = 0; i < ar->maxfile; i++) {
+		struct archive_data *data = ald_get_descriptor(_ar, i);
+		if (!data)
+			continue;
+		if (!strcmp(data->name, name)) {
+			ald_load_file(data);
+			return data;
+		}
+		ald_free_data(data);
+	}
+	return NULL;
+}
+
+static bool ald_load_file(struct archive_data *data)
+{
+	struct ald_archive *ar = (struct ald_archive*)data->archive;
+	struct ald_archive_data *dfile = (struct ald_archive_data*)data;
+	if (data->archive->mmapped) {
+		data->data = ar->files[dfile->disk].data + dfile->dataptr + dfile->hdr_size;
+	} else {
+		FILE *fp = ar->files[dfile->disk].fp;
+		data->data = xmalloc(data->size);
+
+		fseek(fp, dfile->dataptr + dfile->hdr_size, SEEK_SET);
+		fread(data->data, data->size, 1, fp);
+	}
+	return data;
+}
+
+static void ald_for_each(struct archive *_ar, void (*iter)(struct archive_data *data, void *user), void *user)
+{
+	struct ald_archive *ar = (struct ald_archive*)_ar;
+	for (int i = 0; i < ar->maxfile; i++) {
+		struct archive_data *data = ald_get_descriptor(_ar, i);
+		if (!data)
+			continue;
+		iter(data, user);
+		ald_free_data(data);
+	}
 }
 
 /* Free an ald_data strcture returned by `ald_get`. */
@@ -228,7 +299,7 @@ static void ald_free_data(struct archive_data *data)
 {
 	if (!data)
 		return;
-	if (!data->archive->mmapped)
+	if (!data->archive->mmapped && data->data)
 		free(data->data);
 	free(data->name);
 	free(data);
@@ -242,13 +313,16 @@ static void ald_free(struct archive *_ar)
 
 	struct ald_archive *ar = (struct ald_archive*)_ar;
 
-	// unmap mmap files
-	if (ar->ar.mmapped) {
-		for (int i = 0; i < ALD_FILEMAX; i++) {
-			if (ar->files[i].data)
-				munmap(ar->files[i].data, ar->files[i].size);
+	// unmap mmap files/close file descriptors
+	for (int i = 0; i < ALD_FILEMAX; i++) {
+		if (ar->ar.mmapped && ar->files[i].data) {
+			munmap(ar->files[i].data, ar->files[i].size);
+		} else if (ar->files[i].fp) {
+			fclose(ar->files[i].fp);
 		}
+		free(ar->files[i].name);
 	}
+
 	free(ar);
 }
 
@@ -265,9 +339,9 @@ struct archive *ald_open(char **files, int count, int flags, int *error)
 #endif
 
 	for (int i = 0; i < count; i++) {
-		// XXX: why allow this?
 		if (!files[i])
 			continue;
+		printf("OPENING FILE %s\n", files[i]);
 		if (!(fp = fopen(files[i], "r"))) {
 			*error = ARCHIVE_FILE_ERROR;
 			goto exit_err;
@@ -304,6 +378,12 @@ struct archive *ald_open(char **files, int count, int flags, int *error)
 				goto exit_err;
 			}
 			ar->files[i].size = filesize;
+		} else {
+			// get a file descriptor for each file
+			if (!(ar->files[i].fp = fopen(files[i], "rb"))) {
+				*error = ARCHIVE_FILE_ERROR;
+				goto exit_err;
+			}
 		}
 	}
 	int c = 0;

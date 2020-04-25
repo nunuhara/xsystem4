@@ -24,6 +24,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "system4/archive.h"
 
 #define ALD_FILEMAX 255
@@ -36,6 +37,7 @@ struct ald_archive {
 		uint8_t *data;
 		size_t size;
 		char *name;
+		FILE *fp;
 	} files[ALD_FILEMAX];
 	// upper limit on how many files could be referenced by this archive
 	int maxfile;
@@ -45,6 +47,13 @@ struct ald_archive {
 	short *map_ptr;
 	// pointer maps
 	int *fileptr[ALD_FILEMAX];
+};
+
+struct ald_archive_data {
+	struct archive_data data;
+	int disk;
+	int dataptr;
+	int hdr_size;
 };
 
 enum {

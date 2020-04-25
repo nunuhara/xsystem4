@@ -48,6 +48,6 @@ struct afa_archive {
 	uint8_t *data;
 };
 
-struct afa_archive *afa_open(char *file, int flags, int *error);
+struct afa_archive *afa_open(const char *file, int flags, int *error);
 
 #endif /* SYSTEM4_AFA_H */

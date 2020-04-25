@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <zlib.h>
@@ -30,12 +31,18 @@
 
 static bool afa_exists(struct archive *ar, int no);
 static struct archive_data *afa_get(struct archive *ar, int no);
+static struct archive_data *afa_get_by_name(struct archive *ar, const char *name);
+static bool afa_load_file(struct archive_data *data);
+static void afa_for_each(struct archive *ar, void (*iter)(struct archive_data *data, void *user), void *user);
 static void afa_free_data(struct archive_data *data);
 static void afa_free(struct archive *ar);
 
 struct archive_ops afa_archive_ops = {
 	.exists = afa_exists,
 	.get = afa_get,
+	.get_by_name = afa_get_by_name,
+	.load_file = afa_load_file,
+	.for_each = afa_for_each,
 	.free_data = afa_free_data,
 	.free = afa_free,
 };
@@ -46,18 +53,94 @@ static bool afa_exists(struct archive *_ar, int no)
 	return (uint32_t)no < ar->nr_files;
 }
 
-static struct archive_data *afa_get(struct archive *_ar, int no)
+static bool afa_load_file(struct archive_data *data)
+{
+	if (data->data)
+		return true;
+
+	struct afa_archive *ar = (struct afa_archive*)data->archive;
+	struct afa_entry *e = &ar->files[data->no];
+
+	if (ar->ar.mmapped) {
+		data->data = (uint8_t*)ar->mmap_ptr + ar->data_start + e->off;
+		return true;
+	}
+
+	FILE *f = fopen(ar->filename, "rb");
+	if (!f) {
+		WARNING("Failed to open '%s': %s", ar->filename, strerror(errno));
+		free(data);
+		return false;
+	}
+
+	fseek(f, ar->data_start + e->off, SEEK_SET);
+
+	data->data = xmalloc(e->size);
+	if (fread(data->data, e->size, 1, f) != e->size) {
+		WARNING("Failed to read '%s': %s", ar->filename, strerror(errno));
+		free(data->data);
+		free(data);
+		return false;
+	}
+
+	return true;
+}
+
+static struct archive_data *afa_get_descriptor(struct archive *_ar, int no)
 {
 	struct afa_archive *ar = (struct afa_archive*)_ar;
 	if ((uint32_t)no >= ar->nr_files)
 		return NULL;
-	// ...
+	struct afa_entry *e = &ar->files[no];
+	struct archive_data *data = xcalloc(1, sizeof(struct archive_data));
+	data->size = e->size;
+	data->name = e->name->text;
+	data->no = no;
+	data->archive = _ar;
+	return data;
+}
+
+static struct archive_data *afa_get(struct archive *_ar, int no)
+{
+	struct archive_data *data = afa_get_descriptor(_ar, no);
+	if (!data)
+		return NULL;
+	if (!afa_load_file(data)) {
+		afa_free_data(data);
+		return NULL;
+	}
+	return data;
+}
+
+static struct archive_data *afa_get_by_name(struct archive *_ar, const char *name)
+{
+	// TODO: index filenames
+	struct afa_archive *ar = (struct afa_archive*)_ar;
+	for (uint32_t i = 0; i < ar->nr_files; i++) {
+		if (!strcmp(name, ar->files[i].name->text)) {
+			return afa_get(_ar, i);
+		}
+	}
 	return NULL;
+}
+
+static void afa_for_each(struct archive *_ar, void (*iter)(struct archive_data *data, void *user), void *user)
+{
+	struct afa_archive *ar = (struct afa_archive*)_ar;
+	for (uint32_t i = 0; i < ar->nr_files; i++) {
+		struct archive_data *data = afa_get_descriptor(_ar, i);
+		if (!data)
+			continue;
+		iter(data, user);
+		afa_free_data(data);
+	}
 }
 
 static void afa_free_data(struct archive_data *data)
 {
-	
+	if (data->data && !data->archive->mmapped)
+		free(data->data);
+	free(data);
 }
 
 static void afa_free(struct archive *_ar)
@@ -175,7 +258,7 @@ exit_err:
 	return false;
 }
 
-struct afa_archive *afa_open(char *file, int flags, int *error)
+struct afa_archive *afa_open(const char *file, int flags, int *error)
 {
 #ifdef _WIN32
 	flags &= ~ARCHIVE_MMAP;
@@ -184,18 +267,22 @@ struct afa_archive *afa_open(char *file, int flags, int *error)
 	struct afa_archive *ar = xcalloc(1, sizeof(struct afa_archive));
 
 	if (!(fp = fopen(file, "rb"))) {
+		WARNING("fopen failed: %s", strerror(errno));
 		*error = ARCHIVE_FILE_ERROR;
 		goto exit_err;
 	}
 	if (!afa_read_header(fp, ar, error)) {
+		WARNING("afa_read_header failed");
 		fclose(fp);
 		goto exit_err;
 	}
 	if (!afa_read_file_table(fp, ar, error)) {
+		WARNING("afa_read_file_table failed");
 		fclose(fp);
 		goto exit_err;
 	}
 	if (fclose(fp)) {
+		WARNING("fclose failed: %s", strerror(errno));
 		*error = ARCHIVE_FILE_ERROR;
 		goto exit_err;
 	}
@@ -203,12 +290,14 @@ struct afa_archive *afa_open(char *file, int flags, int *error)
 	if (flags & ARCHIVE_MMAP) {
 		int fd = open(file, O_RDONLY);
 		if (fd < 0) {
+			WARNING("open failed: %s", strerror(errno));
 			*error = ARCHIVE_FILE_ERROR;
 			goto exit_err;
 		}
 		ar->mmap_ptr = mmap(0, ar->file_size, PROT_READ, MAP_SHARED, fd, 0);
 		close(fd);
 		if (ar->mmap_ptr == MAP_FAILED) {
+			WARNING("mmap failed: %s", strerror(errno));
 			*error = ARCHIVE_FILE_ERROR;
 			goto exit_err;
 		}
