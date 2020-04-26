@@ -114,6 +114,7 @@ static void usage(void)
 	puts("    -d, --decrypt                  Dump decrypted AIN file");
 	puts("        --map                      Dump AIN file map");
 	puts("        --inline-strings           Dump code in inline-strings mode");
+	puts("        --no-macros                Don't use macros in code output");
 	puts("        --input-encoding <enc>     Specify the text encoding of the AIN file (default: CP932)");
 	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: UTF-8)");
 }
@@ -473,6 +474,7 @@ enum {
 	LOPT_DECRYPT,
 	LOPT_MAP,
 	LOPT_INLINE_STRINGS,
+	LOPT_NO_MACROS,
 	LOPT_INPUT_ENCODING,
 	LOPT_OUTPUT_ENCODING
 };
@@ -515,6 +517,7 @@ int main(int argc, char *argv[])
 			{ "decrypt",            no_argument,       0, LOPT_DECRYPT },
 			{ "map",                no_argument,       0, LOPT_MAP },
 			{ "inline-strings",     no_argument,       0, LOPT_INLINE_STRINGS },
+			{ "no-macros",          no_argument,       0, LOPT_NO_MACROS },
 			{ "input-encoding",     required_argument, 0, LOPT_INPUT_ENCODING },
 			{ "output-encoding",    required_argument, 0, LOPT_OUTPUT_ENCODING },
 		};
@@ -605,6 +608,9 @@ int main(int argc, char *argv[])
 			break;
 		case LOPT_INLINE_STRINGS:
 			flags &= ~DASM_NO_STRINGS;
+			break;
+		case LOPT_NO_MACROS:
+			flags |= DASM_NO_MACROS;
 			break;
 		case LOPT_INPUT_ENCODING:
 			input_encoding = optarg;

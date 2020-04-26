@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "aindump.h"
+#include "dasm.h"
 #include "khash.h"
 #include "kvec.h"
 #include "little_endian.h"
@@ -25,17 +26,6 @@
 #include "system4/string.h"
 
 #define DASM_ERROR(dasm, fmt, ...) ERROR("At 0x%x: " fmt, dasm->addr, ##__VA_ARGS__)
-
-#define DASM_FUNC_STACK_SIZE 16
-
-struct dasm_state {
-	struct ain *ain;
-	uint32_t flags;
-	FILE *out;
-	size_t addr;
-	int func;
-	int func_stack[DASM_FUNC_STACK_SIZE];
-};
 
 enum jump_target_type {
 	JMP_LABEL,
@@ -86,6 +76,12 @@ static jump_list *get_jump_targets(ain_addr_t addr)
 	if (k == kh_end(jump_table))
 		return NULL;
 	return kh_value(jump_table, k);
+}
+
+bool dasm_is_jump_target(struct dasm_state *dasm)
+{
+	khiter_t k = kh_get(jump_table, jump_table, dasm->addr);
+	return k != kh_end(jump_table);
 }
 
 static char *get_label(ain_addr_t addr)
@@ -232,7 +228,7 @@ static void print_string(struct dasm_state *dasm, const char *str)
 	free(u);
 }
 
-static void print_identifier(struct dasm_state *dasm, const char *str)
+void dasm_print_identifier(struct dasm_state *dasm, const char *str)
 {
 	char *u = encode_text_utf8(str);
 	if (strchr(u, ' '))
@@ -242,7 +238,7 @@ static void print_identifier(struct dasm_state *dasm, const char *str)
 	free(u);
 }
 
-static void print_local_variable(struct dasm_state *dasm, struct ain_function *func, int varno)
+void dasm_print_local_variable(struct dasm_state *dasm, struct ain_function *func, int varno)
 {
 	int dup_no = 0; // nr of duplicate-named variables preceding varno
 	for (int i = 0; i < func->nr_vars; i++) {
@@ -262,7 +258,7 @@ static void print_local_variable(struct dasm_state *dasm, struct ain_function *f
 		name = func->vars[varno].name;
 	}
 
-	print_identifier(dasm, name);
+	dasm_print_identifier(dasm, name);
 }
 
 static void print_function_name(struct dasm_state *dasm, struct ain_function *func)
@@ -276,7 +272,7 @@ static void print_function_name(struct dasm_state *dasm, struct ain_function *fu
 		name = buf;
 	}
 
-	print_identifier(dasm, name);
+	dasm_print_identifier(dasm, name);
 }
 
 static void print_hll_function_name(struct dasm_state *dasm, struct ain_library *lib, int fno)
@@ -296,7 +292,7 @@ static void print_hll_function_name(struct dasm_state *dasm, struct ain_library 
 		name = buf;
 	}
 
-	print_identifier(dasm, name);
+	dasm_print_identifier(dasm, name);
 }
 
 static void print_argument(struct dasm_state *dasm, int32_t arg, enum instruction_argtype type, possibly_unused const char **comment)
@@ -332,7 +328,7 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 	case T_DLG:
 		if (arg < 0 || arg >= ain->nr_delegates)
 			DASM_ERROR(dasm, "Invalid delegate number: %d", arg);
-		print_identifier(dasm, ain->delegates[arg].name);
+		dasm_print_identifier(dasm, ain->delegates[arg].name);
 		break;
 	case T_STRING:
 		if (arg < 0 || arg >= ain->nr_strings)
@@ -363,17 +359,17 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 		}
 		if (arg < 0 || arg >= ain->functions[dasm->func].nr_vars)
 			DASM_ERROR(dasm, "Invalid variable number: %d", arg);
-		print_local_variable(dasm, &ain->functions[dasm->func], arg);
+		dasm_print_local_variable(dasm, &ain->functions[dasm->func], arg);
 		break;
 	case T_GLOBAL:
 		if (arg < 0 || arg >= ain->nr_globals)
 			DASM_ERROR(dasm, "Invalid global number: %d", arg);
-		print_identifier(dasm, ain->globals[arg].name);
+		dasm_print_identifier(dasm, ain->globals[arg].name);
 		break;
 	case T_STRUCT:
 		if (arg < 0 || arg >= ain->nr_structures)
 			DASM_ERROR(dasm, "Invalid struct number: %d", arg);
-		print_identifier(dasm, ain->structures[arg].name);
+		dasm_print_identifier(dasm, ain->structures[arg].name);
 		break;
 	case T_SYSCALL:
 		if (arg < 0 || arg >= NR_SYSCALLS || !syscalls[arg].name)
@@ -383,7 +379,7 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 	case T_HLL:
 		if (arg < 0 || arg >= ain->nr_libraries)
 			DASM_ERROR(dasm, "Invalid HLL library number: %d", arg);
-		print_identifier(dasm, ain->libraries[arg].name);
+		dasm_print_identifier(dasm, ain->libraries[arg].name);
 		break;
 	case T_HLLFUNC:
 		fprintf(dasm->out, "0x%x", arg);
@@ -395,7 +391,7 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 		}
 		if (arg < 0 || arg >= ain->nr_filenames)
 			DASM_ERROR(dasm, "Invalid file number: %d", arg);
-		print_identifier(dasm, ain->filenames[arg]);
+		dasm_print_identifier(dasm, ain->filenames[arg]);
 		break;
 	default:
 		fprintf(dasm->out, "<UNKNOWN ARG TYPE: %d>", type);
@@ -458,12 +454,12 @@ static void dasm_leave_function(struct dasm_state *dasm)
 	}
 }
 
-static void print_instruction(struct dasm_state *dasm, const struct instruction *instr)
+static void print_instruction(struct dasm_state *dasm)
 {
 	if (dasm->flags & DASM_RAW)
 		fprintf(dasm->out, "0x%08" SIZE_T_FMT "X:\t", dasm->addr);
 
-	switch (instr->opcode) {
+	switch (dasm->instr->opcode) {
 	case FUNC:
 		dasm_enter_function(dasm, LittleEndian_getDW(dasm->ain->code, dasm->addr + 2));
 		break;
@@ -477,20 +473,12 @@ static void print_instruction(struct dasm_state *dasm, const struct instruction 
 		break;
 	}
 
-	fprintf(dasm->out, "%s", instr->name);
-	print_arguments(dasm, instr);
-	fputc('\n', dasm->out);
-}
+	if (!(dasm->flags & DASM_NO_MACROS) && dasm_print_macro(dasm))
+		return;
 
-static const struct instruction *get_instruction(struct dasm_state *dasm)
-{
-	uint16_t opcode = LittleEndian_getW(dasm->ain->code, dasm->addr);
-	const struct instruction *instr = &instructions[opcode];
-	if (opcode >= NR_OPCODES)
-		DASM_ERROR(dasm, "Unknown/invalid opcode: %u", opcode);
-	if (dasm->addr + instr->nr_args * 4 >= dasm->ain->code_size)
-		DASM_ERROR(dasm, "CODE section truncated?");
-	return instr;
+	fprintf(dasm->out, "%s", dasm->instr->name);
+	print_arguments(dasm, dasm->instr);
+	fputc('\n', dasm->out);
 }
 
 static void print_switch_case(struct dasm_state *dasm, struct ain_switch_case *c)
@@ -523,13 +511,26 @@ static char *genlabel(size_t addr)
 	return strdup(name);
 }
 
+static const struct instruction *dasm_get_instruction(struct dasm_state *dasm)
+{
+	uint16_t opcode = LittleEndian_getW(dasm->ain->code, dasm->addr);
+	if (opcode >= NR_OPCODES)
+		DASM_ERROR(dasm, "Unknown/invalid opcode: %u", opcode);
+
+	const struct instruction *instr = &instructions[opcode];
+	if (dasm->addr + instr->nr_args * 4 >= dasm->ain->code_size)
+		DASM_ERROR(dasm, "CODE section truncated?");
+
+	return instr;
+}
+
 static void generate_labels(struct dasm_state *dasm)
 {
 	jump_table_init();
 
 	if (!(dasm->flags & DASM_RAW)) {
 		for (dasm->addr = 0; dasm->addr < dasm->ain->code_size;) {
-			const struct instruction *instr = get_instruction(dasm);
+			const struct instruction *instr = dasm_get_instruction(dasm);
 			for (int i = 0; i < instr->nr_args; i++) {
 				if (instr->args[i] != T_ADDR)
 					continue;
@@ -560,6 +561,41 @@ void dasm_init(struct dasm_state *dasm, FILE *out, struct ain *ain, uint32_t fla
 	}
 }
 
+void dasm_next(struct dasm_state *dasm)
+{
+	dasm->addr += instruction_width(dasm->instr->opcode);
+	dasm->instr = dasm_eof(dasm) ? &instructions[0] : dasm_get_instruction(dasm);
+}
+
+bool dasm_eof(struct dasm_state *dasm)
+{
+	return dasm->addr >= dasm->ain->code_size;
+}
+
+void dasm_reset(struct dasm_state *dasm)
+{
+	dasm->addr = 0;
+	dasm->instr = dasm_eof(dasm) ? &instructions[0] : dasm_get_instruction(dasm);
+}
+
+dasm_save_t dasm_save(struct dasm_state *dasm)
+{
+	return (dasm_save_t) { .addr = dasm->addr, .instr = dasm->instr };
+}
+
+void dasm_restore(struct dasm_state *dasm, dasm_save_t save)
+{
+	dasm->addr = save.addr;
+	dasm->instr = save.instr;
+}
+
+int32_t dasm_arg(struct dasm_state *dasm, unsigned int n)
+{
+	if ((int)n >= dasm->instr->nr_args)
+		return 0;
+	return LittleEndian_getDW(dasm->ain->code, dasm->addr + 2 + 4*n);
+}
+
 void disassemble_ain(FILE *out, struct ain *ain, unsigned int flags)
 {
 	struct dasm_state dasm;
@@ -567,8 +603,7 @@ void disassemble_ain(FILE *out, struct ain *ain, unsigned int flags)
 
 	generate_labels(&dasm);
 
-	for (dasm.addr = 0; dasm.addr < dasm.ain->code_size;) {
-		const struct instruction *instr = get_instruction(&dasm);
+	for (dasm_reset(&dasm); !dasm_eof(&dasm); dasm_next(&dasm)) {
 		jump_list *targets = get_jump_targets(dasm.addr);
 		if (targets) {
 			for (size_t i = 0; i < kv_size(*targets); i++) {
@@ -586,8 +621,7 @@ void disassemble_ain(FILE *out, struct ain *ain, unsigned int flags)
 				}
 			}
 		}
-		print_instruction(&dasm, instr);
-		dasm.addr += instruction_width(instr->opcode);
+		print_instruction(&dasm);
 	}
 	fflush(dasm.out);
 

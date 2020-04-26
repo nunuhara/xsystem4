@@ -32,6 +32,10 @@ enum asm_pseudo_opcode {
 	PO_DEFAULT,
 	PO_STR,
 	PO_MSG,
+	PO_LOCALREF,
+	PO_GLOBALREF,
+	PO_LOCALREFREF,
+	PO_GLOBALREFREF,
 	NR_PSEUDO_OPS
 };
 
@@ -40,13 +44,7 @@ const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET];
 // asm.c
 void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags);
 const struct instruction *asm_get_instruction(const char *name);
-
-static const_pure inline int32_t asm_instruction_width(int opcode)
-{
-	if (opcode >= PSEUDO_OP_OFFSET)
-		return 0;
-	return instruction_width(opcode);
-}
+const_pure int32_t asm_instruction_width(int opcode);
 
 // json.c
 void read_declarations(const char *filename, struct ain *ain);

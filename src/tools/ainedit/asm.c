@@ -34,6 +34,16 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 // TODO: better error messages
 #define ASM_ERROR(state, ...) ERROR(__VA_ARGS__)
 
+#define _PSEUDO_OP(code, _name, nargs, _ip_inc, ...)	\
+	[code - PSEUDO_OP_OFFSET] = {			\
+		.opcode = code,				\
+		.name = _name,				\
+		.nr_args = nargs,			\
+		.ip_inc = _ip_inc,			\
+		.implemented = false,			\
+		.args = { __VA_ARGS__ }			\
+	}
+
 #define PSEUDO_OP(code, _name, nargs, ...)	\
 	[code - PSEUDO_OP_OFFSET] = {		\
 		.opcode = code,			\
@@ -45,10 +55,14 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 	}
 
 const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
-	PSEUDO_OP(PO_CASE,    ".CASE",    2),
-	PSEUDO_OP(PO_DEFAULT, ".DEFAULT", 1),
-	PSEUDO_OP(PO_STR,     ".STR",     2),
-	PSEUDO_OP(PO_MSG,     ".MSG",     2),
+	PSEUDO_OP(PO_CASE,          ".CASE",         2),
+	PSEUDO_OP(PO_DEFAULT,       ".DEFAULT",      1),
+	PSEUDO_OP(PO_STR,           ".STR",          2),
+	PSEUDO_OP(PO_MSG,           ".MSG",          2),
+	_PSEUDO_OP(PO_LOCALREF,     ".LOCALREF",     1, 10),
+	_PSEUDO_OP(PO_GLOBALREF,    ".GLOBALREF",    1, 10),
+	_PSEUDO_OP(PO_LOCALREFREF,  ".LOCALREFREF",  1, 10),
+	_PSEUDO_OP(PO_GLOBALREFREF, ".GLOBALREFREF", 1, 10),
 };
 
 struct string_table {
@@ -57,6 +71,8 @@ struct string_table {
 	size_t allocated;
 };
 
+#define ASM_FUNC_STACK_SIZE 16
+
 struct asm_state {
 	struct ain *ain;
 	uint32_t flags;
@@ -64,12 +80,20 @@ struct asm_state {
 	size_t buf_ptr;
 	size_t buf_len;
 	int32_t func;
+	int32_t func_stack[ASM_FUNC_STACK_SIZE];
 	int32_t lib;
 	struct string_table strings;
 	struct string_table messages;
 	khash_t(string_ht) *strings_index;
 	khash_t(string_ht) *messages_index;
 };
+
+const_pure int32_t asm_instruction_width(int opcode)
+{
+	if (opcode >= PSEUDO_OP_OFFSET)
+		return asm_pseudo_ops[opcode - PSEUDO_OP_OFFSET].ip_inc;
+	return instruction_width(opcode);
+}
 
 static int string_table_add(struct string_table *t, const char *s)
 {
@@ -461,6 +485,34 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		free(sjis);
 		break;
 	}
+	case PO_LOCALREF: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, REF);
+		break;
+	}
+	case PO_GLOBALREF: {
+		asm_write_opcode(state, PUSHGLOBALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_GLOBAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, REF);
+		break;
+	}
+	case PO_LOCALREFREF: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, REFREF);
+		break;
+	}
+	case PO_GLOBALREFREF: {
+		asm_write_opcode(state, PUSHGLOBALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_GLOBAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, REFREF);
+		break;
+	}
 	}
 }
 
@@ -498,6 +550,30 @@ static void validate_ain(struct ain *ain)
 	}
 }
 
+static void asm_enter_function(struct asm_state *state, int32_t fno)
+{
+	if (fno < 0 || fno >= state->ain->nr_functions)
+		ASM_ERROR(state, "Invalid function number: %d", fno);
+
+	for (int i = 1; i < ASM_FUNC_STACK_SIZE; i++) {
+		state->func_stack[i] = state->func_stack[i-1];
+	}
+	state->func_stack[0] = state->func;
+	state->func = fno;
+
+	state->ain->functions[fno].address = state->buf_ptr + 6;
+	asm_write_opcode(state, FUNC);
+	asm_write_argument(state, fno);
+}
+
+static void asm_leave_function(struct asm_state *state)
+{
+	state->func = state->func_stack[0];
+	for (int i = 1; i < ASM_FUNC_STACK_SIZE; i++) {
+		state->func_stack[i-1] = state->func_stack[i];
+	}
+}
+
 void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 {
 	struct asm_state state;
@@ -527,11 +603,14 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 
 		// NOTE: special case: we need to record the new function address in the ain structure
 		if (idef->opcode == FUNC) {
-			state.func = asm_resolve_arg(&state, FUNC, T_INT, kv_A(*instr->args, 0)->text);
-			state.ain->functions[state.func].address = state.buf_ptr + 6;
-			asm_write_opcode(&state, FUNC);
-			asm_write_argument(&state, state.func);
+			//state.func = asm_resolve_arg(&state, FUNC, T_INT, kv_A(*instr->args, 0)->text);
+			//state.ain->functions[state.func].address = state.buf_ptr + 6;
+			//asm_write_opcode(&state, FUNC);
+			//asm_write_argument(&state, state.func);
+			asm_enter_function(&state, asm_resolve_arg(&state, FUNC, T_INT, kv_A(*instr->args, 0)->text));
 			continue;
+		} else if (idef->opcode == ENDFUNC) {
+			asm_leave_function(&state);
 		}
 
 		asm_write_opcode(&state, instr->opcode);

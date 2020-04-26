@@ -4,6 +4,7 @@ aindump = ['../../cJSON.c',
            'dasm.c',
            'guess_filenames.c',
            'json.c',
+           'macros.c',
 ]
 
 executable('aindump', aindump,
