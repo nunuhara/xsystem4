@@ -247,7 +247,6 @@ struct ex_field *ast_make_field(int type, struct string *name, int uk0, int uk1,
 	if (subfields) {
 		field->nr_subfields = kv_size(*subfields);
 		flatten_list(struct ex_field, subfields, field->subfields);
-		free(subfields);
 	}
 	return field;
 }
