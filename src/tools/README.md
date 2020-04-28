@@ -106,7 +106,7 @@ and `<data>` is an expression corresponding to the type of data. `<name>` is
 just a name, and may be surrounded in quotation marks if the name contains
 special characters.
 
-Once you've finished editing out.x, you can rebuild the the .ex file using the
+Once you've finished editing out.x, you can rebuild the .ex file using the
 following command:
 
     exbuild -o out.ex out.x
@@ -114,6 +114,11 @@ following command:
 This takes the data from the file "out.x" (which you have just edited) and
 builds the .ex file "out.ex". You can then replace the .ex file in your game
 directory with this file.
+
+If you are building a file for a game older than Evenicle (e.g. Rance 01) you
+should pass the "--old" flag to exbuild. E.g.
+
+    exbuild -o out.ex --old out.x
 
 #### Splitting the dump into multiple files
 
