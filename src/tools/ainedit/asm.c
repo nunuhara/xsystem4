@@ -34,7 +34,7 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 // TODO: better error messages
 #define ASM_ERROR(state, ...) ERROR(__VA_ARGS__)
 
-#define _PSEUDO_OP(code, _name, nargs, _ip_inc, ...)	\
+#define MACRO(code, _name, nargs, _ip_inc, ...)	\
 	[code - PSEUDO_OP_OFFSET] = {			\
 		.opcode = code,				\
 		.name = _name,				\
@@ -55,14 +55,22 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 	}
 
 const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
-	PSEUDO_OP(PO_CASE,          ".CASE",         2),
-	PSEUDO_OP(PO_DEFAULT,       ".DEFAULT",      1),
-	PSEUDO_OP(PO_STR,           ".STR",          2),
-	PSEUDO_OP(PO_MSG,           ".MSG",          2),
-	_PSEUDO_OP(PO_LOCALREF,     ".LOCALREF",     1, 10),
-	_PSEUDO_OP(PO_GLOBALREF,    ".GLOBALREF",    1, 10),
-	_PSEUDO_OP(PO_LOCALREFREF,  ".LOCALREFREF",  1, 10),
-	_PSEUDO_OP(PO_GLOBALREFREF, ".GLOBALREFREF", 1, 10),
+	PSEUDO_OP(PO_CASE,     ".CASE",         2),
+	PSEUDO_OP(PO_DEFAULT,  ".DEFAULT",      1),
+	PSEUDO_OP(PO_STR,      ".STR",          2),
+	PSEUDO_OP(PO_MSG,      ".MSG",          2),
+	MACRO(PO_LOCALREF,     ".LOCALREF",     1, 10),
+	MACRO(PO_GLOBALREF,    ".GLOBALREF",    1, 10),
+	MACRO(PO_LOCALREFREF,  ".LOCALREFREF",  1, 10),
+	MACRO(PO_GLOBALREFREF, ".GLOBALREFREF", 1, 10),
+	MACRO(PO_LOCALINC,     ".LOCALINC",     1, 10),
+	MACRO(PO_LOCALDEC,     ".LOCALDEC",     1, 10),
+	MACRO(PO_LOCALASSIGN,  ".LOCALASSIGN",  2, 16),
+	MACRO(PO_LOCALDELETE,  ".LOCALDELETE",  1, 24),
+	MACRO(PO_LOCALCREATE,  ".LOCALCREATE",  2, 34),
+	MACRO(PO_GLOBALINC,    ".GLOBALINC",    1, 10),
+	MACRO(PO_GLOBALDEC,    ".GLOBALDEC",    1, 10),
+	MACRO(PO_GLOBALASSIGN, ".GLOBALASSIGN", 2, 16),
 };
 
 struct string_table {
@@ -511,6 +519,82 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, PUSH);
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_GLOBAL, kv_A(*instr->args, 0)->text));
 		asm_write_opcode(state, REFREF);
+		break;
+	}
+	case PO_LOCALINC: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, INC);
+		break;
+	}
+	case PO_LOCALDEC: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, DEC);
+		break;
+	}
+	case PO_LOCALASSIGN: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, ASSIGN);
+		break;
+	}
+	case PO_LOCALDELETE: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, DUP2);
+		asm_write_opcode(state, REF);
+		asm_write_opcode(state, DELETE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, -1);
+		asm_write_opcode(state, ASSIGN);
+		asm_write_opcode(state, POP);
+		break;
+	}
+	case PO_LOCALCREATE: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, DUP2);
+		asm_write_opcode(state, REF);
+		asm_write_opcode(state, DELETE);
+		asm_write_opcode(state, DUP2);
+		asm_write_opcode(state, NEW);
+		asm_write_argument(state, asm_resolve_arg(state, NEW, T_STRUCT, kv_A(*instr->args, 1)->text));
+		asm_write_argument(state, -1);
+		asm_write_opcode(state, ASSIGN);
+		asm_write_opcode(state, POP);
+		asm_write_opcode(state, POP);
+		asm_write_opcode(state, POP);
+		break;
+	}
+	case PO_GLOBALINC: {
+		asm_write_opcode(state, PUSHGLOBALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_GLOBAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, INC);
+		break;
+	}
+	case PO_GLOBALDEC: {
+		asm_write_opcode(state, PUSHGLOBALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_GLOBAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, DEC);
+		break;
+	}
+	case PO_GLOBALASSIGN: {
+		asm_write_opcode(state, PUSHGLOBALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_GLOBAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, ASSIGN);
 		break;
 	}
 	}

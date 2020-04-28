@@ -34,7 +34,149 @@ static bool check_opcode(struct dasm_state *dasm, enum opcode opcode)
 	return dasm->instr->opcode == opcode && can_elide(dasm);
 }
 
-static bool print_localref(struct dasm_state *dasm)
+static bool check_next_opcode(struct dasm_state *dasm, enum opcode opcode)
+{
+	dasm_next(dasm);
+	return check_opcode(dasm, opcode);
+}
+
+/* Macro List
+
+.GLOBALREF <varname>:
+    PUSHGLOBALPAGE
+    PUSH <varno>
+    REF
+
+.GLOBALREFREF <varname>:
+    PUSHGLOBALPAGE
+    PUSH <varno>
+    REFREF
+
+.LOCALREF <varname>:
+    PUSHLOCALPAGE
+    PUSH <varno>
+    REF
+
+.LOCALREFREF <varname>:
+    PUSHLOCALPAGE
+    PUSH <varno>
+    REFREF
+
+.LOCALINC:
+    PUSHLOCALPAGE
+    PUSH <varno>
+    INC
+
+.LOCALDEC:
+    PUSHLOCALPAGE
+    PUSH <varno>
+    DEC
+
+.LOCALASSIGN <varname> <value>:
+    PUSHLOCALPAGE
+    PUSH <varno>
+    PUSH <value>
+    ASSIGN
+
+.LOCALDELETE:
+    PUSHLOCALPAGE
+    PUSH <varno>
+    DUP2
+    REF
+    DELETE
+    PUSH -1
+    ASSIGN
+    POP
+
+.LOCALCREATE:
+    PUSHLOCALPAGE
+    PUSH <varno>
+    DUP2
+    REF
+    DELETE
+    DUP2
+    NEW <structno> -1
+    ASSIGN
+    POP
+    POP
+    POP
+
+ */
+
+static void print_local(struct dasm_state *dasm, int32_t no)
+{
+	dasm_print_local_variable(dasm, &dasm->ain->functions[dasm->func], no);
+}
+
+static bool local_create_or_delete_macro(struct dasm_state *dasm, int32_t varno)
+{
+	if (!check_next_opcode(dasm, REF))
+		return false;
+
+	if (!check_next_opcode(dasm, DELETE))
+		return false;
+
+	dasm_next(dasm);
+	if (check_opcode(dasm, PUSH)) {
+		// localdelete
+		if (dasm_arg(dasm, 0) != -1)
+			return false;
+
+		if (!check_next_opcode(dasm, ASSIGN))
+			return false;
+
+		if (!check_next_opcode(dasm, POP))
+			return false;
+
+		fprintf(dasm->out, ".LOCALDELETE ");
+		dasm_print_local_variable(dasm, &dasm->ain->functions[dasm->func], varno);
+		fputc('\n', dasm->out);
+		return true;
+	} else if (check_opcode(dasm, DUP2)) {
+		// localcreate
+		if (!check_next_opcode(dasm, NEW))
+			return false;
+
+		int32_t structno = dasm_arg(dasm, 0);
+		if (structno < 0 || structno >= dasm->ain->nr_structures)
+			return false;
+		if (dasm_arg(dasm, 1) != -1)
+			return false;
+
+		if (!check_next_opcode(dasm, ASSIGN))
+			return false;
+		if (!check_next_opcode(dasm, POP))
+			return false;
+		if (!check_next_opcode(dasm, POP))
+			return false;
+		if (!check_next_opcode(dasm, POP))
+			return false;
+
+		fprintf(dasm->out, ".LOCALCREATE ");
+		print_local(dasm, varno);
+		fputc(' ', dasm->out);
+		dasm_print_identifier(dasm, dasm->ain->structures[structno].name);
+		fputc('\n', dasm->out);
+		return true;
+	}
+
+	return false;
+}
+
+static bool localassign_macro(struct dasm_state *dasm, int32_t no)
+{
+	int32_t val = dasm_arg(dasm, 0);
+	if (!check_next_opcode(dasm, ASSIGN))
+		return false;
+
+	fprintf(dasm->out, ".LOCALASSIGN ");
+	print_local(dasm, no);
+	fputc(' ', dasm->out);
+	fprintf(dasm->out, "%d\n", val);
+	return true;
+}
+
+static bool localpage_macro(struct dasm_state *dasm)
 {
 	dasm_next(dasm);
 	if (!check_opcode(dasm, PUSH))
@@ -49,18 +191,39 @@ static bool print_localref(struct dasm_state *dasm)
 		fprintf(dasm->out, ".LOCALREF ");
 	} else if (check_opcode(dasm, REFREF)) {
 		fprintf(dasm->out, ".LOCALREFREF ");
+	} else if (check_opcode(dasm, INC)) {
+		fprintf(dasm->out, ".LOCALINC ");
+	} else if (check_opcode(dasm, DEC)) {
+		fprintf(dasm->out, ".LOCALDEC ");
+	} else if (check_opcode(dasm, PUSH)) {
+		return localassign_macro(dasm, no);
+	} else if (check_opcode(dasm, DUP2)) {
+		return local_create_or_delete_macro(dasm, no);
 	} else {
 		return false;
 	}
 
-	//dasm_print_identifier(dasm, dasm->ain->functions[dasm->func].vars[no].name);
-	dasm_print_local_variable(dasm, &dasm->ain->functions[dasm->func], no);
+	print_local(dasm, no);
 	fputc('\n', dasm->out);
 
 	return true;
 }
 
-static bool print_globalref(struct dasm_state *dasm)
+static bool globalassign_macro(struct dasm_state *dasm, int32_t no)
+{
+	int32_t val = dasm_arg(dasm, 0);
+	if (!check_next_opcode(dasm, ASSIGN))
+		return false;
+
+	fprintf(dasm->out, ".GLOBALASSIGN ");
+	dasm_print_identifier(dasm, dasm->ain->globals[no].name);
+	fputc(' ', dasm->out);
+	fprintf(dasm->out, "%d\n", val);
+	return true;
+
+}
+
+static bool globalpage_macro(struct dasm_state *dasm)
 {
 	dasm_next(dasm);
 	if (!check_opcode(dasm, PUSH))
@@ -75,6 +238,12 @@ static bool print_globalref(struct dasm_state *dasm)
 		fprintf(dasm->out, ".GLOBALREF ");
 	} else if (check_opcode(dasm, REFREF)) {
 		fprintf(dasm->out, ".GLOBALREFREF ");
+	} else if (check_opcode(dasm, INC)) {
+		fprintf(dasm->out, ".GLOBALINC ");
+	} else if (check_opcode(dasm, DEC)) {
+		fprintf(dasm->out, ".GLOBALDEC ");
+	} else if (check_opcode(dasm, PUSH)) {
+		return globalassign_macro(dasm, no);
 	} else {
 		return false;
 	}
@@ -89,9 +258,9 @@ static bool _dasm_print_macro(struct dasm_state *dasm)
 {
 	switch (dasm->instr->opcode) {
 	case PUSHLOCALPAGE:
-		return print_localref(dasm);
+		return localpage_macro(dasm);
 	case PUSHGLOBALPAGE:
-		return print_globalref(dasm);
+		return globalpage_macro(dasm);
 	default:
 		return false;
 	}
