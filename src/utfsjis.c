@@ -45,6 +45,8 @@ int sjis_index(const char *_src, int index)
 	return src[i] ? i : -1;
 }
 
+#include "system4.h"
+
 char *sjis2utf(const char *_src, size_t len) {
 	if (!len)
 		len = strlen(_src);
@@ -63,6 +65,13 @@ char *sjis2utf(const char *_src, size_t len) {
 			c = 0xff60 + *src - 0xa0;
 			src++;
 		} else {
+			// guard against invalid byte sequence
+			c = *(src+1);
+			if (c < 0x40 || c == 0x7f || c > 0xfc) {
+				*dstp++ = '?';
+				src++;
+				continue;
+			}
 			c = s2u[*src - 0x80][*(src+1) - 0x40];
 			src += 2;
 		}
