@@ -30,7 +30,12 @@
 #include "system4/string.h"
 
 extern int text_lex();
-void text_error(const char *s) { ERROR("%s", s); }
+extern unsigned long text_line;
+
+void text_error(const char *s)
+{
+    sys_error("ERROR: At line %lu: %s\n", text_line, s);
+}
 
 static assignment_list *make_program(void)
 {
@@ -55,7 +60,7 @@ static struct text_assignment *make_assignment(int type, int index, struct strin
 
 %}
 
-%token	<token>		NEWLINE LBRACKET RBRACKET EQUAL MESSAGES STRINGS
+%token	<token>		NEWLINE LBRACKET RBRACKET EQUAL MESSAGES STRINGS INVALID_TOKEN
 %token	<integer>	NUMBER
 %token	<string>	STRING
 

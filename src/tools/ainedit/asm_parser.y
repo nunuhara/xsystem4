@@ -37,7 +37,15 @@
 #include "system4/string.h"
 
 extern int yylex();
-void yyerror(const char *s) { ERROR("%s", s); }
+extern unsigned long asm_line;
+
+#define PARSE_ERROR(fmt, ...)						\
+    sys_error("ERROR: At line %d: " fmt "\n", asm_line-1, ##__VA_ARGS__)
+
+void yyerror(const char *s)
+{
+    sys_error("ERROR: At line %d: %s\n", asm_line, s);
+}
 
 static uint32_t instr_ptr;
 
@@ -63,7 +71,7 @@ static struct parse_instruction *make_instruction(struct string *name, parse_arg
     // check opcode
     const struct instruction *info = asm_get_instruction(name->text);
     if (!info)
-        ERROR("Invalid instruction: %s", name->text);
+        PARSE_ERROR("Invalid instruction: %s", name->text);
     // check argument count
     size_t nr_args = args ? kv_size(*args) : 0;
     if (nr_args != (size_t)info->nr_args) {
@@ -72,8 +80,8 @@ static struct parse_instruction *make_instruction(struct string *name, parse_arg
             fprintf(stderr, " %s", kv_A(*args, i)->text);
         }
         fprintf(stderr, "'\n");
-        ERROR("Wrong number of arguments for instruction '%s' (expected %d; got %lu)",
-              name->text, info->nr_args, nr_args);
+        PARSE_ERROR("Wrong number of arguments for instruction '%s' (expected %d; got %lu)",
+                    name->text, info->nr_args, nr_args);
     }
     // NOTE: argument values checked on second pass
 
@@ -112,7 +120,7 @@ static void push_label(char *name)
 %}
 
 %token	<string>	IDENTIFIER LABEL
-%token	<token>		NEWLINE
+%token	<token>		NEWLINE INVALID_TOKEN
 
 %type	<program>	lines
 %type	<instr>		line

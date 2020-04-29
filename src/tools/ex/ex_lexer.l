@@ -41,6 +41,7 @@ struct string *make_string_from_utf8(const char *str, size_t len)
 }
 
 unsigned long yex_line = 1;
+extern void yex_error(const char *s);
 
 %}
 
@@ -90,7 +91,7 @@ tree                      return TREE;
         return CONST_STRING;
     }
 
-    \n ERROR("Unterminated string literal");
+    \n yex_error("Unterminated string literal");
 
     \\n  *string_buf_ptr++ = '\n';
     \\t  *string_buf_ptr++ = '\t';

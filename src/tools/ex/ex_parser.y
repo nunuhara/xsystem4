@@ -43,7 +43,11 @@
 
 extern int yex_lex();
 extern unsigned long yex_line;
-void yex_error(const char *s) { ERROR("at line %lu: %s", yex_line, s); }
+
+void yex_error(const char *s)
+{
+    sys_error("ERROR: at line %lu: %s\n", yex_line, s);
+}
 
 %}
 

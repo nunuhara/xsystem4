@@ -28,6 +28,9 @@
 char string_buf[65536];
 char *string_buf_ptr;
 
+unsigned long asm_line = 1;
+extern void yyerror(const char *s);
+
 %}
 
 %option noyywrap
@@ -39,8 +42,8 @@ id_char  [^ \t\r\n:;\"]
 %%
 
 [ \t]                     ;
-;[^\n]*\n                 return NEWLINE;
-\n                        return NEWLINE;
+;[^\n]*\n                 asm_line++; return NEWLINE;
+\n                        asm_line++; return NEWLINE;
 [a-zA-Z0-9_-]+:           yylval.string = make_string(yytext, yyleng-1); return LABEL;
 ({id_char}|:)*{id_char}+  yylval.string = make_string(yytext, yyleng);   return IDENTIFIER;
 
@@ -55,7 +58,7 @@ id_char  [^ \t\r\n:;\"]
         return IDENTIFIER;
     }
 
-    \n ERROR("Unterminated string literal");
+    \n yyerror("Unterminated string literal");
 
     \\n  *string_buf_ptr++ = '\n';
     \\t  *string_buf_ptr++ = '\t';
@@ -71,5 +74,7 @@ id_char  [^ \t\r\n:;\"]
             *string_buf_ptr++ = *yptr++;
     }
 }
+
+. return INVALID_TOKEN;
 
 %%

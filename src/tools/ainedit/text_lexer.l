@@ -28,6 +28,9 @@
 char string_buf[65536];
 char *string_buf_ptr;
 
+unsigned long text_line = 1;
+extern void text_error(const char *s);
+
 %}
 
 %option noyywrap
@@ -38,8 +41,8 @@ char *string_buf_ptr;
 %%
 
 [ \t]                     ;
-;[^\n]*\n                 return NEWLINE;
-\n                        return NEWLINE;
+;[^\n]*\n                 text_line++; return NEWLINE;
+\n                        text_line++; return NEWLINE;
 \[                        return LBRACKET;
 \]                        return RBRACKET;
 =                         return EQUAL;
@@ -59,7 +62,7 @@ s                         return STRINGS;
         return STRING;
     }
 
-    \n ERROR("Unterminated string literal");
+    \n text_error("Unterminated string literal");
 
     \\n  *string_buf_ptr++ = '\n';
     \\t  *string_buf_ptr++ = '\t';
@@ -75,5 +78,7 @@ s                         return STRINGS;
             *string_buf_ptr++ = *yptr++;
     }
 }
+
+. return INVALID_TOKEN;
 
 %%
