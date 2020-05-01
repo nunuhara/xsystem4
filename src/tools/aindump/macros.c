@@ -254,6 +254,58 @@ static bool globalpage_macro(struct dasm_state *dasm)
 	return true;
 }
 
+static bool structassign_macro(struct dasm_state *dasm, struct ain_struct *s, struct ain_variable *m)
+{
+	int32_t val = dasm_arg(dasm, 0);
+	if (!check_next_opcode(dasm, ASSIGN))
+		return false;
+
+	fprintf(dasm->out, ".STRUCTASSIGN ");
+	dasm_print_identifier(dasm, s->name);
+	fputc(' ', dasm->out);
+	dasm_print_identifier(dasm, m->name);
+	fputc(' ', dasm->out);
+	fprintf(dasm->out, "%d\n", val);
+	return true;
+}
+
+static bool structpage_macro(struct dasm_state *dasm)
+{
+	struct ain_function *f = &dasm->ain->functions[dasm->func];
+	if (f->struct_type < 0)
+		return false;
+	if (!check_next_opcode(dasm, PUSH))
+		return false;
+
+	int32_t no = dasm_arg(dasm, 0);
+	struct ain_struct *s = &dasm->ain->structures[f->struct_type];
+	if (no < 0 || no >= s->nr_members)
+		return false;
+
+	struct ain_variable *m = &s->members[no];
+	dasm_next(dasm);
+	if (check_opcode(dasm, REF)) {
+		fprintf(dasm->out, ".STRUCTREF ");
+	} else if (check_opcode(dasm, REFREF)) {
+		fprintf(dasm->out, ".STRUCTREFREF ");
+	} else if (check_opcode(dasm, INC)) {
+		fprintf(dasm->out, ".STRUCTINC ");
+	} else if (check_opcode(dasm, DEC)) {
+		fprintf(dasm->out, ".STRUCTDEC ");
+	} else if (check_opcode(dasm, PUSH)) {
+		return structassign_macro(dasm, s, m);
+	} else {
+		return false;
+	}
+
+	dasm_print_identifier(dasm, s->name);
+	fputc(' ', dasm->out);
+	dasm_print_identifier(dasm, m->name);
+	fputc('\n', dasm->out);
+
+	return true;
+}
+
 static bool _dasm_print_macro(struct dasm_state *dasm)
 {
 	switch (dasm->instr->opcode) {
@@ -261,6 +313,8 @@ static bool _dasm_print_macro(struct dasm_state *dasm)
 		return localpage_macro(dasm);
 	case PUSHGLOBALPAGE:
 		return globalpage_macro(dasm);
+	case PUSHSTRUCTPAGE:
+		return structpage_macro(dasm);
 	default:
 		return false;
 	}

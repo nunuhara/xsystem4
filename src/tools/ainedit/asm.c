@@ -60,17 +60,22 @@ const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
 	PSEUDO_OP(PO_STR,      ".STR",          2),
 	PSEUDO_OP(PO_MSG,      ".MSG",          2),
 	MACRO(PO_LOCALREF,     ".LOCALREF",     1, 10),
-	MACRO(PO_GLOBALREF,    ".GLOBALREF",    1, 10),
 	MACRO(PO_LOCALREFREF,  ".LOCALREFREF",  1, 10),
-	MACRO(PO_GLOBALREFREF, ".GLOBALREFREF", 1, 10),
 	MACRO(PO_LOCALINC,     ".LOCALINC",     1, 10),
 	MACRO(PO_LOCALDEC,     ".LOCALDEC",     1, 10),
 	MACRO(PO_LOCALASSIGN,  ".LOCALASSIGN",  2, 16),
 	MACRO(PO_LOCALDELETE,  ".LOCALDELETE",  1, 24),
 	MACRO(PO_LOCALCREATE,  ".LOCALCREATE",  2, 34),
+	MACRO(PO_GLOBALREF,    ".GLOBALREF",    1, 10),
+	MACRO(PO_GLOBALREFREF, ".GLOBALREFREF", 1, 10),
 	MACRO(PO_GLOBALINC,    ".GLOBALINC",    1, 10),
 	MACRO(PO_GLOBALDEC,    ".GLOBALDEC",    1, 10),
 	MACRO(PO_GLOBALASSIGN, ".GLOBALASSIGN", 2, 16),
+	MACRO(PO_STRUCTREF,    ".STRUCTREF",    2, 10),
+	MACRO(PO_STRUCTREFREF, ".STRUCTREFREF", 2, 10),
+	MACRO(PO_STRUCTINC,    ".STRUCTINC",    2, 10),
+	MACRO(PO_STRUCTDEC,    ".STRUCTDEC",    2, 10),
+	MACRO(PO_STRUCTASSIGN, ".STRUCTASSIGN", 3, 16),
 };
 
 struct string_table {
@@ -444,6 +449,29 @@ static void decompose_switch_index(struct asm_state *state, char *in, int *switc
 	*case_out = n_case;
 }
 
+static int get_member_no(struct asm_state *state, char *struct_name, char *_member_name)
+{
+	int member_no = -1;
+	int struct_no = asm_resolve_arg(state, PUSH, T_STRUCT, struct_name);
+	char *member_name = encode_text_to_input_format(_member_name);
+
+	for (int i = 0; i < state->ain->structures[struct_no].nr_members; i++) {
+		if (!strcmp(member_name, state->ain->structures[struct_no].members[i].name)) {
+			member_no = i;
+			break;
+		}
+	}
+	free(member_name);
+
+	if (member_no < 0) {
+		char *sname = encode_text_for_print(struct_name);
+		char *mname = encode_text_for_print(_member_name);
+		ASM_ERROR(state, "Unable to resolve struct member: %s.%s", sname, mname);
+	}
+
+	return member_no;
+}
+
 void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 {
 	switch (instr->opcode) {
@@ -597,6 +625,43 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, ASSIGN);
 		break;
 	}
+	case PO_STRUCTREF: {
+		asm_write_opcode(state, PUSHSTRUCTPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, get_member_no(state, kv_A(*instr->args, 0)->text, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, REF);
+		break;
+	}
+	case PO_STRUCTREFREF: {
+		asm_write_opcode(state, PUSHSTRUCTPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, get_member_no(state, kv_A(*instr->args, 0)->text, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, REFREF);
+		break;
+	}
+	case PO_STRUCTINC: {
+		asm_write_opcode(state, PUSHSTRUCTPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, get_member_no(state, kv_A(*instr->args, 0)->text, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, INC);
+		break;
+	}
+	case PO_STRUCTDEC: {
+		asm_write_opcode(state, PUSHSTRUCTPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, get_member_no(state, kv_A(*instr->args, 0)->text, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, DEC);
+		break;
+	}
+	case PO_STRUCTASSIGN: {
+		asm_write_opcode(state, PUSHSTRUCTPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, get_member_no(state, kv_A(*instr->args, 0)->text, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 2)->text));
+		asm_write_opcode(state, ASSIGN);
+		break;
+	}
 	}
 }
 
@@ -687,10 +752,6 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 
 		// NOTE: special case: we need to record the new function address in the ain structure
 		if (idef->opcode == FUNC) {
-			//state.func = asm_resolve_arg(&state, FUNC, T_INT, kv_A(*instr->args, 0)->text);
-			//state.ain->functions[state.func].address = state.buf_ptr + 6;
-			//asm_write_opcode(&state, FUNC);
-			//asm_write_argument(&state, state.func);
 			asm_enter_function(&state, asm_resolve_arg(&state, FUNC, T_INT, kv_A(*instr->args, 0)->text));
 			continue;
 		} else if (idef->opcode == ENDFUNC) {

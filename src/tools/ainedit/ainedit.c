@@ -40,6 +40,7 @@ static void usage(void)
 	puts("        --inline-strings           Read code in inline-strings mode");
 	puts("        --input-encoding <enc>     Specify the text encoding of the input file(s) (default: UTF-8)");
 	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: CP932)");
+	puts("        --ain-encoding <enc>       Specify the text encoding of the input AIN file");
 	//puts("    -p,--project <pje-file>      Build AIN from project file");
 }
 
@@ -56,10 +57,12 @@ enum {
 	LOPT_INLINE_STRINGS,
 	LOPT_INPUT_ENCODING,
 	LOPT_OUTPUT_ENCODING,
+	LOPT_AIN_ENCODING,
 };
 
 iconv_t ain_conv;
 iconv_t print_conv;
+iconv_t ain_input_conv;
 
 char *convert_text(iconv_t cd, const char *str);
 
@@ -67,6 +70,16 @@ char *convert_text(iconv_t cd, const char *str);
 char *encode_text(const char *str)
 {
 	return convert_text(ain_conv, str);
+}
+
+char *encode_text_to_input_format(char *str)
+{
+	return convert_text(ain_input_conv, str);
+}
+
+char *encode_text_for_print(char *str)
+{
+	return convert_text(print_conv, str);
 }
 
 int main(int argc, char *argv[])
@@ -80,6 +93,7 @@ int main(int argc, char *argv[])
 	const char *output_file = NULL;
 	const char *input_encoding = "UTF-8";
 	const char *output_encoding = "CP932";
+	const char *ain_encoding = "CP932";
 	bool transcode = false;
 	uint32_t flags = ASM_NO_STRINGS;
 	while (1) {
@@ -94,6 +108,7 @@ int main(int argc, char *argv[])
 			{ "inline-strings",  no_argument,       0, LOPT_INLINE_STRINGS },
 			{ "input-encoding",  required_argument, 0, LOPT_INPUT_ENCODING },
 			{ "output-encoding", required_argument, 0, LOPT_OUTPUT_ENCODING },
+			{ "ain-encoding",    required_argument, 0, LOPT_AIN_ENCODING },
 		};
 		int option_index = 0;
 		int c;
@@ -141,6 +156,9 @@ int main(int argc, char *argv[])
 		case LOPT_OUTPUT_ENCODING:
 			output_encoding = optarg;
 			break;
+		case LOPT_AIN_ENCODING:
+			ain_encoding = optarg;
+			break;
 		case '?':
 			ERROR("Unknown command line argument");
 		}
@@ -161,7 +179,10 @@ int main(int argc, char *argv[])
 	if ((ain_conv = iconv_open(output_encoding, input_encoding)) == (iconv_t)-1) {
 		ERROR("iconv_open: %s", strerror(errno));
 	}
-	if ((print_conv = iconv_open("UTF-8", output_encoding)) == (iconv_t)-1) {
+	if ((print_conv = iconv_open("UTF-8", input_encoding)) == (iconv_t)-1) {
+		ERROR("iconv_open: %s", strerror(errno));
+	}
+	if ((ain_input_conv = iconv_open(ain_encoding, input_encoding)) == (iconv_t)-1) {
 		ERROR("iconv_open: %s", strerror(errno));
 	}
 

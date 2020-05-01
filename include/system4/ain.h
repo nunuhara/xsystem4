@@ -155,6 +155,8 @@ struct ain_function {
 	int32_t nr_vars;
 	int32_t is_lambda; // XXX: if this = 1, then function is a lambda; but not all lambdas have this = 1
 	int32_t crc;
+	int32_t struct_type;
+	int32_t enum_type;
 	struct ain_variable *vars;
 };
 

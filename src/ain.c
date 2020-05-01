@@ -81,6 +81,69 @@ static void init_struct_ht(struct ain *ain)
 	}
 }
 
+static bool function_is_member_of(char *func_name, char *struct_name)
+{
+	while (*func_name && *struct_name && *func_name != '@' && *func_name == *struct_name) {
+		func_name++;
+		struct_name++;
+	}
+	return !*struct_name && *func_name == '@';
+}
+
+/*
+ * Returns true if func_name contains the '@' character.
+ * We can't use strchr here because '@' is valid as the second byte of a SJIS character.
+ */
+static bool is_member_function(char *func_name)
+{
+	while (*func_name) {
+		if (*func_name == '@')
+			return true;
+		if (SJIS_2BYTE(*func_name)) {
+			func_name++;
+			if (*func_name)
+				func_name++;
+		} else {
+			func_name++;
+		}
+	}
+	return false;
+}
+
+/*
+ * Infer struct member functions from function names.
+ */
+static void init_member_functions(struct ain *ain)
+{
+	for (int f = 0; f < ain->nr_functions; f++) {
+		ain->functions[f].struct_type = -1;
+		ain->functions[f].enum_type = -1;
+		char *name = ain->functions[f].name;
+		if (!is_member_function(name))
+			continue;
+		for (int s = 0; s < ain->nr_structures; s++) {
+			if (function_is_member_of(name, ain->structures[s].name)) {
+				ain->functions[f].struct_type = s;
+				break;
+			}
+		}
+		if (ain->functions[f].struct_type != -1)
+			continue;
+		// check enums
+		for (int e = 0; e < ain->nr_enums; e++) {
+			if (function_is_member_of(name, ain->enums[e].name)) {
+				ain->functions[f].enum_type = e;
+				break;
+			}
+		}
+		if (ain->functions[f].enum_type == -1) {
+			char *u = sjis2utf(name, 0);
+			WARNING("Failed to find struct type for function \"%s\"", u);
+			free(u);
+		}
+	}
+}
+
 static struct func_list *get_function(struct ain *ain, const char *name)
 {
 	int ret;
@@ -978,6 +1041,7 @@ struct ain *ain_open(const char *path, int *error)
 		goto err;
 	}
 	distribute_initvals(ain);
+	init_member_functions(ain);
 
 	free(buf);
 	*error = AIN_SUCCESS;
