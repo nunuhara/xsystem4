@@ -168,6 +168,8 @@ static bool localassign_macro(struct dasm_state *dasm, int32_t no)
 	int32_t val = dasm_arg(dasm, 0);
 	if (!check_next_opcode(dasm, ASSIGN))
 		return false;
+	if (!check_next_opcode(dasm, POP))
+		return false;
 
 	fprintf(dasm->out, ".LOCALASSIGN ");
 	print_local(dasm, no);
@@ -214,6 +216,8 @@ static bool globalassign_macro(struct dasm_state *dasm, int32_t no)
 	int32_t val = dasm_arg(dasm, 0);
 	if (!check_next_opcode(dasm, ASSIGN))
 		return false;
+	if (!check_next_opcode(dasm, POP))
+		return false;
 
 	fprintf(dasm->out, ".GLOBALASSIGN ");
 	dasm_print_identifier(dasm, dasm->ain->globals[no].name);
@@ -258,6 +262,8 @@ static bool structassign_macro(struct dasm_state *dasm, struct ain_struct *s, st
 {
 	int32_t val = dasm_arg(dasm, 0);
 	if (!check_next_opcode(dasm, ASSIGN))
+		return false;
+	if (!check_next_opcode(dasm, POP))
 		return false;
 
 	fprintf(dasm->out, ".STRUCTASSIGN ");

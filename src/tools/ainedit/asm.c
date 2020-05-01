@@ -63,19 +63,19 @@ const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
 	MACRO(PO_LOCALREFREF,  ".LOCALREFREF",  1, 10),
 	MACRO(PO_LOCALINC,     ".LOCALINC",     1, 10),
 	MACRO(PO_LOCALDEC,     ".LOCALDEC",     1, 10),
-	MACRO(PO_LOCALASSIGN,  ".LOCALASSIGN",  2, 16),
+	MACRO(PO_LOCALASSIGN,  ".LOCALASSIGN",  2, 18),
 	MACRO(PO_LOCALDELETE,  ".LOCALDELETE",  1, 24),
 	MACRO(PO_LOCALCREATE,  ".LOCALCREATE",  2, 34),
 	MACRO(PO_GLOBALREF,    ".GLOBALREF",    1, 10),
 	MACRO(PO_GLOBALREFREF, ".GLOBALREFREF", 1, 10),
 	MACRO(PO_GLOBALINC,    ".GLOBALINC",    1, 10),
 	MACRO(PO_GLOBALDEC,    ".GLOBALDEC",    1, 10),
-	MACRO(PO_GLOBALASSIGN, ".GLOBALASSIGN", 2, 16),
+	MACRO(PO_GLOBALASSIGN, ".GLOBALASSIGN", 2, 18),
 	MACRO(PO_STRUCTREF,    ".STRUCTREF",    2, 10),
 	MACRO(PO_STRUCTREFREF, ".STRUCTREFREF", 2, 10),
 	MACRO(PO_STRUCTINC,    ".STRUCTINC",    2, 10),
 	MACRO(PO_STRUCTDEC,    ".STRUCTDEC",    2, 10),
-	MACRO(PO_STRUCTASSIGN, ".STRUCTASSIGN", 3, 16),
+	MACRO(PO_STRUCTASSIGN, ".STRUCTASSIGN", 3, 18),
 };
 
 struct string_table {
@@ -570,6 +570,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, PUSH);
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
 		asm_write_opcode(state, ASSIGN);
+		asm_write_opcode(state, POP);
 		break;
 	}
 	case PO_LOCALDELETE: {
@@ -623,6 +624,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, PUSH);
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
 		asm_write_opcode(state, ASSIGN);
+		asm_write_opcode(state, POP);
 		break;
 	}
 	case PO_STRUCTREF: {
@@ -660,6 +662,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, PUSH);
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 2)->text));
 		asm_write_opcode(state, ASSIGN);
+		asm_write_opcode(state, POP);
 		break;
 	}
 	}
