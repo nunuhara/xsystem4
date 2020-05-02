@@ -104,5 +104,6 @@ struct ex *ex_read(const char *path);
 void ex_free(struct ex *ex);
 
 void ex_encode(uint8_t *buf, size_t size);
+const char *ex_strtype(enum ex_value_type type);
 
 #endif /* SYSTE4_EX_H */

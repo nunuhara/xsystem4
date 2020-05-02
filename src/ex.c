@@ -26,6 +26,19 @@
 #include "system4/ex.h"
 #include "system4/string.h"
 
+const char *ex_strtype(enum ex_value_type type)
+{
+	switch (type) {
+	case EX_INT: return "int";
+	case EX_FLOAT: return "float";
+	case EX_STRING: return "string";
+	case EX_TABLE: return "table";
+	case EX_LIST: return "list";
+	case EX_TREE: return "tree";
+	default: return "unknown_type";
+	}
+}
+
 uint8_t ex_decode_table[256];
 uint8_t ex_decode_table_inv[256];
 
@@ -239,8 +252,11 @@ static void ex_read_table(struct buffer *r, struct ex_table *table, struct ex_fi
 		table->rows[i] = xcalloc(table->nr_columns, sizeof(struct ex_value));
 		for (uint32_t j = 0; j < table->nr_columns; j++) {
 			ex_read_value(r, &table->rows[i][j], fields[j].subfields, fields[j].nr_subfields);
-			if (table->rows[i][j].type != fields[j].type)
-				ERROR("Column type doesn't match field type: %d/%d", table->rows[i][j], fields[j].type);
+			if (table->rows[i][j].type != fields[j].type) {
+				// broken table in Rance 03?
+				WARNING("Column type doesn't match field type: expected %s; got %s",
+					ex_strtype(fields[j].type), ex_strtype(table->rows[i][j].type));
+			}
 		}
 	}
 }

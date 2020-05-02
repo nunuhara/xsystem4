@@ -40,19 +40,6 @@ static void indent(FILE *out)
 	}
 }
 
-static const char *ex_strtype(enum ex_value_type type)
-{
-	switch (type) {
-	case EX_INT: return "int";
-	case EX_FLOAT: return "float";
-	case EX_STRING: return "string";
-	case EX_TABLE: return "table";
-	case EX_LIST: return "list";
-	case EX_TREE: return "tree";
-	default: return "unknown_type";
-	}
-}
-
 static char *_escape_string(const char *str, const char *escape_chars, const char *replace_chars)
 {
 	int escapes = 0;
