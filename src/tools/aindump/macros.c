@@ -116,14 +116,36 @@ static bool localassign_macro(struct dasm_state *dasm, int32_t no)
 	return true;
 }
 
+static bool localassign2_macro(struct dasm_state *dasm)
+{
+	if (!check_next_opcode(dasm, PUSH))
+		return false;
+
+	int32_t no = dasm_arg(dasm, 0);
+	if (no < 0 || no >= dasm->ain->functions[dasm->func].nr_vars)
+		return false;
+
+	if (!check_next_opcode(dasm, SWAP))
+		return false;
+	if (!check_next_opcode(dasm, ASSIGN))
+		return false;
+
+	fprintf(dasm->out, ".LOCALASSIGN2 ");
+	print_local(dasm, no);
+	fputc('\n', dasm->out);
+	return true;
+}
+
 static bool localpage_macro(struct dasm_state *dasm)
 {
 	dasm_next(dasm);
+	if (check_opcode(dasm, SWAP))
+		return localassign2_macro(dasm);
 	if (!check_opcode(dasm, PUSH))
 		return false;
 
 	int32_t no = dasm_arg(dasm, 0);
-	if (no >= dasm->ain->functions[dasm->func].nr_vars)
+	if (no < 0 || no >= dasm->ain->functions[dasm->func].nr_vars)
 		return false;
 
 	dasm_next(dasm);

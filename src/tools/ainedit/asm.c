@@ -64,6 +64,7 @@ const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
 	MACRO(PO_LOCALINC,     ".LOCALINC",     1, 10),
 	MACRO(PO_LOCALDEC,     ".LOCALDEC",     1, 10),
 	MACRO(PO_LOCALASSIGN,  ".LOCALASSIGN",  2, 18),
+	MACRO(PO_LOCALASSIGN2, ".LOCALASSIGN2", 1, 14),
 	MACRO(PO_LOCALDELETE,  ".LOCALDELETE",  1, 24),
 	MACRO(PO_LOCALCREATE,  ".LOCALCREATE",  2, 34),
 	MACRO(PO_GLOBALREF,    ".GLOBALREF",    1, 10),
@@ -595,6 +596,15 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, POP);
 		break;
 	}
+	case PO_LOCALASSIGN2: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, SWAP);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, SWAP);
+		asm_write_opcode(state, ASSIGN);
+		break;
+	}
 	case PO_LOCALDELETE: {
 		asm_write_opcode(state, PUSHLOCALPAGE);
 		asm_write_opcode(state, PUSH);
@@ -700,6 +710,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
 		asm_write_opcode(state, ADD);
 		asm_write_opcode(state, REF);
+		break;
 	}
 	}
 }

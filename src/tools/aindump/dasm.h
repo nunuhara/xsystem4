@@ -42,6 +42,7 @@ struct instruction;
 struct ain_function;
 
 void dasm_next(struct dasm_state *dasm);
+enum opcode dasm_peek(struct dasm_state *dasm);
 bool dasm_eof(struct dasm_state *dasm);
 void dasm_reset(struct dasm_state *dasm);
 dasm_save_t dasm_save(struct dasm_state *dasm);

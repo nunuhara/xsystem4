@@ -567,6 +567,15 @@ void dasm_next(struct dasm_state *dasm)
 	dasm->instr = dasm_eof(dasm) ? &instructions[0] : dasm_get_instruction(dasm);
 }
 
+enum opcode dasm_peek(struct dasm_state *dasm)
+{
+	int width = instruction_width(dasm->instr->opcode);
+	if (dasm->addr+width >= dasm->ain->code_size)
+		return -1;
+
+	return LittleEndian_getW(dasm->ain->code, dasm->addr+width);
+}
+
 bool dasm_eof(struct dasm_state *dasm)
 {
 	return dasm->addr >= dasm->ain->code_size;
