@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include "system4/ain.h"
 #include "system4/instructions.h"
 #include "aindump.h"
@@ -39,69 +40,6 @@ static bool check_next_opcode(struct dasm_state *dasm, enum opcode opcode)
 	dasm_next(dasm);
 	return check_opcode(dasm, opcode);
 }
-
-/* Macro List
-
-.GLOBALREF <varname>:
-    PUSHGLOBALPAGE
-    PUSH <varno>
-    REF
-
-.GLOBALREFREF <varname>:
-    PUSHGLOBALPAGE
-    PUSH <varno>
-    REFREF
-
-.LOCALREF <varname>:
-    PUSHLOCALPAGE
-    PUSH <varno>
-    REF
-
-.LOCALREFREF <varname>:
-    PUSHLOCALPAGE
-    PUSH <varno>
-    REFREF
-
-.LOCALINC:
-    PUSHLOCALPAGE
-    PUSH <varno>
-    INC
-
-.LOCALDEC:
-    PUSHLOCALPAGE
-    PUSH <varno>
-    DEC
-
-.LOCALASSIGN <varname> <value>:
-    PUSHLOCALPAGE
-    PUSH <varno>
-    PUSH <value>
-    ASSIGN
-
-.LOCALDELETE:
-    PUSHLOCALPAGE
-    PUSH <varno>
-    DUP2
-    REF
-    DELETE
-    PUSH -1
-    ASSIGN
-    POP
-
-.LOCALCREATE:
-    PUSHLOCALPAGE
-    PUSH <varno>
-    DUP2
-    REF
-    DELETE
-    DUP2
-    NEW <structno> -1
-    ASSIGN
-    POP
-    POP
-    POP
-
- */
 
 static void print_local(struct dasm_state *dasm, int32_t no)
 {
@@ -258,8 +196,11 @@ static bool globalpage_macro(struct dasm_state *dasm)
 	return true;
 }
 
-static bool structassign_macro(struct dasm_state *dasm, struct ain_struct *s, struct ain_variable *m)
+static bool structassign_macro(struct dasm_state *dasm, struct ain_struct *s, int32_t memb)
 {
+	if (memb < 0 || memb >= s->nr_members)
+		return false;
+
 	int32_t val = dasm_arg(dasm, 0);
 	if (!check_next_opcode(dasm, ASSIGN))
 		return false;
@@ -269,9 +210,41 @@ static bool structassign_macro(struct dasm_state *dasm, struct ain_struct *s, st
 	fprintf(dasm->out, ".STRUCTASSIGN ");
 	dasm_print_identifier(dasm, s->name);
 	fputc(' ', dasm->out);
-	dasm_print_identifier(dasm, m->name);
+	dasm_print_identifier(dasm, s->members[memb].name);
 	fputc(' ', dasm->out);
 	fprintf(dasm->out, "%d\n", val);
+	return true;
+}
+
+static bool pushvmethod_macro(struct dasm_state *dasm, struct ain_struct *s, int32_t vtable_off)
+{
+	if (!check_next_opcode(dasm, PUSH))
+		return false;
+
+	int32_t memb = dasm_arg(dasm, 0);
+	if (memb < 0 || memb >= s->nr_members)
+		return false;
+	if (strcmp("<vtable>", s->members[memb].name))
+		return false;
+
+	if (!check_next_opcode(dasm, REF))
+		return false;
+	if (!check_next_opcode(dasm, SWAP))
+		return false;
+	if (!check_next_opcode(dasm, PUSH))
+		return false;
+
+	int32_t method = dasm_arg(dasm, 0);
+	if (method < 0)
+		return false;
+
+	if (!check_next_opcode(dasm, ADD))
+		return false;
+	if (!check_next_opcode(dasm, REF))
+		return false;
+
+	fprintf(dasm->out, ".PUSHVMETHOD %d %d\n", vtable_off, method);
+
 	return true;
 }
 
@@ -285,10 +258,7 @@ static bool structpage_macro(struct dasm_state *dasm)
 
 	int32_t no = dasm_arg(dasm, 0);
 	struct ain_struct *s = &dasm->ain->structures[f->struct_type];
-	if (no < 0 || no >= s->nr_members)
-		return false;
 
-	struct ain_variable *m = &s->members[no];
 	dasm_next(dasm);
 	if (check_opcode(dasm, REF)) {
 		fprintf(dasm->out, ".STRUCTREF ");
@@ -299,14 +269,19 @@ static bool structpage_macro(struct dasm_state *dasm)
 	} else if (check_opcode(dasm, DEC)) {
 		fprintf(dasm->out, ".STRUCTDEC ");
 	} else if (check_opcode(dasm, PUSH)) {
-		return structassign_macro(dasm, s, m);
+		return structassign_macro(dasm, s, no);
+	} else if (check_opcode(dasm, DUP_U2)) {
+		return pushvmethod_macro(dasm, s, no);
 	} else {
 		return false;
 	}
 
+	if (no < 0 || no >= s->nr_members)
+		return false;
+
 	dasm_print_identifier(dasm, s->name);
 	fputc(' ', dasm->out);
-	dasm_print_identifier(dasm, m->name);
+	dasm_print_identifier(dasm, s->members[no].name);
 	fputc('\n', dasm->out);
 
 	return true;

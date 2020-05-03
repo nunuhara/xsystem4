@@ -76,6 +76,7 @@ const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
 	MACRO(PO_STRUCTINC,    ".STRUCTINC",    2, 10),
 	MACRO(PO_STRUCTDEC,    ".STRUCTDEC",    2, 10),
 	MACRO(PO_STRUCTASSIGN, ".STRUCTASSIGN", 3, 18),
+	MACRO(PO_PUSHVMETHOD,  ".PUSHVMETHOD",  2, 30),
 };
 
 struct string_table {
@@ -449,24 +450,45 @@ static void decompose_switch_index(struct asm_state *state, char *in, int *switc
 	*case_out = n_case;
 }
 
-static int get_member_no(struct asm_state *state, char *struct_name, char *_member_name)
+static int find_member(struct ain_struct *s, char *_member_name)
 {
 	int member_no = -1;
-	int struct_no = asm_resolve_arg(state, PUSH, T_STRUCT, struct_name);
 	char *member_name = encode_text_to_input_format(_member_name);
 
-	for (int i = 0; i < state->ain->structures[struct_no].nr_members; i++) {
-		if (!strcmp(member_name, state->ain->structures[struct_no].members[i].name)) {
+	for (int i = 0; i < s->nr_members; i++) {
+		if (!strcmp(member_name, s->members[i].name)) {
 			member_no = i;
 			break;
 		}
 	}
 	free(member_name);
+	return member_no;
+}
+
+static int get_member_no(struct asm_state *state, char *struct_name, char *_member_name)
+{
+	int struct_no = asm_resolve_arg(state, PUSH, T_STRUCT, struct_name);
+	int member_no = find_member(&state->ain->structures[struct_no], _member_name);
 
 	if (member_no < 0) {
 		char *sname = encode_text_for_print(struct_name);
 		char *mname = encode_text_for_print(_member_name);
 		ASM_ERROR(state, "Unable to resolve struct member: %s.%s", sname, mname);
+	}
+
+	return member_no;
+}
+
+static int get_vtable_no(struct asm_state *state)
+{
+	int struct_type = state->ain->functions[state->func].struct_type;
+	if (struct_type < 0)
+		ASM_ERROR(state, ".PUSHVMETHOD macro in non-member function");
+
+	int member_no = find_member(&state->ain->structures[struct_type], "<vtable>");
+
+	if (member_no < 0) {
+		ASM_ERROR(state, "Unable to resolve vtable");
 	}
 
 	return member_no;
@@ -664,6 +686,20 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, ASSIGN);
 		asm_write_opcode(state, POP);
 		break;
+	}
+	case PO_PUSHVMETHOD: {
+		asm_write_opcode(state, PUSHSTRUCTPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, DUP_U2);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, get_vtable_no(state));
+		asm_write_opcode(state, REF);
+		asm_write_opcode(state, SWAP);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, ADD);
+		asm_write_opcode(state, REF);
 	}
 	}
 }

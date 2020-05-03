@@ -49,6 +49,7 @@ enum asm_pseudo_opcode {
 	PO_STRUCTINC,
 	PO_STRUCTDEC,
 	PO_STRUCTASSIGN,
+	PO_PUSHVMETHOD,
 	NR_PSEUDO_OPS
 };
 
