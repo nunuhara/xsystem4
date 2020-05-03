@@ -30,301 +30,341 @@ static bool can_elide(struct dasm_state *dasm)
 	return !dasm_eof(dasm) && !dasm_is_jump_target(dasm);
 }
 
-static bool check_opcode(struct dasm_state *dasm, enum opcode opcode)
-{
-	return dasm->instr->opcode == opcode && can_elide(dasm);
-}
-
-static bool check_next_opcode(struct dasm_state *dasm, enum opcode opcode)
-{
-	dasm_next(dasm);
-	return check_opcode(dasm, opcode);
-}
-
 static void print_local(struct dasm_state *dasm, int32_t no)
 {
 	dasm_print_local_variable(dasm, &dasm->ain->functions[dasm->func], no);
 }
 
-static bool local_create_or_delete_macro(struct dasm_state *dasm, int32_t varno)
+static bool is_local(struct dasm_state *dasm, int32_t no)
 {
-	if (!check_next_opcode(dasm, REF))
-		return false;
-
-	if (!check_next_opcode(dasm, DELETE))
-		return false;
-
-	dasm_next(dasm);
-	if (check_opcode(dasm, PUSH)) {
-		// localdelete
-		if (dasm_arg(dasm, 0) != -1)
-			return false;
-
-		if (!check_next_opcode(dasm, ASSIGN))
-			return false;
-
-		if (!check_next_opcode(dasm, POP))
-			return false;
-
-		fprintf(dasm->out, ".LOCALDELETE ");
-		dasm_print_local_variable(dasm, &dasm->ain->functions[dasm->func], varno);
-		fputc('\n', dasm->out);
-		return true;
-	} else if (check_opcode(dasm, DUP2)) {
-		// localcreate
-		if (!check_next_opcode(dasm, NEW))
-			return false;
-
-		int32_t structno = dasm_arg(dasm, 0);
-		if (structno < 0 || structno >= dasm->ain->nr_structures)
-			return false;
-		if (dasm_arg(dasm, 1) != -1)
-			return false;
-
-		if (!check_next_opcode(dasm, ASSIGN))
-			return false;
-		if (!check_next_opcode(dasm, POP))
-			return false;
-		if (!check_next_opcode(dasm, POP))
-			return false;
-		if (!check_next_opcode(dasm, POP))
-			return false;
-
-		fprintf(dasm->out, ".LOCALCREATE ");
-		print_local(dasm, varno);
-		fputc(' ', dasm->out);
-		dasm_print_identifier(dasm, dasm->ain->structures[structno].name);
-		fputc('\n', dasm->out);
-		return true;
-	}
-
-	return false;
+	return no >= 0 && no < dasm->ain->functions[dasm->func].nr_vars;
 }
 
-static bool localassign_macro(struct dasm_state *dasm, int32_t no)
+static bool is_global(struct dasm_state *dasm, int32_t no)
 {
-	int32_t val = dasm_arg(dasm, 0);
-	if (!check_next_opcode(dasm, ASSIGN))
-		return false;
-	if (!check_next_opcode(dasm, POP))
-		return false;
+	return no >= 0 && no < dasm->ain->nr_globals;
+}
 
-	fprintf(dasm->out, ".LOCALASSIGN ");
-	print_local(dasm, no);
+static bool is_struct_type(struct dasm_state *dasm, int32_t no)
+{
+	return no >= 0 && no < dasm->ain->nr_structures;
+}
+
+static bool is_member(struct dasm_state *dasm, int32_t no)
+{
+	int struct_type = dasm->ain->functions[dasm->func].struct_type;
+	if (struct_type < 0)
+		return false;
+	if (no < 0 || no >= dasm->ain->structures[struct_type].nr_members)
+		return false;
+	return true;
+}
+
+static bool local_check(struct dasm_state *dasm, int32_t *args)
+{
+	return is_local(dasm, args[0]);
+}
+#define LOCALREF_check     local_check
+#define LOCALREFREF_check  local_check
+#define LOCALINC_check     local_check
+#define LOCALDEC_check     local_check
+#define LOCALASSIGN_check  local_check
+#define LOCALASSIGN2_check local_check
+
+static bool LOCALCREATE_check(struct dasm_state *dasm, int32_t *args)
+{
+	return is_local(dasm, args[0]) && is_struct_type(dasm, args[1]) && args[2] == -1;
+}
+
+static bool LOCALDELETE_check(struct dasm_state *dasm, int32_t *args)
+{
+	return is_local(dasm, args[0]) && args[1] == -1;
+}
+
+static void local_emit(struct dasm_state *dasm, int32_t *args)
+{
+	print_local(dasm, args[0]);
+}
+#define LOCALREF_emit     local_emit
+#define LOCALREFREF_emit  local_emit
+#define LOCALINC_emit     local_emit
+#define LOCALDEC_emit     local_emit
+#define LOCALDELETE_emit  local_emit
+#define LOCALASSIGN2_emit local_emit
+
+static void LOCALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
+{
+	print_local(dasm, args[0]);
+	fprintf(dasm->out, " %d", args[1]);
+}
+
+static void LOCALCREATE_emit(struct dasm_state *dasm, int32_t *args)
+{
+	print_local(dasm, args[0]);
 	fputc(' ', dasm->out);
-	fprintf(dasm->out, "%d\n", val);
-	return true;
+	dasm_print_identifier(dasm, dasm->ain->structures[args[1]].name);
 }
 
-static bool localassign2_macro(struct dasm_state *dasm)
+static bool global_check(struct dasm_state *dasm, int32_t *args)
 {
-	if (!check_next_opcode(dasm, PUSH))
-		return false;
+	return is_global(dasm, args[0]);
+}
+#define GLOBALREF_check    global_check
+#define GLOBALREFREF_check global_check
+#define GLOBALINC_check    global_check
+#define GLOBALDEC_check    global_check
+#define GLOBALASSIGN_check global_check
 
-	int32_t no = dasm_arg(dasm, 0);
-	if (no < 0 || no >= dasm->ain->functions[dasm->func].nr_vars)
-		return false;
+static void global_emit(struct dasm_state *dasm, int32_t *args)
+{
+	dasm_print_identifier(dasm, dasm->ain->globals[args[0]].name);
+}
+#define GLOBALREF_emit    global_emit
+#define GLOBALREFREF_emit global_emit
+#define GLOBALINC_emit    global_emit
+#define GLOBALDEC_emit    global_emit
 
-	if (!check_next_opcode(dasm, SWAP))
-		return false;
-	if (!check_next_opcode(dasm, ASSIGN))
-		return false;
-
-	fprintf(dasm->out, ".LOCALASSIGN2 ");
-	print_local(dasm, no);
-	fputc('\n', dasm->out);
-	return true;
+static void GLOBALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
+{
+	dasm_print_identifier(dasm, dasm->ain->globals[args[0]].name);
+	fprintf(dasm->out, " %d", args[1]);
 }
 
-static bool localpage_macro(struct dasm_state *dasm)
+static bool struct_check(struct dasm_state *dasm, int32_t *args)
 {
-	dasm_next(dasm);
-	if (check_opcode(dasm, SWAP))
-		return localassign2_macro(dasm);
-	if (!check_opcode(dasm, PUSH))
-		return false;
-
-	int32_t no = dasm_arg(dasm, 0);
-	if (no < 0 || no >= dasm->ain->functions[dasm->func].nr_vars)
-		return false;
-
-	dasm_next(dasm);
-	if (check_opcode(dasm, REF)) {
-		fprintf(dasm->out, ".LOCALREF ");
-	} else if (check_opcode(dasm, REFREF)) {
-		fprintf(dasm->out, ".LOCALREFREF ");
-	} else if (check_opcode(dasm, INC)) {
-		fprintf(dasm->out, ".LOCALINC ");
-	} else if (check_opcode(dasm, DEC)) {
-		fprintf(dasm->out, ".LOCALDEC ");
-	} else if (check_opcode(dasm, PUSH)) {
-		return localassign_macro(dasm, no);
-	} else if (check_opcode(dasm, DUP2)) {
-		return local_create_or_delete_macro(dasm, no);
-	} else {
-		return false;
-	}
-
-	print_local(dasm, no);
-	fputc('\n', dasm->out);
-
-	return true;
+	return is_member(dasm, args[0]);
 }
+#define STRUCTREF_check    struct_check
+#define STRUCTREFREF_check struct_check
+#define STRUCTINC_check    struct_check
+#define STRUCTDEC_check    struct_check
+#define STRUCTASSIGN_check struct_check
 
-static bool globalassign_macro(struct dasm_state *dasm, int32_t no)
+static void struct_emit(struct dasm_state *dasm, int32_t *args)
 {
-	int32_t val = dasm_arg(dasm, 0);
-	if (!check_next_opcode(dasm, ASSIGN))
-		return false;
-	if (!check_next_opcode(dasm, POP))
-		return false;
-
-	fprintf(dasm->out, ".GLOBALASSIGN ");
-	dasm_print_identifier(dasm, dasm->ain->globals[no].name);
-	fputc(' ', dasm->out);
-	fprintf(dasm->out, "%d\n", val);
-	return true;
-
-}
-
-static bool globalpage_macro(struct dasm_state *dasm)
-{
-	dasm_next(dasm);
-	if (!check_opcode(dasm, PUSH))
-		return false;
-
-	int32_t no = dasm_arg(dasm, 0);
-	if (no >= dasm->ain->nr_globals)
-		return false;
-
-	dasm_next(dasm);
-	if (check_opcode(dasm, REF)) {
-		fprintf(dasm->out, ".GLOBALREF ");
-	} else if (check_opcode(dasm, REFREF)) {
-		fprintf(dasm->out, ".GLOBALREFREF ");
-	} else if (check_opcode(dasm, INC)) {
-		fprintf(dasm->out, ".GLOBALINC ");
-	} else if (check_opcode(dasm, DEC)) {
-		fprintf(dasm->out, ".GLOBALDEC ");
-	} else if (check_opcode(dasm, PUSH)) {
-		return globalassign_macro(dasm, no);
-	} else {
-		return false;
-	}
-
-	dasm_print_identifier(dasm, dasm->ain->globals[no].name);
-	fputc('\n', dasm->out);
-
-	return true;
-}
-
-static bool structassign_macro(struct dasm_state *dasm, struct ain_struct *s, int32_t memb)
-{
-	if (memb < 0 || memb >= s->nr_members)
-		return false;
-
-	int32_t val = dasm_arg(dasm, 0);
-	if (!check_next_opcode(dasm, ASSIGN))
-		return false;
-	if (!check_next_opcode(dasm, POP))
-		return false;
-
-	fprintf(dasm->out, ".STRUCTASSIGN ");
+	struct ain_struct *s = &dasm->ain->structures[dasm->ain->functions[dasm->func].struct_type];
 	dasm_print_identifier(dasm, s->name);
 	fputc(' ', dasm->out);
-	dasm_print_identifier(dasm, s->members[memb].name);
-	fputc(' ', dasm->out);
-	fprintf(dasm->out, "%d\n", val);
-	return true;
+	dasm_print_identifier(dasm, s->members[args[0]].name);
+}
+#define STRUCTREF_emit    struct_emit
+#define STRUCTREFREF_emit struct_emit
+#define STRUCTINC_emit    struct_emit
+#define STRUCTDEC_emit    struct_emit
+
+static void STRUCTASSIGN_emit(struct dasm_state *dasm, int32_t *args)
+{
+	struct_emit(dasm, args);
+	fprintf(dasm->out, " %d", args[1]);
 }
 
-static bool pushvmethod_macro(struct dasm_state *dasm, struct ain_struct *s, int32_t vtable_off)
+static bool PUSHVMETHOD_check(struct dasm_state *dasm, int32_t *args)
 {
-	if (!check_next_opcode(dasm, PUSH))
+	if (args[0] < 0 || !is_member(dasm, args[1]))
 		return false;
-
-	int32_t memb = dasm_arg(dasm, 0);
-	if (memb < 0 || memb >= s->nr_members)
+	struct ain_struct *s = &dasm->ain->structures[dasm->ain->functions[dasm->func].struct_type];
+	if (strcmp("<vtable>", s->members[args[1]].name))
 		return false;
-	if (strcmp("<vtable>", s->members[memb].name))
-		return false;
-
-	if (!check_next_opcode(dasm, REF))
-		return false;
-	if (!check_next_opcode(dasm, SWAP))
-		return false;
-	if (!check_next_opcode(dasm, PUSH))
-		return false;
-
-	int32_t method = dasm_arg(dasm, 0);
-	if (method < 0)
-		return false;
-
-	if (!check_next_opcode(dasm, ADD))
-		return false;
-	if (!check_next_opcode(dasm, REF))
-		return false;
-
-	fprintf(dasm->out, ".PUSHVMETHOD %d %d\n", vtable_off, method);
-
-	return true;
+	return args[2] >= 0;
 }
 
-static bool structpage_macro(struct dasm_state *dasm)
+static void PUSHVMETHOD_emit(struct dasm_state *dasm, int32_t *args)
 {
-	struct ain_function *f = &dasm->ain->functions[dasm->func];
-	if (f->struct_type < 0)
-		return false;
-	if (!check_next_opcode(dasm, PUSH))
-		return false;
+	fprintf(dasm->out, "%d %d", args[0], args[2]);
+}
 
-	int32_t no = dasm_arg(dasm, 0);
-	struct ain_struct *s = &dasm->ain->structures[f->struct_type];
+#define MACRO_INSTRUCTIONS_MAX 64
+#define MACRO_CHILDREN_MAX 16
 
-	dasm_next(dasm);
-	if (check_opcode(dasm, REF)) {
-		fprintf(dasm->out, ".STRUCTREF ");
-	} else if (check_opcode(dasm, REFREF)) {
-		fprintf(dasm->out, ".STRUCTREFREF ");
-	} else if (check_opcode(dasm, INC)) {
-		fprintf(dasm->out, ".STRUCTINC ");
-	} else if (check_opcode(dasm, DEC)) {
-		fprintf(dasm->out, ".STRUCTDEC ");
-	} else if (check_opcode(dasm, PUSH)) {
-		return structassign_macro(dasm, s, no);
-	} else if (check_opcode(dasm, DUP_U2)) {
-		return pushvmethod_macro(dasm, s, no);
-	} else {
-		return false;
+#define DEFMACRO(_name, ...) {					\
+		.name = "." #_name,				\
+		.instructions = { __VA_ARGS__, NR_OPCODES },	\
+		.check = _name ## _check,			\
+		.emit = _name ## _emit,				\
 	}
 
-	if (no < 0 || no >= s->nr_members)
-		return false;
+struct macrodef {
+	const char * const name;
+	enum opcode instructions[MACRO_INSTRUCTIONS_MAX];
+	bool (*check)(struct dasm_state *dasm, int32_t *args);
+	void (*emit)(struct dasm_state *dasm, int32_t *args);
+};
 
-	dasm_print_identifier(dasm, s->name);
-	fputc(' ', dasm->out);
-	dasm_print_identifier(dasm, s->members[no].name);
-	fputc('\n', dasm->out);
+struct macrodef macrodefs[] = {
+	DEFMACRO(LOCALREF,     PUSHLOCALPAGE, PUSH, REF),
+	DEFMACRO(LOCALREFREF,  PUSHLOCALPAGE, PUSH, REFREF),
+	DEFMACRO(LOCALINC,     PUSHLOCALPAGE, PUSH, INC),
+	DEFMACRO(LOCALDEC,     PUSHLOCALPAGE, PUSH, DEC),
+	DEFMACRO(LOCALASSIGN,  PUSHLOCALPAGE, PUSH, PUSH, ASSIGN, POP),
+	DEFMACRO(LOCALASSIGN2, PUSHLOCALPAGE, SWAP, PUSH, SWAP, ASSIGN),
+	DEFMACRO(LOCALCREATE,  PUSHLOCALPAGE, PUSH, DUP2, REF, DELETE, DUP2, NEW, ASSIGN, POP, POP, POP),
+	DEFMACRO(LOCALDELETE,  PUSHLOCALPAGE, PUSH, DUP2, REF, DELETE, PUSH, ASSIGN, POP),
+	DEFMACRO(GLOBALREF,    PUSHGLOBALPAGE, PUSH, REF),
+	DEFMACRO(GLOBALREFREF, PUSHGLOBALPAGE, PUSH, REFREF),
+	DEFMACRO(GLOBALINC,    PUSHGLOBALPAGE, PUSH, INC),
+	DEFMACRO(GLOBALDEC,    PUSHGLOBALPAGE, PUSH, DEC),
+	DEFMACRO(GLOBALASSIGN, PUSHGLOBALPAGE, PUSH, PUSH, ASSIGN, POP),
+	DEFMACRO(STRUCTREF,    PUSHSTRUCTPAGE, PUSH, REF),
+	DEFMACRO(STRUCTREFREF, PUSHSTRUCTPAGE, PUSH, REFREF),
+	DEFMACRO(STRUCTINC,    PUSHSTRUCTPAGE, PUSH, INC),
+	DEFMACRO(STRUCTDEC,    PUSHSTRUCTPAGE, PUSH, DEC),
+	DEFMACRO(STRUCTASSIGN, PUSHSTRUCTPAGE, PUSH, PUSH, ASSIGN, POP),
+	DEFMACRO(PUSHVMETHOD,  PUSHSTRUCTPAGE, PUSH, DUP_U2, PUSH, REF, SWAP, PUSH, ADD, REF),
+};
 
-	return true;
+struct macro_node {
+	const char * name;
+	enum opcode opcode;
+	int nr_children;
+	struct macro_node *children;
+	struct macro_node *parent;
+	dasm_save_t save;
+	bool (*check)(struct dasm_state *state, int32_t *args);
+	void (*emit)(struct dasm_state *state, int32_t *args);
+};
+
+static struct macro_node *macros;
+
+static struct macro_node *find_node(struct macro_node *parent, enum opcode opcode)
+{
+	for (int i = 0; i < parent->nr_children; i++) {
+		if (parent->children[i].opcode == opcode)
+			return &parent->children[i];
+	}
+	return NULL;
+}
+
+static struct macro_node *add_child(struct macro_node *parent, enum opcode opcode)
+{
+	int i = parent->nr_children;
+	if (i >= MACRO_CHILDREN_MAX)
+		ERROR("Exceeded macro branch limit");
+	parent->children[i] = (struct macro_node) {
+		.opcode = opcode,
+		.nr_children = 0,
+		.children = xcalloc(MACRO_CHILDREN_MAX, sizeof(struct macro_node)),
+		.parent = parent,
+		.check = NULL,
+		.emit = NULL,
+	};
+	parent->nr_children++;
+	return &parent->children[i];
+}
+
+static void add_macro(struct macrodef *macro)
+{
+	struct macro_node *parent = macros;
+	for (int i = 0; macro->instructions[i] < NR_OPCODES; i++) {
+		struct macro_node *child = find_node(parent, macro->instructions[i]);
+		if (!child)
+			child = add_child(parent, macro->instructions[i]);
+		parent = child;
+	}
+
+	if (parent->emit) {
+		WARNING("Conflicting macro definitions (when adding %s)", macro->name);
+		return;
+	}
+
+	parent->name = macro->name;
+	parent->check = macro->check;
+	parent->emit = macro->emit;
+}
+
+static void print_node(struct macro_node *node, int indent)
+{
+	for (int i = 0; i < indent; i++) {
+		fputc('\t', stderr);
+	}
+
+	fprintf(stderr, "%s\n", instructions[node->opcode].name);
+
+	for (int i = 0; i < node->nr_children; i++) {
+		print_node(&node->children[i], indent+1);
+	}
+}
+
+// Transform macro list into a tree.
+static void create_macro_tree(void)
+{
+	macros = xcalloc(1, sizeof(struct macro_node));
+	macros->children = xcalloc(MACRO_CHILDREN_MAX, sizeof(struct macro_node));
+	for (size_t i = 0; i < sizeof(macrodefs)/sizeof(*macrodefs); i++) {
+		add_macro(&macrodefs[i]);
+	}
+
+	for (int i = 0; i < macros->nr_children; i++) {
+		print_node(&macros->children[i], 0);
+	}
+}
+
+static struct macro_node *match_rewind(struct dasm_state *dasm, struct macro_node *match)
+{
+	do {
+		match = match->parent;
+	} while (match && !match->check);
+
+	if (match)
+		dasm_restore(dasm, match->save);
+	return match;
 }
 
 static bool _dasm_print_macro(struct dasm_state *dasm)
 {
-	switch (dasm->instr->opcode) {
-	case PUSHLOCALPAGE:
-		return localpage_macro(dasm);
-	case PUSHGLOBALPAGE:
-		return globalpage_macro(dasm);
-	case PUSHSTRUCTPAGE:
-		return structpage_macro(dasm);
-	default:
-		return false;
+	if (!macros)
+		create_macro_tree();
+
+	int argptr = 0;
+	int32_t args[MACRO_INSTRUCTIONS_MAX];
+
+	// match as many instructions as possible
+	struct macro_node *next, *node = macros;
+	while ((next = find_node(node, dasm->instr->opcode))) {
+		if (!can_elide(dasm))
+			return false;
+
+		for (int i = 0; i < dasm->instr->nr_args; i++) {
+			args[argptr++] = dasm_arg(dasm, i);
+		}
+
+		node = next;
+		node->save = dasm_save(dasm);
+		dasm_next(dasm);
 	}
+
+	// rewind to the last terminal node
+	if (!node->check)
+		node = match_rewind(dasm, node);
+	else
+		dasm_restore(dasm, node->save);
+
+	// find the longest match that passes the argument check
+	while (node && !node->check(dasm, args)) {
+		node = match_rewind(dasm, node);
+	}
+
+	// no match
+	if (!node)
+		return false;
+
+	fprintf(dasm->out, "%s ", node->name);
+	node->emit(dasm, args);
+	fputc('\n', dasm->out);
+	return true;
 }
 
 bool dasm_print_macro(struct dasm_state *dasm)
 {
+	// XXX: quick fail check
+	switch (dasm->instr->opcode) {
+	case PUSHLOCALPAGE:
+	case PUSHGLOBALPAGE:
+	case PUSHSTRUCTPAGE:
+		break;
+	default:
+		return false;
+	}
+
 	dasm_save_t save = dasm_save(dasm);
 	bool success = _dasm_print_macro(dasm);
 	if (!success)
