@@ -65,6 +65,7 @@ const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
 	MACRO(PO_LOCALDEC,      ".LOCALDEC",      1, 10),
 	MACRO(PO_LOCALASSIGN,   ".LOCALASSIGN",   2, 18),
 	MACRO(PO_LOCALASSIGN2,  ".LOCALASSIGN2",  1, 14),
+	MACRO(PO_F_LOCALASSIGN, ".F_LOCALASSIGN", 2, 18),
 	MACRO(PO_S_LOCALASSIGN, ".S_LOCALASSIGN", 1, 26),
 	MACRO(PO_LOCALDELETE,   ".LOCALDELETE",   1, 24),
 	MACRO(PO_LOCALCREATE,   ".LOCALCREATE",   2, 34),
@@ -604,6 +605,16 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
 		asm_write_opcode(state, SWAP);
 		asm_write_opcode(state, ASSIGN);
+		break;
+	}
+	case PO_F_LOCALASSIGN: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, F_PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, F_PUSH, T_FLOAT, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, F_ASSIGN);
+		asm_write_opcode(state, POP);
 		break;
 	}
 	case PO_S_LOCALASSIGN: {

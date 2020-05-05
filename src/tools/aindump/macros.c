@@ -64,12 +64,13 @@ static bool local_check(struct dasm_state *dasm, int32_t *args)
 {
 	return is_local(dasm, args[0]);
 }
-#define LOCALREF_check     local_check
-#define LOCALREFREF_check  local_check
-#define LOCALINC_check     local_check
-#define LOCALDEC_check     local_check
-#define LOCALASSIGN_check  local_check
-#define LOCALASSIGN2_check local_check
+#define LOCALREF_check      local_check
+#define LOCALREFREF_check   local_check
+#define LOCALINC_check      local_check
+#define LOCALDEC_check      local_check
+#define LOCALASSIGN_check   local_check
+#define LOCALASSIGN2_check  local_check
+#define F_LOCALASSIGN_check local_check
 
 static bool S_LOCALASSIGN_check(struct dasm_state *dasm, int32_t *args)
 {
@@ -102,6 +103,13 @@ static void LOCALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
 {
 	print_local(dasm, args[0]);
 	fprintf(dasm->out, " %d", args[1]);
+}
+
+static void F_LOCALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
+{
+	union { int32_t i; float f; } v = { .i = args[1] };
+	print_local(dasm, args[0]);
+	fprintf(dasm->out, " %f", v.f);
 }
 
 static void LOCALCREATE_emit(struct dasm_state *dasm, int32_t *args)
@@ -203,6 +211,7 @@ struct macrodef macrodefs[] = {
 	DEFMACRO(LOCALDEC,      PUSHLOCALPAGE,  PUSH, DEC),
 	DEFMACRO(LOCALASSIGN,   PUSHLOCALPAGE,  PUSH, PUSH, ASSIGN, POP),
 	DEFMACRO(LOCALASSIGN2,  PUSHLOCALPAGE,  SWAP, PUSH, SWAP, ASSIGN),
+	DEFMACRO(F_LOCALASSIGN, PUSHLOCALPAGE,  PUSH, F_PUSH, F_ASSIGN, POP),
 	DEFMACRO(S_LOCALASSIGN, PUSHLOCALPAGE,  PUSH, REF, DELETE, PUSHLOCALPAGE, SWAP, PUSH, SWAP, ASSIGN),
 	DEFMACRO(LOCALCREATE,   PUSHLOCALPAGE,  PUSH, DUP2, REF, DELETE, DUP2, NEW, ASSIGN, POP, POP, POP),
 	DEFMACRO(LOCALDELETE,   PUSHLOCALPAGE,  PUSH, DUP2, REF, DELETE, PUSH, ASSIGN, POP),
