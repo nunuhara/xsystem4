@@ -55,31 +55,32 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 	}
 
 const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
-	PSEUDO_OP(PO_CASE,      ".CASE",          2),
-	PSEUDO_OP(PO_DEFAULT,   ".DEFAULT",       1),
-	PSEUDO_OP(PO_STR,       ".STR",           2),
-	PSEUDO_OP(PO_MSG,       ".MSG",           2),
-	MACRO(PO_LOCALREF,      ".LOCALREF",      1, 10),
-	MACRO(PO_LOCALREFREF,   ".LOCALREFREF",   1, 10),
-	MACRO(PO_LOCALINC,      ".LOCALINC",      1, 10),
-	MACRO(PO_LOCALDEC,      ".LOCALDEC",      1, 10),
-	MACRO(PO_LOCALASSIGN,   ".LOCALASSIGN",   2, 18),
-	MACRO(PO_LOCALASSIGN2,  ".LOCALASSIGN2",  1, 14),
-	MACRO(PO_F_LOCALASSIGN, ".F_LOCALASSIGN", 2, 18),
-	MACRO(PO_S_LOCALASSIGN, ".S_LOCALASSIGN", 1, 26),
-	MACRO(PO_LOCALDELETE,   ".LOCALDELETE",   1, 24),
-	MACRO(PO_LOCALCREATE,   ".LOCALCREATE",   2, 34),
-	MACRO(PO_GLOBALREF,     ".GLOBALREF",     1, 10),
-	MACRO(PO_GLOBALREFREF,  ".GLOBALREFREF",  1, 10),
-	MACRO(PO_GLOBALINC,     ".GLOBALINC",     1, 10),
-	MACRO(PO_GLOBALDEC,     ".GLOBALDEC",     1, 10),
-	MACRO(PO_GLOBALASSIGN,  ".GLOBALASSIGN",  2, 18),
-	MACRO(PO_STRUCTREF,     ".STRUCTREF",     2, 10),
-	MACRO(PO_STRUCTREFREF,  ".STRUCTREFREF",  2, 10),
-	MACRO(PO_STRUCTINC,     ".STRUCTINC",     2, 10),
-	MACRO(PO_STRUCTDEC,     ".STRUCTDEC",     2, 10),
-	MACRO(PO_STRUCTASSIGN,  ".STRUCTASSIGN",  3, 18),
-	MACRO(PO_PUSHVMETHOD,   ".PUSHVMETHOD",   2, 30),
+	PSEUDO_OP(PO_CASE,       ".CASE",           2),
+	PSEUDO_OP(PO_DEFAULT,    ".DEFAULT",        1),
+	PSEUDO_OP(PO_STR,        ".STR",            2),
+	PSEUDO_OP(PO_MSG,        ".MSG",            2),
+	MACRO(PO_LOCALREF,       ".LOCALREF",       1, 10),
+	MACRO(PO_LOCALREFREF,    ".LOCALREFREF",    1, 10),
+	MACRO(PO_LOCALINC,       ".LOCALINC",       1, 10),
+	MACRO(PO_LOCALDEC,       ".LOCALDEC",       1, 10),
+	MACRO(PO_LOCALASSIGN,    ".LOCALASSIGN",    2, 18),
+	MACRO(PO_LOCALASSIGN2,   ".LOCALASSIGN2",   1, 14),
+	MACRO(PO_F_LOCALASSIGN,  ".F_LOCALASSIGN",  2, 18),
+	MACRO(PO_S_LOCALASSIGN,  ".S_LOCALASSIGN",  1, 26),
+	MACRO(PO_LOCALDELETE,    ".LOCALDELETE",    1, 24),
+	MACRO(PO_LOCALCREATE,    ".LOCALCREATE",    2, 34),
+	MACRO(PO_GLOBALREF,      ".GLOBALREF",      1, 10),
+	MACRO(PO_GLOBALREFREF,   ".GLOBALREFREF",   1, 10),
+	MACRO(PO_GLOBALINC,      ".GLOBALINC",      1, 10),
+	MACRO(PO_GLOBALDEC,      ".GLOBALDEC",      1, 10),
+	MACRO(PO_GLOBALASSIGN,   ".GLOBALASSIGN",   2, 18),
+	MACRO(PO_F_GLOBALASSIGN, ".F_GLOBALASSIGN", 2, 18),
+	MACRO(PO_STRUCTREF,      ".STRUCTREF",      2, 10),
+	MACRO(PO_STRUCTREFREF,   ".STRUCTREFREF",   2, 10),
+	MACRO(PO_STRUCTINC,      ".STRUCTINC",      2, 10),
+	MACRO(PO_STRUCTDEC,      ".STRUCTDEC",      2, 10),
+	MACRO(PO_STRUCTASSIGN,   ".STRUCTASSIGN",   3, 18),
+	MACRO(PO_PUSHVMETHOD,    ".PUSHVMETHOD",    2, 30),
 };
 
 struct string_table {
@@ -682,6 +683,16 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, PUSH);
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
 		asm_write_opcode(state, ASSIGN);
+		asm_write_opcode(state, POP);
+		break;
+	}
+	case PO_F_GLOBALASSIGN: {
+		asm_write_opcode(state, PUSHGLOBALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_GLOBAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, F_PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, F_PUSH, T_FLOAT, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, F_ASSIGN);
 		asm_write_opcode(state, POP);
 		break;
 	}

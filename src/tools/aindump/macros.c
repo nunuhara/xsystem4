@@ -123,11 +123,12 @@ static bool global_check(struct dasm_state *dasm, int32_t *args)
 {
 	return is_global(dasm, args[0]);
 }
-#define GLOBALREF_check    global_check
-#define GLOBALREFREF_check global_check
-#define GLOBALINC_check    global_check
-#define GLOBALDEC_check    global_check
-#define GLOBALASSIGN_check global_check
+#define GLOBALREF_check     global_check
+#define GLOBALREFREF_check  global_check
+#define GLOBALINC_check     global_check
+#define GLOBALDEC_check     global_check
+#define GLOBALASSIGN_check  global_check
+#define F_GLOBALASSIGN_check global_check
 
 static void global_emit(struct dasm_state *dasm, int32_t *args)
 {
@@ -142,6 +143,13 @@ static void GLOBALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
 {
 	dasm_print_identifier(dasm, dasm->ain->globals[args[0]].name);
 	fprintf(dasm->out, " %d", args[1]);
+}
+
+static void F_GLOBALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
+{
+	union { int32_t i; float f; } v = { .i = args[1] };
+	dasm_print_identifier(dasm, dasm->ain->globals[args[0]].name);
+	fprintf(dasm->out, " %f", v.f);
 }
 
 static bool struct_check(struct dasm_state *dasm, int32_t *args)
@@ -205,27 +213,28 @@ struct macrodef {
 };
 
 struct macrodef macrodefs[] = {
-	DEFMACRO(LOCALREF,      PUSHLOCALPAGE,  PUSH, REF),
-	DEFMACRO(LOCALREFREF,   PUSHLOCALPAGE,  PUSH, REFREF),
-	DEFMACRO(LOCALINC,      PUSHLOCALPAGE,  PUSH, INC),
-	DEFMACRO(LOCALDEC,      PUSHLOCALPAGE,  PUSH, DEC),
-	DEFMACRO(LOCALASSIGN,   PUSHLOCALPAGE,  PUSH, PUSH, ASSIGN, POP),
-	DEFMACRO(LOCALASSIGN2,  PUSHLOCALPAGE,  SWAP, PUSH, SWAP, ASSIGN),
-	DEFMACRO(F_LOCALASSIGN, PUSHLOCALPAGE,  PUSH, F_PUSH, F_ASSIGN, POP),
-	DEFMACRO(S_LOCALASSIGN, PUSHLOCALPAGE,  PUSH, REF, DELETE, PUSHLOCALPAGE, SWAP, PUSH, SWAP, ASSIGN),
-	DEFMACRO(LOCALCREATE,   PUSHLOCALPAGE,  PUSH, DUP2, REF, DELETE, DUP2, NEW, ASSIGN, POP, POP, POP),
-	DEFMACRO(LOCALDELETE,   PUSHLOCALPAGE,  PUSH, DUP2, REF, DELETE, PUSH, ASSIGN, POP),
-	DEFMACRO(GLOBALREF,     PUSHGLOBALPAGE, PUSH, REF),
-	DEFMACRO(GLOBALREFREF,  PUSHGLOBALPAGE, PUSH, REFREF),
-	DEFMACRO(GLOBALINC,     PUSHGLOBALPAGE, PUSH, INC),
-	DEFMACRO(GLOBALDEC,     PUSHGLOBALPAGE, PUSH, DEC),
-	DEFMACRO(GLOBALASSIGN,  PUSHGLOBALPAGE, PUSH, PUSH, ASSIGN, POP),
-	DEFMACRO(STRUCTREF,     PUSHSTRUCTPAGE, PUSH, REF),
-	DEFMACRO(STRUCTREFREF,  PUSHSTRUCTPAGE, PUSH, REFREF),
-	DEFMACRO(STRUCTINC,     PUSHSTRUCTPAGE, PUSH, INC),
-	DEFMACRO(STRUCTDEC,     PUSHSTRUCTPAGE, PUSH, DEC),
-	DEFMACRO(STRUCTASSIGN,  PUSHSTRUCTPAGE, PUSH, PUSH, ASSIGN, POP),
-	DEFMACRO(PUSHVMETHOD,   PUSHSTRUCTPAGE, PUSH, DUP_U2, PUSH, REF, SWAP, PUSH, ADD, REF),
+	DEFMACRO(LOCALREF,       PUSHLOCALPAGE,  PUSH, REF),
+	DEFMACRO(LOCALREFREF,    PUSHLOCALPAGE,  PUSH, REFREF),
+	DEFMACRO(LOCALINC,       PUSHLOCALPAGE,  PUSH, INC),
+	DEFMACRO(LOCALDEC,       PUSHLOCALPAGE,  PUSH, DEC),
+	DEFMACRO(LOCALASSIGN,    PUSHLOCALPAGE,  PUSH, PUSH, ASSIGN, POP),
+	DEFMACRO(LOCALASSIGN2,   PUSHLOCALPAGE,  SWAP, PUSH, SWAP, ASSIGN),
+	DEFMACRO(F_LOCALASSIGN,  PUSHLOCALPAGE,  PUSH, F_PUSH, F_ASSIGN, POP),
+	DEFMACRO(S_LOCALASSIGN,  PUSHLOCALPAGE,  PUSH, REF, DELETE, PUSHLOCALPAGE, SWAP, PUSH, SWAP, ASSIGN),
+	DEFMACRO(LOCALCREATE,    PUSHLOCALPAGE,  PUSH, DUP2, REF, DELETE, DUP2, NEW, ASSIGN, POP, POP, POP),
+	DEFMACRO(LOCALDELETE,    PUSHLOCALPAGE,  PUSH, DUP2, REF, DELETE, PUSH, ASSIGN, POP),
+	DEFMACRO(GLOBALREF,      PUSHGLOBALPAGE, PUSH, REF),
+	DEFMACRO(GLOBALREFREF,   PUSHGLOBALPAGE, PUSH, REFREF),
+	DEFMACRO(GLOBALINC,      PUSHGLOBALPAGE, PUSH, INC),
+	DEFMACRO(GLOBALDEC,      PUSHGLOBALPAGE, PUSH, DEC),
+	DEFMACRO(GLOBALASSIGN,   PUSHGLOBALPAGE, PUSH, PUSH, ASSIGN, POP),
+	DEFMACRO(F_GLOBALASSIGN, PUSHGLOBALPAGE, PUSH, F_PUSH, F_ASSIGN, POP),
+	DEFMACRO(STRUCTREF,      PUSHSTRUCTPAGE, PUSH, REF),
+	DEFMACRO(STRUCTREFREF,   PUSHSTRUCTPAGE, PUSH, REFREF),
+	DEFMACRO(STRUCTINC,      PUSHSTRUCTPAGE, PUSH, INC),
+	DEFMACRO(STRUCTDEC,      PUSHSTRUCTPAGE, PUSH, DEC),
+	DEFMACRO(STRUCTASSIGN,   PUSHSTRUCTPAGE, PUSH, PUSH, ASSIGN, POP),
+	DEFMACRO(PUSHVMETHOD,    PUSHSTRUCTPAGE, PUSH, DUP_U2, PUSH, REF, SWAP, PUSH, ADD, REF),
 };
 
 struct macro_node {
@@ -287,19 +296,6 @@ static void add_macro(struct macrodef *macro)
 	parent->emit = macro->emit;
 }
 
-static void print_node(struct macro_node *node, int indent)
-{
-	for (int i = 0; i < indent; i++) {
-		fputc('\t', stderr);
-	}
-
-	fprintf(stderr, "%s\n", instructions[node->opcode].name);
-
-	for (int i = 0; i < node->nr_children; i++) {
-		print_node(&node->children[i], indent+1);
-	}
-}
-
 // Transform macro list into a tree.
 static void create_macro_tree(void)
 {
@@ -307,10 +303,6 @@ static void create_macro_tree(void)
 	macros->children = xcalloc(MACRO_CHILDREN_MAX, sizeof(struct macro_node));
 	for (size_t i = 0; i < sizeof(macrodefs)/sizeof(*macrodefs); i++) {
 		add_macro(&macrodefs[i]);
-	}
-
-	for (int i = 0; i < macros->nr_children; i++) {
-		print_node(&macros->children[i], 0);
 	}
 }
 
