@@ -71,6 +71,11 @@ static bool local_check(struct dasm_state *dasm, int32_t *args)
 #define LOCALASSIGN_check  local_check
 #define LOCALASSIGN2_check local_check
 
+static bool S_LOCALASSIGN_check(struct dasm_state *dasm, int32_t *args)
+{
+	return is_local(dasm, args[0]) && args[1] == args[0];
+}
+
 static bool LOCALCREATE_check(struct dasm_state *dasm, int32_t *args)
 {
 	return is_local(dasm, args[0]) && is_struct_type(dasm, args[1]) && args[2] == -1;
@@ -85,12 +90,13 @@ static void local_emit(struct dasm_state *dasm, int32_t *args)
 {
 	print_local(dasm, args[0]);
 }
-#define LOCALREF_emit     local_emit
-#define LOCALREFREF_emit  local_emit
-#define LOCALINC_emit     local_emit
-#define LOCALDEC_emit     local_emit
-#define LOCALDELETE_emit  local_emit
-#define LOCALASSIGN2_emit local_emit
+#define LOCALREF_emit      local_emit
+#define LOCALREFREF_emit   local_emit
+#define LOCALINC_emit      local_emit
+#define LOCALDEC_emit      local_emit
+#define LOCALDELETE_emit   local_emit
+#define LOCALASSIGN2_emit  local_emit
+#define S_LOCALASSIGN_emit local_emit
 
 static void LOCALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
 {
@@ -191,25 +197,26 @@ struct macrodef {
 };
 
 struct macrodef macrodefs[] = {
-	DEFMACRO(LOCALREF,     PUSHLOCALPAGE, PUSH, REF),
-	DEFMACRO(LOCALREFREF,  PUSHLOCALPAGE, PUSH, REFREF),
-	DEFMACRO(LOCALINC,     PUSHLOCALPAGE, PUSH, INC),
-	DEFMACRO(LOCALDEC,     PUSHLOCALPAGE, PUSH, DEC),
-	DEFMACRO(LOCALASSIGN,  PUSHLOCALPAGE, PUSH, PUSH, ASSIGN, POP),
-	DEFMACRO(LOCALASSIGN2, PUSHLOCALPAGE, SWAP, PUSH, SWAP, ASSIGN),
-	DEFMACRO(LOCALCREATE,  PUSHLOCALPAGE, PUSH, DUP2, REF, DELETE, DUP2, NEW, ASSIGN, POP, POP, POP),
-	DEFMACRO(LOCALDELETE,  PUSHLOCALPAGE, PUSH, DUP2, REF, DELETE, PUSH, ASSIGN, POP),
-	DEFMACRO(GLOBALREF,    PUSHGLOBALPAGE, PUSH, REF),
-	DEFMACRO(GLOBALREFREF, PUSHGLOBALPAGE, PUSH, REFREF),
-	DEFMACRO(GLOBALINC,    PUSHGLOBALPAGE, PUSH, INC),
-	DEFMACRO(GLOBALDEC,    PUSHGLOBALPAGE, PUSH, DEC),
-	DEFMACRO(GLOBALASSIGN, PUSHGLOBALPAGE, PUSH, PUSH, ASSIGN, POP),
-	DEFMACRO(STRUCTREF,    PUSHSTRUCTPAGE, PUSH, REF),
-	DEFMACRO(STRUCTREFREF, PUSHSTRUCTPAGE, PUSH, REFREF),
-	DEFMACRO(STRUCTINC,    PUSHSTRUCTPAGE, PUSH, INC),
-	DEFMACRO(STRUCTDEC,    PUSHSTRUCTPAGE, PUSH, DEC),
-	DEFMACRO(STRUCTASSIGN, PUSHSTRUCTPAGE, PUSH, PUSH, ASSIGN, POP),
-	DEFMACRO(PUSHVMETHOD,  PUSHSTRUCTPAGE, PUSH, DUP_U2, PUSH, REF, SWAP, PUSH, ADD, REF),
+	DEFMACRO(LOCALREF,      PUSHLOCALPAGE,  PUSH, REF),
+	DEFMACRO(LOCALREFREF,   PUSHLOCALPAGE,  PUSH, REFREF),
+	DEFMACRO(LOCALINC,      PUSHLOCALPAGE,  PUSH, INC),
+	DEFMACRO(LOCALDEC,      PUSHLOCALPAGE,  PUSH, DEC),
+	DEFMACRO(LOCALASSIGN,   PUSHLOCALPAGE,  PUSH, PUSH, ASSIGN, POP),
+	DEFMACRO(LOCALASSIGN2,  PUSHLOCALPAGE,  SWAP, PUSH, SWAP, ASSIGN),
+	DEFMACRO(S_LOCALASSIGN, PUSHLOCALPAGE,  PUSH, REF, DELETE, PUSHLOCALPAGE, SWAP, PUSH, SWAP, ASSIGN),
+	DEFMACRO(LOCALCREATE,   PUSHLOCALPAGE,  PUSH, DUP2, REF, DELETE, DUP2, NEW, ASSIGN, POP, POP, POP),
+	DEFMACRO(LOCALDELETE,   PUSHLOCALPAGE,  PUSH, DUP2, REF, DELETE, PUSH, ASSIGN, POP),
+	DEFMACRO(GLOBALREF,     PUSHGLOBALPAGE, PUSH, REF),
+	DEFMACRO(GLOBALREFREF,  PUSHGLOBALPAGE, PUSH, REFREF),
+	DEFMACRO(GLOBALINC,     PUSHGLOBALPAGE, PUSH, INC),
+	DEFMACRO(GLOBALDEC,     PUSHGLOBALPAGE, PUSH, DEC),
+	DEFMACRO(GLOBALASSIGN,  PUSHGLOBALPAGE, PUSH, PUSH, ASSIGN, POP),
+	DEFMACRO(STRUCTREF,     PUSHSTRUCTPAGE, PUSH, REF),
+	DEFMACRO(STRUCTREFREF,  PUSHSTRUCTPAGE, PUSH, REFREF),
+	DEFMACRO(STRUCTINC,     PUSHSTRUCTPAGE, PUSH, INC),
+	DEFMACRO(STRUCTDEC,     PUSHSTRUCTPAGE, PUSH, DEC),
+	DEFMACRO(STRUCTASSIGN,  PUSHSTRUCTPAGE, PUSH, PUSH, ASSIGN, POP),
+	DEFMACRO(PUSHVMETHOD,   PUSHSTRUCTPAGE, PUSH, DUP_U2, PUSH, REF, SWAP, PUSH, ADD, REF),
 };
 
 struct macro_node {
@@ -320,7 +327,7 @@ static bool _dasm_print_macro(struct dasm_state *dasm)
 	// match as many instructions as possible
 	struct macro_node *next, *node = macros;
 	while ((next = find_node(node, dasm->instr->opcode))) {
-		if (!can_elide(dasm))
+		if (node != macros && !can_elide(dasm))
 			return false;
 
 		for (int i = 0; i < dasm->instr->nr_args; i++) {
