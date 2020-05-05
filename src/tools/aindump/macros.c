@@ -123,11 +123,11 @@ static bool global_check(struct dasm_state *dasm, int32_t *args)
 {
 	return is_global(dasm, args[0]);
 }
-#define GLOBALREF_check     global_check
-#define GLOBALREFREF_check  global_check
-#define GLOBALINC_check     global_check
-#define GLOBALDEC_check     global_check
-#define GLOBALASSIGN_check  global_check
+#define GLOBALREF_check      global_check
+#define GLOBALREFREF_check   global_check
+#define GLOBALINC_check      global_check
+#define GLOBALDEC_check      global_check
+#define GLOBALASSIGN_check   global_check
 #define F_GLOBALASSIGN_check global_check
 
 static void global_emit(struct dasm_state *dasm, int32_t *args)
@@ -156,11 +156,12 @@ static bool struct_check(struct dasm_state *dasm, int32_t *args)
 {
 	return is_member(dasm, args[0]);
 }
-#define STRUCTREF_check    struct_check
-#define STRUCTREFREF_check struct_check
-#define STRUCTINC_check    struct_check
-#define STRUCTDEC_check    struct_check
-#define STRUCTASSIGN_check struct_check
+#define STRUCTREF_check      struct_check
+#define STRUCTREFREF_check   struct_check
+#define STRUCTINC_check      struct_check
+#define STRUCTDEC_check      struct_check
+#define STRUCTASSIGN_check   struct_check
+#define F_STRUCTASSIGN_check struct_check
 
 static void struct_emit(struct dasm_state *dasm, int32_t *args)
 {
@@ -178,6 +179,13 @@ static void STRUCTASSIGN_emit(struct dasm_state *dasm, int32_t *args)
 {
 	struct_emit(dasm, args);
 	fprintf(dasm->out, " %d", args[1]);
+}
+
+static void F_STRUCTASSIGN_emit(struct dasm_state *dasm, int32_t *args)
+{
+	union { int32_t i; float f; } v = { .i = args[1] };
+	struct_emit(dasm, args);
+	fprintf(dasm->out, " %f", v.f);
 }
 
 static bool PUSHVMETHOD_check(struct dasm_state *dasm, int32_t *args)
@@ -234,6 +242,7 @@ struct macrodef macrodefs[] = {
 	DEFMACRO(STRUCTINC,      PUSHSTRUCTPAGE, PUSH, INC),
 	DEFMACRO(STRUCTDEC,      PUSHSTRUCTPAGE, PUSH, DEC),
 	DEFMACRO(STRUCTASSIGN,   PUSHSTRUCTPAGE, PUSH, PUSH, ASSIGN, POP),
+	DEFMACRO(F_STRUCTASSIGN, PUSHSTRUCTPAGE, PUSH, F_PUSH, F_ASSIGN, POP),
 	DEFMACRO(PUSHVMETHOD,    PUSHSTRUCTPAGE, PUSH, DUP_U2, PUSH, REF, SWAP, PUSH, ADD, REF),
 };
 

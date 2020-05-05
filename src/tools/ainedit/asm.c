@@ -80,6 +80,7 @@ const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
 	MACRO(PO_STRUCTINC,      ".STRUCTINC",      2, 10),
 	MACRO(PO_STRUCTDEC,      ".STRUCTDEC",      2, 10),
 	MACRO(PO_STRUCTASSIGN,   ".STRUCTASSIGN",   3, 18),
+	MACRO(PO_F_STRUCTASSIGN, ".F_STRUCTASSIGN", 3, 18),
 	MACRO(PO_PUSHVMETHOD,    ".PUSHVMETHOD",    2, 30),
 };
 
@@ -731,6 +732,16 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, PUSH);
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 2)->text));
 		asm_write_opcode(state, ASSIGN);
+		asm_write_opcode(state, POP);
+		break;
+	}
+	case PO_F_STRUCTASSIGN: {
+		asm_write_opcode(state, PUSHSTRUCTPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, get_member_no(state, kv_A(*instr->args, 0)->text, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, F_PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, F_PUSH, T_FLOAT, kv_A(*instr->args, 2)->text));
+		asm_write_opcode(state, F_ASSIGN);
 		asm_write_opcode(state, POP);
 		break;
 	}
