@@ -57,8 +57,10 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
 	PSEUDO_OP(PO_CASE,       ".CASE",           2),
 	PSEUDO_OP(PO_DEFAULT,    ".DEFAULT",        1),
-	PSEUDO_OP(PO_STR,        ".STR",            2),
-	PSEUDO_OP(PO_MSG,        ".MSG",            2),
+	PSEUDO_OP(PO_SETSTR,     ".SETSTR",         2),
+	PSEUDO_OP(PO_SETMSG,     ".SETMSG",         2),
+	MACRO(PO_S_PUSH,         ".S_PUSH",         1, 6),
+	MACRO(PO_MSG,            ".MSG",            1, 6),
 	MACRO(PO_LOCALREF,       ".LOCALREF",       1, 10),
 	MACRO(PO_LOCALREFREF,    ".LOCALREFREF",    1, 10),
 	MACRO(PO_LOCALINC,       ".LOCALINC",       1, 10),
@@ -524,9 +526,9 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		state->ain->switches[n_switch].default_address = state->buf_ptr;
 		break;
 	}
-	case PO_STR: {
+	case PO_SETSTR: {
 		int n_str = parse_integer_constant(state, kv_A(*instr->args, 0)->text);
-		if (n_str < 0 || n_str)
+		if (n_str < 0)
 			ASM_ERROR(state, "Invalid string index: %d", n_str);
 		realloc_string_table(state->ain, n_str);
 		if (state->ain->strings[n_str])
@@ -536,7 +538,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		free(sjis);
 		break;
 	}
-	case PO_MSG: {
+	case PO_SETMSG: {
 		int n_msg = parse_integer_constant(state, kv_A(*instr->args, 0)->text);
 		if (n_msg < 0)
 			ASM_ERROR(state, "Invalid message index: %d", n_msg);
@@ -546,6 +548,28 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		char *sjis = encode_text(kv_A(*instr->args, 1)->text);
 		state->ain->messages[n_msg] = make_string(sjis, strlen(sjis));
 		free(sjis);
+		break;
+	}
+	case PO_S_PUSH: {
+		int n_str = state->ain->nr_strings;
+		realloc_string_table(state->ain, n_str);
+		char *sjis = encode_text(kv_A(*instr->args, 0)->text);
+		state->ain->strings[n_str] = make_string(sjis, strlen(sjis));
+		free(sjis);
+
+		asm_write_opcode(state, S_PUSH);
+		asm_write_argument(state, n_str);
+		break;
+	}
+	case PO_MSG: {
+		int n_msg = state->ain->nr_messages;
+		realloc_message_table(state->ain, n_msg);
+		char *sjis = encode_text(kv_A(*instr->args, 0)->text);
+		state->ain->messages[n_msg] = make_string(sjis, strlen(sjis));
+		free(sjis);
+
+		asm_write_opcode(state, MSG);
+		asm_write_argument(state, n_msg);
 		break;
 	}
 	case PO_LOCALREF: {

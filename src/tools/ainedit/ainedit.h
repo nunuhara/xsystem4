@@ -30,7 +30,9 @@ enum {
 enum asm_pseudo_opcode {
 	PO_CASE = PSEUDO_OP_OFFSET,
 	PO_DEFAULT,
-	PO_STR,
+	PO_SETSTR,
+	PO_SETMSG,
+	PO_S_PUSH,
 	PO_MSG,
 	PO_LOCALREF,
 	PO_GLOBALREF,
