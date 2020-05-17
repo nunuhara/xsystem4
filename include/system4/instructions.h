@@ -332,6 +332,17 @@ enum opcode
 	OP_0X103 = 0x103,
 	OP_0X104 = 0x104,
 	OP_0X105 = 0x105,
+	OP_0X106 = 0x106,
+	OP_0X107 = 0x107, // unused
+	OP_0X108 = 0x108, // unused
+	OP_0X109 = 0x109, // unused
+	OP_0X10A = 0x10A,
+	OP_0X10B = 0x10B,
+	OP_0X10C = 0x10C,
+	OP_0X10D = 0x10D,
+	OP_0X10E = 0x10E,
+	OP_0X10F = 0x10F,
+	OP_0X110 = 0x110,
 
 	NR_OPCODES
 };

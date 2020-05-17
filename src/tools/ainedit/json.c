@@ -272,14 +272,20 @@ static void read_library_declaration(cJSON *decl, struct ain_library *dst)
 	struct ain_hll_function *funs = xcalloc(cJSON_GetArraySize(jfuns), sizeof(struct ain_hll_function));
 	cJSON_ArrayForEachIndex(i, f, jfuns) {
 		funs[i].name = cJSON_GetObjectString_NonNull(f, "name");
-		funs[i].data_type = cJSON_GetObjectInteger_NonNull(f, "return-type");
+		funs[i].return_type.data = cJSON_GetObjectInteger_NonNull(f, "return-type");
+		// TODO: v14 has full variable type
+		funs[i].return_type.struc = -1;
+		funs[i].return_type.rank = 0;
 
 		int j;
 		cJSON *arg, *jargs = cJSON_GetObjectArray_NonNull(f, "arguments");
 		struct ain_hll_argument *args = xcalloc(cJSON_GetArraySize(jargs), sizeof(struct ain_hll_argument));
 		cJSON_ArrayForEachIndex(j, arg, jargs) {
 			args[j].name = cJSON_GetObjectString_NonNull(arg, "name");
-			args[j].data_type = cJSON_GetObjectInteger_NonNull(arg, "type");
+			args[j].type.data = cJSON_GetObjectInteger_NonNull(arg, "type");
+			// TODO: v14 has full variable type
+			args[j].type.struc = -1;
+			args[j].type.rank = 0;
 		}
 		funs[i].nr_arguments = j;
 		funs[i].arguments = args;

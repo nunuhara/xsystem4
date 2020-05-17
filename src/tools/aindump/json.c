@@ -141,13 +141,15 @@ static cJSON *ain_library_to_json(struct ain_library *lib)
 	for (int i = 0; i < lib->nr_functions; i++) {
 		cJSON *f = cJSON_CreateObject();
 		cJSON_AddStringToObject(f, "name", lib->functions[i].name);
-		cJSON_AddNumberToObject(f, "return-type", lib->functions[i].data_type);
+		cJSON_AddNumberToObject(f, "return-type", lib->functions[i].return_type.data);
+		// TODO: v14 has full variable type
 
 		cJSON *args = cJSON_CreateArray();
 		for (int j = 0; j < lib->functions[i].nr_arguments; j++) {
 			cJSON *arg = cJSON_CreateObject();
 			cJSON_AddStringToObject(arg, "name", lib->functions[i].arguments[j].name);
-			cJSON_AddNumberToObject(arg, "type", lib->functions[i].arguments[j].data_type);
+			cJSON_AddNumberToObject(arg, "type", lib->functions[i].arguments[j].type.data);
+			// TODO: v14 has full variable type
 			cJSON_AddItemToArray(args, arg);
 		}
 		cJSON_AddItemToObject(f, "arguments", args);

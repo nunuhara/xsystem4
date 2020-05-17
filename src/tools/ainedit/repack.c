@@ -76,23 +76,17 @@ static void write_header(struct ain_buffer *out, const char *s)
 	write_bytes(out, (const uint8_t*)s, 4);
 }
 
-static void write_array_type(struct ain_buffer *out, possibly_unused struct ain *ain, struct ain_type *t)
-{
-	for (int i = 0; i < t[0].rank+1; i++) {
-		write_int32(out, t[i].data);
-		write_int32(out, t[i].struc);
-		write_int32(out, t[i].rank);
-	}
-}
-
 static void write_variable_type(struct ain_buffer *out, struct ain *ain, struct ain_type *t)
 {
 	write_int32(out, t->data);
 	write_int32(out, t->struc);
 	write_int32(out, t->rank);
 
-	if (t->data == AIN_ARRAY || t->data == AIN_REF_ARRAY || t->data == AIN_ITERATOR || t->data == AIN_ENUM1)
-		write_array_type(out, ain, t->array_type);
+	if (ain_array_data_type(t->data)) {
+		for (int i = 0; i < t->rank; i++) {
+			write_variable_type(out, ain, &t->array_type[i]);
+		}
+	}
 }
 
 static void write_return_type(struct ain_buffer *out, struct ain *ain, struct ain_type *t)
@@ -184,17 +178,25 @@ static void write_structure(struct ain_buffer *out, struct ain *ain, struct ain_
 	}
 }
 
-static void write_library(struct ain_buffer *out, possibly_unused struct ain *ain, struct ain_library *lib)
+static void write_library(struct ain_buffer *out, struct ain *ain, struct ain_library *lib)
 {
 	write_string(out, lib->name);
 	write_int32(out, lib->nr_functions);
 	for (int i = 0; i < lib->nr_functions; i++) {
 		write_string(out, lib->functions[i].name);
-		write_int32(out, lib->functions[i].data_type);
+		if (ain->version >= 14) {
+			write_variable_type(out, ain, &lib->functions[i].return_type);
+		} else {
+			write_int32(out, lib->functions[i].return_type.data);
+		}
 		write_int32(out, lib->functions[i].nr_arguments);
 		for (int j = 0; j < lib->functions[i].nr_arguments; j++) {
 			write_string(out, lib->functions[i].arguments[j].name);
-			write_int32(out, lib->functions[i].arguments[j].data_type);
+			if (ain->version >= 14) {
+				write_variable_type(out, ain, &lib->functions[i].arguments[j].type);
+			} else {
+				write_int32(out, lib->functions[i].arguments[j].type.data);
+			}
 		}
 	}
 }

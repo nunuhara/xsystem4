@@ -74,11 +74,13 @@ enum ain_data_type {
 	AIN_REF_ARRAY = 80,
 	AIN_ITERATOR = 82, // array iterator
 	AIN_ENUM1 = 86, // return value of EnumType::Parse; has type 91 in array type
+	AIN_UNKNOWN_TYPE_87 = 87,
 	AIN_IFACE = 89, // 2 values: [0] = struct page, [1] = vtable offset to inteface methods
 	AIN_ENUM2 = 91, // used as array type of type 86; has enum type in struct type
 	AIN_ENUM3 = 92, // used as argument type, and array type in EnumType::GetList; has enum type in struct type
 	AIN_REF_ENUM = 93,
 	AIN_UNKNOWN_TYPE_95 = 95, // function?
+	AIN_UNKNOWN_TYPE_100 = 100,
 };
 
 #define AIN_ARRAY_TYPE				\
@@ -186,12 +188,12 @@ struct ain_struct {
 
 struct ain_hll_argument {
 	char *name;
-	int32_t data_type;
+	struct ain_type type;
 };
 
 struct ain_hll_function {
 	char *name;
-	int32_t data_type;
+	struct ain_type return_type;
 	int32_t nr_arguments;
 	struct ain_hll_argument *arguments;
 };
@@ -233,9 +235,6 @@ struct ain_enum {
 	int nr_symbols;
 	char **symbols;
 };
-
-struct kh_func_ht_s;
-struct kh_struct_ht_s;
 
 struct ain_section {
 	uint32_t addr;
@@ -307,8 +306,8 @@ struct ain {
 	struct ain_section OBJG;
 	struct ain_section ENUM;
 
-	struct kh_func_ht_s *_func_ht;
-	struct kh_struct_ht_s *_struct_ht;
+	struct hash_table *_func_ht;
+	struct hash_table *_struct_ht;
 };
 
 const char *ain_strerror(int error);
@@ -337,5 +336,19 @@ void ain_free_function_types(struct ain *ain);
 void ain_free_delegates(struct ain *ain);
 void ain_free_global_groups(struct ain *ain);
 void ain_free_enums(struct ain *ain);
+
+static inline bool ain_array_data_type(int32_t type)
+{
+	switch (type) {
+	case AIN_ARRAY:
+	case AIN_REF_ARRAY:
+	case AIN_ITERATOR:
+	case AIN_ENUM1:
+	case AIN_UNKNOWN_TYPE_87:
+		return true;
+	default:
+		return false;
+	}
+}
 
 #endif /* SYSTEM4_AIN_H */

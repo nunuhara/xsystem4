@@ -323,17 +323,17 @@ static void ain_dump_libraries(FILE *out, struct ain *ain)
 		fprintf(out, " ---\n");
 		for (int j = 0; j < ain->libraries[i].nr_functions; j++) {
 			struct ain_hll_function *f = &ain->libraries[i].functions[j];
-			print_sjis(out, ain_strtype(ain, f->data_type, -1));
+			print_sjis(out, ain_strtype(ain, f->return_type.data, f->return_type.struc));
 			fputc(' ', out);
 			print_sjis(out, f->name);
 			fputc('(', out);
 			for (int k = 0; k < f->nr_arguments; k++) {
 				struct ain_hll_argument *a = &f->arguments[k];
-				if (a->data_type == AIN_VOID)
+				if (a->type.data == AIN_VOID)
 					continue;
 				if (k > 0)
 					fprintf(out, ", ");
-				print_sjis(out, ain_strtype(ain, a->data_type, -1));
+				print_sjis(out, ain_strtype(ain, a->type.data, a->type.struc));
 				fputc(' ', out);
 				print_sjis(out, a->name);
 			}

@@ -57,7 +57,7 @@ void hll_call(int libno, int fno)
 	void *args[HLL_MAX_ARGS];
 	void *ptrs[HLL_MAX_ARGS];
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
-		switch (f->arguments[i].data_type) {
+		switch (f->arguments[i].type.data) {
 		case AIN_REF_INT:
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
@@ -103,7 +103,7 @@ void hll_call(int libno, int fno)
 	for (int i = 0, j = 0; i < f->nr_arguments; i++, j++) {
 		// XXX: We don't increase the ref count when passing ref arguments to HLL
 		//      functions, so we need to avoid decreasing it via variable_fini
-		switch (f->arguments[i].data_type) {
+		switch (f->arguments[i].type.data) {
 		case AIN_REF_INT:
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
@@ -116,13 +116,13 @@ void hll_call(int libno, int fno)
 		case AIN_REF_ARRAY_TYPE:
 			break;
 		default:
-			variable_fini(stack[stack_ptr+j], f->arguments[i].data_type);
+			variable_fini(stack[stack_ptr+j], f->arguments[i].type.data);
 			break;
 		}
 	}
 
-	if (f->data_type != AIN_VOID) {
-		if (f->data_type == AIN_STRING) {
+	if (f->return_type.data != AIN_VOID) {
+		if (f->return_type.data == AIN_STRING) {
 			int slot = heap_alloc_slot(VM_STRING);
 			heap[slot].s = r.ref;
 		} else {
@@ -202,9 +202,9 @@ static void link_static_library_function(struct hll_function *dst, struct ain_hl
 	dst->args = xcalloc(dst->nr_args, sizeof(ffi_type*));
 
 	for (unsigned int i = 0; i < dst->nr_args; i++) {
-		dst->args[i] = ain_to_ffi_type(src->arguments[i].data_type);
+		dst->args[i] = ain_to_ffi_type(src->arguments[i].type.data);
 	}
-	dst->return_type = ain_to_ffi_type(src->data_type);
+	dst->return_type = ain_to_ffi_type(src->return_type.data);
 
 	if (ffi_prep_cif(&dst->cif, FFI_DEFAULT_ABI, dst->nr_args, dst->return_type, dst->args) != FFI_OK)
 		ERROR("Failed to link HLL function");

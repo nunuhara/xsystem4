@@ -7,7 +7,7 @@ used in AliceSoft games. The currently included tools are:
 * aindump - used to extract information from .ain files (code, text, etc.)
 * ainedit - used to reinsert information back into an .ain file
 * exdump  - used to extract information from .ex files (static data)
-* exbuild - used to rebuild an .ex file dumpbed by exdump
+* exbuild - used to rebuild an .ex file dumped by exdump
 
 More tools are planned for future releases.
 

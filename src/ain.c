@@ -25,10 +25,10 @@
 #include <string.h>
 #include <zlib.h>
 
-#include "khash.h"
 #include "little_endian.h"
 #include "system4.h"
 #include "system4/ain.h"
+#include "system4/hashtable.h"
 #include "system4/instructions.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
@@ -39,45 +39,37 @@ struct func_list {
 };
 #define func_list_size(nr_slots) (sizeof(struct func_list) + sizeof(struct ain_function*)*(nr_slots))
 
-KHASH_MAP_INIT_STR(func_ht, struct func_list*);
-KHASH_MAP_INIT_STR(struct_ht, struct ain_struct*);
-
 static void init_func_ht(struct ain *ain)
 {
+	ain->_func_ht = ht_create(1024);
 	for (int i = 0; i < ain->nr_functions; i++) {
-		int ret;
-		khiter_t k = kh_put(func_ht, ain->_func_ht, ain->functions[i].name, &ret);
-		if (!ret) {
-			// entry with this name already exists: add to list
-			struct func_list *list = kh_value(ain->_func_ht, k);
+		struct ht_slot *kv = ht_put(ain->_func_ht, ain->functions[i].name);
+		if (kv->value) {
+			// entry with this name already exists; add to list
+			struct func_list *list = kv->value;
 			list = xrealloc(list, func_list_size(list->nr_slots+1));
 			list->slots[list->nr_slots] = &ain->functions[i];
 			list->nr_slots++;
-			kh_value(ain->_func_ht, k) = list;
-		} else if (ret == 1) {
+			kv->value = list;
+		} else {
 			// empty bucket: create list
 			struct func_list *list = xmalloc(func_list_size(1));
 			list->nr_slots = 1;
 			list->slots[0] = &ain->functions[i];
-			kh_value(ain->_func_ht, k) = list;
-		} else {
-			ERROR("Failed to insert function into hash table (%d)", ret);
+			kv->value = list;
 		}
 	}
 }
 
 static void init_struct_ht(struct ain *ain)
 {
+	ain->_struct_ht = ht_create(1024);
 	for (int i = 0; i < ain->nr_structures; i++) {
-		int ret;
-		khiter_t k = kh_put(struct_ht, ain->_struct_ht, ain->structures[i].name, &ret);
-		if (!ret) {
+		struct ht_slot *kv = ht_put(ain->_struct_ht, ain->structures[i].name);
+		if (kv->value) {
 			ERROR("Duplicate structure names: '%s'", ain->structures[i].name);
-		} else if (ret == 1) {
-			kh_value(ain->_struct_ht, k) = &ain->structures[i];
-		} else {
-			ERROR("Failed to insert struct into hash table (%d)", ret);
 		}
+		kv->value = &ain->structures[i];
 	}
 }
 
@@ -146,11 +138,7 @@ static void init_member_functions(struct ain *ain)
 
 static struct func_list *get_function(struct ain *ain, const char *name)
 {
-	int ret;
-	khiter_t k = kh_put(func_ht, ain->_func_ht, name, &ret);
-	if (ret)
-		return NULL;
-	return kh_value(ain->_func_ht, k);
+	return ht_get(ain->_func_ht, name);
 }
 
 struct ain_function *ain_get_function(struct ain *ain, char *name)
@@ -192,10 +180,7 @@ err:
 
 struct ain_struct *ain_get_struct(struct ain *ain, char *name)
 {
-	khiter_t k = kh_get(struct_ht, ain->_struct_ht, name);
-	if (k == kh_end(ain->_struct_ht))
-		return NULL;
-	return kh_value(ain->_struct_ht, k);
+	return ht_get(ain->_struct_ht, name);
 }
 
 static const char *errtab[AIN_MAX_ERROR] = {
@@ -321,25 +306,25 @@ char *ain_strtype_d(struct ain *ain, struct ain_type *v)
 	case AIN_ITERATOR:
 		return container_type_string(ain, v);
 	case AIN_ENUM1:
-		if (!v->array_type || v->array_type->struc == -1 || !ain)
+		if (!v->array_type || v->array_type->struc == -1 || !ain || v->array_type->struc >= ain->nr_enums)
 			return strdup("enum");
-		//return strdup(ain->enums[v->array_type->struc]);
 		return type_sprintf("%s#86", ain->enums[v->array_type->struc].name);
+	case AIN_UNKNOWN_TYPE_87:     return strdup("type_87");
 	case AIN_IFACE:
 		if (v->struc == -1 || !ain)
 			return strdup("interface");
 		return strdup(ain->structures[v->struc].name);
 	case AIN_ENUM2:
 	case AIN_ENUM3:
-		if (v->struc == -1 || !ain)
+		if (v->struc == -1 || !ain || v->struc >= ain->nr_enums)
 			return strdup("enum");
-		//return strdup(ain->enums[v->struc]);
 		return type_sprintf("%s#%d", ain->enums[v->struc].name, v->data);
 	case AIN_REF_ENUM:
-		if (v->struc == -1 || !ain)
+		if (v->struc == -1 || !ain || v->struc >= ain->nr_enums)
 			return strdup("enum");
 		return type_sprintf("ref %s", ain->enums[v->struc].name);
 	case AIN_UNKNOWN_TYPE_95:     return strdup("type_95");
+	case AIN_UNKNOWN_TYPE_100:     return strdup("type_100");
 	default:
 		WARNING("Unknown type: %d", v->data);
 		return type_sprintf("unknown_type_%d", v->data);
@@ -379,6 +364,7 @@ struct ain_reader {
 	size_t size;
 	size_t index;
 	struct ain_section *section;
+	struct ain *ain;
 };
 
 static int32_t read_int32(struct ain_reader *r)
@@ -458,25 +444,16 @@ static struct string **read_msg1_strings(struct ain_reader *r, int count)
 	return strings;
 }
 
-static struct ain_type *read_array_type(struct ain_reader *r)
+static void read_variable_type(struct ain_reader *r, struct ain_type *t);
+
+static struct ain_type *read_array_type(struct ain_reader *r, int rank)
 {
-	int32_t data_type   = read_int32(r);
-	int32_t struct_type = read_int32(r);
-	int32_t array_rank  = read_int32(r);
+	if (rank < 0)
+		ERROR("Invalid array rank: %d", rank);
 
-	if (array_rank < 0)
-		ERROR("Invalid array rank: %d", array_rank);
-
-	struct ain_type *type = xcalloc(array_rank+1, sizeof(struct ain_type));
-	type[0].data  = data_type;
-	type[0].struc = struct_type;
-	type[0].rank  = array_rank;
-
-	for (int i = 0; i < array_rank; i++) {
-		type[i+1].data  = read_int32(r);
-		type[i+1].struc = read_int32(r);
-		type[i+1].rank  = read_int32(r);
-		type[i].array_type = type + i + 1;
+	struct ain_type *type = xcalloc(rank, sizeof(struct ain_type));
+	for (int i = 0; i < rank; i++) {
+		read_variable_type(r, type+i);
 	}
 
 	return type;
@@ -506,8 +483,8 @@ static void read_variable_type(struct ain_reader *r, struct ain_type *t)
 	t->struc = read_int32(r);
 	t->rank  = read_int32(r);
 
-	if (t->data == AIN_ARRAY || t->data == AIN_REF_ARRAY || t->data == AIN_ITERATOR || t->data == AIN_ENUM1)
-		t->array_type = read_array_type(r);
+	if (ain_array_data_type(t->data))
+		t->array_type = read_array_type(r, t->rank);
 }
 
 static struct ain_variable *read_variables(struct ain_reader *r, int count, struct ain *ain, enum ain_variable_type var_type)
@@ -626,7 +603,13 @@ static struct ain_hll_argument *read_hll_arguments(struct ain_reader *r, int cou
 	struct ain_hll_argument *arguments = calloc(count, sizeof(struct ain_hll_argument));
 	for (int i = 0; i < count; i++) {
 		arguments[i].name = read_string(r);
-		arguments[i].data_type = read_int32(r);
+		if (r->ain->version >= 14) {
+			read_variable_type(r, &arguments[i].type);
+		} else {
+			arguments[i].type.data = read_int32(r);
+			arguments[i].type.struc = -1;
+			arguments[i].type.rank = 0;
+		}
 	}
 	return arguments;
 }
@@ -636,8 +619,16 @@ static struct ain_hll_function *read_hll_functions(struct ain_reader *r, int cou
 	struct ain_hll_function *functions = calloc(count, sizeof(struct ain_hll_function));
 	for (int i = 0; i < count; i++) {
 		functions[i].name = read_string(r);
-		functions[i].data_type = read_int32(r);
+		if (r->ain->version >= 14) {
+			read_variable_type(r, &functions[i].return_type);
+		} else {
+			functions[i].return_type.data = read_int32(r);
+			functions[i].return_type.struc = -1;
+			functions[i].return_type.rank = 0;
+		}
 		functions[i].nr_arguments = read_int32(r);
+		if (functions[i].nr_arguments > 100 || functions[i].nr_arguments < 0)
+			ERROR("TOO MANY ARGUMENTS (AT 0x%x)", r->index);
 		functions[i].arguments = read_hll_arguments(r, functions[i].nr_arguments);
 	}
 	return functions;
@@ -710,8 +701,10 @@ struct ain_enum *read_enums(struct ain_reader *r, int count, struct ain *ain)
 	struct ain_enum *enums = xcalloc(count, sizeof(struct ain_enum));
 
 	for (int i = 0; i < count; i++) {
+		enums[i].name = names[i];
+
 		char buf[1024] = { [1023] = '\0' };
-		snprintf(buf, 1023, "%s@String", names[i]);
+		snprintf(buf, 1023, ain->version < 14 ? "%s@String" : "%s::ToString", names[i]);
 
 		struct func_list *funs = get_function(ain, buf);
 		if (!funs || funs->nr_slots != 1) {
@@ -739,7 +732,6 @@ struct ain_enum *read_enums(struct ain_reader *r, int count, struct ain *ain)
 			enums[i].nr_symbols = j + 1;
 			j++;
 		});
-		enums[i].name = names[i];
 	}
 
 	free(names);
@@ -1027,14 +1019,13 @@ struct ain *ain_open(const char *path, int *error)
 		goto err;
 
 	// read data into ain struct
+	ain = calloc(1, sizeof(struct ain));
 	struct ain_reader r = {
 		.buf = buf,
 		.index = 0,
-		.size = len
+		.size = len,
+		.ain = ain
 	};
-	ain = calloc(1, sizeof(struct ain));
-	ain->_func_ht = kh_init(func_ht);
-	ain->_struct_ht = kh_init(struct_ht);
 	while (read_tag(&r, ain));
 	if (!ain->version) {
 		*error = AIN_INVALID;
@@ -1052,12 +1043,23 @@ err:
 	return NULL;
 }
 
+static void ain_free_type(struct ain_type *type)
+{
+	if (!type->array_type)
+		return;
+
+	for (int i = 0; i < type->rank; i++) {
+		ain_free_type(&type->array_type[i]);
+	}
+	free(type->array_type);
+}
+
 static void ain_free_variables(struct ain_variable *vars, int nr_vars)
 {
 	for (int i = 0; i < nr_vars; i++) {
 		free(vars[i].name);
 		free(vars[i].name2);
-		free(vars[i].type.array_type);
+		ain_free_type(&vars[i].type);
 		if (vars[i].has_initval && vars[i].type.data == AIN_STRING)
 			free(vars[i].initval.s);
 	}
@@ -1068,7 +1070,7 @@ static void _ain_free_function_types(struct ain_function_type *funs, int n)
 {
 	for (int i = 0; i < n; i++) {
 		free(funs[i].name);
-		free(funs[i].return_type.array_type);
+		ain_free_type(&funs[i].return_type);
 		ain_free_variables(funs[i].variables, funs[i].nr_variables);
 	}
 	free(funs);
@@ -1094,7 +1096,7 @@ void ain_free_functions(struct ain *ain)
 {
 	for (int f = 0; f < ain->nr_functions; f++) {
 		free(ain->functions[f].name);
-		free(ain->functions[f].return_type.array_type);
+		ain_free_type(&ain->functions[f].return_type);
 		ain_free_variables(ain->functions[f].vars, ain->functions[f].nr_vars);
 	}
 	free(ain->functions);
@@ -1141,8 +1143,10 @@ void ain_free_libraries(struct ain *ain)
 		free(ain->libraries[lib].name);
 		for (int f = 0; f < ain->libraries[lib].nr_functions; f++) {
 			free(ain->libraries[lib].functions[f].name);
+			ain_free_type(&ain->libraries[lib].functions[f].return_type);
 			for (int a = 0; a < ain->libraries[lib].functions[f].nr_arguments; a++) {
 				free(ain->libraries[lib].functions[f].arguments[a].name);
+				ain_free_type(&ain->libraries[lib].functions[f].arguments[a].type);
 			}
 			free(ain->libraries[lib].functions[f].arguments);
 		}
@@ -1213,6 +1217,10 @@ void ain_free(struct ain *ain)
 {
 	free(ain->code);
 
+	ht_foreach_value(ain->_func_ht, free);
+	ht_free(ain->_func_ht);
+	ht_free(ain->_struct_ht);
+
 	ain_free_functions(ain);
 	ain_free_globals(ain);
 	ain_free_initvals(ain);
@@ -1226,11 +1234,6 @@ void ain_free(struct ain *ain)
 	ain_free_delegates(ain);
 	ain_free_global_groups(ain);
 	ain_free_enums(ain);
-
-	struct func_list *list;
-	kh_foreach_value(ain->_func_ht, list, free(list));
-	kh_destroy(func_ht, ain->_func_ht);
-	kh_destroy(struct_ht, ain->_struct_ht);
 
 	free(ain);
 }
