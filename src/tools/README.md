@@ -156,6 +156,13 @@ nunuhara@haniwa.technology, or find me on /haniho/.
 Version History
 ---------------
 
+### [Version 0.3.0](https://haniwa.technology/alice-tools/alice-tools-0.3.0.zip)
+
+* Now supports ain files up to version 14 (Evenicle 2, Haha Ranman)
+* Improved ex file compatibility, now works with Rance 03, Rance IX and Evenicle 2
+* aindump now emits macro instructions by default (makes bytecode easier to read)
+* Most error messages now include line numbers
+
 ### [Version 0.2.1](https://haniwa.technology/alice-tools/alice-tools-0.2.1.zip)
 
 * Added `--input-encoding` and `--output-encoding` options to control the text
