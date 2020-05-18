@@ -108,13 +108,13 @@ int main(int argc, char *argv[])
 
 	struct fnl *fnl = fnl_open(argv[0]);
 	for (size_t font = 0; font < fnl->nr_fonts; font++) {
-		NOTICE("FONT %zu", font);
+		NOTICE("FONT %u", (unsigned)font);
 		for (size_t face = 0; face < fnl->fonts[font].nr_faces; face++) {
 			struct fnl_font_face *font_face = &fnl->fonts[font].faces[face];
 			NOTICE("\tsize %lu (%lu glyphs)", font_face->height, font_face->nr_glyphs);
 
 			// create subdir
-			sprintf(path, "%s/font_%zu/face_%zu", output_dir, font, face);
+			sprintf(path, "%s/font_%u/face_%u", output_dir, (unsigned)font, (unsigned)face);
 			mkdir_p(path);
 
 			// extract glyphs
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 				if (!glyph->data)
 					continue;
 
-				sprintf(path, "%s/font_%zu/face_%zu/glyph_%zu.webp", output_dir, font, face, g);
+				sprintf(path, "%s/font_%u/face_%u/glyph_%u.webp", output_dir, (unsigned)font, (unsigned)face, (unsigned)g);
 				FILE *f = fopen(path, "wb");
 				if (!f) {
 					ERROR("fopen failed: %s", strerror(errno));

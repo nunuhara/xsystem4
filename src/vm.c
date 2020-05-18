@@ -21,7 +21,6 @@
 #include <math.h>
 #include <time.h>
 #include <errno.h>
-#include <spawn.h>
 #include <SDL.h> // for system.MsgBox
 
 #include "debugger.h"
@@ -36,6 +35,10 @@
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+
+#if (!defined(_WIN32) && !defined(__WIN32__))
+#include <spawn.h>
+#endif
 
 extern char **environ;
 
@@ -430,6 +433,9 @@ static void system_call(enum syscall_code code)
 		break;
 	}
 	case SYS_OPEN_WEB: {
+#if (defined(_WIN32) || defined(__WIN32__))
+		WARNING("system.OpenWeb not implemented on Windows");
+#else
 		struct string *url = stack_peek_string(0);
 		char *browser = getenv("BROWSER");
 		if (!browser || !*browser) {
@@ -442,6 +448,7 @@ static void system_call(enum syscall_code code)
 		if ((err = posix_spawnp(&child, browser, NULL, NULL, argv, environ))) {
 			WARNING("posix_spawn failed: %s", strerror(err));
 		}
+#endif
 		heap_unref(stack_pop().i);
 		break;
 	};
