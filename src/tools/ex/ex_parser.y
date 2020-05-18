@@ -51,7 +51,7 @@ void yex_error(const char *s)
 
 %}
 
-%token	<token>		INT FLOAT STRING TABLE LIST TREE
+%token	<token>		INT FLOAT STRING TABLE LIST TREE INDEXED
 %token	<i>		CONST_INT
 %token	<f>		CONST_FLOAT
 %token	<s>		CONST_STRING
@@ -117,12 +117,14 @@ fields	:	field            { $$ = ast_make_field_list($1); }
 	|	fields ',' field { $$ = ast_field_list_push($1, $3); }
 	;
 
-field	:	TABLE CONST_STRING header                             { $$ = ast_make_field(EX_TABLE, $2, 0,  0,  0,  $3); }
-	|	TABLE CONST_STRING '[' int ',' int ']' header         { $$ = ast_make_field(EX_TABLE, $2, $4, $6, 0,  $8); }
-	|	TABLE CONST_STRING '[' int ',' int ',' int ']' header { $$ = ast_make_field(EX_TABLE, $2, $4, $6, $8, $10); }
-	|	ftype CONST_STRING                                    { $$ = ast_make_field($1, $2, 0,  0,  0,  NULL); }
-	|	ftype CONST_STRING '[' int ',' int ']'                { $$ = ast_make_field($1, $2, $4, $6, 0,  NULL); }
-	|	ftype CONST_STRING '[' int ',' int ',' int ']'        { $$ = ast_make_field($1, $2, $4, $6, $8, NULL); }
+field	:	TABLE CONST_STRING header                      { $$ = ast_make_field(EX_TABLE, $2, NULL, false, $3); }
+	|	INDEXED ftype CONST_STRING                     { $$ = ast_make_field($2,       $3, NULL, true,  NULL); }
+	|	INDEXED ftype CONST_STRING '=' value           { $$ = ast_make_field($2,       $3, $5,   true,  NULL); }
+	|	ftype CONST_STRING                             { $$ = ast_make_field($1,       $2, NULL, false, NULL); }
+	|	ftype CONST_STRING '=' value                   { $$ = ast_make_field($1,       $2, $4,   false, NULL); }
+	// DEPRECATED BELOW
+	|	ftype CONST_STRING '[' int ',' int ']'         { $$ = ast_make_field_old($1, $2, $4, $6, 0,  NULL); }
+	|	ftype CONST_STRING '[' int ',' int ',' int ']' { $$ = ast_make_field_old($1, $2, $4, $6, $8, NULL); }
 	;
 
 ftype	:	INT    { $$ = EX_INT; }

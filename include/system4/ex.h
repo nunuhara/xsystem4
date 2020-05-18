@@ -45,9 +45,9 @@ struct ex_value {
 struct ex_field {
 	enum ex_value_type type;
 	struct string *name;
-	int32_t uk0;
-	int32_t uk1;
-	int32_t uk2;
+	int32_t has_value;
+	struct ex_value value;
+	int32_t is_index;
 	uint32_t nr_subfields;
 	struct ex_field *subfields;
 };

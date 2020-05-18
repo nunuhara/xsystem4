@@ -47,7 +47,8 @@ block_list *ast_block_list_push(block_list *blocks, struct ex_block *block);
 struct ex_table *ast_make_table(field_list *fields, row_list *rows);
 struct ex_value *ast_make_subtable(row_list *rows);
 
-struct ex_field *ast_make_field(int type_token, struct string *name, int uk0, int uk1, int uk2, field_list *subfields);
+struct ex_field *ast_make_field_old(int type_token, struct string *name, int uk0, int uk1, int uk2, field_list *subfields);
+struct ex_field *ast_make_field(int type_token, struct string *name, struct ex_value *value, bool indexed, field_list *subfields);
 field_list *ast_make_field_list(struct ex_field *field);
 field_list *ast_field_list_push(field_list *fields, struct ex_field *field);
 

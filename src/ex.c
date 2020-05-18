@@ -26,6 +26,9 @@
 #include "system4/ex.h"
 #include "system4/string.h"
 
+#define EX_ERROR(buf, fmt, ...) ERROR("At 0x%08x: " fmt, (uint32_t)(buf)->index, ##__VA_ARGS__)
+#define EX_WARNING(buf, fmt, ...) WARNING("At 0x%08x: " fmt, (uint32_t)(buf)->index, ##__VA_ARGS__)
+
 const char *ex_strtype(enum ex_value_type type)
 {
 	switch (type) {
@@ -98,12 +101,11 @@ static uint8_t *ex_decode(uint8_t *data, size_t *len, uint32_t *nr_blocks)
 
 	buffer_init(&r, data, *len);
 	if (strncmp(buffer_strdata(&r), "HEAD", 4))
-		ERROR("Missing HEAD section marker");
+		EX_ERROR(&r, "Missing HEAD section marker");
 	buffer_skip(&r, 8);
 
 	if (strncmp(buffer_strdata(&r), "EXTF", 4)) {
-		NOTICE("index = %zu", r.index);
-		ERROR("Missing EXTF section marker");
+		EX_ERROR(&r, "Missing EXTF section marker");
 	}
 	buffer_skip(&r, 8);
 
@@ -113,7 +115,7 @@ static uint8_t *ex_decode(uint8_t *data, size_t *len, uint32_t *nr_blocks)
 		buffer_read_int32(&r);
 
 	if (strncmp(buffer_strdata(&r), "DATA", 4)) {
-		ERROR("Missing DATA section marker");
+		EX_ERROR(&r, "Missing DATA section marker");
 	}
 	buffer_skip(&r, 4);
 
@@ -171,7 +173,7 @@ static void _ex_read_value(struct buffer *r, struct ex_value *value, struct ex_f
 		ex_read_list(r, value->list);
 		break;
 	default:
-		ERROR("Unhandled value type: %d", value->type);
+		EX_ERROR(r, "Unhandled value type: %d", value->type);
 	}
 }
 
@@ -185,18 +187,24 @@ static void ex_read_field(struct buffer *r, struct ex_field *field)
 {
 	field->type = buffer_read_int32(r);
 	if (field->type < EX_INT || field->type > EX_TABLE)
-		ERROR("Unknown/invalid field type: %d", field->type);
+		EX_ERROR(r, "Unknown/invalid field type: %d", field->type);
 
 	field->name = ex_read_string(r);
-	field->uk0 = buffer_read_int32(r);
-	field->uk1 = buffer_read_int32(r);
-	if (field->uk0)
-		field->uk2 = buffer_read_int32(r);
+	field->has_value = buffer_read_int32(r);
+	field->is_index = buffer_read_int32(r);
+	if (field->has_value) {
+		field->value.type = field->type;
+		_ex_read_value(r, &field->value, NULL, 0);
+	}
+	if (field->has_value && field->has_value != 1)
+		EX_WARNING(r, "Non-boolean for field->has_value: %d", field->has_value);
+	if (field->is_index && field->is_index != 1)
+		EX_WARNING(r, "Non-boolean for field->is_index: %d", field->is_index);
 
 	if (field->type == EX_TABLE) {
 		field->nr_subfields = buffer_read_int32(r);
 		if (field->nr_subfields > 255)
-			ERROR("Too many subfields: %u", field->nr_subfields);
+			EX_ERROR(r, "Too many subfields: %u", field->nr_subfields);
 
 		field->subfields = xcalloc(field->nr_subfields, sizeof(struct ex_field));
 		for (uint32_t i = 0; i < field->nr_subfields; i++) {
@@ -241,10 +249,10 @@ static void ex_read_table(struct buffer *r, struct ex_table *table, struct ex_fi
 			table->nr_rows = tmp;
 			table_layout = TABLE_ROWS_FIRST;
 		} else {
-			ERROR("Number of fields doesn't match number of columns: %u, %u", table->nr_columns, nr_fields);
+			EX_ERROR(r, "Number of fields doesn't match number of columns: %u, %u", table->nr_columns, nr_fields);
 		}
 	} else if (table->nr_columns != nr_fields) {
-		ERROR("Number of fields doesn't match number of columns: %u, %u", table->nr_columns, nr_fields);
+		EX_ERROR(r, "Number of fields doesn't match number of columns: %u, %u", table->nr_columns, nr_fields);
 	}
 
 	table->rows = xcalloc(table->nr_rows, sizeof(struct ex_value*));
@@ -254,8 +262,8 @@ static void ex_read_table(struct buffer *r, struct ex_table *table, struct ex_fi
 			ex_read_value(r, &table->rows[i][j], fields[j].subfields, fields[j].nr_subfields);
 			if (table->rows[i][j].type != fields[j].type) {
 				// broken table in Rance 03?
-				WARNING("Column type doesn't match field type: expected %s; got %s",
-					ex_strtype(fields[j].type), ex_strtype(table->rows[i][j].type));
+				EX_WARNING(r, "Column type doesn't match field type: expected %s; got %s",
+					   ex_strtype(fields[j].type), ex_strtype(table->rows[i][j].type));
 			}
 		}
 	}
@@ -271,8 +279,8 @@ static void ex_read_list(struct buffer *r, struct ex_list *list)
 		size_t data_loc = r->index;
 		_ex_read_value(r, &list->items[i].value, NULL, 0);
 		if (r->index - data_loc != list->items[i].size) {
-			ERROR("Incorrect size for list item: %" SIZE_T_FMT "u / %" SIZE_T_FMT "u",
-			      list->items[i].size, r->index - data_loc);
+			EX_ERROR(r, "Incorrect size for list item: %" SIZE_T_FMT "u / %" SIZE_T_FMT "u",
+				 list->items[i].size, r->index - data_loc);
 		}
 	}
 }
@@ -282,7 +290,7 @@ static void ex_read_tree(struct buffer *r, struct ex_tree *tree)
 	tree->name = ex_read_string(r);
 	uint32_t is_leaf = buffer_read_int32(r);
 	if (is_leaf > 1)
-		ERROR("tree->is_leaf is not a boolean: %u", is_leaf);
+		EX_ERROR(r, "tree->is_leaf is not a boolean: %u", is_leaf);
 	tree->is_leaf = is_leaf;
 
 	if (!tree->is_leaf) {
@@ -299,13 +307,13 @@ static void ex_read_tree(struct buffer *r, struct ex_tree *tree)
 		_ex_read_value(r, &tree->leaf.value, NULL, 0);
 
 		if (r->index - data_loc != tree->leaf.size) {
-			ERROR("Incorrect size for leaf node: %" SIZE_T_FMT "u / %" SIZE_T_FMT "u",
-			      tree->leaf.size, r->index - data_loc);
+			EX_ERROR(r, "Incorrect size for leaf node: %" SIZE_T_FMT "u / %" SIZE_T_FMT "u",
+				 tree->leaf.size, r->index - data_loc);
 		}
 
 		int32_t zero = buffer_read_int32(r);
 		if (zero) {
-			ERROR("Expected 0 after leaf node: 0x%x at 0x%zx", zero, r->index);
+			EX_ERROR(r, "Expected 0 after leaf node: 0x%x at 0x%zx", zero, r->index);
 		}
 	}
 }
@@ -314,11 +322,11 @@ static void ex_read_block(struct buffer *r, struct ex_block *block)
 {
 	block->val.type = buffer_read_int32(r);
 	if (block->val.type < EX_INT || block->val.type > EX_TREE)
-		ERROR("Unknown/invalid block type: %d", block->val.type);
+		EX_ERROR(r, "Unknown/invalid block type: %d", block->val.type);
 
 	block->size = buffer_read_int32(r);
 	if (block->size > buffer_remaining(r))
-		ERROR("Block size extends past end of file: %" SIZE_T_FMT "u", block->size);
+		EX_ERROR(r, "Block size extends past end of file: %" SIZE_T_FMT "u", block->size);
 
 	size_t data_loc = r->index;
 	block->name = ex_read_string(r);
@@ -349,8 +357,8 @@ static void ex_read_block(struct buffer *r, struct ex_block *block)
 	}
 
 	if (r->index - data_loc != block->size) {
-		ERROR("Incorrect block size: %" SIZE_T_FMT "u / %" SIZE_T_FMT "u",
-		      r->index - data_loc, block->size);
+		EX_ERROR(r, "Incorrect block size: %" SIZE_T_FMT "u / %" SIZE_T_FMT "u",
+			 r->index - data_loc, block->size);
 	}
 }
 
@@ -438,6 +446,8 @@ static void ex_free_fields(struct ex_field *fields, uint32_t n)
 {
 	for (uint32_t i = 0; i < n; i++) {
 		free_string(fields[i].name);
+		if (fields[i].type == EX_STRING && fields[i].has_value)
+			free_string(fields[i].value.s);
 		ex_free_fields(fields[i].subfields, fields[i].nr_subfields);
 	}
 	free(fields);

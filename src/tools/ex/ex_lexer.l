@@ -75,6 +75,7 @@ string                    return STRING;
 table                     return TABLE;
 list                      return LIST;
 tree                      return TREE;
+indexed                   return INDEXED;
 {id_head}{id_char}*       yex_lval.s = make_string_from_utf8(yex_text, yex_leng); return CONST_STRING;
 [0-9]+\.[0-9]+            yex_lval.f = strtof(yex_text, NULL); return CONST_FLOAT;
 [0-9]+                    yex_lval.i = atoi(yex_text); return CONST_INT;

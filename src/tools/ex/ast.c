@@ -232,22 +232,57 @@ struct ex_value *ast_make_subtable(row_list *rows)
  * Fields
  */
 
-struct ex_field *ast_make_field(int type, struct string *name, int uk0, int uk1, int uk2, field_list *subfields)
+// XXX: for deprecated syntax; `value` needs to be a full value type
+struct ex_field *ast_make_field_old(int type, struct string *name, int has_value, int indexed, int value, field_list *subfields)
 {
 	struct ex_field *field = xmalloc(sizeof(struct ex_field));
 	*field = (struct ex_field) {
 		.type = type,
 		.name = name,
-		.uk0 = uk0,
-		.uk1 = uk1,
-		.uk2 = uk2,
+		.has_value = has_value,
+		.value = {
+			.type = type,
+			.i = value
+		},
+		.is_index = indexed,
 		.nr_subfields = 0,
 		.subfields = NULL
 	};
+	if (has_value && type == EX_STRING) {
+		field->value.s = make_string("", 0);
+	}
 	if (subfields) {
 		field->nr_subfields = kv_size(*subfields);
 		flatten_list(struct ex_field, subfields, field->subfields);
 	}
+	return field;
+}
+
+struct ex_field *ast_make_field(int type, struct string *name, struct ex_value *value, bool indexed, field_list *subfields)
+{
+	struct ex_field *field = xmalloc(sizeof(struct ex_field));
+	*field = (struct ex_field) {
+		.type = type,
+		.name = name,
+		.has_value = !!value,
+		.is_index = indexed,
+		.nr_subfields = 0,
+		.subfields = NULL
+	};
+	if (value) {
+		if ((int)value->type != type) {
+			WARNING("Field value type doesn't match field type");
+		}
+		field->value = *value;
+	}
+	if (subfields) {
+		field->nr_subfields = kv_size(*subfields);
+		flatten_list(struct ex_field, subfields, field->subfields);
+	}
+	if (indexed && value && (int)value->type != EX_INT && (int)value->type != EX_STRING) {
+		WARNING("Unexpected type for indexed field: %d", value->type);
+	}
+	free(value);
 	return field;
 }
 

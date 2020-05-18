@@ -83,10 +83,11 @@ static void write_field(struct buffer *out, struct ex_field *f)
 {
 	buffer_write_int32(out, f->type);
 	write_string(out, f->name);
-	buffer_write_int32(out, f->uk0);
-	buffer_write_int32(out, f->uk1);
-	if (f->uk0)
-		buffer_write_int32(out, f->uk2);
+	buffer_write_int32(out, f->has_value);
+	buffer_write_int32(out, f->is_index);
+	if (f->has_value) {
+		_write_value(out, &f->value);
+	}
 
 	if (f->type == EX_TABLE) {
 		buffer_write_int32(out, f->nr_subfields);

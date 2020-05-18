@@ -161,6 +161,7 @@ int main(int argc, char *argv[])
 		ex_dump_split(out, ex, dir);
 	} else {
 		ex_dump(out, ex);
+		fclose(out);
 	}
 	ex_free(ex);
 

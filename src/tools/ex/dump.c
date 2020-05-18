@@ -128,28 +128,6 @@ static void ex_dump_identifier(FILE *out, struct string *s)
 	free(u);
 }
 
-static void ex_dump_field(FILE *out, struct ex_field *field)
-{
-	fprintf(out, "%s ", ex_strtype(field->type));
-	ex_dump_identifier(out, field->name);
-	if (field->uk0 || field->uk1) {
-		if (field->uk0)
-			fprintf(out, "[%d,%d,%d]", field->uk0, field->uk1, field->uk2);
-		else
-			fprintf(out, "[%d,%d]", field->uk0, field->uk1);
-	}
-
-	if (field->nr_subfields) {
-		fprintf(out, " { ");
-		for (uint32_t i = 0; i < field->nr_subfields; i++) {
-			ex_dump_field(out, &field->subfields[i]);
-			if (i+1 < field->nr_subfields)
-				fprintf(out, ", ");
-		}
-		fprintf(out, " }");
-	}
-}
-
 static void ex_dump_table(FILE *out, struct ex_table *table);
 static void ex_dump_list(FILE *out, struct ex_list *list, bool in_line);
 
@@ -162,6 +140,26 @@ static void ex_dump_value(FILE *out, struct ex_value *val)
 	case EX_TABLE:  ex_dump_table(out, val->t); break;
 	case EX_LIST:   ex_dump_list(out, val->list, true); break;
 	case EX_TREE:   ERROR("TODO DUMP TREE"); break;
+	}
+}
+
+static void ex_dump_field(FILE *out, struct ex_field *field)
+{
+	fprintf(out, "%s%s ", field->is_index ? "indexed " : "", ex_strtype(field->type));
+	ex_dump_identifier(out, field->name);
+	if (field->has_value) {
+		fprintf(out, " = ");
+		ex_dump_value(out, &field->value);
+	}
+
+	if (field->nr_subfields) {
+		fprintf(out, " { ");
+		for (uint32_t i = 0; i < field->nr_subfields; i++) {
+			ex_dump_field(out, &field->subfields[i]);
+			if (i+1 < field->nr_subfields)
+				fprintf(out, ", ");
+		}
+		fprintf(out, " }");
 	}
 }
 
