@@ -25,8 +25,6 @@
 #include "system4/instructions.h"
 #include "system4/string.h"
 
-#define DASM_ERROR(dasm, fmt, ...) ERROR("At 0x%x: " fmt, dasm->addr, ##__VA_ARGS__)
-
 enum jump_target_type {
 	JMP_LABEL,
 	JMP_CASE,
@@ -546,63 +544,6 @@ static void generate_labels(struct dasm_state *dasm)
 			add_switch_case(&dasm->ain->switches[i].cases[j]);
 		}
 	}
-}
-
-void dasm_init(struct dasm_state *dasm, FILE *out, struct ain *ain, uint32_t flags)
-{
-	dasm->out = out;
-	dasm->ain = ain;
-	dasm->flags = flags;
-	dasm->addr = 0;
-	dasm->func = -1;
-
-	for (int i = 0; i < DASM_FUNC_STACK_SIZE; i++) {
-		dasm->func_stack[i] = -1;
-	}
-}
-
-void dasm_next(struct dasm_state *dasm)
-{
-	dasm->addr += instruction_width(dasm->instr->opcode);
-	dasm->instr = dasm_eof(dasm) ? &instructions[0] : dasm_get_instruction(dasm);
-}
-
-enum opcode dasm_peek(struct dasm_state *dasm)
-{
-	int width = instruction_width(dasm->instr->opcode);
-	if (dasm->addr+width >= dasm->ain->code_size)
-		return -1;
-
-	return LittleEndian_getW(dasm->ain->code, dasm->addr+width);
-}
-
-bool dasm_eof(struct dasm_state *dasm)
-{
-	return dasm->addr >= dasm->ain->code_size;
-}
-
-void dasm_reset(struct dasm_state *dasm)
-{
-	dasm->addr = 0;
-	dasm->instr = dasm_eof(dasm) ? &instructions[0] : dasm_get_instruction(dasm);
-}
-
-dasm_save_t dasm_save(struct dasm_state *dasm)
-{
-	return (dasm_save_t) { .addr = dasm->addr, .instr = dasm->instr };
-}
-
-void dasm_restore(struct dasm_state *dasm, dasm_save_t save)
-{
-	dasm->addr = save.addr;
-	dasm->instr = save.instr;
-}
-
-int32_t dasm_arg(struct dasm_state *dasm, unsigned int n)
-{
-	if ((int)n >= dasm->instr->nr_args)
-		return 0;
-	return LittleEndian_getDW(dasm->ain->code, dasm->addr + 2 + 4*n);
 }
 
 void disassemble_ain(FILE *out, struct ain *ain, unsigned int flags)

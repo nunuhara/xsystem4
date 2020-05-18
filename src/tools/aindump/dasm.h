@@ -20,37 +20,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "../dasm.h"
 
-#define DASM_FUNC_STACK_SIZE 16
-
-struct dasm_state {
-	struct ain *ain;
-	uint32_t flags;
-	FILE *out;
-	size_t addr;
-	int func;
-	int func_stack[DASM_FUNC_STACK_SIZE];
-	const struct instruction *instr;
-};
-
-typedef struct {
-	size_t addr;
-	const struct instruction *instr;
-} dasm_save_t;
-
-struct instruction;
 struct ain_function;
 
-void dasm_next(struct dasm_state *dasm);
-enum opcode dasm_peek(struct dasm_state *dasm);
-bool dasm_eof(struct dasm_state *dasm);
-void dasm_reset(struct dasm_state *dasm);
-dasm_save_t dasm_save(struct dasm_state *dasm);
-void dasm_restore(struct dasm_state *dasm, dasm_save_t save);
-
-int32_t dasm_arg(struct dasm_state *dasm, unsigned int n);
 bool dasm_is_jump_target(struct dasm_state *dasm);
-
 bool dasm_print_macro(struct dasm_state *dasm);
 void dasm_print_identifier(struct dasm_state *dasm, const char *str);
 void dasm_print_local_variable(struct dasm_state *dasm, struct ain_function *func, int varno);

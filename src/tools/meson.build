@@ -7,6 +7,7 @@ endif
 
 subdir('aindump')
 subdir('ainedit')
+subdir('aincmp')
 subdir('ar')
 subdir('ex')
 subdir('fnl')
