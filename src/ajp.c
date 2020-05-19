@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <turbojpeg.h>
+#include <zlib.h>
 #include "little_endian.h"
 #include "system4.h"
 #include "system4/cg.h"
@@ -116,9 +117,20 @@ void ajp_extract(uint8_t *data, size_t size, struct cg *cg)
 	uint8_t *mask;
 	if (ajp.mask_size && pms8_checkfmt(mask_data)) {
 		mask = pms_extract_mask(mask_data, ajp.mask_size);
+	} else if (mask_data[0] == 0x78) {
+		// compressed
+		unsigned long uncompressed_size = width*height;
+		mask = xmalloc(uncompressed_size);
+		if (uncompress(mask, &uncompressed_size, mask_data, ajp.mask_size) != Z_OK) {
+			WARNING("uncompress failed");
+			memset(mask, 0xFF, width * height);
+		} else if (uncompressed_size != (unsigned)width * (unsigned)height) {
+			WARNING("Unexpected AJP mask size");
+		}
 	} else {
 		if (ajp.mask_size)
-			WARNING("Unsupported AJP mask format");
+			WARNING("Unsupported AJP mask format: %02x %02x %02x %02x",
+				mask_data[0], mask_data[1], mask_data[2], mask_data[3]);
 		mask = xmalloc(width * height);
 		memset(mask, 0xFF, width * height);
 	}
