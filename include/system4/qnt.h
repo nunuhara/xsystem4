@@ -45,7 +45,8 @@ struct qnt_header {
 };
 
 bool qnt_checkfmt(const uint8_t *data);
-bool qnt_get_metrics(uint8_t *data, struct cg_metrics *dst);
-void qnt_extract(uint8_t *data, struct cg *cg);
+bool qnt_get_metrics(const uint8_t *data, struct cg_metrics *dst);
+void qnt_extract(const uint8_t *data, struct cg *cg);
+void qnt_extract_header(const uint8_t *b, struct qnt_header *qnt);
 
 #endif /* SYSTEM4_QNT_H */

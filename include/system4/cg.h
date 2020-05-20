@@ -35,6 +35,7 @@ enum cg_type {
 	ALCG_PMS8    = 5,
 	ALCG_PMS16   = 6,
 	ALCG_WEBP    = 7,
+	ALCG_DCF     = 8,
 };
 
 struct cg_palette {
@@ -65,7 +66,11 @@ struct cg {
 	void *pixels;
 };
 
+struct archive_data;
+
+enum cg_type cg_check_format(uint8_t *data);
 bool cg_get_metrics(struct archive *ar, int no, struct cg_metrics *dst);
+struct cg *cg_load_data(struct archive_data *dfile);
 struct cg *cg_load(struct archive *ar, int no);
 void cg_free(struct cg *cg);
 

@@ -21,6 +21,8 @@
 #include "system4/archive.h"
 #include "system4/cg.h"
 #include "system4/ajp.h"
+#include "system4/dcf.h"
+#include "system4/flat.h"
 #include "system4/qnt.h"
 #include "system4/webp.h"
 
@@ -29,7 +31,7 @@
  *   data: pointer to compressed data
  *   return: cg type
  */
-static enum cg_type check_cgformat(uint8_t *data)
+enum cg_type cg_check_format(uint8_t *data)
 {
 	if (qnt_checkfmt(data)) {
 		return ALCG_QNT;
@@ -37,6 +39,8 @@ static enum cg_type check_cgformat(uint8_t *data)
 		return ALCG_AJP;
 	} else if (webp_checkfmt(data)) {
 		return ALCG_WEBP;
+	} else if (dcf_checkfmt(data)) {
+		return ALCG_DCF;
 	}
 	return ALCG_UNKNOWN;
 }
@@ -48,7 +52,7 @@ bool cg_get_metrics(struct archive *ar, int no, struct cg_metrics *dst)
 	if (!(dfile = archive_get(ar, no)))
 		return false;
 
-	switch (check_cgformat(dfile->data)) {
+	switch (cg_check_format(dfile->data)) {
 	case ALCG_QNT:
 		qnt_get_metrics(dfile->data, dst);
 		break;
@@ -56,9 +60,11 @@ bool cg_get_metrics(struct archive *ar, int no, struct cg_metrics *dst)
 		WARNING("AJP GetMetrics not implemented");
 		archive_free_data(dfile);
 		return false;
-		break;
 	case ALCG_WEBP:
 		webp_get_metrics(dfile->data, dfile->size, dst);
+		break;
+	case ALCG_DCF:
+		dcf_get_metrics(dfile->data, dfile->size, dst);
 		break;
 	default:
 		WARNING("Unknown CG type (CG %d)", no);
@@ -81,25 +87,13 @@ void cg_free(struct cg *cg)
 	free(cg);
 }
 
-/*
- * Load cg data from file or cache
- *  no: file no ( >= 0)
- *  return: cg object(extracted)
-*/
-struct cg *cg_load(struct archive *ar, int no)
+struct cg *cg_load_data(struct archive_data *dfile)
 {
-	struct cg *cg;
-	struct archive_data *dfile;
 	int type;
-
-	if (!(dfile = archive_get(ar, no))) {
-		WARNING("Failed to load CG %d", no);
-		return NULL;
-	}
-	cg = xcalloc(1, sizeof(struct cg));
+	struct cg *cg = xcalloc(1, sizeof(struct cg));
 
 	// check loaded cg format
-	type = check_cgformat(dfile->data);
+	type = cg_check_format(dfile->data);
 
 	// extract cg
 	switch(type) {
@@ -115,16 +109,36 @@ struct cg *cg_load(struct archive *ar, int no)
 	case ALCG_WEBP:
 		webp_extract(dfile->data, dfile->size, cg);
 		break;
+	case ALCG_DCF:
+		dcf_extract(dfile->data, dfile->size, cg);
+		break;
 	default:
-		WARNING("Unknown CG type (CG %d)", no);
+		WARNING("Unknown CG type");
 		break;
 	}
-
-	// ok to free
-	archive_free_data(dfile);
 
 	if (cg->pixels)
 		return cg;
 	free(cg);
 	return NULL;
+}
+
+/*
+ * Load cg data from file or cache
+ *  no: file no ( >= 0)
+ *  return: cg object(extracted)
+*/
+struct cg *cg_load(struct archive *ar, int no)
+{
+	struct cg *cg;
+	struct archive_data *dfile;
+
+	if (!(dfile = archive_get(ar, no))) {
+		WARNING("Failed to load CG %d", no);
+		return NULL;
+	}
+
+	cg = cg_load_data(dfile);
+	archive_free_data(dfile);
+	return cg;
 }

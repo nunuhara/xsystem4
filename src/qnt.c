@@ -52,7 +52,7 @@
  *
  *   return: acquired qnt information object
  */
-static void extract_header(uint8_t *b, struct qnt_header *qnt)
+void qnt_extract_header(const uint8_t *b, struct qnt_header *qnt)
 {
 	int rsv0;
 
@@ -89,7 +89,7 @@ static void extract_header(uint8_t *b, struct qnt_header *qnt)
  *   pic: pixel to be stored
  *   b  : raw data (pointer to pixel)
  */
-static void extract_pixel(struct qnt_header *qnt, uint8_t *pic, uint8_t *b)
+static void extract_pixel(struct qnt_header *qnt, uint8_t *pic, const uint8_t *b)
 {
 	int i, j, x, y, w, h;
 	unsigned long ucbuf = (qnt->width+1) * (qnt->height+1) * 3 + ZLIBBUF_MARGIN;
@@ -172,7 +172,7 @@ static void extract_pixel(struct qnt_header *qnt, uint8_t *pic, uint8_t *b)
  *   pic: pixel to be stored
  *   b  : raw data (pointer to alpha pixel)
  */
-static void extract_alpha(struct qnt_header *qnt, uint8_t *pic, uint8_t *b)
+static void extract_alpha(struct qnt_header *qnt, uint8_t *pic, const uint8_t *b)
 {
 	int i, x, y, w, h;
 	unsigned long ucbuf = (qnt->width+1) * (qnt->height+1) + ZLIBBUF_MARGIN;
@@ -238,10 +238,10 @@ static void qnt_init_metrics(struct qnt_header *qnt, struct cg_metrics *dst)
 	dst->alpha_pitch = 1;
 }
 
-bool qnt_get_metrics(uint8_t *data, struct cg_metrics *dst)
+bool qnt_get_metrics(const uint8_t *data, struct cg_metrics *dst)
 {
 	struct qnt_header qnt;
-	extract_header(data, &qnt);
+	qnt_extract_header(data, &qnt);
 	qnt_init_metrics(&qnt, dst);
 	return true;
 }
@@ -253,10 +253,10 @@ bool qnt_get_metrics(uint8_t *data, struct cg_metrics *dst)
  *
  *   return: extracted image data and information
 */
-void qnt_extract(uint8_t *data, struct cg *cg)
+void qnt_extract(const uint8_t *data, struct cg *cg)
 {
 	struct qnt_header qnt;
-	extract_header(data, &qnt);
+	qnt_extract_header(data, &qnt);
 	qnt_init_metrics(&qnt, &cg->metrics);
 
 	uint8_t *pixels = xcalloc(3, (qnt.width+10) * (qnt.height+10));
