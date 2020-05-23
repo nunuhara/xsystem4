@@ -1,4 +1,5 @@
 alicear = ['alice-ar.c',
+           'afa_extract.c',
 ]
 
 executable('alice-ar', alicear,

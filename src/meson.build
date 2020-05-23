@@ -9,6 +9,7 @@ system4 = ['afa.c',
            'dcf.c',
            'ex.c',
            'file.c',
+           'flat.c',
            'fnl.c',
            'hashtable.c',
            'instructions.c',
@@ -78,7 +79,7 @@ xsystem4 += flexgen.process('ini_lexer.l')
 xsystem4 += bisongen.process('ini_parser.y')
 
 libsys4 = static_library('sys4', system4,
-                         dependencies : [libm, zlib, tj, webp],
+                         dependencies : [libm, zlib, tj, webp, png],
                          include_directories : incdir)
 
 executable('xsystem4', xsystem4,

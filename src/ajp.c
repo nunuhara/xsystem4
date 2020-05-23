@@ -54,7 +54,7 @@ struct ajp_header {
 	uint32_t mask_size;
 };
 
-static void ajp_extract_header(uint8_t *data, struct ajp_header *ajp)
+static void ajp_extract_header(const uint8_t *data, struct ajp_header *ajp)
 {
 	ajp->width     = LittleEndian_getDW(data, 12);
 	ajp->height    = LittleEndian_getDW(data, 16);
@@ -76,7 +76,7 @@ static void ajp_init_metrics(struct ajp_header *ajp, struct cg_metrics *dst)
 	dst->alpha_pitch = 1;
 }
 
-void ajp_extract(uint8_t *data, size_t size, struct cg *cg)
+void ajp_extract(const uint8_t *data, size_t size, struct cg *cg)
 {
 	uint8_t *buf = NULL, *jpeg_data = NULL, *mask_data = NULL;
 	int width, height, subsamp;

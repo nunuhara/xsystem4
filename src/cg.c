@@ -22,7 +22,6 @@
 #include "system4/cg.h"
 #include "system4/ajp.h"
 #include "system4/dcf.h"
-#include "system4/flat.h"
 #include "system4/qnt.h"
 #include "system4/webp.h"
 

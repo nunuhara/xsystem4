@@ -12,6 +12,7 @@ gl = dependency('GL')
 glew = dependency('glew')
 tj = dependency('libturbojpeg')
 webp = dependency('libwebp')
+png = dependency('libpng')
 chibi = dependency('chibi-scheme', required : get_option('debugger'))
 
 flex = find_program('flex')

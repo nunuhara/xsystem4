@@ -24,6 +24,6 @@
 struct cg;
 
 bool ajp_checkfmt(const uint8_t *data);
-void ajp_extract(uint8_t *data, size_t size, struct cg *cg);
+void ajp_extract(const uint8_t *data, size_t size, struct cg *cg);
 
 #endif /* SYSTEM4_AJP_H */

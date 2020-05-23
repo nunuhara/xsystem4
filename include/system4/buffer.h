@@ -49,4 +49,9 @@ static inline void buffer_seek(struct buffer *r, size_t off)
 	r->index = off;
 }
 
+static inline void buffer_align(struct buffer *r, int p)
+{
+	r->index = (r->index + (p-1)) & ~(p-1);
+}
+
 #endif /* SYSTEM4_BUFFER_H */
