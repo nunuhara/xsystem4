@@ -21,7 +21,6 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <signal.h>
-#include <sys/wait.h>
 #include <getopt.h>
 #include "debugger.h"
 #include "file.h"
@@ -206,10 +205,14 @@ static void config_init(void)
 	mkdir_p(new_save_dir);
 }
 
+
+#if (!defined(_WIN32) && !defined(__WIN32__))
+#include <sys/wait.h>
 void cleanup(possibly_unused int signal)
 {
 	while (waitpid((pid_t)-1, 0, WNOHANG) > 0);
 }
+#endif
 
 static void ain_audit(FILE *f, struct ain *ain)
 {
@@ -320,7 +323,9 @@ int main(int argc, char *argv[])
 		ERROR("Not an AIN/INI file: %s", &argv[0][len - 4]);
 	}
 
+#if (!defined(_WIN32) && !defined(__WIN32__))
 	signal(SIGCHLD, cleanup);
+#endif
 
 	config_init();
 
