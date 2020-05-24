@@ -299,7 +299,7 @@ static FILE *checked_fopen(const char *path, const char *mode)
 		errno = EEXIST;
 		return NULL;
 	}
-	FILE *f = fopen(path, mode);
+	FILE *f = file_open_utf8(path, mode);
 	if (!f)
 		ERROR("fopen failed: %s", strerror(errno));
 	return f;
