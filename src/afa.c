@@ -66,17 +66,10 @@ static bool afa_load_file(struct archive_data *data)
 		return true;
 	}
 
-	FILE *f = fopen(ar->filename, "rb");
-	if (!f) {
-		WARNING("Failed to open '%s': %s", ar->filename, strerror(errno));
-		free(data);
-		return false;
-	}
-
-	fseek(f, ar->data_start + e->off, SEEK_SET);
+	fseek(ar->f, ar->data_start + e->off, SEEK_SET);
 
 	data->data = xmalloc(e->size);
-	if (fread(data->data, e->size, 1, f) != e->size) {
+	if (fread(data->data, e->size, 1, ar->f) != 1) {
 		WARNING("Failed to read '%s': %s", ar->filename, strerror(errno));
 		free(data->data);
 		free(data);
@@ -149,6 +142,8 @@ static void afa_free(struct archive *_ar)
 	for (uint32_t i = 0; i < ar->nr_files; i++) {
 		free_string(ar->files[i].name);
 	}
+	if (ar->f)
+		fclose(ar->f);
 	free(ar->filename);
 	free(ar->files);
 	free(ar);
@@ -281,13 +276,13 @@ struct afa_archive *afa_open(const char *file, int flags, int *error)
 		fclose(fp);
 		goto exit_err;
 	}
-	if (fclose(fp)) {
-		WARNING("fclose failed: %s", strerror(errno));
-		*error = ARCHIVE_FILE_ERROR;
-		goto exit_err;
-	}
-
 	if (flags & ARCHIVE_MMAP) {
+		if (fclose(fp)) {
+			WARNING("fclose failed: %s", strerror(errno));
+			*error = ARCHIVE_FILE_ERROR;
+			goto exit_err;
+		}
+
 		int fd = open(file, O_RDONLY);
 		if (fd < 0) {
 			WARNING("open failed: %s", strerror(errno));
@@ -302,6 +297,8 @@ struct afa_archive *afa_open(const char *file, int flags, int *error)
 			goto exit_err;
 		}
 		ar->ar.mmapped = true;
+	} else {
+		ar->f = fp;
 	}
 	ar->filename = strdup(file);
 	ar->ar.ops = &afa_archive_ops;

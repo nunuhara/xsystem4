@@ -28,7 +28,16 @@
 #if (defined(_WIN32) || defined(__WIN32__))
 #include <Windows.h>
 #include <direct.h>
-#define make_dir(path, mode) _mkdir(path)
+static int make_dir(const char *path, possibly_unused int mode)
+{
+	int nr_wchars = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0);
+	wchar_t *wpath = xmalloc(nr_wchars * sizeof(wchar_t));
+	MultiByteToWideChar(CP_UTF8, 0, path, -1, wpath, nr_wchars);
+
+	int r = _wmkdir(wpath);
+	free(wpath);
+	return r;
+}
 #else
 #define make_dir(path, mode) mkdir(path, mode)
 #endif

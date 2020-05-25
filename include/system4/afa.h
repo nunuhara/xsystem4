@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 #include "system4/archive.h"
 
 struct string;
@@ -45,6 +46,7 @@ struct afa_archive {
 	struct afa_entry *files;
 	uint32_t data_size;
 	void *mmap_ptr;
+	FILE *f;
 	uint8_t *data;
 };
 

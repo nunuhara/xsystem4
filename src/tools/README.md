@@ -4,10 +4,11 @@ alice-tools
 This is a collection of command-line tools for viewing and editing file formats
 used in AliceSoft games. The currently included tools are:
 
-* aindump - used to extract information from .ain files (code, text, etc.)
-* ainedit - used to reinsert information back into an .ain file
-* exdump  - used to extract information from .ex files (static data)
-* exbuild - used to rebuild an .ex file dumped by exdump
+* aindump  - used to extract information from .ain files (code, text, etc.)
+* ainedit  - used to reinsert information back into an .ain file
+* exdump   - used to extract information from .ex files (static data)
+* exbuild  - used to rebuild an .ex file dumped by exdump
+* alice-ar - used to extract .ald/.afa/.flat files
 
 More tools are planned for future releases.
 
@@ -132,6 +133,10 @@ the current directory containing the data from "Rance10EX.ex". The file "out.x"
 should contain a list of `#include "..."` directives which will stitch the full
 dump back together when rebuilding with exbuild.
 
+### Extracting archives
+
+See [alice-ar-README.md](alice-ar-README.html)
+
 Known Limitations/Bugs
 ----------------------
 
@@ -155,6 +160,10 @@ nunuhara@haniwa.technology, or find me on /haniho/.
 
 Version History
 ---------------
+
+### [Version 0.4.0](https://haniwa.technology/alice-tools/alice-tools-0.4.0.zip)
+
+* Added alice-ar tool for extracting archive files
 
 ### [Version 0.3.0](https://haniwa.technology/alice-tools/alice-tools-0.3.0.zip)
 
