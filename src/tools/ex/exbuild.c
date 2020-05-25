@@ -20,6 +20,8 @@
 #include <errno.h>
 #include <getopt.h>
 #include <iconv.h>
+#include <libgen.h>
+#include <unistd.h>
 #include "system4.h"
 #include "system4/ex.h"
 #include "system4/string.h"
@@ -116,10 +118,12 @@ int main(int argc, char *argv[])
 		ERROR("fopen failed: %s", strerror(errno));
 
 	FILE *in;
-	if (!strcmp(argv[0], "-"))
+	if (!strcmp(argv[0], "-")) {
 		in = stdin;
-	else
+	} else {
 		in = fopen(argv[0], "rb");
+		chdir(dirname(argv[0]));
+	}
 	if (!in)
 		ERROR("fopen failed: %s", strerror(errno));
 

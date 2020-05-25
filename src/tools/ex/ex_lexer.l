@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <libgen.h>
+#include <unistd.h>
 #include "ex_parser.tab.h"
 #include "file.h"
 #include "system4.h"
@@ -38,6 +40,30 @@ struct string *make_string_from_utf8(const char *str, size_t len)
     struct string *s = make_string(sjis, strlen(sjis));
     free(sjis);
     return s;
+}
+
+char *include_stack[256];
+int include_stack_ptr = 0;
+
+static void begin_included_file(const char *path)
+{
+    // push current working directory to stack
+    char *cwd = xmalloc(2048);
+    cwd = getcwd(cwd, 2048);
+    include_stack[include_stack_ptr++] = cwd;
+
+    // chdir to directory of included file
+    char *tmp = strdup(path);
+    chdir(dirname(tmp));
+    free(tmp);
+}
+
+static void end_included_file(void)
+{
+    // pop dir from stack and chdir to it
+    include_stack_ptr--;
+    chdir(include_stack[include_stack_ptr]);
+    free(include_stack[include_stack_ptr]);
 }
 
 unsigned long yex_line = 1;
@@ -119,6 +145,7 @@ indexed                   return INDEXED;
         if (!yex_in)
             ERROR("Failed to open included file '%s': %s", yex_text, strerror(errno));
         yex_push_buffer_state(yex__create_buffer(yex_in, YY_BUF_SIZE));
+        begin_included_file(yex_text+1);
         BEGIN(INITIAL);
     }
 }
@@ -127,6 +154,8 @@ indexed                   return INDEXED;
     yex_pop_buffer_state();
     if (!YY_CURRENT_BUFFER) {
         yyterminate();
+    } else {
+        end_included_file();
     }
 }
 
