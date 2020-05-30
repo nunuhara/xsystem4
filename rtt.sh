@@ -1,8 +1,8 @@
 #!/bin/bash
 
 SRC_AIN="$1"
-SRC_JAM=$(tempfile)
-DST_AIN=$(tempfile)
+SRC_JAM=$(mktemp)
+DST_AIN=$(mktemp)
 
 echo "Dumping code from $SRC_AIN"
 aindump -c -o "$SRC_JAM" "$SRC_AIN"

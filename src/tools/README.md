@@ -144,8 +144,6 @@ Known Limitations/Bugs
   rename any files with Japanese characters in their name before using these
   tools on them.
 * aindump only supports dumping to a single file, which can be quite large.
-* The `--inline-strings` option, which reads/writes strings directly into the
-  disassembled bytecode, does not work correctly.
 
 Source Code
 -----------
@@ -160,6 +158,13 @@ nunuhara@haniwa.technology, or find me on /haniho/.
 
 Version History
 ---------------
+
+### [Version 0.5.0](https://haniwa.technology/alice-tools/alice-tools-0.5.0.zip)
+
+* !!! Breaks bytecode compatibility with previous versions !!!
+* Removed `--inline-strings` options from aindump and ainedit
+* Strings are now inlined in `S_PUSH` instructions, etc.
+* Added a few more bytecode macros
 
 ### [Version 0.4.0](https://haniwa.technology/alice-tools/alice-tools-0.4.0.zip)
 
