@@ -25,8 +25,7 @@ struct ain_function;
 
 enum {
 	DASM_RAW = 1,
-	DASM_NO_STRINGS = 2,
-	DASM_NO_MACROS = 4,
+	DASM_NO_MACROS = 2,
 };
 
 struct code_reader {

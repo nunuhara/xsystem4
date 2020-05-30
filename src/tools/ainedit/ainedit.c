@@ -37,7 +37,6 @@ static void usage(void)
 	puts("        --transcode <enc>          Change the AIN file's text encoding");
 	puts("    -o, --output <path>            Set output file path");
 	puts("        --raw                      Read code in raw mode");
-	puts("        --inline-strings           Read code in inline-strings mode");
 	puts("        --input-encoding <enc>     Specify the text encoding of the input file(s) (default: UTF-8)");
 	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: CP932)");
 	puts("        --ain-encoding <enc>       Specify the text encoding of the input AIN file");
@@ -54,7 +53,6 @@ enum {
 	LOPT_TRANSCODE,
 	LOPT_OUTPUT,
 	LOPT_RAW,
-	LOPT_INLINE_STRINGS,
 	LOPT_INPUT_ENCODING,
 	LOPT_OUTPUT_ENCODING,
 	LOPT_AIN_ENCODING,
@@ -95,7 +93,7 @@ int main(int argc, char *argv[])
 	const char *output_encoding = "CP932";
 	const char *ain_encoding = "CP932";
 	bool transcode = false;
-	uint32_t flags = ASM_NO_STRINGS;
+	uint32_t flags = 0;
 	while (1) {
 		static struct option long_options[] = {
 			{ "help",            no_argument,       0, LOPT_HELP },
@@ -105,7 +103,6 @@ int main(int argc, char *argv[])
 			{ "transcode",       required_argument, 0, LOPT_TRANSCODE },
 			{ "output",          required_argument, 0, LOPT_OUTPUT },
 			{ "raw",             no_argument,       0, LOPT_RAW },
-			{ "inline-strings",  no_argument,       0, LOPT_INLINE_STRINGS },
 			{ "input-encoding",  required_argument, 0, LOPT_INPUT_ENCODING },
 			{ "output-encoding", required_argument, 0, LOPT_OUTPUT_ENCODING },
 			{ "ain-encoding",    required_argument, 0, LOPT_AIN_ENCODING },
@@ -145,10 +142,6 @@ int main(int argc, char *argv[])
 			break;
 		case LOPT_RAW:
 			flags |= ASM_RAW;
-			break;
-		case LOPT_INLINE_STRINGS:
-			WARNING("Inline strings mode doesn't quite work yet...");
-			flags &= ~ASM_NO_STRINGS;
 			break;
 		case LOPT_INPUT_ENCODING:
 			input_encoding = optarg;

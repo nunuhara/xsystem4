@@ -113,7 +113,6 @@ static void usage(void)
 	puts("    -e, --enums                    Dump enums section");
 	puts("    -d, --decrypt                  Dump decrypted AIN file");
 	puts("        --map                      Dump AIN file map");
-	puts("        --inline-strings           Dump code in inline-strings mode");
 	puts("        --no-macros                Don't use macros in code output");
 	puts("        --input-encoding <enc>     Specify the text encoding of the AIN file (default: CP932)");
 	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: UTF-8)");
@@ -473,7 +472,6 @@ enum {
 	LOPT_ENUMS,
 	LOPT_DECRYPT,
 	LOPT_MAP,
-	LOPT_INLINE_STRINGS,
 	LOPT_NO_MACROS,
 	LOPT_INPUT_ENCODING,
 	LOPT_OUTPUT_ENCODING
@@ -488,7 +486,7 @@ int main(int argc, char *argv[])
 	char *input_encoding = "CP932";
 	char *output_encoding = "UTF-8";
 	int err = AIN_SUCCESS;
-	unsigned int flags = DASM_NO_STRINGS;
+	unsigned int flags = 0;
 	struct ain *ain;
 
 	int dump_targets[256];
@@ -516,7 +514,6 @@ int main(int argc, char *argv[])
 			{ "enums",              no_argument,       0, LOPT_ENUMS },
 			{ "decrypt",            no_argument,       0, LOPT_DECRYPT },
 			{ "map",                no_argument,       0, LOPT_MAP },
-			{ "inline-strings",     no_argument,       0, LOPT_INLINE_STRINGS },
 			{ "no-macros",          no_argument,       0, LOPT_NO_MACROS },
 			{ "input-encoding",     required_argument, 0, LOPT_INPUT_ENCODING },
 			{ "output-encoding",    required_argument, 0, LOPT_OUTPUT_ENCODING },
@@ -605,9 +602,6 @@ int main(int argc, char *argv[])
 			break;
 		case LOPT_MAP:
 			dump_targets[dump_ptr++] = LOPT_MAP;
-			break;
-		case LOPT_INLINE_STRINGS:
-			flags &= ~DASM_NO_STRINGS;
 			break;
 		case LOPT_NO_MACROS:
 			flags |= DASM_NO_MACROS;

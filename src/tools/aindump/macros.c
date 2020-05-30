@@ -127,14 +127,8 @@ static void F_LOCALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
 static void STRING_LOCALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
 {
 	print_local(dasm, args[0]);
-	fprintf(dasm->out, " 0x%x ; ", args[1]);
+	fputc(' ', dasm->out);
 	dasm_print_string(dasm, dasm->ain->strings[args[1]]->text);
-	/*
-	char *u = sjis2utf(dasm->ain->strings[args[1]]->text, 0);
-	print_local(dasm, args[0]);
-	fprintf(dasm->out, " 0x%x ; \"%s\"", args[1], u);
-	free(u);
-	*/
 }
 
 static void LOCALCREATE_emit(struct dasm_state *dasm, int32_t *args)

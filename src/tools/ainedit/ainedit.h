@@ -23,12 +23,12 @@
 
 enum {
 	ASM_RAW        = 1,
-	ASM_NO_STRINGS = 2,
 };
 
 #define PSEUDO_OP_OFFSET 0xF000
 enum asm_pseudo_opcode {
 	PO_CASE = PSEUDO_OP_OFFSET,
+	PO_STRCASE,
 	PO_DEFAULT,
 	PO_SETSTR,
 	PO_SETMSG,

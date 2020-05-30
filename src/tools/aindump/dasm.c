@@ -331,30 +331,17 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 	case T_STRING:
 		if (arg < 0 || arg >= ain->nr_strings)
 			DASM_ERROR(dasm, "Invalid string number: %d", arg);
-		if (dasm->flags & DASM_NO_STRINGS) {
-			fprintf(dasm->out, "0x%x ", arg);
-			*comment = ain->strings[arg]->text;
-		} else {
-			dasm_print_string(dasm, ain->strings[arg]->text);
-		}
+		dasm_print_string(dasm, ain->strings[arg]->text);
 		break;
 	case T_MSG:
 		if (arg < 0 || arg >= ain->nr_messages)
 			DASM_ERROR(dasm, "Invalid message number: %d", arg);
-		if (dasm->flags & DASM_NO_STRINGS) {
-			fprintf(dasm->out, "0x%x ", arg);
-			*comment = ain->messages[arg]->text;
-		} else {
-			dasm_print_string(dasm, ain->messages[arg]->text);
-		}
+		fprintf(dasm->out, "0x%x ", arg);
+		*comment = ain->messages[arg]->text;
 		break;
 	case T_LOCAL:
-		if (dasm->func < 0) {
+		if (dasm->func < 0)
 			DASM_ERROR(dasm, "Attempt to access local variable outside of function");
-			//WARNING("Attempt to access local variable outside of function");
-			//dasm_print_string(dasm, "???");
-			break;
-		}
 		if (arg < 0 || arg >= ain->functions[dasm->func].nr_vars)
 			DASM_ERROR(dasm, "Invalid variable number: %d", arg);
 		dasm_print_local_variable(dasm, &ain->functions[dasm->func], arg);
@@ -481,18 +468,16 @@ static void print_instruction(struct dasm_state *dasm)
 
 static void print_switch_case(struct dasm_state *dasm, struct ain_switch_case *c)
 {
-	fprintf(dasm->out, ".CASE %" SIZE_T_FMT "d:%" SIZE_T_FMT "d ", c->parent - dasm->ain->switches, c - c->parent->cases);
+	unsigned swi = (unsigned)(c->parent - dasm->ain->switches);
+	unsigned ci = (unsigned)(c - c->parent->cases);
 	switch (c->parent->case_type) {
 	case AIN_SWITCH_INT:
+		fprintf(dasm->out, ".CASE %u:%u ", swi, ci);
 		fprintf(dasm->out, "%d", c->value);
 		break;
 	case AIN_SWITCH_STRING:
-		if (dasm->flags & DASM_NO_STRINGS) {
-			fprintf(dasm->out, "%d ; ", c->value);
-			dasm_print_string(dasm, dasm->ain->strings[c->value]->text);
-		} else {
-			dasm_print_string(dasm, dasm->ain->strings[c->value]->text);
-		}
+		fprintf(dasm->out, ".STRCASE %u:%u ", swi, ci);
+		dasm_print_string(dasm, dasm->ain->strings[c->value]->text);
 		break;
 	default:
 		WARNING("Unknown switch case type: %d", c->parent->case_type);

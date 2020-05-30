@@ -23,6 +23,7 @@
 #include "ainedit.h"
 #include "system4.h"
 #include "system4/ain.h"
+#include "system4/hashtable.h"
 #include "system4/instructions.h"
 #include "system4/string.h"
 #include "asm_parser.tab.h"
@@ -56,6 +57,7 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 
 const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
 	PSEUDO_OP(PO_CASE,       ".CASE",           2),
+	PSEUDO_OP(PO_STRCASE,    ".STRCASE",        2),
 	PSEUDO_OP(PO_DEFAULT,    ".DEFAULT",        1),
 	PSEUDO_OP(PO_SETSTR,     ".SETSTR",         2),
 	PSEUDO_OP(PO_SETMSG,     ".SETMSG",         2),
@@ -108,10 +110,7 @@ struct asm_state {
 	int32_t func;
 	int32_t func_stack[ASM_FUNC_STACK_SIZE];
 	int32_t lib;
-	struct string_table strings;
-	struct string_table messages;
-	khash_t(string_ht) *strings_index;
-	khash_t(string_ht) *messages_index;
+	struct hash_table *str_ht;
 };
 
 const_pure int32_t asm_instruction_width(int opcode)
@@ -121,43 +120,6 @@ const_pure int32_t asm_instruction_width(int opcode)
 	return instruction_width(opcode);
 }
 
-static int string_table_add(struct string_table *t, const char *s)
-{
-	if (!t->allocated) {
-		t->allocated = 4096;
-		t->strings = xmalloc(t->allocated * sizeof(struct string*));
-	} else if (t->allocated <= t->size) {
-		t->allocated *= 2;
-		t->strings = xrealloc(t->strings, t->allocated * sizeof(struct string*));
-	}
-
-	t->strings[t->size++] = make_string(s, strlen(s));
-	return t->size - 1;
-}
-
-static int asm_add_message(struct asm_state *state, const char *s)
-{
-	char *u = encode_text(s);
-	int i = string_table_add(&state->messages, u);
-	free(u);
-	return i;
-}
-
-static int asm_add_string(struct asm_state *state, const char *s)
-{
-	int ret;
-	char *u = encode_text(s);
-	khiter_t k = kh_put(string_ht, state->strings_index, u, &ret);
-	if (!ret) {
-		// nothing
-	} else if (ret == 1) {
-		kh_value(state->strings_index, k) = string_table_add(&state->strings, u);
-	} else {
-		ERROR("Hash table lookup failed (%d)", ret);
-	}
-	return kh_value(state->strings_index, k);
-}
-
 static void init_asm_state(struct asm_state *state, struct ain *ain, uint32_t flags)
 {
 	memset(state, 0, sizeof(*state));
@@ -165,14 +127,22 @@ static void init_asm_state(struct asm_state *state, struct ain *ain, uint32_t fl
 	state->flags = flags;
 	state->func = -1;
 	state->lib = -1;
-	state->strings_index = kh_init(string_ht);
-	state->messages_index = kh_init(string_ht);
+	state->str_ht = ht_create(4096);
+
+	for (intptr_t i = 0; i < ain->nr_strings; i++) {
+		struct ht_slot *p = ht_put(state->str_ht, ain->strings[i]->text);
+		if (p->value) {
+			char *u = encode_text_for_print(ain->strings[i]->text);
+			WARNING("Duplicate string in ain file: \"%s\"", u);
+			free(u);
+		}
+		p->value = (void*)(i+1);
+	}
 }
 
 static void fini_asm_state(struct asm_state *state)
 {
-	kh_destroy(string_ht, state->strings_index);
-	kh_destroy(string_ht, state->messages_index);
+	ht_free(state->str_ht);
 }
 
 static void asm_write_opcode(struct asm_state *state, uint16_t opcode)
@@ -281,6 +251,23 @@ static void realloc_message_table(struct ain *ain, int i)
 	ain->nr_messages = i+1;
 }
 
+static int asm_add_string(struct asm_state *state, const char *str)
+{
+	char *sjis = encode_text(str);
+	struct ht_slot *p = ht_put(state->str_ht, sjis);
+	if (p->value) {
+		free(sjis);
+		return (intptr_t)p->value - 1;
+	}
+
+	int i = state->ain->nr_strings;
+	realloc_string_table(state->ain, i);
+	state->ain->strings[i] = make_string(sjis, strlen(sjis));
+	p->key = state->ain->strings[i]->text;
+	free(sjis);
+	return i;
+}
+
 static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enum instruction_argtype type, const char *arg)
 {
 	if (state->flags & ASM_RAW)
@@ -326,24 +313,14 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enu
 		return f - ain->functions;
 	}
 	case T_STRING: {
-		if (state->flags & ASM_NO_STRINGS) {
-			int32_t i = parse_integer_constant(state, arg);
-			if (i < 0)
-				ASM_ERROR(state, "String index out of bounds: '%s'", arg);
-			realloc_string_table(ain, i);
-			return i;
-		}
 		return asm_add_string(state, arg);
 	}
 	case T_MSG: {
-		if (state->flags & ASM_NO_STRINGS) {
-			int32_t i = parse_integer_constant(state, arg);
-			if (i < 0)
-				ASM_ERROR(state, "Message index out of bounds: '%s'", arg);
-			realloc_message_table(ain, i);
-			return i;
-		}
-		return asm_add_message(state, arg);
+		int32_t i = parse_integer_constant(state, arg);
+		if (i < 0)
+			ASM_ERROR(state, "Message index out of bounds: '%s'", arg);
+		realloc_message_table(ain, i);
+		return i;
 	}
 	case T_LOCAL: {
 		int n, count = 0;
@@ -514,11 +491,18 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		decompose_switch_index(state, kv_A(*instr->args, 0)->text, &n_switch, &n_case);
 
 		struct ain_switch *swi = &state->ain->switches[n_switch];
-		if (swi->case_type == AIN_SWITCH_STRING && !(state->flags & ASM_NO_STRINGS)) {
-			c = asm_add_string(state, kv_A(*instr->args, 1)->text);
-		} else {
-			c = parse_integer_constant(state, kv_A(*instr->args, 1)->text);
-		}
+		c = parse_integer_constant(state, kv_A(*instr->args, 1)->text);
+		realloc_switch_cases(swi, n_case);
+		swi->cases[n_case].address = state->buf_ptr;
+		swi->cases[n_case].value = c;
+		break;
+	}
+	case PO_STRCASE: {
+		int n_switch, n_case, c;
+		decompose_switch_index(state, kv_A(*instr->args, 0)->text, &n_switch, &n_case);
+
+		struct ain_switch *swi = &state->ain->switches[n_switch];
+		c = asm_add_string(state, kv_A(*instr->args, 1)->text);
 		realloc_switch_cases(swi, n_case);
 		swi->cases[n_case].address = state->buf_ptr;
 		swi->cases[n_case].value = c;
@@ -712,7 +696,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
 		asm_write_opcode(state, REF);
 		asm_write_opcode(state, S_PUSH);
-		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
+		asm_write_argument(state, asm_resolve_arg(state, S_PUSH, T_STRING, kv_A(*instr->args, 1)->text));
 		asm_write_opcode(state, S_ASSIGN);
 		asm_write_opcode(state, DELETE);
 		break;
@@ -967,16 +951,6 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 	free(ain->code);
 	ain->code = state.buf;
 	ain->code_size = state.buf_ptr;
-
-	if (!(state.flags & ASM_NO_STRINGS)) {
-		ain_free_strings(ain);
-		ain->strings = state.strings.strings;
-		ain->nr_strings = state.strings.size;
-
-		ain_free_messages(ain);
-		ain->messages = state.messages.strings;
-		ain->nr_messages = state.messages.size;
-	}
 
 	validate_ain(ain);
 
