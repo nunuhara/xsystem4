@@ -56,41 +56,40 @@ KHASH_MAP_INIT_STR(string_ht, size_t);
 	}
 
 const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
-	PSEUDO_OP(PO_CASE,       ".CASE",           2),
-	PSEUDO_OP(PO_STRCASE,    ".STRCASE",        2),
-	PSEUDO_OP(PO_DEFAULT,    ".DEFAULT",        1),
-	PSEUDO_OP(PO_SETSTR,     ".SETSTR",         2),
-	PSEUDO_OP(PO_SETMSG,     ".SETMSG",         2),
-	MACRO(PO_S_PUSH,         ".S_PUSH",         1, 6),
-	MACRO(PO_MSG,            ".MSG",            1, 6),
-	MACRO(PO_LOCALREF,       ".LOCALREF",       1, 10),
-	MACRO(PO_LOCALREFREF,    ".LOCALREFREF",    1, 10),
-	MACRO(PO_LOCALINC,       ".LOCALINC",       1, 10),
-	MACRO(PO_LOCALINC2,      ".LOCALINC2",      1, 20),
-	MACRO(PO_LOCALDEC,       ".LOCALDEC",       1, 10),
-	MACRO(PO_LOCALDEC2,      ".LOCALDEC2",      1, 20),
-	MACRO(PO_LOCALPLUSA,     ".LOCALPLUSA",     2, 18),
-	MACRO(PO_LOCALMINUSA,    ".LOCALMINUSA",    2, 18),
-	MACRO(PO_LOCALASSIGN,    ".LOCALASSIGN",    2, 18),
-	MACRO(PO_LOCALASSIGN2,   ".LOCALASSIGN2",   1, 14),
-	MACRO(PO_F_LOCALASSIGN,  ".F_LOCALASSIGN",  2, 18),
-	MACRO(PO_S_LOCALASSIGN,  ".S_LOCALASSIGN",  1, 26),
-	MACRO(PO_STRING_LOCALASSIGN, ".STRING_LOCALASSIGN", 2, 20),
-	MACRO(PO_LOCALDELETE,    ".LOCALDELETE",    1, 24),
-	MACRO(PO_LOCALCREATE,    ".LOCALCREATE",    2, 34),
-	MACRO(PO_GLOBALREF,      ".GLOBALREF",      1, 10),
-	MACRO(PO_GLOBALREFREF,   ".GLOBALREFREF",   1, 10),
-	MACRO(PO_GLOBALINC,      ".GLOBALINC",      1, 10),
-	MACRO(PO_GLOBALDEC,      ".GLOBALDEC",      1, 10),
-	MACRO(PO_GLOBALASSIGN,   ".GLOBALASSIGN",   2, 18),
-	MACRO(PO_F_GLOBALASSIGN, ".F_GLOBALASSIGN", 2, 18),
-	MACRO(PO_STRUCTREF,      ".STRUCTREF",      2, 10),
-	MACRO(PO_STRUCTREFREF,   ".STRUCTREFREF",   2, 10),
-	MACRO(PO_STRUCTINC,      ".STRUCTINC",      2, 10),
-	MACRO(PO_STRUCTDEC,      ".STRUCTDEC",      2, 10),
-	MACRO(PO_STRUCTASSIGN,   ".STRUCTASSIGN",   3, 18),
-	MACRO(PO_F_STRUCTASSIGN, ".F_STRUCTASSIGN", 3, 18),
-	MACRO(PO_PUSHVMETHOD,    ".PUSHVMETHOD",    2, 30),
+	PSEUDO_OP(PO_CASE,          ".CASE",              2),
+	PSEUDO_OP(PO_STRCASE,       ".STRCASE",           2),
+	PSEUDO_OP(PO_DEFAULT,       ".DEFAULT",           1),
+	PSEUDO_OP(PO_SETSTR,        ".SETSTR",            2),
+	PSEUDO_OP(PO_SETMSG,        ".SETMSG",            2),
+	MACRO(PO_MSG,               ".MSG",               1, 6),
+	MACRO(PO_LOCALREF,          ".LOCALREF",          1, 10),
+	MACRO(PO_LOCALREFREF,       ".LOCALREFREF",       1, 10),
+	MACRO(PO_LOCALINC,          ".LOCALINC",          1, 10),
+	MACRO(PO_LOCALINC2,         ".LOCALINC2",         1, 20),
+	MACRO(PO_LOCALDEC,          ".LOCALDEC",          1, 10),
+	MACRO(PO_LOCALDEC2,         ".LOCALDEC2",         1, 20),
+	MACRO(PO_LOCALPLUSA,        ".LOCALPLUSA",        2, 18),
+	MACRO(PO_LOCALMINUSA,       ".LOCALMINUSA",       2, 18),
+	MACRO(PO_LOCALASSIGN,       ".LOCALASSIGN",       2, 18),
+	MACRO(PO_LOCALASSIGN2,      ".LOCALASSIGN2",      1, 14),
+	MACRO(PO_F_LOCALASSIGN,     ".F_LOCALASSIGN",     2, 18),
+	MACRO(PO_STACK_LOCALASSIGN, ".STACK_LOCALASSIGN", 1, 26),
+	MACRO(PO_S_LOCALASSIGN,     ".S_LOCALASSIGN",     2, 20),
+	MACRO(PO_LOCALDELETE,       ".LOCALDELETE",       1, 24),
+	MACRO(PO_LOCALCREATE,       ".LOCALCREATE",       2, 34),
+	MACRO(PO_GLOBALREF,         ".GLOBALREF",         1, 10),
+	MACRO(PO_GLOBALREFREF,      ".GLOBALREFREF",      1, 10),
+	MACRO(PO_GLOBALINC,         ".GLOBALINC",         1, 10),
+	MACRO(PO_GLOBALDEC,         ".GLOBALDEC",         1, 10),
+	MACRO(PO_GLOBALASSIGN,      ".GLOBALASSIGN",      2, 18),
+	MACRO(PO_F_GLOBALASSIGN,    ".F_GLOBALASSIGN",    2, 18),
+	MACRO(PO_STRUCTREF,         ".STRUCTREF",         2, 10),
+	MACRO(PO_STRUCTREFREF,      ".STRUCTREFREF",      2, 10),
+	MACRO(PO_STRUCTINC,         ".STRUCTINC",         2, 10),
+	MACRO(PO_STRUCTDEC,         ".STRUCTDEC",         2, 10),
+	MACRO(PO_STRUCTASSIGN,      ".STRUCTASSIGN",      3, 18),
+	MACRO(PO_F_STRUCTASSIGN,    ".F_STRUCTASSIGN",    3, 18),
+	MACRO(PO_PUSHVMETHOD,       ".PUSHVMETHOD",       2, 30),
 };
 
 struct string_table {
@@ -539,17 +538,6 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		free(sjis);
 		break;
 	}
-	case PO_S_PUSH: {
-		int n_str = state->ain->nr_strings;
-		realloc_string_table(state->ain, n_str);
-		char *sjis = encode_text(kv_A(*instr->args, 0)->text);
-		state->ain->strings[n_str] = make_string(sjis, strlen(sjis));
-		free(sjis);
-
-		asm_write_opcode(state, S_PUSH);
-		asm_write_argument(state, n_str);
-		break;
-	}
 	case PO_MSG: {
 		int n_msg = state->ain->nr_messages;
 		realloc_message_table(state->ain, n_msg);
@@ -676,7 +664,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, POP);
 		break;
 	}
-	case PO_S_LOCALASSIGN: {
+	case PO_STACK_LOCALASSIGN: {
 		asm_write_opcode(state, PUSHLOCALPAGE);
 		asm_write_opcode(state, PUSH);
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
@@ -690,7 +678,7 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, ASSIGN);
 		break;
 	}
-	case PO_STRING_LOCALASSIGN: {
+	case PO_S_LOCALASSIGN: {
 		asm_write_opcode(state, PUSHLOCALPAGE);
 		asm_write_opcode(state, PUSH);
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
