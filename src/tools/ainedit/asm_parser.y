@@ -1,3 +1,5 @@
+%define api.prefix {asm_}
+
 %union {
     int token;
     struct string *string;
@@ -36,13 +38,13 @@
 #include "system4/instructions.h"
 #include "system4/string.h"
 
-extern int yylex();
+extern int asm_lex();
 extern unsigned long asm_line;
 
 #define PARSE_ERROR(fmt, ...)						\
     sys_error("ERROR: At line %d: " fmt "\n", asm_line-1, ##__VA_ARGS__)
 
-void yyerror(const char *s)
+void asm_error(const char *s)
 {
     sys_error("ERROR: At line %d: %s\n", asm_line, s);
 }

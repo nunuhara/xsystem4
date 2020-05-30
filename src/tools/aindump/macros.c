@@ -20,6 +20,8 @@
 #include <string.h>
 #include "system4/ain.h"
 #include "system4/instructions.h"
+#include "system4/string.h"
+#include "system4/utfsjis.h"
 #include "aindump.h"
 #include "dasm.h"
 
@@ -67,10 +69,15 @@ static bool local_check(struct dasm_state *dasm, int32_t *args)
 #define LOCALREF_check      local_check
 #define LOCALREFREF_check   local_check
 #define LOCALINC_check      local_check
+#define LOCALINC2_check     local_check
 #define LOCALDEC_check      local_check
+#define LOCALDEC2_check     local_check
+#define LOCALPLUSA_check    local_check
+#define LOCALMINUSA_check   local_check
 #define LOCALASSIGN_check   local_check
 #define LOCALASSIGN2_check  local_check
 #define F_LOCALASSIGN_check local_check
+#define STRING_LOCALASSIGN_check local_check
 
 static bool S_LOCALASSIGN_check(struct dasm_state *dasm, int32_t *args)
 {
@@ -94,22 +101,40 @@ static void local_emit(struct dasm_state *dasm, int32_t *args)
 #define LOCALREF_emit      local_emit
 #define LOCALREFREF_emit   local_emit
 #define LOCALINC_emit      local_emit
+#define LOCALINC2_emit     local_emit
 #define LOCALDEC_emit      local_emit
+#define LOCALDEC2_emit     local_emit
 #define LOCALDELETE_emit   local_emit
 #define LOCALASSIGN2_emit  local_emit
 #define S_LOCALASSIGN_emit local_emit
 
-static void LOCALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
+static void localassign_emit(struct dasm_state *dasm, int32_t *args)
 {
 	print_local(dasm, args[0]);
 	fprintf(dasm->out, " %d", args[1]);
 }
+#define LOCALASSIGN_emit localassign_emit
+#define LOCALPLUSA_emit  localassign_emit
+#define LOCALMINUSA_emit localassign_emit
 
 static void F_LOCALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
 {
 	union { int32_t i; float f; } v = { .i = args[1] };
 	print_local(dasm, args[0]);
 	fprintf(dasm->out, " %f", v.f);
+}
+
+static void STRING_LOCALASSIGN_emit(struct dasm_state *dasm, int32_t *args)
+{
+	print_local(dasm, args[0]);
+	fprintf(dasm->out, " 0x%x ; ", args[1]);
+	dasm_print_string(dasm, dasm->ain->strings[args[1]]->text);
+	/*
+	char *u = sjis2utf(dasm->ain->strings[args[1]]->text, 0);
+	print_local(dasm, args[0]);
+	fprintf(dasm->out, " 0x%x ; \"%s\"", args[1], u);
+	free(u);
+	*/
 }
 
 static void LOCALCREATE_emit(struct dasm_state *dasm, int32_t *args)
@@ -224,11 +249,16 @@ struct macrodef macrodefs[] = {
 	DEFMACRO(LOCALREF,       PUSHLOCALPAGE,  PUSH, REF),
 	DEFMACRO(LOCALREFREF,    PUSHLOCALPAGE,  PUSH, REFREF),
 	DEFMACRO(LOCALINC,       PUSHLOCALPAGE,  PUSH, INC),
+	DEFMACRO(LOCALINC2,      PUSHLOCALPAGE,  PUSH, DUP2, REF, DUP_X2, POP, INC, POP),
 	DEFMACRO(LOCALDEC,       PUSHLOCALPAGE,  PUSH, DEC),
+	DEFMACRO(LOCALDEC2,      PUSHLOCALPAGE,  PUSH, DUP2, REF, DUP_X2, POP, DEC, POP),
+	DEFMACRO(LOCALPLUSA,     PUSHLOCALPAGE,  PUSH, PUSH, PLUSA, POP),
+	DEFMACRO(LOCALMINUSA,    PUSHLOCALPAGE,  PUSH, PUSH, MINUSA, POP),
 	DEFMACRO(LOCALASSIGN,    PUSHLOCALPAGE,  PUSH, PUSH, ASSIGN, POP),
 	DEFMACRO(LOCALASSIGN2,   PUSHLOCALPAGE,  SWAP, PUSH, SWAP, ASSIGN),
 	DEFMACRO(F_LOCALASSIGN,  PUSHLOCALPAGE,  PUSH, F_PUSH, F_ASSIGN, POP),
 	DEFMACRO(S_LOCALASSIGN,  PUSHLOCALPAGE,  PUSH, REF, DELETE, PUSHLOCALPAGE, SWAP, PUSH, SWAP, ASSIGN),
+	DEFMACRO(STRING_LOCALASSIGN, PUSHLOCALPAGE, PUSH, REF, S_PUSH, S_ASSIGN, DELETE),
 	DEFMACRO(LOCALCREATE,    PUSHLOCALPAGE,  PUSH, DUP2, REF, DELETE, DUP2, NEW, ASSIGN, POP, POP, POP),
 	DEFMACRO(LOCALDELETE,    PUSHLOCALPAGE,  PUSH, DUP2, REF, DELETE, PUSH, ASSIGN, POP),
 	DEFMACRO(GLOBALREF,      PUSHGLOBALPAGE, PUSH, REF),

@@ -23,17 +23,18 @@
 #include "system4.h"
 #include "system4/string.h"
 
-#define SAVE_TOKEN yylval.string = makes_string(yytext, yyleng)
+#define SAVE_TOKEN asm_lval.string = makes_string(asm_text, asm_leng)
 
 char string_buf[65536];
 char *string_buf_ptr;
 
 unsigned long asm_line = 1;
-extern void yyerror(const char *s);
+extern void asm_error(const char *s);
 
 %}
 
 %option noyywrap
+%option prefix="asm_"
 
 %x str
 
@@ -44,8 +45,8 @@ id_char  [^ \t\r\n:;\"]
 [ \t]                     ;
 ;[^\n]*\n                 asm_line++; return NEWLINE;
 \n                        asm_line++; return NEWLINE;
-[a-zA-Z0-9_-]+:           yylval.string = make_string(yytext, yyleng-1); return LABEL;
-({id_char}|:)*{id_char}+  yylval.string = make_string(yytext, yyleng);   return IDENTIFIER;
+[a-zA-Z0-9_-]+:           asm_lval.string = make_string(asm_text, asm_leng-1); return LABEL;
+({id_char}|:)*{id_char}+  asm_lval.string = make_string(asm_text, asm_leng);   return IDENTIFIER;
 
 
 \"      string_buf_ptr = string_buf; BEGIN(str);
@@ -54,11 +55,11 @@ id_char  [^ \t\r\n:;\"]
     \" {
         BEGIN(INITIAL);
         *string_buf_ptr = '\0';
-        yylval.string = make_string(string_buf, strlen(string_buf));
+        asm_lval.string = make_string(string_buf, strlen(string_buf));
         return IDENTIFIER;
     }
 
-    \n yyerror("Unterminated string literal");
+    \n asm_error("Unterminated string literal");
 
     \\n  *string_buf_ptr++ = '\n';
     \\t  *string_buf_ptr++ = '\t';
@@ -66,10 +67,10 @@ id_char  [^ \t\r\n:;\"]
     \\b  *string_buf_ptr++ = '\b';
     \\f  *string_buf_ptr++ = '\f';
 
-    \\(.|\n)  *string_buf_ptr++ = yytext[1];
+    \\(.|\n)  *string_buf_ptr++ = asm_text[1];
 
     [^\\\n\"]+ {
-        char *yptr = yytext;
+        char *yptr = asm_text;
         while (*yptr)
             *string_buf_ptr++ = *yptr++;
     }

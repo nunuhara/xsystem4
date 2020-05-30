@@ -27,7 +27,7 @@
 #include "system4/string.h"
 #include "asm_parser.tab.h"
 
-extern FILE *yyin;
+extern FILE *asm_in;
 
 KHASH_MAP_INIT_STR(string_ht, size_t);
 
@@ -64,11 +64,16 @@ const struct instruction asm_pseudo_ops[NR_PSEUDO_OPS - PSEUDO_OP_OFFSET] = {
 	MACRO(PO_LOCALREF,       ".LOCALREF",       1, 10),
 	MACRO(PO_LOCALREFREF,    ".LOCALREFREF",    1, 10),
 	MACRO(PO_LOCALINC,       ".LOCALINC",       1, 10),
+	MACRO(PO_LOCALINC2,      ".LOCALINC2",      1, 20),
 	MACRO(PO_LOCALDEC,       ".LOCALDEC",       1, 10),
+	MACRO(PO_LOCALDEC2,      ".LOCALDEC2",      1, 20),
+	MACRO(PO_LOCALPLUSA,     ".LOCALPLUSA",     2, 18),
+	MACRO(PO_LOCALMINUSA,    ".LOCALMINUSA",    2, 18),
 	MACRO(PO_LOCALASSIGN,    ".LOCALASSIGN",    2, 18),
 	MACRO(PO_LOCALASSIGN2,   ".LOCALASSIGN2",   1, 14),
 	MACRO(PO_F_LOCALASSIGN,  ".F_LOCALASSIGN",  2, 18),
 	MACRO(PO_S_LOCALASSIGN,  ".S_LOCALASSIGN",  1, 26),
+	MACRO(PO_STRING_LOCALASSIGN, ".STRING_LOCALASSIGN", 2, 20),
 	MACRO(PO_LOCALDELETE,    ".LOCALDELETE",    1, 24),
 	MACRO(PO_LOCALCREATE,    ".LOCALCREATE",    2, 34),
 	MACRO(PO_GLOBALREF,      ".GLOBALREF",      1, 10),
@@ -607,11 +612,55 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_opcode(state, INC);
 		break;
 	}
+	case PO_LOCALINC2: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, DUP2);
+		asm_write_opcode(state, REF);
+		asm_write_opcode(state, DUP_X2);
+		asm_write_opcode(state, POP);
+		asm_write_opcode(state, INC);
+		asm_write_opcode(state, POP);
+		break;
+	}
 	case PO_LOCALDEC: {
 		asm_write_opcode(state, PUSHLOCALPAGE);
 		asm_write_opcode(state, PUSH);
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
 		asm_write_opcode(state, DEC);
+		break;
+	}
+	case PO_LOCALDEC2: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, DUP2);
+		asm_write_opcode(state, REF);
+		asm_write_opcode(state, DUP_X2);
+		asm_write_opcode(state, POP);
+		asm_write_opcode(state, DEC);
+		asm_write_opcode(state, POP);
+		break;
+	}
+	case PO_LOCALPLUSA: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, PLUSA);
+		asm_write_opcode(state, POP);
+		break;
+	}
+	case PO_LOCALMINUSA: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, MINUSA);
+		asm_write_opcode(state, POP);
 		break;
 	}
 	case PO_LOCALASSIGN: {
@@ -655,6 +704,17 @@ void handle_pseudo_op(struct asm_state *state, struct parse_instruction *instr)
 		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
 		asm_write_opcode(state, SWAP);
 		asm_write_opcode(state, ASSIGN);
+		break;
+	}
+	case PO_STRING_LOCALASSIGN: {
+		asm_write_opcode(state, PUSHLOCALPAGE);
+		asm_write_opcode(state, PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_LOCAL, kv_A(*instr->args, 0)->text));
+		asm_write_opcode(state, REF);
+		asm_write_opcode(state, S_PUSH);
+		asm_write_argument(state, asm_resolve_arg(state, PUSH, T_INT, kv_A(*instr->args, 1)->text));
+		asm_write_opcode(state, S_ASSIGN);
+		asm_write_opcode(state, DELETE);
 		break;
 	}
 	case PO_LOCALDELETE: {
@@ -852,15 +912,15 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 
 	if (filename) {
 		if (!strcmp(filename, "-"))
-			yyin = stdin;
+			asm_in = stdin;
 		else
-			yyin = fopen(filename, "r");
-		if (!yyin)
+			asm_in = fopen(filename, "r");
+		if (!asm_in)
 			ERROR("Opening input file '%s': %s", filename, strerror(errno));
 	}
 	label_table = kh_init(label_table);
 	NOTICE("Parsing...");
-	yyparse();
+	asm_parse();
 
 	NOTICE("Encoding...");
 	for (size_t i = 0; i < kv_size(*parsed_code); i++) {

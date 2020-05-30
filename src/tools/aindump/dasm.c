@@ -219,7 +219,7 @@ char *escape_string(const char *str)
 	return _escape_string(str, escape_chars, replace_chars);
 }
 
-static void print_string(struct dasm_state *dasm, const char *str)
+void dasm_print_string(struct dasm_state *dasm, const char *str)
 {
 	char *u = escape_string(str);
 	fprintf(dasm->out, "\"%s\"", u);
@@ -230,7 +230,7 @@ void dasm_print_identifier(struct dasm_state *dasm, const char *str)
 {
 	char *u = encode_text_utf8(str);
 	if (strchr(u, ' '))
-		print_string(dasm, str);
+		dasm_print_string(dasm, str);
 	else
 		print_sjis(dasm, str);
 	free(u);
@@ -335,7 +335,7 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 			fprintf(dasm->out, "0x%x ", arg);
 			*comment = ain->strings[arg]->text;
 		} else {
-			print_string(dasm, ain->strings[arg]->text);
+			dasm_print_string(dasm, ain->strings[arg]->text);
 		}
 		break;
 	case T_MSG:
@@ -345,14 +345,14 @@ static void print_argument(struct dasm_state *dasm, int32_t arg, enum instructio
 			fprintf(dasm->out, "0x%x ", arg);
 			*comment = ain->messages[arg]->text;
 		} else {
-			print_string(dasm, ain->messages[arg]->text);
+			dasm_print_string(dasm, ain->messages[arg]->text);
 		}
 		break;
 	case T_LOCAL:
 		if (dasm->func < 0) {
 			DASM_ERROR(dasm, "Attempt to access local variable outside of function");
 			//WARNING("Attempt to access local variable outside of function");
-			//print_string(dasm, "???");
+			//dasm_print_string(dasm, "???");
 			break;
 		}
 		if (arg < 0 || arg >= ain->functions[dasm->func].nr_vars)
@@ -423,7 +423,7 @@ static void print_arguments(struct dasm_state *dasm, const struct instruction *i
 	}
 	if (comment) {
 		fprintf(dasm->out, "; ");
-		print_string(dasm, comment);
+		dasm_print_string(dasm, comment);
 	}
 }
 
@@ -489,9 +489,9 @@ static void print_switch_case(struct dasm_state *dasm, struct ain_switch_case *c
 	case AIN_SWITCH_STRING:
 		if (dasm->flags & DASM_NO_STRINGS) {
 			fprintf(dasm->out, "%d ; ", c->value);
-			print_string(dasm, dasm->ain->strings[c->value]->text);
+			dasm_print_string(dasm, dasm->ain->strings[c->value]->text);
 		} else {
-			print_string(dasm, dasm->ain->strings[c->value]->text);
+			dasm_print_string(dasm, dasm->ain->strings[c->value]->text);
 		}
 		break;
 	default:

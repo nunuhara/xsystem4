@@ -28,5 +28,6 @@ bool dasm_is_jump_target(struct dasm_state *dasm);
 bool dasm_print_macro(struct dasm_state *dasm);
 void dasm_print_identifier(struct dasm_state *dasm, const char *str);
 void dasm_print_local_variable(struct dasm_state *dasm, struct ain_function *func, int varno);
+void dasm_print_string(struct dasm_state *dasm, const char *str);
 
 #endif /* AINDUMP_DASM_H */
