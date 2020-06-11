@@ -61,15 +61,20 @@ static void init_func_ht(struct ain *ain)
 	}
 }
 
+static void struct_ht_add(struct ain *ain, struct ain_struct *s)
+{
+	struct ht_slot *kv = ht_put(ain->_struct_ht, s->name);
+	if (kv->value) {
+		ERROR("Duplicate structure names: '%s'", s->name);
+	}
+	kv->value = s;
+}
+
 static void init_struct_ht(struct ain *ain)
 {
 	ain->_struct_ht = ht_create(1024);
 	for (int i = 0; i < ain->nr_structures; i++) {
-		struct ht_slot *kv = ht_put(ain->_struct_ht, ain->structures[i].name);
-		if (kv->value) {
-			ERROR("Duplicate structure names: '%s'", ain->structures[i].name);
-		}
-		kv->value = &ain->structures[i];
+		struct_ht_add(ain, &ain->structures[i]);
 	}
 }
 
@@ -181,6 +186,41 @@ err:
 struct ain_struct *ain_get_struct(struct ain *ain, char *name)
 {
 	return ht_get(ain->_struct_ht, name);
+}
+
+int ain_get_struct_no(struct ain *ain, char *name)
+{
+	struct ain_struct *s = ain_get_struct(ain, name);
+	return s ? s - ain->structures : -1;
+}
+
+int ain_add_struct(struct ain *ain, char *name)
+{
+	ain->structures = xrealloc_array(ain->structures, ain->nr_structures, ain->nr_structures+1, sizeof(struct ain_struct));
+	ain->structures[ain->nr_structures].name = strdup(name);
+	ain->structures[ain->nr_structures].constructor = -1;
+	ain->structures[ain->nr_structures].destructor = -1;
+	struct_ht_add(ain, &ain->structures[ain->nr_structures]);
+	ain->nr_structures++;
+	return ain->nr_structures - 1;
+}
+
+struct ain_variable *ain_add_global(struct ain *ain, char *name)
+{
+	int no = ain->nr_globals;
+	ain->globals = xrealloc_array(ain->globals, ain->nr_globals, ain->nr_globals+1, sizeof(struct ain_variable));
+	ain->globals[no].name = strdup(name);
+	if (ain->version >= 12)
+		ain->globals[no].name2 = strdup("");
+	ain->nr_globals++;
+	return &ain->globals[no];
+}
+
+void ain_add_initval(struct ain *ain, struct ain_initval *init)
+{
+	ain->global_initvals = xrealloc_array(ain->global_initvals, ain->nr_initvals, ain->nr_initvals+1,
+					      sizeof(struct ain_initval));
+	ain->global_initvals[ain->nr_initvals++] = *init;
 }
 
 static const char *errtab[AIN_MAX_ERROR] = {

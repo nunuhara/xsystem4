@@ -168,6 +168,7 @@ struct ain_initval {
 	union {
 		char *string_value;
 		int32_t int_value;
+		float float_value;
 	};
 };
 
@@ -321,6 +322,10 @@ void ain_decrypt(uint8_t *buf, size_t len);
 struct ain_function *ain_get_function(struct ain *ain, char *name);
 int ain_get_function_index(struct ain *ain, struct ain_function *f);
 struct ain_struct *ain_get_struct(struct ain *ain, char *name);
+int ain_get_struct_no(struct ain *ain, char *name);
+int ain_add_struct(struct ain *ain, char *name);
+struct ain_variable *ain_add_global(struct ain *ain, char *name);
+void ain_add_initval(struct ain *ain, struct ain_initval *init);
 
 void ain_free(struct ain *ain);
 void ain_free_functions(struct ain *ain);

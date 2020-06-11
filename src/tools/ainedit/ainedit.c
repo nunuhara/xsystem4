@@ -24,6 +24,7 @@
 #include "ainedit.h"
 #include "system4.h"
 #include "system4/ain.h"
+#include "jaf.h"
 
 static void usage(void)
 {
@@ -32,6 +33,7 @@ static void usage(void)
 	puts("");
 	puts("    -h, --help                     Display this message and exit");
 	puts("    -c, --code <jam-file>          Update the CODE section (assemble .jam file)");
+	puts("        --jaf <jaf-file>           Update AIN file from JAF source code");
 	puts("    -j, --json <json-file>         Update AIN file from JSON data");
 	puts("    -t, --text <text-file>         Update strings/messages");
 	puts("        --transcode <enc>          Change the AIN file's text encoding");
@@ -48,6 +50,7 @@ extern int text_parse(void);
 enum {
 	LOPT_HELP = 256,
 	LOPT_CODE,
+	LOPT_JAF,
 	LOPT_JSON,
 	LOPT_TEXT,
 	LOPT_TRANSCODE,
@@ -86,6 +89,7 @@ int main(int argc, char *argv[])
 	struct ain *ain;
 	int err = AIN_SUCCESS;
 	const char *code_file = NULL;
+	const char *jaf_file = NULL;
 	const char *decl_file = NULL;
 	const char *text_file = NULL;
 	const char *output_file = NULL;
@@ -98,6 +102,7 @@ int main(int argc, char *argv[])
 		static struct option long_options[] = {
 			{ "help",            no_argument,       0, LOPT_HELP },
 			{ "code",            required_argument, 0, LOPT_CODE },
+			{ "jaf",             required_argument, 0, LOPT_JAF },
 			{ "json",            required_argument, 0, LOPT_JSON },
 			{ "text",            required_argument, 0, LOPT_TEXT },
 			{ "transcode",       required_argument, 0, LOPT_TRANSCODE },
@@ -122,6 +127,9 @@ int main(int argc, char *argv[])
 		case 'c':
 		case LOPT_CODE:
 			code_file = optarg;
+			break;
+		case LOPT_JAF:
+			jaf_file = optarg;
 			break;
 		case 'j':
 		case LOPT_JSON:
@@ -190,6 +198,10 @@ int main(int argc, char *argv[])
 
 	if (decl_file) {
 		read_declarations(decl_file, ain);
+	}
+
+	if (jaf_file) {
+		jaf_compile(ain, jaf_file);
 	}
 
 	if (code_file) {
