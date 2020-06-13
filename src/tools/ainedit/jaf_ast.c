@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 #include "system4.h"
 #include "system4/string.h"
 #include "jaf.h"
@@ -104,7 +105,7 @@ struct jaf_type_specifier *jaf_type(enum jaf_type type)
 	return p;
 }
 
-struct jaf_type_specifier *jaf_struct(struct string *name, struct jaf_declaration_list *fields)
+struct jaf_type_specifier *jaf_struct(struct string *name, struct jaf_block *fields)
 {
 	struct jaf_type_specifier *p = jaf_type(JAF_STRUCT);
 	p->name = name;
@@ -137,55 +138,211 @@ struct jaf_declarator_list *jaf_declarators(struct jaf_declarator_list *head, st
 	return head;
 }
 
-struct jaf_declaration_list *jaf_declaration(struct jaf_type_specifier *type, struct jaf_declarator_list *declarators)
+static void init_declaration(struct jaf_type_specifier *type, struct jaf_block_item *dst, struct jaf_declarator *src)
 {
-	struct jaf_declaration_list *decls = xcalloc(1, sizeof(struct jaf_declaration_list));
-	decls->nr_decls = declarators->nr_decls;
-	decls->decls = xcalloc(declarators->nr_decls, sizeof(struct jaf_declaration*));
-	for (size_t i = 0; i < declarators->nr_decls; i++) {
-		struct jaf_declaration *decl = xcalloc(1, sizeof(struct jaf_declaration));
-		decl->function = false;
-		decl->name = declarators->decls[i]->name;
-		decl->type = type;
-		decl->init = declarators->decls[i]->init;
-		decls->decls[i] = decl;
+	dst->kind = JAF_DECLARATION;
+	dst->decl.name = src->name;
+	dst->decl.type = type;
+	dst->decl.init = src->init;
+	free(src);
+}
 
-		free(declarators->decls[i]);
+struct jaf_block *jaf_parameter(struct jaf_type_specifier *type, struct jaf_declarator *declarator)
+{
+	struct jaf_block *p = xmalloc(sizeof(struct jaf_block));
+	p->nr_items = 1;
+	p->items = xmalloc(sizeof(struct jaf_block_item*));
+	p->items[0] = xcalloc(1, sizeof(struct jaf_block_item));
+	init_declaration(type, p->items[0], declarator);
+	return p;
+}
+
+struct jaf_function_declarator *jaf_function_declarator(struct string *name, struct jaf_block *params)
+{
+	struct jaf_function_declarator *decl = xmalloc(sizeof(struct jaf_function_declarator));
+	decl->name = name;
+	decl->params = params;
+	return decl;
+}
+
+struct jaf_block *jaf_function(struct jaf_type_specifier *type, struct jaf_function_declarator *decl, struct jaf_block *body)
+{
+	struct jaf_block *p = xmalloc(sizeof(struct jaf_block));
+	p->nr_items = 1;
+	p->items = xmalloc(sizeof(struct jaf_block_item*));
+	p->items[0] = xcalloc(1, sizeof(struct jaf_block_item));
+	p->items[0]->kind = JAF_FUNCTION;
+	p->items[0]->decl.type = type;
+	p->items[0]->decl.name = decl->name;
+	p->items[0]->decl.params = decl->params;
+	p->items[0]->decl.body = body;
+	free(decl);
+	return p;
+}
+
+struct jaf_block *jaf_declaration(struct jaf_type_specifier *type, struct jaf_declarator_list *declarators)
+{
+	struct jaf_block *decls = xcalloc(1, sizeof(struct jaf_block));
+	decls->nr_items = declarators->nr_decls;
+	decls->items = xcalloc(declarators->nr_decls, sizeof(struct jaf_block_item*));
+	for (size_t i = 0; i < declarators->nr_decls; i++) {
+		decls->items[i] = xcalloc(1, sizeof(struct jaf_block_item));
+		init_declaration(type, decls->items[i], declarators->decls[i]);
 	}
+	free(declarators->decls);
 	free(declarators);
 	return decls;
 }
 
-struct jaf_declaration_list *jaf_type_declaration(struct jaf_type_specifier *type)
+struct jaf_block *jaf_type_declaration(struct jaf_type_specifier *type)
 {
-	struct jaf_declaration_list *decls = xcalloc(1, sizeof(struct jaf_declaration_list));
-	decls->nr_decls = 1;
-	decls->decls = xcalloc(1, sizeof(struct jaf_declaration*));
-	decls->decls[0] = xcalloc(1, sizeof(struct jaf_declaration));
-	decls->decls[0]->type = type;
+	struct jaf_block *decls = xcalloc(1, sizeof(struct jaf_block));
+	decls->nr_items = 1;
+	decls->items = xcalloc(1, sizeof(struct jaf_block_item*));
+	decls->items[0] = xcalloc(1, sizeof(struct jaf_block_item));
+	decls->items[0]->kind = JAF_DECLARATION;
+	decls->items[0]->decl.type = type;
 	return decls;
 }
 
-
-struct jaf_declaration_list *jaf_declarations(struct jaf_declaration_list *head, struct jaf_declaration_list *tail)
+struct jaf_block *jaf_merge_blocks(struct jaf_block *head, struct jaf_block *tail)
 {
 	if (!head)
 		return tail;
 
-	size_t nr_decls = head->nr_decls + tail->nr_decls;
-	head->decls = xrealloc_array(head->decls, head->nr_decls, nr_decls, sizeof(struct jaf_toplevel_decl*));
+	size_t nr_decls = head->nr_items + tail->nr_items;
+	head->items = xrealloc_array(head->items, head->nr_items, nr_decls, sizeof(struct jaf_toplevel_decl*));
 
-	for (size_t i = 0; i < tail->nr_decls; i++) {
-		head->decls[head->nr_decls+i] = tail->decls[i];
+	for (size_t i = 0; i < tail->nr_items; i++) {
+		head->items[head->nr_items+i] = tail->items[i];
 	}
-	head->nr_decls = nr_decls;
+	head->nr_items = nr_decls;
 
+	free(tail->items);
 	free(tail);
 	return head;
 }
 
+struct jaf_block *jaf_block(struct jaf_block_item *item)
+{
+	struct jaf_block *block = xcalloc(1, sizeof(struct jaf_block));
+	if (!item)
+		return block;
+	block->items = xmalloc(sizeof(struct jaf_block_item*));
+	block->items[0] = item;
+	block->nr_items = 1;
+	return block;
+}
+
+static struct jaf_block_item *block_item(enum block_item_kind kind)
+{
+	struct jaf_block_item *item = xcalloc(1, sizeof(struct jaf_block_item));
+	item->kind = kind;
+	return item;
+}
+
+struct jaf_block_item *jaf_compound_statement(struct jaf_block *block)
+{
+	struct jaf_block_item *item = block_item(JAF_STMT_COMPOUND);
+	item->block = block;
+	return item;
+}
+
+struct jaf_block_item *jaf_label_statement(struct string *label, struct jaf_block_item *stmt)
+{
+	struct jaf_block_item *item = block_item(JAF_STMT_LABELED);
+	item->label.name = label;
+	item->label.stmt = stmt;
+	return item;
+}
+
+struct jaf_block_item *jaf_case_statement(struct jaf_expression *expr, struct jaf_block_item *stmt)
+{
+	struct jaf_block_item *item = block_item(expr ? JAF_STMT_CASE : JAF_STMT_DEFAULT);
+	item->swi_case.expr = expr;
+	item->swi_case.stmt = stmt;
+	return item;
+}
+
+struct jaf_block_item *jaf_expression_statement(struct jaf_expression *expr)
+{
+	struct jaf_block_item *item = block_item(JAF_STMT_EXPRESSION);
+	item->expr = expr;
+	return item;
+}
+
+struct jaf_block_item *jaf_if_statement(struct jaf_expression *test, struct jaf_block_item *cons, struct jaf_block_item *alt)
+{
+	struct jaf_block_item *item = block_item(JAF_STMT_IF);
+	item->cond.test = test;
+	item->cond.consequent = cons;
+	item->cond.alternative = alt;
+	return item;
+}
+
+struct jaf_block_item *jaf_switch_statement(struct jaf_expression *expr, struct jaf_block *body)
+{
+	struct jaf_block_item *item = block_item(JAF_STMT_SWITCH);
+	item->swi.expr = expr;
+	item->swi.body = body;
+	return item;
+}
+
+struct jaf_block_item *jaf_while_loop(struct jaf_expression *test, struct jaf_block_item *body)
+{
+	struct jaf_block_item *item = block_item(JAF_STMT_WHILE);
+	item->while_loop.test = test;
+	item->while_loop.body = body;
+	return item;
+}
+
+struct jaf_block_item *jaf_do_while_loop(struct jaf_expression *test, struct jaf_block_item *body)
+{
+	struct jaf_block_item *item = block_item(JAF_STMT_DO_WHILE);
+	item->while_loop.test = test;
+	item->while_loop.body = body;
+	return item;
+}
+
+struct jaf_block_item *jaf_for_loop(struct jaf_block *init, struct jaf_block_item *test, struct jaf_expression *after, struct jaf_block_item *body)
+{
+	assert(test->kind == JAF_STMT_EXPRESSION);
+	struct jaf_block_item *item = block_item(JAF_STMT_FOR);
+	item->for_loop.init = init;
+	item->for_loop.test = test->expr;
+	item->for_loop.after = after;
+	item->for_loop.body = body;
+	return item;
+}
+
+struct jaf_block_item *jaf_goto(struct string *target)
+{
+	struct jaf_block_item *item = block_item(JAF_STMT_GOTO);
+	item->target = target;
+	return item;
+}
+
+struct jaf_block_item *jaf_continue(void)
+{
+	return block_item(JAF_STMT_CONTINUE);
+}
+
+struct jaf_block_item *jaf_break(void)
+{
+	return block_item(JAF_STMT_BREAK);
+}
+
+struct jaf_block_item *jaf_return(struct jaf_expression *expr)
+{
+	struct jaf_block_item *item = block_item(JAF_STMT_RETURN);
+	item->expr = expr;
+	return item;
+}
+
 void jaf_free_expr(struct jaf_expression *expr)
 {
+	if (!expr)
+		return;
 	if (expr->type == JAF_EXP_UNARY) {
 		jaf_free_expr(expr->expr);
 	} else if (expr->type == JAF_EXP_BINARY) {
@@ -197,4 +354,90 @@ void jaf_free_expr(struct jaf_expression *expr)
 		jaf_free_expr(expr->alternative);
 	}
 	free(expr);
+}
+
+void jaf_free_type_specifier(struct jaf_type_specifier *type)
+{
+	if (!type)
+		return;
+	if (type->name)
+		free_string(type->name);
+	jaf_free_block(type->def);
+	free(type);
+}
+
+void jaf_free_block_item(struct jaf_block_item *item)
+{
+	if (!item)
+		return;
+
+	switch (item->kind) {
+	case JAF_DECLARATION:
+		if (item->decl.name)
+			free_string(item->decl.name);
+		jaf_free_type_specifier(item->decl.type);
+		jaf_free_expr(item->decl.init);
+		break;
+	case JAF_FUNCTION:
+		if (item->decl.name)
+			free_string(item->decl.name);
+		jaf_free_type_specifier(item->decl.type);
+		jaf_free_block(item->decl.params);
+		jaf_free_block(item->decl.body);
+		break;
+	case JAF_STMT_LABELED:
+		free_string(item->label.name);
+		jaf_free_block_item(item->label.stmt);
+		break;
+	case JAF_STMT_COMPOUND:
+		jaf_free_block(item->block);
+		break;
+	case JAF_STMT_EXPRESSION:
+		jaf_free_expr(item->expr);
+		break;
+	case JAF_STMT_IF:
+		jaf_free_expr(item->cond.test);
+		jaf_free_block_item(item->cond.consequent);
+		jaf_free_block_item(item->cond.alternative);
+		break;
+	case JAF_STMT_SWITCH:
+		ERROR("switch not supported");
+		break;
+	case JAF_STMT_WHILE:
+	case JAF_STMT_DO_WHILE:
+		jaf_free_expr(item->while_loop.test);
+		jaf_free_block_item(item->while_loop.body);
+		break;
+	case JAF_STMT_FOR:
+		jaf_free_block(item->for_loop.init);
+		jaf_free_expr(item->for_loop.test);
+		jaf_free_expr(item->for_loop.after);
+		jaf_free_block_item(item->for_loop.body);
+		break;
+	case JAF_STMT_GOTO:
+		free_string(item->target);
+	case JAF_STMT_CONTINUE:
+	case JAF_STMT_BREAK:
+		break;
+	case JAF_STMT_RETURN:
+		jaf_free_expr(item->expr);
+		break;
+	case JAF_STMT_CASE:
+	case JAF_STMT_DEFAULT:
+		jaf_free_expr(item->swi_case.expr);
+		jaf_free_block_item(item->swi_case.stmt);
+		break;
+	}
+	free(item);
+}
+
+void jaf_free_block(struct jaf_block *block)
+{
+	if (!block)
+		return;
+	for (size_t i = 0; i < block->nr_items; i++) {
+		jaf_free_block_item(block->items[i]);
+	}
+	free(block->items);
+	free(block);
 }

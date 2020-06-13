@@ -31,7 +31,9 @@ void yyerror(const char *s);
     struct jaf_type_specifier *type;
     struct jaf_declarator *declarator;
     struct jaf_declarator_list *declarators;
-    struct jaf_declaration_list *declarations;
+    struct jaf_block *block;
+    struct jaf_block_item *statement;
+    struct jaf_function_declarator *fundecl;
 }
 
 %token	<string>	I_CONSTANT F_CONSTANT STRING_LITERAL
@@ -62,8 +64,13 @@ void yyerror(const char *s);
 %type	<type>		type_specifier struct_specifier declaration_specifiers
 %type	<declarator>	init_declarator declarator
 %type	<declarators>	init_declarator_list struct_declarator_list
-%type	<declarations>	translation_unit external_declaration declaration
-%type	<declarations>	struct_declaration struct_declaration_list
+%type	<block>		translation_unit external_declaration declaration function_definition
+%type	<block>		struct_declaration struct_declaration_list
+%type	<block>		parameter_list parameter_declaration
+%type	<block>		compound_statement block_item_list block_item
+%type	<statement>	statement labeled_statement expression_statement selection_statement
+%type	<statement>	iteration_statement jump_statement
+%type	<fundecl>	function_declarator
 
 /*
  * Shift-reduce conflicts:
@@ -276,7 +283,7 @@ type_parameter_list
 
 struct_declaration_list
 	: struct_declaration                         { $$ = $1; }
-	| struct_declaration_list struct_declaration { $$ = jaf_declarations($1, $2); }
+	| struct_declaration_list struct_declaration { $$ = jaf_merge_blocks($1, $2); }
 	;
 
 struct_declaration
@@ -315,28 +322,11 @@ declarator
 	: IDENTIFIER                             { $$ = jaf_declarator($1); }
 //	| '(' declarator ')' // XXX: causes shift-reduce conflict with function-like casts (e.g. "string(identifier)")
 	| array_allocation                       { ERROR("Arrays not supported"); }
-	| IDENTIFIER '(' parameter_type_list ')' { ERROR("Function declarator not supported"); } // ??? remove?
-	| IDENTIFIER '(' ')'                     { ERROR("Function declarator not supported"); } // ??? remove?
 	;
 
 array_allocation
 	: IDENTIFIER '[' constant ']'
 	| array_allocation '[' constant ']'
-	;
-
-parameter_type_list
-	: parameter_list ',' ELLIPSIS
-	| parameter_list
-	;
-
-parameter_list
-	: parameter_declaration
-	| parameter_list ',' parameter_declaration
-	;
-
-parameter_declaration
-	: declaration_specifiers declarator
-	| declaration_specifiers
 	;
 
 initializer
@@ -367,61 +357,61 @@ designator
 	;
 
 statement
-	: labeled_statement
-	| compound_statement
-	| expression_statement
-	| selection_statement
-	| iteration_statement
-	| jump_statement
+	: labeled_statement    { $$ = $1; }
+	| compound_statement   { $$ = jaf_compound_statement($1); }
+	| expression_statement { $$ = $1; }
+	| selection_statement  { $$ = $1; }
+	| iteration_statement  { $$ = $1; }
+	| jump_statement       { $$ = $1; }
 	;
 
 labeled_statement
-	: IDENTIFIER ':' statement
-	| CASE constant_expression ':' statement
-	| DEFAULT ':' statement
+	: IDENTIFIER ':' statement               { $$ = jaf_label_statement($1, $3); }
+	| CASE constant_expression ':' statement { $$ = jaf_case_statement($2, $4); }
+	| DEFAULT ':' statement                  { $$ = jaf_case_statement(NULL, $3); }
 	;
 
 compound_statement
-	: '{' '}'
-	| '{'  block_item_list '}'
+	: '{' '}'                  { $$ = jaf_block(NULL); }
+	| '{'  block_item_list '}' { $$ = $2; }
 	;
 
 block_item_list
-	: block_item
-	| block_item_list block_item
+	: block_item                 { $$ = $1; }
+	| block_item_list block_item { $$ = jaf_merge_blocks($1, $2); }
 	;
 
 block_item
-	: declaration
-	| statement
+	: declaration { $$ = $1; }
+	| statement   { $$ = jaf_block($1); }
 	;
 
 expression_statement
-	: ';'
-	| expression ';'
+	: ';'            { $$ = jaf_expression_statement(NULL); }
+	| expression ';' { $$ = jaf_expression_statement($1); }
 	;
 
 selection_statement
-	: IF '(' expression ')' statement ELSE statement
-	| IF '(' expression ')' statement
-	| SYM_SWITCH '(' expression ')' statement
+	: IF '(' expression ')' statement ELSE statement   { $$ = jaf_if_statement($3, $5, $7); }
+	| IF '(' expression ')' statement                  { $$ = jaf_if_statement($3, $5, NULL); }
+	| SYM_SWITCH '(' expression ')' compound_statement { $$ = jaf_switch_statement($3, $5); }
 	;
 
 iteration_statement
-	: WHILE '(' expression ')' statement
-	| DO statement WHILE '(' expression ')' ';'
-	| FOR '(' expression_statement expression_statement ')' statement
-	| FOR '(' expression_statement expression_statement expression ')' statement
-	| FOR '(' declaration expression_statement ')' statement
-	| FOR '(' declaration expression_statement expression ')' statement
+	: WHILE '(' expression ')' statement                                         { $$ = jaf_while_loop($3, $5); }
+	| DO statement WHILE '(' expression ')' ';'                                  { $$ = jaf_do_while_loop($5, $2); }
+	| FOR '(' expression_statement expression_statement ')' statement            { $$ = jaf_for_loop(jaf_block($3), $4, NULL, $6); }
+	| FOR '(' expression_statement expression_statement expression ')' statement { $$ = jaf_for_loop(jaf_block($3), $4, $5,   $7); }
+	| FOR '(' declaration expression_statement ')' statement                     { $$ = jaf_for_loop($3, $4, NULL, $6); }
+	| FOR '(' declaration expression_statement expression ')' statement          { $$ = jaf_for_loop($3, $4, $5,   $7); }
 	;
 
 jump_statement
-	: GOTO IDENTIFIER ';'
-	| CONTINUE ';'
-	| BREAK ';'
-	| SYM_RETURN ';'
-	| SYM_RETURN expression ';'
+	: GOTO IDENTIFIER ';'       { $$ = jaf_goto($2); }
+	| CONTINUE ';'              { $$ = jaf_continue(); }
+	| BREAK ';'                 { $$ = jaf_break(); }
+	| SYM_RETURN ';'            { $$ = jaf_return(NULL); }
+	| SYM_RETURN expression ';' { $$ = jaf_return($2); }
 	;
 
 toplevel
@@ -429,17 +419,31 @@ toplevel
 	;
 
 translation_unit
-	: external_declaration                  { $$ = jaf_declarations(NULL, $1); }
-	| translation_unit external_declaration { $$ = jaf_declarations($1, $2); }
+	: external_declaration                  { $$ = jaf_merge_blocks(NULL, $1); }
+	| translation_unit external_declaration { $$ = jaf_merge_blocks($1, $2); }
 	;
 
 external_declaration
-	: function_definition { ERROR("Functions not yet supported"); }
+	: function_definition { $$ = $1; }
 	| declaration         { $$ = $1; }
 	;
 
 function_definition
-	: declaration_specifiers declarator compound_statement
+	: declaration_specifiers function_declarator compound_statement { $$ = jaf_function($1, $2, $3); }
+	;
+
+function_declarator
+	: IDENTIFIER '(' parameter_list ')' { $$ = jaf_function_declarator($1, $3); }
+	| IDENTIFIER '(' ')'                { $$ = jaf_function_declarator($1, NULL); }
+	;
+
+parameter_list
+	: parameter_declaration                    { $$ = $1; }
+	| parameter_list ',' parameter_declaration { $$ = jaf_merge_blocks($1, $3); }
+	;
+
+parameter_declaration
+	: declaration_specifiers declarator { $$ = jaf_parameter($1, $2); }
 	;
 
 %%

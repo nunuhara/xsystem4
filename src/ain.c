@@ -223,6 +223,13 @@ void ain_add_initval(struct ain *ain, struct ain_initval *init)
 	ain->global_initvals[ain->nr_initvals++] = *init;
 }
 
+int ain_add_function(struct ain *ain, struct ain_function *fun)
+{
+	ain->functions = xrealloc_array(ain->functions, ain->nr_functions, ain->nr_functions+1, sizeof (struct ain_function));
+	ain->functions[ain->nr_functions++] = *fun;
+	return ain->nr_functions - 1;
+}
+
 static const char *errtab[AIN_MAX_ERROR] = {
 	[AIN_SUCCESS]             = "Success",
 	[AIN_FILE_ERROR]          = "Error opening AIN file",

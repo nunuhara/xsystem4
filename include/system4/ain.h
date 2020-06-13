@@ -326,6 +326,7 @@ int ain_get_struct_no(struct ain *ain, char *name);
 int ain_add_struct(struct ain *ain, char *name);
 struct ain_variable *ain_add_global(struct ain *ain, char *name);
 void ain_add_initval(struct ain *ain, struct ain_initval *init);
+int ain_add_function(struct ain *ain, struct ain_function *fun);
 
 void ain_free(struct ain *ain);
 void ain_free_functions(struct ain *ain);

@@ -23,8 +23,6 @@
 #define TYPE_CHECK(expr, expected) { if (expr->derived_type != expected) TYPE_ERROR(expr, expected); }
 #define TYPE_CHECK_NUMERIC(expr) { if (expr->derived_type != JAF_INT && expr->derived_type != JAF_FLOAT) TYPE_ERROR(expr, JAF_INT); }
 
-static void jaf_derive_types(struct jaf_expression *expr);
-
 static enum jaf_type jaf_type_check_numeric(struct jaf_expression *expr)
 {
 	if (expr->derived_type != JAF_INT && expr->derived_type != JAF_FLOAT)
@@ -166,15 +164,13 @@ static enum jaf_type _jaf_check_types(struct jaf_expression *expr)
 	ERROR("Unhandled expression type");
 }
 
-static void jaf_derive_types(struct jaf_expression *expr)
+void jaf_derive_types(struct jaf_expression *expr)
 {
 	expr->derived_type = _jaf_check_types(expr);
 }
 
-void jaf_check_types(struct jaf_expression *expr, struct jaf_type_specifier *type)
+void jaf_check_type(struct jaf_expression *expr, struct jaf_type_specifier *type)
 {
-	jaf_derive_types(expr);
-	// TODO: struct types, etc.
 	if (expr->derived_type != type->type) {
 		TYPE_ERROR(expr, type->type);
 	}
