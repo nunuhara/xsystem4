@@ -30,33 +30,48 @@ static struct jaf_expression *jaf_expr(enum jaf_expression_type type, enum jaf_o
 	return e;
 }
 
-struct jaf_expression *jaf_integer(struct string *text)
+struct jaf_expression *jaf_integer(int i)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_INT, 0);
-	char *endptr;
-	errno = 0;
-	e->i = strtol(text->text, &endptr, 0);
-	if (errno || *endptr != '\0')
-		ERROR("Invalid integer constant");
-	free_string(text);
+	e->derived_type = JAF_INT;
+	e->i = i;
 	return e;
 }
 
-struct jaf_expression *jaf_float(struct string *text)
+struct jaf_expression *jaf_parse_integer(struct string *text)
 {
-	struct jaf_expression *e = jaf_expr(JAF_EXP_FLOAT, 0);
 	char *endptr;
 	errno = 0;
-	e->f = strtof(text->text, &endptr);
+	int i = strtol(text->text, &endptr, 0);
+	if (errno || *endptr != '\0')
+		ERROR("Invalid integer constant");
+	free_string(text);
+	return jaf_integer(i);
+}
+
+struct jaf_expression *jaf_float(float f)
+{
+	struct jaf_expression *e = jaf_expr(JAF_EXP_FLOAT, 0);
+	e->derived_type = JAF_FLOAT;
+	e->f = f;
+	return e;
+}
+
+struct jaf_expression *jaf_parse_float(struct string *text)
+{
+	char *endptr;
+	errno = 0;
+	float f = strtof(text->text, &endptr);
 	if (errno || *endptr != '\0')
 		ERROR("Invalid floating point constant");
 	free_string(text);
-	return e;
+	return jaf_float(f);
 }
 
 struct jaf_expression *jaf_string(struct string *text)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_STRING, 0);
+	e->derived_type = JAF_STRING;
 	e->s = text;
 	return e;
 }
@@ -95,6 +110,14 @@ struct jaf_expression *jaf_ternary_expr(struct jaf_expression *test, struct jaf_
 struct jaf_expression *jaf_seq_expr(struct jaf_expression *head, struct jaf_expression *tail)
 {
 	ERROR("Sequence expressions not supported");
+}
+
+struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expression *expr)
+{
+	struct jaf_expression *e = jaf_expr(JAF_EXP_CAST, 0);
+	e->cast.type = type;
+	e->cast.expr = expr;
+	return e;
 }
 
 struct jaf_type_specifier *jaf_type(enum jaf_type type)
@@ -343,15 +366,30 @@ void jaf_free_expr(struct jaf_expression *expr)
 {
 	if (!expr)
 		return;
-	if (expr->type == JAF_EXP_UNARY) {
+	switch (expr->type) {
+	case JAF_EXP_VOID:
+	case JAF_EXP_INT:
+	case JAF_EXP_FLOAT:
+		break;
+	case JAF_EXP_STRING:
+	case JAF_EXP_IDENTIFIER:
+		free_string(expr->s);
+		break;
+	case JAF_EXP_UNARY:
 		jaf_free_expr(expr->expr);
-	} else if (expr->type == JAF_EXP_BINARY) {
+		break;
+	case JAF_EXP_BINARY:
 		jaf_free_expr(expr->lhs);
 		jaf_free_expr(expr->rhs);
-	} else if (expr->type == JAF_EXP_TERNARY) {
+		break;
+	case JAF_EXP_TERNARY:
 		jaf_free_expr(expr->condition);
 		jaf_free_expr(expr->consequent);
 		jaf_free_expr(expr->alternative);
+		break;
+	case JAF_EXP_CAST:
+		jaf_free_expr(expr->cast.expr);
+		break;
 	}
 	free(expr);
 }

@@ -51,7 +51,7 @@ void yyerror(const char *s);
 
 %token	CASE DEFAULT IF ELSE SYM_SWITCH WHILE DO FOR GOTO CONTINUE BREAK SYM_RETURN
 
-%type	<token>		unary_operator assignment_operator type_qualifier
+%type	<token>		unary_operator assignment_operator type_qualifier atomic_type_specifier
 %type	<string>	string param_identifer
 %type	<expression>	initializer
 %type	<expression>	postfix_expression unary_expression cast_expression
@@ -89,8 +89,8 @@ primary_expression
 	;
 
 constant
-	: I_CONSTANT           { $$ = jaf_integer($1); } /* includes character_constant */
-	| F_CONSTANT           { $$ = jaf_float($1); }
+	: I_CONSTANT           { $$ = jaf_parse_integer($1); } /* includes character_constant */
+	| F_CONSTANT           { $$ = jaf_parse_float($1); }
 	| ENUMERATION_CONSTANT { ERROR("Enums not supported"); } /* after it has been defined as such */
 	;
 
@@ -108,7 +108,7 @@ postfix_expression
 	: primary_expression                                  { $$ = $1; }
 	| postfix_expression '[' expression ']'               { ERROR("Arrays not supported"); }
 	| postfix_expression '(' ')'                          { ERROR("Function calls not supported"); }
-	| type_specifier '(' expression ')'                   { ERROR("Cast not supported"); }
+	| atomic_type_specifier '(' expression ')'            { $$ = jaf_cast_expression($1, $3); }
 	| postfix_expression '(' argument_expression_list ')' { ERROR("Function calls not supported"); }
 	| postfix_expression '.' IDENTIFIER                   { ERROR("Struct members not supported"); }
 	| postfix_expression INC_OP                           { $$ = jaf_unary_expr(JAF_POST_INC, $1); }
@@ -138,8 +138,8 @@ unary_operator
 	;
 
 cast_expression
-	: unary_expression                       { $$ = $1; }
-	| '(' type_specifier ')' cast_expression { ERROR("Cast not supported"); }
+	: unary_expression                              { $$ = $1; }
+	| '(' atomic_type_specifier ')' cast_expression { $$ = jaf_cast_expression($2, $4); }
 	;
 
 multiplicative_expression
@@ -254,17 +254,21 @@ init_declarator
 	| declarator                 { $$ = $1; }
 	;
 
+atomic_type_specifier
+	: VOID             { $$ = JAF_VOID; }
+	| CHAR             { $$ = JAF_INT; }
+	| INT              { $$ = JAF_INT; }
+	| LONG             { $$ = JAF_INT; }
+	| FLOAT            { $$ = JAF_FLOAT; }
+	| BOOL             { $$ = JAF_INT; }
+	| STRING           { $$ = JAF_STRING; }
+	;
+
 type_specifier
-	: VOID             { $$ = jaf_type(JAF_VOID); }
-	| CHAR             { $$ = jaf_type(JAF_INT); }
-	| INT              { $$ = jaf_type(JAF_INT); }
-	| LONG             { $$ = jaf_type(JAF_INT); }
-	| FLOAT            { $$ = jaf_type(JAF_FLOAT); }
-	| BOOL             { $$ = jaf_type(JAF_INT); }
-	| STRING           { $$ = jaf_type(JAF_STRING); }
-	| struct_specifier { $$ = $1; }
-	| enum_specifier   { ERROR("Enums not supported"); }
-	| TYPEDEF_NAME     { $$ = jaf_typedef($1); } /* after it has been defined as such */
+	: atomic_type_specifier { $$ = jaf_type($1); }
+	| struct_specifier      { $$ = $1; }
+	| enum_specifier        { ERROR("Enums not supported"); }
+	| TYPEDEF_NAME          { $$ = jaf_typedef($1); }
 	;
 
 struct_specifier

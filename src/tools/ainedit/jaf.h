@@ -47,6 +47,10 @@ enum jaf_expression_type {
 	JAF_EXP_UNARY,
 	JAF_EXP_BINARY,
 	JAF_EXP_TERNARY,
+	//JAF_EXP_SUBSCRIPT,
+	//JAF_EXP_FUNCALL,
+	JAF_EXP_CAST,
+	//JAF_EXP_MEMBER,
 };
 
 enum jaf_operator {
@@ -113,6 +117,11 @@ struct jaf_expression {
 			struct jaf_expression *consequent;
 			struct jaf_expression *alternative;
 		};
+		// cast
+		struct {
+			enum jaf_type type;
+			struct jaf_expression *expr;
+		} cast;
 	};
 };
 
@@ -221,14 +230,17 @@ struct jaf_block {
 	struct jaf_block_item **items;
 };
 
-struct jaf_expression *jaf_integer(struct string *text);
-struct jaf_expression *jaf_float(struct string *text);
+struct jaf_expression *jaf_integer(int i);
+struct jaf_expression *jaf_parse_integer(struct string *text);
+struct jaf_expression *jaf_float(float f);
+struct jaf_expression *jaf_parse_float(struct string *text);
 struct jaf_expression *jaf_string(struct string *text);
 struct jaf_expression *jaf_identifier(struct string *name);
 struct jaf_expression *jaf_unary_expr(enum jaf_operator op, struct jaf_expression *expr);
 struct jaf_expression *jaf_binary_expr(enum jaf_operator op, struct jaf_expression *lhs, struct jaf_expression *rhs);
 struct jaf_expression *jaf_ternary_expr(struct jaf_expression *test, struct jaf_expression *cons, struct jaf_expression *alt);
 struct jaf_expression *jaf_seq_expr(struct jaf_expression *head, struct jaf_expression *tail);
+struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expression *expr);
 
 struct jaf_type_specifier *jaf_type(enum jaf_type type);
 struct jaf_type_specifier *jaf_struct(struct string *name, struct jaf_block *fields);

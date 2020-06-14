@@ -19,9 +19,23 @@
 #include "jaf.h"
 
 // TODO: better error messages
-#define TYPE_ERROR(expr, expected) ERROR("Type error")
+#define TYPE_ERROR(expr, expected) ERROR("Type error (expected %s; got %s)", jaf_typestr(expected), jaf_typestr(expr->derived_type))
 #define TYPE_CHECK(expr, expected) { if (expr->derived_type != expected) TYPE_ERROR(expr, expected); }
 #define TYPE_CHECK_NUMERIC(expr) { if (expr->derived_type != JAF_INT && expr->derived_type != JAF_FLOAT) TYPE_ERROR(expr, JAF_INT); }
+
+static const char *jaf_typestr(enum jaf_type type)
+{
+	switch (type) {
+	case JAF_VOID:    return "void";
+	case JAF_INT:     return "int";
+	case JAF_FLOAT:   return "float";
+	case JAF_STRING:  return "string";
+	case JAF_STRUCT:  return "struct";
+	case JAF_ENUM:    return "enum";
+	case JAF_TYPEDEF: return "typedef";
+	}
+	return "unknown";
+}
 
 static enum jaf_type jaf_type_check_numeric(struct jaf_expression *expr)
 {
@@ -143,6 +157,8 @@ static enum jaf_type jaf_check_types_ternary(struct jaf_expression *expr)
 static enum jaf_type _jaf_check_types(struct jaf_expression *expr)
 {
 	switch (expr->type) {
+	case JAF_EXP_VOID:
+		return JAF_VOID;
 	case JAF_EXP_INT:
 		return JAF_INT;
 	case JAF_EXP_FLOAT:
@@ -158,8 +174,8 @@ static enum jaf_type _jaf_check_types(struct jaf_expression *expr)
 		return jaf_check_types_binary(expr);
 	case JAF_EXP_TERNARY:
 		return jaf_check_types_ternary(expr);
-	default:
-		break;
+	case JAF_EXP_CAST:
+		return expr->cast.type;
 	}
 	ERROR("Unhandled expression type");
 }

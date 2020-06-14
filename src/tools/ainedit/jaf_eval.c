@@ -15,6 +15,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include "system4.h"
 #include "system4/string.h"
 #include "jaf.h"
@@ -220,6 +221,70 @@ struct jaf_expression *jaf_simplify_ternary(struct jaf_expression *in)
 	return in;
 }
 
+struct jaf_expression *jaf_simplify_cast(struct jaf_expression *in)
+{
+	in->cast.expr = jaf_simplify(in->cast.expr);
+
+	if (in->cast.type == JAF_INT) {
+		if (in->cast.expr->type == JAF_EXP_INT) {
+			struct jaf_expression *r = in->cast.expr;
+			free(in);
+			return r;
+		}
+		if (in->cast.expr->type == JAF_EXP_FLOAT) {
+			struct jaf_expression *r = jaf_integer((int)in->cast.expr->f);
+			jaf_free_expr(in);
+			return r;
+		}
+		if (in->cast.expr->type == JAF_EXP_STRING) {
+			struct jaf_expression *r = jaf_parse_integer(string_dup(in->cast.expr->s));
+			jaf_free_expr(in);
+			return r;
+		}
+	}
+
+	if (in->cast.type == JAF_FLOAT) {
+		if (in->cast.expr->type == JAF_EXP_FLOAT) {
+			struct jaf_expression *r = in->cast.expr;
+			free(in);
+			return r;
+		}
+		if (in->cast.expr->type == JAF_EXP_INT) {
+			struct jaf_expression *r = jaf_float((float)in->cast.expr->i);
+			jaf_free_expr(in);
+			return r;
+		}
+		if (in->cast.expr->type == JAF_EXP_STRING) {
+			struct jaf_expression *r = jaf_parse_float(string_dup(in->cast.expr->s));
+			jaf_free_expr(in);
+			return r;
+		}
+	}
+
+	if (in->cast.type == JAF_STRING) {
+		if (in->cast.expr->type == JAF_EXP_STRING) {
+			struct jaf_expression *r = in->cast.expr;
+			free(in);
+			return r;
+		}
+		if (in->cast.expr->type == JAF_EXP_INT) {
+			char buf[512];
+			snprintf(buf, 512, "%i", in->cast.expr->i);
+			WARNING("CAST %d to string: %s", in->cast.expr->i, buf);
+			jaf_free_expr(in);
+			return jaf_string(make_string(buf, strlen(buf)));
+		}
+		if (in->cast.expr->type == JAF_EXP_FLOAT) {
+			char buf[512];
+			snprintf(buf, 512, "%f", in->cast.expr->f);
+			jaf_free_expr(in);
+			return jaf_string(make_string(buf, strlen(buf)));
+		}
+	}
+
+	return in;
+}
+
 /*
  * Simplify an expression by evaluating the constant parts.
  */
@@ -238,6 +303,8 @@ struct jaf_expression *jaf_simplify(struct jaf_expression *in)
 		return jaf_simplify_binary(in);
 	case JAF_EXP_TERNARY:
 		return jaf_simplify_ternary(in);
+	case JAF_EXP_CAST:
+		return jaf_simplify_cast(in);
 	}
 	ERROR("Invalid expression type");
 }
