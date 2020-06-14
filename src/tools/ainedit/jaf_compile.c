@@ -131,69 +131,107 @@ static void jaf_to_initval(struct ain_initval *dst, struct jaf_expression *expr)
 	}
 }
 
-static void analyze_expression(possibly_unused struct ain *ain, struct jaf_expression **expr)
+static void analyze_expression(struct jaf_env *env, struct jaf_expression **expr)
 {
 	if (!*expr)
 		return;
-	jaf_derive_types(*expr);
+	jaf_derive_types(env, *expr);
 	*expr = jaf_simplify(*expr);
 }
 
-static void analyze_block(struct ain *ain, struct jaf_block *block);
+static void _analyze_block(struct jaf_env *env, struct jaf_block *block);
+static void analyze_block(struct jaf_env *env, struct jaf_block *block);
 
-static void analyze_statement(struct ain *ain, struct jaf_block_item *item)
+static void analyze_global_declaration(struct jaf_env *env, struct jaf_declaration *decl)
+{
+	if (decl->init)
+		return;
+	analyze_expression(env, &decl->init);
+	jaf_check_type(decl->init, decl->type);
+	// add initval to ain object
+	struct ain_initval init = { .global_index = decl->var_no };
+	jaf_to_initval(&init, decl->init);
+	ain_add_initval(env->ain, &init);
+}
+
+static void analyze_local_declaration(struct jaf_env *env, struct jaf_declaration *decl)
+{
+	assert(env->func_no >= 0 && env->func_no < env->ain->nr_functions);
+	assert(decl->var_no >= 0 && decl->var_no < env->ain->functions[env->func_no].nr_vars);
+	// add local to environment
+	env->locals = xrealloc_array(env->locals, env->nr_locals, env->nr_locals+1, sizeof(struct ain_variable*));
+	env->locals[env->nr_locals++] = &env->ain->functions[env->func_no].vars[decl->var_no];
+}
+
+static void analyze_function(struct jaf_env *env, struct jaf_declaration *decl)
+{
+	// create new scope with function arguments
+	assert(decl->func_no < env->ain->nr_functions);
+	struct ain_function *fun = &env->ain->functions[decl->func_no];
+	struct jaf_env *funenv = xcalloc(1, sizeof(struct jaf_env));
+	funenv->ain = env->ain;
+	funenv->parent = env;
+	funenv->func_no = decl->func_no;
+	funenv->nr_locals = fun->nr_args;
+	funenv->locals = xcalloc(funenv->nr_locals, sizeof(struct ain_variable*));
+	for (size_t i = 0; i < funenv->nr_locals; i++) {
+		funenv->locals[i] = &fun->vars[i];
+	}
+
+	_analyze_block(funenv, decl->body);
+	free(funenv->locals);
+	free(funenv);
+}
+
+static void analyze_statement(struct jaf_env *env, struct jaf_block_item *item)
 {
 	if (!item)
 		return;
 	switch (item->kind) {
 	case JAF_DECLARATION:
-		if (!item->decl.init)
-			break;
-		analyze_expression(ain, &item->decl.init);
-		jaf_check_type(item->decl.init, item->decl.type);
-		// add initval to ain object
-		struct ain_initval init = { .global_index = item->decl.var_no };
-		jaf_to_initval(&init, item->decl.init);
-		ain_add_initval(ain, &init);
+		if (env->parent)
+			analyze_local_declaration(env, &item->decl);
+		else
+			analyze_global_declaration(env, &item->decl);
 		break;
-	case JAF_FUNCTION:
-		analyze_block(ain, item->decl.body);
+	case JAF_FUNDECL:
+		analyze_function(env, &item->decl);
 		break;
 	case JAF_STMT_LABELED:
-		analyze_statement(ain, item->label.stmt);
+		analyze_statement(env, item->label.stmt);
 		break;
 	case JAF_STMT_COMPOUND:
-		analyze_block(ain, item->block);
+		analyze_block(env, item->block);
 		break;
 	case JAF_STMT_EXPRESSION:
-		analyze_expression(ain, &item->expr);
+		analyze_expression(env, &item->expr);
 		break;
 	case JAF_STMT_IF:
-		analyze_expression(ain, &item->cond.test);
-		analyze_statement(ain, item->cond.consequent);
-		analyze_statement(ain, item->cond.alternative);
+		analyze_expression(env, &item->cond.test);
+		analyze_statement(env, item->cond.consequent);
+		analyze_statement(env, item->cond.alternative);
 		break;
 	case JAF_STMT_SWITCH:
-		analyze_expression(ain, &item->swi.expr);
-		analyze_block(ain, item->swi.body);
+		analyze_expression(env, &item->swi.expr);
+		analyze_block(env, item->swi.body);
 		break;
 	case JAF_STMT_WHILE:
 	case JAF_STMT_DO_WHILE:
-		analyze_expression(ain, &item->while_loop.test);
-		analyze_statement(ain, item->while_loop.body);
+		analyze_expression(env, &item->while_loop.test);
+		analyze_statement(env, item->while_loop.body);
 		break;
 	case JAF_STMT_FOR:
-		analyze_block(ain, item->for_loop.init);
-		analyze_expression(ain, &item->for_loop.test);
-		analyze_expression(ain, &item->for_loop.after);
-		analyze_statement(ain, item->for_loop.body);
+		analyze_block(env, item->for_loop.init);
+		analyze_expression(env, &item->for_loop.test);
+		analyze_expression(env, &item->for_loop.after);
+		analyze_statement(env, item->for_loop.body);
 		break;
 	case JAF_STMT_RETURN:
-		analyze_expression(ain, &item->expr);
+		analyze_expression(env, &item->expr);
 		break;
 	case JAF_STMT_CASE:
 	case JAF_STMT_DEFAULT:
-		analyze_statement(ain, item->swi_case.stmt);
+		analyze_statement(env, item->swi_case.stmt);
 		break;
 	case JAF_STMT_GOTO:
 	case JAF_STMT_CONTINUE:
@@ -202,11 +240,22 @@ static void analyze_statement(struct ain *ain, struct jaf_block_item *item)
 	}
 }
 
-static void analyze_block(struct ain *ain, struct jaf_block *block)
+static void _analyze_block(struct jaf_env *env, struct jaf_block *block)
 {
 	for (size_t i = 0; i < block->nr_items; i++) {
-		analyze_statement(ain, block->items[i]);
+		analyze_statement(env, block->items[i]);
 	}
+}
+
+static void analyze_block(struct jaf_env *env, struct jaf_block *block)
+{
+	struct jaf_env *blockenv = xcalloc(1, sizeof(struct jaf_env));
+	blockenv->ain = env->ain;
+	blockenv->parent = env;
+
+	_analyze_block(blockenv, block);
+	free(blockenv->locals);
+	free(blockenv);
 }
 
 static void resolve_types(struct ain *ain, struct jaf_block *block);
@@ -242,7 +291,7 @@ static void resolve_statement_types(struct ain *ain, struct jaf_block_item *item
 	case JAF_DECLARATION:
 		resolve_decl_types(ain, &item->decl);
 		break;
-	case JAF_FUNCTION:
+	case JAF_FUNDECL:
 		if (item->decl.params)
 			resolve_types(ain, item->decl.params);
 		resolve_types(ain, item->decl.body);
@@ -341,7 +390,7 @@ static struct ain_variable *block_item_get_vars(struct ain *ain, struct jaf_bloc
 	case JAF_STMT_RETURN:
 		break;
 
-	case JAF_FUNCTION:
+	case JAF_FUNDECL:
 		ERROR("Nested functions not supported");
 	}
 	return vars;
@@ -390,12 +439,38 @@ static void add_global(struct ain *ain, struct jaf_declaration *decl)
 
 static void compile_declaration(possibly_unused struct ain *ain, struct jaf_block_item *decl)
 {
-	if (decl->kind == JAF_FUNCTION) {
+	if (decl->kind == JAF_FUNDECL) {
 		WARNING("Functions not supported");
 		return;
 	}
 
 	// TODO: global constructors/array allocations
+}
+
+static struct ain_variable *jaf_scope_loopup(struct jaf_env *env, char *name)
+{
+	for (size_t i = 0; i < env->nr_locals; i++) {
+		if (!strcmp(env->locals[i]->name, name))
+			return env->locals[i];
+	}
+	return NULL;
+}
+
+struct ain_variable *jaf_env_lookup(struct jaf_env *env, struct string *name)
+{
+	struct ain_variable *r;
+	char *u = encode_text_to_input_format(name->text);
+	struct jaf_env *scope = env;
+        while (scope) {
+		if ((r = jaf_scope_loopup(env, u)))
+			break;
+		scope = scope->parent;
+	}
+	if (!r) {
+		r = ain_get_global(env->ain, u);
+	}
+	free(u);
+	return r;
 }
 
 void jaf_compile(struct ain *out, const char *path)
@@ -414,19 +489,24 @@ void jaf_compile(struct ain *out, const char *path)
 	if (!jaf_toplevel)
 		ERROR("Failed to parse .jaf file");
 
+	struct jaf_env env = {
+		.ain = out,
+		.parent = NULL
+	};
+
 	// pass 1: typedefs && struct definitions
 	resolve_types(out, jaf_toplevel);
 	// pass 2: register globals (names, types)
 	for (size_t i = 0; i < jaf_toplevel->nr_items; i++) {
 		if (jaf_toplevel->items[i]->decl.name) {
-			if (jaf_toplevel->items[i]->kind == JAF_FUNCTION)
+			if (jaf_toplevel->items[i]->kind == JAF_FUNDECL)
 				add_function(out, &jaf_toplevel->items[i]->decl);
 			else
 				add_global(out, &jaf_toplevel->items[i]->decl);
 		}
 	}
 	// pass 3: type analysis & simplification & global initvals (static analysis)
-	analyze_block(out, jaf_toplevel);
+	_analyze_block(&env, jaf_toplevel);
 	// pass 4: generate bytecode
 	for (size_t i = 0; i < jaf_toplevel->nr_items; i++) {
 		compile_declaration(out, jaf_toplevel->items[i]);

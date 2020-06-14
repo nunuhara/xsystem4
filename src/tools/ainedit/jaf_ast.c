@@ -33,7 +33,7 @@ static struct jaf_expression *jaf_expr(enum jaf_expression_type type, enum jaf_o
 struct jaf_expression *jaf_integer(int i)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_INT, 0);
-	e->derived_type = JAF_INT;
+	e->value_type.type = JAF_INT;
 	e->i = i;
 	return e;
 }
@@ -52,7 +52,7 @@ struct jaf_expression *jaf_parse_integer(struct string *text)
 struct jaf_expression *jaf_float(float f)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_FLOAT, 0);
-	e->derived_type = JAF_FLOAT;
+	e->value_type.type = JAF_FLOAT;
 	e->f = f;
 	return e;
 }
@@ -71,7 +71,7 @@ struct jaf_expression *jaf_parse_float(struct string *text)
 struct jaf_expression *jaf_string(struct string *text)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_STRING, 0);
-	e->derived_type = JAF_STRING;
+	e->value_type.type = JAF_STRING;
 	e->s = text;
 	return e;
 }
@@ -112,6 +112,24 @@ struct jaf_expression *jaf_seq_expr(struct jaf_expression *head, struct jaf_expr
 	ERROR("Sequence expressions not supported");
 }
 
+struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_expression_list *args)
+{
+	struct jaf_expression *e = jaf_expr(JAF_EXP_FUNCALL, 0);
+	e->call.fun = fun;
+	e->call.args = args;
+	return e;
+}
+
+struct jaf_expression_list *jaf_args(struct jaf_expression_list *head, struct jaf_expression *tail)
+{
+	if (!head) {
+		head = xcalloc(1, sizeof(struct jaf_expression_list));
+	}
+	head->items = xrealloc_array(head->items, head->nr_items, head->nr_items+1, sizeof(struct jaf_expression*));
+	head->items[head->nr_items++] = tail;
+	return head;
+}
+
 struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expression *expr)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_CAST, 0);
@@ -141,6 +159,14 @@ struct jaf_type_specifier *jaf_typedef(struct string *name)
 	struct jaf_type_specifier *p = jaf_type(JAF_TYPEDEF);
 	p->name = name;
 	return p;
+}
+
+void jaf_copy_type(struct jaf_type_specifier *dst, struct jaf_type_specifier *src)
+{
+	assert(!src->def);
+	*dst = *src;
+	if (src->name)
+		dst->name = string_dup(src->name);
 }
 
 struct jaf_declarator *jaf_declarator(struct string *name)
@@ -194,7 +220,7 @@ struct jaf_block *jaf_function(struct jaf_type_specifier *type, struct jaf_funct
 	p->nr_items = 1;
 	p->items = xmalloc(sizeof(struct jaf_block_item*));
 	p->items[0] = xcalloc(1, sizeof(struct jaf_block_item));
-	p->items[0]->kind = JAF_FUNCTION;
+	p->items[0]->kind = JAF_FUNDECL;
 	p->items[0]->decl.type = type;
 	p->items[0]->decl.name = decl->name;
 	p->items[0]->decl.params = decl->params;
@@ -387,6 +413,14 @@ void jaf_free_expr(struct jaf_expression *expr)
 		jaf_free_expr(expr->consequent);
 		jaf_free_expr(expr->alternative);
 		break;
+	case JAF_EXP_FUNCALL:
+		jaf_free_expr(expr->call.fun);
+		for (size_t i = 0; i < expr->call.args->nr_items; i++) {
+			jaf_free_expr(expr->call.args->items[i]);
+		}
+		free(expr->call.args->items);
+		free(expr->call.args);
+		break;
 	case JAF_EXP_CAST:
 		jaf_free_expr(expr->cast.expr);
 		break;
@@ -416,7 +450,7 @@ void jaf_free_block_item(struct jaf_block_item *item)
 		jaf_free_type_specifier(item->decl.type);
 		jaf_free_expr(item->decl.init);
 		break;
-	case JAF_FUNCTION:
+	case JAF_FUNDECL:
 		if (item->decl.name)
 			free_string(item->decl.name);
 		jaf_free_type_specifier(item->decl.type);

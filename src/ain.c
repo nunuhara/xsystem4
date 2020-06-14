@@ -39,25 +39,30 @@ struct func_list {
 };
 #define func_list_size(nr_slots) (sizeof(struct func_list) + sizeof(struct ain_function*)*(nr_slots))
 
+static void func_ht_add(struct ain *ain, struct ain_function *f)
+{
+	struct ht_slot *kv = ht_put(ain->_func_ht, f->name);
+	if (kv->value) {
+		// entry with this name already exists; add to list
+		struct func_list *list = kv->value;
+		list = xrealloc(list, func_list_size(list->nr_slots+1));
+		list->slots[list->nr_slots] = f;
+		list->nr_slots++;
+		kv->value = list;
+	} else {
+		// empty bucket: create list
+		struct func_list *list = xmalloc(func_list_size(1));
+		list->nr_slots = 1;
+		list->slots[0] = f;
+		kv->value = list;
+	}
+}
+
 static void init_func_ht(struct ain *ain)
 {
 	ain->_func_ht = ht_create(1024);
 	for (int i = 0; i < ain->nr_functions; i++) {
-		struct ht_slot *kv = ht_put(ain->_func_ht, ain->functions[i].name);
-		if (kv->value) {
-			// entry with this name already exists; add to list
-			struct func_list *list = kv->value;
-			list = xrealloc(list, func_list_size(list->nr_slots+1));
-			list->slots[list->nr_slots] = &ain->functions[i];
-			list->nr_slots++;
-			kv->value = list;
-		} else {
-			// empty bucket: create list
-			struct func_list *list = xmalloc(func_list_size(1));
-			list->nr_slots = 1;
-			list->slots[0] = &ain->functions[i];
-			kv->value = list;
-		}
+		func_ht_add(ain, &ain->functions[i]);
 	}
 }
 
@@ -169,6 +174,12 @@ struct ain_function *ain_get_function(struct ain *ain, char *name)
 	return funs->slots[n];
 }
 
+int ain_get_function_no(struct ain *ain, char *name)
+{
+	struct ain_function *f = ain_get_function(ain, name);
+	return f ? f - ain->functions : -1;
+}
+
 int ain_get_function_index(struct ain *ain, struct ain_function *f)
 {
 	struct func_list *funs = get_function(ain, f->name);
@@ -216,6 +227,16 @@ struct ain_variable *ain_add_global(struct ain *ain, char *name)
 	return &ain->globals[no];
 }
 
+struct ain_variable *ain_get_global(struct ain *ain, char *name)
+{
+	// TODO: use hash table for faster lookup
+	for (int i = 0; i < ain->nr_globals; i++) {
+		if (!strcmp(ain->globals[i].name, name))
+			return &ain->globals[i];
+	}
+	return NULL;
+}
+
 void ain_add_initval(struct ain *ain, struct ain_initval *init)
 {
 	ain->global_initvals = xrealloc_array(ain->global_initvals, ain->nr_initvals, ain->nr_initvals+1,
@@ -225,9 +246,12 @@ void ain_add_initval(struct ain *ain, struct ain_initval *init)
 
 int ain_add_function(struct ain *ain, struct ain_function *fun)
 {
-	ain->functions = xrealloc_array(ain->functions, ain->nr_functions, ain->nr_functions+1, sizeof (struct ain_function));
-	ain->functions[ain->nr_functions++] = *fun;
-	return ain->nr_functions - 1;
+	int no = ain->nr_functions;
+	ain->functions = xrealloc_array(ain->functions, no, no+1, sizeof (struct ain_function));
+	ain->functions[no] = *fun;
+	func_ht_add(ain, &ain->functions[no]);
+	ain->nr_functions++;
+	return no;
 }
 
 static const char *errtab[AIN_MAX_ERROR] = {

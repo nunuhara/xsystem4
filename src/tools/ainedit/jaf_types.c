@@ -15,40 +15,55 @@
  */
 
 #include <stdlib.h>
+#include <assert.h>
 #include "system4.h"
+#include "system4/string.h"
+#include "ainedit.h"
 #include "jaf.h"
 
 // TODO: better error messages
-#define TYPE_ERROR(expr, expected) ERROR("Type error (expected %s; got %s)", jaf_typestr(expected), jaf_typestr(expr->derived_type))
-#define TYPE_CHECK(expr, expected) { if (expr->derived_type != expected) TYPE_ERROR(expr, expected); }
+#define TYPE_ERROR(expr, expected) ERROR("Type error (expected %s; got %s)", jaf_typestr(expected), jaf_typestr(expr->value_type.type))
+#define TYPE_CHECK(expr, expected) { if (expr->value_type.type != expected) TYPE_ERROR(expr, expected); }
 #define TYPE_CHECK_NUMERIC(expr) { if (expr->derived_type != JAF_INT && expr->derived_type != JAF_FLOAT) TYPE_ERROR(expr, JAF_INT); }
 
 static const char *jaf_typestr(enum jaf_type type)
 {
 	switch (type) {
-	case JAF_VOID:    return "void";
-	case JAF_INT:     return "int";
-	case JAF_FLOAT:   return "float";
-	case JAF_STRING:  return "string";
-	case JAF_STRUCT:  return "struct";
-	case JAF_ENUM:    return "enum";
-	case JAF_TYPEDEF: return "typedef";
+	case JAF_VOID:     return "void";
+	case JAF_INT:      return "int";
+	case JAF_FLOAT:    return "float";
+	case JAF_STRING:   return "string";
+	case JAF_STRUCT:   return "struct";
+	case JAF_ENUM:     return "enum";
+	case JAF_TYPEDEF:  return "typedef";
+	case JAF_FUNCTION: return "functype";
 	}
 	return "unknown";
 }
 
+static bool jaf_type_equal(struct jaf_type_specifier *a, struct jaf_type_specifier *b)
+{
+	if (a->type != b->type)
+		return false;
+	if (a->type == JAF_STRUCT && a->struct_no != b->struct_no)
+		return false;
+	if (a->type == JAF_FUNCTION && a->func_no != b->func_no)
+		return false;
+	return true;
+}
+
 static enum jaf_type jaf_type_check_numeric(struct jaf_expression *expr)
 {
-	if (expr->derived_type != JAF_INT && expr->derived_type != JAF_FLOAT)
+	if (expr->value_type.type != JAF_INT && expr->value_type.type != JAF_FLOAT)
 		TYPE_ERROR(expr, JAF_INT);
-	return expr->derived_type;
+	return expr->value_type.type;
 }
 
 static enum jaf_type jaf_type_check_int(struct jaf_expression *expr)
 {
-	if (expr->derived_type != JAF_INT)
+	if (expr->value_type.type != JAF_INT)
 		TYPE_ERROR(expr, JAF_INT);
-	return expr->derived_type;
+	return JAF_INT;
 }
 
 static enum jaf_type jaf_merge_types(enum jaf_type a, enum jaf_type b)
@@ -62,9 +77,9 @@ static enum jaf_type jaf_merge_types(enum jaf_type a, enum jaf_type b)
 	ERROR("Incompatible types");
 }
 
-static enum jaf_type jaf_check_types_unary(struct jaf_expression *expr)
+static void jaf_check_types_unary(struct jaf_env *env, struct jaf_expression *expr)
 {
-	jaf_derive_types(expr->expr);
+	jaf_derive_types(env, expr->expr);
 	switch (expr->op) {
 	case JAF_UNARY_PLUS:
 	case JAF_UNARY_MINUS:
@@ -72,29 +87,31 @@ static enum jaf_type jaf_check_types_unary(struct jaf_expression *expr)
 	case JAF_PRE_DEC:
 	case JAF_POST_INC:
 	case JAF_POST_DEC:
-		return jaf_type_check_numeric(expr->expr);
+		expr->value_type.type = jaf_type_check_numeric(expr->expr);
+		break;
 	case JAF_BIT_NOT:
 	case JAF_LOG_NOT:
-		return jaf_type_check_int(expr->expr);
+		expr->value_type.type = jaf_type_check_int(expr->expr);
+		break;
 	case JAF_AMPERSAND:
 		ERROR("Function types not supported");
 	default:
-		break;
+		ERROR("Unhandled unary operator");
 	}
-	ERROR("Unhandled unary operator");
 }
 
-static enum jaf_type jaf_check_types_binary(struct jaf_expression *expr)
+static void jaf_check_types_binary(struct jaf_env *env, struct jaf_expression *expr)
 {
-	jaf_derive_types(expr->lhs);
-	jaf_derive_types(expr->rhs);
+	jaf_derive_types(env, expr->lhs);
+	jaf_derive_types(env, expr->rhs);
 	switch (expr->op) {
 	// real ops
 	case JAF_MULTIPLY:
 	case JAF_DIVIDE:
 	case JAF_PLUS:
 	case JAF_MINUS:
-		return jaf_merge_types(jaf_type_check_numeric(expr->lhs), jaf_type_check_numeric(expr->rhs));
+		expr->value_type.type = jaf_merge_types(jaf_type_check_numeric(expr->lhs), jaf_type_check_numeric(expr->rhs));
+		break;
 	// integer ops
 	case JAF_REMAINDER:
 	case JAF_LSHIFT:
@@ -104,7 +121,8 @@ static enum jaf_type jaf_check_types_binary(struct jaf_expression *expr)
 	case JAF_BIT_IOR:
 		jaf_type_check_int(expr->lhs);
 		jaf_type_check_int(expr->rhs);
-		return JAF_INT;
+		expr->value_type.type = JAF_INT;
+		break;
 	// comparison ops
 	case JAF_LT:
 	case JAF_GT:
@@ -113,13 +131,15 @@ static enum jaf_type jaf_check_types_binary(struct jaf_expression *expr)
 	case JAF_EQ:
 		jaf_type_check_numeric(expr->lhs);
 		jaf_type_check_numeric(expr->rhs);
-		return JAF_INT;
+		expr->value_type.type = JAF_INT;
+		break;
 	// boolean ops
 	case JAF_LOG_AND:
 	case JAF_LOG_OR:
 		jaf_type_check_int(expr->lhs);
 		jaf_type_check_int(expr->rhs);
-		return JAF_INT;
+		expr->value_type.type = JAF_INT;
+		break;
 	case JAF_ASSIGN:
 	case JAF_MUL_ASSIGN:
 	case JAF_DIV_ASSIGN:
@@ -134,60 +154,112 @@ static enum jaf_type jaf_check_types_binary(struct jaf_expression *expr)
 	case JAF_REF_ASSIGN:
 		ERROR("Assignment expressions not supported");
 	default:
-		break;
+		ERROR("Unhandled binary operator");
 	}
-	ERROR("Unhandled binary operator");
 }
 
-static enum jaf_type jaf_check_types_ternary(struct jaf_expression *expr)
+static void jaf_check_types_ternary(struct jaf_env *env, struct jaf_expression *expr)
 {
-	jaf_derive_types(expr->condition);
-	jaf_derive_types(expr->consequent);
-	jaf_derive_types(expr->alternative);
+	jaf_derive_types(env, expr->condition);
+	jaf_derive_types(env, expr->consequent);
+	jaf_derive_types(env, expr->alternative);
 
 	TYPE_CHECK(expr->condition, JAF_INT);
-	if (expr->consequent->derived_type != expr->alternative->derived_type) {
+	if (!jaf_type_equal(&expr->consequent->value_type, &expr->alternative->value_type)) {
 		// TODO: better error message
 		ERROR("Mismatched types in conditional expression");
 	}
 
-	return expr->consequent->derived_type;
+	jaf_copy_type(&expr->value_type, &expr->consequent->value_type);
 }
 
-static enum jaf_type _jaf_check_types(struct jaf_expression *expr)
+static void ain_to_jaf_type(struct jaf_type_specifier *dst, struct ain_type *src)
+{
+	switch (src->data) {
+	case AIN_VOID:
+		dst->type = JAF_VOID;
+		break;
+	case AIN_INT:
+		dst->type = JAF_INT;
+		break;
+	case AIN_FLOAT:
+		dst->type = JAF_FLOAT;
+		break;
+	case AIN_STRING:
+		dst->type = JAF_STRING;
+		break;
+	default:
+		ERROR("Unsupported variable type");
+	}
+}
+
+static void jaf_check_types_identifier(struct jaf_env *env, struct jaf_expression *expr)
+{
+	struct ain_variable *v = jaf_env_lookup(env, expr->s);
+	if (v) {
+		ain_to_jaf_type(&expr->value_type, &v->type);
+		return;
+	}
+
+	char *u = encode_text_to_input_format(expr->s->text);
+	int func_no = ain_get_function_no(env->ain, u);
+	free(u);
+	if (func_no < 0)
+		ERROR("Undefined variable: %s", expr->s->text);
+
+	expr->value_type.type = JAF_FUNCTION;
+	expr->value_type.func_no = func_no;
+}
+
+static void jaf_check_types_funcall(struct jaf_env *env, struct jaf_expression *expr)
+{
+	jaf_derive_types(env, expr->call.fun);
+	TYPE_CHECK(expr->call.fun, JAF_FUNCTION);
+
+	int func_no = expr->call.fun->value_type.func_no;
+	assert(func_no >= 0 && func_no < env->ain->nr_functions);
+	ain_to_jaf_type(&expr->value_type, &env->ain->functions[func_no].return_type);
+}
+
+void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)
 {
 	switch (expr->type) {
 	case JAF_EXP_VOID:
-		return JAF_VOID;
+		expr->value_type.type = JAF_VOID;
+		break;
 	case JAF_EXP_INT:
-		return JAF_INT;
+		expr->value_type.type = JAF_INT;
+		break;
 	case JAF_EXP_FLOAT:
-		return JAF_FLOAT;
+		expr->value_type.type = JAF_FLOAT;
+		break;
 	case JAF_EXP_STRING:
-		return JAF_STRING;
+		expr->value_type.type = JAF_STRING;
+		break;
 	case JAF_EXP_IDENTIFIER:
-		// TODO: need environment
-		ERROR("Identifiers not supported");
+		jaf_check_types_identifier(env, expr);
+		break;
 	case JAF_EXP_UNARY:
-		return jaf_check_types_unary(expr);
+		jaf_check_types_unary(env, expr);
+		break;
 	case JAF_EXP_BINARY:
-		return jaf_check_types_binary(expr);
+		jaf_check_types_binary(env, expr);
+		break;
 	case JAF_EXP_TERNARY:
-		return jaf_check_types_ternary(expr);
+		jaf_check_types_ternary(env, expr);
+		break;
 	case JAF_EXP_CAST:
-		return expr->cast.type;
+		expr->value_type.type = expr->cast.type;
+		break;
+	case JAF_EXP_FUNCALL:
+		jaf_check_types_funcall(env, expr);
+		break;
 	}
-	ERROR("Unhandled expression type");
-}
-
-void jaf_derive_types(struct jaf_expression *expr)
-{
-	expr->derived_type = _jaf_check_types(expr);
 }
 
 void jaf_check_type(struct jaf_expression *expr, struct jaf_type_specifier *type)
 {
-	if (expr->derived_type != type->type) {
+	if (!jaf_type_equal(&expr->value_type, type)) {
 		TYPE_ERROR(expr, type->type);
 	}
 }

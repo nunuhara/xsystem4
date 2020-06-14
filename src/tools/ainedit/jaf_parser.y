@@ -28,6 +28,7 @@ void yyerror(const char *s);
     int token;
     struct string *string;
     struct jaf_expression *expression;
+    struct jaf_expression_list *args;
     struct jaf_type_specifier *type;
     struct jaf_declarator *declarator;
     struct jaf_declarator_list *declarators;
@@ -61,6 +62,7 @@ void yyerror(const char *s);
 %type	<expression>	logical_and_expression logical_or_expression
 %type	<expression>	conditional_expression assignment_expression
 %type	<expression>	expression constant_expression primary_expression constant
+%type	<args>		argument_expression_list
 %type	<type>		type_specifier struct_specifier declaration_specifiers
 %type	<declarator>	init_declarator declarator
 %type	<declarators>	init_declarator_list struct_declarator_list
@@ -107,9 +109,9 @@ string
 postfix_expression
 	: primary_expression                                  { $$ = $1; }
 	| postfix_expression '[' expression ']'               { ERROR("Arrays not supported"); }
-	| postfix_expression '(' ')'                          { ERROR("Function calls not supported"); }
+	| postfix_expression '(' ')'                          { $$ = jaf_function_call($1, NULL); }
 	| atomic_type_specifier '(' expression ')'            { $$ = jaf_cast_expression($1, $3); }
-	| postfix_expression '(' argument_expression_list ')' { ERROR("Function calls not supported"); }
+	| postfix_expression '(' argument_expression_list ')' { $$ = jaf_function_call($1, $3); }
 	| postfix_expression '.' IDENTIFIER                   { ERROR("Struct members not supported"); }
 	| postfix_expression INC_OP                           { $$ = jaf_unary_expr(JAF_POST_INC, $1); }
 	| postfix_expression DEC_OP                           { $$ = jaf_unary_expr(JAF_POST_DEC, $1); }
@@ -118,8 +120,8 @@ postfix_expression
 	;
 
 argument_expression_list
-	: assignment_expression
-	| argument_expression_list ',' assignment_expression
+	: assignment_expression                              { $$ = jaf_args(NULL, $1); }
+	| argument_expression_list ',' assignment_expression { $$ = jaf_args($1,   $3); }
 	;
 
 unary_expression

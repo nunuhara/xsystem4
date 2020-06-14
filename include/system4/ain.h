@@ -320,11 +320,13 @@ struct ain *ain_open(const char *path, int *error);
 void ain_decrypt(uint8_t *buf, size_t len);
 
 struct ain_function *ain_get_function(struct ain *ain, char *name);
+int ain_get_function_no(struct ain *ain, char *name);
 int ain_get_function_index(struct ain *ain, struct ain_function *f);
 struct ain_struct *ain_get_struct(struct ain *ain, char *name);
 int ain_get_struct_no(struct ain *ain, char *name);
 int ain_add_struct(struct ain *ain, char *name);
 struct ain_variable *ain_add_global(struct ain *ain, char *name);
+struct ain_variable *ain_get_global(struct ain *ain, char *name);
 void ain_add_initval(struct ain *ain, struct ain_initval *init);
 int ain_add_function(struct ain *ain, struct ain_function *fun);
 

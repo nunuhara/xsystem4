@@ -221,6 +221,17 @@ struct jaf_expression *jaf_simplify_ternary(struct jaf_expression *in)
 	return in;
 }
 
+struct jaf_expression *jaf_simplify_funcall(struct jaf_expression *in)
+{
+	in->call.fun = jaf_simplify(in->call.fun);
+	if (in->call.args) {
+		for (size_t i = 0; i < in->call.args->nr_items; i++) {
+			in->call.args->items[i] = jaf_simplify(in->call.args->items[i]);
+		}
+	}
+	return in;
+}
+
 struct jaf_expression *jaf_simplify_cast(struct jaf_expression *in)
 {
 	in->cast.expr = jaf_simplify(in->cast.expr);
@@ -303,6 +314,8 @@ struct jaf_expression *jaf_simplify(struct jaf_expression *in)
 		return jaf_simplify_binary(in);
 	case JAF_EXP_TERNARY:
 		return jaf_simplify_ternary(in);
+	case JAF_EXP_FUNCALL:
+		return jaf_simplify_funcall(in);
 	case JAF_EXP_CAST:
 		return jaf_simplify_cast(in);
 	}
