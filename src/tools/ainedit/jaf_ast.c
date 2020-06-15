@@ -138,6 +138,14 @@ struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expres
 	return e;
 }
 
+struct jaf_expression *jaf_member_expr(struct jaf_expression *struc, struct string *name)
+{
+	struct jaf_expression *e = jaf_expr(JAF_EXP_MEMBER, 0);
+	e->member.struc = struc;
+	e->member.name = name;
+	return e;
+}
+
 struct jaf_type_specifier *jaf_type(enum jaf_type type)
 {
 	struct jaf_type_specifier *p = xcalloc(1, sizeof(struct jaf_type_specifier));
@@ -423,6 +431,10 @@ void jaf_free_expr(struct jaf_expression *expr)
 		break;
 	case JAF_EXP_CAST:
 		jaf_free_expr(expr->cast.expr);
+		break;
+	case JAF_EXP_MEMBER:
+		jaf_free_expr(expr->member.struc);
+		free_string(expr->member.name);
 		break;
 	}
 	free(expr);

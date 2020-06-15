@@ -51,7 +51,7 @@ enum jaf_expression_type {
 	//JAF_EXP_SUBSCRIPT,
 	JAF_EXP_FUNCALL,
 	JAF_EXP_CAST,
-	//JAF_EXP_MEMBER,
+	JAF_EXP_MEMBER,
 	//JAF_EXP_SEQ,
 };
 
@@ -146,6 +146,11 @@ struct jaf_expression {
 			struct jaf_expression_list *args;
 			int func_no;
 		} call;
+		// struct member
+		struct {
+			struct jaf_expression *struc;
+			struct string *name;
+		} member;
 	};
 };
 
@@ -250,6 +255,7 @@ struct jaf_env {
 	struct ain *ain;
 	struct jaf_env *parent;
 	int func_no;
+	struct jaf_declaration *fundecl;
 	size_t nr_locals;
 	struct ain_variable **locals;
 };
@@ -264,8 +270,9 @@ struct jaf_expression *jaf_unary_expr(enum jaf_operator op, struct jaf_expressio
 struct jaf_expression *jaf_binary_expr(enum jaf_operator op, struct jaf_expression *lhs, struct jaf_expression *rhs);
 struct jaf_expression *jaf_ternary_expr(struct jaf_expression *test, struct jaf_expression *cons, struct jaf_expression *alt);
 struct jaf_expression *jaf_seq_expr(struct jaf_expression *head, struct jaf_expression *tail);
-struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expression *expr);
 struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_expression_list *args);
+struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expression *expr);
+struct jaf_expression *jaf_member_expr(struct jaf_expression *struc, struct string *name);
 
 struct jaf_expression_list *jaf_args(struct jaf_expression_list *head, struct jaf_expression *tail);
 

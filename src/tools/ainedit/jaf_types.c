@@ -15,6 +15,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include "system4.h"
 #include "system4/string.h"
@@ -188,6 +189,10 @@ static void ain_to_jaf_type(struct jaf_type_specifier *dst, struct ain_type *src
 	case AIN_STRING:
 		dst->type = JAF_STRING;
 		break;
+	case AIN_STRUCT:
+		dst->type = JAF_STRUCT;
+		dst->struct_no = src->struc;
+		break;
 	default:
 		ERROR("Unsupported variable type");
 	}
@@ -221,6 +226,22 @@ static void jaf_check_types_funcall(struct jaf_env *env, struct jaf_expression *
 	ain_to_jaf_type(&expr->value_type, &env->ain->functions[func_no].return_type);
 }
 
+static void jaf_check_types_member(struct jaf_env *env, struct jaf_expression *expr)
+{
+	jaf_derive_types(env, expr->member.struc);
+	TYPE_CHECK(expr->member.struc, JAF_STRUCT);
+
+	char *u = encode_text_to_input_format(expr->member.name->text);
+	struct ain_struct *s = &env->ain->structures[expr->member.struc->value_type.struct_no];
+	for (int i = 0; i < s->nr_members; i++) {
+		if (!strcmp(s->members[i].name, u)) {
+			ain_to_jaf_type(&expr->value_type, &s->members[i].type);
+			break;
+		}
+	}
+	free(u);
+}
+
 void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)
 {
 	switch (expr->type) {
@@ -248,11 +269,14 @@ void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)
 	case JAF_EXP_TERNARY:
 		jaf_check_types_ternary(env, expr);
 		break;
+	case JAF_EXP_FUNCALL:
+		jaf_check_types_funcall(env, expr);
+		break;
 	case JAF_EXP_CAST:
 		expr->value_type.type = expr->cast.type;
 		break;
-	case JAF_EXP_FUNCALL:
-		jaf_check_types_funcall(env, expr);
+	case JAF_EXP_MEMBER:
+		jaf_check_types_member(env, expr);
 		break;
 	}
 }
@@ -260,6 +284,11 @@ void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)
 void jaf_check_type(struct jaf_expression *expr, struct jaf_type_specifier *type)
 {
 	if (!jaf_type_equal(&expr->value_type, type)) {
+		// treat ints and floats as interchangable
+		if (expr->value_type.type == JAF_INT && type->type == JAF_FLOAT)
+			return;
+		if (expr->value_type.type == JAF_FLOAT && type->type == JAF_INT)
+			return;
 		TYPE_ERROR(expr, type->type);
 	}
 }

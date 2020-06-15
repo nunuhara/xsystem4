@@ -144,9 +144,10 @@ static void analyze_block(struct jaf_env *env, struct jaf_block *block);
 
 static void analyze_global_declaration(struct jaf_env *env, struct jaf_declaration *decl)
 {
-	if (decl->init)
+	if (!decl->init)
 		return;
 	analyze_expression(env, &decl->init);
+	assert(decl->type);
 	jaf_check_type(decl->init, decl->type);
 	// add initval to ain object
 	struct ain_initval init = { .global_index = decl->var_no };
@@ -172,6 +173,7 @@ static void analyze_function(struct jaf_env *env, struct jaf_declaration *decl)
 	funenv->ain = env->ain;
 	funenv->parent = env;
 	funenv->func_no = decl->func_no;
+	funenv->fundecl = decl;
 	funenv->nr_locals = fun->nr_args;
 	funenv->locals = xcalloc(funenv->nr_locals, sizeof(struct ain_variable*));
 	for (size_t i = 0; i < funenv->nr_locals; i++) {
@@ -228,6 +230,7 @@ static void analyze_statement(struct jaf_env *env, struct jaf_block_item *item)
 		break;
 	case JAF_STMT_RETURN:
 		analyze_expression(env, &item->expr);
+		jaf_check_type(item->expr, env->fundecl->type);
 		break;
 	case JAF_STMT_CASE:
 	case JAF_STMT_DEFAULT:

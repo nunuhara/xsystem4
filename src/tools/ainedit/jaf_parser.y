@@ -112,7 +112,7 @@ postfix_expression
 	| postfix_expression '(' ')'                          { $$ = jaf_function_call($1, NULL); }
 	| atomic_type_specifier '(' expression ')'            { $$ = jaf_cast_expression($1, $3); }
 	| postfix_expression '(' argument_expression_list ')' { $$ = jaf_function_call($1, $3); }
-	| postfix_expression '.' IDENTIFIER                   { ERROR("Struct members not supported"); }
+	| postfix_expression '.' IDENTIFIER                   { $$ = jaf_member_expr($1, $3); }
 	| postfix_expression INC_OP                           { $$ = jaf_unary_expr(JAF_POST_INC, $1); }
 	| postfix_expression DEC_OP                           { $$ = jaf_unary_expr(JAF_POST_DEC, $1); }
 //	| '(' type_specifier ')' '{' initializer_list '}'

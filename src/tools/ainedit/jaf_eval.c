@@ -198,7 +198,7 @@ static struct jaf_expression *jaf_simplify_binary(struct jaf_expression *in)
 	}
 }
 
-struct jaf_expression *jaf_simplify_ternary(struct jaf_expression *in)
+static struct jaf_expression *jaf_simplify_ternary(struct jaf_expression *in)
 {
 	in->condition = jaf_simplify(in->condition);
 	in->consequent = jaf_simplify(in->consequent);
@@ -221,7 +221,7 @@ struct jaf_expression *jaf_simplify_ternary(struct jaf_expression *in)
 	return in;
 }
 
-struct jaf_expression *jaf_simplify_funcall(struct jaf_expression *in)
+static struct jaf_expression *jaf_simplify_funcall(struct jaf_expression *in)
 {
 	in->call.fun = jaf_simplify(in->call.fun);
 	if (in->call.args) {
@@ -232,7 +232,7 @@ struct jaf_expression *jaf_simplify_funcall(struct jaf_expression *in)
 	return in;
 }
 
-struct jaf_expression *jaf_simplify_cast(struct jaf_expression *in)
+static struct jaf_expression *jaf_simplify_cast(struct jaf_expression *in)
 {
 	in->cast.expr = jaf_simplify(in->cast.expr);
 
@@ -296,6 +296,12 @@ struct jaf_expression *jaf_simplify_cast(struct jaf_expression *in)
 	return in;
 }
 
+static struct jaf_expression *jaf_simplify_member(struct jaf_expression *in)
+{
+	in->member.struc = jaf_simplify(in->member.struc);
+	return in;
+}
+
 /*
  * Simplify an expression by evaluating the constant parts.
  */
@@ -318,6 +324,8 @@ struct jaf_expression *jaf_simplify(struct jaf_expression *in)
 		return jaf_simplify_funcall(in);
 	case JAF_EXP_CAST:
 		return jaf_simplify_cast(in);
+	case JAF_EXP_MEMBER:
+		return jaf_simplify_member(in);
 	}
 	ERROR("Invalid expression type");
 }
@@ -334,4 +342,3 @@ struct jaf_expression *jaf_compute_constexpr(struct jaf_expression *in)
 		return NULL;
 	}
 }
-
