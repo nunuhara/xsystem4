@@ -35,8 +35,9 @@ enum jaf_type {
 };
 
 enum jaf_type_qualifier {
-	JAF_QUAL_CONST = 1,
-	JAF_QUAL_REF   = 2
+	JAF_QUAL_CONST  = 1,
+	JAF_QUAL_REF    = 2,
+	JAF_QUAL_GLOBAL = 4,
 };
 
 enum jaf_expression_type {
@@ -122,6 +123,11 @@ struct jaf_expression {
 		int i;
 		float f;
 		struct string *s;
+		struct {
+			struct string *name;
+			enum ain_variable_type var_type;
+			int var_no;
+		} ident;
 		// unary operators
 		struct jaf_expression *expr;
 		// binary operators
@@ -315,13 +321,16 @@ struct ain *jaf_ain_out;
 struct jaf_block *jaf_toplevel;
 void jaf_compile(struct ain *out, const char *path);
 void jaf_define_struct(struct ain *ain, struct jaf_type_specifier *type);
-struct ain_variable *jaf_env_lookup(struct jaf_env *env, struct string *name);
 
 // jaf_eval.c
 struct jaf_expression *jaf_simplify(struct jaf_expression *in);
 
 // jaf_types.c
+const char *jaf_typestr(enum jaf_type type);
 void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr);
 void jaf_check_type(struct jaf_expression *expr, struct jaf_type_specifier *type);
+
+// jaf_static_analysis.c
+struct jaf_block *jaf_static_analyze(struct ain *ain, struct jaf_block *block);
 
 #endif /* AINEDIT_JAF_H */

@@ -38,6 +38,7 @@ char *buffer_strdata(struct buffer *r);
 
 void buffer_write_int32(struct buffer *b, uint32_t v);
 void buffer_write_int32_at(struct buffer *buf, size_t index, uint32_t v);
+void buffer_write_int16(struct buffer *b, uint16_t v);
 void buffer_write_float(struct buffer *b, float f);
 void buffer_write_bytes(struct buffer *b, const uint8_t *bytes, size_t len);
 void buffer_write_string(struct buffer *b, struct string *s);

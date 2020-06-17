@@ -223,6 +223,7 @@ struct ain_variable *ain_add_global(struct ain *ain, char *name)
 	ain->globals[no].name = strdup(name);
 	if (ain->version >= 12)
 		ain->globals[no].name2 = strdup("");
+	ain->globals[no].var_type = AIN_VAR_GLOBAL;
 	ain->nr_globals++;
 	return &ain->globals[no];
 }
@@ -235,6 +236,12 @@ struct ain_variable *ain_get_global(struct ain *ain, char *name)
 			return &ain->globals[i];
 	}
 	return NULL;
+}
+
+int ain_get_global_no(struct ain *ain, char *name)
+{
+	struct ain_variable *v = ain_get_global(ain, name);
+	return v ? v - ain->globals : -1;
 }
 
 void ain_add_initval(struct ain *ain, struct ain_initval *init)
@@ -629,6 +636,7 @@ static struct ain_variable *read_globals(struct ain_reader *r, int count, struct
 		read_variable_type(r, &globals[i].type);
 		if (ain->version >= 5)
 			globals[i].group_index = read_int32(r);
+		globals[i].var_type = AIN_VAR_GLOBAL;
 	}
 	return globals;
 }

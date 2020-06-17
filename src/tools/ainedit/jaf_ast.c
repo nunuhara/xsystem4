@@ -79,7 +79,7 @@ struct jaf_expression *jaf_string(struct string *text)
 struct jaf_expression *jaf_identifier(struct string *name)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_IDENTIFIER, 0);
-	e->s = name;
+	e->ident.name = name;
 	return e;
 }
 
@@ -135,6 +135,7 @@ struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expres
 	struct jaf_expression *e = jaf_expr(JAF_EXP_CAST, 0);
 	e->cast.type = type;
 	e->cast.expr = expr;
+	e->value_type.type = type;
 	return e;
 }
 

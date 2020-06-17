@@ -113,6 +113,13 @@ void buffer_write_int32_at(struct buffer *buf, size_t index, uint32_t v)
 	buf->index = tmp;
 }
 
+void buffer_write_int16(struct buffer *b, uint16_t v)
+{
+	alloc_buffer(b, 2);
+	b->buf[b->index++] = (v & 0x00FF);
+	b->buf[b->index++] = (v & 0xFF00) >> 8;
+}
+
 void buffer_write_float(struct buffer *b, float f)
 {
 	union { float f; uint32_t u; } v;

@@ -27,7 +27,7 @@
 #define TYPE_CHECK(expr, expected) { if (expr->value_type.type != expected) TYPE_ERROR(expr, expected); }
 #define TYPE_CHECK_NUMERIC(expr) { if (expr->derived_type != JAF_INT && expr->derived_type != JAF_FLOAT) TYPE_ERROR(expr, JAF_INT); }
 
-static const char *jaf_typestr(enum jaf_type type)
+const char *jaf_typestr(enum jaf_type type)
 {
 	switch (type) {
 	case JAF_VOID:     return "void";
@@ -198,11 +198,49 @@ static void ain_to_jaf_type(struct jaf_type_specifier *dst, struct ain_type *src
 	}
 }
 
+static struct ain_variable *jaf_scope_lookup(struct jaf_env *env, char *name, int *var_no)
+{
+	for (size_t i = 0; i < env->nr_locals; i++) {
+		if (!strcmp(env->locals[i]->name, name)) {
+			*var_no = i;
+			return env->locals[i];
+		}
+	}
+	return NULL;
+}
+
+struct ain_variable *jaf_env_lookup(struct jaf_env *env, struct string *name, int *var_no)
+{
+	char *u = encode_text_to_input_format(name->text);
+	struct jaf_env *scope = env;
+        while (scope) {
+		struct ain_variable *v = jaf_scope_lookup(env, u, var_no);
+		if (v) {
+			free(u);
+			return v;
+		}
+		scope = scope->parent;
+	}
+
+	int no = ain_get_global_no(env->ain, u);
+	free(u);
+
+	if (no >= 0) {
+		*var_no = no;
+		return &env->ain->globals[no];
+	}
+
+	return NULL;
+}
+
 static void jaf_check_types_identifier(struct jaf_env *env, struct jaf_expression *expr)
 {
-	struct ain_variable *v = jaf_env_lookup(env, expr->s);
+	int var_no;
+	struct ain_variable *v = jaf_env_lookup(env, expr->ident.name, &var_no);
 	if (v) {
 		ain_to_jaf_type(&expr->value_type, &v->type);
+		expr->ident.var_type = v->var_type;
+		expr->ident.var_no = var_no;
 		return;
 	}
 

@@ -22,102 +22,125 @@
 
 struct jaf_expression *jaf_simplify(struct jaf_expression *in);
 
-static struct jaf_expression *jaf_simplify_negation(struct jaf_expression *expr)
+static struct jaf_expression *jaf_simplify_negation(struct jaf_expression *in)
 {
+	struct jaf_expression *expr = in->expr;
 	if (expr->type == JAF_EXP_INT) {
+		free(in);
 		expr->i = -expr->i;
 		return expr;
 	}
 	if (expr->type == JAF_EXP_FLOAT) {
+		free(in);
 		expr->f = -expr->f;
 		return expr;
 	}
 
-	return jaf_unary_expr(JAF_UNARY_MINUS, expr);
+	return in;
 }
 
-static struct jaf_expression *jaf_simplify_bitnot(struct jaf_expression *expr)
+static struct jaf_expression *jaf_simplify_bitnot(struct jaf_expression *in)
 {
+	struct jaf_expression *expr = in->expr;
 	if (expr->type == JAF_EXP_INT) {
+		free(in);
 		expr->i = ~expr->i;
 		return expr;
 	}
 
-	return jaf_unary_expr(JAF_BIT_NOT, expr);
+	return in;
 }
 
-static struct jaf_expression *jaf_simplify_lognot(struct jaf_expression *expr)
+static struct jaf_expression *jaf_simplify_lognot(struct jaf_expression *in)
 {
+	struct jaf_expression *expr = in->expr;
 	if (expr->type == JAF_EXP_INT) {
+		free(in);
 		expr->i = !expr->i;
 		return expr;
 	}
 
-	return jaf_unary_expr(JAF_LOG_NOT, expr);
+	return in;
 }
 
 static struct jaf_expression *jaf_simplify_unary(struct jaf_expression *in)
 {
-	struct jaf_expression *out = jaf_simplify(in->expr);
+	struct jaf_expression *r = in->expr = jaf_simplify(in->expr);
 	switch (in->op) {
 	case JAF_UNARY_PLUS:
-		return out;
+		free(in);
+		return r;
 	case JAF_UNARY_MINUS:
-		return jaf_simplify_negation(out);
+		return jaf_simplify_negation(in);
 	case JAF_BIT_NOT:
-		return jaf_simplify_bitnot(out);
+		return jaf_simplify_bitnot(in);
 	case JAF_LOG_NOT:
-		return jaf_simplify_lognot(out);
+		return jaf_simplify_lognot(in);
 	case JAF_AMPERSAND:
 	case JAF_PRE_INC:
 	case JAF_PRE_DEC:
 	case JAF_POST_INC:
 	case JAF_POST_DEC:
-		return jaf_unary_expr(in->op, out);
+		return in;
 	default:
 		break;
 	}
 	ERROR("Invalid unary operator");
 }
 
-static void jaf_normalize_for_arithmetic(struct jaf_expression *lhs, struct jaf_expression *rhs)
+static struct jaf_expression *simplify_cast_to_float(struct jaf_expression *e)
 {
-	if (lhs->type == JAF_EXP_FLOAT && rhs->type == JAF_EXP_INT) {
-		rhs->type = JAF_EXP_FLOAT;
-		rhs->f = rhs->i;
-	} else if (lhs->type == JAF_EXP_INT && rhs->type == JAF_EXP_FLOAT) {
-		lhs->type = JAF_EXP_FLOAT;
-		lhs->f = lhs->i;
+	if (e->value_type.type == JAF_FLOAT)
+		return e;
+	if (e->type == JAF_EXP_INT) {
+		float f = e->i;
+		e->type = JAF_EXP_FLOAT;
+		e->f = f;
+		return e;
+	}
+	return jaf_cast_expression(JAF_FLOAT, e);
+}
+
+static void jaf_normalize_for_arithmetic(struct jaf_expression *e)
+{
+	if (e->lhs->value_type.type == JAF_FLOAT || e->rhs->value_type.type == JAF_FLOAT) {
+		e->lhs = simplify_cast_to_float(e->lhs);
+		e->rhs = simplify_cast_to_float(e->rhs);
 	}
 }
 
 #define SIMPLIFY_ARITHMETIC_FUN(name, op_name, op)			\
-	static struct jaf_expression *name(struct jaf_expression *lhs, struct jaf_expression *rhs) \
+	static struct jaf_expression *name(struct jaf_expression *e)	\
 	{								\
-		jaf_normalize_for_arithmetic(lhs, rhs);			\
-		if (lhs->type == JAF_EXP_INT && rhs->type == JAF_EXP_INT) { \
-			lhs->i = lhs->i op rhs->i;			\
-			free(rhs);					\
-			return lhs;					\
+		jaf_normalize_for_arithmetic(e);			\
+		if (e->lhs->type == JAF_EXP_INT && e->rhs->type == JAF_EXP_INT) { \
+			struct jaf_expression *r = e->lhs;		\
+			r->i = r->i op e->rhs->i;			\
+			free(e->rhs);					\
+			free(e);					\
+			return r;					\
 		}							\
-		if (lhs->type == JAF_EXP_FLOAT && rhs->type == JAF_EXP_FLOAT) { \
-			lhs->f = lhs->f op rhs->f;			\
-			free(rhs);					\
-			return lhs;					\
+		if (e->lhs->type == JAF_EXP_FLOAT && e->rhs->type == JAF_EXP_FLOAT) { \
+			struct jaf_expression *r = e->lhs;		\
+			r->f = r->f op e->rhs->f;			\
+			free(e->rhs);					\
+			free(e);					\
+			return r;					\
 		}							\
-		return jaf_binary_expr(op_name, lhs, rhs);		\
+		return e;						\
 	}
 
 #define SIMPLIFY_INTEGER_FUN(name, op_name, op)				\
-	static struct jaf_expression *name(struct jaf_expression *lhs, struct jaf_expression *rhs) \
+	static struct jaf_expression *name(struct jaf_expression *e)	\
 	{								\
-		jaf_normalize_for_arithmetic(lhs, rhs);			\
-		if (lhs->type == JAF_EXP_INT && rhs->type == JAF_EXP_INT) { \
-			lhs->i = lhs->i op rhs->i;			\
-			free(rhs);					\
-			return lhs;					\
+		if (e->lhs->type == JAF_EXP_INT && e->rhs->type == JAF_EXP_INT) { \
+			struct jaf_expression *r = e->lhs;		\
+			r->i = r->i op e->rhs->i;			\
+			free(e->rhs);					\
+			free(e);					\
+			return r;					\
 		}							\
-		return jaf_binary_expr(op_name, lhs, rhs);		\
+		return e;						\
 	}
 
 SIMPLIFY_ARITHMETIC_FUN(jaf_simplify_multiply,  JAF_MULTIPLY,  *)
@@ -138,48 +161,47 @@ SIMPLIFY_INTEGER_FUN   (jaf_simplify_bitior,    JAF_BIT_IOR,   |)
 SIMPLIFY_INTEGER_FUN   (jaf_simplify_logand,    JAF_LOG_AND,   &&)
 SIMPLIFY_INTEGER_FUN   (jaf_simplify_logor,     JAF_LOG_OR,    ||)
 
-static struct jaf_expression *jaf_simplify_binary(struct jaf_expression *in)
+static struct jaf_expression *jaf_simplify_binary(struct jaf_expression *e)
 {
-	enum jaf_operator op = in->op;
-	struct jaf_expression *lhs = jaf_simplify(in->lhs);
-	struct jaf_expression *rhs = jaf_simplify(in->rhs);
-	free(in);
+	enum jaf_operator op = e->op;
+	e->lhs = jaf_simplify(e->lhs);
+	e->rhs = jaf_simplify(e->rhs);
 
 	switch (op) {
 	case JAF_MULTIPLY:
-		return jaf_simplify_multiply(lhs, rhs);
+		return jaf_simplify_multiply(e);
 	case JAF_DIVIDE:
-		return jaf_simplify_divide(lhs, rhs);
+		return jaf_simplify_divide(e);
 	case JAF_REMAINDER:
-		return jaf_simplify_remainder(lhs, rhs);
+		return jaf_simplify_remainder(e);
 	case JAF_PLUS:
-		return jaf_simplify_plus(lhs, rhs);
+		return jaf_simplify_plus(e);
 	case JAF_MINUS:
-		return jaf_simplify_minus(lhs, rhs);
+		return jaf_simplify_minus(e);
 	case JAF_LSHIFT:
-		return jaf_simplify_lshift(lhs, rhs);
+		return jaf_simplify_lshift(e);
 	case JAF_RSHIFT:
-		return jaf_simplify_rshift(lhs, rhs);
+		return jaf_simplify_rshift(e);
 	case JAF_LT:
-		return jaf_simplify_lt(lhs, rhs);
+		return jaf_simplify_lt(e);
 	case JAF_GT:
-		return jaf_simplify_gt(lhs, rhs);
+		return jaf_simplify_gt(e);
 	case JAF_LTE:
-		return jaf_simplify_lte(lhs, rhs);
+		return jaf_simplify_lte(e);
 	case JAF_GTE:
-		return jaf_simplify_gte(lhs, rhs);
+		return jaf_simplify_gte(e);
 	case JAF_EQ:
-		return jaf_simplify_eq(lhs, rhs);
+		return jaf_simplify_eq(e);
 	case JAF_BIT_AND:
-		return jaf_simplify_bitand(lhs, rhs);
+		return jaf_simplify_bitand(e);
 	case JAF_BIT_XOR:
-		return jaf_simplify_bitxor(lhs, rhs);
+		return jaf_simplify_bitxor(e);
 	case JAF_BIT_IOR:
-		return jaf_simplify_bitior(lhs, rhs);
+		return jaf_simplify_bitior(e);
 	case JAF_LOG_AND:
-		return jaf_simplify_logand(lhs, rhs);
+		return jaf_simplify_logand(e);
 	case JAF_LOG_OR:
-		return jaf_simplify_logor(lhs, rhs);
+		return jaf_simplify_logor(e);
 	case JAF_ASSIGN:
 	case JAF_MUL_ASSIGN:
 	case JAF_DIV_ASSIGN:
@@ -192,7 +214,7 @@ static struct jaf_expression *jaf_simplify_binary(struct jaf_expression *in)
 	case JAF_XOR_ASSIGN:
 	case JAF_OR_ASSIGN:
 	case JAF_REF_ASSIGN:
-		return jaf_binary_expr(op, lhs, rhs);
+		return e;
 	default:
 		ERROR("Invalid binary operator");
 	}
