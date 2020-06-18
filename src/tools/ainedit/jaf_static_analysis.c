@@ -271,6 +271,8 @@ static void resolve_decl_types(struct ain *ain, struct jaf_declaration *decl)
 
 static void resolve_statement_types(struct ain *ain, struct jaf_block_item *item)
 {
+	if (!item)
+		return;
 	switch (item->kind) {
 	case JAF_DECLARATION:
 		resolve_decl_types(ain, &item->decl);
@@ -334,6 +336,8 @@ static struct ain_variable *block_get_vars(struct ain *ain, struct jaf_block *bl
 
 static struct ain_variable *block_item_get_vars(struct ain *ain, struct jaf_block_item *item, struct ain_variable *vars, int *nr_vars)
 {
+	if (!item)
+		return vars;
 	switch (item->kind) {
 	case JAF_DECLARATION:
 		if (!item->decl.name)

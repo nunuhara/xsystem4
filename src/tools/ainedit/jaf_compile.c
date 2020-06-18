@@ -202,6 +202,7 @@ static void compile_lvalue(possibly_unused struct ain *ain, struct buffer *out, 
 
 static void compile_binary(struct ain *ain, struct buffer *out, struct jaf_expression *expr)
 {
+	size_t addr[3];
 	switch (expr->op) {
 	case JAF_MULTIPLY:
 	case JAF_DIVIDE:
@@ -224,10 +225,34 @@ static void compile_binary(struct ain *ain, struct buffer *out, struct jaf_expre
 		write_instruction0(out, jaf_op_to_opcode(expr->op, expr->value_type.type));
 		break;
 	case JAF_LOG_AND:
-		ERROR("Logical AND not supported");
+		compile_expression(ain, out, expr->lhs);
+		addr[0] = out->index + 2;
+		write_instruction1(out, IFZ, 0);
+		compile_expression(ain, out, expr->rhs);
+		addr[1] = out->index + 2;
+		write_instruction1(out, IFZ, 0);
+		write_instruction1(out, PUSH, 1);
+		addr[2] = out->index + 2;
+		write_instruction1(out, JUMP, 0);
+		buffer_write_int32_at(out, addr[0], out->index);
+		buffer_write_int32_at(out, addr[1], out->index);
+		write_instruction1(out, PUSH, 0);
+		buffer_write_int32_at(out, addr[2], out->index);
 		break;
 	case JAF_LOG_OR:
-		ERROR("Logical OR not supported");
+		compile_expression(ain, out, expr->lhs);
+		addr[0] = out->index + 2;
+		write_instruction1(out, IFNZ, 0);
+		compile_expression(ain, out, expr->rhs);
+		addr[1] = out->index + 2;
+		write_instruction1(out, IFNZ, 0);
+		write_instruction1(out, PUSH, 0);
+		addr[2] = out->index + 2;
+		write_instruction1(out, JUMP, 0);
+		buffer_write_int32_at(out, addr[0], out->index);
+		buffer_write_int32_at(out, addr[1], out->index);
+		write_instruction1(out, PUSH, 1);
+		buffer_write_int32_at(out, addr[2], out->index);
 		break;
 	case JAF_ASSIGN:
 	case JAF_MUL_ASSIGN:
@@ -390,6 +415,7 @@ static void compile_vardecl(struct ain *ain, struct buffer *out, struct jaf_decl
 
 static void compile_statement(struct ain *ain, struct buffer *out, struct jaf_block_item *item)
 {
+	int addr[8];
 	switch (item->kind) {
 	case JAF_DECLARATION:
 		compile_vardecl(ain, out, &item->decl);
@@ -421,7 +447,22 @@ static void compile_statement(struct ain *ain, struct buffer *out, struct jaf_bl
 		}
 		break;
 	case JAF_STMT_IF:
-		ERROR("if not supported");
+		compile_expression(ain, out, item->cond.test);
+		addr[0] = out->index + 2;
+		write_instruction1(out, IFNZ, 0);
+		addr[1] = out->index + 2;
+		write_instruction1(out, JUMP, 0);
+		buffer_write_int32_at(out, addr[0], out->index);
+		compile_statement(ain, out, item->cond.consequent);
+		if (item->cond.alternative) {
+			addr[2] = out->index + 2;
+			write_instruction1(out, JUMP, 0);
+			buffer_write_int32_at(out, addr[1], out->index);
+			compile_statement(ain, out, item->cond.alternative);
+			buffer_write_int32_at(out, addr[2], out->index);
+		} else {
+			buffer_write_int32_at(out, addr[1], out->index);
+		}
 		break;
 	case JAF_STMT_SWITCH:
 		ERROR("switch not supported");
