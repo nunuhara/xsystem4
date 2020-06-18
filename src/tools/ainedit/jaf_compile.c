@@ -182,6 +182,24 @@ static void compile_unary(struct ain *ain, struct buffer *out, struct jaf_expres
 	}
 }
 
+static void compile_lvalue(possibly_unused struct ain *ain, struct buffer *out, struct jaf_expression *expr)
+{
+	if (expr->type == JAF_EXP_IDENTIFIER) {
+		if (expr->ident.var_type == AIN_VAR_GLOBAL) {
+			write_instruction0(out, PUSHGLOBALPAGE);
+		} else if (expr->ident.var_type == AIN_VAR_LOCAL) {
+			write_instruction0(out, PUSHLOCALPAGE);
+		} else {
+			ERROR("Invalid variable type as lvalue");
+		}
+		write_instruction1(out, PUSH, expr->ident.var_no);
+	} else if (expr->type == JAF_EXP_MEMBER) {
+		ERROR("struct member lvalues not supported");
+	} else {
+		ERROR("Invalid lvalue");
+	}
+}
+
 static void compile_binary(struct ain *ain, struct buffer *out, struct jaf_expression *expr)
 {
 	switch (expr->op) {
@@ -223,7 +241,10 @@ static void compile_binary(struct ain *ain, struct buffer *out, struct jaf_expre
 	case JAF_XOR_ASSIGN:
 	case JAF_OR_ASSIGN:
 	case JAF_REF_ASSIGN:
-		ERROR("Assignment not supported");
+		compile_lvalue(ain, out, expr->lhs);
+		compile_expression(ain, out, expr->rhs);
+		write_instruction0(out, jaf_op_to_opcode(expr->op, expr->value_type.type));
+		break;
 	default:
 		ERROR("Invalid binary operator");
 	}
@@ -340,6 +361,7 @@ static void compile_vardecl(struct ain *ain, struct buffer *out, struct jaf_decl
 			write_instruction1(out, PUSH, 0);
 		}
 		write_instruction0(out, ASSIGN);
+		write_instruction0(out, POP);
 		break;
 	case JAF_FLOAT:
 		write_instruction0(out, PUSHLOCALPAGE);
@@ -349,6 +371,8 @@ static void compile_vardecl(struct ain *ain, struct buffer *out, struct jaf_decl
 		} else {
 			write_instruction1(out, F_PUSH, 0);
 		}
+		write_instruction0(out, F_ASSIGN);
+		write_instruction0(out, POP);
 		break;
 	case JAF_STRING:
 		ERROR("strings not supported");

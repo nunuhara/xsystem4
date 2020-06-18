@@ -321,12 +321,13 @@ static void jaf_resolve_types(struct ain *ain, struct jaf_block *block)
 	}
 }
 
-static void init_variable(struct ain *ain, struct ain_variable *var, struct string *name, struct jaf_type_specifier *type)
+static void init_variable(struct ain *ain, struct ain_variable *var, struct jaf_declaration *decl, int var_no)
 {
-	var->name = encode_text_to_input_format(name->text);
+	var->name = encode_text_to_input_format(decl->name->text);
 	if (ain->version >= 12)
 		var->name2 = strdup("");
-	jaf_to_ain_type(ain, &var->type, type);
+	jaf_to_ain_type(ain, &var->type, decl->type);
+	decl->var_no = var_no;
 }
 
 static struct ain_variable *block_get_vars(struct ain *ain, struct jaf_block *block, struct ain_variable *vars, int *nr_vars);
@@ -338,7 +339,7 @@ static struct ain_variable *block_item_get_vars(struct ain *ain, struct jaf_bloc
 		if (!item->decl.name)
 			break;
 		vars = xrealloc_array(vars, *nr_vars, *nr_vars + 1, sizeof(struct ain_variable));
-		init_variable(ain, vars + *nr_vars, item->decl.name, item->decl.type);
+		init_variable(ain, vars + *nr_vars, &item->decl, *nr_vars);
 		(*nr_vars)++;
 		break;
 	case JAF_STMT_LABELED:
@@ -397,7 +398,7 @@ static void function_init_vars(struct ain *ain, struct ain_function *f, struct j
 		assert(decl->params->items[i]->kind == JAF_DECLARATION);
 		assert(decl->params->items[i]->decl.name);
 		struct jaf_declaration *param = &decl->params->items[i]->decl;
-		init_variable(ain, &f->vars[i], param->name, param->type);
+		init_variable(ain, &f->vars[i], param, i);
 	}
 	f->vars = block_get_vars(ain, decl->body, f->vars, &f->nr_vars);
 }

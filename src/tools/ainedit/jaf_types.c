@@ -78,6 +78,21 @@ static enum jaf_type jaf_merge_types(enum jaf_type a, enum jaf_type b)
 	ERROR("Incompatible types");
 }
 
+static void jaf_check_types_lvalue(struct jaf_env *env, struct jaf_expression *e)
+{
+	// TODO: array subscripts
+	if (e->type != JAF_EXP_IDENTIFIER && e->type != JAF_EXP_MEMBER)
+		ERROR("Invalid expression as lvalue");
+	switch (e->value_type.type) {
+	case JAF_INT:
+	case JAF_FLOAT:
+	case JAF_STRING:
+		break;
+	default:
+		ERROR("Invalid type as lvalue");
+	}
+}
+
 static void jaf_check_types_unary(struct jaf_env *env, struct jaf_expression *expr)
 {
 	jaf_derive_types(env, expr->expr);
@@ -105,6 +120,7 @@ static void jaf_check_types_binary(struct jaf_env *env, struct jaf_expression *e
 {
 	jaf_derive_types(env, expr->lhs);
 	jaf_derive_types(env, expr->rhs);
+
 	switch (expr->op) {
 	// real ops
 	case JAF_MULTIPLY:
@@ -153,7 +169,11 @@ static void jaf_check_types_binary(struct jaf_env *env, struct jaf_expression *e
 	case JAF_XOR_ASSIGN:
 	case JAF_OR_ASSIGN:
 	case JAF_REF_ASSIGN:
-		ERROR("Assignment expressions not supported");
+		jaf_check_types_lvalue(env, expr->lhs);
+		// FIXME: need to coerce types (?)
+		jaf_check_type(expr->rhs, &expr->lhs->value_type);
+		expr->value_type.type = expr->lhs->value_type.type;
+		break;
 	default:
 		ERROR("Unhandled binary operator");
 	}
