@@ -166,8 +166,27 @@ static void analyze_function(struct jaf_env *env, struct jaf_declaration *decl)
 	free(funenv);
 }
 
+static struct jaf_env *push_env(struct jaf_env *parent)
+{
+	struct jaf_env *newenv = xcalloc(1, sizeof(struct jaf_env));
+	newenv->ain = parent->ain;
+	newenv->parent = parent;
+	newenv->func_no = parent->func_no;
+	newenv->fundecl = parent->fundecl;
+	return newenv;
+}
+
+static struct jaf_env *pop_env(struct jaf_env *env)
+{
+	struct jaf_env *parent = env->parent;
+	free(env->locals);
+	free(env);
+	return parent;
+}
+
 static void analyze_statement(struct jaf_env *env, struct jaf_block_item *item)
 {
+	struct jaf_env *blockenv;
 	if (!item)
 		return;
 	switch (item->kind) {
@@ -204,10 +223,12 @@ static void analyze_statement(struct jaf_env *env, struct jaf_block_item *item)
 		analyze_statement(env, item->while_loop.body);
 		break;
 	case JAF_STMT_FOR:
-		analyze_block(env, item->for_loop.init);
+		blockenv = push_env(env);
+		jaf_analyze_block(env, item->for_loop.init);
 		analyze_expression(env, &item->for_loop.test);
 		analyze_expression(env, &item->for_loop.after);
 		analyze_statement(env, item->for_loop.body);
+		pop_env(blockenv);
 		break;
 	case JAF_STMT_RETURN:
 		analyze_expression(env, &item->expr);
@@ -233,15 +254,9 @@ static void jaf_analyze_block(struct jaf_env *env, struct jaf_block *block)
 
 static void analyze_block(struct jaf_env *env, struct jaf_block *block)
 {
-	struct jaf_env *blockenv = xcalloc(1, sizeof(struct jaf_env));
-	blockenv->ain = env->ain;
-	blockenv->parent = env;
-	blockenv->func_no = env->func_no;
-	blockenv->fundecl = env->fundecl;
-
+	struct jaf_env *blockenv = push_env(env);
 	jaf_analyze_block(blockenv, block);
-	free(blockenv->locals);
-	free(blockenv);
+	pop_env(blockenv);
 }
 
 static void resolve_decl_types(struct ain *ain, struct jaf_declaration *decl)

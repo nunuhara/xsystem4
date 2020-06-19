@@ -370,6 +370,7 @@ struct jaf_block_item *jaf_for_loop(struct jaf_block *init, struct jaf_block_ite
 	item->for_loop.test = test->expr;
 	item->for_loop.after = after;
 	item->for_loop.body = body;
+	free(test);
 	return item;
 }
 

@@ -234,7 +234,7 @@ struct ain_variable *jaf_env_lookup(struct jaf_env *env, struct string *name, in
 	char *u = encode_text_to_input_format(name->text);
 	struct jaf_env *scope = env;
         while (scope) {
-		struct ain_variable *v = jaf_scope_lookup(env, u, var_no);
+		struct ain_variable *v = jaf_scope_lookup(scope, u, var_no);
 		if (v) {
 			free(u);
 			return v;
