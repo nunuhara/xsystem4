@@ -124,9 +124,9 @@ static uint32_t flo2int(float f)
 	return v.i;
 }
 
-static enum opcode jaf_op_to_opcode(enum jaf_operator op, struct jaf_type_specifier *type)
+static enum opcode jaf_op_to_opcode(enum jaf_operator op, enum ain_data_type type)
 {
-	if (type->type == JAF_FLOAT) {
+	if (type == AIN_FLOAT || type == AIN_REF_FLOAT) {
 		switch (op) {
 		case JAF_MULTIPLY:      return F_MUL;
 		case JAF_DIVIDE:        return F_DIV;
@@ -145,7 +145,7 @@ static enum opcode jaf_op_to_opcode(enum jaf_operator op, struct jaf_type_specif
 		case JAF_REF_ASSIGN:    // TODO
 		default:                ERROR("Invalid floating point operator");
 		}
-	} else if (type->type == JAF_INT) {
+	} else if (type == AIN_INT || type == AIN_REF_INT) {
 		switch (op) {
 		case JAF_MULTIPLY:      return MUL;
 		case JAF_DIVIDE:        return DIV;
@@ -178,7 +178,7 @@ static enum opcode jaf_op_to_opcode(enum jaf_operator op, struct jaf_type_specif
 		case JAF_REF_ASSIGN:    // TODO
 		default:                ERROR("Invalid integer operator");
 		}
-	} else if (type->type == JAF_STRING) {
+	} else if (type == AIN_STRING || type == AIN_REF_STRING) {
 		switch (op) {
 		case JAF_ASSIGN: return S_ASSIGN;
 		default:         ERROR("Invalid string operator");
@@ -347,10 +347,9 @@ static void compile_binary(struct compiler_state *state, struct jaf_expression *
 	case JAF_BIT_AND:
 	case JAF_BIT_XOR:
 	case JAF_BIT_IOR:
-		assert(expr->lhs->value_type.type == expr->rhs->value_type.type);
 		compile_expression(state, expr->lhs);
 		compile_expression(state, expr->rhs);
-		write_instruction0(state, jaf_op_to_opcode(expr->op, &expr->value_type));
+		write_instruction0(state, jaf_op_to_opcode(expr->op, expr->valuetype.data));
 		break;
 	case JAF_LOG_AND:
 		compile_expression(state, expr->lhs);
@@ -395,7 +394,7 @@ static void compile_binary(struct compiler_state *state, struct jaf_expression *
 	case JAF_OR_ASSIGN:
 		compile_lvalue(state, expr->lhs);
 		compile_expression(state, expr->rhs);
-		write_instruction0(state, jaf_op_to_opcode(expr->op, &expr->value_type));
+		write_instruction0(state, jaf_op_to_opcode(expr->op, expr->valuetype.data));
 		break;
 	case JAF_REF_ASSIGN:
 	default:
@@ -433,30 +432,30 @@ static void compile_funcall(struct compiler_state *state, struct jaf_expression 
 
 static void compile_cast(struct compiler_state *state, struct jaf_expression *expr)
 {
-	enum jaf_type src_type = expr->cast.expr->value_type.type;
-	enum jaf_type dst_type = expr->cast.type;
+	enum ain_data_type src_type = expr->cast.expr->valuetype.data;
+	enum ain_data_type dst_type = jaf_to_ain_data_type(expr->cast.type, 0);
 	compile_expression(state, expr->cast.expr);
 
 	if (src_type == dst_type)
 		return;
-	if (src_type == JAF_INT) {
-		if (dst_type == JAF_FLOAT) {
+	if (src_type == AIN_INT) {
+		if (dst_type == AIN_FLOAT) {
 			write_instruction0(state, ITOF);
-		} else if (dst_type == JAF_STRING) {
+		} else if (dst_type == AIN_STRING) {
 			write_instruction0(state, I_STRING);
 		} else {
 			goto invalid_cast;
 		}
-	} else if (src_type == JAF_FLOAT) {
-		if (dst_type == JAF_INT) {
+	} else if (src_type == AIN_FLOAT) {
+		if (dst_type == AIN_INT) {
 			write_instruction0(state, FTOI);
-		} else if (dst_type == JAF_STRING) {
+		} else if (dst_type == AIN_STRING) {
 			write_instruction0(state, FTOS);
 		} else {
 			goto invalid_cast;
 		}
-	} else if (src_type == JAF_STRING) {
-		if (dst_type == JAF_INT) {
+	} else if (src_type == AIN_STRING) {
+		if (dst_type == AIN_INT) {
 			write_instruction0(state, STOI);
 		} else {
 			goto invalid_cast;
@@ -464,7 +463,7 @@ static void compile_cast(struct compiler_state *state, struct jaf_expression *ex
 	}
 	return;
 invalid_cast:
-	ERROR("Unsupported cast: %s to %s", jaf_typestr(src_type), jaf_typestr(dst_type));
+	ERROR("Unsupported cast: %s to %s", ain_strtype(state->ain, src_type, -1), jaf_typestr(expr->cast.type));
 }
 
 static void compile_member(struct compiler_state *state, struct jaf_expression *expr)
@@ -720,22 +719,20 @@ static void compile_statement(struct compiler_state *state, struct jaf_block_ite
 		break;
 	case JAF_STMT_EXPRESSION:
 		compile_expression(state, item->expr);
-		switch (item->expr->value_type.type) {
-		case JAF_VOID:
+		switch (item->expr->valuetype.data) {
+		case AIN_VOID:
 			break;
-		case JAF_INT:
-		case JAF_FLOAT:
-		case JAF_STRUCT: // FIXME: this also needs a DELETE I think...
-		case JAF_ENUM:
-		case JAF_FUNCTION:
+		case AIN_INT:
+		case AIN_FLOAT:
+		case AIN_BOOL:
+		case AIN_LONG_INT:
 			write_instruction0(state, POP);
 			break;
-		case JAF_STRING:
+		case AIN_STRING:
 			write_instruction0(state, state->ain->version >= 11 ? DELETE : S_POP);
 			break;
-		// TODO: immediate ref types will need additional POP
-		case JAF_TYPEDEF:
-			ERROR("Unresolved typedef");
+		default:
+			ERROR("Unsupported type");
 		}
 		break;
 	case JAF_STMT_IF:

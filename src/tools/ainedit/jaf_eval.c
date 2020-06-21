@@ -90,7 +90,7 @@ static struct jaf_expression *jaf_simplify_unary(struct jaf_expression *in)
 
 static struct jaf_expression *simplify_cast_to_float(struct jaf_expression *e)
 {
-	if (e->value_type.type == JAF_FLOAT)
+	if (e->valuetype.data == AIN_FLOAT)
 		return e;
 	if (e->type == JAF_EXP_INT) {
 		float f = e->i;
@@ -103,7 +103,7 @@ static struct jaf_expression *simplify_cast_to_float(struct jaf_expression *e)
 
 static void jaf_normalize_for_arithmetic(struct jaf_expression *e)
 {
-	if (e->lhs->value_type.type == JAF_FLOAT || e->rhs->value_type.type == JAF_FLOAT) {
+	if (e->lhs->valuetype.data == AIN_FLOAT || e->rhs->valuetype.data == AIN_FLOAT) {
 		e->lhs = simplify_cast_to_float(e->lhs);
 		e->rhs = simplify_cast_to_float(e->rhs);
 	}

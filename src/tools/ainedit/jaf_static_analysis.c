@@ -143,7 +143,8 @@ static void analyze_global_declaration(struct jaf_env *env, struct jaf_declarati
 		return;
 	analyze_expression(env, &decl->init);
 	assert(decl->type);
-	jaf_check_type(decl->init, decl->type);
+	jaf_to_ain_type(env->ain, &decl->valuetype, decl->type);
+	jaf_check_type(decl->init, &decl->valuetype);
 	// add initval to ain object
 	struct ain_initval init = { .global_index = decl->var_no };
 	jaf_to_initval(&init, decl->init);
@@ -154,6 +155,8 @@ static void analyze_local_declaration(struct jaf_env *env, struct jaf_declaratio
 {
 	assert(env->func_no >= 0 && env->func_no < env->ain->nr_functions);
 	assert(decl->var_no >= 0 && decl->var_no < env->ain->functions[env->func_no].nr_vars);
+	assert(decl->type);
+	jaf_to_ain_type(env->ain, &decl->valuetype, decl->type);
 	// add local to environment
 	env->locals = xrealloc_array(env->locals, env->nr_locals, env->nr_locals+1, sizeof(struct ain_variable*));
 	env->locals[env->nr_locals++] = &env->ain->functions[env->func_no].vars[decl->var_no];
@@ -163,6 +166,7 @@ static void analyze_function(struct jaf_env *env, struct jaf_declaration *decl)
 {
 	// create new scope with function arguments
 	assert(decl->func_no < env->ain->nr_functions);
+	jaf_to_ain_type(env->ain, &decl->valuetype, decl->type);
 	struct ain_function *fun = &env->ain->functions[decl->func_no];
 	struct jaf_env *funenv = xcalloc(1, sizeof(struct jaf_env));
 	funenv->ain = env->ain;
@@ -246,7 +250,7 @@ static void analyze_statement(struct jaf_env *env, struct jaf_block_item *item)
 		break;
 	case JAF_STMT_RETURN:
 		analyze_expression(env, &item->expr);
-		jaf_check_type(item->expr, env->fundecl->type);
+		jaf_check_type(item->expr, &env->fundecl->valuetype);
 		break;
 	case JAF_STMT_CASE:
 	case JAF_STMT_DEFAULT:

@@ -118,7 +118,8 @@ struct jaf_type_specifier {
 struct jaf_expression {
 	enum jaf_expression_type type;
 	enum jaf_operator op;
-	struct jaf_type_specifier value_type;
+	//struct jaf_type_specifier value_type;
+	struct ain_type valuetype;
 	union {
 		int i;
 		float f;
@@ -199,6 +200,7 @@ enum block_item_kind {
 struct jaf_declaration {
 	struct string *name;
 	struct jaf_type_specifier *type;
+	struct ain_type valuetype;
 	size_t array_rank;
 	size_t *array_dims;
 	union {
@@ -327,9 +329,8 @@ struct jaf_expression *jaf_simplify(struct jaf_expression *in);
 
 // jaf_types.c
 const char *jaf_typestr(enum jaf_type type);
-void ain_to_jaf_type(struct jaf_type_specifier *dst, struct ain_type *src);
 void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr);
-void jaf_check_type(struct jaf_expression *expr, struct jaf_type_specifier *type);
+void jaf_check_type(struct jaf_expression *expr, struct ain_type *type);
 
 // jaf_static_analysis.c
 struct jaf_block *jaf_static_analyze(struct ain *ain, struct jaf_block *block);

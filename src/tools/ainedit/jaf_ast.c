@@ -33,7 +33,7 @@ static struct jaf_expression *jaf_expr(enum jaf_expression_type type, enum jaf_o
 struct jaf_expression *jaf_integer(int i)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_INT, 0);
-	e->value_type.type = JAF_INT;
+	e->valuetype.data = AIN_INT;
 	e->i = i;
 	return e;
 }
@@ -52,7 +52,7 @@ struct jaf_expression *jaf_parse_integer(struct string *text)
 struct jaf_expression *jaf_float(float f)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_FLOAT, 0);
-	e->value_type.type = JAF_FLOAT;
+	e->valuetype.data = AIN_FLOAT;
 	e->f = f;
 	return e;
 }
@@ -71,7 +71,7 @@ struct jaf_expression *jaf_parse_float(struct string *text)
 struct jaf_expression *jaf_string(struct string *text)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_STRING, 0);
-	e->value_type.type = JAF_STRING;
+	e->valuetype.data = AIN_STRING;
 	e->s = text;
 	return e;
 }
@@ -135,7 +135,7 @@ struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expres
 	struct jaf_expression *e = jaf_expr(JAF_EXP_CAST, 0);
 	e->cast.type = type;
 	e->cast.expr = expr;
-	e->value_type.type = type;
+	e->valuetype.data = jaf_to_ain_data_type(type, 0);
 	return e;
 }
 
