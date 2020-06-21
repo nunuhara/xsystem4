@@ -91,6 +91,8 @@ static void alloc_buffer(struct buffer *b, size_t size)
 		return;
 
 	size_t new_size = b->index + size;
+	if (!b->size)
+		b->size = 64;
 	while (b->size <= new_size)
 		b->size *= 2;
 	b->buf = xrealloc(b->buf, b->size);

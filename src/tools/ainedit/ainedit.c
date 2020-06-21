@@ -42,6 +42,7 @@ static void usage(void)
 	puts("        --input-encoding <enc>     Specify the text encoding of the input file(s) (default: UTF-8)");
 	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: CP932)");
 	puts("        --ain-encoding <enc>       Specify the text encoding of the input AIN file");
+	puts("        --ain-version <version>    Specify the AIN version (when creating a new AIN file)");
 	//puts("    -p,--project <pje-file>      Build AIN from project file");
 }
 
@@ -59,6 +60,7 @@ enum {
 	LOPT_INPUT_ENCODING,
 	LOPT_OUTPUT_ENCODING,
 	LOPT_AIN_ENCODING,
+	LOPT_AIN_VERSION,
 };
 
 iconv_t ain_conv;
@@ -96,6 +98,7 @@ int main(int argc, char *argv[])
 	const char *input_encoding = "UTF-8";
 	const char *output_encoding = "CP932";
 	const char *ain_encoding = "CP932";
+	int ain_version = 4;
 	bool transcode = false;
 	uint32_t flags = 0;
 	while (1) {
@@ -111,6 +114,7 @@ int main(int argc, char *argv[])
 			{ "input-encoding",  required_argument, 0, LOPT_INPUT_ENCODING },
 			{ "output-encoding", required_argument, 0, LOPT_OUTPUT_ENCODING },
 			{ "ain-encoding",    required_argument, 0, LOPT_AIN_ENCODING },
+			{ "ain-version",     required_argument, 0, LOPT_AIN_VERSION },
 		};
 		int option_index = 0;
 		int c;
@@ -160,6 +164,11 @@ int main(int argc, char *argv[])
 		case LOPT_AIN_ENCODING:
 			ain_encoding = optarg;
 			break;
+		case LOPT_AIN_VERSION:
+			ain_version = atoi(optarg);
+			if (ain_version < 4 || ain_version > 12)
+				ERROR("Invalid AIN version (4-12 supported)");
+			break;
 		case '?':
 			ERROR("Unknown command line argument");
 		}
@@ -167,9 +176,10 @@ int main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 1) {
+
+	if (argc > 1) {
 		usage();
-		ERROR("Wrong number of arguments.");
+		ERROR("Too many arguments.");
 	}
 
 	if (!output_file) {
@@ -187,8 +197,12 @@ int main(int argc, char *argv[])
 		ERROR("iconv_open: %s", strerror(errno));
 	}
 
-	if (!(ain = ain_open(argv[0], &err))) {
-		ERROR("Failed to open ain file: %s", ain_strerror(err));
+	if (!argc) {
+		ain = ain_new(ain_version);
+	} else {
+		if (!(ain = ain_open(argv[0], &err))) {
+			ERROR("Failed to open ain file: %s", ain_strerror(err));
+		}
 	}
 
 	if (transcode) {

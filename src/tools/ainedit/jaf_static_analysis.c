@@ -90,6 +90,8 @@ static void jaf_to_ain_type(possibly_unused struct ain *ain, struct ain_type *ou
 	out->data = jaf_to_ain_data_type(in->type, in->qualifiers);
 	if (in->type == JAF_STRUCT) {
 		out->struc = in->struct_no;
+	} else {
+		out->struc = -1;
 	}
 }
 
@@ -466,6 +468,13 @@ static void add_function(struct ain *ain, struct jaf_declaration *decl)
 	function_init_vars(ain, &f, decl);
 
 	decl->func_no = ain_add_function(ain, &f);
+	if (!strcmp(decl->name->text, "main")) {
+		if (decl->params || decl->type->type != JAF_INT)
+			ERROR("Invalid signature for main function");
+		if (ain->main > 0)
+			WARNING("Overriding main function");
+		ain->main = decl->func_no;
+	}
 }
 
 static void add_global(struct ain *ain, struct jaf_declaration *decl)

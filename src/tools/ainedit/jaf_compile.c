@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <libgen.h>
 #include <assert.h>
 #include "system4.h"
 #include "system4/ain.h"
@@ -515,6 +516,39 @@ static void compile_expression(struct compiler_state *state, struct jaf_expressi
 	}
 }
 
+static void compile_nullexpr(struct compiler_state *state, enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_VOID:
+		break;
+	case AIN_INT:
+	case AIN_BOOL:
+	case AIN_LONG_INT:
+		write_instruction1(state, PUSH, 0);
+		break;
+	case AIN_FLOAT:
+		write_instruction1(state, F_PUSH, 0);
+		break;
+	case AIN_STRING:
+		write_instruction1(state, S_PUSH, 0);
+		break;
+	case AIN_STRUCT:
+	case AIN_REF_STRUCT:
+	case AIN_REF_STRING:
+		write_instruction1(state, PUSH, -1);
+		break;
+	case AIN_REF_INT:
+	case AIN_REF_FLOAT:
+	case AIN_REF_BOOL:
+	case AIN_REF_LONG_INT:
+		write_instruction1(state, PUSH, -1);
+		write_instruction1(state, PUSH, 0);
+		break;
+	default:
+		ERROR("Unsupported type: %s", ain_strtype(state->ain, type, -1));
+	}
+}
+
 static void compile_vardecl(struct compiler_state *state, struct jaf_declaration *decl)
 {
 	enum ain_data_type type = jaf_to_ain_data_type(decl->type->type, decl->type->qualifiers);
@@ -785,9 +819,11 @@ static void compile_function(struct compiler_state *state, struct jaf_declaratio
 {
 	assert(decl->func_no >= 0 && decl->func_no < state->ain->nr_functions);
 	state->func_no = decl->func_no;
-	state->ain->functions[decl->func_no].address = state->out.index;
+	state->ain->functions[decl->func_no].address = state->out.index + 6;
 	write_instruction1(state, FUNC, decl->func_no);
 	compile_block(state, decl->body);
+	compile_nullexpr(state, state->ain->functions[state->func_no].return_type.data);
+	write_instruction0(state, RETURN);
 	write_instruction1(state, ENDFUNC, decl->func_no);
 }
 
@@ -801,8 +837,30 @@ static void compile_declaration(struct compiler_state *state, struct jaf_block_i
 	// TODO: global constructors/array allocations
 }
 
+static void compile_global_init_function(struct compiler_state *state)
+{
+	if (ain_get_function(state->ain, "0"))
+		return;
+
+	struct ain_function f = {0};
+	f.name = strdup("0");
+	int func_no = ain_add_function(state->ain, &f);
+	state->ain->functions[func_no].address = state->out.index + 6;
+	state->ain->functions[func_no].return_type = (struct ain_type) {
+		.data = AIN_VOID,
+		.struc = -1,
+		.rank = 0
+	};
+
+	// TODO: actually implement this
+	write_instruction1(state, FUNC, func_no);
+	write_instruction0(state, RETURN);
+	write_instruction1(state, ENDFUNC, func_no);
+}
+
 void jaf_compile(struct ain *out, const char *path)
 {
+	out->keycode = 0x2d1f2904;
 	if (path) {
 		if (!strcmp(path, "-"))
 			yyin = stdin;
@@ -830,6 +888,18 @@ void jaf_compile(struct ain *out, const char *path)
 	for (size_t i = 0; i < jaf_toplevel->nr_items; i++) {
 		compile_declaration(&state, jaf_toplevel->items[i]);
 	}
+	compile_global_init_function(&state);
+
+	state.ain->functions[0].address = state.out.index + 6;
+	write_instruction1(&state, FUNC, 0);
+	write_instruction1(&state, _EOF, out->nr_filenames);
+
+	// add filename to ain file
+	char *filename = strdup(path);
+	out->filenames = xrealloc_array(out->filenames, out->nr_filenames, out->nr_filenames+1, sizeof(char*));
+	out->filenames[out->nr_filenames++] = strdup(basename(filename));
+	free(filename);
+
 	free(state.loops);
 	out->code = state.out.buf;
 	out->code_size = state.out.index;

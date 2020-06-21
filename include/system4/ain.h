@@ -319,6 +319,7 @@ char *ain_strtype_d(struct ain *ain, struct ain_type *v);
 const char *ain_variable_to_string(struct ain *ain, struct ain_variable *v);
 uint8_t *ain_read(const char *path, long *len, int *error);
 struct ain *ain_open(const char *path, int *error);
+struct ain *ain_new(int version);
 void ain_decrypt(uint8_t *buf, size_t len);
 
 struct ain_function *ain_get_function(struct ain *ain, char *name);

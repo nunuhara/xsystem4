@@ -1130,7 +1130,7 @@ struct ain *ain_open(const char *path, int *error)
 		goto err;
 
 	// read data into ain struct
-	ain = calloc(1, sizeof(struct ain));
+	ain = xcalloc(1, sizeof(struct ain));
 	struct ain_reader r = {
 		.buf = buf,
 		.index = 0,
@@ -1152,6 +1152,71 @@ err:
 	free(buf);
 	free(ain);
 	return NULL;
+}
+
+struct ain *ain_new(int version)
+{
+	struct ain *ain = xcalloc(1, sizeof(struct ain));
+	ain->VERS.present = true;
+	ain->KEYC.present = version < 12;
+	ain->CODE.present = true;
+	ain->FUNC.present = true;
+	ain->GLOB.present = true;
+	ain->GSET.present = version < 12;
+	ain->STRT.present = true;
+	// XXX: Starting with Rance IX, MSG1 section is used instead of MSG0.
+	//      We can't tell from the ain version alone whether MSG0 or MSG1
+	//      should be used since the ain version did not increase with
+	//      this change, but v7+ at least should always use MSG1.
+	ain->MSG0.present = ain->version < 7;
+	ain->MSG1.present = !ain->MSG0.present;
+	ain->MAIN.present = true;
+	ain->MSGF.present = true;
+	ain->HLL0.present = true;
+	ain->SWI0.present = true;
+	ain->GVER.present = true;
+	ain->STR0.present = true;
+	ain->FNAM.present = ain->version < 12;
+	ain->OJMP.present = ain->version < 7;
+	// XXX: Another change starting from Rance IX: FNCT section disappears.
+	//      Maybe they just stopped using function types, but still support
+	//      them in the VM? Will need to change this flag when function
+	//      types are added to the ain file.
+	ain->FNCT.present = ain->version < 7;
+	// XXX: Starting with Oyako Rankan... earlier v6 games don't have DELG.
+	//      Will need to change this flag when delegates are added to the
+	//      ain file.
+	ain->DELG.present = ain->version >= 7;
+	ain->OBJG.present = ain->version >= 5;
+	ain->ENUM.present = ain->version >= 12;
+
+	ain->version = version;
+	ain->main = -1;
+	ain->msgf = -1;
+	ain->ojmp = -1;
+	ain->game_version = 100;
+
+	ain->nr_functions = 1;
+	ain->functions = xcalloc(1, sizeof(struct ain_function));
+	ain->functions[0].name = strdup("NULL");
+	ain->functions[0].return_type = (struct ain_type) {
+		.data = AIN_VOID,
+		.struc = -1,
+		.rank = 0
+	};
+
+	ain->nr_messages = 1;
+	ain->messages = xcalloc(1, sizeof(struct string*));
+	ain->messages[0] = make_string("", 0);
+
+	ain->nr_strings = 1;
+	ain->strings = xcalloc(1, sizeof(struct string *));
+	ain->strings[0] = make_string("", 0);
+
+	init_struct_ht(ain);
+	init_func_ht(ain);
+
+	return ain;
 }
 
 static void ain_free_type(struct ain_type *type)
