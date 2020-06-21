@@ -194,7 +194,8 @@ enum block_item_kind {
 	JAF_STMT_BREAK,
 	JAF_STMT_RETURN,
 	JAF_STMT_CASE,
-	JAF_STMT_DEFAULT
+	JAF_STMT_DEFAULT,
+	JAF_EOF
 };
 
 struct jaf_declaration {
@@ -251,6 +252,7 @@ struct jaf_block_item {
 			struct jaf_block_item *body;
 		} for_loop;
 		struct string *target; // goto
+		unsigned file_no;      // eof
 	};
 };
 
@@ -301,6 +303,7 @@ struct jaf_block *jaf_type_declaration(struct jaf_type_specifier *type);
 struct jaf_block *jaf_merge_blocks(struct jaf_block *head, struct jaf_block *tail);
 
 struct jaf_block *jaf_block(struct jaf_block_item *item);
+struct jaf_block *jaf_block_append(struct jaf_block *head, struct jaf_block_item *tail);
 struct jaf_block_item *jaf_compound_statement(struct jaf_block *block);
 struct jaf_block_item *jaf_label_statement(struct string *label, struct jaf_block_item *stmt);
 struct jaf_block_item *jaf_case_statement(struct jaf_expression *expr, struct jaf_block_item *stmt);
@@ -318,10 +321,13 @@ struct jaf_block_item *jaf_return(struct jaf_expression *expr);
 void jaf_free_expr(struct jaf_expression *expr);
 void jaf_free_block(struct jaf_block *block);
 
-// jaf_compile.c
+// jaf_parser.y
 struct ain *jaf_ain_out;
 struct jaf_block *jaf_toplevel;
-void jaf_compile(struct ain *out, const char *path);
+struct jaf_block *jaf_parse(struct ain *ain, const char **files, unsigned nr_files);
+
+// jaf_compile.c
+void jaf_build(struct ain *out, const char **files, unsigned nr_files);
 void jaf_define_struct(struct ain *ain, struct jaf_type_specifier *type);
 
 // jaf_eval.c

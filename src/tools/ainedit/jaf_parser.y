@@ -17,11 +17,82 @@
  */
 
 %{
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <libgen.h>
+#include <assert.h>
 #include "system4.h"
 #include "system4/ain.h"
+#include "ainedit.h"
 #include "jaf.h"
+#include "jaf_parser.tab.h"
 extern int yylex();
 void yyerror(const char *s);
+int yyparse(void);
+FILE *yyin;
+
+struct ain *jaf_ain_out;
+struct jaf_block *jaf_toplevel;
+
+static FILE *open_jaf_file(const char *file)
+{
+    if (!strcmp(file, "-"))
+	return stdin;
+    FILE *f = fopen(file, "rb");
+    if (!f)
+	ERROR("Opening input file '%s': %s", file, strerror(errno));
+    return f;
+}
+
+static struct jaf_block *insert_eof(struct ain *ain, struct jaf_block *block, const char *_filename)
+{
+    assert(block);
+    char *filename = xstrdup(_filename);
+    int file_no = ain_add_file(ain, basename(filename));
+    free(filename);
+
+    struct jaf_block_item *eof = xmalloc(sizeof(struct jaf_block_item));
+    eof->kind = JAF_EOF;
+    eof->file_no = file_no;
+    return jaf_block_append(block, eof);
+}
+
+struct jaf_block *jaf_parse(struct ain *ain, const char **files, unsigned nr_files)
+{
+    jaf_ain_out = ain;
+    jaf_toplevel = NULL;
+
+    for (unsigned i = 0; i < nr_files; i++) {
+	// open file
+	yyin = open_jaf_file(files[i]);
+	if (yyparse())
+	    ERROR("Failed to parse .jaf file");
+	if (yyin != stdin)
+	    fclose(yyin);
+
+	jaf_toplevel = insert_eof(ain, jaf_toplevel, files[i]);
+    }
+
+    struct jaf_block *r = jaf_toplevel;
+    jaf_toplevel = NULL;
+    jaf_ain_out = NULL;
+    return r;
+}
+
+int sym_type(char *name)
+{
+    char *u = encode_text_to_input_format(name);
+    struct ain_struct *s = ain_get_struct(jaf_ain_out, u);
+    free(u);
+
+    if (s) {
+	return TYPEDEF_NAME;
+    }
+    return IDENTIFIER;
+}
+
 %}
 
 %union {
@@ -421,7 +492,7 @@ jump_statement
 	;
 
 toplevel
-	: translation_unit { jaf_toplevel = $1; }
+	: translation_unit { jaf_toplevel = jaf_merge_blocks(jaf_toplevel, $1); }
 	;
 
 translation_unit

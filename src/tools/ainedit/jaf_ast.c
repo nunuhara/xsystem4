@@ -281,6 +281,13 @@ struct jaf_block *jaf_merge_blocks(struct jaf_block *head, struct jaf_block *tai
 	return head;
 }
 
+struct jaf_block *jaf_block_append(struct jaf_block *head, struct jaf_block_item *tail)
+{
+	head->items = xrealloc_array(head->items, head->nr_items, head->nr_items+1, sizeof(struct jaf_block_item*));
+	head->items[head->nr_items++] = tail;
+	return head;
+}
+
 struct jaf_block *jaf_block(struct jaf_block_item *item)
 {
 	struct jaf_block *block = xcalloc(1, sizeof(struct jaf_block));
@@ -504,6 +511,7 @@ void jaf_free_block_item(struct jaf_block_item *item)
 		free_string(item->target);
 	case JAF_STMT_CONTINUE:
 	case JAF_STMT_BREAK:
+	case JAF_EOF:
 		break;
 	case JAF_STMT_RETURN:
 		jaf_free_expr(item->expr);

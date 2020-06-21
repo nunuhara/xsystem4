@@ -29,12 +29,6 @@
 #include "jaf.h"
 #include "jaf_parser.tab.h"
 
-FILE *yyin;
-int yyparse(void);
-
-struct ain *jaf_ain_out;
-struct jaf_block *jaf_toplevel;
-
 /*
  * NOTE: We need to pass some state between calls to handle
  *       break/continue.
@@ -52,18 +46,6 @@ struct compiler_state {
 	size_t nr_loops;
 	struct loop_state *loops;
 };
-
-int sym_type(char *name)
-{
-	char *u = encode_text_to_input_format(name);
-	struct ain_struct *s = ain_get_struct(jaf_ain_out, u);
-	free(u);
-
-	if (s) {
-		return TYPEDEF_NAME;
-	}
-	return IDENTIFIER;
-}
 
 static void start_loop(struct compiler_state *state)
 {
@@ -805,6 +787,9 @@ static void compile_statement(struct compiler_state *state, struct jaf_block_ite
 	case JAF_STMT_DEFAULT:
 		ERROR("switch not supported");
 		break;
+	case JAF_EOF:
+		write_instruction1(state, _EOF, item->file_no);
+		break;
 	}
 }
 
@@ -819,8 +804,8 @@ static void compile_function(struct compiler_state *state, struct jaf_declaratio
 {
 	assert(decl->func_no >= 0 && decl->func_no < state->ain->nr_functions);
 	state->func_no = decl->func_no;
-	state->ain->functions[decl->func_no].address = state->out.index + 6;
 	write_instruction1(state, FUNC, decl->func_no);
+	state->ain->functions[decl->func_no].address = state->out.index;
 	compile_block(state, decl->body);
 	compile_nullexpr(state, state->ain->functions[state->func_no].return_type.data);
 	write_instruction0(state, RETURN);
@@ -832,6 +817,9 @@ static void compile_declaration(struct compiler_state *state, struct jaf_block_i
 	if (decl->kind == JAF_FUNDECL) {
 		compile_function(state, &decl->decl);
 		return;
+	}
+	if (decl->kind == JAF_EOF) {
+		compile_statement(state, decl);
 	}
 
 	// TODO: global constructors/array allocations
@@ -858,58 +846,45 @@ static void compile_global_init_function(struct compiler_state *state)
 	write_instruction1(state, ENDFUNC, func_no);
 }
 
-void jaf_compile(struct ain *out, const char *path)
+static void jaf_compile(struct ain *ain, struct jaf_block *toplevel)
 {
-	out->keycode = 0x2d1f2904;
-	if (path) {
-		if (!strcmp(path, "-"))
-			yyin = stdin;
-		else
-			yyin = fopen(path, "rb");
-		if (!yyin)
-			ERROR("Opening input file '%s': %s", path, strerror(errno));
-	}
-	jaf_ain_out = out;
-	yyparse();
-
-	if (!jaf_toplevel)
-		ERROR("Failed to parse .jaf file");
-
-	jaf_toplevel = jaf_static_analyze(out, jaf_toplevel);
-
+	assert(toplevel->nr_items > 0);
 	struct compiler_state state = {
-		.ain = out,
+		.ain = ain,
 		.out = {
-			.buf = out->code,
-			.size = out->code_size,
-			.index = out->code_size
+			.buf = ain->code,
+			.size = ain->code_size,
+			.index = ain->code_size
 		}
 	};
-	for (size_t i = 0; i < jaf_toplevel->nr_items; i++) {
-		compile_declaration(&state, jaf_toplevel->items[i]);
+	for (size_t i = 0; i < toplevel->nr_items - 1; i++) {
+		compile_declaration(&state, toplevel->items[i]);
 	}
 	compile_global_init_function(&state);
 
-	state.ain->functions[0].address = state.out.index + 6;
+	// add NULL function
 	write_instruction1(&state, FUNC, 0);
-	write_instruction1(&state, _EOF, out->nr_filenames);
+	state.ain->functions[0].address = state.out.index;
 
-	// add filename to ain file
-	char *filename = strdup(path);
-	out->filenames = xrealloc_array(out->filenames, out->nr_filenames, out->nr_filenames+1, sizeof(char*));
-	out->filenames[out->nr_filenames++] = strdup(basename(filename));
-	free(filename);
+	// add final EOF
+	compile_declaration(&state, toplevel->items[toplevel->nr_items-1]);
 
 	free(state.loops);
-	out->code = state.out.buf;
-	out->code_size = state.out.index;
+	ain->code = state.out.buf;
+	ain->code_size = state.out.index;
 
 	// XXX: ain_add_initval adds initval to GSET section of the ain file.
 	//      If the original ain file did not have a GSET section, init
 	//      code needs to be added to the "0" function instead.
-	if (out->nr_initvals && !out->GSET.present) {
-		WARNING("%d global initvals ignored", out->nr_initvals);
-	}
+	if (ain->nr_initvals && !ain->GSET.present)
+		WARNING("%d global initvals ignored", ain->nr_initvals);
+}
 
-	jaf_free_block(jaf_toplevel);
+void jaf_build(struct ain *out, const char **files, unsigned nr_files)
+{
+	struct jaf_block *toplevel;
+	toplevel = jaf_parse(out, files, nr_files);
+	toplevel = jaf_static_analyze(out, toplevel);
+	jaf_compile(out, toplevel);
+	jaf_free_block(toplevel);
 }

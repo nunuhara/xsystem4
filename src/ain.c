@@ -293,6 +293,13 @@ int ain_add_string(struct ain *ain, const char *str)
 	return i;
 }
 
+int ain_add_file(struct ain *ain, const char *filename)
+{
+	ain->filenames = xrealloc_array(ain->filenames, ain->nr_filenames, ain->nr_filenames+1, sizeof(char*));
+	ain->filenames[ain->nr_filenames++] = strdup(filename);
+	return ain->nr_filenames - 1;
+}
+
 static const char *errtab[AIN_MAX_ERROR] = {
 	[AIN_SUCCESS]             = "Success",
 	[AIN_FILE_ERROR]          = "Error opening AIN file",

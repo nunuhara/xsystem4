@@ -91,7 +91,8 @@ int main(int argc, char *argv[])
 	struct ain *ain;
 	int err = AIN_SUCCESS;
 	const char *code_file = NULL;
-	const char *jaf_file = NULL;
+	unsigned nr_jaf_files = 0;
+	const char **jaf_files = NULL;
 	const char *decl_file = NULL;
 	const char *text_file = NULL;
 	const char *output_file = NULL;
@@ -133,7 +134,8 @@ int main(int argc, char *argv[])
 			code_file = optarg;
 			break;
 		case LOPT_JAF:
-			jaf_file = optarg;
+			jaf_files = xrealloc_array(jaf_files, nr_jaf_files, nr_jaf_files+1, sizeof(char*));
+			jaf_files[nr_jaf_files++] = optarg;
 			break;
 		case 'j':
 		case LOPT_JSON:
@@ -214,8 +216,8 @@ int main(int argc, char *argv[])
 		read_declarations(decl_file, ain);
 	}
 
-	if (jaf_file) {
-		jaf_compile(ain, jaf_file);
+	if (jaf_files) {
+		jaf_build(ain, jaf_files, nr_jaf_files);
 	}
 
 	if (code_file) {
@@ -230,6 +232,7 @@ write_ain_file:
 	NOTICE("Writing AIN file...");
 	ain_write(output_file, ain);
 
+	free(jaf_files);
 	ain_free(ain);
 	return 0;
 }

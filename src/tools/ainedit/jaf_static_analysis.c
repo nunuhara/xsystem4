@@ -261,6 +261,7 @@ static void analyze_statement(struct jaf_env *env, struct jaf_block_item *item)
 	case JAF_STMT_GOTO:
 	case JAF_STMT_CONTINUE:
 	case JAF_STMT_BREAK:
+	case JAF_EOF:
 		break;
 	}
 }
@@ -347,6 +348,7 @@ static void resolve_statement_types(struct ain *ain, struct jaf_block_item *item
 	case JAF_STMT_CONTINUE:
 	case JAF_STMT_BREAK:
 	case JAF_STMT_RETURN:
+	case JAF_EOF:
 		break;
 	}
 }
@@ -429,6 +431,7 @@ static struct ain_variable *block_item_get_vars(struct ain *ain, struct jaf_bloc
 	case JAF_STMT_CONTINUE:
 	case JAF_STMT_BREAK:
 	case JAF_STMT_RETURN:
+	case JAF_EOF:
 		break;
 
 	case JAF_FUNDECL:
@@ -492,7 +495,7 @@ static void jaf_process_declarations(struct ain *ain, struct jaf_block *block)
 		if (block->items[i]->decl.name) {
 			if (block->items[i]->kind == JAF_FUNDECL)
 				add_function(ain, &block->items[i]->decl);
-			else
+			else if (block->items[i]->kind == JAF_DECLARATION)
 				add_global(ain, &block->items[i]->decl);
 		}
 	}

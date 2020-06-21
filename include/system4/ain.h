@@ -334,6 +334,7 @@ int ain_get_global_no(struct ain *ain, char *name);
 void ain_add_initval(struct ain *ain, struct ain_initval *init);
 int ain_add_function(struct ain *ain, struct ain_function *fun);
 int ain_add_string(struct ain *ain, const char *str);
+int ain_add_file(struct ain *ain, const char *filename);
 
 void ain_free(struct ain *ain);
 void ain_free_functions(struct ain *ain);
