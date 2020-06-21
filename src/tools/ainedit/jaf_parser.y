@@ -28,7 +28,7 @@ void yyerror(const char *s);
     int token;
     struct string *string;
     struct jaf_expression *expression;
-    struct jaf_expression_list *args;
+    struct jaf_argument_list *args;
     struct jaf_type_specifier *type;
     struct jaf_declarator *declarator;
     struct jaf_declarator_list *declarators;
@@ -242,7 +242,7 @@ declaration
 	;
 
 declaration_specifiers
-	: type_qualifier type_specifier { $$ = $2; $$->qualifiers = $1; }
+	: type_qualifier type_specifier { $$ = $2; $$->qualifiers |= $1; }
 	| type_specifier                { $$ = $1; }
 	;
 

@@ -310,6 +310,7 @@ struct ain {
 
 	struct hash_table *_func_ht;
 	struct hash_table *_struct_ht;
+	struct hash_table *_string_ht;
 };
 
 const char *ain_strerror(int error);
@@ -331,6 +332,7 @@ struct ain_variable *ain_get_global(struct ain *ain, char *name);
 int ain_get_global_no(struct ain *ain, char *name);
 void ain_add_initval(struct ain *ain, struct ain_initval *init);
 int ain_add_function(struct ain *ain, struct ain_function *fun);
+int ain_add_string(struct ain *ain, const char *str);
 
 void ain_free(struct ain *ain);
 void ain_free_functions(struct ain *ain);

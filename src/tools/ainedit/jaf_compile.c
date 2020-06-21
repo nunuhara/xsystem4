@@ -47,6 +47,7 @@ struct loop_state {
 struct compiler_state {
 	struct ain *ain;
 	struct buffer out;
+	int func_no;
 	size_t nr_loops;
 	struct loop_state *loops;
 };
@@ -79,6 +80,14 @@ static void end_loop(struct compiler_state *state)
 		buffer_write_int32_at(&state->out, loop->breaks[i], state->out.index);
 	}
 	free(loop->breaks);
+}
+
+static int get_string_no(struct compiler_state *state, struct string *s)
+{
+	char *u = encode_text_to_input_format(s->text);
+	int i = ain_add_string(state->ain, u);
+	free(u);
+	return i;
 }
 
 static void write_opcode(struct compiler_state *state, uint16_t opcode)
@@ -115,9 +124,9 @@ static uint32_t flo2int(float f)
 	return v.i;
 }
 
-static enum opcode jaf_op_to_opcode(enum jaf_operator op, enum jaf_type type)
+static enum opcode jaf_op_to_opcode(enum jaf_operator op, struct jaf_type_specifier *type)
 {
-	if (type == JAF_FLOAT) {
+	if (type->type == JAF_FLOAT) {
 		switch (op) {
 		case JAF_MULTIPLY:      return F_MUL;
 		case JAF_DIVIDE:        return F_DIV;
@@ -134,9 +143,9 @@ static enum opcode jaf_op_to_opcode(enum jaf_operator op, enum jaf_type type)
 		case JAF_ADD_ASSIGN:    return F_PLUSA;
 		case JAF_SUB_ASSIGN:    return F_MINUSA;
 		case JAF_REF_ASSIGN:    // TODO
-		default: ERROR("Invalid floating point operator");
+		default:                ERROR("Invalid floating point operator");
 		}
-	} else if (type == JAF_INT) {
+	} else if (type->type == JAF_INT) {
 		switch (op) {
 		case JAF_MULTIPLY:      return MUL;
 		case JAF_DIVIDE:        return DIV;
@@ -167,7 +176,12 @@ static enum opcode jaf_op_to_opcode(enum jaf_operator op, enum jaf_type type)
 		case JAF_XOR_ASSIGN:    return XORA;
 		case JAF_OR_ASSIGN:     return ORA;
 		case JAF_REF_ASSIGN:    // TODO
-		default: ERROR("Invalid integer operator");
+		default:                ERROR("Invalid integer operator");
+		}
+	} else if (type->type == JAF_STRING) {
+		switch (op) {
+		case JAF_ASSIGN: return S_ASSIGN;
+		default:         ERROR("Invalid string operator");
 		}
 	} else {
 		ERROR("Invalid operator type");
@@ -178,17 +192,94 @@ static void compile_block(struct compiler_state *state, struct jaf_block *block)
 static void compile_statement(struct compiler_state *state, struct jaf_block_item *item);
 static void compile_expression(struct compiler_state *state, struct jaf_expression *expr);
 
-static void compile_identifier(struct compiler_state *state, struct jaf_expression *expr)
+static struct ain_variable *get_identifier_variable(struct compiler_state *state, enum ain_variable_type type, int var_no)
 {
-	if (expr->ident.var_type == AIN_VAR_LOCAL) {
+	if (type == AIN_VAR_LOCAL)
+		return &state->ain->functions[state->func_no].vars[var_no];
+	if (type == AIN_VAR_GLOBAL)
+		return &state->ain->globals[var_no];
+	ERROR("Invalid variable type");
+}
+
+static void compile_identifier_ref(struct compiler_state *state, enum ain_variable_type type, int var_no)
+{
+	if (type == AIN_VAR_LOCAL) {
 		write_instruction0(state, PUSHLOCALPAGE);
-	} else if (expr->ident.var_type == AIN_VAR_GLOBAL) {
+	} else if (type == AIN_VAR_GLOBAL) {
 		write_instruction0(state, PUSHGLOBALPAGE);
 	} else {
 		ERROR("Invalid variable type");
 	}
-	write_instruction1(state, PUSH, expr->ident.var_no);
-	write_instruction0(state, REF);
+	write_instruction1(state, PUSH, var_no);
+}
+
+static void compile_reference(struct compiler_state *state, struct jaf_expression *expr)
+{
+	if (expr->type == JAF_EXP_IDENTIFIER) {
+		compile_identifier_ref(state, expr->ident.var_type, expr->ident.var_no);
+	} else if (expr->type == JAF_EXP_MEMBER) {
+		ERROR("struct member references not supported");
+	} else {
+		ERROR("Invalid reference value");
+	}
+}
+
+static void compile_identifier_lvalue(struct compiler_state *state, enum ain_variable_type type, int var_no)
+{
+	compile_identifier_ref(state, type, var_no);
+
+	struct ain_variable *v = get_identifier_variable(state, type, var_no);
+	switch (v->type.data) {
+	case AIN_REF_INT:
+	case AIN_REF_FLOAT:
+	case AIN_REF_BOOL:
+	case AIN_REF_LONG_INT:
+		write_instruction0(state, REFREF);
+		break;
+	case AIN_REF_STRING:
+		write_instruction0(state, REF);
+		break;
+	case AIN_REF_STRUCT:
+		ERROR("struct references not supported");
+		break;
+	default:
+		break;
+	}
+}
+
+static void compile_lvalue(struct compiler_state *state, struct jaf_expression *expr)
+{
+	if (expr->type == JAF_EXP_IDENTIFIER) {
+		compile_identifier_lvalue(state, expr->ident.var_type, expr->ident.var_no);
+	} else if (expr->type == JAF_EXP_MEMBER) {
+		ERROR("struct member lvalues not supported");
+	} else {
+		ERROR("Invalid lvalue");
+	}
+}
+
+static void compile_identifier(struct compiler_state *state, struct jaf_expression *expr)
+{
+	compile_identifier_lvalue(state, expr->ident.var_type, expr->ident.var_no);
+
+	struct ain_variable *var = get_identifier_variable(state, expr->ident.var_type, expr->ident.var_no);
+	switch (var->type.data) {
+	case AIN_INT:
+	case AIN_FLOAT:
+	case AIN_BOOL:
+	case AIN_LONG_INT:
+	case AIN_REF_INT:
+	case AIN_REF_FLOAT:
+	case AIN_REF_BOOL:
+	case AIN_REF_LONG_INT:
+		write_instruction0(state, REF);
+		break;
+	case AIN_STRING:
+		write_instruction0(state, state->ain->version >= 11 ? A_REF : S_REF);
+		break;
+	default:
+		ERROR("Unsupported type");
+	}
 }
 
 static void compile_unary(struct compiler_state *state, struct jaf_expression *expr)
@@ -209,30 +300,31 @@ static void compile_unary(struct compiler_state *state, struct jaf_expression *e
 		write_instruction0(state, NOT);
 		break;
 	case JAF_PRE_INC:
+		compile_lvalue(state, expr->expr);
+		write_instruction0(state, INC);
+		break;
 	case JAF_PRE_DEC:
+		compile_lvalue(state, expr->expr);
+		write_instruction0(state, DEC);
+		break;
 	case JAF_POST_INC:
+		compile_lvalue(state, expr->expr);
+		write_instruction0(state, DUP2);
+		write_instruction0(state, REF);
+		write_instruction0(state, DUP_X2);
+		write_instruction0(state, POP);
+		write_instruction0(state, INC);
+		break;
 	case JAF_POST_DEC:
-		ERROR("Increment/decrement not supported"); // TODO: need location type
+		compile_lvalue(state, expr->expr);
+		write_instruction0(state, DUP2);
+		write_instruction0(state, REF);
+		write_instruction0(state, DUP_X2);
+		write_instruction0(state, POP);
+		write_instruction0(state, DEC);
+		break;
 	default:
 		ERROR("Invalid unary operator");
-	}
-}
-
-static void compile_lvalue(struct compiler_state *state, struct jaf_expression *expr)
-{
-	if (expr->type == JAF_EXP_IDENTIFIER) {
-		if (expr->ident.var_type == AIN_VAR_GLOBAL) {
-			write_instruction0(state, PUSHGLOBALPAGE);
-		} else if (expr->ident.var_type == AIN_VAR_LOCAL) {
-			write_instruction0(state, PUSHLOCALPAGE);
-		} else {
-			ERROR("Invalid variable type as lvalue");
-		}
-		write_instruction1(state, PUSH, expr->ident.var_no);
-	} else if (expr->type == JAF_EXP_MEMBER) {
-		ERROR("struct member lvalues not supported");
-	} else {
-		ERROR("Invalid lvalue");
 	}
 }
 
@@ -258,7 +350,7 @@ static void compile_binary(struct compiler_state *state, struct jaf_expression *
 		assert(expr->lhs->value_type.type == expr->rhs->value_type.type);
 		compile_expression(state, expr->lhs);
 		compile_expression(state, expr->rhs);
-		write_instruction0(state, jaf_op_to_opcode(expr->op, expr->value_type.type));
+		write_instruction0(state, jaf_op_to_opcode(expr->op, &expr->value_type));
 		break;
 	case JAF_LOG_AND:
 		compile_expression(state, expr->lhs);
@@ -301,11 +393,11 @@ static void compile_binary(struct compiler_state *state, struct jaf_expression *
 	case JAF_AND_ASSIGN:
 	case JAF_XOR_ASSIGN:
 	case JAF_OR_ASSIGN:
-	case JAF_REF_ASSIGN:
 		compile_lvalue(state, expr->lhs);
 		compile_expression(state, expr->rhs);
-		write_instruction0(state, jaf_op_to_opcode(expr->op, expr->value_type.type));
+		write_instruction0(state, jaf_op_to_opcode(expr->op, &expr->value_type));
 		break;
+	case JAF_REF_ASSIGN:
 	default:
 		ERROR("Invalid binary operator");
 	}
@@ -316,10 +408,25 @@ static void compile_ternary(struct compiler_state *state, struct jaf_expression 
 	ERROR("Ternary operator not supported");
 }
 
+static bool ain_ref_type(enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_REF_TYPE:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void compile_funcall(struct compiler_state *state, struct jaf_expression *expr)
 {
 	for (size_t i = 0; i < expr->call.args->nr_items; i++) {
-		compile_expression(state, expr->call.args->items[i]);
+		struct ain_function *f = &state->ain->functions[expr->call.func_no];
+		if (ain_ref_type(f->vars[expr->call.args->var_nos[i]].type.data)) {
+			compile_lvalue(state, expr->call.args->items[i]);
+		} else {
+			compile_expression(state, expr->call.args->items[i]);
+		}
 	}
 	write_instruction1(state, CALLFUNC, expr->call.func_no);
 }
@@ -377,7 +484,8 @@ static void compile_expression(struct compiler_state *state, struct jaf_expressi
 		write_instruction1(state, F_PUSH, flo2int(expr->f));
 		break;
 	case JAF_EXP_STRING:
-		ERROR("strings not supported");
+		write_instruction1(state, S_PUSH, get_string_no(state, expr->s));
+		break;
 	case JAF_EXP_IDENTIFIER:
 		compile_identifier(state, expr);
 		break;
@@ -410,42 +518,97 @@ static void compile_expression(struct compiler_state *state, struct jaf_expressi
 
 static void compile_vardecl(struct compiler_state *state, struct jaf_declaration *decl)
 {
-	switch (decl->type->type) {
-	case JAF_VOID:
+	enum ain_data_type type = jaf_to_ain_data_type(decl->type->type, decl->type->qualifiers);
+	switch (type) {
+	case AIN_VOID:
 		ERROR("void variable declaration");
-	case JAF_INT:
+	case AIN_INT:
+	case AIN_BOOL:
+	case AIN_LONG_INT:
 		write_instruction0(state, PUSHLOCALPAGE);
 		write_instruction1(state, PUSH, decl->var_no);
-		if (decl->init) {
+		if (decl->init)
 			compile_expression(state, decl->init);
-		} else {
+		else
 			write_instruction1(state, PUSH, 0);
-		}
-		write_instruction0(state, ASSIGN);
+		write_instruction0(state, type == AIN_LONG_INT ? LI_ASSIGN : ASSIGN);
 		write_instruction0(state, POP);
 		break;
-	case JAF_FLOAT:
+	case AIN_FLOAT:
 		write_instruction0(state, PUSHLOCALPAGE);
 		write_instruction1(state, PUSH, decl->var_no);
-		if (decl->init) {
+		if (decl->init)
 			compile_expression(state, decl->init);
-		} else {
+		else
 			write_instruction1(state, F_PUSH, 0);
-		}
 		write_instruction0(state, F_ASSIGN);
 		write_instruction0(state, POP);
 		break;
-	case JAF_STRING:
-		ERROR("strings not supported");
-	case JAF_STRUCT:
-		ERROR("structs not supported");
-	case JAF_ENUM:
-		ERROR("enums not supported");
-	case JAF_TYPEDEF:
-		ERROR("Unresolved typedef");
-	case JAF_FUNCTION:
-		ERROR("Function types not supported");
+	case AIN_STRING:
+		write_instruction0(state, PUSHLOCALPAGE);
+		write_instruction1(state, PUSH, decl->var_no);
+		if (decl->init)
+			compile_expression(state, decl->init);
+		else
+			write_instruction1(state, S_PUSH, 0);
+		write_instruction0(state, S_ASSIGN);
+		write_instruction0(state, state->ain->version >= 11 ? DELETE : S_POP);
 		break;
+	case AIN_STRUCT:
+		ERROR("structs not supported");
+	case AIN_REF_INT:
+	case AIN_REF_BOOL:
+	case AIN_REF_FLOAT:
+	case AIN_REF_LONG_INT:
+		if (state->ain->version < 6) {
+			write_instruction1(state, CALLSYS, SYS_LOCK_PEEK);
+			write_instruction0(state, POP);
+		}
+		write_instruction0(state, PUSHLOCALPAGE);
+		write_instruction1(state, PUSH, decl->var_no);
+		write_instruction0(state, DUP2);
+		write_instruction0(state, REF);
+		write_instruction0(state, DELETE);
+		if (decl->init) {
+			compile_reference(state, decl->init);
+		} else {
+			write_instruction1(state, PUSH, -1);
+			write_instruction1(state, PUSH, 0);
+		}
+		write_instruction0(state, R_ASSIGN);
+		write_instruction0(state, POP);
+		write_instruction0(state, SP_INC);
+		if (state->ain->version < 6) {
+			write_instruction1(state, CALLSYS, SYS_UNLOCK_PEEK);
+			write_instruction0(state, POP);
+		}
+		break;
+	case AIN_REF_STRING:
+		if (state->ain->version < 6) {
+			write_instruction1(state, CALLSYS, SYS_LOCK_PEEK);
+			write_instruction0(state, POP);
+		}
+		write_instruction0(state, PUSHLOCALPAGE);
+		write_instruction1(state, PUSH, decl->var_no);
+		write_instruction0(state, DUP2);
+		write_instruction0(state, REF);
+		write_instruction0(state, DELETE);
+		if (decl->init) {
+			compile_reference(state, decl->init);
+		} else {
+			write_instruction1(state, PUSH, -1);
+		}
+		write_instruction0(state, ASSIGN);
+		write_instruction0(state, SP_INC);
+		if (state->ain->version < 6) {
+			write_instruction1(state, CALLSYS, SYS_UNLOCK_PEEK);
+			write_instruction0(state, POP);
+		}
+		break;
+	case AIN_REF_STRUCT:
+		ERROR("structs not supported");
+	default:
+		ERROR("Unsupported variable type: %d", type);
 	}
 }
 
@@ -562,11 +725,13 @@ static void compile_statement(struct compiler_state *state, struct jaf_block_ite
 			break;
 		case JAF_INT:
 		case JAF_FLOAT:
-		case JAF_STRING:
 		case JAF_STRUCT: // FIXME: this also needs a DELETE I think...
 		case JAF_ENUM:
 		case JAF_FUNCTION:
 			write_instruction0(state, POP);
+			break;
+		case JAF_STRING:
+			write_instruction0(state, state->ain->version >= 11 ? DELETE : S_POP);
 			break;
 		// TODO: immediate ref types will need additional POP
 		case JAF_TYPEDEF:
@@ -622,6 +787,7 @@ static void compile_block(struct compiler_state *state, struct jaf_block *block)
 static void compile_function(struct compiler_state *state, struct jaf_declaration *decl)
 {
 	assert(decl->func_no >= 0 && decl->func_no < state->ain->nr_functions);
+	state->func_no = decl->func_no;
 	state->ain->functions[decl->func_no].address = state->out.index;
 	write_instruction1(state, FUNC, decl->func_no);
 	compile_block(state, decl->body);

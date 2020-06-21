@@ -83,6 +83,26 @@ static void init_struct_ht(struct ain *ain)
 	}
 }
 
+static intptr_t string_ht_add(struct ain *ain, const char *str, intptr_t i)
+{
+	struct ht_slot *kv = ht_put(ain->_string_ht, str);
+	if (kv->value) {
+		return (intptr_t)kv->value;
+	}
+	kv->value = (void*)i;
+	return i;
+}
+
+static void init_string_ht(struct ain *ain)
+{
+	ain->_string_ht = ht_create(1024);
+	for (int i = 0; i < ain->nr_strings; i++) {
+		if (string_ht_add(ain, ain->strings[i]->text, i) != i) {
+			WARNING("Duplicate string in string table");
+		}
+	}
+}
+
 static bool function_is_member_of(char *func_name, char *struct_name)
 {
 	while (*func_name && *struct_name && *func_name != '@' && *func_name == *struct_name) {
@@ -259,6 +279,18 @@ int ain_add_function(struct ain *ain, struct ain_function *fun)
 	func_ht_add(ain, &ain->functions[no]);
 	ain->nr_functions++;
 	return no;
+}
+
+int ain_add_string(struct ain *ain, const char *str)
+{
+	if (!ain->_string_ht)
+		init_string_ht(ain);
+	int i = string_ht_add(ain, str, ain->nr_strings);
+	if (i == ain->nr_strings) {
+		ain->strings = xrealloc_array(ain->strings, ain->nr_strings, ain->nr_strings+1, sizeof(struct string*));
+		ain->strings[ain->nr_strings++] = make_string(str, strlen(str));
+	}
+	return i;
 }
 
 static const char *errtab[AIN_MAX_ERROR] = {
@@ -1299,6 +1331,8 @@ void ain_free(struct ain *ain)
 	ht_foreach_value(ain->_func_ht, free);
 	ht_free(ain->_func_ht);
 	ht_free(ain->_struct_ht);
+	if (ain->_string_ht)
+		ht_free(ain->_string_ht);
 
 	ain_free_functions(ain);
 	ain_free_globals(ain);

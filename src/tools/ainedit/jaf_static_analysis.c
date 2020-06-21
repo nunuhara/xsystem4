@@ -58,22 +58,36 @@ static void define_types(struct ain *ain, struct jaf_block_item *decl)
 	jaf_define_struct(ain, decl->decl.type);
 }
 
-static enum ain_data_type jaf_to_ain_data_type(enum jaf_type type)
+enum ain_data_type jaf_to_ain_data_type(enum jaf_type type, unsigned qualifiers)
 {
-	switch (type) {
-	case JAF_VOID:   return AIN_VOID;
-	case JAF_INT:    return AIN_INT;
-	case JAF_FLOAT:  return AIN_FLOAT;
-	case JAF_STRING: return AIN_STRING;
-	case JAF_STRUCT: return AIN_STRUCT;
-	case JAF_ENUM:   ERROR("Enums not supported");
-	default:         ERROR("Unknown type: %d", type);
+	if (qualifiers & JAF_QUAL_REF) {
+		switch (type) {
+		case JAF_VOID:     ERROR("void ref type");
+		case JAF_INT:      return AIN_REF_INT;
+		case JAF_FLOAT:    return AIN_REF_FLOAT;
+		case JAF_STRING:   return AIN_REF_STRING;
+		case JAF_STRUCT:   return AIN_REF_STRUCT;
+		case JAF_ENUM:     ERROR("Enums not supported");
+		case JAF_TYPEDEF:  ERROR("Unresolved typedef");
+		case JAF_FUNCTION: ERROR("Function types not supported");
+		}
 	}
+	switch (type) {
+	case JAF_VOID:     return AIN_VOID;
+	case JAF_INT:      return AIN_INT;
+	case JAF_FLOAT:    return AIN_FLOAT;
+	case JAF_STRING:   return AIN_STRING;
+	case JAF_STRUCT:   return AIN_STRUCT;
+	case JAF_ENUM:     ERROR("Enums not supported");
+	case JAF_TYPEDEF:  ERROR("Unresolved typedef");
+	case JAF_FUNCTION: ERROR("Function types not supported");
+	}
+	ERROR("Unknown type: %d", type);
 }
 
 static void jaf_to_ain_type(possibly_unused struct ain *ain, struct ain_type *out, struct jaf_type_specifier *in)
 {
-	out->data = jaf_to_ain_data_type(in->type);
+	out->data = jaf_to_ain_data_type(in->type, in->qualifiers);
 	if (in->type == JAF_STRUCT) {
 		out->struc = in->struct_no;
 	}
@@ -338,13 +352,31 @@ static void jaf_resolve_types(struct ain *ain, struct jaf_block *block)
 	}
 }
 
-static void init_variable(struct ain *ain, struct ain_variable *var, struct jaf_declaration *decl, int var_no)
+static void init_variable(struct ain *ain, struct ain_variable *vars, int *var_no, struct jaf_declaration *decl)
 {
-	var->name = encode_text_to_input_format(decl->name->text);
+	vars[*var_no].name = encode_text_to_input_format(decl->name->text);
 	if (ain->version >= 12)
-		var->name2 = strdup("");
-	jaf_to_ain_type(ain, &var->type, decl->type);
-	decl->var_no = var_no;
+		vars[*var_no].name2 = strdup("");
+	jaf_to_ain_type(ain, &vars[*var_no].type, decl->type);
+	decl->var_no = *var_no;
+
+	// immediate reference types need extra slot (page+index)
+	switch (vars[*var_no].type.data) {
+	case AIN_REF_INT:
+	case AIN_REF_FLOAT:
+	case AIN_REF_BOOL:
+	case AIN_REF_LONG_INT:
+		(*var_no)++;
+		vars[*var_no].name = strdup("<void>");
+		if (ain->version >= 12)
+			vars[*var_no].name2 = strdup("");
+		vars[*var_no].type.data = AIN_VOID;
+		break;
+	default:
+		break;
+	}
+
+	(*var_no)++;
 }
 
 static struct ain_variable *block_get_vars(struct ain *ain, struct jaf_block *block, struct ain_variable *vars, int *nr_vars);
@@ -357,9 +389,8 @@ static struct ain_variable *block_item_get_vars(struct ain *ain, struct jaf_bloc
 	case JAF_DECLARATION:
 		if (!item->decl.name)
 			break;
-		vars = xrealloc_array(vars, *nr_vars, *nr_vars + 1, sizeof(struct ain_variable));
-		init_variable(ain, vars + *nr_vars, &item->decl, *nr_vars);
-		(*nr_vars)++;
+		vars = xrealloc_array(vars, *nr_vars, *nr_vars + 2, sizeof(struct ain_variable));
+		init_variable(ain, vars, nr_vars, &item->decl);
 		break;
 	case JAF_STMT_LABELED:
 		vars = block_item_get_vars(ain, item->label.stmt, vars, nr_vars);
@@ -410,15 +441,16 @@ static struct ain_variable *block_get_vars(struct ain *ain, struct jaf_block *bl
 
 static void function_init_vars(struct ain *ain, struct ain_function *f, struct jaf_declaration *decl)
 {
-	f->nr_args = decl->params ? decl->params->nr_items : 0;
-	f->nr_vars = f->nr_args;
-	f->vars = xcalloc(f->nr_args, sizeof(struct ain_variable));
-	for (int i = 0; i < f->nr_args; i++) {
+	int nr_params = decl->params ? decl->params->nr_items : 0;
+	f->nr_args = 0;
+	f->vars = xcalloc(nr_params * 2, sizeof(struct ain_variable));
+	for (int i = 0; i < nr_params; i++) {
 		assert(decl->params->items[i]->kind == JAF_DECLARATION);
 		assert(decl->params->items[i]->decl.name);
 		struct jaf_declaration *param = &decl->params->items[i]->decl;
-		init_variable(ain, &f->vars[i], param, i);
+		init_variable(ain, f->vars, &f->nr_args, param);
 	}
+	f->nr_vars = f->nr_args;
 	f->vars = block_get_vars(ain, decl->body, f->vars, &f->nr_vars);
 }
 

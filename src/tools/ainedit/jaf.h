@@ -37,7 +37,6 @@ enum jaf_type {
 enum jaf_type_qualifier {
 	JAF_QUAL_CONST  = 1,
 	JAF_QUAL_REF    = 2,
-	JAF_QUAL_GLOBAL = 4,
 };
 
 enum jaf_expression_type {
@@ -99,9 +98,10 @@ enum jaf_operator {
 	JAF_REF_ASSIGN,
 };
 
-struct jaf_expression_list {
+struct jaf_argument_list {
 	size_t nr_items;
 	struct jaf_expression **items;
+	int *var_nos;
 };
 
 struct jaf_type_specifier {
@@ -149,7 +149,7 @@ struct jaf_expression {
 		// function call
 		struct {
 			struct jaf_expression *fun;
-			struct jaf_expression_list *args;
+			struct jaf_argument_list *args;
 			int func_no;
 		} call;
 		// struct member
@@ -276,11 +276,11 @@ struct jaf_expression *jaf_unary_expr(enum jaf_operator op, struct jaf_expressio
 struct jaf_expression *jaf_binary_expr(enum jaf_operator op, struct jaf_expression *lhs, struct jaf_expression *rhs);
 struct jaf_expression *jaf_ternary_expr(struct jaf_expression *test, struct jaf_expression *cons, struct jaf_expression *alt);
 struct jaf_expression *jaf_seq_expr(struct jaf_expression *head, struct jaf_expression *tail);
-struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_expression_list *args);
+struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_argument_list *args);
 struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expression *expr);
 struct jaf_expression *jaf_member_expr(struct jaf_expression *struc, struct string *name);
 
-struct jaf_expression_list *jaf_args(struct jaf_expression_list *head, struct jaf_expression *tail);
+struct jaf_argument_list *jaf_args(struct jaf_argument_list *head, struct jaf_expression *tail);
 
 struct jaf_type_specifier *jaf_type(enum jaf_type type);
 struct jaf_type_specifier *jaf_struct(struct string *name, struct jaf_block *fields);
@@ -327,10 +327,12 @@ struct jaf_expression *jaf_simplify(struct jaf_expression *in);
 
 // jaf_types.c
 const char *jaf_typestr(enum jaf_type type);
+void ain_to_jaf_type(struct jaf_type_specifier *dst, struct ain_type *src);
 void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr);
 void jaf_check_type(struct jaf_expression *expr, struct jaf_type_specifier *type);
 
 // jaf_static_analysis.c
 struct jaf_block *jaf_static_analyze(struct ain *ain, struct jaf_block *block);
+enum ain_data_type jaf_to_ain_data_type(enum jaf_type type, unsigned qualifiers);
 
 #endif /* AINEDIT_JAF_H */

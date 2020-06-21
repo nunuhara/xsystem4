@@ -303,7 +303,6 @@ static struct jaf_expression *jaf_simplify_cast(struct jaf_expression *in)
 		if (in->cast.expr->type == JAF_EXP_INT) {
 			char buf[512];
 			snprintf(buf, 512, "%i", in->cast.expr->i);
-			WARNING("CAST %d to string: %s", in->cast.expr->i, buf);
 			jaf_free_expr(in);
 			return jaf_string(make_string(buf, strlen(buf)));
 		}

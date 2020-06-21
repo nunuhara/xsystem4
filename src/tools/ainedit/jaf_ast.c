@@ -112,7 +112,7 @@ struct jaf_expression *jaf_seq_expr(struct jaf_expression *head, struct jaf_expr
 	ERROR("Sequence expressions not supported");
 }
 
-struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_expression_list *args)
+struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_argument_list *args)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_FUNCALL, 0);
 	e->call.fun = fun;
@@ -120,10 +120,10 @@ struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_
 	return e;
 }
 
-struct jaf_expression_list *jaf_args(struct jaf_expression_list *head, struct jaf_expression *tail)
+struct jaf_argument_list *jaf_args(struct jaf_argument_list *head, struct jaf_expression *tail)
 {
 	if (!head) {
-		head = xcalloc(1, sizeof(struct jaf_expression_list));
+		head = xcalloc(1, sizeof(struct jaf_argument_list));
 	}
 	head->items = xrealloc_array(head->items, head->nr_items, head->nr_items+1, sizeof(struct jaf_expression*));
 	head->items[head->nr_items++] = tail;

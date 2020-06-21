@@ -194,7 +194,7 @@ static void jaf_check_types_ternary(struct jaf_env *env, struct jaf_expression *
 	jaf_copy_type(&expr->value_type, &expr->consequent->value_type);
 }
 
-static void ain_to_jaf_type(struct jaf_type_specifier *dst, struct ain_type *src)
+void ain_to_jaf_type(struct jaf_type_specifier *dst, struct ain_type *src)
 {
 	switch (src->data) {
 	case AIN_VOID:
@@ -212,6 +212,23 @@ static void ain_to_jaf_type(struct jaf_type_specifier *dst, struct ain_type *src
 	case AIN_STRUCT:
 		dst->type = JAF_STRUCT;
 		dst->struct_no = src->struc;
+		break;
+	case AIN_REF_INT:
+		dst->type = JAF_INT;
+		dst->qualifiers = JAF_QUAL_REF;
+		break;
+	case AIN_REF_FLOAT:
+		dst->type = JAF_FLOAT;
+		dst->qualifiers = JAF_QUAL_REF;
+		break;
+	case AIN_REF_STRING:
+		dst->type = JAF_STRING;
+		dst->qualifiers = JAF_QUAL_REF;
+		break;
+	case AIN_REF_STRUCT:
+		dst->type = JAF_STRUCT;
+		dst->struct_no = src->struc;
+		dst->qualifiers = JAF_QUAL_REF;
 		break;
 	default:
 		ERROR("Unsupported variable type");
@@ -274,6 +291,18 @@ static void jaf_check_types_identifier(struct jaf_env *env, struct jaf_expressio
 	expr->value_type.func_no = func_no;
 }
 
+static bool ain_wide_type(enum ain_data_type type) {
+	switch (type) {
+	case AIN_REF_INT:
+	case AIN_REF_FLOAT:
+	case AIN_REF_BOOL:
+	case AIN_REF_LONG_INT:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void jaf_check_types_funcall(struct jaf_env *env, struct jaf_expression *expr)
 {
 	jaf_derive_types(env, expr->call.fun);
@@ -282,6 +311,27 @@ static void jaf_check_types_funcall(struct jaf_env *env, struct jaf_expression *
 	int func_no = expr->call.fun->value_type.func_no;
 	assert(func_no >= 0 && func_no < env->ain->nr_functions);
 	ain_to_jaf_type(&expr->value_type, &env->ain->functions[func_no].return_type);
+	expr->call.func_no = func_no;
+
+	struct ain_function *f = &env->ain->functions[func_no];
+	expr->call.args->var_nos = xcalloc(expr->call.args->nr_items, sizeof(int));
+
+	// type check arguments against function prototype.
+	int arg = 0;
+	for (size_t i = 0; i < expr->call.args->nr_items; i++, arg++) {
+		if (arg >= f->nr_args)
+			ERROR("Too many arguments to function");
+
+		struct jaf_type_specifier type = {0};
+		ain_to_jaf_type(&type, &f->vars[arg].type);
+		jaf_check_type(expr->call.args->items[i], &type);
+
+		expr->call.args->var_nos[i] = arg;
+		if (ain_wide_type(f->vars[arg].type.data))
+			arg++;
+	}
+	if (arg != f->nr_args)
+		ERROR("Too few arguments to function");
 }
 
 static void jaf_check_types_member(struct jaf_env *env, struct jaf_expression *expr)
