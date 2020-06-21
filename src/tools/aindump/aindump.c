@@ -111,6 +111,11 @@ static void usage(void)
 	puts("        --delegates                Dump delegate types section");
 	puts("        --global-group-names       Dump global group names section");
 	puts("    -e, --enums                    Dump enums section");
+	puts("        --keycode                  Dump keycode value");
+	puts("        --main                     Dump main function index");
+	puts("        --msgf                     Dump message function index");
+	puts("        --game-version             Dump game version");
+	puts("        --ojmp                     Dump OJMP value");
 	puts("    -d, --decrypt                  Dump decrypted AIN file");
 	puts("        --map                      Dump AIN file map");
 	puts("        --no-macros                Don't use macros in code output");
@@ -405,6 +410,31 @@ static void ain_dump_enums(FILE *f, struct ain *ain)
 	}
 }
 
+static void ain_dump_keycode(FILE *f, struct ain *ain)
+{
+	fprintf(f, "KEYCODE: 0x%x\n", ain->keycode);
+}
+
+static void ain_dump_main(FILE *f, struct ain *ain)
+{
+	fprintf(f, "MAIN: 0x%x\n", ain->main);
+}
+
+static void ain_dump_msgf(FILE *f, struct ain *ain)
+{
+	fprintf(f, "MSGF: 0x%x\n", ain->msgf);
+}
+
+static void ain_dump_game_version(FILE *f, struct ain *ain)
+{
+	fprintf(f, "GAME VERSION: 0x%x\n", ain->game_version);
+}
+
+static void ain_dump_ojmp(FILE *f, struct ain *ain)
+{
+	fprintf(f, "OJMP: 0x%x\n", ain->ojmp);
+}
+
 static void print_section(FILE *f, const char *name, struct ain_section *section)
 {
 	if (section->present)
@@ -470,6 +500,11 @@ enum {
 	LOPT_DELEGATES,
 	LOPT_GLOBAL_GROUPS,
 	LOPT_ENUMS,
+	LOPT_KEYCODE,
+	LOPT_MAIN,
+	LOPT_MSGF,
+	LOPT_GAME_VERSION,
+	LOPT_OJMP,
 	LOPT_DECRYPT,
 	LOPT_MAP,
 	LOPT_NO_MACROS,
@@ -512,6 +547,11 @@ int main(int argc, char *argv[])
 			{ "delegates",          no_argument,       0, LOPT_DELEGATES },
 			{ "global-group-names", no_argument,       0, LOPT_GLOBAL_GROUPS },
 			{ "enums",              no_argument,       0, LOPT_ENUMS },
+			{ "keycode",            no_argument,       0, LOPT_KEYCODE },
+			{ "main",               no_argument,       0, LOPT_MAIN },
+			{ "msgf",               no_argument,       0, LOPT_MSGF },
+			{ "game-version",       no_argument,       0, LOPT_GAME_VERSION },
+			{ "ojmp",               no_argument,       0, LOPT_OJMP },
 			{ "decrypt",            no_argument,       0, LOPT_DECRYPT },
 			{ "map",                no_argument,       0, LOPT_MAP },
 			{ "no-macros",          no_argument,       0, LOPT_NO_MACROS },
@@ -596,6 +636,21 @@ int main(int argc, char *argv[])
 		case LOPT_ENUMS:
 			dump_targets[dump_ptr++] = LOPT_ENUMS;
 			break;
+		case LOPT_KEYCODE:
+			dump_targets[dump_ptr++] = LOPT_KEYCODE;
+			break;
+		case LOPT_MAIN:
+			dump_targets[dump_ptr++] = LOPT_MAIN;
+			break;
+		case LOPT_MSGF:
+			dump_targets[dump_ptr++] = LOPT_MSGF;
+			break;
+		case LOPT_GAME_VERSION:
+			dump_targets[dump_ptr++] = LOPT_GAME_VERSION;
+			break;
+		case LOPT_OJMP:
+			dump_targets[dump_ptr++] = LOPT_OJMP;
+			break;
 		case 'd':
 		case LOPT_DECRYPT:
 			decrypt = true;
@@ -666,6 +721,11 @@ int main(int argc, char *argv[])
 		case LOPT_DELEGATES:      ain_dump_functypes(output, ain, true); break;
 		case LOPT_GLOBAL_GROUPS:  ain_dump_global_group_names(output, ain); break;
 		case LOPT_ENUMS:          ain_dump_enums(output, ain); break;
+		case LOPT_KEYCODE:        ain_dump_keycode(output, ain); break;
+		case LOPT_MAIN:           ain_dump_main(output, ain); break;
+		case LOPT_MSGF:           ain_dump_msgf(output, ain); break;
+		case LOPT_GAME_VERSION:   ain_dump_game_version(output, ain); break;
+		case LOPT_OJMP:           ain_dump_ojmp(output, ain); break;
 		case LOPT_MAP:            ain_dump_map(output, ain); break;
 		}
 	}
