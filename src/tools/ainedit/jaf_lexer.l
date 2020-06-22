@@ -99,7 +99,7 @@ static int check_type(void);
 {HP}{H}*"."{H}+{P}{FS}?			{ RETURN_STRING(F_CONSTANT); }
 {HP}{H}+"."{P}{FS}?			{ RETURN_STRING(F_CONSTANT); }
 
-({SP}?\"([^"\\\n]|{ES})*\"{WS}*)+	{ RETURN_STRING(STRING_LITERAL); }
+({SP}?\"([^"\\\n]|{ES})*\"{WS}*)+	{ yylval.string = make_string(yytext+1, yyleng-2); return STRING_LITERAL; }
 
 "..."					{ return ELLIPSIS; }
 ">>="					{ return RIGHT_ASSIGN; }

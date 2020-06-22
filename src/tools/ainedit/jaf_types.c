@@ -41,13 +41,35 @@ const char *jaf_typestr(enum jaf_type type)
 	return "unknown";
 }
 
+static enum ain_data_type strip_ref(enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_REF_INT:             return AIN_INT;
+	case AIN_REF_FLOAT:           return AIN_FLOAT;
+	case AIN_REF_STRING:          return AIN_STRING;
+	case AIN_REF_STRUCT:          return AIN_STRUCT;
+	case AIN_REF_ARRAY_INT:       return AIN_ARRAY_INT;
+	case AIN_REF_ARRAY_FLOAT:     return AIN_ARRAY_FLOAT;
+	case AIN_REF_ARRAY_STRING:    return AIN_ARRAY_STRING;
+	case AIN_REF_ARRAY_STRUCT:    return AIN_ARRAY_STRUCT;
+	case AIN_REF_FUNC_TYPE:       return AIN_FUNC_TYPE;
+	case AIN_REF_ARRAY_FUNC_TYPE: return AIN_ARRAY_FUNC_TYPE;
+	case AIN_REF_BOOL:            return AIN_BOOL;
+	case AIN_REF_ARRAY_BOOL:      return AIN_ARRAY_BOOL;
+	case AIN_REF_LONG_INT:        return AIN_LONG_INT;
+	case AIN_REF_ARRAY_LONG_INT:  return AIN_ARRAY_LONG_INT;
+	default:                      return type;
+	}
+}
+
 static bool jaf_type_equal(struct ain_type *a, struct ain_type *b)
 {
-	if (a->data != b->data)
+	enum ain_data_type a_data = strip_ref(a->data), b_data = strip_ref(b->data);
+	if (a_data != b_data)
 		return false;
-	if (a->data == AIN_STRUCT && a->struc != b->struc)
+	if (a_data == AIN_STRUCT && a->struc != b->struc)
 		return false;
-	if (a->data == AIN_FUNC_TYPE && a->struc != b->struc)
+	if (a_data == AIN_FUNC_TYPE && a->struc != b->struc)
 		return false;
 	return true;
 }

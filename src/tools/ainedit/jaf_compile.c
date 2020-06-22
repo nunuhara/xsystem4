@@ -742,9 +742,14 @@ static void compile_statement(struct compiler_state *state, struct jaf_block_ite
 		case AIN_FLOAT:
 		case AIN_BOOL:
 		case AIN_LONG_INT:
+		case AIN_REF_INT:
+		case AIN_REF_FLOAT:
+		case AIN_REF_BOOL:
+		case AIN_REF_LONG_INT:
 			write_instruction0(state, POP);
 			break;
 		case AIN_STRING:
+		case AIN_REF_STRING:
 			write_instruction0(state, state->ain->version >= 11 ? DELETE : S_POP);
 			break;
 		default:
