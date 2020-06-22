@@ -35,25 +35,25 @@
 
 struct func_list {
 	int nr_slots;
-	struct ain_function *slots[];
+	int slots[];
 };
-#define func_list_size(nr_slots) (sizeof(struct func_list) + sizeof(struct ain_function*)*(nr_slots))
+#define func_list_size(nr_slots) (sizeof(struct func_list) + sizeof(int)*(nr_slots))
 
-static void func_ht_add(struct ain *ain, struct ain_function *f)
+static void func_ht_add(struct ain *ain, int i)
 {
-	struct ht_slot *kv = ht_put(ain->_func_ht, f->name);
+	struct ht_slot *kv = ht_put(ain->_func_ht, ain->functions[i].name);
 	if (kv->value) {
 		// entry with this name already exists; add to list
 		struct func_list *list = kv->value;
 		list = xrealloc(list, func_list_size(list->nr_slots+1));
-		list->slots[list->nr_slots] = f;
+		list->slots[list->nr_slots] = i;
 		list->nr_slots++;
 		kv->value = list;
 	} else {
 		// empty bucket: create list
 		struct func_list *list = xmalloc(func_list_size(1));
 		list->nr_slots = 1;
-		list->slots[0] = f;
+		list->slots[0] = i;
 		kv->value = list;
 	}
 }
@@ -62,7 +62,7 @@ static void init_func_ht(struct ain *ain)
 {
 	ain->_func_ht = ht_create(1024);
 	for (int i = 0; i < ain->nr_functions; i++) {
-		func_ht_add(ain, &ain->functions[i]);
+		func_ht_add(ain, i);
 	}
 }
 
@@ -191,7 +191,7 @@ struct ain_function *ain_get_function(struct ain *ain, char *name)
 	struct func_list *funs = get_function(ain, name);
 	if (!funs || n >= funs->nr_slots)
 		return NULL;
-	return funs->slots[n];
+	return &ain->functions[funs->slots[n]];
 }
 
 int ain_get_function_no(struct ain *ain, char *name)
@@ -207,7 +207,7 @@ int ain_get_function_index(struct ain *ain, struct ain_function *f)
 		goto err;
 
 	for (int i = 0; i < funs->nr_slots; i++) {
-		if (funs->slots[i] == f)
+		if (&ain->functions[funs->slots[i]] == f)
 			return i;
 	}
 err:
@@ -276,7 +276,7 @@ int ain_add_function(struct ain *ain, struct ain_function *fun)
 	int no = ain->nr_functions;
 	ain->functions = xrealloc_array(ain->functions, no, no+1, sizeof (struct ain_function));
 	ain->functions[no] = *fun;
-	func_ht_add(ain, &ain->functions[no]);
+	func_ht_add(ain, no);
 	ain->nr_functions++;
 	return no;
 }
@@ -831,7 +831,7 @@ struct ain_enum *read_enums(struct ain_reader *r, int count, struct ain *ain)
 		}
 
 		int j = 0;
-		for_each_instruction(ain, addr, instr, funs->slots[0]->address, {
+		for_each_instruction(ain, addr, instr, ain->functions[funs->slots[0]].address, {
 			if (instr->opcode == ENDFUNC)
 				break;
 			if (instr->opcode != S_PUSH)
