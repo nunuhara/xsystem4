@@ -50,6 +50,8 @@ enum jaf_expression_type {
 	JAF_EXP_TERNARY,
 	//JAF_EXP_SUBSCRIPT,
 	JAF_EXP_FUNCALL,
+	JAF_EXP_SYSCALL,
+	//JAF_EXP_HLLCALL,
 	JAF_EXP_CAST,
 	JAF_EXP_MEMBER,
 	//JAF_EXP_SEQ,
@@ -281,6 +283,7 @@ struct jaf_expression *jaf_binary_expr(enum jaf_operator op, struct jaf_expressi
 struct jaf_expression *jaf_ternary_expr(struct jaf_expression *test, struct jaf_expression *cons, struct jaf_expression *alt);
 struct jaf_expression *jaf_seq_expr(struct jaf_expression *head, struct jaf_expression *tail);
 struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_argument_list *args);
+struct jaf_expression *jaf_system_call(struct string *name, struct jaf_argument_list *args);
 struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expression *expr);
 struct jaf_expression *jaf_member_expr(struct jaf_expression *struc, struct string *name);
 

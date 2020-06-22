@@ -413,6 +413,24 @@ static void compile_funcall(struct compiler_state *state, struct jaf_expression 
 	write_instruction1(state, CALLFUNC, expr->call.func_no);
 }
 
+static void compile_syscall(struct compiler_state *state, struct jaf_expression *expr)
+{
+	unsigned nr_args = expr->call.args ? expr->call.args->nr_items : 0;
+	for (unsigned i = 0; i < nr_args; i++) {
+		if (ain_ref_type(syscalls[expr->call.func_no].argtypes[i])) {
+			compile_lvalue(state, expr->call.args->items[i]);
+		} else {
+			compile_expression(state, expr->call.args->items[i]);
+		}
+	}
+
+	if (state->ain->version >= 11) {
+		ERROR("Syscalls not supported");
+	} else {
+		write_instruction1(state, CALLSYS, expr->call.func_no);
+	}
+}
+
 static void compile_cast(struct compiler_state *state, struct jaf_expression *expr)
 {
 	enum ain_data_type src_type = expr->cast.expr->valuetype.data;
@@ -485,6 +503,9 @@ static void compile_expression(struct compiler_state *state, struct jaf_expressi
 		//break;
 	case JAF_EXP_FUNCALL:
 		compile_funcall(state, expr);
+		break;
+	case JAF_EXP_SYSCALL:
+		compile_syscall(state, expr);
 		break;
 	case JAF_EXP_CAST:
 		compile_cast(state, expr);

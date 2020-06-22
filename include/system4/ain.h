@@ -122,6 +122,13 @@ enum ain_data_type {
 	case AIN_REF_ARRAY_DELEGATE:		\
 	case AIN_REF_ARRAY
 
+#define AIN_MKTYPE(d, s, r) ((struct ain_type) { .data = d, .struc = s, .rank = r })
+#define AIN_VOID_TYPE AIN_MKTYPE(AIN_VOID, -1, 0)
+#define AIN_INT_TYPE AIN_MKTYPE(AIN_INT, -1, 0)
+#define AIN_STRING_TYPE AIN_MKTYPE(AIN_STRING, -1, 0)
+#define AIN_REF_INT_TYPE AIN_MKTYPE(AIN_REF_INT, -1, 0)
+#define AIN_BOOL_TYPE AIN_MKTYPE(AIN_BOOL, -1, 0)
+
 enum ain_variable_type {
 	AIN_VAR_LOCAL,
 	AIN_VAR_MEMBER,

@@ -21,50 +21,56 @@
 #include "system4.h"
 #include "system4/instructions.h"
 
-#define SYS(syscode, sysname)			\
+#define SYS(syscode, sysname, rt, nargs, ...)	\
 	[syscode] = {				\
 		.code = syscode,		\
 		.name = "system." #sysname ,	\
-		.implemented = true		\
+		.implemented = true,		\
+		.return_type = rt,		\
+		.nr_args = nargs,		\
+		.argtypes = { __VA_ARGS__ }	\
 	}
 
-#define TODO(syscode, sysname)			\
+#define TODO(syscode, sysname, rt, nargs, ...)	\
 	[syscode] = {				\
 		.code = syscode,		\
 		.name = "system." #sysname ,	\
-		.implemented = false		\
+		.implemented = false,		\
+		.return_type = rt,		\
+		.nr_args = nargs,		\
+		.argtypes = { __VA_ARGS__ }	\
 	}
 
 const struct syscall syscalls[NR_SYSCALLS] = {
-	SYS  ( SYS_EXIT,                 Exit ),
-	SYS  ( SYS_GLOBAL_SAVE,          GlobalSave ),
-	SYS  ( SYS_GLOBAL_LOAD,          GlobalLoad ),
-	SYS  ( SYS_LOCK_PEEK,            LockPeek ),
-	SYS  ( SYS_UNLOCK_PEEK,          UnlockPeek ),
-	TODO ( SYS_RESET,                Reset ),
-	SYS  ( SYS_OUTPUT,               Output ),
-	SYS  ( SYS_MSGBOX,               MsgBox ),
-	SYS  ( SYS_RESUME_SAVE,          ResumeSave ),
-	SYS  ( SYS_RESUME_LOAD,          ResumeLoad ),
-	SYS  ( SYS_EXISTS_FILE,          ExistsFile ),
-	SYS  ( SYS_OPEN_WEB,             OpenWeb ),
-	SYS  ( SYS_GET_SAVE_FOLDER_NAME, GetSaveFolderName ),
-	SYS  ( SYS_GET_TIME,             GetTime ),
-	TODO ( SYS_GET_GAME_NAME,        GetGameName ),
-	SYS  ( SYS_ERROR,                Error ),
-	SYS  ( SYS_EXISTS_SAVE_FILE,     ExistsSaveFile ),
-	SYS  ( SYS_IS_DEBUG_MODE,        IsDebugMode ),
-	SYS  ( SYS_MSGBOX_OK_CANCEL,     MsgBoxOkCancel ),
-	SYS  ( SYS_GET_FUNC_STACK_NAME,  GetFuncStackName ),
-	SYS  ( SYS_PEEK,                 Peek ),
-	SYS  ( SYS_SLEEP,                Sleep ),
-	SYS  ( SYS_GROUP_SAVE,           GroupSave ),
-	SYS  ( SYS_GROUP_LOAD,           GroupLoad ),
-	TODO ( SYS_RESUME_WRITE_COMMENT, ResumeWriteComment ),
-	TODO ( SYS_RESUME_READ_COMMENT,  ResumeReadComment ),
-	TODO ( SYS_DELETE_SAVE_FILE,     DeleteSaveFile ),
-	TODO ( SYS_EXIST_FUNC,           ExistFunc ),
-	TODO ( SYS_COPY_SAVE_FILE,       CopySaveFile ),
+	SYS  ( SYS_EXIT,                 Exit,               AIN_VOID_TYPE,   1, AIN_INT ),
+	SYS  ( SYS_GLOBAL_SAVE,          GlobalSave,         AIN_INT_TYPE,    2, AIN_STRING, AIN_STRING ),
+	SYS  ( SYS_GLOBAL_LOAD,          GlobalLoad,         AIN_INT_TYPE,    2, AIN_STRING, AIN_STRING ),
+	SYS  ( SYS_LOCK_PEEK,            LockPeek,           AIN_INT_TYPE,    0 ),
+	SYS  ( SYS_UNLOCK_PEEK,          UnlockPeek,         AIN_INT_TYPE,    0 ),
+	TODO ( SYS_RESET,                Reset,              AIN_VOID_TYPE,   0 ),
+	SYS  ( SYS_OUTPUT,               Output,             AIN_STRING_TYPE, 1, AIN_STRING ),
+	SYS  ( SYS_MSGBOX,               MsgBox,             AIN_STRING_TYPE, 1, AIN_STRING ),
+	SYS  ( SYS_RESUME_SAVE,          ResumeSave,         AIN_INT_TYPE,    3, AIN_STRING, AIN_STRING, AIN_REF_INT ),
+	SYS  ( SYS_RESUME_LOAD,          ResumeLoad,         AIN_VOID_TYPE,   2, AIN_STRING, AIN_STRING ),
+	SYS  ( SYS_EXISTS_FILE,          ExistsFile,         AIN_INT_TYPE,    1, AIN_STRING ),
+	SYS  ( SYS_OPEN_WEB,             OpenWeb,            AIN_VOID_TYPE,   1, AIN_STRING ),
+	SYS  ( SYS_GET_SAVE_FOLDER_NAME, GetSaveFolderName,  AIN_STRING_TYPE, 0 ),
+	SYS  ( SYS_GET_TIME,             GetTime,            AIN_INT_TYPE,    0 ),
+	TODO ( SYS_GET_GAME_NAME,        GetGameName,        AIN_STRING_TYPE, 0 ),
+	SYS  ( SYS_ERROR,                Error,              AIN_STRING_TYPE, 1, AIN_STRING ),
+	SYS  ( SYS_EXISTS_SAVE_FILE,     ExistsSaveFile,     AIN_INT_TYPE,    1, AIN_STRING ),
+	SYS  ( SYS_IS_DEBUG_MODE,        IsDebugMode,        AIN_INT_TYPE,    0 ),
+	SYS  ( SYS_MSGBOX_OK_CANCEL,     MsgBoxOkCancel,     AIN_INT_TYPE,    1, AIN_STRING ),
+	SYS  ( SYS_GET_FUNC_STACK_NAME,  GetFuncStackName,   AIN_STRING_TYPE, 1, AIN_INT ),
+	SYS  ( SYS_PEEK,                 Peek,               AIN_VOID_TYPE,   0 ),
+	SYS  ( SYS_SLEEP,                Sleep,              AIN_VOID_TYPE,   1, AIN_INT ),
+	SYS  ( SYS_GROUP_SAVE,           GroupSave,          AIN_INT_TYPE,    4, AIN_STRING, AIN_STRING, AIN_STRING, AIN_REF_INT ),
+	SYS  ( SYS_GROUP_LOAD,           GroupLoad,          AIN_INT_TYPE,    4, AIN_STRING, AIN_STRING, AIN_STRING, AIN_REF_INT ),
+	TODO ( SYS_RESUME_WRITE_COMMENT, ResumeWriteComment, AIN_BOOL_TYPE,   3, AIN_STRING, AIN_STRING, AIN_REF_ARRAY_STRING ),
+	TODO ( SYS_RESUME_READ_COMMENT,  ResumeReadComment,  AIN_BOOL_TYPE,   3, AIN_STRING, AIN_STRING, AIN_REF_ARRAY_STRING ),
+	TODO ( SYS_DELETE_SAVE_FILE,     DeleteSaveFile,     AIN_INT_TYPE,    1, AIN_STRING ),
+	TODO ( SYS_EXIST_FUNC,           ExistFunc,          AIN_BOOL_TYPE,   1, AIN_STRING ),
+	TODO ( SYS_COPY_SAVE_FILE,       CopySaveFile,       AIN_INT_TYPE,    2, AIN_STRING, AIN_STRING ),
 };
 
 // JMP = instruction that modifies the instruction pointer

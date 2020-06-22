@@ -20,7 +20,7 @@
 #include <stddef.h>
 
 struct ht_slot {
-	const char *key;
+	char *key;
 	void *value;
 };
 

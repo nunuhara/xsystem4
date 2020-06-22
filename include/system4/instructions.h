@@ -22,6 +22,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "system4.h"
+#include "system4/ain.h"
 
 #define INSTRUCTION_MAX_ARGS 4 // FIXME: determine the real maximum
 
@@ -62,6 +63,9 @@ struct syscall {
 	const enum syscall_code code;
 	const char * const name;
 	const bool implemented;
+	const struct ain_type return_type;
+	const unsigned nr_args;
+	const enum ain_data_type argtypes[6];
 };
 
 const struct syscall syscalls[NR_SYSCALLS];

@@ -84,6 +84,7 @@ static int check_type(void);
 "bool"                                  { return BOOL; }
 "__func__"                              { return FUNC_NAME; }
 "ref"                                   { return SYM_REF; }
+"system"                                { return SYSTEM; }
 
 {L}{A}*					{ return check_type(); }
 

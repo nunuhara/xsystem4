@@ -71,7 +71,7 @@ struct ht_slot *ht_put(struct hash_table *ht, const char *key)
 	if (!ht->buckets[k]) {
 		ht->buckets[k] = xmalloc(sizeof(struct ht_bucket) + sizeof(struct ht_slot));
 		ht->buckets[k]->nr_slots = 1;
-		ht->buckets[k]->slots[0].key = key;
+		ht->buckets[k]->slots[0].key = strdup(key);
 		ht->buckets[k]->slots[0].value = NULL;
 		return &ht->buckets[k]->slots[0];
 	}
@@ -86,7 +86,7 @@ struct ht_slot *ht_put(struct hash_table *ht, const char *key)
 	size_t i = ht->buckets[k]->nr_slots;
 	ht->buckets[k] = xrealloc(ht->buckets[k], sizeof(struct ht_bucket) + sizeof(struct ht_slot)*(i+1));
 	ht->buckets[k]->nr_slots = i+1;
-	ht->buckets[k]->slots[i].key = key;
+	ht->buckets[k]->slots[i].key = strdup(key);
 	ht->buckets[k]->slots[i].value = NULL;
 	return &ht->buckets[k]->slots[i];
 }
@@ -105,6 +105,11 @@ void ht_foreach_value(struct hash_table *ht, void(*fun)(void*))
 void ht_free(struct hash_table *ht)
 {
 	for (size_t i = 0; i < ht->nr_buckets; i++) {
+		if (!ht->buckets[i])
+			continue;
+		for (size_t j = 0; j < ht->buckets[i]->nr_slots; j++) {
+			free(ht->buckets[i]->slots[j].key);
+		}
 		free(ht->buckets[i]);
 	}
 	free(ht);

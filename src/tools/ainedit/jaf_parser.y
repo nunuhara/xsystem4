@@ -115,7 +115,7 @@ int sym_type(char *name)
 %token	<token>		AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token	<token>		SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
 %token	<token>		XOR_ASSIGN OR_ASSIGN
-%token	<token>		SYM_REF REF_ASSIGN FUNC_NAME
+%token	<token>		SYM_REF REF_ASSIGN FUNC_NAME SYSTEM
 
 %token	<token>		CONST
 %token	<token>		BOOL CHAR INT LONG FLOAT VOID STRING
@@ -178,14 +178,15 @@ string
 	;
 
 postfix_expression
-	: primary_expression                                  { $$ = $1; }
-	| postfix_expression '[' expression ']'               { ERROR("Arrays not supported"); }
-	| postfix_expression '(' ')'                          { $$ = jaf_function_call($1, NULL); }
-	| atomic_type_specifier '(' expression ')'            { $$ = jaf_cast_expression($1, $3); }
-	| postfix_expression '(' argument_expression_list ')' { $$ = jaf_function_call($1, $3); }
-	| postfix_expression '.' IDENTIFIER                   { $$ = jaf_member_expr($1, $3); }
-	| postfix_expression INC_OP                           { $$ = jaf_unary_expr(JAF_POST_INC, $1); }
-	| postfix_expression DEC_OP                           { $$ = jaf_unary_expr(JAF_POST_DEC, $1); }
+	: primary_expression                                     { $$ = $1; }
+	| postfix_expression '[' expression ']'                  { ERROR("Arrays not supported"); }
+	| postfix_expression '(' ')'                             { $$ = jaf_function_call($1, NULL); }
+	| atomic_type_specifier '(' expression ')'               { $$ = jaf_cast_expression($1, $3); }
+	| postfix_expression '(' argument_expression_list ')'    { $$ = jaf_function_call($1, $3); }
+	| SYSTEM '.' IDENTIFIER '(' argument_expression_list ')' { $$ = jaf_system_call($3, $5); }
+	| postfix_expression '.' IDENTIFIER                      { $$ = jaf_member_expr($1, $3); }
+	| postfix_expression INC_OP                              { $$ = jaf_unary_expr(JAF_POST_INC, $1); }
+	| postfix_expression DEC_OP                              { $$ = jaf_unary_expr(JAF_POST_DEC, $1); }
 //	| '(' type_specifier ')' '{' initializer_list '}'
 //	| '(' type_specifier ')' '{' initializer_list ',' '}'
 	;

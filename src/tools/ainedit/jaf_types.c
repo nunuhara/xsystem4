@@ -320,6 +320,32 @@ static void jaf_check_types_funcall(struct jaf_env *env, struct jaf_expression *
 		ERROR("Too few arguments to function");
 }
 
+static void jaf_check_types_syscall(struct jaf_env *env, struct jaf_expression *expr)
+{
+	int no = expr->call.func_no;
+	unsigned nr_args = expr->call.args ? expr->call.args->nr_items : 0;
+	for (size_t i = 0; i < nr_args; i++) {
+		jaf_derive_types(env, expr->call.args->items[i]);
+	}
+
+	assert(no >= 0 && no < NR_SYSCALLS);
+	if (nr_args != syscalls[no].nr_args) {
+		ERROR("Wrong number of arguments to syscall 'system.%s' (expected %d; got %d)",
+		      syscalls[no].name, syscalls[no].nr_args, nr_args);
+	}
+
+	for (unsigned i = 0; i < nr_args; i++) {
+		struct ain_type type = {
+			.data = syscalls[no].argtypes[i],
+			.struc = -1,
+			.rank = 0
+		};
+		jaf_check_type(expr->call.args->items[i], &type);
+	}
+
+	expr->valuetype = syscalls[no].return_type;
+}
+
 static void jaf_check_types_member(struct jaf_env *env, struct jaf_expression *expr)
 {
 	jaf_derive_types(env, expr->member.struc);
@@ -365,6 +391,9 @@ void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)
 		break;
 	case JAF_EXP_FUNCALL:
 		jaf_check_types_funcall(env, expr);
+		break;
+	case JAF_EXP_SYSCALL:
+		jaf_check_types_syscall(env, expr);
 		break;
 	case JAF_EXP_CAST:
 		expr->valuetype.data = jaf_to_ain_data_type(expr->cast.type, 0);

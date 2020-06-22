@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <assert.h>
 #include "system4.h"
+#include "system4/instructions.h"
 #include "system4/string.h"
 #include "jaf.h"
 
@@ -117,6 +118,27 @@ struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_
 	struct jaf_expression *e = jaf_expr(JAF_EXP_FUNCALL, 0);
 	e->call.fun = fun;
 	e->call.args = args;
+	return e;
+}
+
+struct jaf_expression *jaf_system_call(struct string *name, struct jaf_argument_list *args)
+{
+	struct jaf_expression *e = jaf_expr(JAF_EXP_SYSCALL, 0);
+	e->call.fun = NULL;
+	e->call.args = args;
+	e->call.func_no = -1;
+
+	for (int i = 0; i < NR_SYSCALLS; i++) {
+		if (!strcmp(name->text, syscalls[i].name+7)) {
+			e->call.func_no = i;
+			break;
+		}
+	}
+
+	if (e->call.func_no == -1)
+		ERROR("Invalid system call: system.%s", name->text);
+
+	free_string(name);
 	return e;
 }
 
@@ -431,6 +453,7 @@ void jaf_free_expr(struct jaf_expression *expr)
 		jaf_free_expr(expr->alternative);
 		break;
 	case JAF_EXP_FUNCALL:
+	case JAF_EXP_SYSCALL:
 		jaf_free_expr(expr->call.fun);
 		for (size_t i = 0; i < expr->call.args->nr_items; i++) {
 			jaf_free_expr(expr->call.args->items[i]);
