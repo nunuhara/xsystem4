@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 static void _ain_compare_section(struct ain_section *a, struct ain_section *b, const char *name)
 {
 	if (a->present != b->present || a->size != b->size) {
-		printf("%s section differs", name);
+		NOTICE("%s section differs", name);
 		exit_code = 1;
 	}
 }
@@ -120,7 +120,7 @@ static bool ain_compare_code(struct ain *_a, struct ain *_b)
 
 	for (dasm_reset(&a), dasm_reset(&b); !dasm_eof(&a) && !dasm_eof(&b); dasm_next(&a), dasm_next(&b)) {
 		if (a.instr->opcode != b.instr->opcode) {
-			printf("opcode differs at 0x%08x (%s vs %s)", (uint32_t)a.addr, a.instr->name, b.instr->name);
+			NOTICE("opcode differs at 0x%08x (%s vs %s)", (uint32_t)a.addr, a.instr->name, b.instr->name);
 			return false;
 		}
 		for (int i = 0; i < a.instr->nr_args; i++) {
@@ -128,13 +128,13 @@ static bool ain_compare_code(struct ain *_a, struct ain *_b)
 			int32_t ib = dasm_arg(&b, i);
 			if (a.instr->args[i] == T_FLOAT) {
 				if (!float_equal(ia, ib)) {
-					printf("float argument differs at 0x%08x (%f vs %f)", (uint32_t)a.addr,
+					NOTICE("float argument differs at 0x%08x (%f vs %f)", (uint32_t)a.addr,
 					       float_cast(ia), float_cast(ib));
 					return false;
 				}
 			} else {
 				if (ia != ib) {
-					printf("argument differs at 0x%08x (%d vs %d)", (uint32_t)a.addr, ia, ib);
+					NOTICE("argument differs at 0x%08x (%d vs %d)", (uint32_t)a.addr, ia, ib);
 					return false;
 				}
 			}
@@ -181,53 +181,53 @@ static bool variable_equal(struct ain_variable *a, struct ain_variable *b)
 static bool ain_compare_functions(struct ain *a, struct ain *b)
 {
 	if (a->nr_functions != b->nr_functions) {
-		printf("number of functions differs (%d vs %d)", a->nr_functions, b->nr_functions);
+		NOTICE("number of functions differs (%d vs %d)", a->nr_functions, b->nr_functions);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_functions; i++) {
 		struct ain_function *fa = &a->functions[i], *fb = &b->functions[i];
 		if (strcmp(fa->name, fb->name)) {
-			printf("function name differs (\"%s\" vs \"%s\")", fa->name, fb->name);
+			NOTICE("function name differs (\"%s\" vs \"%s\")", fa->name, fb->name);
 			return false;
 		}
 		if (fa->address != fb->address) {
-			printf("function address differs for %s (0x%08x vs 0x%08x)", fa->name, fa->address, fb->address);
+			NOTICE("function address differs for %s (0x%08x vs 0x%08x)", fa->name, fa->address, fb->address);
 			return false;
 		}
 		if (fa->is_label != fb->is_label) {
-			printf("function is_label differs for %s (%d vs %d)", fa->name, fa->is_label, fb->is_label);
+			NOTICE("function is_label differs for %s (%d vs %d)", fa->name, fa->is_label, fb->is_label);
 			return false;
 		}
 
 		if (!type_equal(&fa->return_type, &fb->return_type)) {
-			printf("function return type differs for %s", fa->name); // TODO: print types
+			NOTICE("function return type differs for %s", fa->name); // TODO: print types
 			return false;
 		}
 
 		if (fa->nr_args != fb->nr_args) {
-			printf("function argument count differs for %s (%d vs %d)", fa->name, fa->nr_args, fb->nr_args);
+			NOTICE("function argument count differs for %s (%d vs %d)", fa->name, fa->nr_args, fb->nr_args);
 			return false;
 		}
 
 		if (fa->nr_vars != fb->nr_vars) {
-			printf("function variable count differs for %s (%d vs %d)", fa->name, fa->nr_vars, fb->nr_vars);
+			NOTICE("function variable count differs for %s (%d vs %d)", fa->name, fa->nr_vars, fb->nr_vars);
 			return false;
 		}
 
 		if (fa->is_lambda != fb->is_lambda) {
-			printf("function is_lambda differs for %s (%d vs %d)", fa->name, fa->is_lambda, fb->is_lambda);
+			NOTICE("function is_lambda differs for %s (%d vs %d)", fa->name, fa->is_lambda, fb->is_lambda);
 			return false;
 		}
 
 		if (fa->crc != fb->crc) {
-			printf("function crc differs for %s (%d vs %d)", fa->name, fa->crc, fb->crc);
+			NOTICE("function crc differs for %s (%d vs %d)", fa->name, fa->crc, fb->crc);
 			return false;
 		}
 
 		for (int j = 0; j < fa->nr_vars; j++) {
 			if (!variable_equal(&fa->vars[j], &fb->vars[j])) {
-				printf("function variable %d differs for %s", j, fa->name);
+				NOTICE("function variable %d differs for %s", j, fa->name);
 			}
 		}
 	}
@@ -237,13 +237,13 @@ static bool ain_compare_functions(struct ain *a, struct ain *b)
 static bool ain_compare_globals(struct ain *a, struct ain *b)
 {
 	if (a->nr_globals != b->nr_globals) {
-		printf("number of globals differs (%d vs %d)", a->nr_globals, b->nr_globals);
+		NOTICE("number of globals differs (%d vs %d)", a->nr_globals, b->nr_globals);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_globals; i++) {
 		if (!variable_equal(&a->globals[i], &b->globals[i])) {
-			printf("global variable %d (%s) differs", i, a->globals[i].name);
+			NOTICE("global variable %d (%s) differs", i, a->globals[i].name);
 			return false;
 		}
 	}
@@ -266,13 +266,13 @@ static bool initval_equal(struct ain_initval *a, struct ain_initval *b)
 static bool ain_compare_global_initvals(struct ain *a, struct ain *b)
 {
 	if (a->nr_initvals != b->nr_initvals) {
-		printf("number of global initvals differs (%d vs %d)", a->nr_initvals, b->nr_initvals);
+		NOTICE("number of global initvals differs (%d vs %d)", a->nr_initvals, b->nr_initvals);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_initvals; i++) {
 		if (!initval_equal(&a->global_initvals[i], &b->global_initvals[i])) {
-			printf("global initval %d differs", i);
+			NOTICE("global initval %d differs", i);
 			return false;
 		}
 	}
@@ -301,13 +301,13 @@ static bool struct_equal(struct ain_struct *a, struct ain_struct *b)
 static bool ain_compare_structs(struct ain *a, struct ain *b)
 {
 	if (a->nr_structures != b->nr_structures) {
-		printf("number of structures differs (%d vs %d)", a->nr_structures, b->nr_structures);
+		NOTICE("number of structures differs (%d vs %d)", a->nr_structures, b->nr_structures);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_structures; i++) {
 		if (!struct_equal(&a->structures[i], &b->structures[i])) {
-			printf("structure %s differs", a->structures[i].name);
+			NOTICE("structure %s differs", a->structures[i].name);
 			return false;
 		}
 	}
@@ -317,13 +317,13 @@ static bool ain_compare_structs(struct ain *a, struct ain *b)
 static bool ain_compare_messages(struct ain *a, struct ain *b)
 {
 	if (a->nr_messages != b->nr_messages) {
-		printf("number of messages differs (%d vs %d)", a->nr_messages, b->nr_messages);
+		NOTICE("number of messages differs (%d vs %d)", a->nr_messages, b->nr_messages);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_messages; i++) {
 		if (strcmp(a->messages[i]->text, b->messages[i]->text)) {
-			printf("message %d differs", i);
+			NOTICE("message %d differs", i);
 			return false;
 		}
 	}
@@ -350,18 +350,18 @@ static bool hll_function_equal(struct ain_hll_function *a, struct ain_hll_functi
 static bool ain_compare_library(struct ain_library *a, struct ain_library *b)
 {
 	if (strcmp(a->name, b->name)) {
-		printf("library name differs (\"%s\" vs \"%s\")", a->name, b->name);
+		NOTICE("library name differs (\"%s\" vs \"%s\")", a->name, b->name);
 		return false;
 	}
 
 	if (a->nr_functions != b->nr_functions) {
-		printf("library function count differs for %s (%d vs %d)", a->name, a->nr_functions, b->nr_functions);
+		NOTICE("library function count differs for %s (%d vs %d)", a->name, a->nr_functions, b->nr_functions);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_functions; i++) {
 		if (!hll_function_equal(&a->functions[i], &b->functions[i])) {
-			printf("library function %s.%s differs", a->name, a->functions[i].name);
+			NOTICE("library function %s.%s differs", a->name, a->functions[i].name);
 			return false;
 		}
 	}
@@ -372,7 +372,7 @@ static bool ain_compare_library(struct ain_library *a, struct ain_library *b)
 static bool ain_compare_libraries(struct ain *a, struct ain *b)
 {
 	if (a->nr_libraries != b->nr_libraries) {
-		printf("number of libraries differs (%d vs %d)", a->nr_libraries, b->nr_libraries);
+		NOTICE("number of libraries differs (%d vs %d)", a->nr_libraries, b->nr_libraries);
 		return false;
 	}
 
@@ -403,13 +403,13 @@ static bool switch_equal(struct ain_switch *a, struct ain_switch *b)
 static bool ain_compare_switches(struct ain *a, struct ain *b)
 {
 	if (a->nr_switches != b->nr_switches) {
-		printf("number of switches differs (%d vs %d)", a->nr_switches, b->nr_switches);
+		NOTICE("number of switches differs (%d vs %d)", a->nr_switches, b->nr_switches);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_switches; i++) {
 		if (!switch_equal(&a->switches[i], &b->switches[i])) {
-			printf("switch %d differs", i);
+			NOTICE("switch %d differs", i);
 			return false;
 		}
 	}
@@ -419,13 +419,13 @@ static bool ain_compare_switches(struct ain *a, struct ain *b)
 static bool ain_compare_strings(struct ain *a, struct ain *b)
 {
 	if (a->nr_strings != b->nr_strings) {
-		printf("number of strings differs (%d vs %d)", a->nr_strings, b->nr_strings);
+		NOTICE("number of strings differs (%d vs %d)", a->nr_strings, b->nr_strings);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_strings; i++) {
 		if (strcmp(a->strings[i]->text, b->strings[i]->text)) {
-			printf("string %d differs", i);
+			NOTICE("string %d differs", i);
 			return false;
 		}
 	}
@@ -435,13 +435,13 @@ static bool ain_compare_strings(struct ain *a, struct ain *b)
 static bool ain_compare_filenames(struct ain *a, struct ain *b)
 {
 	if (a->nr_filenames != b->nr_filenames) {
-		printf("number of filenames differs (%d vs %d)", a->nr_filenames, b->nr_filenames);
+		NOTICE("number of filenames differs (%d vs %d)", a->nr_filenames, b->nr_filenames);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_filenames; i++) {
 		if (strcmp(a->filenames[i], b->filenames[i])) {
-			printf("filename %d differs", i);
+			NOTICE("filename %d differs", i);
 			return false;
 		}
 	}
@@ -468,11 +468,11 @@ static bool function_type_equal(struct ain_function_type *a, struct ain_function
 static bool ain_compare_function_types(struct ain *a, struct ain *b)
 {
 	if (a->nr_function_types != b->nr_function_types) {
-		printf("number of function types differs (%d vs %d)", a->nr_function_types, b->nr_function_types);
+		NOTICE("number of function types differs (%d vs %d)", a->nr_function_types, b->nr_function_types);
 		return false;
 	}
 	if (a->nr_delegates != b->nr_delegates) {
-		printf("number of delegates differs (%d vs %d)", a->nr_delegates, b->nr_delegates);
+		NOTICE("number of delegates differs (%d vs %d)", a->nr_delegates, b->nr_delegates);
 		return false;
 	}
 
@@ -490,7 +490,7 @@ static bool ain_compare_function_types(struct ain *a, struct ain *b)
 
 	for (int i = 0; i < count; i++) {
 		if (!function_type_equal(&types_a[i], &types_b[i])) {
-			printf("functype/delegate %d differs", i);
+			NOTICE("functype/delegate %d differs", i);
 			return false;
 		}
 	}
@@ -500,13 +500,13 @@ static bool ain_compare_function_types(struct ain *a, struct ain *b)
 static bool ain_compare_global_groups(struct ain *a, struct ain *b)
 {
 	if (a->nr_global_groups != b->nr_global_groups) {
-		printf("number of global groups differs (%d vs %d)", a->nr_global_groups, b->nr_global_groups);
+		NOTICE("number of global groups differs (%d vs %d)", a->nr_global_groups, b->nr_global_groups);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_global_groups; i++) {
 		if (strcmp(a->global_group_names[i], b->global_group_names[i])) {
-			printf("global group %d differs (\"%s\" vs \"%s\")", i, a->global_group_names[i], b->global_group_names[i]);
+			NOTICE("global group %d differs (\"%s\" vs \"%s\")", i, a->global_group_names[i], b->global_group_names[i]);
 			return false;
 		}
 	}
@@ -516,13 +516,13 @@ static bool ain_compare_global_groups(struct ain *a, struct ain *b)
 static bool ain_compare_enums(struct ain *a, struct ain *b)
 {
 	if (a->nr_enums != b->nr_enums) {
-		printf("number of enums differs (%d vs %d)", a->nr_enums, b->nr_enums);
+		NOTICE("number of enums differs (%d vs %d)", a->nr_enums, b->nr_enums);
 		return false;
 	}
 
 	for (int i = 0; i < a->nr_enums; i++) {
 		if (strcmp(a->enums[i].name, b->enums[i].name)) {
-			printf("enum %d differs (\"%s\" vs \"%s\")", i, a->enums[i].name, b->enums[i].name);
+			NOTICE("enum %d differs (\"%s\" vs \"%s\")", i, a->enums[i].name, b->enums[i].name);
 			return false;
 		}
 	}
@@ -533,13 +533,13 @@ static void ain_compare(struct ain *a, struct ain *b)
 {
 	ain_compare_section(a, b, VERS);
 	if (a->version != b->version) {
-		printf("ain version differs (%d vs %d)", a->version, b->version);
+		NOTICE("ain version differs (%d vs %d)", a->version, b->version);
 		exit_code = 1;
 	}
 
 	ain_compare_section(a, b, KEYC);
 	if (a->keycode != b->keycode) {
-		printf("keycode differs (%d vs %d)", a->keycode, b->keycode);
+		NOTICE("keycode differs (%d vs %d)", a->keycode, b->keycode);
 		exit_code = 1;
 	}
 
@@ -570,13 +570,13 @@ static void ain_compare(struct ain *a, struct ain *b)
 
 	ain_compare_section(a, b, MAIN);
 	if (a->main != b->main) {
-		printf("main function differs (%d vs %d)", a->main, b->main);
+		NOTICE("main function differs (%d vs %d)", a->main, b->main);
 		exit_code = 1;
 	}
 
 	ain_compare_section(a, b, MSGF);
 	if (a->msgf != b->msgf) {
-		printf("message function differs (%d vs %d)", a->msgf, b->msgf);
+		NOTICE("message function differs (%d vs %d)", a->msgf, b->msgf);
 		exit_code = 1;
 	}
 
@@ -590,7 +590,7 @@ static void ain_compare(struct ain *a, struct ain *b)
 
 	ain_compare_section(a, b, GVER);
 	if (a->game_version != b->game_version) {
-		printf("game version differs (%d vs %d)", a->game_version, b->game_version);
+		NOTICE("game version differs (%d vs %d)", a->game_version, b->game_version);
 		exit_code = 1;
 	}
 
@@ -604,7 +604,7 @@ static void ain_compare(struct ain *a, struct ain *b)
 
 	ain_compare_section(a, b, OJMP);
 	if (a->ojmp != b->ojmp) {
-		printf("ojmp differs (%d vs %d)", a->ojmp, b->ojmp);
+		NOTICE("ojmp differs (%d vs %d)", a->ojmp, b->ojmp);
 		exit_code = 1;
 	}
 
