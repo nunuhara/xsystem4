@@ -43,6 +43,7 @@ static void usage(void)
 	puts("        --output-encoding <enc>    Specify the text encoding of the output file (default: CP932)");
 	puts("        --ain-encoding <enc>       Specify the text encoding of the input AIN file");
 	puts("        --ain-version <version>    Specify the AIN version (when creating a new AIN file)");
+	puts("        --silent                   Don't write messages to stdout");
 	//puts("    -p,--project <pje-file>      Build AIN from project file");
 }
 
@@ -61,6 +62,7 @@ enum {
 	LOPT_OUTPUT_ENCODING,
 	LOPT_AIN_ENCODING,
 	LOPT_AIN_VERSION,
+	LOPT_SILENT,
 };
 
 iconv_t ain_conv;
@@ -116,6 +118,7 @@ int main(int argc, char *argv[])
 			{ "output-encoding", required_argument, 0, LOPT_OUTPUT_ENCODING },
 			{ "ain-encoding",    required_argument, 0, LOPT_AIN_ENCODING },
 			{ "ain-version",     required_argument, 0, LOPT_AIN_VERSION },
+			{ "silent",          no_argument,       0, LOPT_SILENT },
 		};
 		int option_index = 0;
 		int c;
@@ -170,6 +173,9 @@ int main(int argc, char *argv[])
 			ain_version = atoi(optarg);
 			if (ain_version < 4 || ain_version > 12)
 				ERROR("Invalid AIN version (4-12 supported)");
+			break;
+		case LOPT_SILENT:
+			sys_silent = true;
 			break;
 		case '?':
 			ERROR("Unknown command line argument");

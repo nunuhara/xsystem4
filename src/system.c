@@ -95,6 +95,8 @@ void sys_warning(const char *fmt, ...)
 
 void sys_message(const char *fmt, ...)
 {
+	if (sys_silent)
+		return;
 	va_list ap;
 	va_start(ap, fmt);
 	vprintf(fmt, ap);

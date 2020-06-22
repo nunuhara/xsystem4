@@ -19,6 +19,7 @@
 
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 // TODO: should put in a separate header and guard with feature checks
 #define const_pure __attribute__((const))
@@ -35,6 +36,7 @@
 #define NOTICE(fmt, ...) \
 	sys_message(fmt "\n", ##__VA_ARGS__)
 
+bool sys_silent;
 noreturn void sys_verror(const char *fmt, va_list ap);
 noreturn void sys_error(const char *fmt, ...);
 void sys_vwarning(const char *fmt, va_list ap);
