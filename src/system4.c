@@ -267,6 +267,7 @@ static void usage(void)
 enum {
 	LOPT_HELP = 256,
 	LOPT_AUDIT,
+	LOPT_NODEBUG,
 };
 
 int main(int argc, char *argv[])
@@ -279,8 +280,9 @@ int main(int argc, char *argv[])
 
 	while (1) {
 		static struct option long_options[] = {
-			{ "help",  no_argument, 0, LOPT_HELP },
-			{ "audit", no_argument, 0, LOPT_AUDIT },
+			{ "help",    no_argument, 0, LOPT_HELP },
+			{ "audit",   no_argument, 0, LOPT_AUDIT },
+			{ "nodebug", no_argument, 0, LOPT_NODEBUG },
 		};
 		int option_index = 0;
 		int c = getopt_long(argc, argv, "ha", long_options, &option_index);
@@ -295,6 +297,11 @@ int main(int argc, char *argv[])
 		case 'a':
 		case LOPT_AUDIT:
 			audit = true;
+			break;
+		case LOPT_NODEBUG:
+#ifdef DEBUGGER_ENABLED
+			dbg_enabled = false;
+#endif
 			break;
 		}
 	}

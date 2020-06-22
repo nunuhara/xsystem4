@@ -18,6 +18,10 @@
 #define SYSTEM4_DEBUGGER_H
 #ifdef DEBUGGER_ENABLED
 
+#include <stdbool.h>
+
+bool dbg_enabled;
+
 void dbg_init(void);
 void dbg_fini(void);
 void dbg_repl(void);

@@ -23,6 +23,8 @@
 #include "vm/heap.h"
 #include "vm/page.h"
 
+bool dbg_enabled = true;
+
 struct variable {
 	enum ain_data_type data_type;
 	int struct_type;
@@ -123,6 +125,8 @@ static sexp dbg_ctx;
 
 void dbg_init(void)
 {
+	if (!dbg_enabled)
+		return;
 	dbg_ctx = sexp_make_eval_context(NULL, NULL, NULL, 0, 0);
 	sexp_load_standard_env(dbg_ctx, NULL, SEXP_SEVEN);
 	sexp_load_standard_ports(dbg_ctx, NULL, stdin, stdout, stderr, 1);
@@ -136,10 +140,14 @@ void dbg_init(void)
 
 void dbg_fini(void)
 {
+	if (!dbg_enabled)
+		return;
 	sexp_destroy_context(dbg_ctx);
 }
 
 void dbg_repl(void)
 {
+	if (!dbg_enabled)
+		return;
 	sexp_eval_string(dbg_ctx, "(repl 'escape: #\\\\ 'make-prompt: repl-make-prompt)", -1, NULL);
 }
