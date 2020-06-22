@@ -120,6 +120,7 @@ static enum opcode jaf_op_to_opcode(enum jaf_operator op, enum ain_data_type typ
 		case JAF_LTE:           return F_LTE;
 		case JAF_GTE:           return F_GTE;
 		case JAF_EQ:            return F_EQUALE;
+		case JAF_NEQ:           return F_NOTE;
 		case JAF_ASSIGN:        return F_ASSIGN;
 		case JAF_MUL_ASSIGN:    return F_MULA;
 		case JAF_DIV_ASSIGN:    return F_DIVA;
@@ -142,6 +143,7 @@ static enum opcode jaf_op_to_opcode(enum jaf_operator op, enum ain_data_type typ
 		case JAF_LTE:           return LTE;
 		case JAF_GTE:           return GTE;
 		case JAF_EQ:            return EQUALE;
+		case JAF_NEQ:           return NOTE;
 		case JAF_BIT_AND:       return AND;
 		case JAF_BIT_XOR:       return XOR;
 		case JAF_BIT_IOR:       return OR;
@@ -265,6 +267,33 @@ static void compile_identifier(struct compiler_state *state, struct jaf_expressi
 	}
 }
 
+/*
+ * Pop a value of the given type off the stack.
+ */
+static void compile_pop(struct compiler_state *state, enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_VOID:
+		break;
+	case AIN_INT:
+	case AIN_FLOAT:
+	case AIN_BOOL:
+	case AIN_LONG_INT:
+	case AIN_REF_INT:
+	case AIN_REF_FLOAT:
+	case AIN_REF_BOOL:
+	case AIN_REF_LONG_INT:
+		write_instruction0(state, POP);
+		break;
+	case AIN_STRING:
+	case AIN_REF_STRING:
+		write_instruction0(state, state->ain->version >= 11 ? DELETE : S_POP);
+		break;
+	default:
+		ERROR("Unsupported type");
+	}
+}
+
 static void compile_unary(struct compiler_state *state, struct jaf_expression *expr)
 {
 	switch (expr->op) {
@@ -274,12 +303,15 @@ static void compile_unary(struct compiler_state *state, struct jaf_expression *e
 		compile_expression(state, expr->expr);
 		break;
 	case JAF_UNARY_MINUS:
+		compile_expression(state, expr->expr);
 		write_instruction0(state, INV);
 		break;
 	case JAF_BIT_NOT:
+		compile_expression(state, expr->expr);
 		write_instruction0(state, COMPL);
 		break;
 	case JAF_LOG_NOT:
+		compile_expression(state, expr->expr);
 		write_instruction0(state, NOT);
 		break;
 	case JAF_PRE_INC:
@@ -327,6 +359,7 @@ static void compile_binary(struct compiler_state *state, struct jaf_expression *
 	case JAF_LTE:
 	case JAF_GTE:
 	case JAF_EQ:
+	case JAF_NEQ:
 	case JAF_BIT_AND:
 	case JAF_BIT_XOR:
 	case JAF_BIT_IOR:
@@ -472,6 +505,13 @@ static void compile_member(struct compiler_state *state, struct jaf_expression *
 	ERROR("struct member access not supported");
 }
 
+static void compile_seq(struct compiler_state *state, struct jaf_expression *expr)
+{
+	compile_expression(state, expr->seq.head);
+	compile_pop(state, expr->seq.head->valuetype.data);
+	compile_expression(state, expr->seq.tail);
+}
+
 static void compile_expression(struct compiler_state *state, struct jaf_expression *expr)
 {
 	switch (expr->type) {
@@ -513,9 +553,9 @@ static void compile_expression(struct compiler_state *state, struct jaf_expressi
 	case JAF_EXP_MEMBER:
 		compile_member(state, expr);
 		break;
-	//case JAF_EXP_SEQ:
-		//compile_seq(ain, out, expr);
-		//break;
+	case JAF_EXP_SEQ:
+		compile_seq(state, expr);
+		break;
 	}
 }
 
@@ -756,26 +796,7 @@ static void compile_statement(struct compiler_state *state, struct jaf_block_ite
 		break;
 	case JAF_STMT_EXPRESSION:
 		compile_expression(state, item->expr);
-		switch (item->expr->valuetype.data) {
-		case AIN_VOID:
-			break;
-		case AIN_INT:
-		case AIN_FLOAT:
-		case AIN_BOOL:
-		case AIN_LONG_INT:
-		case AIN_REF_INT:
-		case AIN_REF_FLOAT:
-		case AIN_REF_BOOL:
-		case AIN_REF_LONG_INT:
-			write_instruction0(state, POP);
-			break;
-		case AIN_STRING:
-		case AIN_REF_STRING:
-			write_instruction0(state, state->ain->version >= 11 ? DELETE : S_POP);
-			break;
-		default:
-			ERROR("Unsupported type");
-		}
+		compile_pop(state, item->expr->valuetype.data);
 		break;
 	case JAF_STMT_IF:
 		compile_if(state, item->cond.test, item->cond.consequent, item->cond.alternative);

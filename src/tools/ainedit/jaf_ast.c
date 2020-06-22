@@ -110,7 +110,10 @@ struct jaf_expression *jaf_ternary_expr(struct jaf_expression *test, struct jaf_
 
 struct jaf_expression *jaf_seq_expr(struct jaf_expression *head, struct jaf_expression *tail)
 {
-	ERROR("Sequence expressions not supported");
+	struct jaf_expression *e = jaf_expr(JAF_EXP_SEQ, 0);
+	e->seq.head = head;
+	e->seq.tail = tail;
+	return e;
 }
 
 struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_argument_list *args)
@@ -459,6 +462,7 @@ void jaf_free_expr(struct jaf_expression *expr)
 			jaf_free_expr(expr->call.args->items[i]);
 		}
 		free(expr->call.args->items);
+		free(expr->call.args->var_nos);
 		free(expr->call.args);
 		break;
 	case JAF_EXP_CAST:
@@ -467,6 +471,10 @@ void jaf_free_expr(struct jaf_expression *expr)
 	case JAF_EXP_MEMBER:
 		jaf_free_expr(expr->member.struc);
 		free_string(expr->member.name);
+		break;
+	case JAF_EXP_SEQ:
+		jaf_free_expr(expr->seq.head);
+		jaf_free_expr(expr->seq.tail);
 		break;
 	}
 	free(expr);

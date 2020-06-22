@@ -174,6 +174,7 @@ static void jaf_check_types_binary(struct jaf_env *env, struct jaf_expression *e
 	case JAF_LTE:
 	case JAF_GTE:
 	case JAF_EQ:
+	case JAF_NEQ:
 		jaf_type_check_numeric(expr->lhs);
 		jaf_type_check_numeric(expr->rhs);
 		expr->valuetype.data = AIN_INT;
@@ -362,6 +363,13 @@ static void jaf_check_types_member(struct jaf_env *env, struct jaf_expression *e
 	free(u);
 }
 
+static void jaf_check_types_seq(struct jaf_env *env, struct jaf_expression *expr)
+{
+	jaf_derive_types(env, expr->seq.head);
+	jaf_derive_types(env, expr->seq.tail);
+	expr->valuetype = expr->seq.tail->valuetype;
+}
+
 void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)
 {
 	switch (expr->type) {
@@ -400,6 +408,9 @@ void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)
 		break;
 	case JAF_EXP_MEMBER:
 		jaf_check_types_member(env, expr);
+		break;
+	case JAF_EXP_SEQ:
+		jaf_check_types_seq(env, expr);
 		break;
 	}
 }

@@ -155,6 +155,7 @@ SIMPLIFY_ARITHMETIC_FUN(jaf_simplify_gt,        JAF_GT,        >)
 SIMPLIFY_ARITHMETIC_FUN(jaf_simplify_lte,       JAF_LTE,       <=)
 SIMPLIFY_ARITHMETIC_FUN(jaf_simplify_gte,       JAF_GTE,       >=)
 SIMPLIFY_ARITHMETIC_FUN(jaf_simplify_eq,        JAF_EQ,        ==)
+SIMPLIFY_ARITHMETIC_FUN(jaf_simplify_neq,       JAF_NEQ,       !=)
 SIMPLIFY_INTEGER_FUN   (jaf_simplify_bitand,    JAF_BIT_AND,   &)
 SIMPLIFY_INTEGER_FUN   (jaf_simplify_bitxor,    JAF_BIT_XOR,   ^)
 SIMPLIFY_INTEGER_FUN   (jaf_simplify_bitior,    JAF_BIT_IOR,   |)
@@ -192,6 +193,8 @@ static struct jaf_expression *jaf_simplify_binary(struct jaf_expression *e)
 		return jaf_simplify_gte(e);
 	case JAF_EQ:
 		return jaf_simplify_eq(e);
+	case JAF_NEQ:
+		return jaf_simplify_neq(e);
 	case JAF_BIT_AND:
 		return jaf_simplify_bitand(e);
 	case JAF_BIT_XOR:
@@ -324,6 +327,13 @@ static struct jaf_expression *jaf_simplify_member(struct jaf_expression *in)
 	return in;
 }
 
+static struct jaf_expression *jaf_simplify_seq(struct jaf_expression *in)
+{
+	in->seq.head = jaf_simplify(in->seq.head);
+	in->seq.tail = jaf_simplify(in->seq.tail);
+	return in;
+}
+
 /*
  * Simplify an expression by evaluating the constant parts.
  */
@@ -349,6 +359,8 @@ struct jaf_expression *jaf_simplify(struct jaf_expression *in)
 		return jaf_simplify_cast(in);
 	case JAF_EXP_MEMBER:
 		return jaf_simplify_member(in);
+	case JAF_EXP_SEQ:
+		return jaf_simplify_seq(in);
 	}
 	ERROR("Invalid expression type");
 }

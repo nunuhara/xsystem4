@@ -54,7 +54,7 @@ enum jaf_expression_type {
 	//JAF_EXP_HLLCALL,
 	JAF_EXP_CAST,
 	JAF_EXP_MEMBER,
-	//JAF_EXP_SEQ,
+	JAF_EXP_SEQ,
 };
 
 enum jaf_operator {
@@ -81,6 +81,7 @@ enum jaf_operator {
 	JAF_LTE,
 	JAF_GTE,
 	JAF_EQ,
+	JAF_NEQ,
 	JAF_BIT_AND,
 	JAF_BIT_XOR,
 	JAF_BIT_IOR,
@@ -160,6 +161,11 @@ struct jaf_expression {
 			struct jaf_expression *struc;
 			struct string *name;
 		} member;
+		// sequence
+		struct {
+			struct jaf_expression *head;
+			struct jaf_expression *tail;
+		} seq;
 	};
 };
 

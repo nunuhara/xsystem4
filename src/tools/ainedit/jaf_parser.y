@@ -245,8 +245,8 @@ relational_expression
 
 equality_expression
 	: relational_expression                           { $$ = $1; }
-	| equality_expression EQ_OP relational_expression { $$ = jaf_binary_expr(JAF_EQ, $1, $3); }
-	| equality_expression NE_OP relational_expression { $$ = jaf_unary_expr(JAF_LOG_NOT, jaf_binary_expr(JAF_EQ, $1, $3)); }
+	| equality_expression EQ_OP relational_expression { $$ = jaf_binary_expr(JAF_EQ,  $1, $3); }
+	| equality_expression NE_OP relational_expression { $$ = jaf_binary_expr(JAF_NEQ, $1, $3); }
 	;
 
 and_expression
