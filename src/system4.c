@@ -352,6 +352,5 @@ int main(int argc, char *argv[])
 	dbg_init();
 #endif
 
-	vm_execute_ain(ain);
-	sys_exit(0);
+	sys_exit(vm_execute_ain(ain));
 }

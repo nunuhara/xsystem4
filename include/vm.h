@@ -97,7 +97,7 @@ int vm_string_ref(struct string *s);
 int vm_copy_page(struct page *page);
 union vm_value vm_copy(union vm_value v, enum ain_data_type type);
 
-void vm_execute_ain(struct ain *program);
+int vm_execute_ain(struct ain *program);
 void vm_call(int fno, int struct_page);
 int vm_time(void);
 

@@ -1581,7 +1581,7 @@ static void vm_execute(void)
 	}
 }
 
-void vm_execute_ain(struct ain *program)
+int vm_execute_ain(struct ain *program)
 {
 	// initialize VM state
 	stack_size = INITIAL_STACK_SIZE;
@@ -1631,6 +1631,7 @@ void vm_execute_ain(struct ain *program)
 	}
 
 	vm_call(ain->main, -1);
+	return stack_pop().i;
 }
 
 void vm_stack_trace(void)
