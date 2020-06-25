@@ -121,7 +121,6 @@ struct jaf_type_specifier {
 struct jaf_expression {
 	enum jaf_expression_type type;
 	enum jaf_operator op;
-	//struct jaf_type_specifier value_type;
 	struct ain_type valuetype;
 	union {
 		int i;

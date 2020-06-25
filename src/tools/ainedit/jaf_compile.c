@@ -165,8 +165,15 @@ static enum opcode jaf_op_to_opcode(enum jaf_operator op, enum ain_data_type typ
 		}
 	} else if (type == AIN_STRING || type == AIN_REF_STRING) {
 		switch (op) {
-		case JAF_ASSIGN: return S_ASSIGN;
-		default:         ERROR("Invalid string operator");
+		case JAF_PLUS:       return S_ADD;
+		case JAF_LT:         return S_LT;
+		case JAF_GT:         return S_GT;
+		case JAF_LTE:        return S_LTE;
+		case JAF_GTE:        return S_GTE;
+		case JAF_EQ:         return S_EQUALE;
+		case JAF_NEQ:        return S_NOTE;
+		case JAF_ASSIGN:     return S_ASSIGN;
+		default:             ERROR("Invalid string operator");
 		}
 	} else {
 		ERROR("Invalid operator type");
@@ -221,6 +228,7 @@ static void compile_identifier_lvalue(struct compiler_state *state, enum ain_var
 	case AIN_REF_LONG_INT:
 		write_instruction0(state, REFREF);
 		break;
+	case AIN_STRING:
 	case AIN_REF_STRING:
 		write_instruction0(state, REF);
 		break;
@@ -245,7 +253,7 @@ static void compile_lvalue(struct compiler_state *state, struct jaf_expression *
 
 static void compile_identifier(struct compiler_state *state, struct jaf_expression *expr)
 {
-	compile_identifier_lvalue(state, expr->ident.var_type, expr->ident.var_no);
+	compile_identifier_ref(state, expr->ident.var_type, expr->ident.var_no);
 
 	struct ain_variable *var = get_identifier_variable(state, expr->ident.var_type, expr->ident.var_no);
 	switch (var->type.data) {
@@ -253,13 +261,17 @@ static void compile_identifier(struct compiler_state *state, struct jaf_expressi
 	case AIN_FLOAT:
 	case AIN_BOOL:
 	case AIN_LONG_INT:
+		write_instruction0(state, REF);
+		break;
 	case AIN_REF_INT:
 	case AIN_REF_FLOAT:
 	case AIN_REF_BOOL:
 	case AIN_REF_LONG_INT:
+		write_instruction0(state, REFREF);
 		write_instruction0(state, REF);
 		break;
 	case AIN_STRING:
+	case AIN_REF_STRING:
 		write_instruction0(state, state->ain->version >= 11 ? A_REF : S_REF);
 		break;
 	default:
@@ -365,7 +377,7 @@ static void compile_binary(struct compiler_state *state, struct jaf_expression *
 	case JAF_BIT_IOR:
 		compile_expression(state, expr->lhs);
 		compile_expression(state, expr->rhs);
-		write_instruction0(state, jaf_op_to_opcode(expr->op, expr->valuetype.data));
+		write_instruction0(state, jaf_op_to_opcode(expr->op, expr->lhs->valuetype.data));
 		break;
 	case JAF_LOG_AND:
 		compile_expression(state, expr->lhs);
@@ -623,6 +635,7 @@ static void compile_vardecl(struct compiler_state *state, struct jaf_declaration
 	case AIN_STRING:
 		write_instruction0(state, PUSHLOCALPAGE);
 		write_instruction1(state, PUSH, decl->var_no);
+		write_instruction0(state, REF);
 		if (decl->init)
 			compile_expression(state, decl->init);
 		else

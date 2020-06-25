@@ -76,26 +76,60 @@ static bool jaf_type_equal(struct ain_type *a, struct ain_type *b)
 
 static enum jaf_type jaf_type_check_numeric(struct jaf_expression *expr)
 {
-	if (expr->valuetype.data != AIN_INT && expr->valuetype.data != AIN_FLOAT)
+	switch (expr->valuetype.data) {
+	case AIN_INT:
+	case AIN_FLOAT:
+	case AIN_BOOL:
+	case AIN_LONG_INT:
+		return expr->valuetype.data;
+	case AIN_REF_INT:
+		return AIN_INT;
+	case AIN_REF_FLOAT:
+		return AIN_FLOAT;
+	case AIN_REF_BOOL:
+		return AIN_BOOL;
+	case AIN_REF_LONG_INT:
+		return AIN_LONG_INT;
+	default:
 		TYPE_ERROR(expr, AIN_INT);
-	return expr->valuetype.data;
+	}
 }
 
 static enum jaf_type jaf_type_check_int(struct jaf_expression *expr)
 {
-	if (expr->valuetype.data != AIN_INT)
+	switch (expr->valuetype.data) {
+	case AIN_INT:
+	case AIN_LONG_INT:
+		return expr->valuetype.data;
+	case AIN_REF_INT:
+		return AIN_INT;
+	case AIN_REF_LONG_INT:
+		return AIN_LONG_INT;
+	default:
 		TYPE_ERROR(expr, AIN_INT);
-	return AIN_INT;
+	}
 }
 
+// Determine the result type when combining different numeric types.
+// Precedence is: float > lint > int
 static enum ain_data_type jaf_merge_types(enum ain_data_type a, enum ain_data_type b)
 {
 	if (a == b)
 		return a;
-	if (a == AIN_INT && b == AIN_FLOAT)
-		return AIN_FLOAT;
-	if (a == AIN_FLOAT && b == AIN_INT)
-		return AIN_FLOAT;
+	if (a == AIN_INT) {
+		if (b == AIN_LONG_INT)
+			return AIN_LONG_INT;
+		if (b == AIN_FLOAT)
+			return AIN_FLOAT;
+	} else if (a == AIN_LONG_INT) {
+		if (b == AIN_INT)
+			return AIN_LONG_INT;
+		if (b == AIN_FLOAT)
+			return AIN_FLOAT;
+	} else if (a == AIN_FLOAT) {
+		if (a == AIN_INT || a == AIN_LONG_INT)
+			return AIN_FLOAT;
+	}
 	ERROR("Incompatible types");
 }
 
@@ -127,10 +161,13 @@ static void jaf_check_types_unary(struct jaf_env *env, struct jaf_expression *ex
 	switch (expr->op) {
 	case JAF_UNARY_PLUS:
 	case JAF_UNARY_MINUS:
+		expr->valuetype.data = jaf_type_check_numeric(expr->expr);
+		break;
 	case JAF_PRE_INC:
 	case JAF_PRE_DEC:
 	case JAF_POST_INC:
 	case JAF_POST_DEC:
+		jaf_check_types_lvalue(env, expr->expr);
 		expr->valuetype.data = jaf_type_check_numeric(expr->expr);
 		break;
 	case JAF_BIT_NOT:
@@ -144,6 +181,11 @@ static void jaf_check_types_unary(struct jaf_env *env, struct jaf_expression *ex
 	}
 }
 
+static bool is_string_type(struct jaf_expression *expr)
+{
+	return expr->valuetype.data == AIN_STRING || expr->valuetype.data == AIN_REF_STRING;
+}
+
 static void jaf_check_types_binary(struct jaf_env *env, struct jaf_expression *expr)
 {
 	jaf_derive_types(env, expr->lhs);
@@ -153,9 +195,17 @@ static void jaf_check_types_binary(struct jaf_env *env, struct jaf_expression *e
 	// real ops
 	case JAF_MULTIPLY:
 	case JAF_DIVIDE:
-	case JAF_PLUS:
 	case JAF_MINUS:
 		expr->valuetype.data = jaf_merge_types(jaf_type_check_numeric(expr->lhs), jaf_type_check_numeric(expr->rhs));
+		break;
+	case JAF_PLUS:
+		if (is_string_type(expr->lhs)) {
+			if (!is_string_type(expr->rhs))
+				TYPE_ERROR(expr->rhs, AIN_STRING);
+			expr->valuetype.data = AIN_STRING;
+		} else {
+			expr->valuetype.data = jaf_merge_types(jaf_type_check_numeric(expr->lhs), jaf_type_check_numeric(expr->rhs));
+		}
 		break;
 	// integer ops
 	case JAF_REMAINDER:
@@ -175,9 +225,15 @@ static void jaf_check_types_binary(struct jaf_env *env, struct jaf_expression *e
 	case JAF_GTE:
 	case JAF_EQ:
 	case JAF_NEQ:
-		jaf_type_check_numeric(expr->lhs);
-		jaf_type_check_numeric(expr->rhs);
-		expr->valuetype.data = AIN_INT;
+		if (is_string_type(expr->lhs)) {
+			if (!is_string_type(expr->rhs))
+				TYPE_ERROR(expr->rhs, AIN_STRING);
+			expr->valuetype.data = AIN_INT;
+		} else {
+			jaf_type_check_numeric(expr->lhs);
+			jaf_type_check_numeric(expr->rhs);
+			expr->valuetype.data = AIN_INT;
+		}
 		break;
 	// boolean ops
 	case JAF_LOG_AND:
@@ -197,12 +253,12 @@ static void jaf_check_types_binary(struct jaf_env *env, struct jaf_expression *e
 	case JAF_AND_ASSIGN:
 	case JAF_XOR_ASSIGN:
 	case JAF_OR_ASSIGN:
-	case JAF_REF_ASSIGN:
 		jaf_check_types_lvalue(env, expr->lhs);
 		// FIXME: need to coerce types (?)
 		jaf_check_type(expr->rhs, &expr->lhs->valuetype);
 		expr->valuetype.data = expr->lhs->valuetype.data;
 		break;
+	case JAF_REF_ASSIGN: // TODO
 	default:
 		ERROR("Unhandled binary operator");
 	}
@@ -297,6 +353,11 @@ static void jaf_check_types_funcall(struct jaf_env *env, struct jaf_expression *
 	jaf_derive_types(env, expr->call.fun);
 	TYPE_CHECK(expr->call.fun, AIN_FUNC_TYPE);
 
+	unsigned nr_args = expr->call.args ? expr->call.args->nr_items : 0;
+	for (size_t i = 0; i < nr_args; i++) {
+		jaf_derive_types(env, expr->call.args->items[i]);
+	}
+
 	int func_no = expr->call.fun->valuetype.struc;
 	assert(func_no >= 0 && func_no < env->ain->nr_functions);
 	expr->valuetype = env->ain->functions[func_no].return_type;
@@ -307,7 +368,7 @@ static void jaf_check_types_funcall(struct jaf_env *env, struct jaf_expression *
 
 	// type check arguments against function prototype.
 	int arg = 0;
-	for (size_t i = 0; i < expr->call.args->nr_items; i++, arg++) {
+	for (size_t i = 0; i < nr_args; i++, arg++) {
 		if (arg >= f->nr_args)
 			ERROR("Too many arguments to function");
 
