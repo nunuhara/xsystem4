@@ -60,7 +60,18 @@ static void define_types(struct ain *ain, struct jaf_block_item *decl)
 
 enum ain_data_type jaf_to_ain_data_type(enum jaf_type type, unsigned qualifiers)
 {
-	if (qualifiers & JAF_QUAL_REF) {
+	if (qualifiers & JAF_QUAL_REF && qualifiers & JAF_QUAL_ARRAY) {
+		switch (type) {
+		case JAF_VOID:     ERROR("void ref array type");
+		case JAF_INT:      return AIN_REF_ARRAY_INT;
+		case JAF_FLOAT:    return AIN_REF_ARRAY_FLOAT;
+		case JAF_STRING:   return AIN_REF_ARRAY_STRING;
+		case JAF_STRUCT:   return AIN_REF_ARRAY_STRUCT;
+		case JAF_ENUM:     ERROR("Enums not supported");
+		case JAF_TYPEDEF:  ERROR("Unresolved typedef");
+		case JAF_FUNCTION: ERROR("Function types not supported");
+		}
+	} else if (qualifiers & JAF_QUAL_REF) {
 		switch (type) {
 		case JAF_VOID:     ERROR("void ref type");
 		case JAF_INT:      return AIN_REF_INT;
@@ -71,16 +82,28 @@ enum ain_data_type jaf_to_ain_data_type(enum jaf_type type, unsigned qualifiers)
 		case JAF_TYPEDEF:  ERROR("Unresolved typedef");
 		case JAF_FUNCTION: ERROR("Function types not supported");
 		}
-	}
-	switch (type) {
-	case JAF_VOID:     return AIN_VOID;
-	case JAF_INT:      return AIN_INT;
-	case JAF_FLOAT:    return AIN_FLOAT;
-	case JAF_STRING:   return AIN_STRING;
-	case JAF_STRUCT:   return AIN_STRUCT;
-	case JAF_ENUM:     ERROR("Enums not supported");
-	case JAF_TYPEDEF:  ERROR("Unresolved typedef");
-	case JAF_FUNCTION: ERROR("Function types not supported");
+	} else if (qualifiers & JAF_QUAL_ARRAY) {
+		switch (type) {
+		case JAF_VOID:     ERROR("void array type");
+		case JAF_INT:      return AIN_ARRAY_INT;
+		case JAF_FLOAT:    return AIN_ARRAY_FLOAT;
+		case JAF_STRING:   return AIN_ARRAY_STRING;
+		case JAF_STRUCT:   return AIN_ARRAY_STRUCT;
+		case JAF_ENUM:     ERROR("Enums not supported");
+		case JAF_TYPEDEF:  ERROR("Unresolved typedef");
+		case JAF_FUNCTION: ERROR("Function types not supported");
+		}
+	} else {
+		switch (type) {
+		case JAF_VOID:     return AIN_VOID;
+		case JAF_INT:      return AIN_INT;
+		case JAF_FLOAT:    return AIN_FLOAT;
+		case JAF_STRING:   return AIN_STRING;
+		case JAF_STRUCT:   return AIN_STRUCT;
+		case JAF_ENUM:     ERROR("Enums not supported");
+		case JAF_TYPEDEF:  ERROR("Unresolved typedef");
+		case JAF_FUNCTION: ERROR("Function types not supported");
+		}
 	}
 	ERROR("Unknown type: %d", type);
 }
@@ -92,6 +115,9 @@ static void jaf_to_ain_type(possibly_unused struct ain *ain, struct ain_type *ou
 		out->struc = in->struct_no;
 	} else {
 		out->struc = -1;
+	}
+	if (in->qualifiers & JAF_QUAL_ARRAY) {
+		out->rank = in->rank;
 	}
 }
 
@@ -139,6 +165,17 @@ static void analyze_expression(struct jaf_env *env, struct jaf_expression **expr
 
 static void analyze_block(struct jaf_env *env, struct jaf_block *block);
 
+static void analyze_array_allocation(struct jaf_env *env, struct jaf_declaration *decl)
+{
+	if (!decl->array_dims)
+		return;
+	for (size_t i = 0; i < decl->type->rank; i++) {
+		analyze_expression(env, &decl->array_dims[i]);
+		if (decl->array_dims[i]->type != JAF_EXP_INT)
+			ERROR("Invalid expression as array size");
+	}
+}
+
 static void analyze_global_declaration(struct jaf_env *env, struct jaf_declaration *decl)
 {
 	if (!decl->init)
@@ -151,6 +188,7 @@ static void analyze_global_declaration(struct jaf_env *env, struct jaf_declarati
 	struct ain_initval init = { .global_index = decl->var_no };
 	jaf_to_initval(&init, decl->init);
 	ain_add_initval(env->ain, &init);
+	analyze_array_allocation(env, decl);
 }
 
 static void analyze_local_declaration(struct jaf_env *env, struct jaf_declaration *decl)
@@ -162,6 +200,7 @@ static void analyze_local_declaration(struct jaf_env *env, struct jaf_declaratio
 	// add local to environment
 	env->locals = xrealloc_array(env->locals, env->nr_locals, env->nr_locals+1, sizeof(struct ain_variable*));
 	env->locals[env->nr_locals++] = &env->ain->functions[env->func_no].vars[decl->var_no];
+	analyze_array_allocation(env, decl);
 }
 
 static void analyze_function(struct jaf_env *env, struct jaf_declaration *decl)

@@ -334,6 +334,13 @@ static struct jaf_expression *jaf_simplify_seq(struct jaf_expression *in)
 	return in;
 }
 
+static struct jaf_expression *jaf_simplify_subscript(struct jaf_expression *in)
+{
+	in->subscript.expr = jaf_simplify(in->subscript.expr);
+	in->subscript.index = jaf_simplify(in->subscript.index);
+	return in;
+}
+
 /*
  * Simplify an expression by evaluating the constant parts.
  */
@@ -361,6 +368,8 @@ struct jaf_expression *jaf_simplify(struct jaf_expression *in)
 		return jaf_simplify_member(in);
 	case JAF_EXP_SEQ:
 		return jaf_simplify_seq(in);
+	case JAF_EXP_SUBSCRIPT:
+		return jaf_simplify_subscript(in);
 	}
 	ERROR("Invalid expression type");
 }

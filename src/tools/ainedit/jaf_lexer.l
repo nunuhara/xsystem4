@@ -85,6 +85,7 @@ static int check_type(void);
 "__func__"                              { return FUNC_NAME; }
 "ref"                                   { return SYM_REF; }
 "system"                                { return SYSTEM; }
+"array"					{ return ARRAY; }
 
 {L}{A}*					{ return check_type(); }
 
@@ -148,6 +149,7 @@ static int check_type(void);
 "^"					{ return '^'; }
 "|"					{ return '|'; }
 "?"					{ return '?'; }
+"@"					{ return '@'; }
 
 {WS}+					{ /* whitespace separates tokens */ }
 .					{ /* discard bad characters */ }

@@ -565,7 +565,7 @@ static void read_variable_type(struct ain_reader *r, struct ain_type *t);
 
 static struct ain_type *read_array_type(struct ain_reader *r, int rank)
 {
-	if (rank < 0)
+	if (rank <= 0)
 		ERROR("Invalid array rank: %d", rank);
 
 	struct ain_type *type = xcalloc(rank, sizeof(struct ain_type));
@@ -600,7 +600,7 @@ static void read_variable_type(struct ain_reader *r, struct ain_type *t)
 	t->struc = read_int32(r);
 	t->rank  = read_int32(r);
 
-	if (ain_array_data_type(t->data))
+	if (ain_is_array_data_type(t->data))
 		t->array_type = read_array_type(r, t->rank);
 }
 

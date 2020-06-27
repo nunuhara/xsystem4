@@ -37,6 +37,7 @@ enum jaf_type {
 enum jaf_type_qualifier {
 	JAF_QUAL_CONST  = 1,
 	JAF_QUAL_REF    = 2,
+	JAF_QUAL_ARRAY  = 4,
 };
 
 enum jaf_expression_type {
@@ -48,13 +49,13 @@ enum jaf_expression_type {
 	JAF_EXP_UNARY,
 	JAF_EXP_BINARY,
 	JAF_EXP_TERNARY,
-	//JAF_EXP_SUBSCRIPT,
 	JAF_EXP_FUNCALL,
 	JAF_EXP_SYSCALL,
 	//JAF_EXP_HLLCALL,
 	JAF_EXP_CAST,
 	JAF_EXP_MEMBER,
 	JAF_EXP_SEQ,
+	JAF_EXP_SUBSCRIPT,
 };
 
 enum jaf_operator {
@@ -116,6 +117,7 @@ struct jaf_type_specifier {
 		int struct_no;
 		int func_no;
 	};
+	unsigned rank;
 };
 
 struct jaf_expression {
@@ -165,6 +167,11 @@ struct jaf_expression {
 			struct jaf_expression *head;
 			struct jaf_expression *tail;
 		} seq;
+		// subscript
+		struct {
+			struct jaf_expression *expr;
+			struct jaf_expression *index;
+		} subscript;
 	};
 };
 
@@ -172,7 +179,7 @@ struct jaf_declarator {
 	struct string *name;
 	struct jaf_expression *init;
 	size_t array_rank;
-	size_t *array_dims;
+	struct jaf_expression **array_dims;
 };
 
 struct jaf_declarator_list {
@@ -209,8 +216,7 @@ struct jaf_declaration {
 	struct string *name;
 	struct jaf_type_specifier *type;
 	struct ain_type valuetype;
-	size_t array_rank;
-	size_t *array_dims;
+	struct jaf_expression **array_dims;
 	union {
 		struct {
 			struct jaf_expression *init;
@@ -291,15 +297,18 @@ struct jaf_expression *jaf_function_call(struct jaf_expression *fun, struct jaf_
 struct jaf_expression *jaf_system_call(struct string *name, struct jaf_argument_list *args);
 struct jaf_expression *jaf_cast_expression(enum jaf_type type, struct jaf_expression *expr);
 struct jaf_expression *jaf_member_expr(struct jaf_expression *struc, struct string *name);
+struct jaf_expression *jaf_subscript_expr(struct jaf_expression *expr, struct jaf_expression *index);
 
 struct jaf_argument_list *jaf_args(struct jaf_argument_list *head, struct jaf_expression *tail);
 
 struct jaf_type_specifier *jaf_type(enum jaf_type type);
 struct jaf_type_specifier *jaf_struct(struct string *name, struct jaf_block *fields);
 struct jaf_type_specifier *jaf_typedef(struct string *name);
+struct jaf_type_specifier *jaf_array_type(struct jaf_type_specifier *type, int rank);
 void jaf_copy_type(struct jaf_type_specifier *dst, struct jaf_type_specifier *src);
 
 struct jaf_declarator *jaf_declarator(struct string *name);
+struct jaf_declarator *jaf_array_allocation(struct string *name, struct jaf_expression *dim);
 struct jaf_declarator_list *jaf_declarators(struct jaf_declarator_list *head, struct jaf_declarator *tail);
 
 struct jaf_block *jaf_parameter(struct jaf_type_specifier *type, struct jaf_declarator *declarator);

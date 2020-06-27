@@ -72,6 +72,13 @@ cd $(dirname "$0")
 #./test-runner.sh s-from-float.jaf
 #./test-runner.sh s-to-int.jaf
 
+# arrays
+./test-runner.sh array-int.jaf
+./test-runner.sh array-string.jaf
+./test-runner.sh array-arg.jaf
+./test-runner.sh ref-array-item.jaf
+./test-runner.sh ref-array-int.jaf
+
 # control flow
 ./test-runner.sh if.jaf
 ./test-runner.sh if-else.jaf

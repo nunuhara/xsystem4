@@ -23,8 +23,10 @@
 #include <errno.h>
 #include <libgen.h>
 #include <assert.h>
+#include <errno.h>
 #include "system4.h"
 #include "system4/ain.h"
+#include "system4/string.h"
 #include "ainedit.h"
 #include "jaf.h"
 #include "jaf_parser.tab.h"
@@ -93,6 +95,17 @@ int sym_type(char *name)
     return IDENTIFIER;
 }
 
+static int parse_int(struct string *s)
+{
+    char *endptr;
+    errno = 0;
+    int i = strtol(s->text, &endptr, 0);
+    if (errno || *endptr != '\0')
+	ERROR("Invalid integer constant");
+    free_string(s);
+    return i;
+}
+
 %}
 
 %union {
@@ -115,7 +128,7 @@ int sym_type(char *name)
 %token	<token>		AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token	<token>		SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
 %token	<token>		XOR_ASSIGN OR_ASSIGN
-%token	<token>		SYM_REF REF_ASSIGN FUNC_NAME SYSTEM
+%token	<token>		SYM_REF REF_ASSIGN FUNC_NAME SYSTEM ARRAY
 
 %token	<token>		CONST
 %token	<token>		BOOL CHAR INT LONG FLOAT VOID STRING
@@ -135,7 +148,7 @@ int sym_type(char *name)
 %type	<expression>	expression constant_expression primary_expression constant
 %type	<args>		argument_expression_list
 %type	<type>		type_specifier struct_specifier declaration_specifiers
-%type	<declarator>	init_declarator declarator
+%type	<declarator>	init_declarator declarator array_allocation
 %type	<declarators>	init_declarator_list struct_declarator_list
 %type	<block>		translation_unit external_declaration declaration function_definition
 %type	<block>		struct_declaration struct_declaration_list
@@ -179,7 +192,7 @@ string
 
 postfix_expression
 	: primary_expression                                     { $$ = $1; }
-	| postfix_expression '[' expression ']'                  { ERROR("Arrays not supported"); }
+	| postfix_expression '[' expression ']'                  { $$ = jaf_subscript_expr($1, $3); }
 	| postfix_expression '(' ')'                             { $$ = jaf_function_call($1, NULL); }
 	| atomic_type_specifier '(' expression ')'               { $$ = jaf_cast_expression($1, $3); }
 	| postfix_expression '(' argument_expression_list ')'    { $$ = jaf_function_call($1, $3); }
@@ -339,10 +352,14 @@ atomic_type_specifier
 	;
 
 type_specifier
-	: atomic_type_specifier { $$ = jaf_type($1); }
-	| struct_specifier      { $$ = $1; }
-	| enum_specifier        { ERROR("Enums not supported"); }
-	| TYPEDEF_NAME          { $$ = jaf_typedef($1); }
+	: atomic_type_specifier                          { $$ = jaf_type($1); }
+	| struct_specifier                               { $$ = $1; }
+	| enum_specifier                                 { ERROR("Enums not supported"); }
+	| ARRAY '@' atomic_type_specifier                { $$ = jaf_array_type(jaf_type($3), 1); }
+	| ARRAY '@' atomic_type_specifier '@' I_CONSTANT { $$ = jaf_array_type(jaf_type($3), parse_int($5)); }
+	| ARRAY '@' TYPEDEF_NAME                         { $$ = jaf_array_type(jaf_typedef($3), 1); }
+	| ARRAY '@' TYPEDEF_NAME '@' I_CONSTANT          { $$ = jaf_array_type(jaf_typedef($3), parse_int($5)); }
+	| TYPEDEF_NAME                                   { $$ = jaf_typedef($1); }
 	;
 
 struct_specifier
@@ -399,12 +416,12 @@ type_qualifier
 declarator
 	: IDENTIFIER                             { $$ = jaf_declarator($1); }
 //	| '(' declarator ')' // XXX: causes shift-reduce conflict with function-like casts (e.g. "string(identifier)")
-	| array_allocation                       { ERROR("Arrays not supported"); }
+	| array_allocation                       { $$ = $1; }
 	;
 
 array_allocation
-	: IDENTIFIER '[' constant ']'
-	| array_allocation '[' constant ']'
+	: IDENTIFIER '[' constant ']'       { $$ = jaf_array_allocation($1, $3); }
+	| array_allocation '[' constant ']' { ERROR("Multi-dimensional arrays not supported"); }
 	;
 
 initializer

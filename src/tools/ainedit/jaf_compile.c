@@ -216,12 +216,9 @@ static void compile_reference(struct compiler_state *state, struct jaf_expressio
 	}
 }
 
-static void compile_identifier_lvalue(struct compiler_state *state, enum ain_variable_type type, int var_no)
+static void compile_lvalue_after(struct compiler_state *state, enum ain_data_type type)
 {
-	compile_identifier_ref(state, type, var_no);
-
-	struct ain_variable *v = get_identifier_variable(state, type, var_no);
-	switch (v->type.data) {
+	switch (type) {
 	case AIN_REF_INT:
 	case AIN_REF_FLOAT:
 	case AIN_REF_BOOL:
@@ -230,6 +227,8 @@ static void compile_identifier_lvalue(struct compiler_state *state, enum ain_var
 		break;
 	case AIN_STRING:
 	case AIN_REF_STRING:
+	case AIN_ARRAY_TYPE:
+	case AIN_REF_ARRAY_TYPE:
 		write_instruction0(state, REF);
 		break;
 	case AIN_REF_STRUCT:
@@ -243,20 +242,23 @@ static void compile_identifier_lvalue(struct compiler_state *state, enum ain_var
 static void compile_lvalue(struct compiler_state *state, struct jaf_expression *expr)
 {
 	if (expr->type == JAF_EXP_IDENTIFIER) {
-		compile_identifier_lvalue(state, expr->ident.var_type, expr->ident.var_no);
+		struct ain_variable *v = get_identifier_variable(state, expr->ident.var_type, expr->ident.var_no);
+		compile_identifier_ref(state, expr->ident.var_type, expr->ident.var_no);
+		compile_lvalue_after(state, v->type.data);
 	} else if (expr->type == JAF_EXP_MEMBER) {
 		ERROR("struct member lvalues not supported");
+	} else if (expr->type == JAF_EXP_SUBSCRIPT) {
+		compile_lvalue(state, expr->subscript.expr);  // page
+		compile_expression(state, expr->subscript.index); // page-index
+		compile_lvalue_after(state, expr->valuetype.data);
 	} else {
 		ERROR("Invalid lvalue");
 	}
 }
 
-static void compile_identifier(struct compiler_state *state, struct jaf_expression *expr)
+static void compile_dereference(struct compiler_state *state, enum ain_data_type type)
 {
-	compile_identifier_ref(state, expr->ident.var_type, expr->ident.var_no);
-
-	struct ain_variable *var = get_identifier_variable(state, expr->ident.var_type, expr->ident.var_no);
-	switch (var->type.data) {
+	switch (type) {
 	case AIN_INT:
 	case AIN_FLOAT:
 	case AIN_BOOL:
@@ -274,9 +276,21 @@ static void compile_identifier(struct compiler_state *state, struct jaf_expressi
 	case AIN_REF_STRING:
 		write_instruction0(state, state->ain->version >= 11 ? A_REF : S_REF);
 		break;
+	case AIN_ARRAY_TYPE:
+	case AIN_REF_ARRAY_TYPE:
+		write_instruction0(state, REF);
+		write_instruction0(state, A_REF);
+		break;
 	default:
 		ERROR("Unsupported type");
 	}
+}
+
+static void compile_identifier(struct compiler_state *state, struct jaf_expression *expr)
+{
+	struct ain_variable *var = get_identifier_variable(state, expr->ident.var_type, expr->ident.var_no);
+	compile_identifier_ref(state, expr->ident.var_type, expr->ident.var_no);
+	compile_dereference(state, var->type.data);
 }
 
 /*
@@ -524,6 +538,13 @@ static void compile_seq(struct compiler_state *state, struct jaf_expression *exp
 	compile_expression(state, expr->seq.tail);
 }
 
+static void compile_subscript(struct compiler_state *state, struct jaf_expression *expr)
+{
+	compile_lvalue(state, expr->subscript.expr);
+	compile_expression(state, expr->subscript.index);
+	compile_dereference(state, expr->valuetype.data);
+}
+
 static void compile_expression(struct compiler_state *state, struct jaf_expression *expr)
 {
 	switch (expr->type) {
@@ -550,9 +571,6 @@ static void compile_expression(struct compiler_state *state, struct jaf_expressi
 	case JAF_EXP_TERNARY:
 		compile_ternary(state, expr);
 		break;
-	//case JAF_EXP_SUBSCRIPT:
-		//compile_subscript(ain, out, expr);
-		//break;
 	case JAF_EXP_FUNCALL:
 		compile_funcall(state, expr);
 		break;
@@ -567,6 +585,9 @@ static void compile_expression(struct compiler_state *state, struct jaf_expressi
 		break;
 	case JAF_EXP_SEQ:
 		compile_seq(state, expr);
+		break;
+	case JAF_EXP_SUBSCRIPT:
+		compile_subscript(state, expr);
 		break;
 	}
 }
@@ -696,6 +717,21 @@ static void compile_vardecl(struct compiler_state *state, struct jaf_declaration
 		break;
 	case AIN_REF_STRUCT:
 		ERROR("structs not supported");
+	case AIN_ARRAY_TYPE:
+		if (state->ain->version >= 11)
+			ERROR("Arrays not supported on ain v11+");
+		write_instruction0(state, PUSHLOCALPAGE);
+		write_instruction1(state, PUSH, decl->var_no);
+		if (decl->array_dims) {
+			for (size_t i = 0; i < decl->type->rank; i++) {
+				write_instruction1(state, PUSH, decl->array_dims[i]->i);
+			}
+			write_instruction1(state, PUSH, decl->type->rank);
+			write_instruction0(state, A_ALLOC);
+		} else {
+			write_instruction0(state, A_FREE);
+		}
+		break;
 	default:
 		ERROR("Unsupported variable type: %d", type);
 	}

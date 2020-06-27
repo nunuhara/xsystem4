@@ -136,7 +136,7 @@ static enum ain_data_type jaf_merge_types(enum ain_data_type a, enum ain_data_ty
 static void jaf_check_types_lvalue(possibly_unused struct jaf_env *env, struct jaf_expression *e)
 {
 	// TODO: array subscripts
-	if (e->type != JAF_EXP_IDENTIFIER && e->type != JAF_EXP_MEMBER)
+	if (e->type != JAF_EXP_IDENTIFIER && e->type != JAF_EXP_MEMBER && e->type != JAF_EXP_SUBSCRIPT)
 		ERROR("Invalid expression as lvalue");
 	switch (e->valuetype.data) {
 	case AIN_INT:
@@ -151,7 +151,7 @@ static void jaf_check_types_lvalue(possibly_unused struct jaf_env *env, struct j
 	case AIN_REF_STRING:
 		break;
 	default:
-		ERROR("Invalid type as lvalue");
+		ERROR("Invalid type as lvalue: %d", e->valuetype.data);
 	}
 }
 
@@ -431,6 +431,36 @@ static void jaf_check_types_seq(struct jaf_env *env, struct jaf_expression *expr
 	expr->valuetype = expr->seq.tail->valuetype;
 }
 
+static enum ain_data_type array_data_type(enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_ARRAY_INT:       case AIN_REF_ARRAY_INT:       return AIN_INT;
+	case AIN_ARRAY_FLOAT:     case AIN_REF_ARRAY_FLOAT:     return AIN_FLOAT;
+	case AIN_ARRAY_STRING:    case AIN_REF_ARRAY_STRING:    return AIN_STRING;
+	case AIN_ARRAY_STRUCT:    case AIN_REF_ARRAY_STRUCT:    return AIN_STRUCT;
+	case AIN_ARRAY_FUNC_TYPE: case AIN_REF_ARRAY_FUNC_TYPE: return AIN_FUNC_TYPE;
+	case AIN_ARRAY_BOOL:      case AIN_REF_ARRAY_BOOL:      return AIN_BOOL;
+	case AIN_ARRAY_LONG_INT:  case AIN_REF_ARRAY_LONG_INT:  return AIN_LONG_INT;
+	case AIN_ARRAY_DELEGATE:  case AIN_REF_ARRAY_DELEGATE:  return AIN_DELEGATE;
+		break;
+	case AIN_ARRAY:
+		ERROR("ain v11+ arrays not supported");
+	default:
+		return AIN_VOID;
+	}
+}
+
+static void jaf_check_types_subscript(struct jaf_env *env, struct jaf_expression *expr)
+{
+	jaf_derive_types(env, expr->subscript.expr);
+	jaf_derive_types(env, expr->subscript.index);
+	jaf_type_check_int(expr->subscript.index);
+	expr->valuetype.data = array_data_type(expr->subscript.expr->valuetype.data);
+	expr->valuetype.struc = expr->subscript.expr->valuetype.struc;
+	if (expr->valuetype.data == AIN_VOID)
+		TYPE_ERROR(expr->subscript.expr, AIN_ARRAY);
+}
+
 void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)
 {
 	switch (expr->type) {
@@ -472,6 +502,9 @@ void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)
 		break;
 	case JAF_EXP_SEQ:
 		jaf_check_types_seq(env, expr);
+		break;
+	case JAF_EXP_SUBSCRIPT:
+		jaf_check_types_subscript(env, expr);
 		break;
 	}
 }

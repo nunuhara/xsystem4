@@ -172,6 +172,14 @@ struct jaf_expression *jaf_member_expr(struct jaf_expression *struc, struct stri
 	return e;
 }
 
+struct jaf_expression *jaf_subscript_expr(struct jaf_expression *expr, struct jaf_expression *index)
+{
+	struct jaf_expression *e = jaf_expr(JAF_EXP_SUBSCRIPT, 0);
+	e->subscript.expr = expr;
+	e->subscript.index = index;
+	return e;
+}
+
 struct jaf_type_specifier *jaf_type(enum jaf_type type)
 {
 	struct jaf_type_specifier *p = xcalloc(1, sizeof(struct jaf_type_specifier));
@@ -195,6 +203,15 @@ struct jaf_type_specifier *jaf_typedef(struct string *name)
 	return p;
 }
 
+struct jaf_type_specifier *jaf_array_type(struct jaf_type_specifier *type, int rank)
+{
+	if (rank < 0)
+		ERROR("Negative array rank");
+	type->qualifiers |= JAF_QUAL_ARRAY;
+	type->rank = rank;
+	return type;
+}
+
 void jaf_copy_type(struct jaf_type_specifier *dst, struct jaf_type_specifier *src)
 {
 	assert(!src->def);
@@ -207,6 +224,16 @@ struct jaf_declarator *jaf_declarator(struct string *name)
 {
 	struct jaf_declarator *d = xcalloc(1, sizeof(struct jaf_declarator));
 	d->name = name;
+	return d;
+}
+
+struct jaf_declarator *jaf_array_allocation(struct string *name, struct jaf_expression *dim)
+{
+	struct jaf_declarator *d = xcalloc(1, sizeof(struct jaf_declarator));
+	d->name = name;
+	d->array_rank = 1;
+	d->array_dims = xmalloc(sizeof(size_t));
+	d->array_dims[0] = dim;
 	return d;
 }
 
@@ -227,6 +254,9 @@ static void init_declaration(struct jaf_type_specifier *type, struct jaf_block_i
 	dst->decl.name = src->name;
 	dst->decl.type = type;
 	dst->decl.init = src->init;
+	dst->decl.array_dims = src->array_dims;
+	if (src->array_rank && src->array_rank != type->rank)
+		ERROR("Invalid array declaration");
 	free(src);
 }
 
@@ -476,6 +506,10 @@ void jaf_free_expr(struct jaf_expression *expr)
 		jaf_free_expr(expr->seq.head);
 		jaf_free_expr(expr->seq.tail);
 		break;
+	case JAF_EXP_SUBSCRIPT:
+		jaf_free_expr(expr->subscript.expr);
+		jaf_free_expr(expr->subscript.index);
+		break;
 	}
 	free(expr);
 }
@@ -499,8 +533,14 @@ void jaf_free_block_item(struct jaf_block_item *item)
 	case JAF_DECLARATION:
 		if (item->decl.name)
 			free_string(item->decl.name);
-		jaf_free_type_specifier(item->decl.type);
 		jaf_free_expr(item->decl.init);
+		if (item->decl.array_dims) {
+			for (size_t i = 0; i < item->decl.type->rank; i++) {
+				jaf_free_expr(item->decl.array_dims[i]);
+			}
+			free(item->decl.array_dims);
+		}
+		jaf_free_type_specifier(item->decl.type);
 		break;
 	case JAF_FUNDECL:
 		if (item->decl.name)

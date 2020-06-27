@@ -358,7 +358,7 @@ void ain_free_delegates(struct ain *ain);
 void ain_free_global_groups(struct ain *ain);
 void ain_free_enums(struct ain *ain);
 
-static inline bool ain_array_data_type(int32_t type)
+static inline bool ain_is_array_data_type(int32_t type)
 {
 	switch (type) {
 	case AIN_ARRAY:
