@@ -79,6 +79,11 @@ cd $(dirname "$0")
 ./test-runner.sh ref-array-item.jaf
 ./test-runner.sh ref-array-int.jaf
 
+# structs
+./test-runner.sh struct-arg.jaf
+./test-runner.sh ref-struct.jaf
+./test-runner.sh local-ref-struct.jaf
+
 # control flow
 ./test-runner.sh if.jaf
 ./test-runner.sh if-else.jaf
@@ -88,5 +93,7 @@ cd $(dirname "$0")
 
 # reference types
 ./test-runner.sh int-ref.jaf
+./test-runner.sh local-ref-int.jaf
 ./test-runner.sh float-ref.jaf
 ./test-runner.sh string-ref.jaf
+./test-runner.sh local-ref-string.jaf

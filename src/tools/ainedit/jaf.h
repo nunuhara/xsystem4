@@ -161,6 +161,7 @@ struct jaf_expression {
 		struct {
 			struct jaf_expression *struc;
 			struct string *name;
+			int member_no;
 		} member;
 		// sequence
 		struct {

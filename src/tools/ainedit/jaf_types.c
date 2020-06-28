@@ -408,19 +408,29 @@ static void jaf_check_types_syscall(struct jaf_env *env, struct jaf_expression *
 	expr->valuetype = syscalls[no].return_type;
 }
 
+static bool is_struct_type(struct jaf_expression *e)
+{
+	return e->valuetype.data == AIN_STRUCT || e->valuetype.data == AIN_REF_STRUCT;
+}
+
 static void jaf_check_types_member(struct jaf_env *env, struct jaf_expression *expr)
 {
 	jaf_derive_types(env, expr->member.struc);
-	TYPE_CHECK(expr->member.struc, AIN_STRUCT);
+	if (!is_struct_type(expr->member.struc))
+		TYPE_ERROR(expr->member.struc, AIN_STRUCT);
 
+	expr->member.member_no = -1;
 	char *u = encode_text_to_input_format(expr->member.name->text);
 	struct ain_struct *s = &env->ain->structures[expr->member.struc->valuetype.struc];
 	for (int i = 0; i < s->nr_members; i++) {
 		if (!strcmp(s->members[i].name, u)) {
 			expr->valuetype = s->members[i].type;
+			expr->member.member_no = i;
 			break;
 		}
 	}
+	if (expr->member.member_no == -1)
+		ERROR("Invalid struct member name: %s", u);
 	free(u);
 }
 

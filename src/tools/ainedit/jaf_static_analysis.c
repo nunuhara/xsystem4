@@ -125,7 +125,7 @@ static void resolve_typedef(struct ain *ain, struct jaf_type_specifier *type)
 {
 	char *u = encode_text_to_input_format(type->name->text);
 	int sno = ain_get_struct_no(ain, u);
-	if (sno) {
+	if (sno >= 0) {
 		type->type = JAF_STRUCT;
 		type->struct_no = sno;
 	} else {
