@@ -49,7 +49,7 @@ struct page_cache page_cache[NR_CACHES];
 struct page *_alloc_page(int nr_vars)
 {
 	int cache_nr = nr_vars - 1;
-	if (cache_nr < NR_CACHES && page_cache[cache_nr].cached) {
+	if (cache_nr >= 0 && cache_nr < NR_CACHES && page_cache[cache_nr].cached) {
 		struct page *page = page_cache[cache_nr].pages[--page_cache[cache_nr].cached];
 		memset(page->values, 0, sizeof(union vm_value) * nr_vars);
 		return page;
