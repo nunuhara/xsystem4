@@ -38,6 +38,9 @@ FILE *yyin;
 struct ain *jaf_ain_out;
 struct jaf_block *jaf_toplevel;
 
+unsigned long jaf_line;
+const char *jaf_file;
+
 static FILE *open_jaf_file(const char *file)
 {
     if (!strcmp(file, "-"))
@@ -68,9 +71,11 @@ struct jaf_block *jaf_parse(struct ain *ain, const char **files, unsigned nr_fil
 
     for (unsigned i = 0; i < nr_files; i++) {
 	// open file
+	jaf_file = files[i];
+	jaf_line = 1;
 	yyin = open_jaf_file(files[i]);
 	if (yyparse())
-	    ERROR("Failed to parse .jaf file");
+	    ERROR("Failed to parse .jaf file: %s", files[i]);
 	if (yyin != stdin)
 	    fclose(yyin);
 
@@ -548,5 +553,5 @@ parameter_declaration
 void yyerror(const char *s)
 {
 	fflush(stdout);
-	fprintf(stderr, "*** %s\n", s);
+	fprintf(stderr, "*** %s at %s:%lu\n", s, jaf_file, jaf_line);
 }

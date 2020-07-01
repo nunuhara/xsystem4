@@ -37,7 +37,7 @@ IS  (((u|U)(l|L|ll|LL)?)|((l|L|ll|LL)(u|U)?))
 CP  (u|U|L)
 SP  (u8|u|U|L)
 ES  (\\(['"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+))
-WS  [ \t\v\n\f]
+WS  [ \t\v\f]
 
 %{
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -51,6 +51,8 @@ extern int sym_type(const char *);  /* returns type from symbol table */
 
 static void comment(void);
 static int check_type(void);
+
+unsigned long jaf_line = 1;
 
 #define RETURN_STRING(tok_type) yylval.string = make_string(yytext, yyleng); return tok_type
 %}
@@ -151,6 +153,7 @@ static int check_type(void);
 "?"					{ return '?'; }
 "@"					{ return '@'; }
 
+\n                                      { jaf_line++; }
 {WS}+					{ /* whitespace separates tokens */ }
 .					{ /* discard bad characters */ }
 
