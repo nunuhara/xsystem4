@@ -43,6 +43,8 @@ static void push_entry(entry_list *ini, struct ini_entry *entry)
 
 static struct ini_value make_list(value_list *values)
 {
+    if (!values)
+	return ini_make_list(NULL, 0);
     struct ini_value *vals = kv_data(*values);
     size_t nr_vals = kv_size(*values);
     free(values);
@@ -74,9 +76,25 @@ static struct ini_entry *make_list_assign(struct string *name, int i, struct ini
     return ini_make_entry(name, wrapper);
 }
 
+static struct ini_entry *make_formation(struct string *name, entry_list *entries)
+{
+    struct ini_value wrapper = {
+	.type = INI_FORMATION,
+	.nr_entries = kv_size(*entries),
+	.entries = xcalloc(kv_size(*entries), sizeof(struct ini_entry)),
+    };
+    for (size_t i = 0; i < wrapper.nr_entries; i++) {
+	wrapper.entries[i] = *kv_A(*entries, i);
+	free(kv_A(*entries, i));
+    }
+    kv_destroy(*entries);
+    free(entries);
+    return ini_make_entry(name, wrapper);
+}
+
 %}
 
-%token	<token>		TRUE FALSE
+%token	<token>		TRUE FALSE FORMATION
 %token	<i>		INTEGER
 %token	<s>		STRING IDENTIFIER
 
@@ -99,12 +117,14 @@ entries	:	entry         { $$ = make_ini(); push_entry($$, $1); }
 
 entry	:	IDENTIFIER                 '=' value { $$ = ini_make_entry($1, $3); }
 	|	IDENTIFIER '[' INTEGER ']' '=' value { $$ = make_list_assign($1, $3, $6); }
+	|	FORMATION STRING '{' entries '}'     { $$ = make_formation($2, $4); }
 	;
 
 value	:	INTEGER          { $$ = ini_make_integer($1); }
 	|	TRUE             { $$ = ini_make_boolean(true); }
 	|	FALSE            { $$ = ini_make_boolean(false); }
 	|	STRING           { $$ = ini_make_string($1); }
+	|	'{' '}'          { $$ = make_list(NULL); }
 	|	'{' list '}'     { $$ = make_list($2); }
 	|	'{' list ',' '}' { $$ = make_list($2); }
 	;

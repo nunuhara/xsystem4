@@ -38,6 +38,7 @@ unsigned long yini_line = 1;
 
 %%
 
+\/\/[^\n]*\n              yini_line++;
 [ \t\r]                   ;
 \n                        yini_line++;
 ;[^\n]*\n                 yini_line++;
@@ -49,6 +50,7 @@ unsigned long yini_line = 1;
 ,                         return ',';
 true                      return TRUE;
 false                     return FALSE;
+Formation                 return FORMATION;
 [0-9]+                    yini_lval.i = atoi(yini_text); return INTEGER;
 [a-zA-Z]+[a-zA-Z0-9]*     yini_lval.s = make_string(yini_text, yini_leng); return IDENTIFIER;
 
@@ -64,15 +66,7 @@ false                     return FALSE;
 
     \n   ERROR("Unterminated string literal at line %lu", yini_line);
 
-    \\n  *string_buf_ptr++ = '\n';
-    \\t  *string_buf_ptr++ = '\t';
-    \\r  *string_buf_ptr++ = '\r';
-    \\b  *string_buf_ptr++ = '\b';
-    \\f  *string_buf_ptr++ = '\f';
-
-    \\(.|\n)  *string_buf_ptr++ = yini_text[1];
-
-    [^\\\n\"]+ {
+    [^\n\"]+ {
         char *yptr = yini_text;
         while (*yptr)
             *string_buf_ptr++ = *yptr++;

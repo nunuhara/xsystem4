@@ -32,6 +32,7 @@ static void usage(void)
 	puts("    Edit AIN files.");
 	puts("");
 	puts("    -h, --help                     Display this message and exit");
+	puts("    -p, --project <pje-file>       Build AIN from project file");
 	puts("    -c, --code <jam-file>          Update the CODE section (assemble .jam file)");
 	puts("        --jaf <jaf-file>           Update AIN file from JAF source code");
 	puts("    -j, --json <json-file>         Update AIN file from JSON data");
@@ -44,13 +45,13 @@ static void usage(void)
 	puts("        --ain-encoding <enc>       Specify the text encoding of the input AIN file");
 	puts("        --ain-version <version>    Specify the AIN version (when creating a new AIN file)");
 	puts("        --silent                   Don't write messages to stdout");
-	//puts("    -p,--project <pje-file>      Build AIN from project file");
 }
 
 extern int text_parse(void);
 
 enum {
 	LOPT_HELP = 256,
+	LOPT_PROJECT,
 	LOPT_CODE,
 	LOPT_JAF,
 	LOPT_JSON,
@@ -92,6 +93,7 @@ int main(int argc, char *argv[])
 	initialize_instructions();
 	struct ain *ain;
 	int err = AIN_SUCCESS;
+	const char *project_file = NULL;
 	const char *code_file = NULL;
 	unsigned nr_jaf_files = 0;
 	const char **jaf_files = NULL;
@@ -107,6 +109,7 @@ int main(int argc, char *argv[])
 	while (1) {
 		static struct option long_options[] = {
 			{ "help",            no_argument,       0, LOPT_HELP },
+			{ "project",         required_argument, 0, LOPT_PROJECT },
 			{ "code",            required_argument, 0, LOPT_CODE },
 			{ "jaf",             required_argument, 0, LOPT_JAF },
 			{ "json",            required_argument, 0, LOPT_JSON },
@@ -123,7 +126,7 @@ int main(int argc, char *argv[])
 		int option_index = 0;
 		int c;
 
-		c = getopt_long(argc, argv, "hc:j:t:o:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hp:c:j:t:o:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -132,6 +135,10 @@ int main(int argc, char *argv[])
 		case LOPT_HELP:
 			usage();
 			return 0;
+		case 'p':
+		case LOPT_PROJECT:
+			project_file = optarg;
+			break;
 		case 'c':
 		case LOPT_CODE:
 			code_file = optarg;
@@ -190,11 +197,6 @@ int main(int argc, char *argv[])
 		ERROR("Too many arguments.");
 	}
 
-	if (!output_file) {
-		usage();
-		ERROR("No output file given");
-	}
-
 	if ((ain_conv = iconv_open(output_encoding, input_encoding)) == (iconv_t)-1) {
 		ERROR("iconv_open: %s", strerror(errno));
 	}
@@ -203,6 +205,15 @@ int main(int argc, char *argv[])
 	}
 	if ((ain_input_conv = iconv_open(ain_encoding, input_encoding)) == (iconv_t)-1) {
 		ERROR("iconv_open: %s", strerror(errno));
+	}
+
+	if (project_file) {
+		pje_build(project_file, ain_version);
+		return 0;
+	}
+
+	if (!output_file) {
+		output_file = "out.ain";
 	}
 
 	if (!argc) {

@@ -121,6 +121,12 @@ static void ini_free_value(struct ini_value *value)
 		ini_free_value(value->_list_value);
 		free(value->_list_value);
 		break;
+	case INI_FORMATION:
+		for (size_t i = 0; i < value->nr_entries; i++) {
+			ini_free_entry(&value->entries[i]);
+		}
+		free(value->entries);
+		break;
 	default: break;
 	}
 }

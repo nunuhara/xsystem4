@@ -12,6 +12,7 @@ system4 = ['afa.c',
            'flat.c',
            'fnl.c',
            'hashtable.c',
+            'ini.c',
            'instructions.c',
            'pms.c',
            'qnt.c',
@@ -30,7 +31,6 @@ xsystem4 = ['audio.c',
             'fnl_render.c',
             'format.c',
             'heap.c',
-            'ini.c',
             'input.c',
             'page.c',
             'resume.c',
@@ -75,8 +75,8 @@ bisongen = generator(bison,
                      output: ['@BASENAME@.tab.c', '@BASENAME@.tab.h'],
                      arguments : ['@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@'])
 
-xsystem4 += flexgen.process('ini_lexer.l')
-xsystem4 += bisongen.process('ini_parser.y')
+system4 += flexgen.process('ini_lexer.l')
+system4 += bisongen.process('ini_parser.y')
 
 libsys4 = static_library('sys4', system4,
                          dependencies : [libm, zlib, tj, webp, png],

@@ -530,6 +530,7 @@ function_definition
 function_declarator
 	: IDENTIFIER '(' parameter_list ')' { $$ = jaf_function_declarator($1, $3); }
 	| IDENTIFIER '(' ')'                { $$ = jaf_function_declarator($1, NULL); }
+	| IDENTIFIER '(' VOID ')'           { $$ = jaf_function_declarator($1, NULL); }
 	;
 
 parameter_list

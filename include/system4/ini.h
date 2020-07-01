@@ -28,6 +28,7 @@ enum ini_value_type {
 	INI_STRING,
 	INI_LIST,
 	_INI_LIST_ENTRY,
+	INI_FORMATION,
 
 	INI_NR_TYPES
 };
@@ -37,13 +38,20 @@ struct ini_value {
 	union {
 		int i;
 		struct string *s;
+		// list
 		struct {
 			size_t list_size;
 			struct ini_value *list;
 		};
+		// list item
 		struct {
 			size_t _list_pos;
 			struct ini_value *_list_value;
+		};
+		// formation
+		struct {
+			size_t nr_entries;
+			struct ini_entry *entries;
 		};
 	};
 };

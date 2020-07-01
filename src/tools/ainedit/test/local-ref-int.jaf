@@ -3,6 +3,6 @@ int main()
 	int a;
 	ref int ra = a;
 	ref int rb = ra;
-	ra = 1;
+	rb = 1;
 	return !(a == 1);
 }

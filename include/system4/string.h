@@ -62,5 +62,6 @@ void string_set_char(struct string **s, int i, unsigned int c);
 // C strings
 int int_to_cstr(char *buf, size_t size, int v, int figures, bool zero_pad, bool zenkaku);
 int float_to_cstr(char *buf, size_t size, float v, int figures, bool zero_pad, int precision, bool zenkaku);
+struct string *cstr_to_string(const char *str);
 
 #endif

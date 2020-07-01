@@ -54,6 +54,11 @@ struct string *make_string(const char *str, unsigned int len)
 	return s;
 }
 
+struct string *cstr_to_string(const char *str)
+{
+	return make_string(str, strlen(str));
+}
+
 struct string *string_ref(struct string *s)
 {
 	s->cow = 1;
