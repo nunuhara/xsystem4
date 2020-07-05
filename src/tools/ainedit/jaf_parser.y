@@ -22,6 +22,7 @@
 #include <string.h>
 #include <errno.h>
 #include <libgen.h>
+#include <time.h>
 #include <assert.h>
 #include <errno.h>
 #include "system4.h"
@@ -91,12 +92,15 @@ struct jaf_block *jaf_parse(struct ain *ain, const char **files, unsigned nr_fil
 int sym_type(char *name)
 {
     char *u = encode_text_to_input_format(name);
-    struct ain_struct *s = ain_get_struct(jaf_ain_out, u);
-    free(u);
-
-    if (s) {
+    if (ain_get_struct(jaf_ain_out, u)) {
+	free(u);
 	return TYPEDEF_NAME;
     }
+    if (ain_get_functype(jaf_ain_out, u) >= 0) {
+	free(u);
+	return TYPEDEF_NAME;
+    }
+    free(u);
     return IDENTIFIER;
 }
 
@@ -109,6 +113,31 @@ static int parse_int(struct string *s)
 	ERROR("Invalid integer constant");
     free_string(s);
     return i;
+}
+
+static struct string *string_ftime(const char *fmt)
+{
+    char out[200];
+    time_t t;
+    struct tm *tmp;
+
+    t = time(NULL);
+    if (!(tmp = localtime(&t)))
+	ERROR("localtime: %s", strerror(errno));
+    if (strftime(out, sizeof(out), fmt, tmp) == 0)
+	ERROR("strftime returned 0");
+
+    return make_string(out, strlen(out));
+}
+
+static struct string *date_macro(void)
+{
+    return string_ftime("%Y/%m/%d");
+}
+
+static struct string *time_macro(void)
+{
+    return string_ftime("%H:%M:%S");
 }
 
 %}
@@ -133,7 +162,8 @@ static int parse_int(struct string *s)
 %token	<token>		AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token	<token>		SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
 %token	<token>		XOR_ASSIGN OR_ASSIGN
-%token	<token>		SYM_REF REF_ASSIGN FUNC_NAME SYSTEM ARRAY
+%token	<token>		SYM_REF REF_ASSIGN SYSTEM ARRAY FUNCTYPE
+%token	<token>		FILE_MACRO LINE_MACRO FUNC_MACRO DATE_MACRO TIME_MACRO
 
 %token	<token>		CONST
 %token	<token>		BOOL CHAR INT LONG FLOAT VOID STRING
@@ -158,16 +188,19 @@ static int parse_int(struct string *s)
 %type	<block>		translation_unit external_declaration declaration function_definition
 %type	<block>		struct_declaration struct_declaration_list
 %type	<block>		parameter_list parameter_declaration
+%type	<block>		functype_parameter_list functype_parameter_declaration
 %type	<block>		compound_statement block_item_list block_item
 %type	<statement>	statement labeled_statement expression_statement selection_statement
 %type	<statement>	iteration_statement jump_statement
-%type	<fundecl>	function_declarator
+%type	<fundecl>	function_declarator functype_declarator
 
 /*
  * Shift-reduce conflicts:
  *     1. dangling else
+ *     2. functype vs global
  */
 %expect 1
+%precedence FUNCTYPE
 
 %start toplevel
 %%
@@ -191,8 +224,11 @@ enumeration_constant		/* before it has been defined as such */
 
 string
 	: STRING_LITERAL { $$ = $1; }
-	| FUNC_NAME      { ERROR("__func__ not supported"); }
-//	| STRING '(' assignment_expression ')'
+	| FILE_MACRO     { $$ = cstr_to_string(jaf_file); }
+	| LINE_MACRO     { $$ = integer_to_string(jaf_line); }
+	| FUNC_MACRO     { ERROR("__FUNC__ not supported"); }
+	| DATE_MACRO     { $$ = date_macro(); }
+	| TIME_MACRO     { $$ = time_macro(); }
 	;
 
 postfix_expression
@@ -524,8 +560,24 @@ translation_unit
 	;
 
 external_declaration
-	: function_definition { $$ = $1; }
-	| declaration         { $$ = $1; }
+	: function_definition                                     { $$ = $1; }
+	| declaration                                             { $$ = $1; }
+	| FUNCTYPE declaration_specifiers functype_declarator ';' { $$ = jaf_functype($2, $3); jaf_define_functype(jaf_ain_out, &$$->items[0]->decl); }
+	;
+
+functype_declarator
+	: IDENTIFIER '(' functype_parameter_list ')' { $$ = jaf_function_declarator($1, $3); }
+	| IDENTIFIER '(' ')'                         { $$ = jaf_function_declarator($1, NULL); }
+	;
+
+functype_parameter_list
+	: functype_parameter_declaration                             { $$ = $1; }
+	| functype_parameter_list ',' functype_parameter_declaration { $$ = jaf_merge_blocks($1, $3); }
+	;
+
+functype_parameter_declaration
+	: declaration_specifiers            { $$ = jaf_parameter($1, NULL); }
+	| declaration_specifiers declarator { $$ = jaf_parameter($1, $2); }
 	;
 
 function_definition

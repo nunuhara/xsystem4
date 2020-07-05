@@ -73,7 +73,7 @@ flexgen = generator(flex,
 
 bisongen = generator(bison,
                      output: ['@BASENAME@.tab.c', '@BASENAME@.tab.h'],
-                     arguments : ['@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@'])
+                     arguments : ['--verbose', '@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@'])
 
 system4 += flexgen.process('ini_lexer.l')
 system4 += bisongen.process('ini_parser.y')

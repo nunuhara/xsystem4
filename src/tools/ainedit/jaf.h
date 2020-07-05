@@ -31,7 +31,7 @@ enum jaf_type {
 	JAF_STRUCT,
 	JAF_ENUM,
 	JAF_TYPEDEF,
-	JAF_FUNCTION,
+	JAF_FUNCTYPE,
 };
 
 enum jaf_type_qualifier {
@@ -195,6 +195,7 @@ struct jaf_function_declarator {
 
 enum block_item_kind {
 	JAF_DECLARATION,
+	JAF_FUNCTYPE_DECL,
 	JAF_FUNDECL,
 	JAF_STMT_LABELED,
 	JAF_STMT_COMPOUND,
@@ -314,6 +315,7 @@ struct jaf_declarator_list *jaf_declarators(struct jaf_declarator_list *head, st
 
 struct jaf_block *jaf_parameter(struct jaf_type_specifier *type, struct jaf_declarator *declarator);
 struct jaf_function_declarator *jaf_function_declarator(struct string *name, struct jaf_block *params);
+struct jaf_block *jaf_functype(struct jaf_type_specifier *type, struct jaf_function_declarator *decl);
 struct jaf_block *jaf_function(struct jaf_type_specifier *type, struct jaf_function_declarator *decl, struct jaf_block *body);
 
 struct jaf_block *jaf_declaration(struct jaf_type_specifier *type, struct jaf_declarator_list *declarators);
@@ -346,8 +348,6 @@ struct jaf_block *jaf_parse(struct ain *ain, const char **files, unsigned nr_fil
 
 // jaf_compile.c
 void jaf_build(struct ain *out, const char **files, unsigned nr_files);
-void jaf_define_struct(struct ain *ain, struct jaf_type_specifier *type);
-
 // jaf_eval.c
 struct jaf_expression *jaf_simplify(struct jaf_expression *in);
 
@@ -359,5 +359,7 @@ void jaf_check_type(struct jaf_expression *expr, struct ain_type *type);
 // jaf_static_analysis.c
 struct jaf_block *jaf_static_analyze(struct ain *ain, struct jaf_block *block);
 enum ain_data_type jaf_to_ain_data_type(enum jaf_type type, unsigned qualifiers);
+void jaf_define_struct(struct ain *ain, struct jaf_type_specifier *type);
+void jaf_define_functype(struct ain *ain, struct jaf_declaration *decl);
 
 #endif /* AINEDIT_JAF_H */

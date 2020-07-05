@@ -22,6 +22,8 @@
 #include "ainedit.h"
 #include "jaf.h"
 
+#define AIN_FUNCTION 8000
+
 // TODO: better error messages
 #define TYPE_ERROR(expr, expected) ERROR("Type error (expected %s; got %s)", ain_strtype(NULL, expected, -1), ain_strtype(NULL, expr->valuetype.data, -1))
 #define TYPE_CHECK(expr, expected) { if (expr->valuetype.data != expected) TYPE_ERROR(expr, expected); }
@@ -36,7 +38,7 @@ const char *jaf_typestr(enum jaf_type type)
 	case JAF_STRUCT:   return "struct";
 	case JAF_ENUM:     return "enum";
 	case JAF_TYPEDEF:  return "typedef";
-	case JAF_FUNCTION: return "functype";
+	case JAF_FUNCTYPE: return "functype";
 	}
 	return "unknown";
 }
@@ -68,6 +70,8 @@ static bool jaf_type_equal(struct ain_type *a, struct ain_type *b)
 	if (a_data != b_data)
 		return false;
 	if (a_data == AIN_STRUCT && a->struc != b->struc)
+		return false;
+	if (a_data == AIN_FUNCTION && a->struc != b->struc)
 		return false;
 	if (a_data == AIN_FUNC_TYPE && a->struc != b->struc)
 		return false;
@@ -175,7 +179,13 @@ static void jaf_check_types_unary(struct jaf_env *env, struct jaf_expression *ex
 		expr->valuetype.data = jaf_type_check_int(expr->expr);
 		break;
 	case JAF_AMPERSAND:
-		ERROR("Function types not supported");
+		if (expr->expr->type != JAF_EXP_IDENTIFIER)
+			ERROR("Non-identifier in '&' expression");
+		if (expr->expr->valuetype.data != AIN_FUNCTION)
+			ERROR("Non-function in '&' expression");
+		expr->valuetype.data = AIN_FUNCTION;
+		expr->valuetype.struc = expr->expr->valuetype.struc;
+		break;
 	default:
 		ERROR("Unhandled unary operator");
 	}
@@ -279,7 +289,7 @@ static void jaf_check_types_ternary(struct jaf_env *env, struct jaf_expression *
 	expr->valuetype = expr->consequent->valuetype;
 }
 
-static struct ain_variable *jaf_scope_lookup(struct jaf_env *env, char *name, int *var_no)
+static struct ain_variable *jaf_scope_lookup(struct jaf_env *env, const char *name, int *var_no)
 {
 	for (size_t i = 0; i < env->nr_locals; i++) {
 		if (!strcmp(env->locals[i]->name, name)) {
@@ -290,22 +300,18 @@ static struct ain_variable *jaf_scope_lookup(struct jaf_env *env, char *name, in
 	return NULL;
 }
 
-struct ain_variable *jaf_env_lookup(struct jaf_env *env, struct string *name, int *var_no)
+struct ain_variable *jaf_env_lookup(struct jaf_env *env, const char *name, int *var_no)
 {
-	char *u = encode_text_to_input_format(name->text);
 	struct jaf_env *scope = env;
         while (scope) {
-		struct ain_variable *v = jaf_scope_lookup(scope, u, var_no);
+		struct ain_variable *v = jaf_scope_lookup(scope, name, var_no);
 		if (v) {
-			free(u);
 			return v;
 		}
 		scope = scope->parent;
 	}
 
-	int no = ain_get_global_no(env->ain, u);
-	free(u);
-
+	int no = ain_get_global_no(env->ain, name);
 	if (no >= 0) {
 		*var_no = no;
 		return &env->ain->globals[no];
@@ -316,24 +322,20 @@ struct ain_variable *jaf_env_lookup(struct jaf_env *env, struct string *name, in
 
 static void jaf_check_types_identifier(struct jaf_env *env, struct jaf_expression *expr)
 {
-	int var_no;
-	struct ain_variable *v = jaf_env_lookup(env, expr->ident.name, &var_no);
-	if (v) {
+	int no;
+	struct ain_variable *v;
+	char *u = encode_text_to_input_format(expr->s->text);
+	if ((v = jaf_env_lookup(env, u, &no))) {
 		expr->valuetype = v->type;
 		expr->ident.var_type = v->var_type;
-		expr->ident.var_no = var_no;
-		return;
-	}
-
-	char *u = encode_text_to_input_format(expr->s->text);
-	int func_no = ain_get_function_no(env->ain, u);
-	free(u);
-	if (func_no < 0)
+		expr->ident.var_no = no;
+	} else if ((no = ain_get_function_no(env->ain, u)) >= 0) {
+		expr->valuetype.data = AIN_FUNCTION;
+		expr->valuetype.struc = no;
+	} else {
 		ERROR("Undefined variable: %s", expr->s->text);
-
-	// FIXME: this isn't quite right...
-	expr->valuetype.data = AIN_FUNC_TYPE;
-	expr->valuetype.struc = func_no;
+	}
+	free(u);
 }
 
 static bool ain_wide_type(enum ain_data_type type) {
@@ -348,14 +350,48 @@ static bool ain_wide_type(enum ain_data_type type) {
 	}
 }
 
+// FIXME: use struct ain_function for function types so that this function isn't needed.
+static void jaf_check_types_functype_call(struct jaf_env *env, struct jaf_expression *expr)
+{
+	unsigned nr_args = expr->call.args ? expr->call.args->nr_items : 0;
+	int ft_no = expr->call.fun->valuetype.struc;
+	assert(ft_no >= 0 && ft_no <= env->ain->nr_function_types);
+	expr->valuetype = env->ain->function_types[ft_no].return_type;
+	expr->call.func_no = ft_no;
+
+	struct ain_function_type *f = &env->ain->function_types[ft_no];
+	expr->call.args->var_nos = xcalloc(nr_args, sizeof(int));
+
+	// type check arguments against function prototype.
+	int arg = 0;
+	for (size_t i = 0; i < nr_args; i++, arg++) {
+		if (arg >= f->nr_arguments)
+			ERROR("Too many arguments to function");
+
+		jaf_check_type(expr->call.args->items[i], &f->variables[arg].type);
+
+		expr->call.args->var_nos[i] = arg;
+		if (ain_wide_type(f->variables[arg].type.data))
+			arg++;
+	}
+	if (arg != f->nr_arguments)
+		ERROR("Too few arguments to function");
+}
+
 static void jaf_check_types_funcall(struct jaf_env *env, struct jaf_expression *expr)
 {
 	jaf_derive_types(env, expr->call.fun);
-	TYPE_CHECK(expr->call.fun, AIN_FUNC_TYPE);
+	if (expr->call.fun->valuetype.data != AIN_FUNCTION && expr->call.fun->valuetype.data != AIN_FUNC_TYPE)
+		TYPE_ERROR(expr->call.fun, AIN_FUNC_TYPE);
 
 	unsigned nr_args = expr->call.args ? expr->call.args->nr_items : 0;
 	for (size_t i = 0; i < nr_args; i++) {
 		jaf_derive_types(env, expr->call.args->items[i]);
+	}
+
+	if (expr->call.fun->valuetype.data == AIN_FUNC_TYPE) {
+		jaf_check_types_functype_call(env, expr);
+		return;
 	}
 
 	int func_no = expr->call.fun->valuetype.struc;
@@ -364,7 +400,7 @@ static void jaf_check_types_funcall(struct jaf_env *env, struct jaf_expression *
 	expr->call.func_no = func_no;
 
 	struct ain_function *f = &env->ain->functions[func_no];
-	expr->call.args->var_nos = xcalloc(expr->call.args->nr_items, sizeof(int));
+	expr->call.args->var_nos = xcalloc(nr_args, sizeof(int));
 
 	// type check arguments against function prototype.
 	int arg = 0;

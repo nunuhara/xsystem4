@@ -97,3 +97,7 @@ cd $(dirname "$0")
 ./test-runner.sh float-ref.jaf
 ./test-runner.sh string-ref.jaf
 ./test-runner.sh local-ref-string.jaf
+
+./test-runner.sh functype.jaf
+./test-runner.sh functype-void.jaf
+./test-runner.sh functype-ref-int.jaf

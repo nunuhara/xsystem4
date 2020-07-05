@@ -253,12 +253,14 @@ static void compile_dereference(struct compiler_state *state, struct ain_type *t
 	case AIN_FLOAT:
 	case AIN_BOOL:
 	case AIN_LONG_INT:
+	case AIN_FUNC_TYPE:
 		write_instruction0(state, REF);
 		break;
 	case AIN_REF_INT:
 	case AIN_REF_FLOAT:
 	case AIN_REF_BOOL:
 	case AIN_REF_LONG_INT:
+	case AIN_REF_FUNC_TYPE:
 		write_instruction0(state, REFREF);
 		write_instruction0(state, REF);
 		break;
@@ -318,7 +320,8 @@ static void compile_unary(struct compiler_state *state, struct jaf_expression *e
 {
 	switch (expr->op) {
 	case JAF_AMPERSAND:
-		ERROR("Function types not supported");
+		write_instruction1(state, PUSH, expr->valuetype.struc);
+		break;
 	case JAF_UNARY_PLUS:
 		compile_expression(state, expr->expr);
 		break;
@@ -453,8 +456,37 @@ static bool ain_ref_type(enum ain_data_type type)
 	}
 }
 
+static void jaf_compile_functype_call(struct compiler_state *state, struct jaf_expression *expr)
+{
+	// NOTE: The functype expression has to be compiled first and then swapped with each
+	//       argument in case one of the argument expressions changes the value of the
+	//       functype expression.
+	compile_expression(state, expr->call.fun);
+
+	struct ain_function_type *f = &state->ain->function_types[expr->call.func_no];
+	for (size_t i = 0; i < expr->call.args->nr_items; i++) {
+		enum ain_data_type type = f->variables[expr->call.args->var_nos[i]].type.data;
+		if (ain_ref_type(type)) {
+			compile_lvalue(state, expr->call.args->items[i]);
+			write_instruction0(state, DUP2_X1);
+			write_instruction0(state, POP);
+			write_instruction0(state, POP);
+		} else {
+			compile_expression(state, expr->call.args->items[i]);
+			write_instruction0(state, SWAP);
+		}
+	}
+	write_instruction1(state, PUSH, expr->call.fun->valuetype.struc);
+	write_instruction0(state, CALLFUNC2);
+}
+
 static void compile_funcall(struct compiler_state *state, struct jaf_expression *expr)
 {
+	if (expr->call.fun->valuetype.data == AIN_FUNC_TYPE) {
+		jaf_compile_functype_call(state, expr);
+		return;
+	}
+
 	for (size_t i = 0; i < expr->call.args->nr_items; i++) {
 		struct ain_function *f = &state->ain->functions[expr->call.func_no];
 		if (ain_ref_type(f->vars[expr->call.args->var_nos[i]].type.data)) {
@@ -630,6 +662,7 @@ static void compile_vardecl(struct compiler_state *state, struct jaf_declaration
 	case AIN_INT:
 	case AIN_BOOL:
 	case AIN_LONG_INT:
+	case AIN_FUNC_TYPE:
 		write_instruction0(state, PUSHLOCALPAGE);
 		write_instruction1(state, PUSH, decl->var_no);
 		if (decl->init)
@@ -668,6 +701,7 @@ static void compile_vardecl(struct compiler_state *state, struct jaf_declaration
 	case AIN_REF_BOOL:
 	case AIN_REF_FLOAT:
 	case AIN_REF_LONG_INT:
+	case AIN_REF_FUNC_TYPE:
 		if (state->ain->version < 6) {
 			write_instruction1(state, CALLSYS, SYS_LOCK_PEEK);
 			write_instruction0(state, POP);
@@ -859,11 +893,12 @@ static void compile_statement(struct compiler_state *state, struct jaf_block_ite
 	case JAF_DECLARATION:
 		compile_vardecl(state, &item->decl);
 		break;
+	case JAF_FUNCTYPE_DECL:
+		ERROR("Function types must be declared at top-level");
 	case JAF_FUNDECL:
 		ERROR("Nested functions not supported");
 	case JAF_STMT_LABELED:
 		ERROR("Labels not supported");
-		break;
 	case JAF_STMT_COMPOUND:
 		compile_block(state, item->block);
 		break;

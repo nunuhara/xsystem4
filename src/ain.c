@@ -248,7 +248,7 @@ struct ain_variable *ain_add_global(struct ain *ain, char *name)
 	return &ain->globals[no];
 }
 
-struct ain_variable *ain_get_global(struct ain *ain, char *name)
+struct ain_variable *ain_get_global(struct ain *ain, const char *name)
 {
 	// TODO: use hash table for faster lookup
 	for (int i = 0; i < ain->nr_globals; i++) {
@@ -258,7 +258,7 @@ struct ain_variable *ain_get_global(struct ain *ain, char *name)
 	return NULL;
 }
 
-int ain_get_global_no(struct ain *ain, char *name)
+int ain_get_global_no(struct ain *ain, const char *name)
 {
 	struct ain_variable *v = ain_get_global(ain, name);
 	return v ? v - ain->globals : -1;
@@ -279,6 +279,24 @@ int ain_add_function(struct ain *ain, struct ain_function *fun)
 	func_ht_add(ain, no);
 	ain->nr_functions++;
 	return no;
+}
+
+int ain_add_functype(struct ain *ain, struct ain_function_type *fun)
+{
+	int no = ain->nr_function_types;
+	ain->function_types = xrealloc_array(ain->function_types, no, no+1, sizeof(struct ain_function_type));
+	ain->function_types[no] = *fun;
+	ain->nr_function_types++;
+	return no;
+}
+
+int ain_get_functype(struct ain *ain, const char *name)
+{
+	for (int i = 0; i < ain->nr_function_types; i++) {
+		if (!strcmp(ain->function_types[i].name, name))
+			return i;
+	}
+	return -1;
 }
 
 int ain_add_string(struct ain *ain, const char *str)

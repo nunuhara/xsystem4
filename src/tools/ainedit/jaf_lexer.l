@@ -84,10 +84,15 @@ unsigned long jaf_line = 1;
 "void"					{ return(VOID); }
 "while"					{ return(WHILE); }
 "bool"                                  { return BOOL; }
-"__func__"                              { return FUNC_NAME; }
+"__FILE__"                              { return FILE_MACRO; }
+"__LINE__"                              { return LINE_MACRO; }
+"__FUNC__"                              { return FUNC_MACRO; }
+"__DATE__"                              { return DATE_MACRO; }
+"__TIME__"                              { return TIME_MACRO; }
 "ref"                                   { return SYM_REF; }
 "system"                                { return SYSTEM; }
 "array"					{ return ARRAY; }
+"functype"                              { return FUNCTYPE; }
 
 {L}{A}*					{ return check_type(); }
 
