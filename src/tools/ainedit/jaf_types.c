@@ -496,15 +496,41 @@ static enum ain_data_type array_data_type(enum ain_data_type type)
 	}
 }
 
+static void jaf_type_check_array(struct jaf_expression *expr)
+{
+	switch (expr->valuetype.data) {
+	case AIN_ARRAY_TYPE:
+	case AIN_REF_ARRAY_TYPE:
+		return;
+	case AIN_ARRAY:
+		ERROR("ain v11+ arrays not supported");
+	default:
+		TYPE_ERROR(expr, AIN_ARRAY);
+	}
+}
+
+static void array_deref_type(struct ain_type *dst, struct ain_type *src)
+{
+	if (src->rank > 1) {
+		dst->data = src->data;
+		dst->struc = src->struc;
+		dst->rank = src->rank - 1;
+	} else {
+		assert(src->rank == 1);
+		dst->data = array_data_type(src->data);
+		dst->struc = src->struc;
+		dst->rank = 0;
+	}
+}
+
 static void jaf_check_types_subscript(struct jaf_env *env, struct jaf_expression *expr)
 {
 	jaf_derive_types(env, expr->subscript.expr);
 	jaf_derive_types(env, expr->subscript.index);
+	jaf_type_check_array(expr->subscript.expr);
 	jaf_type_check_int(expr->subscript.index);
-	expr->valuetype.data = array_data_type(expr->subscript.expr->valuetype.data);
-	expr->valuetype.struc = expr->subscript.expr->valuetype.struc;
-	if (expr->valuetype.data == AIN_VOID)
-		TYPE_ERROR(expr->subscript.expr, AIN_ARRAY);
+
+	array_deref_type(&expr->valuetype, &expr->subscript.expr->valuetype);
 }
 
 void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)

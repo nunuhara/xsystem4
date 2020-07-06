@@ -462,7 +462,7 @@ declarator
 
 array_allocation
 	: IDENTIFIER '[' constant ']'       { $$ = jaf_array_allocation($1, $3); }
-	| array_allocation '[' constant ']' { ERROR("Multi-dimensional arrays not supported"); }
+	| array_allocation '[' constant ']' { $$ = jaf_array_dimension($1, $3); }
 	;
 
 initializer

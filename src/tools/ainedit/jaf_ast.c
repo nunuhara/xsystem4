@@ -45,7 +45,7 @@ struct jaf_expression *jaf_parse_integer(struct string *text)
 	errno = 0;
 	int i = strtol(text->text, &endptr, 0);
 	if (errno || *endptr != '\0')
-		ERROR("Invalid integer constant");
+		ERROR("Invalid integer constant: %s", text->text);
 	free_string(text);
 	return jaf_integer(i);
 }
@@ -232,8 +232,17 @@ struct jaf_declarator *jaf_array_allocation(struct string *name, struct jaf_expr
 	struct jaf_declarator *d = xcalloc(1, sizeof(struct jaf_declarator));
 	d->name = name;
 	d->array_rank = 1;
-	d->array_dims = xmalloc(sizeof(size_t));
+	d->array_dims = xmalloc(sizeof(struct jaf_expression*));
 	d->array_dims[0] = dim;
+	return d;
+}
+
+struct jaf_declarator *jaf_array_dimension(struct jaf_declarator *d, struct jaf_expression *dim)
+{
+	int no = d->array_rank;
+	d->array_dims = xrealloc_array(d->array_dims, no, no+1, sizeof(struct jaf_expression*));
+	d->array_dims[no] = dim;
+	d->array_rank++;
 	return d;
 }
 

@@ -76,6 +76,7 @@ cd $(dirname "$0")
 ./test-runner.sh array-int.jaf
 ./test-runner.sh array-string.jaf
 ./test-runner.sh array-arg.jaf
+./test-runner.sh array-multi.jaf
 ./test-runner.sh ref-array-item.jaf
 ./test-runner.sh ref-array-int.jaf
 

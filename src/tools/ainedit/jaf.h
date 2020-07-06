@@ -311,6 +311,7 @@ void jaf_copy_type(struct jaf_type_specifier *dst, struct jaf_type_specifier *sr
 
 struct jaf_declarator *jaf_declarator(struct string *name);
 struct jaf_declarator *jaf_array_allocation(struct string *name, struct jaf_expression *dim);
+struct jaf_declarator *jaf_array_dimension(struct jaf_declarator *d, struct jaf_expression *dim);
 struct jaf_declarator_list *jaf_declarators(struct jaf_declarator_list *head, struct jaf_declarator *tail);
 
 struct jaf_block *jaf_parameter(struct jaf_type_specifier *type, struct jaf_declarator *declarator);
