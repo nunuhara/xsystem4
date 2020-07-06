@@ -104,6 +104,14 @@ struct jaf_expression *jaf_string(struct string *text)
 	return e;
 }
 
+struct jaf_expression *jaf_char(struct string *text)
+{
+	struct jaf_expression *e = jaf_expr(JAF_EXP_CHAR, 0);
+	e->valuetype.data = AIN_INT;
+	e->s = text;
+	return e;
+}
+
 struct jaf_expression *jaf_identifier(struct string *name)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_IDENTIFIER, 0);
@@ -445,8 +453,23 @@ struct jaf_block_item *jaf_case_statement(struct jaf_expression *expr, struct ja
 	return item;
 }
 
+struct jaf_block_item *jaf_message_statement(struct string *msg, struct string *func)
+{
+	struct jaf_block_item *item = block_item(JAF_STMT_MESSAGE);
+	item->msg.text = msg;
+	item->msg.func = func;
+	return item;
+}
+
 struct jaf_block_item *jaf_expression_statement(struct jaf_expression *expr)
 {
+	// NOTE: character constant as statement is treated as a message
+	if (expr->type == JAF_EXP_CHAR) {
+		struct string *s = expr->s;
+		free(expr);
+		return jaf_message_statement(s, NULL);
+	}
+
 	struct jaf_block_item *item = block_item(JAF_STMT_EXPRESSION);
 	item->expr = expr;
 	return item;
@@ -531,6 +554,7 @@ void jaf_free_expr(struct jaf_expression *expr)
 	case JAF_EXP_FLOAT:
 		break;
 	case JAF_EXP_STRING:
+	case JAF_EXP_CHAR:
 	case JAF_EXP_IDENTIFIER:
 		free_string(expr->s);
 		break;
@@ -658,6 +682,11 @@ void jaf_free_block_item(struct jaf_block_item *item)
 	case JAF_STMT_DEFAULT:
 		jaf_free_expr(item->swi_case.expr);
 		jaf_free_block_item(item->swi_case.stmt);
+		break;
+	case JAF_STMT_MESSAGE:
+		free_string(item->msg.text);
+		if (item->msg.func)
+			free_string(item->msg.func);
 		break;
 	}
 	free(item);

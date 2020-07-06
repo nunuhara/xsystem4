@@ -540,6 +540,7 @@ void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr)
 		expr->valuetype.data = AIN_VOID;
 		break;
 	case JAF_EXP_INT:
+	case JAF_EXP_CHAR:
 		expr->valuetype.data = AIN_INT;
 		break;
 	case JAF_EXP_FLOAT:

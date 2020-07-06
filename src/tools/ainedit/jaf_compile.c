@@ -617,6 +617,9 @@ static void compile_expression(struct compiler_state *state, struct jaf_expressi
 	case JAF_EXP_SUBSCRIPT:
 		compile_subscript(state, expr);
 		break;
+	case JAF_EXP_CHAR:
+		ERROR("Unresolved character constant"); // should have been simplified to int
+		break;
 	}
 }
 
@@ -887,6 +890,14 @@ static void compile_break(struct compiler_state *state)
 	write_instruction1(state, JUMP, 0);
 }
 
+static void compile_message(struct compiler_state *state, struct jaf_block_item *item)
+{
+	int no = ain_add_message(state->ain, item->msg.text->text);
+	write_instruction1(state, MSG, no);
+	if (item->msg.func)
+		write_instruction1(state, CALLFUNC, item->msg.func_no);
+}
+
 static void compile_statement(struct compiler_state *state, struct jaf_block_item *item)
 {
 	switch (item->kind) {
@@ -941,6 +952,9 @@ static void compile_statement(struct compiler_state *state, struct jaf_block_ite
 		break;
 	case JAF_STMT_DEFAULT:
 		ERROR("switch not supported");
+		break;
+	case JAF_STMT_MESSAGE:
+		compile_message(state, item);
 		break;
 	case JAF_EOF:
 		write_instruction1(state, _EOF, item->file_no);

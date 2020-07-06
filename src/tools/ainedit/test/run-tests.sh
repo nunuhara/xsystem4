@@ -103,3 +103,8 @@ cd $(dirname "$0")
 ./test-runner.sh functype.jaf
 ./test-runner.sh functype-void.jaf
 ./test-runner.sh functype-ref-int.jaf
+
+./test-runner.sh message.jaf
+./test-runner.sh message-call.jaf
+
+./test-runner.sh char-constant.jaf

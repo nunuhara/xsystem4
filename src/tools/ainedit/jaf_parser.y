@@ -155,7 +155,7 @@ static struct string *time_macro(void)
     struct jaf_function_declarator *fundecl;
 }
 
-%token	<string>	I_CONSTANT F_CONSTANT STRING_LITERAL
+%token	<string>	I_CONSTANT F_CONSTANT C_CONSTANT STRING_LITERAL
 %token	<string>	IDENTIFIER TYPEDEF_NAME ENUMERATION_CONSTANT
 
 %token	<token>		INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
@@ -191,7 +191,7 @@ static struct string *time_macro(void)
 %type	<block>		functype_parameter_list functype_parameter_declaration
 %type	<block>		compound_statement block_item_list block_item
 %type	<statement>	statement labeled_statement expression_statement selection_statement
-%type	<statement>	iteration_statement jump_statement
+%type	<statement>	iteration_statement jump_statement message_statement
 %type	<fundecl>	function_declarator functype_declarator
 
 /*
@@ -200,7 +200,6 @@ static struct string *time_macro(void)
  *     2. functype vs global
  */
 %expect 1
-%precedence FUNCTYPE
 
 %start toplevel
 %%
@@ -214,6 +213,7 @@ primary_expression
 
 constant
 	: I_CONSTANT           { $$ = jaf_parse_integer($1); } /* includes character_constant */
+	| C_CONSTANT           { $$ = jaf_char($1); }
 	| F_CONSTANT           { $$ = jaf_parse_float($1); }
 	| ENUMERATION_CONSTANT { ERROR("Enums not supported"); } /* after it has been defined as such */
 	;
@@ -499,6 +499,7 @@ statement
 	| selection_statement  { $$ = $1; }
 	| iteration_statement  { $$ = $1; }
 	| jump_statement       { $$ = $1; }
+	| message_statement    { $$ = $1; }
 	;
 
 labeled_statement
@@ -548,6 +549,10 @@ jump_statement
 	| BREAK ';'                 { $$ = jaf_break(); }
 	| SYM_RETURN ';'            { $$ = jaf_return(NULL); }
 	| SYM_RETURN expression ';' { $$ = jaf_return($2); }
+	;
+
+message_statement
+	: C_CONSTANT IDENTIFIER ';' { $$ = jaf_message_statement($1, $2); }
 	;
 
 toplevel

@@ -56,6 +56,7 @@ enum jaf_expression_type {
 	JAF_EXP_MEMBER,
 	JAF_EXP_SEQ,
 	JAF_EXP_SUBSCRIPT,
+	JAF_EXP_CHAR,
 };
 
 enum jaf_operator {
@@ -211,6 +212,7 @@ enum block_item_kind {
 	JAF_STMT_RETURN,
 	JAF_STMT_CASE,
 	JAF_STMT_DEFAULT,
+	JAF_STMT_MESSAGE,
 	JAF_EOF
 };
 
@@ -266,6 +268,11 @@ struct jaf_block_item {
 			struct jaf_expression *after;
 			struct jaf_block_item *body;
 		} for_loop;
+		struct {
+			struct string *text;
+			struct string *func;
+			int func_no;
+		} msg;
 		struct string *target; // goto
 		unsigned file_no;      // eof
 	};
@@ -291,6 +298,7 @@ struct jaf_expression *jaf_float(float f);
 struct jaf_expression *jaf_parse_float(struct string *text);
 struct string *jaf_process_string(struct string *text);
 struct jaf_expression *jaf_string(struct string *text);
+struct jaf_expression *jaf_char(struct string *text);
 struct jaf_expression *jaf_identifier(struct string *name);
 struct jaf_expression *jaf_unary_expr(enum jaf_operator op, struct jaf_expression *expr);
 struct jaf_expression *jaf_binary_expr(enum jaf_operator op, struct jaf_expression *lhs, struct jaf_expression *rhs);
@@ -339,6 +347,7 @@ struct jaf_block_item *jaf_goto(struct string *target);
 struct jaf_block_item *jaf_continue(void);
 struct jaf_block_item *jaf_break(void);
 struct jaf_block_item *jaf_return(struct jaf_expression *expr);
+struct jaf_block_item *jaf_message_statement(struct string *msg, struct string *func);
 
 void jaf_free_expr(struct jaf_expression *expr);
 void jaf_free_block(struct jaf_block *block);

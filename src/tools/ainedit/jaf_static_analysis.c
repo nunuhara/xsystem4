@@ -241,6 +241,19 @@ static void analyze_function(struct jaf_env *env, struct jaf_declaration *decl)
 	free(funenv);
 }
 
+static void analyze_message(struct jaf_env *env, struct jaf_block_item *item)
+{
+	if (!item->msg.func) {
+		item->msg.func_no = -1;
+		return;
+	}
+
+	char *u = encode_text_to_input_format(item->msg.func->text);
+	if ((item->msg.func_no = ain_get_function_no(env->ain, u)) < 0)
+		ERROR("Undefined function: %s", item->msg.func->text);
+	free(u);
+}
+
 static struct jaf_env *push_env(struct jaf_env *parent)
 {
 	struct jaf_env *newenv = xcalloc(1, sizeof(struct jaf_env));
@@ -313,6 +326,8 @@ static void analyze_statement(struct jaf_env *env, struct jaf_block_item *item)
 	case JAF_STMT_DEFAULT:
 		analyze_statement(env, item->swi_case.stmt);
 		break;
+	case JAF_STMT_MESSAGE:
+		analyze_message(env, item);
 	case JAF_FUNCTYPE_DECL:
 	case JAF_STMT_GOTO:
 	case JAF_STMT_CONTINUE:
@@ -408,6 +423,7 @@ static void resolve_statement_types(struct ain *ain, struct jaf_block_item *item
 	case JAF_STMT_CONTINUE:
 	case JAF_STMT_BREAK:
 	case JAF_STMT_RETURN:
+	case JAF_STMT_MESSAGE:
 	case JAF_EOF:
 		break;
 	}
@@ -492,6 +508,7 @@ static struct ain_variable *block_item_get_vars(struct ain *ain, struct jaf_bloc
 	case JAF_STMT_CONTINUE:
 	case JAF_STMT_BREAK:
 	case JAF_STMT_RETURN:
+	case JAF_STMT_MESSAGE:
 	case JAF_EOF:
 		break;
 
@@ -539,6 +556,21 @@ static void add_function(struct ain *ain, struct jaf_declaration *decl)
 		if (ain->main > 0)
 			WARNING("Overriding main function");
 		ain->main = decl->func_no;
+	} else if (!strcmp(decl->name->text, "message")) {
+		if (!decl->params ||
+		    decl->params->nr_items != 3 ||
+		    decl->params->items[0]->decl.type->type != JAF_INT ||
+		    decl->params->items[0]->decl.type->qualifiers ||
+		    decl->params->items[1]->decl.type->type != JAF_INT ||
+		    decl->params->items[1]->decl.type->qualifiers ||
+		    decl->params->items[2]->decl.type->type != JAF_STRING ||
+		    decl->params->items[2]->decl.type->qualifiers ||
+		    decl->type->type != JAF_VOID) {
+			ERROR("Invalid signature for message function");
+		}
+		if (ain->msgf > 0)
+			WARNING("Overriding message function");
+		ain->msgf = decl->func_no;
 	}
 }
 

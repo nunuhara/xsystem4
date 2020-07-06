@@ -341,6 +341,34 @@ static struct jaf_expression *jaf_simplify_subscript(struct jaf_expression *in)
 	return in;
 }
 
+static struct jaf_expression *jaf_simplify_char(struct jaf_expression *in)
+{
+	int c = 0;
+	int size = in->s->size;
+	char *s = in->s->text;
+	if (size <= 0)
+		goto invalid;
+	if (s[0] == '\\') {
+		if (size != 2)
+			goto invalid;
+		switch (s[1]) {
+		case '\\': c = '\\'; goto valid;
+		case '\'': c = '\''; goto valid;
+		default: goto invalid;
+		}
+	}
+	if (size != 1)
+		goto invalid;
+	c = s[0];
+valid:
+	free_string(in->s);
+	in->type = JAF_EXP_INT;
+	in->i = c;
+	return in;
+invalid:
+	ERROR("Invalid character constant");
+}
+
 /*
  * Simplify an expression by evaluating the constant parts.
  */
@@ -370,6 +398,8 @@ struct jaf_expression *jaf_simplify(struct jaf_expression *in)
 		return jaf_simplify_seq(in);
 	case JAF_EXP_SUBSCRIPT:
 		return jaf_simplify_subscript(in);
+	case JAF_EXP_CHAR:
+		return jaf_simplify_char(in);
 	}
 	ERROR("Invalid expression type");
 }

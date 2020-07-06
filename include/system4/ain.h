@@ -343,6 +343,7 @@ int ain_add_function(struct ain *ain, struct ain_function *fun);
 int ain_add_functype(struct ain *ain, struct ain_function_type *fun);
 int ain_get_functype(struct ain *ain, const char *name);
 int ain_add_string(struct ain *ain, const char *str);
+int ain_add_message(struct ain *ain, const char *str);
 int ain_add_file(struct ain *ain, const char *filename);
 
 void ain_free(struct ain *ain);

@@ -311,6 +311,13 @@ int ain_add_string(struct ain *ain, const char *str)
 	return i;
 }
 
+int ain_add_message(struct ain *ain, const char *str)
+{
+	ain->messages = xrealloc_array(ain->messages, ain->nr_messages, ain->nr_messages+1, sizeof(struct string*));
+	ain->messages[ain->nr_messages++] = make_string(str, strlen(str));
+	return ain->nr_messages - 1;
+}
+
 int ain_add_file(struct ain *ain, const char *filename)
 {
 	ain->filenames = xrealloc_array(ain->filenames, ain->nr_filenames, ain->nr_filenames+1, sizeof(char*));
