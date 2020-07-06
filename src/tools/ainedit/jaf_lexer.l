@@ -34,8 +34,6 @@ E   ([Ee][+-]?{D}+)
 P   ([Pp][+-]?{D}+)
 FS  (f|F|l|L)
 IS  (((u|U)(l|L|ll|LL)?)|((l|L|ll|LL)(u|U)?))
-CP  (u|U|L)
-SP  (u8|u|U|L)
 ES  (\\(['"\?\\abfnrtv]|[0-7]{1,3}|x[a-fA-F0-9]+))
 WS  [ \t\v\f]
 
@@ -99,7 +97,7 @@ unsigned long jaf_line = 1;
 {HP}{H}+{IS}?				{ RETURN_STRING(I_CONSTANT); }
 {NZ}{D}*{IS}?				{ RETURN_STRING(I_CONSTANT); }
 "0"{O}*{IS}?				{ RETURN_STRING(I_CONSTANT); }
-{CP}?"'"([^'\\\n]|{ES})+"'"		{ RETURN_STRING(I_CONSTANT); }
+"'"([^'\\\n]|{ES})+"'"			{ RETURN_STRING(I_CONSTANT); }
 
 {D}+{E}{FS}?				{ RETURN_STRING(F_CONSTANT); }
 {D}*"."{D}+{E}?{FS}?			{ RETURN_STRING(F_CONSTANT); }
@@ -108,7 +106,7 @@ unsigned long jaf_line = 1;
 {HP}{H}*"."{H}+{P}{FS}?			{ RETURN_STRING(F_CONSTANT); }
 {HP}{H}+"."{P}{FS}?			{ RETURN_STRING(F_CONSTANT); }
 
-({SP}?\"([^"\\\n]|{ES})*\"{WS}*)+	{ yylval.string = make_string(yytext+1, yyleng-2); return STRING_LITERAL; }
+(\"([^"\\\n]|{ES})*\"{WS}*)+		{ yylval.string = make_string(yytext+1, yyleng-2); return STRING_LITERAL; }
 
 "..."					{ return ELLIPSIS; }
 ">>="					{ return RIGHT_ASSIGN; }

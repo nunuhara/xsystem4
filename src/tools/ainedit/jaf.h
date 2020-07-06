@@ -289,6 +289,7 @@ struct jaf_expression *jaf_integer(int i);
 struct jaf_expression *jaf_parse_integer(struct string *text);
 struct jaf_expression *jaf_float(float f);
 struct jaf_expression *jaf_parse_float(struct string *text);
+struct string *jaf_process_string(struct string *text);
 struct jaf_expression *jaf_string(struct string *text);
 struct jaf_expression *jaf_identifier(struct string *name);
 struct jaf_expression *jaf_unary_expr(enum jaf_operator op, struct jaf_expression *expr);

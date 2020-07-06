@@ -223,7 +223,7 @@ enumeration_constant		/* before it has been defined as such */
 	;
 
 string
-	: STRING_LITERAL { $$ = $1; }
+	: STRING_LITERAL { $$ = jaf_process_string($1); }
 	| FILE_MACRO     { $$ = cstr_to_string(jaf_file); }
 	| LINE_MACRO     { $$ = integer_to_string(jaf_line); }
 	| FUNC_MACRO     { ERROR("__FUNC__ not supported"); }

@@ -59,6 +59,7 @@ cd $(dirname "$0")
 ./test-runner.sh s-gte.jaf
 ./test-runner.sh s-eq.jaf
 ./test-runner.sh s-neq.jaf
+./test-runner.sh string-constant.jaf
 #./test-runner.sh s-length.jaf
 #./test-runner.sh s-lengthbyte.jaf
 #./test-runner.sh s-empty.jaf

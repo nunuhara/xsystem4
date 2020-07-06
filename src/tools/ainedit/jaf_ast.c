@@ -69,6 +69,33 @@ struct jaf_expression *jaf_parse_float(struct string *text)
 	return jaf_float(f);
 }
 
+struct string *jaf_process_string(struct string *text)
+{
+	char *src, *dst;
+	for (src = dst = text->text; *src;) {
+		if (*src == '\\') {
+			src++;
+			switch (*src++) {
+			case 'n':  *dst++ = '\n'; break;
+			case 'r':  *dst++ = '\r'; break;
+			case 'b':  *dst++ = '\b'; break;
+			case '"':  *dst++ = '"';  break;
+			case '\\': *dst++ = '\\'; break;
+			default: ERROR("Unhandled escape sequence in string");
+			}
+		} else if (*src == '"') {
+			src++;
+			while (*src++ != '"');
+		} else {
+			*dst++ = *src++;
+		}
+	}
+
+	*dst = '\0';
+	text->size = dst - text->text;
+	return text;
+}
+
 struct jaf_expression *jaf_string(struct string *text)
 {
 	struct jaf_expression *e = jaf_expr(JAF_EXP_STRING, 0);
