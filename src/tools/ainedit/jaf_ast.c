@@ -71,8 +71,12 @@ struct jaf_expression *jaf_parse_float(struct string *text)
 
 struct string *jaf_process_string(struct string *text)
 {
-	char *src, *dst;
-	for (src = dst = text->text; *src;) {
+	assert(text->size > 1);
+	assert(text->text[0] == '"');
+
+	char *dst = text->text;
+	char *src = dst+1;
+	while (*src) {
 		if (*src == '\\') {
 			src++;
 			switch (*src++) {
@@ -85,7 +89,11 @@ struct string *jaf_process_string(struct string *text)
 			}
 		} else if (*src == '"') {
 			src++;
-			while (*src++ != '"');
+			while (*src && *src != '"')
+				src++;
+			if (!*src)
+				break;
+			src++;
 		} else {
 			*dst++ = *src++;
 		}

@@ -106,7 +106,7 @@ unsigned long jaf_line = 1;
 {HP}{H}*"."{H}+{P}{FS}?			{ RETURN_STRING(F_CONSTANT); }
 {HP}{H}+"."{P}{FS}?			{ RETURN_STRING(F_CONSTANT); }
 
-(\"([^"\\\n]|{ES})*\"{WS}*)+		{ yylval.string = make_string(yytext+1, yyleng-2); return STRING_LITERAL; }
+(\"([^"\\\n]|{ES})*\"{WS}*)+		{ RETURN_STRING(STRING_LITERAL); }
 
 "..."					{ return ELLIPSIS; }
 ">>="					{ return RIGHT_ASSIGN; }
