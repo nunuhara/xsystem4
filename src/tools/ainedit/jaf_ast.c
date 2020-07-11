@@ -231,14 +231,6 @@ struct jaf_type_specifier *jaf_type(enum jaf_type type)
 	return p;
 }
 
-struct jaf_type_specifier *jaf_struct(struct string *name, struct jaf_block *fields)
-{
-	struct jaf_type_specifier *p = jaf_type(JAF_STRUCT);
-	p->name = name;
-	p->def = fields;
-	return p;
-}
-
 struct jaf_type_specifier *jaf_typedef(struct string *name)
 {
 	struct jaf_type_specifier *p = jaf_type(JAF_TYPEDEF);
@@ -253,14 +245,6 @@ struct jaf_type_specifier *jaf_array_type(struct jaf_type_specifier *type, int r
 	type->qualifiers |= JAF_QUAL_ARRAY;
 	type->rank = rank;
 	return type;
-}
-
-void jaf_copy_type(struct jaf_type_specifier *dst, struct jaf_type_specifier *src)
-{
-	assert(!src->def);
-	*dst = *src;
-	if (src->name)
-		dst->name = string_dup(src->name);
 }
 
 struct jaf_declarator *jaf_declarator(struct string *name)
@@ -302,17 +286,17 @@ struct jaf_declarator_list *jaf_declarators(struct jaf_declarator_list *head, st
 
 static void init_declaration(struct jaf_type_specifier *type, struct jaf_block_item *dst, struct jaf_declarator *src)
 {
-	dst->kind = JAF_DECLARATION;
-	dst->decl.type = type;
+	dst->kind = JAF_DECL_VAR;
+	dst->var.type = type;
 	if (src) {
-		dst->decl.name = src->name;
-		dst->decl.init = src->init;
-		dst->decl.array_dims = src->array_dims;
+		dst->var.name = src->name;
+		dst->var.init = src->init;
+		dst->var.array_dims = src->array_dims;
 		if (src->array_rank && src->array_rank != type->rank)
 			ERROR("Invalid array declaration");
 		free(src);
 	} else {
-		dst->decl.name = make_string("", 0);
+		dst->var.name = make_string("", 0);
 	}
 }
 
@@ -333,26 +317,12 @@ struct jaf_function_declarator *jaf_function_declarator(struct string *name, str
 	decl->params = params;
 
 	// XXX: special case for f(void) functype declarator.
-	if (params && params->nr_items == 1 && params->items[0]->decl.type->type == JAF_VOID) {
+	if (params && params->nr_items == 1 && params->items[0]->var.type->type == JAF_VOID) {
 		decl->params = NULL;
 		jaf_free_block(params);
 	}
 
 	return decl;
-}
-
-struct jaf_block *jaf_functype(struct jaf_type_specifier *type, struct jaf_function_declarator *decl)
-{
-	struct jaf_block *p = xmalloc(sizeof(struct jaf_block));
-	p->nr_items = 1;
-	p->items = xmalloc(sizeof(struct jaf_block_item*));
-	p->items[0] = xcalloc(1, sizeof(struct jaf_block_item));
-	p->items[0]->kind = JAF_FUNCTYPE_DECL;
-	p->items[0]->decl.type = type;
-	p->items[0]->decl.name = decl->name;
-	p->items[0]->decl.params = decl->params;
-	free(decl);
-	return p;
 }
 
 struct jaf_block *jaf_function(struct jaf_type_specifier *type, struct jaf_function_declarator *decl, struct jaf_block *body)
@@ -361,16 +331,32 @@ struct jaf_block *jaf_function(struct jaf_type_specifier *type, struct jaf_funct
 	p->nr_items = 1;
 	p->items = xmalloc(sizeof(struct jaf_block_item*));
 	p->items[0] = xcalloc(1, sizeof(struct jaf_block_item));
-	p->items[0]->kind = JAF_FUNDECL;
-	p->items[0]->decl.type = type;
-	p->items[0]->decl.name = decl->name;
-	p->items[0]->decl.params = decl->params;
-	p->items[0]->decl.body = body;
+	p->items[0]->kind = JAF_DECL_FUN;
+	p->items[0]->fun.type = type;
+	p->items[0]->fun.name = decl->name;
+	p->items[0]->fun.params = decl->params;
+	p->items[0]->fun.body = body;
 	free(decl);
 	return p;
 }
 
-struct jaf_block *jaf_declaration(struct jaf_type_specifier *type, struct jaf_declarator_list *declarators)
+struct jaf_block *jaf_constructor(struct string *name, struct jaf_block *body)
+{
+	struct jaf_type_specifier *type = jaf_type(JAF_VOID);
+	type->qualifiers  = JAF_QUAL_CONSTRUCTOR;
+	struct jaf_function_declarator *decl = jaf_function_declarator(name, NULL);
+	return jaf_function(type, decl, body);
+}
+
+struct jaf_block *jaf_destructor(struct string *name, struct jaf_block *body)
+{
+	struct jaf_type_specifier *type = jaf_type(JAF_VOID);
+	type->qualifiers  = JAF_QUAL_DESTRUCTOR;
+	struct jaf_function_declarator *decl = jaf_function_declarator(name, NULL);
+	return jaf_function(type, decl, body);
+}
+
+struct jaf_block *jaf_vardecl(struct jaf_type_specifier *type, struct jaf_declarator_list *declarators)
 {
 	struct jaf_block *decls = xcalloc(1, sizeof(struct jaf_block));
 	decls->nr_items = declarators->nr_decls;
@@ -381,17 +367,6 @@ struct jaf_block *jaf_declaration(struct jaf_type_specifier *type, struct jaf_de
 	}
 	free(declarators->decls);
 	free(declarators);
-	return decls;
-}
-
-struct jaf_block *jaf_type_declaration(struct jaf_type_specifier *type)
-{
-	struct jaf_block *decls = xcalloc(1, sizeof(struct jaf_block));
-	decls->nr_items = 1;
-	decls->items = xcalloc(1, sizeof(struct jaf_block_item*));
-	decls->items[0] = xcalloc(1, sizeof(struct jaf_block_item));
-	decls->items[0]->kind = JAF_DECLARATION;
-	decls->items[0]->decl.type = type;
 	return decls;
 }
 
@@ -552,6 +527,30 @@ struct jaf_block_item *jaf_return(struct jaf_expression *expr)
 	return item;
 }
 
+struct jaf_block_item *jaf_struct(struct string *name, struct jaf_block *fields)
+{
+	struct jaf_block_item *p = block_item(JAF_DECL_STRUCT);
+	p->struc.name = name;
+	p->struc.members = xcalloc(1, sizeof(struct jaf_block));
+	p->struc.methods = xcalloc(1, sizeof(struct jaf_block));
+	p->struc.members->items = xcalloc(fields->nr_items, sizeof(struct jaf_block_item*));
+	p->struc.methods->items = xcalloc(fields->nr_items, sizeof(struct jaf_block_item*));
+	p->struc.struct_no = -1;
+
+	for (unsigned i = 0; i < fields->nr_items; i++) {
+		if (fields->items[i]->kind == JAF_DECL_VAR) {
+			p->struc.members->items[p->struc.members->nr_items++] = fields->items[i];
+		} else if (fields->items[i]->kind == JAF_DECL_FUN) {
+			p->struc.methods->items[p->struc.methods->nr_items++] = fields->items[i];
+		} else {
+			ERROR("Unhandled declaration type in struct definition");
+		}
+	}
+	free(fields->items);
+	free(fields);
+	return p;
+}
+
 void jaf_free_expr(struct jaf_expression *expr)
 {
 	if (!expr)
@@ -613,7 +612,6 @@ void jaf_free_type_specifier(struct jaf_type_specifier *type)
 		return;
 	if (type->name)
 		free_string(type->name);
-	jaf_free_block(type->def);
 	free(type);
 }
 
@@ -623,30 +621,32 @@ void jaf_free_block_item(struct jaf_block_item *item)
 		return;
 
 	switch (item->kind) {
-	case JAF_DECLARATION:
-		if (item->decl.name)
-			free_string(item->decl.name);
-		jaf_free_expr(item->decl.init);
-		if (item->decl.array_dims) {
-			for (size_t i = 0; i < item->decl.type->rank; i++) {
-				jaf_free_expr(item->decl.array_dims[i]);
+	case JAF_DECL_VAR:
+		free_string(item->var.name);
+		jaf_free_expr(item->var.init);
+		if (item->var.array_dims) {
+			for (size_t i = 0; i < item->var.type->rank; i++) {
+				jaf_free_expr(item->var.array_dims[i]);
 			}
-			free(item->decl.array_dims);
+			free(item->var.array_dims);
 		}
-		jaf_free_type_specifier(item->decl.type);
+		jaf_free_type_specifier(item->var.type);
 		break;
-	case JAF_FUNCTYPE_DECL:
-		if (item->decl.name)
-			free_string(item->decl.name);
-		jaf_free_type_specifier(item->decl.type);
-		jaf_free_block(item->decl.params);
+	case JAF_DECL_FUNCTYPE:
+		free_string(item->fun.name);
+		jaf_free_type_specifier(item->fun.type);
+		jaf_free_block(item->fun.params);
 		break;
-	case JAF_FUNDECL:
-		if (item->decl.name)
-			free_string(item->decl.name);
-		jaf_free_type_specifier(item->decl.type);
-		jaf_free_block(item->decl.params);
-		jaf_free_block(item->decl.body);
+	case JAF_DECL_FUN:
+		free_string(item->fun.name);
+		jaf_free_type_specifier(item->fun.type);
+		jaf_free_block(item->fun.params);
+		jaf_free_block(item->fun.body);
+		break;
+	case JAF_DECL_STRUCT:
+		free_string(item->struc.name);
+		jaf_free_block(item->struc.members);
+		jaf_free_block(item->struc.methods);
 		break;
 	case JAF_STMT_LABELED:
 		free_string(item->label.name);

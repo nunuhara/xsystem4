@@ -656,7 +656,7 @@ static void compile_nullexpr(struct compiler_state *state, enum ain_data_type ty
 	}
 }
 
-static void compile_vardecl(struct compiler_state *state, struct jaf_declaration *decl)
+static void compile_vardecl(struct compiler_state *state, struct jaf_vardecl *decl)
 {
 	enum ain_data_type type = jaf_to_ain_data_type(decl->type->type, decl->type->qualifiers);
 	switch (type) {
@@ -901,13 +901,15 @@ static void compile_message(struct compiler_state *state, struct jaf_block_item 
 static void compile_statement(struct compiler_state *state, struct jaf_block_item *item)
 {
 	switch (item->kind) {
-	case JAF_DECLARATION:
-		compile_vardecl(state, &item->decl);
+	case JAF_DECL_VAR:
+		compile_vardecl(state, &item->var);
 		break;
-	case JAF_FUNCTYPE_DECL:
+	case JAF_DECL_FUNCTYPE:
 		ERROR("Function types must be declared at top-level");
-	case JAF_FUNDECL:
-		ERROR("Nested functions not supported");
+	case JAF_DECL_FUN:
+		ERROR("Functions must be defined at top-level");
+	case JAF_DECL_STRUCT:
+		ERROR("Structs must be defined at top-level");
 	case JAF_STMT_LABELED:
 		ERROR("Labels not supported");
 	case JAF_STMT_COMPOUND:
@@ -969,7 +971,7 @@ static void compile_block(struct compiler_state *state, struct jaf_block *block)
 	}
 }
 
-static void compile_function(struct compiler_state *state, struct jaf_declaration *decl)
+static void compile_function(struct compiler_state *state, struct jaf_fundecl *decl)
 {
 	assert(decl->func_no >= 0 && decl->func_no < state->ain->nr_functions);
 	state->func_no = decl->func_no;
@@ -983,8 +985,8 @@ static void compile_function(struct compiler_state *state, struct jaf_declaratio
 
 static void compile_declaration(struct compiler_state *state, struct jaf_block_item *decl)
 {
-	if (decl->kind == JAF_FUNDECL) {
-		compile_function(state, &decl->decl);
+	if (decl->kind == JAF_DECL_FUN) {
+		compile_function(state, &decl->fun);
 		return;
 	}
 	if (decl->kind == JAF_EOF) {

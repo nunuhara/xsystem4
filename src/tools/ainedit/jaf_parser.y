@@ -140,6 +140,14 @@ static struct string *time_macro(void)
     return string_ftime("%H:%M:%S");
 }
 
+static struct jaf_block *jaf_functype(struct jaf_type_specifier *type, struct jaf_function_declarator *decl)
+{
+    struct jaf_block *b = jaf_function(type, decl, NULL);
+    b->items[0]->kind = JAF_DECL_FUNCTYPE;
+    jaf_define_functype(jaf_ain_out, &b->items[0]->fun);
+    return b;
+}
+
 %}
 
 %union {
@@ -182,7 +190,7 @@ static struct string *time_macro(void)
 %type	<expression>	conditional_expression assignment_expression
 %type	<expression>	expression constant_expression primary_expression constant
 %type	<args>		argument_expression_list
-%type	<type>		type_specifier struct_specifier declaration_specifiers
+%type	<type>		type_specifier declaration_specifiers
 %type	<declarator>	init_declarator declarator array_allocation
 %type	<declarators>	init_declarator_list struct_declarator_list
 %type	<block>		translation_unit external_declaration declaration function_definition
@@ -191,7 +199,7 @@ static struct string *time_macro(void)
 %type	<block>		functype_parameter_list functype_parameter_declaration
 %type	<block>		compound_statement block_item_list block_item
 %type	<statement>	statement labeled_statement expression_statement selection_statement
-%type	<statement>	iteration_statement jump_statement message_statement
+%type	<statement>	iteration_statement jump_statement message_statement struct_specifier
 %type	<fundecl>	function_declarator functype_declarator
 
 /*
@@ -363,8 +371,7 @@ constant_expression
 	;
 
 declaration
-	: declaration_specifiers ';'                      { $$ = jaf_type_declaration($1); }
-	| declaration_specifiers init_declarator_list ';' { $$ = jaf_declaration($1, $2); }
+	: declaration_specifiers init_declarator_list ';' { $$ = jaf_vardecl($1, $2); }
 	;
 
 declaration_specifiers
@@ -394,8 +401,6 @@ atomic_type_specifier
 
 type_specifier
 	: atomic_type_specifier                          { $$ = jaf_type($1); }
-	| struct_specifier                               { $$ = $1; }
-	| enum_specifier                                 { ERROR("Enums not supported"); }
 	| ARRAY '@' atomic_type_specifier                { $$ = jaf_array_type(jaf_type($3), 1); }
 	| ARRAY '@' atomic_type_specifier '@' I_CONSTANT { $$ = jaf_array_type(jaf_type($3), parse_int($5)); }
 	| ARRAY '@' TYPEDEF_NAME                         { $$ = jaf_array_type(jaf_typedef($3), 1); }
@@ -424,7 +429,13 @@ struct_declaration_list
 
 struct_declaration
 //	: type_specifier ';'	/* for anonymous struct/union */
-	: type_specifier struct_declarator_list ';' { $$ = jaf_declaration($1, $2); }
+	: declaration_specifiers struct_declarator_list ';'             { $$ = jaf_vardecl($1, $2); }
+	| declaration_specifiers functype_declarator ';'                { $$ = jaf_function($1, $2, NULL); }
+	| declaration_specifiers functype_declarator compound_statement { $$ = jaf_function($1, $2, $3); }
+	| IDENTIFIER '(' ')' compound_statement                         { $$ = jaf_constructor($1, $4); }
+	| IDENTIFIER '(' ')' ';'                                        { $$ = jaf_constructor($1, NULL); }
+	| '~' IDENTIFIER '(' ')' compound_statement                     { $$ = jaf_destructor($2, $5); }
+	| '~' IDENTIFIER '(' ')' ';'                                    { $$ = jaf_destructor($2, NULL); }
 	;
 
 struct_declarator_list
@@ -455,9 +466,8 @@ type_qualifier
 	;
 
 declarator
-	: IDENTIFIER                             { $$ = jaf_declarator($1); }
-//	| '(' declarator ')' // XXX: causes shift-reduce conflict with function-like casts (e.g. "string(identifier)")
-	| array_allocation                       { $$ = $1; }
+	: IDENTIFIER       { $$ = jaf_declarator($1); }
+	| array_allocation { $$ = $1; }
 	;
 
 array_allocation
@@ -466,8 +476,8 @@ array_allocation
 	;
 
 initializer
-	: '{' initializer_list '}'     { $$ = NULL; }
-	| '{' initializer_list ',' '}' { $$ = NULL; }
+	: '{' initializer_list '}'     { ERROR("Compound initializers not supported"); }
+	| '{' initializer_list ',' '}' { ERROR("Compound initializers not supported"); }
 	| assignment_expression        { $$ = $1; }
 	;
 
@@ -567,7 +577,9 @@ translation_unit
 external_declaration
 	: function_definition                                     { $$ = $1; }
 	| declaration                                             { $$ = $1; }
-	| FUNCTYPE declaration_specifiers functype_declarator ';' { $$ = jaf_functype($2, $3); jaf_define_functype(jaf_ain_out, &$$->items[0]->decl); }
+	| struct_specifier ';'                                    { $$ = jaf_block($1); }
+	| enum_specifier ';'                                      { ERROR("Enums not supported"); }
+	| FUNCTYPE declaration_specifiers functype_declarator ';' { $$ = jaf_functype($2, $3); }
 	;
 
 functype_declarator
