@@ -135,7 +135,10 @@ static bool ain_compare_code(struct ain *_a, struct ain *_b)
 			} else {
 				if (ia != ib) {
 					NOTICE("argument differs at 0x%08x (%d vs %d)", (uint32_t)a.addr, ia, ib);
-					return false;
+					// NOTE: If there's duplicate strings in the string table, string arguments
+					//       can change when rebuilding. This shouldn't matter (?).
+					if (a.instr->opcode != S_PUSH || strcmp(_a->strings[ia]->text, _b->strings[ib]->text))
+						return false;
 				}
 			}
 		}
@@ -192,8 +195,11 @@ static bool ain_compare_functions(struct ain *a, struct ain *b)
 			return false;
 		}
 		if (fa->address != fb->address) {
-			NOTICE("function address differs for %s (0x%08x vs 0x%08x)", fa->name, fa->address, fb->address);
-			return false;
+			// NOTE: address of NULL function doesn't matter
+			if (strcmp(fa->name, "NULL")) {
+				NOTICE("function address differs for %s (0x%08x vs 0x%08x)", fa->name, fa->address, fb->address);
+				return false;
+			}
 		}
 		if (fa->is_label != fb->is_label) {
 			NOTICE("function is_label differs for %s (%d vs %d)", fa->name, fa->is_label, fb->is_label);

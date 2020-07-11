@@ -441,7 +441,7 @@ static void decompose_switch_index(struct asm_state *state, char *in, int *switc
 static int find_member(struct ain_struct *s, char *_member_name)
 {
 	int member_no = -1;
-	char *member_name = encode_text_to_input_format(_member_name);
+	char *member_name = encode_text(_member_name);
 
 	for (int i = 0; i < s->nr_members; i++) {
 		if (!strcmp(member_name, s->members[i].name)) {

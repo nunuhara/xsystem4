@@ -61,14 +61,13 @@ enum {
 	LOPT_RAW,
 	LOPT_INPUT_ENCODING,
 	LOPT_OUTPUT_ENCODING,
-	LOPT_AIN_ENCODING,
 	LOPT_AIN_VERSION,
 	LOPT_SILENT,
 };
 
 iconv_t ain_conv;
 iconv_t print_conv;
-iconv_t ain_input_conv;
+iconv_t ain_utf8_conv;
 
 char *convert_text(iconv_t cd, const char *str);
 
@@ -78,14 +77,14 @@ char *encode_text(const char *str)
 	return convert_text(ain_conv, str);
 }
 
-char *encode_text_to_input_format(char *str)
-{
-	return convert_text(ain_input_conv, str);
-}
-
-char *encode_text_for_print(char *str)
+char *encode_text_for_print(const char *str)
 {
 	return convert_text(print_conv, str);
+}
+
+char *encode_ain_to_utf8(const char *str)
+{
+	return convert_text(ain_utf8_conv, str);
 }
 
 int main(int argc, char *argv[])
@@ -102,7 +101,6 @@ int main(int argc, char *argv[])
 	const char *output_file = NULL;
 	const char *input_encoding = "UTF-8";
 	const char *output_encoding = "CP932";
-	const char *ain_encoding = "CP932";
 	int ain_version = 4;
 	bool transcode = false;
 	uint32_t flags = 0;
@@ -119,7 +117,6 @@ int main(int argc, char *argv[])
 			{ "raw",             no_argument,       0, LOPT_RAW },
 			{ "input-encoding",  required_argument, 0, LOPT_INPUT_ENCODING },
 			{ "output-encoding", required_argument, 0, LOPT_OUTPUT_ENCODING },
-			{ "ain-encoding",    required_argument, 0, LOPT_AIN_ENCODING },
 			{ "ain-version",     required_argument, 0, LOPT_AIN_VERSION },
 			{ "silent",          no_argument,       0, LOPT_SILENT },
 		};
@@ -173,9 +170,6 @@ int main(int argc, char *argv[])
 		case LOPT_OUTPUT_ENCODING:
 			output_encoding = optarg;
 			break;
-		case LOPT_AIN_ENCODING:
-			ain_encoding = optarg;
-			break;
 		case LOPT_AIN_VERSION:
 			ain_version = atoi(optarg);
 			if (ain_version < 4 || ain_version > 12)
@@ -203,7 +197,7 @@ int main(int argc, char *argv[])
 	if ((print_conv = iconv_open("UTF-8", input_encoding)) == (iconv_t)-1) {
 		ERROR("iconv_open: %s", strerror(errno));
 	}
-	if ((ain_input_conv = iconv_open(ain_encoding, input_encoding)) == (iconv_t)-1) {
+	if ((ain_utf8_conv = iconv_open("UTF-8", output_encoding)) == (iconv_t)-1) {
 		ERROR("iconv_open: %s", strerror(errno));
 	}
 
@@ -223,6 +217,7 @@ int main(int argc, char *argv[])
 			ERROR("Failed to open ain file: %s", ain_strerror(err));
 		}
 	}
+	ain_init_member_functions(ain, encode_ain_to_utf8);
 
 	if (transcode) {
 		ain_transcode(ain);

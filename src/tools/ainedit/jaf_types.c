@@ -324,7 +324,7 @@ static void jaf_check_types_identifier(struct jaf_env *env, struct jaf_expressio
 {
 	int no;
 	struct ain_variable *v;
-	char *u = encode_text_to_input_format(expr->s->text);
+	char *u = encode_text(expr->s->text);
 	if ((v = jaf_env_lookup(env, u, &no))) {
 		expr->valuetype = v->type;
 		expr->ident.var_type = v->var_type;
@@ -456,7 +456,7 @@ static void jaf_check_types_member(struct jaf_env *env, struct jaf_expression *e
 		TYPE_ERROR(expr->member.struc, AIN_STRUCT);
 
 	expr->member.member_no = -1;
-	char *u = encode_text_to_input_format(expr->member.name->text);
+	char *u = encode_text(expr->member.name->text);
 	struct ain_struct *s = &env->ain->structures[expr->member.struc->valuetype.struc];
 	for (int i = 0; i < s->nr_members; i++) {
 		if (!strcmp(s->members[i].name, u)) {

@@ -329,6 +329,7 @@ struct ain *ain_open(const char *path, int *error);
 struct ain *ain_new(int version);
 void ain_decrypt(uint8_t *buf, size_t len);
 
+void ain_init_member_functions(struct ain *ain, char *(*to_ascii)(const char*));
 struct ain_function *ain_get_function(struct ain *ain, char *name);
 int ain_get_function_no(struct ain *ain, char *name);
 int ain_get_function_index(struct ain *ain, struct ain_function *f);

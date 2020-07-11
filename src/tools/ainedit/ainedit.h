@@ -87,7 +87,6 @@ void read_text(const char *filename, struct ain *ain);
 void ain_transcode(struct ain *ain);
 
 char *encode_text(const char *str);
-char *encode_text_to_input_format(char *str);
-char *encode_text_for_print(char *str);
+char *encode_text_for_print(const char *str);
 
 #endif /* AINEDIT_AINEDIT_H */

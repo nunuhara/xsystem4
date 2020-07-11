@@ -33,7 +33,7 @@ void jaf_define_struct(struct ain *ain, struct jaf_block_item *def)
 	if (!def->struc.name)
 		ERROR("Anonymous structs not supported");
 
-	char *u = encode_text_to_input_format(def->struc.name->text);
+	char *u = encode_text(def->struc.name->text);
 	if (ain_get_struct(ain, u))
 		ERROR("Redefining structs not supported");
 	def->struc.struct_no = ain_add_struct(ain, u);
@@ -43,7 +43,7 @@ void jaf_define_struct(struct ain *ain, struct jaf_block_item *def)
 void jaf_define_functype(struct ain *ain, struct jaf_fundecl *decl)
 {
 	struct ain_function_type f = {0};
-	f.name = encode_text_to_input_format(decl->name->text);
+	f.name = encode_text(decl->name->text);
 	if (ain_get_functype(ain, f.name) >= 0)
 		ERROR("Multiple definitions of function type '%s'", decl->name->text);
 	decl->func_no = ain_add_functype(ain, &f);
@@ -115,7 +115,7 @@ static void jaf_to_ain_type(possibly_unused struct ain *ain, struct ain_type *ou
 static void resolve_typedef(struct ain *ain, struct jaf_type_specifier *type)
 {
 	int no;
-	char *u = encode_text_to_input_format(type->name->text);
+	char *u = encode_text(type->name->text);
 	if ((no = ain_get_struct_no(ain, u)) >= 0) {
 		type->type = JAF_STRUCT;
 		type->struct_no = no;
@@ -230,7 +230,7 @@ static void analyze_message(struct jaf_env *env, struct jaf_block_item *item)
 		return;
 	}
 
-	char *u = encode_text_to_input_format(item->msg.func->text);
+	char *u = encode_text(item->msg.func->text);
 	if ((item->msg.func_no = ain_get_function_no(env->ain, u)) < 0)
 		ERROR("Undefined function: %s", item->msg.func->text);
 	free(u);
@@ -343,7 +343,7 @@ static void resolve_structdef_types(struct ain *ain, struct jaf_block_item *item
 	for (size_t i = 0; i < item->struc.members->nr_items; i++) {
 		if (jaf_members->items[i]->kind != JAF_DECL_VAR)
 			continue;
-		members[i].name = encode_text_to_input_format(jaf_members->items[i]->var.name->text);
+		members[i].name = encode_text(jaf_members->items[i]->var.name->text);
 		if (ain->version >= 12)
 			members[i].name2 = strdup("");
 		jaf_to_ain_type(ain, &members[i].type, jaf_members->items[i]->var.type);
@@ -420,7 +420,7 @@ static void jaf_resolve_types(struct ain *ain, struct jaf_block *block)
 
 static void init_variable(struct ain *ain, struct ain_variable *vars, int *var_no, struct jaf_vardecl *decl)
 {
-	vars[*var_no].name = encode_text_to_input_format(decl->name->text);
+	vars[*var_no].name = encode_text(decl->name->text);
 	if (ain->version >= 12)
 		vars[*var_no].name2 = strdup("");
 	jaf_to_ain_type(ain, &vars[*var_no].type, decl->type);
@@ -565,7 +565,7 @@ static void add_functype(struct ain *ain, struct jaf_fundecl *decl)
 
 static void add_global(struct ain *ain, struct jaf_vardecl *decl)
 {
-	char *u = encode_text_to_input_format(decl->name->text);
+	char *u = encode_text(decl->name->text);
 	struct ain_variable *v = ain_add_global(ain, u);
 	jaf_to_ain_type(ain, &v->type, decl->type);
 	decl->var_no = v - ain->globals;

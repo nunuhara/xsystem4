@@ -703,6 +703,7 @@ int main(int argc, char *argv[])
 		ERROR("Failed to open ain file: %s\n", ain_strerror(err));
 		return 1;
 	}
+	ain_init_member_functions(ain, encode_text_utf8);
 
 	for (int i = 0; i < dump_ptr; i++) {
 		switch (dump_targets[i]) {

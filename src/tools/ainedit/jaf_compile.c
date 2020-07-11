@@ -67,7 +67,7 @@ static void end_loop(struct compiler_state *state)
 
 static int get_string_no(struct compiler_state *state, struct string *s)
 {
-	char *u = encode_text_to_input_format(s->text);
+	char *u = encode_text(s->text);
 	int i = ain_add_string(state->ain, u);
 	free(u);
 	return i;
