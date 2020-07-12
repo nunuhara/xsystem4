@@ -159,6 +159,10 @@ nunuhara@haniwa.technology, or find me on /haniho/.
 Version History
 ---------------
 
+### [Version 0.5.1](https://haniwa.technology/alice-tools/alice-tools-0.5.1.zip)
+
+* Fixes issue when dumping ain files with ascii-incompatible encodings
+
 ### [Version 0.5.0](https://haniwa.technology/alice-tools/alice-tools-0.5.0.zip)
 
 * !!! Breaks bytecode compatibility with previous versions !!!
