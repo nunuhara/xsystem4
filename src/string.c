@@ -235,7 +235,10 @@ void string_erase(struct string **s, int index)
 	bytes = SJIS_2BYTE((*s)->text[index]) ? 2 : 1;
 
 	*s = cow_check(*s);
-	memcpy((*s)->text + index, (*s)->text + index + bytes, (*s)->size - index - bytes);
+	size_t size = (*s)->size - index - bytes;
+	for (size_t i = 0; i < size; i++) {
+		(*s)->text[index+i] = (*s)->text[index+bytes+i];
+	}
 	(*s)->size -= bytes;
 	(*s)->text[(*s)->size] = '\0';
 }
