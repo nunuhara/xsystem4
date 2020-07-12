@@ -24,16 +24,90 @@
 
 #define AUDIO_SLOT_ALLOC_STEP 256
 
-struct audio_slot {
+struct wav_slot {
 	Mix_Chunk *chunk;
 	int channel;
 	int no;
 };
 
-static struct {
-	struct audio_slot *slots;
+struct bgm_slot {
+	Mix_Music *music;
+	int no;
+};
+
+struct {
+	struct wav_slot *slots;
 	int nr_slots;
-} audio[2];
+} wav;
+
+struct {
+	struct bgm_slot *slots;
+	int nr_slots;
+	int playing;
+} bgm;
+
+#define BGI_MAX 100
+
+struct bgi {
+	int no;
+	int loopno;
+	int looptop;
+	int len;
+};
+
+static int bgi_nfile;
+static struct bgi bgi_data[BGI_MAX];
+
+static char *bgi_gets(char *buf, int n, FILE *fp) {
+	char *s = buf;
+	int c;
+	while (--n > 0 && (c = fgetc(fp)) != EOF) {
+		c = c >> 4 | (c & 0xf) << 4;  // decrypt
+		*s++ = c;
+		if (c == '\n')
+			break;
+	}
+	if (s == buf && c == EOF)
+		return NULL;
+	*s = '\0';
+	return buf;
+}
+
+static void bgi_read(const char *path)
+{
+	FILE *fp = fopen(path, "rb");
+	if (!fp) {
+		WARNING("Failed to open bgi file: %s", path);
+		return;
+	}
+
+	char buf[100];
+	while (bgi_nfile < BGI_MAX && bgi_gets(buf, sizeof(buf), fp)) {
+		int terminator;
+		if (sscanf(buf, " %d, %d, %d, %d, %d",
+				   &bgi_data[bgi_nfile].no,
+				   &bgi_data[bgi_nfile].loopno,
+				   &bgi_data[bgi_nfile].looptop,
+				   &bgi_data[bgi_nfile].len,
+				   &terminator) != 5
+			|| terminator != -1) {
+			continue;
+		}
+		bgi_nfile++;
+	}
+
+	for (int i = 0; i < bgi_nfile; i++) {
+		NOTICE("BGI %d: %d, %d, %d, %d", i, bgi_data[i].no, bgi_data[i].loopno, bgi_data[i].looptop, bgi_data[i].len);
+	}
+}
+
+possibly_unused static struct bgi *bgi_find(int no) {
+	for (int i = 0; i < bgi_nfile; i++) {
+		if (bgi_data[i].no == no)
+			return &bgi_data[i];
+	}
+	return NULL;
+}
 
 void audio_init(void)
 {
@@ -42,11 +116,15 @@ void audio_init(void)
 		WARNING("Audio initialization failed");
 	}
 
-	audio[AUDIO_MUSIC].slots = xcalloc(16, sizeof(struct audio_slot));
-	audio[AUDIO_MUSIC].nr_slots = 16;
+	wav.slots = xcalloc(16, sizeof(struct wav_slot));
+	wav.nr_slots = 16;
 
-	audio[AUDIO_SOUND].slots = xcalloc(16, sizeof(struct audio_slot));
-	audio[AUDIO_SOUND].nr_slots = 16;
+	bgm.slots = xcalloc(16, sizeof(struct bgm_slot));
+	bgm.nr_slots = 16;
+	bgm.playing = -1;
+
+	if (config.bgi_path)
+		bgi_read(config.bgi_path);
 }
 
 void audio_fini(void)
@@ -55,64 +133,92 @@ void audio_fini(void)
 	Mix_Quit();
 }
 
-static void audio_realloc(enum audio_type type, int new_size)
+static void wav_realloc(int new_size)
 {
-	audio[type].slots = xrealloc(audio[type].slots, new_size * sizeof(struct audio_slot));
-	for (int i = audio[type].nr_slots; i < new_size; i++) {
-		audio[type].slots[i].chunk = NULL;
-		audio[type].slots[i].channel = -1;
+	wav.slots = xrealloc(wav.slots, new_size * sizeof(struct wav_slot));
+	for (int i = wav.nr_slots; i < new_size; i++) {
+		wav.slots[i].chunk = NULL;
+		wav.slots[i].channel = -1;
 	}
-	audio[type].nr_slots = new_size;
+	wav.nr_slots = new_size;
 }
 
-static struct audio_slot *audio_alloc_channel(enum audio_type type, int ch)
+static void bgm_realloc(int new_size)
 {
-	if (ch >= audio[type].nr_slots)
-		audio_realloc(type, ch + AUDIO_SLOT_ALLOC_STEP);
-	return &audio[type].slots[ch];
+	bgm.slots = xrealloc(bgm.slots, new_size * sizeof(struct bgm_slot));
+	for (int i = bgm.nr_slots; i < new_size; i++) {
+		bgm.slots[i].music = NULL;
+	}
+	bgm.nr_slots = new_size;
 }
 
-int audio_get_unused_channel(enum audio_type type)
+static struct wav_slot *wav_alloc_channel(int ch)
 {
-	for (int i = 0; i < audio[type].nr_slots; i++) {
-		if (!audio[type].slots[i].chunk)
+	if (ch >= wav.nr_slots)
+		wav_realloc(ch + AUDIO_SLOT_ALLOC_STEP);
+	return &wav.slots[ch];
+}
+
+static struct bgm_slot *bgm_alloc_channel(int ch)
+{
+	if (ch >= bgm.nr_slots)
+		bgm_realloc(ch + AUDIO_SLOT_ALLOC_STEP);
+	return &bgm.slots[ch];
+}
+
+int wav_get_unused_channel(void)
+{
+	for (int i = 0; i < wav.nr_slots; i++) {
+		if (!wav.slots[i].chunk)
 			return i;
 	}
 
-	int slot = audio[type].nr_slots;
-	audio_realloc(type, slot + AUDIO_SLOT_ALLOC_STEP);
+	int slot = wav.nr_slots;
+	wav_realloc(slot + AUDIO_SLOT_ALLOC_STEP);
 	return slot;
 }
 
-static struct audio_slot *get_slot(enum audio_type type, int ch)
+int bgm_get_unused_channel(void)
 {
-	if (ch < 0 || ch >= audio[type].nr_slots)
-		return NULL;
-	return &audio[type].slots[ch];
-}
-
-static int audio_type_to_archive_type(enum audio_type type)
-{
-	switch (type) {
-	case AUDIO_MUSIC: return ALDFILE_BGM;
-	case AUDIO_SOUND: return ALDFILE_WAVE;
+	for (int i = 0; i < bgm.nr_slots; i++) {
+		if (!bgm.slots[i].music)
+			return i;
 	}
-	ERROR("Unknown audio type: %d", type);
+
+	int slot = bgm.nr_slots;
+	bgm_realloc(slot + AUDIO_SLOT_ALLOC_STEP);
+	return slot;
 }
 
-bool audio_exists(enum audio_type type, int no)
+static struct wav_slot *wav_get_slot(int ch)
 {
-	int archive = audio_type_to_archive_type(type);
-	return ald[archive] && archive_exists(ald[archive], no);
+	if (ch < 0 || ch >= wav.nr_slots)
+		return NULL;
+	return &wav.slots[ch];
 }
 
-static Mix_Chunk *load_chunk(enum audio_type type, int no)
+static struct bgm_slot *bgm_get_slot(int ch)
 {
-	struct archive_data *dfile;
-	int archive = audio_type_to_archive_type(type);
+	if (ch < 0 || ch >= bgm.nr_slots)
+		return NULL;
+	return &bgm.slots[ch];
+}
 
-	if (!(dfile = archive_get(ald[archive], no))) {
-		WARNING("Failed to load %s %d", archive == ALDFILE_BGM ? "BGM" : "WAV", no);
+bool wav_exists(int no)
+{
+	return ald[ALDFILE_WAVE] && archive_exists(ald[ALDFILE_WAVE], no);
+}
+
+bool bgm_exists(int no)
+{
+	return ald[ALDFILE_BGM] && archive_exists(ald[ALDFILE_BGM], no);
+}
+
+static Mix_Chunk *wav_load_chunk(int no)
+{
+	struct archive_data *dfile = archive_get(ald[ALDFILE_WAVE], no);
+	if (!dfile) {
+		WARNING("Failed to load WAV %d", no);
 		return NULL;
 	}
 
@@ -120,14 +226,33 @@ static Mix_Chunk *load_chunk(enum audio_type type, int no)
 	archive_free_data(dfile);
 
 	if (!chunk) {
-		WARNING("%s %d: not a valid audio file", archive == ALDFILE_BGM ? "BGM" : "WAV", no);
+		WARNING("WAV %d: not a valid audio file", no);
 		return NULL;
 	}
 
 	return chunk;
 }
 
-static void unload_slot(struct audio_slot *slot)
+static Mix_Music *bgm_load_music(int no)
+{
+	struct archive_data *dfile = archive_get(ald[ALDFILE_BGM], no);
+	if (!dfile) {
+		WARNING("Failed to load WAV %d", no);
+		return NULL;
+	}
+
+	Mix_Music *music = Mix_LoadMUSType_RW(SDL_RWFromConstMem(dfile->data, dfile->size), MUS_WAV, SDL_TRUE);
+	archive_free_data(dfile);
+
+	if (!music) {
+		WARNING("BGM %d: not a valid audio file", no);
+		return NULL;
+	}
+
+	return music;
+}
+
+static void wav_unload_slot(struct wav_slot *slot)
 {
 	if (slot->chunk) {
 		Mix_HaltChannel(slot->channel);
@@ -137,32 +262,63 @@ static void unload_slot(struct audio_slot *slot)
 	slot->channel = -1;
 }
 
-int audio_prepare(enum audio_type type, int ch, int no)
+static void bgm_unload_slot(struct bgm_slot *slot)
+{
+	if (slot->music) {
+		Mix_FreeMusic(slot->music);
+		slot->music = NULL;
+	}
+}
+
+int wav_prepare(int ch, int no)
 {
 	if (ch < 0)
 		return 0;
 
-	struct audio_slot *slot = audio_alloc_channel(type, ch);
-	unload_slot(slot);
+	struct wav_slot *slot = wav_alloc_channel(ch);
+	wav_unload_slot(slot);
 
-	audio[type].slots[ch].chunk = load_chunk(type, no);
-	audio[type].slots[ch].no = no;
-	return !!audio[type].slots[ch].chunk;
+	wav.slots[ch].chunk = wav_load_chunk(no);
+	wav.slots[ch].no = no;
+	return !!wav.slots[ch].chunk;
 }
 
-int audio_unprepare(enum audio_type type, int ch)
+int bgm_prepare(int ch, int no)
 {
-	struct audio_slot *slot = get_slot(type, ch);
+	if (ch < 0)
+		return 0;
+
+	struct bgm_slot *slot = bgm_alloc_channel(ch);
+	bgm_unload_slot(slot);
+
+	bgm.slots[ch].music = bgm_load_music(no);
+	bgm.slots[ch].no = no;
+	return !!bgm.slots[ch].music;
+}
+
+int wav_unprepare(int ch)
+{
+	struct wav_slot *slot = wav_get_slot(ch);
 	if (!slot)
 		return 0;
 
-	unload_slot(slot);
+	wav_unload_slot(slot);
 	return 1;
 }
 
-int audio_play(enum audio_type type, int ch)
+int bgm_unprepare(int ch)
 {
-	struct audio_slot *slot = get_slot(type, ch);
+	struct bgm_slot *slot = bgm_get_slot(ch);
+	if (!slot)
+		return 0;
+
+	bgm_unload_slot(slot);
+	return 1;
+}
+
+int wav_play(int ch)
+{
+	struct wav_slot *slot = wav_get_slot(ch);
 	if (!slot || !slot->chunk)
 		return 0;
 
@@ -170,14 +326,23 @@ int audio_play(enum audio_type type, int ch)
 		Mix_Resume(slot->channel);
 		return 1;
 	}
-
-	slot->channel = Mix_PlayChannel(-1, slot->chunk, type == AUDIO_MUSIC ? -1 : 0);
+	slot->channel = Mix_PlayChannel(-1, slot->chunk, 0);
 	return slot->channel >= 0;
 }
 
-int audio_stop(enum audio_type type, int ch)
+int bgm_play(int ch)
 {
-	struct audio_slot *slot = get_slot(type, ch);
+	struct bgm_slot *slot = bgm_get_slot(ch);
+	if (!slot || !slot->music)
+		return 0;
+
+	bgm.playing = slot - bgm.slots;
+	return !Mix_PlayMusic(slot->music, -1);
+}
+
+int wav_stop(int ch)
+{
+	struct wav_slot *slot = wav_get_slot(ch);
 	if (!slot)
 		return 0;
 
@@ -186,23 +351,46 @@ int audio_stop(enum audio_type type, int ch)
 	return 1;
 }
 
-bool audio_is_playing(enum audio_type type, int ch)
+int bgm_stop(int ch)
 {
-	struct audio_slot *slot = get_slot(type, ch);
-	return slot && slot->channel >= 0 && Mix_Playing(slot->channel);
-}
-
-int audio_fade(enum audio_type type, int ch, possibly_unused int time, possibly_unused int volume, bool stop)
-{
-	// TODO: fade
-	if (stop)
-		audio_stop(type, ch);
+	// FIXME: what if channel isn't playing?
+	if (bgm.playing == ch) {
+		Mix_FadeOutMusic(10);
+		bgm.playing = -1;
+	}
 	return 1;
 }
 
-int audio_get_time_length(enum audio_type type, int ch)
+bool wav_is_playing(int ch)
 {
-	struct audio_slot *slot = get_slot(type, ch);
+	struct wav_slot *slot = wav_get_slot(ch);
+	return slot && slot->channel >= 0 && Mix_Playing(slot->channel);
+}
+
+bool bgm_is_playing(int ch)
+{
+	return bgm.playing == ch && Mix_PlayingMusic();
+}
+
+int wav_fade(int ch, possibly_unused int time, possibly_unused int volume, bool stop)
+{
+	// TODO: fade
+	if (stop)
+		wav_stop(ch);
+	return 1;
+}
+
+int bgm_fade(int ch, possibly_unused int time, possibly_unused int volume, bool stop)
+{
+	// TODO: fade
+	if (stop)
+		bgm_stop(ch);
+	return 1;
+}
+
+int wav_get_time_length(int ch)
+{
+	struct wav_slot *slot = wav_get_slot(ch);
 	if (!slot || !slot->chunk)
 		return 0;
 

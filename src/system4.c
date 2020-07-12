@@ -140,31 +140,45 @@ static void init_gamedata_dir(const char *path)
 		int dno;
 		size_t len = strlen(d->d_name);
 		snprintf(filepath, 511, "%s/%s", path, d->d_name);
-		if (strcasecmp(d->d_name+len-4, ".ald"))
-			continue;
-		dno = toupper(*(d->d_name+len-5)) - 'A';
-		if (dno < 0 || dno >= ALD_FILEMAX)
-			continue;
+		if (!strcasecmp(d->d_name+len-4, ".ald")) {
+			dno = toupper(*(d->d_name+len-5)) - 'A';
+			if (dno < 0 || dno >= ALD_FILEMAX) {
+				WARNING("Invalid ALD index: %s", d->d_name);
+				continue;
+			}
 
-		switch (*(d->d_name+len-6)) {
-		case 'b':
-		case 'B':
-			ald_filenames[ALDFILE_BGM][dno] = strdup(filepath);
-			ald_count[ALDFILE_BGM] = max(ald_count[ALDFILE_BGM], dno+1);
-			break;
-		case 'g':
-		case 'G':
-			ald_filenames[ALDFILE_CG][dno] = strdup(filepath);
-			ald_count[ALDFILE_CG] = max(ald_count[ALDFILE_CG], dno+1);
-			break;
-		case 'w':
-		case 'W':
-			ald_filenames[ALDFILE_WAVE][dno] = strdup(filepath);
-			ald_count[ALDFILE_WAVE] = max(ald_count[ALDFILE_WAVE], dno+1);
-			break;
-		default:
-			WARNING("Unhandled ALD file: %s", d->d_name);
-			break;
+			switch (*(d->d_name+len-6)) {
+			case 'b':
+			case 'B':
+				ald_filenames[ALDFILE_BGM][dno] = strdup(filepath);
+				ald_count[ALDFILE_BGM] = max(ald_count[ALDFILE_BGM], dno+1);
+				break;
+			case 'g':
+			case 'G':
+				ald_filenames[ALDFILE_CG][dno] = strdup(filepath);
+				ald_count[ALDFILE_CG] = max(ald_count[ALDFILE_CG], dno+1);
+				break;
+			case 'w':
+			case 'W':
+				ald_filenames[ALDFILE_WAVE][dno] = strdup(filepath);
+				ald_count[ALDFILE_WAVE] = max(ald_count[ALDFILE_WAVE], dno+1);
+				break;
+			default:
+				WARNING("Unhandled ALD file: %s", d->d_name);
+				break;
+			}
+		} else if (!strcasecmp(d->d_name+len-4, ".bgi")) {
+			if (config.bgi_path) {
+				WARNING("Multiple bgi files");
+				continue;
+			}
+			config.bgi_path = strdup(filepath);
+		} else if (!strcasecmp(d->d_name+len-4, ".wai")) {
+			if (config.wai_path) {
+				WARNING("Multiple wai files");
+				continue;
+			}
+			config.wai_path = strdup(filepath);
 		}
 	}
 

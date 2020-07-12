@@ -29,6 +29,9 @@ struct config {
 	char *home_dir;
 	int view_width;
 	int view_height;
+
+	char *bgi_path;
+	char *wai_path;
 };
 
 struct config config;

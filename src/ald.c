@@ -341,7 +341,6 @@ struct archive *ald_open(char **files, int count, int flags, int *error)
 	for (int i = 0; i < count; i++) {
 		if (!files[i])
 			continue;
-		printf("OPENING FILE %s\n", files[i]);
 		if (!(fp = fopen(files[i], "r"))) {
 			*error = ARCHIVE_FILE_ERROR;
 			goto exit_err;

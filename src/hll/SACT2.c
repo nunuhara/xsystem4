@@ -120,82 +120,82 @@ int sact_CG_IsExist(int cg_no)
 
 int sact_Music_IsExist(int n)
 {
-	return audio_exists(AUDIO_MUSIC, n - 1);
+	return bgm_exists(n - 1);
 }
 
 int sact_Music_Prepare(int ch, int n)
 {
-	return audio_prepare(AUDIO_MUSIC, ch, n - 1);
+	return bgm_prepare(ch, n - 1);
 }
 
 int sact_Music_Unprepare(int ch)
 {
-	return audio_unprepare(AUDIO_MUSIC, ch);
+	return bgm_unprepare(ch);
 }
 
 int sact_Music_Play(int ch)
 {
-	return audio_play(AUDIO_MUSIC, ch);
+	return bgm_play(ch);
 }
 
 int sact_Music_Stop(int ch)
 {
-	return audio_stop(AUDIO_MUSIC, ch);
+	return bgm_stop(ch);
 }
 
 int sact_Music_IsPlay(int ch)
 {
-	return audio_is_playing(AUDIO_MUSIC, ch);
+	return bgm_is_playing(ch);
 }
 
 int sact_Music_Fade(int ch, int time, int volume, int stop)
 {
-	return audio_fade(AUDIO_MUSIC, ch, time, volume, stop);
+	return bgm_fade(ch, time, volume, stop);
 }
 
 int sact_Sound_IsExist(int n)
 {
-	return audio_exists(AUDIO_SOUND, n - 1);
+	return wav_exists(n - 1);
 }
 
 int sact_Sound_GetUnuseChannel(void)
 {
-	return audio_get_unused_channel(AUDIO_SOUND);
+	return wav_get_unused_channel();
 }
 
 int sact_Sound_Prepare(int ch, int n)
 {
-	return audio_prepare(AUDIO_SOUND, ch, n - 1);
+	return wav_prepare(ch, n - 1);
 }
 
 int sact_Sound_Unprepare(int ch)
 {
-	return audio_unprepare(AUDIO_SOUND, ch);
+	return wav_unprepare(ch);
 }
 
 int sact_Sound_Play(int ch)
 {
-	return audio_play(AUDIO_SOUND, ch);
+	return wav_play(ch);
 }
 
 int sact_Sound_Stop(int ch)
 {
-	return audio_stop(AUDIO_SOUND, ch);
+	return wav_stop(ch);
 }
 
 int sact_Sound_IsPlay(int ch)
 {
-	return audio_is_playing(AUDIO_SOUND, ch);
+	return wav_is_playing(ch);
 }
 
 int sact_Sound_Fade(int ch, int time, int volume, int stop)
 {
-	return audio_fade(AUDIO_SOUND, ch, time, volume, stop);
+	return wav_fade(ch, time, volume, stop);
 }
 
 int sact_Sound_GetTimeLength(int ch)
 {
-	return audio_get_time_length(AUDIO_SOUND, ch);
+	return wav_get_time_length(ch);
 }
 
 void sact_System_GetDate(int *year, int *month, int *mday, int *wday)
