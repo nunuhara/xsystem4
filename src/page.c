@@ -251,11 +251,28 @@ void create_struct(int no, union vm_value *var)
 	init_struct(no, var->i);
 }
 
+static enum ain_data_type unref_array_type(enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_REF_ARRAY_INT:       return AIN_ARRAY_INT;
+	case AIN_REF_ARRAY_FLOAT:     return AIN_ARRAY_FLOAT;
+	case AIN_REF_ARRAY_STRING:    return AIN_ARRAY_STRING;
+	case AIN_REF_ARRAY_STRUCT:    return AIN_ARRAY_STRUCT;
+	case AIN_REF_ARRAY_FUNC_TYPE: return AIN_ARRAY_FUNC_TYPE;
+	case AIN_REF_ARRAY_BOOL:      return AIN_ARRAY_BOOL;
+	case AIN_REF_ARRAY_LONG_INT:  return AIN_ARRAY_LONG_INT;
+	case AIN_REF_ARRAY_DELEGATE:  return AIN_ARRAY_DELEGATE;
+	case AIN_ARRAY_TYPE:          return type;
+	default: ERROR("Attempt to array allocate non-array type");
+	}
+}
+
 struct page *alloc_array(int rank, union vm_value *dimensions, enum ain_data_type data_type, int struct_type, bool init_structs)
 {
 	if (rank < 1)
 		return NULL;
 
+	data_type = unref_array_type(data_type);
 	enum ain_data_type type = array_type(data_type);
 	struct page *page = alloc_page(ARRAY_PAGE, data_type, dimensions->i);
 	page->struct_type = struct_type;
