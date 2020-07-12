@@ -42,7 +42,7 @@ id_char  [^ \t\r\n:;\"]
 
 %%
 
-[ \t]                     ;
+[ \t\r]                   ;
 ;[^\n]*\n                 asm_line++; return NEWLINE;
 \n                        asm_line++; return NEWLINE;
 [a-zA-Z0-9_-]+:           asm_lval.string = make_string(asm_text, asm_leng-1); return LABEL;

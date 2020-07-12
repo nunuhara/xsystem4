@@ -109,7 +109,6 @@ struct asm_state {
 	int32_t func;
 	int32_t func_stack[ASM_FUNC_STACK_SIZE];
 	int32_t lib;
-	struct hash_table *str_ht;
 };
 
 const_pure int32_t asm_instruction_width(int opcode)
@@ -126,22 +125,6 @@ static void init_asm_state(struct asm_state *state, struct ain *ain, uint32_t fl
 	state->flags = flags;
 	state->func = -1;
 	state->lib = -1;
-	state->str_ht = ht_create(4096);
-
-	for (intptr_t i = 0; i < ain->nr_strings; i++) {
-		struct ht_slot *p = ht_put(state->str_ht, ain->strings[i]->text);
-		if (p->value) {
-			char *u = encode_text_for_print(ain->strings[i]->text);
-			WARNING("Duplicate string in ain file: \"%s\"", u);
-			free(u);
-		}
-		p->value = (void*)(i+1);
-	}
-}
-
-static void fini_asm_state(struct asm_state *state)
-{
-	ht_free(state->str_ht);
 }
 
 static void asm_write_opcode(struct asm_state *state, uint16_t opcode)
@@ -253,18 +236,9 @@ static void realloc_message_table(struct ain *ain, int i)
 static int asm_add_string(struct asm_state *state, const char *str)
 {
 	char *sjis = encode_text(str);
-	struct ht_slot *p = ht_put(state->str_ht, sjis);
-	if (p->value) {
-		free(sjis);
-		return (intptr_t)p->value - 1;
-	}
-
-	int i = state->ain->nr_strings;
-	realloc_string_table(state->ain, i);
-	state->ain->strings[i] = make_string(sjis, strlen(sjis));
-	p->key = state->ain->strings[i]->text;
+	int no = ain_add_string(state->ain, sjis);
 	free(sjis);
-	return i;
+	return no;
 }
 
 static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enum instruction_argtype type, const char *arg)
@@ -941,6 +915,4 @@ void asm_assemble_jam(const char *filename, struct ain *ain, uint32_t flags)
 	ain->code_size = state.buf_ptr;
 
 	validate_ain(ain);
-
-	fini_asm_state(&state);
 }
