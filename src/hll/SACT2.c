@@ -16,17 +16,20 @@
 
 #include <math.h>
 #include <time.h>
+
+#include "system4.h"
+#include "system4/ain.h"
+#include "system4/ald.h"
+#include "system4/cg.h"
+#include "system4/string.h"
+
 #include "hll.h"
 #include "audio.h"
 #include "input.h"
 #include "queue.h"
 #include "gfx/gfx.h"
 #include "sact.h"
-#include "system4.h"
-#include "system4/ain.h"
-#include "system4/ald.h"
-#include "system4/cg.h"
-#include "system4/string.h"
+#include "xsystem4.h"
 
 int sact_GAME_MSG_GetNumOf(void)
 {

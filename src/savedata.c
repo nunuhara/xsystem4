@@ -19,13 +19,16 @@
 #include <string.h>
 #include <errno.h>
 #include "cJSON.h"
-#include "savedata.h"
+
 #include "system4.h"
 #include "system4/ain.h"
 #include "system4/string.h"
+
+#include "savedata.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "xsystem4.h"
 
 static int current_global;
 

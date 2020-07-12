@@ -73,22 +73,6 @@ mem_alloc void *xrealloc_array(void *dst, size_t old_nmemb, size_t new_nmemb, si
 		_a < _b ? _a : _b;		\
 	})
 
-struct config {
-	char *game_name;
-	char *ain_filename;
-	char *game_dir;
-	char *save_dir;
-	char *home_dir;
-	int view_width;
-	int view_height;
-};
-
-struct config config;
-
-char *unix_path(const char *path);
-char *gamedir_path(const char *path);
-char *savedir_path(const char *filename);
-
 #ifdef _WIN32
 #define SIZE_T_FMT "I"
 #else

@@ -14,15 +14,17 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <webp/decode.h>
-#include "little_endian.h"
+
 #include "system4.h"
 #include "system4/ald.h"
 #include "system4/cg.h"
 #include "system4/webp.h"
+
+#include "little_endian.h"
+#include "xsystem4.h"
 
 bool webp_checkfmt(const uint8_t *data)
 {

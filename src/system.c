@@ -14,7 +14,6 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -108,35 +107,4 @@ noreturn void sys_exit(int code)
 {
 	// TODO: cleanup
 	exit(code);
-}
-
-char *unix_path(const char *path)
-{
-	char *utf = sjis2utf(path, strlen(path));
-	for (int i = 0; utf[i]; i++) {
-		if (utf[i] == '\\')
-			utf[i] = '/';
-	}
-	return utf;
-}
-
-char *gamedir_path(const char *path)
-{
-	char *utf = unix_path(path);
-	char *gamepath = xmalloc(strlen(config.game_dir) + strlen(utf) + 2);
-	strcpy(gamepath, config.game_dir);
-	strcat(gamepath, "/");
-	strcat(gamepath, utf);
-
-	free(utf);
-	return gamepath;
-}
-
-char *savedir_path(const char *filename)
-{
-	char *path = xmalloc(strlen(config.save_dir) + 1 + strlen(filename) + 1);
-	strcpy(path, config.save_dir);
-	strcat(path, "/");
-	strcat(path, filename);
-	return path;
 }

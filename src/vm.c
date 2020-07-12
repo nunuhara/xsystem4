@@ -23,18 +23,20 @@
 #include <errno.h>
 #include <SDL.h> // for system.MsgBox
 
-#include "debugger.h"
-#include "file.h"
-#include "little_endian.h"
-#include "savedata.h"
 #include "system4.h"
 #include "system4/ain.h"
 #include "system4/instructions.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
+
+#include "debugger.h"
+#include "file.h"
+#include "little_endian.h"
+#include "savedata.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "xsystem4.h"
 
 #if (!defined(_WIN32) && !defined(__WIN32__))
 #include <spawn.h>

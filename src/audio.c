@@ -14,11 +14,13 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include <stdbool.h>
 #include <SDL_mixer.h>
-#include "audio.h"
+
 #include "system4.h"
 #include "system4/ald.h"
+
+#include "audio.h"
+#include "xsystem4.h"
 
 #define AUDIO_SLOT_ALLOC_STEP 256
 

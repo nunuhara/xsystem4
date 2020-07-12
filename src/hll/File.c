@@ -20,13 +20,16 @@
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
+
+#include "system4.h"
+#include "system4/string.h"
+
 #include "hll.h"
 #include "file.h"
 #include "savedata.h"
-#include "system4.h"
-#include "system4/string.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "xsystem4.h"
 
 static FILE *current_file = NULL;
 static char *file_contents = NULL;

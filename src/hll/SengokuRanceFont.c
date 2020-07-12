@@ -17,14 +17,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <dirent.h>
+
 #include "system4.h"
 #include "system4/fnl.h"
 #include "system4/string.h"
+
 #include "gfx/gfx.h"
 #include "vm/page.h"
 #include "sact.h"
 #include "kvec.h"
 #include "hll.h"
+#include "xsystem4.h"
 
 static struct fnl *fontlib;
 

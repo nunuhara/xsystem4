@@ -20,11 +20,13 @@
 #include <string.h>
 #include <errno.h>
 
+#include "system4.h"
+#include "system4/cg.h"
+
 #include "gfx/gfx.h"
 #include "gfx/private.h"
 #include "file.h"
-#include "system4.h"
-#include "system4/cg.h"
+#include "xsystem4.h"
 
 /*
  * Transform from the window coordinate system -> clip-space.

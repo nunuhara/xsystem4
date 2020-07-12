@@ -14,17 +14,21 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include "audio.h"
-#include "input.h"
-#include "gfx/gfx.h"
-#include "sact.h"
+#include <stdlib.h>
+
 #include "system4.h"
 #include "system4/ald.h"
 #include "system4/cg.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
+
+#include "audio.h"
+#include "input.h"
+#include "gfx/gfx.h"
+#include "sact.h"
 #include "vm.h"
 #include "vm/page.h"
+#include "xsystem4.h"
 
 static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
 

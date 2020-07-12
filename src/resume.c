@@ -21,12 +21,16 @@
 #include <string.h>
 #include <errno.h>
 #include "cJSON.h"
+
+#include "system4.h"
+#include "system4/string.h"
+
 #include "file.h"
 #include "savedata.h"
-#include "system4/string.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "xsystem4.h"
 
 /*
  * Save/load VM images as JSON.

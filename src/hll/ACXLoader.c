@@ -17,10 +17,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <zlib.h>
+
+#include "system4.h"
+#include "system4/string.h"
+
 #include "hll.h"
 #include "little_endian.h"
-#include "system4/string.h"
 #include "vm/page.h"
+#include "xsystem4.h"
 
 struct acx_file {
 	int compressed_size;
