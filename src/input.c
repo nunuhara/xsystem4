@@ -81,6 +81,29 @@ static void mouse_event(SDL_MouseButtonEvent *e)
 		key_state[code] = e->state == SDL_PRESSED;
 }
 
+static void(*input_handler)(const char*);
+static void(*editing_handler)(const char*, int, int);
+
+void register_input_handler(void(*handler)(const char*))
+{
+	input_handler = handler;
+}
+
+void clear_input_handler(void)
+{
+	input_handler = NULL;
+}
+
+void register_editing_handler(void(*handler)(const char*, int, int))
+{
+	editing_handler = handler;
+}
+
+void clear_editing_handler(void)
+{
+	editing_handler = NULL;
+}
+
 void handle_events(void)
 {
 	SDL_Event e;
@@ -122,6 +145,14 @@ void handle_events(void)
 			break;
 		case SDL_MOUSEWHEEL:
 			wheel_dir = e.wheel.y;
+			break;
+		case SDL_TEXTINPUT:
+			if (input_handler)
+				input_handler(e.text.text);
+			break;
+		case SDL_TEXTEDITING:
+			if (editing_handler)
+				editing_handler(e.edit.text, e.edit.start, e.edit.length);
 			break;
 		default:
 			break;

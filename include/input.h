@@ -143,5 +143,9 @@ void key_clear_flag(void);
 void mouse_get_pos(int *x, int *y);
 void mouse_get_wheel(int *forward, int *back);
 void mouse_clear_wheel(void);
+void register_input_handler(void(*handler)(const char*));
+void clear_input_handler(void);
+void register_editing_handler(void(*handler)(const char*, int, int));
+void clear_editing_handler(void);
 
 #endif /* SYSTEM4_INPUT_H */

@@ -125,6 +125,7 @@ void hll_call(int libno, int fno)
 		if (f->return_type.data == AIN_STRING) {
 			int slot = heap_alloc_slot(VM_STRING);
 			heap[slot].s = r.ref;
+			stack_push(slot);
 		} else {
 			stack_push(r);
 		}
@@ -139,6 +140,7 @@ extern struct static_library lib_Confirm2;
 extern struct static_library lib_DrawGraph;
 extern struct static_library lib_DrawPluginManager;
 extern struct static_library lib_File;
+extern struct static_library lib_InputString;
 extern struct static_library lib_Math;
 extern struct static_library lib_MsgLogManager;
 extern struct static_library lib_MsgLogViewer;
@@ -158,6 +160,7 @@ static struct static_library *static_libraries[] = {
 	&lib_DrawGraph,
 	&lib_DrawPluginManager,
 	&lib_File,
+	&lib_InputString,
 	&lib_Math,
 	&lib_MsgLogManager,
 	&lib_MsgLogViewer,
