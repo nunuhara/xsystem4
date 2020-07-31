@@ -64,7 +64,7 @@ static int get_base_cg(uint8_t *data, size_t size)
 	return LittleEndian_getDW(data, size-4);
 }
 
-void webp_extract(uint8_t *data, size_t size, struct cg *cg)
+void webp_extract(uint8_t *data, size_t size, struct cg *cg, struct archive *ar)
 {
 	cg->pixels = WebPDecodeRGBA(data, size, &cg->metrics.w, &cg->metrics.h);
 	webp_init_metrics(&cg->metrics);
@@ -75,7 +75,7 @@ void webp_extract(uint8_t *data, size_t size, struct cg *cg)
 		return;
 
 	// FIXME: possible infinite recursion on broken/malicious ALD
-	struct cg *base_cg = cg_load(ald[ALDFILE_CG], base-1);
+	struct cg *base_cg = cg_load(ar, base-1);
 	if (base_cg->metrics.w != cg->metrics.w || base_cg->metrics.h != cg->metrics.h) {
 		ERROR("webp base CG dimensions don't match: (%d,%d) / (%d,%d)",
 		      base_cg->metrics.w, base_cg->metrics.h, cg->metrics.w, cg->metrics.h);

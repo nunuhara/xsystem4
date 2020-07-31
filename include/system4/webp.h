@@ -23,9 +23,10 @@
 
 struct cg;
 struct cg_metrics;
+struct archive;
 
 bool webp_checkfmt(const uint8_t *data);
-void webp_extract(uint8_t *data, size_t size, struct cg *cg);
+void webp_extract(uint8_t *data, size_t size, struct cg *cg, struct archive *ar);
 void webp_get_metrics(uint8_t *data, size_t size, struct cg_metrics *m);
 
 #endif /* SYSTEM4_WEBP_H */

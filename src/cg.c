@@ -106,7 +106,7 @@ struct cg *cg_load_data(struct archive_data *dfile)
 		WARNING("Unimplemented CG type: PNG");
 		break;
 	case ALCG_WEBP:
-		webp_extract(dfile->data, dfile->size, cg);
+		webp_extract(dfile->data, dfile->size, cg, dfile->archive);
 		break;
 	case ALCG_DCF:
 		dcf_extract(dfile->data, dfile->size, cg);
