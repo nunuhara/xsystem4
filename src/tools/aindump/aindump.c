@@ -314,8 +314,8 @@ static void ain_dump_text(FILE *f, struct ain *ain)
 static void ain_dump_messages(FILE *f, struct ain *ain)
 {
 	for (int i = 0; i < ain->nr_messages; i++) {
-		fprintf(f, "0x%08x:\t", i);
 		print_sjis(f, ain->messages[i]->text);
+		fputc('\n', f);
 	}
 }
 
