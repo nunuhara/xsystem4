@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
 			// extract glyphs
 			for (size_t g = 0; g < font_face->nr_glyphs; g++) {
 				struct fnl_glyph *glyph = &font_face->glyphs[g];
-				if (!glyph->data)
+				if (!glyph->data_pos)
 					continue;
 
 				sprintf(path, "%s/font_%u/face_%u/glyph_%u.webp", output_dir, (unsigned)font, (unsigned)face, (unsigned)g);
@@ -129,9 +129,13 @@ int main(int argc, char *argv[])
 					ERROR("fopen failed: %s", strerror(errno));
 				}
 
+				unsigned long data_size;
+				uint8_t *data = fnl_glyph_data(fnl, glyph, &data_size);
+
 				uint32_t height = font_face->height;
-				uint32_t width = (glyph->data_size*8) / height;
-				write_bitmap(f, width, height, glyph->data);
+				uint32_t width = (data_size*8) / height;
+				write_bitmap(f, width, height, data);
+				free(data);
 				fclose(f);
 			}
 		}

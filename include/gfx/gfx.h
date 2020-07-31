@@ -183,7 +183,22 @@ struct fnl_font_inst {
 	int outline_size;
 };
 
+struct text_style {
+	unsigned font_type;
+	float size;
+	float bold_width;
+	SDL_Color color;
+	float edge_width;
+	SDL_Color edge_color;
+	float scale_x;
+	float space_scale_x;
+	float font_spacing;
+
+	struct fnl_font_size *font_size;
+};
+
+struct fnl;
 struct fnl_font_face;
-int fnl_draw_text(struct fnl_font_inst *font, Texture *dst, int x, int y, char *text);
+int fnl_draw_text(struct fnl *fnl, struct text_style *ts, Texture *dst, int x, int y, char *text);
 
 #endif /* SYSTEM4_SDL_CORE_H */

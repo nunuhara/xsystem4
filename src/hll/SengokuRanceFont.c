@@ -25,7 +25,6 @@
 #include "gfx/gfx.h"
 #include "vm/page.h"
 #include "sact.h"
-#include "kvec.h"
 #include "hll.h"
 #include "xsystem4.h"
 
@@ -43,13 +42,48 @@ struct text_metrics sr_tm = {
 	.outline_down = 1
 };
 
-kvec_t(struct text_metrics) sp_tm;
+struct text_style *sp_ts;
+int nr_ts = 0;
 
-static struct text_metrics *get_sp_metrics(int sp_no)
+static struct text_style *get_sp_metrics(int sp_no)
 {
-	(void)kv_a(struct text_metrics, sp_tm, sp_no);
-	return &kv_A(sp_tm, sp_no);
+	if (sp_no > nr_ts) {
+		nr_ts = sp_no + 256;
+		sp_ts = xrealloc(sp_ts, nr_ts * sizeof(struct text_style));
+	}
+	return sp_ts + sp_no;
 }
+
+static unsigned get_font_type(int type)
+{
+	unsigned font = type - 256;
+	if (font >= fontlib->nr_fonts) {
+		WARNING("Invalid font type: %d", type);
+		// XXX: Really not sure why this is how it works...
+		font = type == 1 ? 2 : 1;
+	}
+	return font;
+}
+
+/*
+static unsigned get_font_face(int font, float height)
+{
+	float min_diff = 9999;
+	unsigned closest = 0;
+
+	// FIXME: this isn't right; see comment for GetActualFontSize
+	for (unsigned i = 0; i < fontlib->fonts[font].nr_faces; i++) {
+		if (fontlib->fonts[font].faces[i].height == height)
+			return i;
+		float diff = fabsf(height - fontlib->fonts[font].faces[i].height);
+		if (diff < min_diff) {
+			min_diff = diff;
+			closest = i;
+		}
+	}
+	return closest;
+}
+*/
 
 void SengokuRanceFont_AlphaComposite(int spriteNumberDest, int destX, int destY, int spriteNumberSrc, int srcX, int srcY, int w, int h);
 
@@ -154,98 +188,76 @@ void SengokuRanceFont_SP_TextNewLine(int spriteNumber, float fontSize);
 
 void SengokuRanceFont_SP_SetTextMetricsClassic(int sp_no, struct page *page)
 {
-	struct text_metrics *tm = get_sp_metrics(sp_no);
-	tm->color.r         = page->values[0].i;
-	tm->color.g         = page->values[1].i;
-	tm->color.b         = page->values[2].i;
-	tm->color.a         = 255;
-	tm->size            = page->values[3].i;
-	tm->weight          = page->values[4].i;
-	//tm->face            = page->values[5].i;
-	tm->face            = FONT_MINCHO;
-	tm->outline_left    = page->values[6].i;
-	tm->outline_up      = page->values[7].i;
-	tm->outline_right   = page->values[8].i;
-	tm->outline_down    = page->values[9].i;
-	tm->outline_color.r = page->values[10].i;
-	tm->outline_color.g = page->values[11].i;
-	tm->outline_color.b = page->values[12].i;
-	tm->outline_color.a = 255;
+	struct text_style *ts = get_sp_metrics(sp_no);
+	ts->font_type     = get_font_type(256);
+	ts->color.r       = page->values[0].i;
+	ts->color.g       = page->values[1].i;
+	ts->color.b       = page->values[2].i;
+	ts->color.a       = 255;
+	ts->size          = page->values[3].i;
+	//ts->weight        = page->values[4].i;
+	//ts->face          = page->values[5].i;
+	ts->edge_width    = max(page->values[6].i, max(page->values[7].i, max(page->values[8].i, page->values[9].i)));
+	ts->edge_color.r  = page->values[10].i;
+	ts->edge_color.g  = page->values[11].i;
+	ts->edge_color.b  = page->values[12].i;
+	ts->edge_color.a  = 255;
+	ts->bold_width    = 0; // FIXME: use weight?
+	ts->scale_x       = 1;
+	ts->space_scale_x = 1;
+	ts->font_spacing  = 1;
+	ts->font_size     = fnl_get_font_size(&fontlib->fonts[ts->font_type], ts->size);
 }
 
-static float boldwidth = 0;
-
-void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *ts)
+void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *page)
 {
-	struct text_metrics *tm = get_sp_metrics(sp_no);
-	// FontType
-	tm->weight = FW_NORMAL;
-	tm->face = FONT_MINCHO;
-	tm->size            = ts->values[1].f;
-	// BoldWidth
-	boldwidth = ts->values[2].f;
-	tm->color.r         = ts->values[3].i;
-	tm->color.g         = ts->values[4].i;
-	tm->color.b         = ts->values[5].i;
-	tm->color.a         = 255;
-	tm->outline_left    = ts->values[6].f;
-	tm->outline_up      = ts->values[6].f;
-	tm->outline_right   = ts->values[6].f;
-	tm->outline_down    = ts->values[6].f;
-	tm->outline_color.r = ts->values[7].i;
-	tm->outline_color.g = ts->values[8].i;
-	tm->outline_color.b = ts->values[9].i;
-	tm->outline_color.a = 255;
-	// ScaleX
-	// SpaceScaleX
-	// FontSpacing
-}
+	struct text_style *ts = get_sp_metrics(sp_no);
+	ts->font_type          = get_font_type(page->values[0].i < 0 ? 256 : page->values[0].i);
+	ts->size               = page->values[1].f;
+	ts->bold_width         = page->values[2].f < 0 ? 0 : page->values[2].f;
+	ts->color.r            = page->values[3].i < 0 ? 255 : page->values[3].i;
+	ts->color.g            = page->values[4].i < 0 ? 255 : page->values[4].i;
+	ts->color.b            = page->values[5].i < 0 ? 255 : page->values[5].i;
+	ts->color.a            = 255;
+	ts->edge_width         = page->values[6].f < 0 ? 0 : page->values[6].f;
+	ts->edge_color.r       = page->values[7].i < 0 ? 0 : page->values[7].i;
+	ts->edge_color.g       = page->values[8].i < 0 ? 0 : page->values[8].i;
+	ts->edge_color.b       = page->values[9].i < 0 ? 0 : page->values[9].i;
+	ts->edge_color.a       = 255;
+	ts->scale_x            = page->values[10].f < 0 ? 1 : page->values[10].f;
+	ts->space_scale_x      = page->values[11].f < 0 ? 1 : page->values[11].f;
+	ts->font_spacing       = page->values[12].f < 0 ? 1 : page->values[12].f;
+	ts->font_size          = fnl_get_font_size(&fontlib->fonts[ts->font_type], ts->size);
 
-void SengokuRanceFont_SP_TextDrawClassic(int sp_no, struct string *text)
-{
-	_sact_SP_TextDraw(sp_no, text, &sr_tm);
-}
-
-static struct fnl_font_face *get_font(uint32_t height)
-{
-	int min_diff = 9999;
-	struct fnl_font_face *closest = NULL;
-	for (uint32_t i = 0; i < fontlib->fonts[0].nr_faces; i++) {
-		if (fontlib->fonts[0].faces[i].height == height)
-			return &fontlib->fonts[0].faces[i];
-		int diff = abs((int)height - (int)fontlib->fonts[0].faces[i].height);
-		if (diff < min_diff) {
-			min_diff = diff;
-			closest = &fontlib->fonts[0].faces[i];
-		}
+	if (ts->scale_x != 1.0) {
+		WARNING("X SCALE = %f", ts->scale_x);
 	}
-	return closest;
+
 }
 
 void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	struct text_metrics *tm = get_sp_metrics(sp_no);
-	struct fnl_font_face *font = get_font(tm->size);
-	if (!font) {
-		WARNING("No font for size %u", tm->size);
-		return;
+	struct text_style *ts = get_sp_metrics(sp_no);
+
+	// in case of uninitialized text style...
+	if (ts->font_type >= fontlib->nr_fonts) {
+		ts->font_type = 0;
+	}
+	if (ts->size < 8) {
+		ts->size = 8;
+	}
+	if (!ts->font_size) {
+		ts->font_size = fnl_get_font_size(&fontlib->fonts[ts->font_type], ts->size);
 	}
 
 	if (!sp->text.texture.handle) {
-		SDL_Color c = tm->color;
+		SDL_Color c = ts->color;
 		c.a = 0;
 		gfx_init_texture_with_color(&sp->text.texture, sp->rect.w, sp->rect.h, c);
 	}
 
-	struct fnl_font_inst inst = {
-		.font = font,
-		.scale = 1.0 / (font->height / tm->size),
-		.color = tm->color,
-		.outline_color = tm->outline_color,
-		.outline_size = tm->outline_left
-	};
-	sp->text.pos.x += fnl_draw_text(&inst, &sp->text.texture, sp->text.pos.x, sp->text.pos.y, text->text);
+	sp->text.pos.x += fnl_draw_text(fontlib, ts, &sp->text.texture, sp->text.pos.x, sp->text.pos.y, text->text);
 }
 
 void SengokuRanceFont_SP_TextDrawPreload(int spriteNumber, struct string *text);
@@ -266,9 +278,10 @@ float SengokuRanceFont_SP_GetEdgeWidth(int spriteNumber);
 float SengokuRanceFont_SP_GetScaleX(int spriteNumber);
 float SengokuRanceFont_SP_GetSpaceScaleX(int spriteNumber);
 
-float SengokuRanceFont_GetActualFontSize(int fontType, float fontSize)
+float SengokuRanceFont_GetActualFontSize(int font_type, float font_size)
 {
-	return fontSize;
+	font_type = get_font_type(font_type);
+	return fnl_get_font_size(&fontlib->fonts[font_type], font_size)->size;
 }
 
 float SengokuRanceFont_GetActualFontSizeRoundDown(int fontType, float fontSize);
@@ -278,7 +291,7 @@ int SengokuRanceFont_SP_GetReduceDescender(int spriteNumber);
 
 void SengokuRanceFont_SP_SetReduceDescender(int spriteNumber, int reduceDescender)
 {
-	
+	WARNING("SengokuRanceFont.SP_SetReduceDescender(%d, %d)", spriteNumber, reduceDescender);
 }
 
 void SengokuRanceFont_ModuleInit(void)
@@ -300,6 +313,8 @@ void SengokuRanceFont_ModuleInit(void)
 		fontlib = fnl_open(path);
 		if (!(fontlib = fnl_open(path)))
 			ERROR("Error opening font library '%s'", path);
+		if (fontlib->nr_fonts < 1)
+			ERROR("Font library doesn't contain any fonts");
 		break;
 	}
 
@@ -344,7 +359,8 @@ HLL_LIBRARY(SengokuRanceFont,
 	    //HLL_EXPORT(SP_TextNewLine, SengokuRanceFont_SP_TextNewLine),
 	    HLL_EXPORT(SP_SetTextMetricsClassic, SengokuRanceFont_SP_SetTextMetricsClassic),
 	    HLL_EXPORT(SP_SetTextStyle, SengokuRanceFont_SP_SetTextStyle),
-	    HLL_EXPORT(SP_TextDrawClassic, SengokuRanceFont_SP_TextDrawClassic),
+	    // XXX: I'm really not sure what the difference is supposed to be between these two
+	    HLL_EXPORT(SP_TextDrawClassic, SengokuRanceFont_SP_TextDraw),
 	    HLL_EXPORT(SP_TextDraw, SengokuRanceFont_SP_TextDraw),
 	    //HLL_EXPORT(SP_TextDrawPreload, SengokuRanceFont_SP_TextDrawPreload),
 	    //HLL_EXPORT(SP_SetFontSize, SengokuRanceFont_SP_SetFontSize),
