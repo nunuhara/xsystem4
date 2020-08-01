@@ -911,7 +911,7 @@ static void detect_quirks(struct ain *ain)
 	char *name = basename(tmp);
 
 	if (ain->version == 14) {
-		if (!strcasecmp(name, "HentaiLabyrinth.ain"))
+		if (!strncasecmp(name, "HentaiLabyrinth.ain", 19))
 			ain->minor_version = 1;
 	}
 

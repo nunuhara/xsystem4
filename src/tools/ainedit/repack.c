@@ -91,7 +91,7 @@ static void write_variable_type(struct ain_buffer *out, struct ain *ain, struct 
 
 static void write_return_type(struct ain_buffer *out, struct ain *ain, struct ain_type *t)
 {
-	if (ain->version >= 11) {
+	if (AIN_VERSION_GTE(ain, 11, 0)) {
 		write_variable_type(out, ain, t);
 		return;
 	}
@@ -103,10 +103,10 @@ static void write_return_type(struct ain_buffer *out, struct ain *ain, struct ai
 static void write_variable(struct ain_buffer *out, struct ain *ain, struct ain_variable *v)
 {
 	write_string(out, v->name);
-	if (ain->version >= 12)
+	if (AIN_VERSION_GTE(ain, 12, 0))
 		write_string(out, v->name2);
 	write_variable_type(out, ain, &v->type);
-	if (ain->version >= 8) {
+	if (AIN_VERSION_GTE(ain, 8, 0)) {
 		write_int32(out, v->has_initval);
 		if (v->has_initval) {
 			switch (v->type.data) {
@@ -114,6 +114,7 @@ static void write_variable(struct ain_buffer *out, struct ain *ain, struct ain_v
 				write_string(out, v->initval.s);
 			case AIN_DELEGATE:
 			case AIN_REF_TYPE:
+			case AIN_ARRAY:
 				break;
 			default:
 				write_int32(out, v->initval.i);
@@ -131,7 +132,7 @@ static void write_function(struct ain_buffer *out, struct ain *ain, struct ain_f
 	write_return_type(out, ain, &f->return_type);
 	write_int32(out, f->nr_args);
 	write_int32(out, f->nr_vars);
-	if (ain->version >= 11)
+	if (AIN_VERSION_GTE(ain, 11, 0))
 		write_int32(out, f->is_lambda);
 	if (ain->version > 0)
 		write_int32(out, f->crc);
@@ -143,10 +144,10 @@ static void write_function(struct ain_buffer *out, struct ain *ain, struct ain_f
 static void write_global(struct ain_buffer *out, struct ain *ain, struct ain_variable *g)
 {
 	write_string(out, g->name);
-	if (ain->version >= 12)
+	if (AIN_VERSION_GTE(ain, 12, 0))
 		write_string(out, g->name2);
 	write_variable_type(out, ain, &g->type);
-	if (ain->version >= 5)
+	if (AIN_VERSION_GTE(ain, 5, 0))
 		write_int32(out, g->group_index);
 }
 
@@ -163,7 +164,7 @@ static void write_initval(struct ain_buffer *out, possibly_unused struct ain *ai
 static void write_structure(struct ain_buffer *out, struct ain *ain, struct ain_struct *s)
 {
 	write_string(out, s->name);
-	if (ain->version >= 11) {
+	if (AIN_VERSION_GTE(ain, 11, 0)) {
 		write_int32(out, s->nr_interfaces);
 		for (int i = 0; i < s->nr_interfaces; i++) {
 			write_int32(out, s->interfaces[i].struct_type);
@@ -176,6 +177,12 @@ static void write_structure(struct ain_buffer *out, struct ain *ain, struct ain_
 	for (int i = 0; i < s->nr_members; i++) {
 		write_variable(out, ain, &s->members[i]);
 	}
+	if (AIN_VERSION_GTE(ain, 14, 1)) {
+		write_int32(out, s->nr_vmethods);
+		for (int i = 0; i < s->nr_vmethods; i++) {
+			write_int32(out, s->vmethods[i]);
+		}
+	}
 }
 
 static void write_library(struct ain_buffer *out, struct ain *ain, struct ain_library *lib)
@@ -184,7 +191,7 @@ static void write_library(struct ain_buffer *out, struct ain *ain, struct ain_li
 	write_int32(out, lib->nr_functions);
 	for (int i = 0; i < lib->nr_functions; i++) {
 		write_string(out, lib->functions[i].name);
-		if (ain->version >= 14) {
+		if (AIN_VERSION_GTE(ain, 14, 0)) {
 			write_variable_type(out, ain, &lib->functions[i].return_type);
 		} else {
 			write_int32(out, lib->functions[i].return_type.data);
@@ -192,7 +199,7 @@ static void write_library(struct ain_buffer *out, struct ain *ain, struct ain_li
 		write_int32(out, lib->functions[i].nr_arguments);
 		for (int j = 0; j < lib->functions[i].nr_arguments; j++) {
 			write_string(out, lib->functions[i].arguments[j].name);
-			if (ain->version >= 14) {
+			if (AIN_VERSION_GTE(ain, 14, 0)) {
 				write_variable_type(out, ain, &lib->functions[i].arguments[j].type);
 			} else {
 				write_int32(out, lib->functions[i].arguments[j].type.data);
