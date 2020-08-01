@@ -21,6 +21,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define AIN_VERSION_GTE(ain, major, minor) \
+	(ain->version > major || (ain->version == major && ain->minor_version >= minor))
+
+#define AIN_VERSION_LT(ain, major, minor) !AIN_VERSION_GTE(ain, major, minor)
+
 typedef uint32_t ain_addr_t;
 
 struct string;
@@ -193,6 +198,8 @@ struct ain_struct {
 	int32_t destructor;
 	int32_t nr_members;
 	struct ain_variable *members;
+	int32_t nr_vmethods;
+	int32_t *vmethods;
 };
 
 struct ain_hll_argument {
@@ -254,6 +261,7 @@ struct ain_section {
 struct ain {
 	char *ain_path;
 	int32_t version;
+	int32_t minor_version; // XXX: hack for incompatibilities within major versions
 	int32_t keycode;
 	uint8_t *code;
 	size_t code_size;

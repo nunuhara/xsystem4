@@ -51,19 +51,19 @@ struct hash_table *ht_create(size_t nr_buckets)
 	return ht;
 }
 
-void *ht_get(struct hash_table *ht, const char *key)
+void *ht_get(struct hash_table *ht, const char *key, void *dflt)
 {
 	unsigned long k = string_hash(key) & (ht->nr_buckets - 1);
 	if (!ht->buckets[k])
-		return NULL;
+		return dflt;
 	for (size_t i = 0; i < ht->buckets[k]->nr_slots; i++) {
 		if (!strcmp(ht->buckets[k]->slots[i].key, key))
 			return ht->buckets[k]->slots[i].value;
 	}
-	return NULL;
+	return dflt;
 }
 
-struct ht_slot *ht_put(struct hash_table *ht, const char *key)
+struct ht_slot *ht_put(struct hash_table *ht, const char *key, void *dflt)
 {
 	unsigned long k = string_hash(key) & (ht->nr_buckets - 1);
 
@@ -72,7 +72,7 @@ struct ht_slot *ht_put(struct hash_table *ht, const char *key)
 		ht->buckets[k] = xmalloc(sizeof(struct ht_bucket) + sizeof(struct ht_slot));
 		ht->buckets[k]->nr_slots = 1;
 		ht->buckets[k]->slots[0].key = strdup(key);
-		ht->buckets[k]->slots[0].value = NULL;
+		ht->buckets[k]->slots[0].value = dflt;
 		return &ht->buckets[k]->slots[0];
 	}
 
@@ -87,7 +87,7 @@ struct ht_slot *ht_put(struct hash_table *ht, const char *key)
 	ht->buckets[k] = xrealloc(ht->buckets[k], sizeof(struct ht_bucket) + sizeof(struct ht_slot)*(i+1));
 	ht->buckets[k]->nr_slots = i+1;
 	ht->buckets[k]->slots[i].key = strdup(key);
-	ht->buckets[k]->slots[i].value = NULL;
+	ht->buckets[k]->slots[i].value = dflt;
 	return &ht->buckets[k]->slots[i];
 }
 

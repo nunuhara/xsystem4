@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <libgen.h>
 #include <zlib.h>
 
 #include "little_endian.h"
@@ -41,7 +42,7 @@ struct func_list {
 
 static void func_ht_add(struct ain *ain, int i)
 {
-	struct ht_slot *kv = ht_put(ain->_func_ht, ain->functions[i].name);
+	struct ht_slot *kv = ht_put(ain->_func_ht, ain->functions[i].name, NULL);
 	if (kv->value) {
 		// entry with this name already exists; add to list
 		struct func_list *list = kv->value;
@@ -68,7 +69,7 @@ static void init_func_ht(struct ain *ain)
 
 static void struct_ht_add(struct ain *ain, struct ain_struct *s)
 {
-	struct ht_slot *kv = ht_put(ain->_struct_ht, s->name);
+	struct ht_slot *kv = ht_put(ain->_struct_ht, s->name, NULL);
 	if (kv->value) {
 		ERROR("Duplicate structure names: '%s'", s->name);
 	}
@@ -85,8 +86,8 @@ static void init_struct_ht(struct ain *ain)
 
 static intptr_t string_ht_add(struct ain *ain, const char *str, intptr_t i)
 {
-	struct ht_slot *kv = ht_put(ain->_string_ht, str);
-	if (kv->value) {
+	struct ht_slot *kv = ht_put(ain->_string_ht, str, (void*)-1);
+	if ((intptr_t)kv->value >= 0) {
 		return (intptr_t)kv->value;
 	}
 	kv->value = (void*)i;
@@ -168,7 +169,7 @@ void ain_init_member_functions(struct ain *ain, char *(*to_ascii)(const char*))
 
 static struct func_list *get_function(struct ain *ain, const char *name)
 {
-	return ht_get(ain->_func_ht, name);
+	return ht_get(ain->_func_ht, name, NULL);
 }
 
 struct ain_function *ain_get_function(struct ain *ain, char *name)
@@ -216,7 +217,7 @@ err:
 
 struct ain_struct *ain_get_struct(struct ain *ain, char *name)
 {
-	return ht_get(ain->_struct_ht, name);
+	return ht_get(ain->_struct_ht, name, NULL);
 }
 
 int ain_get_struct_no(struct ain *ain, char *name)
@@ -241,7 +242,7 @@ struct ain_variable *ain_add_global(struct ain *ain, char *name)
 	int no = ain->nr_globals;
 	ain->globals = xrealloc_array(ain->globals, ain->nr_globals, ain->nr_globals+1, sizeof(struct ain_variable));
 	ain->globals[no].name = strdup(name);
-	if (ain->version >= 12)
+	if (AIN_VERSION_GTE(ain, 12, 0))
 		ain->globals[no].name2 = strdup("");
 	ain->globals[no].var_type = AIN_VAR_GLOBAL;
 	ain->nr_globals++;
@@ -612,6 +613,7 @@ static void read_variable_initval(struct ain_reader *r, struct ain_variable *v)
 			break;
 		case AIN_DELEGATE:
 		case AIN_REF_TYPE:
+		case AIN_ARRAY:
 			break;
 		default:
 			v->initval.i = read_int32(r);
@@ -636,10 +638,10 @@ static struct ain_variable *read_variables(struct ain_reader *r, int count, stru
 		struct ain_variable *v = &variables[i];
 		v->var_type = var_type;
 		v->name = read_string(r);
-		if (ain->version >= 12)
+		if (AIN_VERSION_GTE(ain, 12, 0))
 			v->name2 = read_string(r); // ???
 		read_variable_type(r, &v->type);
-		if (ain->version >= 8)
+		if (AIN_VERSION_GTE(ain, 8, 0))
 			read_variable_initval(r, v);
 	}
 	return variables;
@@ -647,7 +649,7 @@ static struct ain_variable *read_variables(struct ain_reader *r, int count, stru
 
 static void read_return_type(struct ain_reader *r, struct ain_type *t, struct ain *ain)
 {
-	if (ain->version >= 11) {
+	if (AIN_VERSION_GTE(ain, 11, 0)) {
 		read_variable_type(r, t);
 		return;
 	}
@@ -673,7 +675,7 @@ static struct ain_function *read_functions(struct ain_reader *r, int count, stru
 		funs[i].nr_args = read_int32(r);
 		funs[i].nr_vars = read_int32(r);
 
-		if (ain->version >= 11) {
+		if (AIN_VERSION_GTE(ain, 11, 0)) {
 			funs[i].is_lambda = read_int32(r); // known values: 0, 1
 			if (funs[i].is_lambda && funs[i].is_lambda != 1) {
 				ERROR("function->is_lambda is not a boolean? %d (at %p)", funs[i].is_lambda, r->index - 4);
@@ -695,10 +697,10 @@ static struct ain_variable *read_globals(struct ain_reader *r, int count, struct
 	struct ain_variable *globals = calloc(count, sizeof(struct ain_variable));
 	for (int i = 0; i < count; i++) {
 		globals[i].name = read_string(r);
-		if (ain->version >= 12)
+		if (AIN_VERSION_GTE(ain, 12, 0))
 			globals[i].name2 = read_string(r);
 		read_variable_type(r, &globals[i].type);
-		if (ain->version >= 5)
+		if (AIN_VERSION_GTE(ain, 5, 0))
 			globals[i].group_index = read_int32(r);
 		globals[i].var_type = AIN_VAR_GLOBAL;
 	}
@@ -725,7 +727,7 @@ static struct ain_struct *read_structures(struct ain_reader *r, int count, struc
 	struct ain_struct *structures = calloc(count, sizeof(struct ain_struct));
 	for (int i = 0; i < count; i++) {
 		structures[i].name = read_string(r);
-		if (ain->version >= 11) {
+		if (AIN_VERSION_GTE(ain, 11, 0)) {
 			structures[i].nr_interfaces = read_int32(r);
 			structures[i].interfaces = xcalloc(structures[i].nr_interfaces, sizeof(struct ain_interface));
 			for (int j = 0; j < structures[i].nr_interfaces; j++) {
@@ -737,6 +739,16 @@ static struct ain_struct *read_structures(struct ain_reader *r, int count, struc
 		structures[i].destructor = read_int32(r);
 		structures[i].nr_members = read_int32(r);
 		structures[i].members = read_variables(r, structures[i].nr_members, ain, AIN_VAR_MEMBER);
+
+		// Staring with Hentai Labyrinth, there is a list of functions at the end.
+		// I believe this is a listing of the functions in the vtable.
+		if (AIN_VERSION_GTE(ain, 14, 1)) {
+			structures[i].nr_vmethods = read_int32(r);
+			structures[i].vmethods = xcalloc(structures[i].nr_vmethods, sizeof(int32_t));
+			for (int j = 0; j < structures[i].nr_vmethods; j++) {
+				structures[i].vmethods[j] = read_int32(r);
+			}
+		}
 	}
 	return structures;
 }
@@ -746,7 +758,7 @@ static struct ain_hll_argument *read_hll_arguments(struct ain_reader *r, int cou
 	struct ain_hll_argument *arguments = calloc(count, sizeof(struct ain_hll_argument));
 	for (int i = 0; i < count; i++) {
 		arguments[i].name = read_string(r);
-		if (r->ain->version >= 14) {
+		if (AIN_VERSION_GTE(r->ain, 14, 0)) {
 			read_variable_type(r, &arguments[i].type);
 		} else {
 			arguments[i].type.data = read_int32(r);
@@ -762,7 +774,7 @@ static struct ain_hll_function *read_hll_functions(struct ain_reader *r, int cou
 	struct ain_hll_function *functions = calloc(count, sizeof(struct ain_hll_function));
 	for (int i = 0; i < count; i++) {
 		functions[i].name = read_string(r);
-		if (r->ain->version >= 14) {
+		if (AIN_VERSION_GTE(r->ain, 14, 0)) {
 			read_variable_type(r, &functions[i].return_type);
 		} else {
 			functions[i].return_type.data = read_int32(r);
@@ -893,6 +905,19 @@ static void start_section(struct ain_reader *r, struct ain_section *section)
 	}
 }
 
+static void detect_quirks(struct ain *ain)
+{
+	char *tmp = strdup(ain->ain_path);
+	char *name = basename(tmp);
+
+	if (ain->version == 14) {
+		if (!strcasecmp(name, "HentaiLabyrinth.ain"))
+			ain->minor_version = 1;
+	}
+
+	free(tmp);
+}
+
 static bool read_tag(struct ain_reader *r, struct ain *ain)
 {
 	if (r->index + 4 >= r->size) {
@@ -903,11 +928,11 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 	uint8_t *tag_loc = r->buf + r->index;
 
 #define TAG_EQ(tag) !strncmp((char*)tag_loc, tag, 4)
-	// FIXME: need to check len or could segfault on currupt AIN file
+	// FIXME: need to check len or could segfault on corrupt AIN file
 	if (TAG_EQ("VERS")) {
 		start_section(r, &ain->VERS);
 		ain->version = read_int32(r);
-		if (ain->version >= 11) {
+		if (AIN_VERSION_GTE(ain, 11, 0)) {
 			instructions[CALLHLL].nr_args = 3;
 			instructions[NEW].nr_args = 2;
 			instructions[S_MOD].nr_args = 1;
@@ -915,6 +940,7 @@ static bool read_tag(struct ain_reader *r, struct ain *ain)
 			instructions[DG_STR_TO_METHOD].nr_args = 1;
 			instructions[CALLMETHOD].args[0] = T_INT;
 		}
+		detect_quirks(ain);
 	} else if (TAG_EQ("KEYC")) {
 		start_section(r, &ain->KEYC);
 		ain->keycode = read_int32(r);
@@ -1163,6 +1189,7 @@ struct ain *ain_open(const char *path, int *error)
 
 	// read data into ain struct
 	ain = xcalloc(1, sizeof(struct ain));
+	ain->ain_path = xstrdup(path);
 	struct ain_reader r = {
 		.buf = buf,
 		.index = 0,
@@ -1330,6 +1357,7 @@ void ain_free_structures(struct ain *ain)
 	for (int s = 0; s < ain->nr_structures; s++) {
 		free(ain->structures[s].name);
 		free(ain->structures[s].interfaces);
+		free(ain->structures[s].vmethods);
 		ain_free_variables(ain->structures[s].members, ain->structures[s].nr_members);
 	}
 	free(ain->structures);
@@ -1422,6 +1450,7 @@ void ain_free_enums(struct ain *ain)
 
 void ain_free(struct ain *ain)
 {
+	free(ain->ain_path);
 	free(ain->code);
 
 	ht_foreach_value(ain->_func_ht, free);

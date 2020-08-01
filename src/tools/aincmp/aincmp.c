@@ -134,11 +134,16 @@ static bool ain_compare_code(struct ain *_a, struct ain *_b)
 				}
 			} else {
 				if (ia != ib) {
-					NOTICE("argument differs at 0x%08x (%d vs %d)", (uint32_t)a.addr, ia, ib);
 					// NOTE: If there's duplicate strings in the string table, string arguments
 					//       can change when rebuilding. This shouldn't matter (?).
-					if (a.instr->opcode != S_PUSH || strcmp(_a->strings[ia]->text, _b->strings[ib]->text))
+					if (a.instr->args[i] == T_STRING && strcmp(_a->strings[ia]->text, _b->strings[ib]->text)) {
+						NOTICE("string argument differs at 0x%08x (%s vs %s)", (uint32_t)a.addr,
+						       _a->strings[ia]->text, _b->strings[ib]->text);
 						return false;
+					} else if (a.instr->args[i] != T_STRING) {
+						NOTICE("argument differs at 0x%08x (%d vs %d)", (uint32_t)a.addr, ia, ib);
+						return false;
+					}
 				}
 			}
 		}
