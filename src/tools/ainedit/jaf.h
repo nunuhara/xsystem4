@@ -34,6 +34,12 @@ enum jaf_type {
 	JAF_FUNCTYPE,
 };
 
+enum _jaf_type {
+	NR_JAF_TYPES = JAF_FUNCTYPE+1,
+	JAF_INTP,
+	JAF_FLOATP,
+};
+
 enum jaf_type_qualifier {
 	JAF_QUAL_CONST       = 1,
 	JAF_QUAL_REF         = 2,
@@ -367,7 +373,7 @@ struct jaf_block *jaf_toplevel;
 struct jaf_block *jaf_parse(struct ain *ain, const char **files, unsigned nr_files);
 
 // jaf_compile.c
-void jaf_build(struct ain *out, const char **files, unsigned nr_files);
+void jaf_build(struct ain *out, const char **files, unsigned nr_files, const char **headers, unsigned nr_headers);
 // jaf_eval.c
 struct jaf_expression *jaf_simplify(struct jaf_expression *in);
 
@@ -377,6 +383,8 @@ void jaf_derive_types(struct jaf_env *env, struct jaf_expression *expr);
 void jaf_check_type(struct jaf_expression *expr, struct ain_type *type);
 
 // jaf_static_analysis.c
+void jaf_resolve_declarations(struct ain *ain, struct jaf_block *block);
+void jaf_resolve_hll_declarations(struct ain *ain, struct jaf_block *block, const char *hll_name);
 struct jaf_block *jaf_static_analyze(struct ain *ain, struct jaf_block *block);
 enum ain_data_type jaf_to_ain_data_type(enum jaf_type type, unsigned qualifiers);
 void jaf_define_struct(struct ain *ain, struct jaf_block_item *type);

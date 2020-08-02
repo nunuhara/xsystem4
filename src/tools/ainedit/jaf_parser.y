@@ -174,7 +174,7 @@ static struct jaf_block *jaf_functype(struct jaf_type_specifier *type, struct ja
 %token	<token>		FILE_MACRO LINE_MACRO FUNC_MACRO DATE_MACRO TIME_MACRO
 
 %token	<token>		CONST
-%token	<token>		BOOL CHAR INT LONG FLOAT VOID STRING
+%token	<token>		BOOL CHAR INT LINT FLOAT VOID STRING INTP FLOATP
 %token	<token>		STRUCT UNION ENUM ELLIPSIS
 
 %token	CASE DEFAULT IF ELSE SYM_SWITCH WHILE DO FOR GOTO CONTINUE BREAK SYM_RETURN
@@ -194,8 +194,8 @@ static struct jaf_block *jaf_functype(struct jaf_type_specifier *type, struct ja
 %type	<declarator>	init_declarator declarator array_allocation
 %type	<declarators>	init_declarator_list struct_declarator_list
 %type	<block>		translation_unit external_declaration declaration function_definition
+%type	<block>		function_declaration parameter_list parameter_declaration
 %type	<block>		struct_declaration struct_declaration_list
-%type	<block>		parameter_list parameter_declaration
 %type	<block>		functype_parameter_list functype_parameter_declaration
 %type	<block>		compound_statement block_item_list block_item
 %type	<statement>	statement labeled_statement expression_statement selection_statement
@@ -393,10 +393,12 @@ atomic_type_specifier
 	: VOID             { $$ = JAF_VOID; }
 	| CHAR             { $$ = JAF_INT; }
 	| INT              { $$ = JAF_INT; }
-	| LONG             { $$ = JAF_INT; }
+	| LINT             { $$ = JAF_INT; }
 	| FLOAT            { $$ = JAF_FLOAT; }
 	| BOOL             { $$ = JAF_INT; }
 	| STRING           { $$ = JAF_STRING; }
+	| INTP             { $$ = JAF_INTP; }
+	| FLOATP           { $$ = JAF_FLOATP; }
 	;
 
 type_specifier
@@ -576,6 +578,7 @@ translation_unit
 
 external_declaration
 	: function_definition                                     { $$ = $1; }
+	| function_declaration                                    { $$ = $1; }
 	| declaration                                             { $$ = $1; }
 	| struct_specifier ';'                                    { $$ = jaf_block($1); }
 	| enum_specifier ';'                                      { ERROR("Enums not supported"); }
@@ -599,6 +602,10 @@ functype_parameter_declaration
 
 function_definition
 	: declaration_specifiers function_declarator compound_statement { $$ = jaf_function($1, $2, $3); }
+	;
+
+function_declaration
+	: declaration_specifiers function_declarator ';' { $$ = jaf_function($1, $2, NULL); }
 	;
 
 function_declarator

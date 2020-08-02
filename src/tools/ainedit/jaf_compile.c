@@ -1051,10 +1051,21 @@ static void jaf_compile(struct ain *ain, struct jaf_block *toplevel)
 		WARNING("%d global initvals ignored", ain->nr_initvals);
 }
 
-void jaf_build(struct ain *out, const char **files, unsigned nr_files)
+void jaf_build(struct ain *out, const char **files, unsigned nr_files, const char **hll, unsigned nr_hll)
 {
+	// First, we parse the source files and register type definitions in the ain file.
 	struct jaf_block *toplevel;
 	toplevel = jaf_parse(out, files, nr_files);
+	jaf_resolve_declarations(out, toplevel);
+
+	// Now that type definitions are available, we parse the HLL files.
+	assert(nr_hll % 2 == 0);
+	for (unsigned i = 0; i < nr_hll; i += 2) {
+		struct jaf_block *hll_decl = jaf_parse(out, hll+i, 1);
+		jaf_resolve_hll_declarations(out, hll_decl, hll[i+1]);
+	}
+
+	// Now that HLL declarations are available, we can do static analysis.
 	toplevel = jaf_static_analyze(out, toplevel);
 	jaf_compile(out, toplevel);
 	jaf_free_block(toplevel);

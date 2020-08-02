@@ -326,6 +326,15 @@ int ain_add_file(struct ain *ain, const char *filename)
 	return ain->nr_filenames - 1;
 }
 
+int ain_add_library(struct ain *ain, struct ain_library *lib)
+{
+	int no = ain->nr_libraries;
+	ain->libraries = xrealloc_array(ain->libraries, no, no+1, sizeof(struct ain_library));
+	ain->libraries[no] = *lib;
+	ain->nr_libraries++;
+	return no;
+}
+
 static const char *errtab[AIN_MAX_ERROR] = {
 	[AIN_SUCCESS]             = "Success",
 	[AIN_FILE_ERROR]          = "Error opening AIN file",

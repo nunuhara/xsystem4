@@ -271,7 +271,7 @@ static void pje_read_source(struct build_job *job, struct string *dir, struct st
 			if (strchr(source->items[i+1]->text, '.'))
 				ERROR("HLL name contains '.': %s", source->items[i+1]->text);
 			string_list_append(&job->headers, directory_file(dir, source->items[i]));
-			string_list_append(&job->headers, directory_file(dir, source->items[i+1]));
+			string_list_append(&job->headers, string_dup(source->items[i+1]));
 			i++;
 		} else {
 			ERROR("Unhandled file extension in source list: '%s'", ext);
@@ -322,8 +322,10 @@ void pje_build(const char *path, int ain_version)
 	pje_read_source(&job, src_dir, &config.source, false);
 
 	// TODO: parse hll files
+	unsigned nr_header_files = job.headers.n;
+	const char **header_files = xcalloc(nr_header_files, sizeof(const char*));
 	for (unsigned i = 0; i < job.headers.n; i++) {
-		WARNING("Ignoring header: %s", job.headers.items[i]->text);
+		header_files[i] = job.headers.items[i]->text;
 	}
 
 	// consolidate files into list
@@ -363,7 +365,7 @@ void pje_build(const char *path, int ain_version)
 	}
 
 	// build
-	jaf_build(ain, source_files, nr_source_files);
+	jaf_build(ain, source_files, nr_source_files, header_files, nr_header_files);
 
 	// write to disk
 	NOTICE("Writing AIN file...");

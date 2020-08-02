@@ -73,7 +73,9 @@ unsigned long jaf_line = 1;
 "goto"					{ return(GOTO); }
 "if"					{ return(IF); }
 "int"					{ return(INT); }
-"long"					{ return(LONG); }
+"lint"					{ return(LINT); }
+"intp"					{ return(INTP); }
+"floatp"				{ return(FLOATP); }
 "return"				{ return(SYM_RETURN); }
 "string"				{ return(STRING); }
 "struct"				{ return(STRUCT); }

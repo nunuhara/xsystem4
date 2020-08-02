@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (jaf_files) {
-		jaf_build(ain, jaf_files, nr_jaf_files);
+		jaf_build(ain, jaf_files, nr_jaf_files, NULL, 0);
 	}
 
 	if (code_file) {

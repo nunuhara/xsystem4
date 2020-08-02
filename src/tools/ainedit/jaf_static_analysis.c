@@ -594,6 +594,49 @@ static void jaf_process_declarations(struct ain *ain, struct jaf_block *block)
 	}
 }
 
+/*
+ * This function is responsible for registering names/definitions into the ain file.
+ * It should be called before the static analysis phase.
+ */
+void jaf_resolve_declarations(struct ain *ain, struct jaf_block *block)
+{
+	// pass 1: typedefs && struct definitions
+	jaf_resolve_types(ain, block);
+	// pass 2: register globals (names, types)
+	jaf_process_declarations(ain, block);
+}
+
+static void jaf_process_hll_declaration(struct ain *ain, struct jaf_fundecl *decl, struct ain_hll_function *f)
+{
+	f->name = xstrdup(decl->name->text);
+	jaf_to_ain_type(ain, &f->return_type, decl->type);
+
+	f->nr_arguments = decl->params ? decl->params->nr_items : 0;
+	f->arguments = xcalloc(f->nr_arguments, sizeof(struct ain_hll_argument));
+	for (int i = 0; i < f->nr_arguments; i++) {
+		assert(decl->params->items[i]->kind == JAF_DECL_VAR);
+		assert(decl->params->items[i]->var.name);
+		f->arguments[i].name = xstrdup(decl->params->items[i]->var.name->text);
+		jaf_to_ain_type(ain, &f->arguments[i].type, decl->params->items[i]->var.type);
+	}
+}
+
+void jaf_resolve_hll_declarations(struct ain *ain, struct jaf_block *block, const char *hll_name)
+{
+	struct ain_library lib = {0};
+	lib.name = xstrdup(hll_name);
+	lib.nr_functions = block->nr_items - 1; // -1 for EOF
+	lib.functions = xcalloc(lib.nr_functions, sizeof(struct ain_hll_function));
+	for (int i = 0; i < lib.nr_functions; i++) {
+		if (block->items[i]->kind != JAF_DECL_FUN)
+			ERROR("Only function declarations are allowed in HLL files: %d", block->items[i]->kind);
+		if (block->items[i]->fun.body)
+			ERROR("Function definitions not allowed in HLL files");
+		jaf_process_hll_declaration(ain, &block->items[i]->fun, &lib.functions[i]);
+	}
+	ain_add_library(ain, &lib);
+}
+
 struct jaf_block *jaf_static_analyze(struct ain *ain, struct jaf_block *block)
 {
 	struct jaf_env env = {
@@ -601,10 +644,6 @@ struct jaf_block *jaf_static_analyze(struct ain *ain, struct jaf_block *block)
 		.parent = NULL
 	};
 
-	// pass 1: typedefs && struct definitions
-	jaf_resolve_types(ain, block);
-	// pass 2: register globals (names, types)
-	jaf_process_declarations(ain, block);
 	// pass 3: type analysis & simplification & global initvals
 	jaf_analyze_block(&env, block);
 

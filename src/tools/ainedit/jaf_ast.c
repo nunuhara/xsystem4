@@ -226,7 +226,15 @@ struct jaf_expression *jaf_subscript_expr(struct jaf_expression *expr, struct ja
 struct jaf_type_specifier *jaf_type(enum jaf_type type)
 {
 	struct jaf_type_specifier *p = xcalloc(1, sizeof(struct jaf_type_specifier));
-	p->type = type;
+	if ((enum _jaf_type)type == JAF_INTP) {
+		p->type = JAF_INT;
+		p->qualifiers = JAF_QUAL_REF;
+	} else if ((enum _jaf_type)type == JAF_FLOATP) {
+		p->type = JAF_FLOAT;
+		p->qualifiers = JAF_QUAL_REF;
+	} else {
+		p->type = type;
+	}
 	p->struct_no = -1;
 	return p;
 }
