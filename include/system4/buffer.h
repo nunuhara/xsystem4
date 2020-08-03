@@ -41,8 +41,12 @@ void buffer_write_int32_at(struct buffer *buf, size_t index, uint32_t v);
 void buffer_write_int16(struct buffer *b, uint16_t v);
 void buffer_write_float(struct buffer *b, float f);
 void buffer_write_bytes(struct buffer *b, const uint8_t *bytes, size_t len);
+
+/* Write a null-terminated string. */
 void buffer_write_string(struct buffer *b, struct string *s);
+/* Write a null-terminated string. */
 void buffer_write_cstring(struct buffer *b, const char *s);
+/* Write a length-prefixed string. */
 void buffer_write_pascal_string(struct buffer *b, struct string *s);
 
 static inline void buffer_seek(struct buffer *r, size_t off)

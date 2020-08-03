@@ -211,12 +211,12 @@ uint8_t *ex_flatten(struct ex *ex, size_t *size_out)
 	struct buffer out;
 
 	buffer_init(&out, xmalloc(128), 128);
-	buffer_write_cstring(&out, "HEAD");
+	buffer_write_bytes(&out, (uint8_t*)"HEAD", 4);
 	buffer_write_int32(&out, 0xc); // ???
-	buffer_write_cstring(&out, "EXTF");
+	buffer_write_bytes(&out, (uint8_t*)"EXTF", 4);
 	buffer_write_int32(&out, 0x1); // ???
 	buffer_write_int32(&out, ex->nr_blocks);
-	buffer_write_cstring(&out, "DATA");
+	buffer_write_bytes(&out, (uint8_t*)"DATA", 4);
 	size_t compressed_size_loc = skip_int32(&out);
 	size_t uncompressed_size_loc = skip_int32(&out);
 	size_t data_loc = out.index;

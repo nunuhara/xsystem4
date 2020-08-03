@@ -138,16 +138,16 @@ void buffer_write_bytes(struct buffer *b, const uint8_t *bytes, size_t len)
 
 void buffer_write_string(struct buffer *b, struct string *s)
 {
-	buffer_write_bytes(b, (uint8_t*)s->text, s->size);
+	buffer_write_bytes(b, (uint8_t*)s->text, s->size+1);
 }
 
 void buffer_write_cstring(struct buffer *b, const char *s)
 {
-	buffer_write_bytes(b, (uint8_t*)s, strlen(s));
+	buffer_write_bytes(b, (uint8_t*)s, strlen(s)+1);
 }
 
 void buffer_write_pascal_string(struct buffer *b, struct string *s)
 {
 	buffer_write_int32(b, s->size);
-	buffer_write_string(b, s);
+	buffer_write_bytes(b, (uint8_t*)s->text, s->size);
 }

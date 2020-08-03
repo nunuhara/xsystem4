@@ -1,5 +1,6 @@
 # sources for libsys4.a
-system4 = ['afa.c',
+system4 = ['acx.c',
+           'afa.c',
            'ain.c',
            'ajp.c',
            'ald.c',

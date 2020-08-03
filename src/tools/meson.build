@@ -5,6 +5,7 @@ else
     tool_deps = [libm, zlib]
 endif
 
+subdir('acx')
 subdir('aindump')
 subdir('ainedit')
 subdir('aincmp')
