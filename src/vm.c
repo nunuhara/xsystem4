@@ -1662,7 +1662,9 @@ noreturn void _vm_error(const char *fmt, ...)
 
 int vm_time(void)
 {
-	return clock() / (CLOCKS_PER_SEC / 1000);
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
 }
 
 #ifdef DEBUG_HEAP
