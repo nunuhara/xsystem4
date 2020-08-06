@@ -38,8 +38,8 @@
 
 // TODO: install fonts on system, and provide run-time configuration option
 const char *font_paths[] = {
-	[FONT_GOTHIC] = "fonts/MTLc3m.ttf",
-	[FONT_MINCHO] = "fonts/mincho.otf"
+	[FONT_GOTHIC] = "fonts/VL-Gothic-Regular.ttf",
+	[FONT_MINCHO] = "fonts/HanaMinA.ttf"
 };
 
 struct font {
@@ -265,7 +265,9 @@ static int sact_to_sdl_fontstyle(int style)
 // FIXME: If char spacing is set up (via SACT2.SetTextCharSpace), this doesn't do the right
 //        thing. Need to render each character individually and add the specified spacing.
 //        Should add a char_space field to text_metrics to keep this function stateless.
-int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
+// FIXME: Should use a separate background texture for outlines so that outlines never clip
+//        into previously rendered text.
+int _gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
 {
 	if (!font)
 		return 0;
@@ -315,6 +317,32 @@ int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
 
 	free(conv);
 	return width;
+}
+
+int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
+{
+	char c[4];
+
+	int original_x = pos.x;
+	while (*msg) {
+		if (SJIS_2BYTE(*msg)) {
+			c[0] = msg[0];
+			c[1] = msg[1];
+			c[2] = '\0';
+		} else {
+			c[0] = msg[0];
+			c[1] = '\0';
+		}
+		_gfx_render_text(dst, pos, c, tm);
+		if (SJIS_2BYTE(*msg)) {
+			pos.x += tm->size;
+			msg += 2;
+		} else {
+			pos.x += tm->size / 2;
+			msg += 1;
+		}
+	}
+	return pos.x - original_x;
 }
 
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text)
