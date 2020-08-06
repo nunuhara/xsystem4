@@ -34,6 +34,7 @@
 #include "xsystem4.h"
 #include "debugger.h"
 #include "file.h"
+#include "gfx/gfx.h"
 #include "little_endian.h"
 #include "vm.h"
 
@@ -316,6 +317,8 @@ enum {
 	LOPT_HELP = 256,
 	LOPT_AUDIT,
 	LOPT_NODEBUG,
+	LOPT_FONT_MINCHO,
+	LOPT_FONT_GOTHIC,
 };
 
 int main(int argc, char *argv[])
@@ -328,9 +331,11 @@ int main(int argc, char *argv[])
 
 	while (1) {
 		static struct option long_options[] = {
-			{ "help",    no_argument, 0, LOPT_HELP },
-			{ "audit",   no_argument, 0, LOPT_AUDIT },
-			{ "nodebug", no_argument, 0, LOPT_NODEBUG },
+			{ "help",        no_argument,       0, LOPT_HELP },
+			{ "audit",       no_argument,       0, LOPT_AUDIT },
+			{ "nodebug",     no_argument,       0, LOPT_NODEBUG },
+			{ "font-mincho", required_argument, 0, LOPT_FONT_MINCHO },
+			{ "font-gothic", required_argument, 0, LOPT_FONT_GOTHIC },
 		};
 		int option_index = 0;
 		int c = getopt_long(argc, argv, "ha", long_options, &option_index);
@@ -350,6 +355,12 @@ int main(int argc, char *argv[])
 #ifdef DEBUGGER_ENABLED
 			dbg_enabled = false;
 #endif
+			break;
+		case LOPT_FONT_MINCHO:
+			font_paths[FONT_MINCHO] = optarg;
+			break;
+		case LOPT_FONT_GOTHIC:
+			font_paths[FONT_GOTHIC] = optarg;
 			break;
 		}
 	}

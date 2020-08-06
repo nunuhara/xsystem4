@@ -130,6 +130,8 @@ enum font_face {
 	FONT_MINCHO = 1
 };
 
+const char *font_paths[2];
+
 struct text_metrics {
 	SDL_Color color;
 	SDL_Color outline_color;
