@@ -52,7 +52,7 @@ true                      return TRUE;
 false                     return FALSE;
 Formation                 return FORMATION;
 [0-9]+                    yini_lval.i = atoi(yini_text); return INTEGER;
-[a-zA-Z]+[a-zA-Z0-9]*     yini_lval.s = make_string(yini_text, yini_leng); return IDENTIFIER;
+[a-zA-Z]+[a-zA-Z0-9_-]*   yini_lval.s = make_string(yini_text, yini_leng); return IDENTIFIER;
 
 \"      string_buf_ptr = string_buf; BEGIN(str);
 

@@ -24,6 +24,7 @@
 #include "ini_parser.tab.h"
 
 extern FILE *yini_in;
+extern unsigned long yini_line;
 
 static void list_assign(struct ini_value *list, size_t i, struct ini_value *item)
 {
@@ -39,12 +40,15 @@ static void list_assign(struct ini_value *list, size_t i, struct ini_value *item
 	list->list[i] = *item;
 }
 
-struct ini_entry *ini_parse(const char *path, size_t *nr_entries)
+struct ini_entry *ini_parse(const char *path, int *nr_entries)
 {
 	struct ini_entry _e;
 
-	if (!(yini_in = fopen(path, "rb")))
-		ERROR("failed to open '%s': %s", path, strerror(errno));
+	if (!(yini_in = fopen(path, "rb"))) {
+		*nr_entries = INI_FILE_ERROR;
+		return NULL;
+	}
+	yini_line = 1;
 	yini_parse();
 
 	kvec_t(struct ini_entry) entries;
@@ -65,8 +69,10 @@ struct ini_entry *ini_parse(const char *path, size_t *nr_entries)
 			struct ini_entry *other = &kv_A(entries, i);
 			if (strcmp(e->name->text, other->name->text))
 				continue;
-			if (other->value.type != INI_LIST)
-				ERROR("list assignment to non-list: %s[%" SIZE_T_FMT "]", e->name, e->value._list_pos);
+			if (other->value.type != INI_LIST) {
+				WARNING("ignoring list assignment to non-list: %s[%" SIZE_T_FMT "]", e->name, e->value._list_pos);
+				goto end_list_assign;
+			}
 			free_string(e->name);
 			list = other;
 			break;
@@ -87,6 +93,7 @@ struct ini_entry *ini_parse(const char *path, size_t *nr_entries)
 		}
 
 		list_assign(&list->value, e->value._list_pos, e->value._list_value);
+	end_list_assign:
 		free(e->value._list_value);
 		free(e);
 	}

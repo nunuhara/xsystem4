@@ -142,10 +142,10 @@ static void pje_string_list(struct ini_entry *entry, struct string_list *out)
 
 static void pje_parse(const char *path, struct pje_config *config)
 {
-	size_t ini_size;
+	int ini_size;
 	struct ini_entry *ini = ini_parse(path, &ini_size);
 
-	for (size_t i = 0; i < ini_size; i++) {
+	for (int i = 0; i < ini_size; i++) {
 		if (!strcmp(ini[i].name->text, "ProjectName")) {
 			config->project_name = pje_string(&ini[i]);
 		} else if (!strcmp(ini[i].name->text, "CodeName")) {
@@ -200,10 +200,10 @@ static void pje_parse(const char *path, struct pje_config *config)
 
 static void pje_parse_inc(const char *path, struct inc_config *config)
 {
-	size_t ini_size;
+	int ini_size;
 	struct ini_entry *ini = ini_parse(path, &ini_size);
 
-	for (size_t i = 0; i < ini_size; i++) {
+	for (int i = 0; i < ini_size; i++) {
 		if (!strcmp(ini[i].name->text, "Source")) {
 			pje_string_list(&ini[i], &config->source);
 		} else if (!strcmp(ini[i].name->text, "SystemSource")) {

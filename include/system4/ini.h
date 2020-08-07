@@ -61,7 +61,12 @@ struct ini_entry {
 	struct ini_value value;
 };
 
-struct ini_entry *ini_parse(const char *path, size_t *nr_entries);
+enum ini_error {
+	INI_FILE_ERROR = -1,
+	INI_DATA_ERROR = -2,
+};
+
+struct ini_entry *ini_parse(const char *path, int *nr_entries);
 struct ini_entry *ini_make_entry(struct string *name, struct ini_value value);
 void ini_free_entry(struct ini_entry *entry);
 

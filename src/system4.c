@@ -95,10 +95,12 @@ static int ini_integer(struct ini_entry *entry)
 
 static void read_config(const char *path)
 {
-	size_t ini_size;
+	int ini_size;
 	struct ini_entry *ini = ini_parse(path, &ini_size);
+	if (!ini)
+		ERROR("Failed to read %s", path);
 
-	for (size_t i = 0; i < ini_size; i++) {
+	for (int i = 0; i < ini_size; i++) {
 		if (!strcmp(ini[i].name->text, "GameName")) {
 			config.game_name = strdup(ini_string(&ini[i])->text);
 		} else if (!strcmp(ini[i].name->text, "CodeName")) {
@@ -113,6 +115,40 @@ static void read_config(const char *path)
 		ini_free_entry(&ini[i]);
 	}
 	free(ini);
+}
+
+static void read_user_config_file(const char *path)
+{
+	int ini_size;
+	struct ini_entry *ini = ini_parse(path, &ini_size);
+	if (!ini)
+		return;
+
+	for (int i = 0; i < ini_size; i++) {
+		if (!strcmp(ini[i].name->text, "font-mincho")) {
+			font_paths[FONT_MINCHO] = xstrdup(ini_string(&ini[i])->text);
+		} else if (!strcmp(ini[i].name->text, "font-gothic")) {
+			font_paths[FONT_GOTHIC] = xstrdup(ini_string(&ini[i])->text);
+		}
+		ini_free_entry(&ini[i]);
+	}
+	free(ini);
+}
+
+static void read_user_config(void)
+{
+	char *path;
+
+	// global config
+	path = xmalloc(PATH_MAX);
+	snprintf(path, PATH_MAX-1, "%s/.xsys4rc", config.home_dir);
+	read_user_config_file(path);
+	free(path);
+
+	// game-specific config
+	path = gamedir_path(".xsys4rc");
+	read_user_config_file(path);
+	free(path);
 }
 
 static char *ald_filenames[ALDFILETYPE_MAX][ALD_FILEMAX];
@@ -329,6 +365,9 @@ int main(int argc, char *argv[])
 	int err = AIN_SUCCESS;
 	bool audit = false;
 
+	char *font_mincho = NULL;
+	char *font_gothic = NULL;
+
 	while (1) {
 		static struct option long_options[] = {
 			{ "help",        no_argument,       0, LOPT_HELP },
@@ -357,10 +396,10 @@ int main(int argc, char *argv[])
 #endif
 			break;
 		case LOPT_FONT_MINCHO:
-			font_paths[FONT_MINCHO] = optarg;
+			font_mincho = optarg;
 			break;
 		case LOPT_FONT_GOTHIC:
-			font_paths[FONT_GOTHIC] = optarg;
+			font_gothic = optarg;
 			break;
 		}
 	}
@@ -394,6 +433,14 @@ int main(int argc, char *argv[])
 #endif
 
 	config_init();
+	read_user_config();
+
+	// NOTE: some command line options are handled here so that they
+	//       will override settings from .xsys4rc files
+	if (font_mincho)
+		font_paths[FONT_MINCHO] = font_mincho;
+	if (font_gothic)
+		font_paths[FONT_GOTHIC] = font_gothic;
 
 	if (!(ain = ain_open(ainfile, &err))) {
 		ERROR("%s", ain_strerror(err));
