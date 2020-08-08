@@ -19,12 +19,15 @@
 #ifdef DEBUGGER_ENABLED
 
 #include <stdbool.h>
+#include "system4/instructions.h"
 
 bool dbg_enabled;
 
 void dbg_init(void);
 void dbg_fini(void);
 void dbg_repl(void);
+
+enum opcode dbg_handle_breakpoint(unsigned bp_no);
 
 #endif /* DEBUGGER_ENABLED */
 #endif /* SYSTEM4_DEBUGGER_H */

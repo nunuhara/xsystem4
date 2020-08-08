@@ -577,7 +577,7 @@ void exec_strswitch(int no, struct string *str)
 		instr_ptr += instruction_width(STRSWITCH);
 }
 
-static void execute_instruction(enum opcode opcode)
+static enum opcode execute_instruction(enum opcode opcode)
 {
 	switch (opcode) {
 	//
@@ -1561,8 +1561,14 @@ static void execute_instruction(enum opcode opcode)
 	case FUNC:
 		break;
 	default:
-		VM_ERROR("Unimplemented instruction");
+#ifdef DEBUGGER_ENABLED
+		if ((opcode & OPTYPE_MASK) == BREAKPOINT) {
+			return execute_instruction(dbg_handle_breakpoint(opcode & ~OPTYPE_MASK));
+		}
+#endif
+		VM_ERROR("Illegal opcode: 0x%04x", opcode);
 	}
+	return opcode;
 }
 
 static void vm_execute(void)
@@ -1575,10 +1581,7 @@ static void vm_execute(void)
 			VM_ERROR("Illegal instruction pointer: 0x%08lX", instr_ptr);
 		}
 		opcode = get_opcode(instr_ptr);
-		if (opcode >= NR_OPCODES) {
-			VM_ERROR("Illegal opcode: 0x%04X", opcode);
-		}
-		execute_instruction(opcode);
+		opcode = execute_instruction(opcode);
 		instr_ptr += instructions[opcode].ip_inc;
 	}
 }

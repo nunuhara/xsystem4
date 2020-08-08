@@ -348,8 +348,16 @@ enum opcode
 	OP_0X10F = 0x10F,
 	OP_0X110 = 0x110,
 
-	NR_OPCODES
+	NR_OPCODES,
 };
+
+// NOTE: first two bits of opcode determine op type:
+//       00 - regular opcode
+//       01 - breakpoint
+//       10 - unused
+//       11 - unused
+#define OPTYPE_MASK 0xC000
+#define BREAKPOINT 0x4000
 
 enum instruction_argtype {
 	T_INT,

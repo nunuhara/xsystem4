@@ -88,5 +88,8 @@
 (define-c page (local-page local_page) ())
 (define-c (free variable) (page-ref page_ref) (page int))
 
+(define-c void (set-function-breakpoint set_function_breakpoint) (string sexp))
+(define-c void (set-address-breakpoint set_address_breakpoint) (unsigned-int sexp))
+
 (define-c (maybe-null (free variable)) (get-global-variable get_global_by_name) (string))
 (define-c (maybe-null (free variable)) (get-local-variable get_local_by_name) (string))

@@ -345,16 +345,25 @@ static void ain_audit(FILE *f, struct ain *ain)
 static void usage(void)
 {
 	puts("Usage: xsystem4 <options> <inifile>");
-	puts("    -h, --help     Display this message and exit");
-	puts("    -a, --audit    Audit AIN file for xsystem4 compatibility");
+	puts("    -h, --help         Display this message and exit");
+	puts("    -a, --audit        Audit AIN file for xsystem4 compatibility");
+	puts("        --font-mincho  Specify the path to the mincho font to use");
+	puts("        --font-gothic  Specify the path to the gothic font to use");
+	puts("        --nodebug      Disable debugger");
+#ifdef DEBUGGER_ENABLED
+	puts("        --debug    Start in debugger");
+#endif
 }
 
 enum {
 	LOPT_HELP = 256,
 	LOPT_AUDIT,
-	LOPT_NODEBUG,
 	LOPT_FONT_MINCHO,
 	LOPT_FONT_GOTHIC,
+	LOPT_NODEBUG,
+#ifdef DEBUGGER_ENABLED
+	LOPT_DEBUG,
+#endif
 };
 
 int main(int argc, char *argv[])
@@ -364,6 +373,9 @@ int main(int argc, char *argv[])
 	char *ainfile;
 	int err = AIN_SUCCESS;
 	bool audit = false;
+#ifdef DEBUGGER_ENABLED
+	bool start_in_debugger = false;
+#endif
 
 	char *font_mincho = NULL;
 	char *font_gothic = NULL;
@@ -372,9 +384,12 @@ int main(int argc, char *argv[])
 		static struct option long_options[] = {
 			{ "help",        no_argument,       0, LOPT_HELP },
 			{ "audit",       no_argument,       0, LOPT_AUDIT },
-			{ "nodebug",     no_argument,       0, LOPT_NODEBUG },
 			{ "font-mincho", required_argument, 0, LOPT_FONT_MINCHO },
 			{ "font-gothic", required_argument, 0, LOPT_FONT_GOTHIC },
+			{ "nodebug",     no_argument,       0, LOPT_NODEBUG },
+#ifdef DEBUGGER_ENABLED
+			{ "debug",       no_argument,       0, LOPT_DEBUG },
+#endif
 		};
 		int option_index = 0;
 		int c = getopt_long(argc, argv, "ha", long_options, &option_index);
@@ -390,17 +405,23 @@ int main(int argc, char *argv[])
 		case LOPT_AUDIT:
 			audit = true;
 			break;
-		case LOPT_NODEBUG:
-#ifdef DEBUGGER_ENABLED
-			dbg_enabled = false;
-#endif
-			break;
 		case LOPT_FONT_MINCHO:
 			font_mincho = optarg;
 			break;
 		case LOPT_FONT_GOTHIC:
 			font_gothic = optarg;
 			break;
+#ifdef DEBUGGER_ENABLED
+		case LOPT_NODEBUG:
+			dbg_enabled = false;
+			break;
+		case LOPT_DEBUG:
+			start_in_debugger = true;
+			break;
+#else
+		case LOPT_NODEBUG:
+			break;
+#endif
 		}
 	}
 	argc -= optind;
@@ -456,6 +477,8 @@ int main(int argc, char *argv[])
 
 #ifdef DEBUGGER_ENABLED
 	dbg_init();
+	if (start_in_debugger)
+		dbg_repl();
 #endif
 
 	sys_exit(vm_execute_ain(ain));

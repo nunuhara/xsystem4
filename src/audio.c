@@ -95,10 +95,6 @@ static void bgi_read(const char *path)
 		}
 		bgi_nfile++;
 	}
-
-	for (int i = 0; i < bgi_nfile; i++) {
-		NOTICE("BGI %d: %d, %d, %d, %d", i, bgi_data[i].no, bgi_data[i].loopno, bgi_data[i].looptop, bgi_data[i].len);
-	}
 }
 
 possibly_unused static struct bgi *bgi_find(int no) {

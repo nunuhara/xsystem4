@@ -28,6 +28,22 @@ sexp sexp_get_global_variable_stub (sexp ctx, sexp self, sexp_sint_t n, sexp arg
   return res;
 }
 
+sexp sexp_set_address_breakpoint_stub (sexp ctx, sexp self, sexp_sint_t n, sexp arg0, sexp arg1) {
+  sexp res;
+  if (! sexp_exact_integerp(arg0))
+    return sexp_type_exception(ctx, self, SEXP_FIXNUM, arg0);
+  res = ((set_address_breakpoint(sexp_uint_value(arg0), arg1)), SEXP_VOID);
+  return res;
+}
+
+sexp sexp_set_function_breakpoint_stub (sexp ctx, sexp self, sexp_sint_t n, sexp arg0, sexp arg1) {
+  sexp res;
+  if (! sexp_stringp(arg0))
+    return sexp_type_exception(ctx, self, SEXP_STRING, arg0);
+  res = ((set_function_breakpoint(sexp_string_data(arg0), arg1)), SEXP_VOID);
+  return res;
+}
+
 sexp sexp_page_ref_stub (sexp ctx, sexp self, sexp_sint_t n, sexp arg0, sexp arg1) {
   sexp res;
   if (! (sexp_pointerp(arg0) && (sexp_pointer_tag(arg0) == sexp_unbox_fixnum(sexp_opcode_arg1_type(self)))))
@@ -374,6 +390,16 @@ sexp sexp_init_library (sexp ctx, sexp self, sexp_sint_t n, sexp env, const char
   op = sexp_define_foreign(ctx, env, "get-global-variable", 1, sexp_get_global_variable_stub);
   if (sexp_opcodep(op)) {
     sexp_opcode_return_type(op) = sexp_make_fixnum(sexp_type_tag(sexp_variable_type_obj));
+    sexp_opcode_arg1_type(op) = sexp_make_fixnum(SEXP_STRING);
+  }
+  op = sexp_define_foreign(ctx, env, "set-address-breakpoint", 2, sexp_set_address_breakpoint_stub);
+  if (sexp_opcodep(op)) {
+    sexp_opcode_return_type(op) = SEXP_VOID;
+    sexp_opcode_arg1_type(op) = sexp_make_fixnum(SEXP_FIXNUM);
+  }
+  op = sexp_define_foreign(ctx, env, "set-function-breakpoint", 2, sexp_set_function_breakpoint_stub);
+  if (sexp_opcodep(op)) {
+    sexp_opcode_return_type(op) = SEXP_VOID;
     sexp_opcode_arg1_type(op) = sexp_make_fixnum(SEXP_STRING);
   }
   op = sexp_define_foreign(ctx, env, "page-ref", 2, sexp_page_ref_stub);

@@ -114,6 +114,15 @@
   (show #t (pretty (var name)))
   (void))
 
+(define (set-breakpoint fun-or-addr . rest)
+  (let ((handler (cond ((null? rest) #f)
+                       ((not (null? (cdr rest))) (error "Too many arguments to SET-BREAKPOINT" (+ 1 (length rest))))
+                       ((not (procedure? (car rest))) (error "Breakpoint handler must be a procedure"))
+                       (else (car rest)))))
+    (if (string? fun-or-addr)
+        (set-function-breakpoint fun-or-addr handler)
+        (set-address-breakpoint fun-or-addr handler))))
+
 ;; aliases
 
 (define g global)
@@ -122,3 +131,4 @@
 (define bt backtrace)
 (define pl print-locals)
 (define p print-variable)
+(define bp set-breakpoint)
