@@ -260,6 +260,7 @@ static void scenario_call(int slot)
 	}
 	call_stack[0] = (struct function_call) {
 		.fno = fno,
+		.call_address = instr_ptr,
 		.return_address = VM_RETURN,
 		.page_slot = slot,
 		.struct_page = -1
@@ -283,6 +284,7 @@ static void function_call(int fno, int return_address)
 
 	call_stack[call_stack_ptr++] = (struct function_call) {
 		.fno = fno,
+		.call_address = instr_ptr,
 		.return_address = return_address,
 		.page_slot = slot,
 		.struct_page = -1
@@ -1644,7 +1646,8 @@ void vm_stack_trace(void)
 	for (int i = call_stack_ptr - 1; i >= 0; i--) {
 		struct ain_function *f = &ain->functions[call_stack[i].fno];
 		char *u = sjis2utf(f->name, strlen(f->name));
-		sys_warning("\t%s\n", u);
+		uint32_t addr = (i == call_stack_ptr - 1) ? instr_ptr : call_stack[i+1].call_address;
+		sys_warning("\t0x%08x in %s\n", addr, u);
 		free(u);
 	}
 }

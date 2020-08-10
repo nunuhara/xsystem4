@@ -54,9 +54,11 @@ sexp sexp_page_ref_stub (sexp ctx, sexp self, sexp_sint_t n, sexp arg0, sexp arg
   return res;
 }
 
-sexp sexp_local_page_stub (sexp ctx, sexp self, sexp_sint_t n) {
+sexp sexp_frame_page_stub (sexp ctx, sexp self, sexp_sint_t n, sexp arg0) {
   sexp res;
-  res = sexp_make_cpointer(ctx, sexp_unbox_fixnum(sexp_opcode_return_type(self)), local_page(), SEXP_FALSE, 0);
+  if (! sexp_exact_integerp(arg0))
+    return sexp_type_exception(ctx, self, SEXP_FIXNUM, arg0);
+  res = sexp_make_cpointer(ctx, sexp_unbox_fixnum(sexp_opcode_return_type(self)), frame_page(sexp_sint_value(arg0)), SEXP_FALSE, 0);
   return res;
 }
 
@@ -70,7 +72,7 @@ sexp sexp_get_page_stub (sexp ctx, sexp self, sexp_sint_t n, sexp arg0) {
 
 sexp sexp_backtrace_stub (sexp ctx, sexp self, sexp_sint_t n) {
   sexp res;
-  res = ((vm_stack_trace()), SEXP_VOID);
+  res = ((print_stack_trace()), SEXP_VOID);
   return res;
 }
 
@@ -408,9 +410,10 @@ sexp sexp_init_library (sexp ctx, sexp self, sexp_sint_t n, sexp env, const char
     sexp_opcode_arg1_type(op) = sexp_make_fixnum(sexp_type_tag(sexp_page_type_obj));
     sexp_opcode_arg2_type(op) = sexp_make_fixnum(SEXP_FIXNUM);
   }
-  op = sexp_define_foreign(ctx, env, "local-page", 0, sexp_local_page_stub);
+  op = sexp_define_foreign(ctx, env, "frame-page", 1, sexp_frame_page_stub);
   if (sexp_opcodep(op)) {
     sexp_opcode_return_type(op) = sexp_make_fixnum(sexp_type_tag(sexp_page_type_obj));
+    sexp_opcode_arg1_type(op) = sexp_make_fixnum(SEXP_FIXNUM);
   }
   op = sexp_define_foreign(ctx, env, "get-page", 1, sexp_get_page_stub);
   if (sexp_opcodep(op)) {

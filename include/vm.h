@@ -117,6 +117,7 @@ noreturn void vm_exit(int code);
 
 struct function_call {
 	int32_t fno;
+	uint32_t call_address;
 	uint32_t return_address;
 	int32_t page_slot;
 	int32_t struct_page;

@@ -82,10 +82,10 @@
   (int      varno       variable-varno)
   (vm_value value       variable-vm-value))
 
-(define-c void (backtrace vm_stack_trace) ())
+(define-c void (backtrace print_stack_trace) ())
 
 (define-c (maybe-null page) (get-page get_page) (int))
-(define-c page (local-page local_page) ())
+(define-c (maybe-null page) (frame-page frame_page) (int))
 (define-c (free variable) (page-ref page_ref) (page int))
 
 (define-c void (set-function-breakpoint set_function_breakpoint) (string sexp))
