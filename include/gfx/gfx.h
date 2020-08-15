@@ -81,7 +81,6 @@ void gfx_prepare_job(struct gfx_render_job *job);
 void gfx_run_job(struct gfx_render_job *job);
 void gfx_render(struct gfx_render_job *job);
 void gfx_render_texture(struct texture *t, Rectangle *r);
-int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm);
 
 // texture management
 void gfx_init_texture_blank(struct texture *t, int w, int h);
@@ -173,7 +172,7 @@ bool gfx_get_font_strikeout(void);
 int gfx_get_font_space(void);
 SDL_Color gfx_get_font_color(void);
 
-int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm);
+int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm, int char_space);
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text);
 void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text);
 

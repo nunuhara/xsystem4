@@ -332,7 +332,7 @@ static int extract_sjis_char(char *src, char *dst)
 	return 1;
 }
 
-int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
+int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm, int char_space)
 {
 	char c[4];
 
@@ -340,7 +340,7 @@ int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
 	while (*msg) {
 		int len = extract_sjis_char(msg, c);
 		_gfx_render_text(dst, pos, c, tm);
-		pos.x += len == 2 ? tm->size : tm->size / 2;
+		pos.x += (len == 2 ? tm->size : tm->size / 2) + char_space;
 		msg += len;
 	}
 	return pos.x - original_x;
@@ -362,7 +362,7 @@ static void gfx_draw_text(Texture *dst, int x, int y, char *text)
 		free(conv);
 
 		// move next pos
-		pos.x += len == 2 ? font->size : font->size / 2;
+		pos.x += (len == 2 ? font->size : font->size / 2) + font_metrics.space;
 		text += len;
 	}
 }

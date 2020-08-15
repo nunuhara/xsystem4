@@ -503,7 +503,7 @@ int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_metrics *tm)
 		gfx_init_texture_with_color(&sp->text.texture, sp->rect.w, sp->rect.h, c);
 	}
 
-	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos, text->text, tm);
+	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos, text->text, tm, sp->text.char_space);
 	return 1;
 
 }
