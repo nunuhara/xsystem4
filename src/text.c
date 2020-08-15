@@ -267,7 +267,7 @@ static int sact_to_sdl_fontstyle(int style)
 //        Should add a char_space field to text_metrics to keep this function stateless.
 // FIXME: Should use a separate background texture for outlines so that outlines never clip
 //        into previously rendered text.
-int _gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
+static int _gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
 {
 	if (!font)
 		return 0;
@@ -319,30 +319,52 @@ int _gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm
 	return width;
 }
 
+static int extract_sjis_char(char *src, char *dst)
+{
+	if (SJIS_2BYTE(*src)) {
+		dst[0] = src[0];
+		dst[1] = src[1];
+		dst[2] = '\0';
+		return 2;
+	}
+	dst[0] = src[0];
+	dst[1] = '\0';
+	return 1;
+}
+
 int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
 {
 	char c[4];
 
 	int original_x = pos.x;
 	while (*msg) {
-		if (SJIS_2BYTE(*msg)) {
-			c[0] = msg[0];
-			c[1] = msg[1];
-			c[2] = '\0';
-		} else {
-			c[0] = msg[0];
-			c[1] = '\0';
-		}
+		int len = extract_sjis_char(msg, c);
 		_gfx_render_text(dst, pos, c, tm);
-		if (SJIS_2BYTE(*msg)) {
-			pos.x += tm->size;
-			msg += 2;
-		} else {
-			pos.x += tm->size / 2;
-			msg += 1;
-		}
+		pos.x += len == 2 ? tm->size : tm->size / 2;
+		msg += len;
 	}
 	return pos.x - original_x;
+}
+
+static void gfx_draw_text(Texture *dst, int x, int y, char *text)
+{
+	Point pos = { x, y };
+	while (*text) {
+		char c[4];
+		int len = extract_sjis_char(text, c);
+		char *conv = sjis2utf(c, len);
+		Texture glyph;
+
+		// render char
+		get_glyph(font->font, &glyph, conv, font_metrics.color);
+		render_glyph(dst, &glyph, pos);
+		gfx_delete_texture(&glyph);
+		free(conv);
+
+		// move next pos
+		pos.x += len == 2 ? font->size : font->size / 2;
+		text += len;
+	}
 }
 
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text)
@@ -352,17 +374,8 @@ void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text)
 
 	set_font_style(get_font_style());
 
-	char *conv = sjis2utf(text, strlen(text));
-	Point pos = { x, y };
-
 	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
-
-	Texture glyph;
-	get_glyph(font->font, &glyph, conv, font_metrics.color);
-	render_glyph(dst, &glyph, pos);
-	gfx_delete_texture(&glyph);
-	free(conv);
-
+	gfx_draw_text(dst, x, y, text);
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
@@ -373,18 +386,8 @@ void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text)
 
 	set_font_style(get_font_style());
 
-	char *conv = sjis2utf(text, strlen(text));
-	Point pos = { x, y };
-
-	//glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-
-	Texture glyph;
-	get_glyph(font->font, &glyph, conv, font_metrics.color);
-	render_glyph(dst, &glyph, pos);
-	gfx_delete_texture(&glyph);
-	free(conv);
-
+	gfx_draw_text(dst, x, y, text);
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
