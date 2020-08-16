@@ -542,7 +542,7 @@ int sact_SP_TextNewLine(int sp_no, int size)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
-	sp->text.pos = POINT(sp->text.home.x, sp->text.home.y + size + sp->text.line_space);
+	sp->text.pos = POINT(sp->text.home.x, sp->text.pos.y + size + sp->text.line_space);
 	return 1;
 }
 
