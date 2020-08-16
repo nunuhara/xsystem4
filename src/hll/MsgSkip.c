@@ -15,10 +15,76 @@
  */
 
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
+#include "system4.h"
+#include "system4/ain.h"
+#include "system4/string.h"
+#include "system4/utfsjis.h"
+
+#include "file.h"
+#include "vm.h"
+#include "xsystem4.h"
+
 #include "hll.h"
 
 static bool enabled = false;
 static int state = 0;
+
+static char *save_path;
+static uint8_t *flags;
+static int nr_flags;
+
+static void msgskip_save(void)
+{
+	FILE *f = fopen(save_path, "wb");
+	if (!f)
+		ERROR("fopen: '%s': %s", save_path, strerror(errno));
+
+	fwrite(flags, nr_flags, 1, f);
+	fclose(f);
+	free(flags);
+}
+
+int MsgSkip_Init(struct string *name)
+{
+	save_path = unix_path(name->text);
+
+	uint8_t *data;
+	size_t data_size;
+	if (file_exists(save_path)) {
+		data = file_read(save_path, &data_size);
+	} else {
+		data = xcalloc(ain->nr_messages, 1);
+		data_size = ain->nr_messages;
+	}
+	if (data_size != (size_t)ain->nr_messages) {
+		WARNING("Incorrect file size for MsgSkip file '%s'", save_path);
+		if (data_size < (size_t)ain->nr_messages) {
+			data = xrealloc_array(data, data_size, ain->nr_messages, 1);
+		}
+	}
+	flags = data;
+	nr_flags = ain->nr_messages;
+	atexit(msgskip_save);
+	return 1;
+}
+
+void MsgSkip_SetFlag(int msgnum)
+{
+	if (msgnum >= nr_flags)
+		return;
+	flags[msgnum] = 1;
+}
+
+int MsgSkip_GetFlag(int msgnum)
+{
+	if (msgnum >= nr_flags)
+		return 0;
+	return !!flags[msgnum];
+}
 
 void MsgSkip_SetEnable(int enable)
 {
@@ -40,10 +106,7 @@ int MsgSkip_GetState(void)
 	return state;
 }
 
-HLL_WARN_UNIMPLEMENTED(1, int,  MsgSkip, Init, struct string *name);
 HLL_WARN_UNIMPLEMENTED( , void, MsgSkip, UseFlag, int use);
-HLL_WARN_UNIMPLEMENTED( , void, MsgSkip, SetFlag, int msgnum);
-HLL_WARN_UNIMPLEMENTED(0, int,  MsgSkip, GetFlag, int msgnum);
 HLL_WARN_UNIMPLEMENTED(0, int,  MsgSkip, GetNumofMsg, void);
 HLL_WARN_UNIMPLEMENTED(0, int,  MsgSkip, GetNumofFlag, void);
 
