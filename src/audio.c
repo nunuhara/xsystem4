@@ -28,6 +28,7 @@ struct wav_slot {
 	Mix_Chunk *chunk;
 	int channel;
 	int no;
+	bool reverse;
 };
 
 struct bgm_slot {
@@ -135,6 +136,7 @@ static void wav_realloc(int new_size)
 	for (int i = wav.nr_slots; i < new_size; i++) {
 		wav.slots[i].chunk = NULL;
 		wav.slots[i].channel = -1;
+		wav.slots[i].reverse = false;
 	}
 	wav.nr_slots = new_size;
 }
@@ -323,7 +325,11 @@ int wav_play(int ch)
 		return 1;
 	}
 	slot->channel = Mix_PlayChannel(-1, slot->chunk, 0);
-	return slot->channel >= 0;
+	if (slot->channel < 0)
+		return 0;
+
+	Mix_SetReverseStereo(slot->channel, slot->reverse);
+	return 1;
 }
 
 int bgm_play(int ch)
@@ -381,6 +387,18 @@ int bgm_fade(int ch, possibly_unused int time, possibly_unused int volume, bool 
 	// TODO: fade
 	if (stop)
 		bgm_stop(ch);
+	return 1;
+}
+
+int wav_reverse_LR(int ch)
+{
+	struct wav_slot *slot = wav_get_slot(ch);
+	if (!slot)
+		return 0;
+	slot->reverse = true;
+	if (slot->channel >= 0) {
+		Mix_SetReverseStereo(slot->channel, 1);
+	}
 	return 1;
 }
 

@@ -203,6 +203,21 @@ SDL_Color gfx_get_font_color(void)
 	return font_metrics.color;
 }
 
+void gfx_set_font_name(const char *name)
+{
+	static const char mincho_name[] = { 0x82, 0x6c, 0x82, 0x72, 0x20, 0x96, 0xbe, 0x92, 0xa9, 0 };
+	static const char gothic_name[] = { 0x82, 0x6c, 0x82, 0x72, 0x20, 0x83, 0x53, 0x83, 0x56, 0x83, 0x62, 0x83, 0x4e, 0 };
+	if (!strcmp(name, mincho_name)) {
+		font_metrics.face = FONT_MINCHO;
+	} else if (!strcmp(name, gothic_name)) {
+		font_metrics.face = FONT_GOTHIC;
+	} else {
+		char *u = sjis2utf(name, 0);
+		WARNING("Unhandled font name: \"%s\"", u);
+		free(u);
+	}
+}
+
 static void get_glyph(TTF_Font *f, Texture *dst, char *msg, SDL_Color color)
 {
 	SDL_Surface *s = TTF_RenderUTF8_Blended(f, msg, color);

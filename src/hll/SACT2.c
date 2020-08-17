@@ -63,6 +63,13 @@ int sact_Mouse_GetPos(int *x, int *y)
 	return mouse_focus && keyboard_focus;
 }
 
+int sact_Mouse_SetPos(int x, int y)
+{
+	handle_events();
+	mouse_set_pos(x, y);
+	return mouse_focus && keyboard_focus;
+}
+
 void sact_Mouse_ClearWheel(void)
 {
 	mouse_clear_wheel();
@@ -193,6 +200,11 @@ int sact_Sound_Fade(int ch, int time, int volume, int stop)
 	return wav_fade(ch, time, volume, stop);
 }
 
+int sact_Sound_ReverseLR(int ch)
+{
+	return wav_reverse_LR(ch);
+}
+
 int sact_Sound_GetTimeLength(int ch)
 {
 	return wav_get_time_length(ch);
@@ -241,7 +253,6 @@ HLL_UNIMPLEMENTED(int, SACT2, SP_CreateCustom, int sp);
 HLL_UNIMPLEMENTED(int, SACT2, SP_TextBackSpace, int sp_no);
 HLL_UNIMPLEMENTED(void, SACT2, GAME_MSG_Get, int index, struct string **text);
 HLL_UNIMPLEMENTED(int, SACT2, StringPopFront, struct string **dst, struct string **src);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Mouse_SetPos, int x, int y);
 HLL_UNIMPLEMENTED(int, SACT2, Joypad_GetNumof, void);
 HLL_WARN_UNIMPLEMENTED( , void, SACT2, JoypadQuake_Set, int num, int type, int magnitude);
 HLL_UNIMPLEMENTED(int,  SACT2, CSV_Load, struct string *filename);
@@ -274,7 +285,6 @@ HLL_UNIMPLEMENTED(int, SACT2, Sound_StopFade, int ch);
 HLL_UNIMPLEMENTED(int, SACT2, Sound_IsFade, int ch);
 HLL_UNIMPLEMENTED(int, SACT2, Sound_GetPos, int ch);
 HLL_UNIMPLEMENTED(int, SACT2, Sound_GetLength, int ch);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Sound_ReverseLR, int ch);
 HLL_UNIMPLEMENTED(int, SACT2, Sound_GetVolume, int ch);
 HLL_UNIMPLEMENTED(int, SACT2, Sound_GetGroupNum, int ch);
 HLL_UNIMPLEMENTED(bool, SACT2, Sound_PrepareFromFile, int ch, struct string *filename);
@@ -353,7 +363,7 @@ HLL_LIBRARY(SACT2,
 	    HLL_EXPORT(IntToHankaku, sact_IntToHankaku),
 	    HLL_EXPORT(StringPopFront, SACT2_StringPopFront),
 	    HLL_EXPORT(Mouse_GetPos, sact_Mouse_GetPos),
-	    HLL_EXPORT(Mouse_SetPos, SACT2_Mouse_SetPos),
+	    HLL_EXPORT(Mouse_SetPos, sact_Mouse_SetPos),
 	    HLL_EXPORT(Mouse_ClearWheel, sact_Mouse_ClearWheel),
 	    HLL_EXPORT(Mouse_GetWheel, sact_Mouse_GetWheel),
 	    HLL_EXPORT(Joypad_ClearKeyDownFlag, sact_Joypad_ClearKeyDownFlag),
@@ -412,7 +422,7 @@ HLL_LIBRARY(SACT2,
 	    HLL_EXPORT(Sound_IsFade, SACT2_Sound_IsFade),
 	    HLL_EXPORT(Sound_GetPos, SACT2_Sound_GetPos),
 	    HLL_EXPORT(Sound_GetLength, SACT2_Sound_GetLength),
-	    HLL_EXPORT(Sound_ReverseLR, SACT2_Sound_ReverseLR),
+	    HLL_EXPORT(Sound_ReverseLR, sact_Sound_ReverseLR),
 	    HLL_EXPORT(Sound_GetVolume, SACT2_Sound_GetVolume),
 	    HLL_EXPORT(Sound_GetTimeLength, sact_Sound_GetTimeLength),
 	    HLL_EXPORT(Sound_GetGroupNum, SACT2_Sound_GetGroupNum),

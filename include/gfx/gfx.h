@@ -171,6 +171,7 @@ bool gfx_get_font_underline(void);
 bool gfx_get_font_strikeout(void);
 int gfx_get_font_space(void);
 SDL_Color gfx_get_font_color(void);
+void gfx_set_font_name(const char *name);
 
 int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm, int char_space);
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text);

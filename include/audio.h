@@ -66,7 +66,7 @@ int bgm_fade(int ch, int time, int volume, bool stop);
 //int bgm_seek(int channel, int pos);
 int wav_get_unused_channel(void);
 int bgm_get_unused_channel(void);
-//int wav_reverse_LR(int channel);
+int wav_reverse_LR(int ch);
 //int bgm_reverse_LR(int channel);
 //int wav_get_volume(int channel);
 //int bgm_get_volume(int channel);

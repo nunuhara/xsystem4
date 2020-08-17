@@ -155,6 +155,11 @@ bool DrawGraph_GetAlphaColor(int surface, int x, int y, int *a)
 	return true;
 }
 
+void DrawGraph_SetFontName(struct string *text)
+{
+	gfx_set_font_name(text->text);
+}
+
 HLL_UNIMPLEMENTED(void, DrawGraph, CopyColorReverse, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 HLL_UNIMPLEMENTED(void, DrawGraph, Blend, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha);
 HLL_UNIMPLEMENTED(void, DrawGraph, BlendSrcBright, int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
@@ -185,7 +190,6 @@ HLL_UNIMPLEMENTED(void, DrawGraph, CopyStretchBlend, int dst, int dx, int dy, in
 HLL_UNIMPLEMENTED(void, DrawGraph, CopyStretchBlendAMap, int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
 HLL_UNIMPLEMENTED(void, DrawGraph, CopyStretchInterp, int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
 HLL_UNIMPLEMENTED(void, DrawGraph, CopyStretchAMapInterp, int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
-HLL_WARN_UNIMPLEMENTED( , void, DrawGraph, SetFontName, struct string *text);
 HLL_WARN_UNIMPLEMENTED(&EMPTY_STRING, struct string*, DrawGraph, GetFontName, void);
 HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotZoom2Bilinear, int dst, float cx, float cy, int src, float scx, float scy, float rot, float mag);
 HLL_UNIMPLEMENTED(void, DrawGraph, CopyRotateY, int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);

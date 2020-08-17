@@ -54,6 +54,11 @@ void mouse_get_pos(int *x, int *y)
 	SDL_GetMouseState(x, y);
 }
 
+void mouse_set_pos(int x, int y)
+{
+	SDL_WarpMouseInWindow(sdl.window, x, y);
+}
+
 static int wheel_dir = 0;
 
 void mouse_get_wheel(int *forward, int *back)
