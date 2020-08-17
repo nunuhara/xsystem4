@@ -496,6 +496,9 @@ static int array_compare(const void *_a, const void *_b)
 {
 	union vm_value a = *((union vm_value*)_a);
 	union vm_value b = *((union vm_value*)_b);
+	if (!current_sort_function) {
+		return a.i - b.i;
+	}
 	stack_push(a);
 	stack_push(b);
 	vm_call(current_sort_function, -1);
