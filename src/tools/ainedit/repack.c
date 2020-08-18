@@ -115,6 +115,7 @@ static void write_variable(struct ain_buffer *out, struct ain *ain, struct ain_v
 			case AIN_DELEGATE:
 			case AIN_REF_TYPE:
 			case AIN_ARRAY:
+			case AIN_STRUCT:
 				break;
 			default:
 				write_int32(out, v->initval.i);

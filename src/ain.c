@@ -620,6 +620,7 @@ static void read_variable_initval(struct ain_reader *r, struct ain_variable *v)
 		case AIN_STRING:
 			v->initval.s = read_string(r);
 			break;
+		case AIN_STRUCT:
 		case AIN_DELEGATE:
 		case AIN_REF_TYPE:
 		case AIN_ARRAY:
