@@ -45,6 +45,7 @@ static bool skip_dcf(struct buffer *r);
 static bool skip_flat(struct buffer *r);
 static bool skip_zlb(struct buffer *r);
 static bool skip_ex(struct buffer *r);
+static bool skip_ogg(struct buffer *r);
 
 static struct file_magic file_magic[] = {
 	{ ".ajp",  "AJP",     4, skip_ajp  },
@@ -53,6 +54,7 @@ static struct file_magic file_magic[] = {
 	{ ".flat", "ELNA",    4, skip_flat },
 	{ ".zlb",  "ZLB",     4, skip_zlb  },
 	{ ".ex",   "HEAD",    4, skip_ex   },
+	{ ".ogg",  "OggS",    4, skip_ogg  },
 	// TODO: ogg
 };
 
@@ -297,6 +299,74 @@ static bool skip_ex(struct buffer *r)
 
 	unsigned size = buffer_read_int32(r);
 	buffer_skip(r, size+4);
+	return true;
+}
+
+enum {
+	OGG_INVALID,
+	OGG_START,
+	OGG_END,
+	OGG_OTHER,
+};
+
+static int skip_ogg_page(struct buffer *r)
+{
+	if (buffer_remaining(r) < 27) {
+		WARNING("Ogg page truncated?");
+		return OGG_INVALID;
+	}
+
+	// read header
+	uint8_t *header = (uint8_t*)buffer_strdata(r);
+	uint8_t type = header[5];
+	uint8_t nr_segments = header[26];
+	buffer_skip(r, 27);
+
+	if (buffer_remaining(r) < nr_segments) {
+		WARNING("Ogg page truncated?");
+		return OGG_INVALID;
+	}
+
+	// read segment table
+	uint8_t *segment_table = xmalloc(nr_segments);
+	memcpy(segment_table, buffer_strdata(r), nr_segments);
+	buffer_skip(r, nr_segments);
+
+	// skip segments
+	for (unsigned i = 0; i < nr_segments; i++) {
+		if (buffer_remaining(r) < segment_table[i]) {
+			WARNING("Ogg segment truncated?");
+			return OGG_INVALID;
+		}
+		buffer_skip(r, segment_table[i]);
+	}
+
+	if (type & 2)
+		return OGG_START;
+	if (type & 4)
+		return OGG_END;
+	return OGG_OTHER;
+}
+
+static bool skip_ogg(struct buffer *r)
+{
+	int type = skip_ogg_page(r);
+	if (type == OGG_INVALID)
+		return false;
+	if (type != OGG_START) {
+		WARNING("First page in Ogg file has wrong type: %d", type);
+		return false;
+	}
+
+	while ((type = skip_ogg_page(r)) != OGG_END) {
+		if (type == OGG_INVALID)
+			return false;
+		if (type == OGG_START) {
+			WARNING("Begging of stream page in middle of Ogg file?");
+			return false;
+		}
+	}
+
 	return true;
 }
 
