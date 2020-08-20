@@ -129,6 +129,7 @@ static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value 
 		break;
 	case FMT_STRING:
 		string_append(s, heap[arg.i].s);
+		heap_unref(arg.i);
 		break;
 	case FMT_CHAR:
 		string_push_back(s, arg.i);
