@@ -176,6 +176,12 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 	return AIN_VOID;
 }
 
+void variable_set(struct page *page, int varno, enum ain_data_type type, union vm_value val)
+{
+	variable_fini(page->values[varno], type);
+	page->values[varno] = val;
+}
+
 void delete_page_vars(struct page *page)
 {
 	for (int i = 0; i < page->nr_vars; i++) {
@@ -203,6 +209,7 @@ struct page *copy_page(struct page *src)
 	struct page *dst = alloc_page(src->type, src->index, src->nr_vars);
 	dst->struct_type = src->struct_type;
 	dst->rank = src->rank;
+
 	for (int i = 0; i < src->nr_vars; i++) {
 		dst->values[i] = vm_copy(src->values[i], variable_type(src, i, NULL, NULL));
 	}
@@ -373,7 +380,8 @@ void array_copy(struct page *dst, int dst_i, struct page *src, int src_i, int n)
 		ERROR("Array types do not match");
 
 	for (int i = 0; i < n; i++) {
-		dst->values[dst_i + i] = vm_copy(src->values[src_i + i], array_type(dst->a_type));
+		enum ain_data_type type = array_type(dst->a_type);
+		variable_set(dst, dst_i+i, type, vm_copy(src->values[src_i+i], type));
 	}
 }
 
@@ -394,9 +402,11 @@ int array_fill(struct page *dst, int dst_i, int n, union vm_value v)
 	if (dst_i + n >= dst->nr_vars)
 		n = dst->nr_vars - dst_i;
 
+	enum ain_data_type type = array_type(dst->a_type);
 	for (int i = 0; i < n; i++) {
-		dst->values[dst_i + i] = vm_copy(v, array_type(dst->a_type));
+		variable_set(dst, dst_i+i, type, vm_copy(v, type));
 	}
+	variable_fini(v, type);
 	return n;
 }
 
@@ -411,11 +421,11 @@ struct page *array_pushback(struct page *dst, union vm_value v, enum ain_data_ty
 		int index = dst->nr_vars;
 		union vm_value dims[1] = { (union vm_value) { .i = index + 1 } };
 		dst = realloc_array(dst, 1, dims, dst->a_type, dst->struct_type, false);
-		dst->values[index] = v;
+		variable_set(dst, index, array_type(data_type), v);
 	} else {
 		union vm_value dims[1] = { (union vm_value) { .i = 1 } };
 		dst = alloc_array(1, dims, data_type, struct_type, false);
-		dst->values[0] = v;
+		variable_set(dst, 0, array_type(data_type), v);
 	}
 	return dst;
 }

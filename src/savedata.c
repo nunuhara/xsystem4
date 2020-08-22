@@ -194,22 +194,7 @@ void json_load_page(struct page *page, cJSON *vars)
 	cJSON_ArrayForEach(v, vars) {
 		int struct_type, array_rank;
 		enum ain_data_type data_type = variable_type(page, i, &struct_type, &array_rank);
-
-		// unref default values created during page allocation
-		// FIXME: maybe refactor alloc_struct/alloc_array to avoid this?
-		switch (data_type) {
-		case AIN_STRING:
-		case AIN_STRUCT:
-		case AIN_ARRAY_TYPE:
-			if (page->values[i].i > 0) {
-				heap_unref(page->values[i].i);
-			}
-			break;
-		default:
-			break;
-		}
-
-		page->values[i] = json_to_vm_value(data_type, struct_type, array_rank, v);
+		variable_set(page, i, data_type, json_to_vm_value(data_type, struct_type, array_rank, v));
 		i++;
 	}
 }
