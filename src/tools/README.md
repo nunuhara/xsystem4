@@ -9,6 +9,8 @@ used in AliceSoft games. The currently included tools are:
 * exdump   - used to extract information from .ex files (static data)
 * exbuild  - used to rebuild an .ex file dumped by exdump
 * alice-ar - used to extract .ald/.afa/.flat files
+* acxdump  - used to dump .acx files
+* acxbuild - used to rebuild .acx files dumped by acxdump
 
 More tools are planned for future releases.
 
@@ -137,6 +139,10 @@ dump back together when rebuilding with exbuild.
 
 See [alice-ar-README.md](alice-ar-README.html)
 
+### Editing .acx files
+
+See [acx-README.md](acx-README.html)
+
 Known Limitations/Bugs
 ----------------------
 
@@ -158,6 +164,14 @@ nunuhara@haniwa.technology, or find me on /haniho/.
 
 Version History
 ---------------
+
+### [Version 0.6.0](https://haniwa.technology/alice-tools/alice-tools-0.6.0.zip)
+
+* Add acxdump/acxbuild tools for editing .acx files
+* Support extracting .ogg files from afa v3 archives
+* Fix crash when extracting CG archive from MangaGamer version of Sengoku Rance
+* Support dumping/editing .ain files for Hentai Labyrinth and Evenicle 2
+  Clinical Trial Edition
 
 ### [Version 0.5.1](https://haniwa.technology/alice-tools/alice-tools-0.5.1.zip)
 
