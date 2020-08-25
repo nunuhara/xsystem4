@@ -315,6 +315,7 @@ struct page *realloc_array(struct page *src, int rank, union vm_value *dimension
 		ERROR("Attempt to reallocate array with different rank");
 	if (!dimensions->i) {
 		delete_page_vars(src);
+		free_page(src);
 		return NULL;
 	}
 
@@ -459,6 +460,7 @@ struct page *array_erase(struct page *page, int i, bool *success)
 	// if array will be empty...
 	if (page->nr_vars == 1) {
 		delete_page_vars(page);
+		free_page(page);
 		*success = true;
 		return NULL;
 	}
