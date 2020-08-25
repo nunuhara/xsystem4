@@ -52,6 +52,7 @@ struct texture *sact_get_texture(int sp_no);
 
 void sact_render_scene(void);
 
+void sact_ModuleFini(void);
 int sact_Init(void *_, int cg_cache_size);
 int sact_SetWP(int cg_no);
 int sact_SetWP_Color(int r, int g, int b);

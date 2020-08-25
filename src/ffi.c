@@ -31,7 +31,7 @@ struct hll_function {
 	ffi_type *return_type;
 };
 
-static struct hll_function **libraries;
+static struct hll_function **libraries = NULL;
 
 bool library_exists(int libno)
 {
@@ -244,6 +244,9 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 
 void link_libraries(void)
 {
+	if (libraries)
+		return;
+
 	libraries = xcalloc(ain->nr_libraries, sizeof(struct hll_function*));
 
 	for (int i = 0; i < ain->nr_libraries; i++) {
@@ -255,5 +258,27 @@ void link_libraries(void)
 		}
 		if (!libraries[i])
 			WARNING("Unimplemented library: %s", ain->libraries[i].name);
+	}
+}
+
+void library_fini(struct static_library *lib)
+{
+	for (int i = 0; lib->functions[i].name; i++) {
+		if (!strcmp(lib->functions[i].name, "_ModuleFini")) {
+			((void(*)(void))lib->functions[i].fun)();
+			break;
+		}
+	}
+}
+
+void exit_libraries(void)
+{
+	for (int i = 0; i < ain->nr_libraries; i++) {
+		for (int j = 0; static_libraries[j]; j++) {
+			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
+				library_fini(static_libraries[j]);
+				break;
+			}
+		}
 	}
 }

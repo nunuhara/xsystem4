@@ -48,8 +48,13 @@ static void msgskip_save(void)
 	free(flags);
 }
 
+static bool msgskip_initialized = false;
+
 int MsgSkip_Init(struct string *name)
 {
+	if (msgskip_initialized)
+		return 1;
+
 	save_path = unix_path(name->text);
 
 	uint8_t *data;
@@ -69,6 +74,7 @@ int MsgSkip_Init(struct string *name)
 	flags = data;
 	nr_flags = ain->nr_messages;
 	atexit(msgskip_save);
+	msgskip_initialized = true;
 	return 1;
 }
 

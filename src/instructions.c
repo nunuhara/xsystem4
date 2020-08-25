@@ -47,7 +47,7 @@ const struct syscall syscalls[NR_SYSCALLS] = {
 	SYS  ( SYS_GLOBAL_LOAD,          GlobalLoad,         AIN_INT_TYPE,    2, AIN_STRING, AIN_STRING ),
 	SYS  ( SYS_LOCK_PEEK,            LockPeek,           AIN_INT_TYPE,    0 ),
 	SYS  ( SYS_UNLOCK_PEEK,          UnlockPeek,         AIN_INT_TYPE,    0 ),
-	TODO ( SYS_RESET,                Reset,              AIN_VOID_TYPE,   0 ),
+	SYS  ( SYS_RESET,                Reset,              AIN_VOID_TYPE,   0 ),
 	SYS  ( SYS_OUTPUT,               Output,             AIN_STRING_TYPE, 1, AIN_STRING ),
 	SYS  ( SYS_MSGBOX,               MsgBox,             AIN_STRING_TYPE, 1, AIN_STRING ),
 	SYS  ( SYS_RESUME_SAVE,          ResumeSave,         AIN_INT_TYPE,    3, AIN_STRING, AIN_STRING, AIN_REF_INT ),

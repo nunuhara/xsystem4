@@ -21,6 +21,7 @@
 #include <math.h>
 #include <time.h>
 #include <errno.h>
+#include <setjmp.h>
 #include <SDL.h> // for system.MsgBox
 
 #include "system4.h"
@@ -340,6 +341,8 @@ static const SDL_MessageBoxButtonData buttons[] = {
 	{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Cancel" },
 };
 
+static noreturn void vm_reset(void);
+
 static void system_call(enum syscall_code code)
 {
 	switch (code) {
@@ -366,6 +369,10 @@ static void system_call(enum syscall_code code)
 	case SYS_LOCK_PEEK: // system.LockPeek(void)
 	case SYS_UNLOCK_PEEK: {// system.UnlockPeek(void)
 		stack_push(1);
+		break;
+	}
+	case SYS_RESET: {
+		vm_reset();
 		break;
 	}
 	case SYS_OUTPUT: {// system.Output(string szText)
@@ -1588,17 +1595,40 @@ static void vm_execute(void)
 	}
 }
 
+static void vm_free(void)
+{
+	// call library exit routines
+	exit_libraries();
+	// flush call stack
+	for (int i = call_stack_ptr - 1; i >= 0; i--) {
+		heap_unref(call_stack[i].page_slot);
+	}
+	// free globals
+	exit_unref(0);
+}
+
+static jmp_buf reset_buf;
+
+static noreturn void vm_reset(void)
+{
+	vm_free();
+	longjmp(reset_buf, 1);
+}
+
 int vm_execute_ain(struct ain *program)
 {
+	ain = program;
+	setjmp(reset_buf);
+
 	// initialize VM state
-	stack_size = INITIAL_STACK_SIZE;
-	stack = xmalloc(INITIAL_STACK_SIZE * sizeof(union vm_value));
+	if (!stack) {
+		stack_size = INITIAL_STACK_SIZE;
+		stack = xmalloc(INITIAL_STACK_SIZE * sizeof(union vm_value));
+	}
 	stack_ptr = 0;
+	call_stack_ptr = 0;
 
 	heap_init();
-
-	ain = program;
-
 	link_libraries();
 
 	// Initialize globals
@@ -1722,12 +1752,7 @@ static void describe_slot(size_t slot)
 
 noreturn void vm_exit(int code)
 {
-	// flush call stack
-	for (int i = call_stack_ptr - 1; i >= 0; i--) {
-		heap_unref(call_stack[i].page_slot);
-	}
-	// free globals
-	exit_unref(0);
+	vm_free();
 #ifdef DEBUG_HEAP
 	for (size_t i = 0; i < heap_size; i++) {
 		if (heap[i].ref > 0)

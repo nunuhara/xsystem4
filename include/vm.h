@@ -105,6 +105,7 @@ void hll_call(int libno, int fno);
 void link_libraries(void);
 bool library_exists(int libno);
 bool library_function_exists(int libno, int fno);
+void exit_libraries(void);
 
 void vm_stack_trace(void);
 noreturn void _vm_error(const char *fmt, ...);

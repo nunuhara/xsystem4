@@ -14,7 +14,10 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#define VM_PRIVATE
+
 #include <stdlib.h>
+#include <string.h>
 #include "system4/string.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -23,12 +26,12 @@
 #define INITIAL_HEAP_SIZE  4096
 #define HEAP_ALLOC_STEP    4096
 
-struct vm_pointer *heap;
-size_t heap_size;
+struct vm_pointer *heap = NULL;
+size_t heap_size = 0;
 
 // Heap free list
 // This is a list of unused indices into the 'heap' array.
-int32_t *heap_free_stack;
+int32_t *heap_free_stack = NULL;
 size_t heap_free_ptr = 0;
 
 static const char *vm_ptrtype_strtab[] = {
@@ -44,11 +47,15 @@ static const char *vm_ptrtype_string(enum vm_pointer_type type) {
 
 void heap_init(void)
 {
-	heap_size = INITIAL_HEAP_SIZE;
-	heap = xcalloc(1, INITIAL_HEAP_SIZE * sizeof(struct vm_pointer));
+	if (!heap) {
+		heap_size = INITIAL_HEAP_SIZE;
+		heap = xcalloc(1, INITIAL_HEAP_SIZE * sizeof(struct vm_pointer));
+		heap_free_stack = xmalloc(INITIAL_HEAP_SIZE * sizeof(int32_t));
+	} else {
+		memset(heap, 0, heap_size * sizeof(struct vm_pointer*));
+	}
 
-	heap_free_stack = xmalloc(INITIAL_HEAP_SIZE * sizeof(int32_t));
-	for (size_t i = 0; i < INITIAL_HEAP_SIZE; i++) {
+	for (size_t i = 0; i < heap_size; i++) {
 		heap_free_stack[i] = i;
 	}
 	heap_free_ptr = 1; // global page at index 0
@@ -155,6 +162,7 @@ void exit_unref(int slot)
 					break;
 				}
 			}
+			free_page(page);
 		}
 		break;
 	case VM_STRING:

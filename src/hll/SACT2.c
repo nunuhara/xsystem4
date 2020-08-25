@@ -295,6 +295,7 @@ HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_SetBrightness, int sp_no, int brightnes
 HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_GetBrightness, int sp_no);
 
 HLL_LIBRARY(SACT2,
+	    HLL_EXPORT(_ModuleFini, sact_ModuleFini),
 	    HLL_EXPORT(Init, sact_Init),
 	    HLL_EXPORT(Error, SACT2_Error),
 	    HLL_EXPORT(SetWP, sact_SetWP),

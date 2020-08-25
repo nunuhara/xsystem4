@@ -41,6 +41,23 @@ static struct sact_sprite wp;
 TAILQ_HEAD(listhead, sact_sprite) sprite_list =
 	TAILQ_HEAD_INITIALIZER(sprite_list);
 
+static void sprite_register(struct sact_sprite *sp)
+{
+	struct sact_sprite *p;
+	TAILQ_FOREACH(p, &sprite_list, entry) {
+		if (p->z > sp->z) {
+			TAILQ_INSERT_BEFORE(p, sp, entry);
+			return;
+		}
+	}
+	TAILQ_INSERT_TAIL(&sprite_list, sp, entry);
+}
+
+static void sprite_unregister(struct sact_sprite *sp)
+{
+	TAILQ_REMOVE(&sprite_list, sp, entry);
+}
+
 struct sact_sprite *sact_get_sprite(int sp)
 {
 	if (sp < -1 || sp >= nr_sprites)
@@ -70,27 +87,12 @@ static void free_sprite(struct sact_sprite *sp)
 {
 	if (sprites[sp->no] == NULL)
 		VM_ERROR("Double free of sact_sprite");
+	if (sp->show)
+		sprite_unregister(sp);
 	sprites[sp->no] = NULL;
 	gfx_delete_texture(&sp->texture);
 	gfx_delete_texture(&sp->text.texture);
 	free(sp);
-}
-
-static void sprite_register(struct sact_sprite *sp)
-{
-	struct sact_sprite *p;
-	TAILQ_FOREACH(p, &sprite_list, entry) {
-		if (p->z > sp->z) {
-			TAILQ_INSERT_BEFORE(p, sp, entry);
-			return;
-		}
-	}
-	TAILQ_INSERT_TAIL(&sprite_list, sp, entry);
-}
-
-static void sprite_unregister(struct sact_sprite *sp)
-{
-	TAILQ_REMOVE(&sprite_list, sp, entry);
 }
 
 static void realloc_sprite_table(int n)
@@ -106,6 +108,10 @@ static void realloc_sprite_table(int n)
 
 int sact_Init(possibly_unused void *_, possibly_unused int cg_cache_size)
 {
+	// already initialized
+	if (sprites)
+		return 1;
+
 	gfx_init();
 	gfx_font_init();
 	audio_init();
@@ -121,6 +127,15 @@ int sact_Init(possibly_unused void *_, possibly_unused int cg_cache_size)
 
 	sprites++;
 	return 1;
+}
+
+void sact_ModuleFini(void)
+{
+	for (int i = 0; i < nr_sprites; i++) {
+		if (sprites[i]) {
+			free_sprite(sprites[i]);
+		}
+	}
 }
 
 int sact_SetWP(int cg_no)
@@ -286,8 +301,6 @@ int sact_SP_Delete(int sp_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
-	if (sp->show)
-		sprite_unregister(sp);
 	free_sprite(sp);
 	return 1;
 }
