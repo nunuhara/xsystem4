@@ -187,8 +187,18 @@ int File_GetTime(struct string *filename, struct page **page)
 	return 1;
 }
 
+int File_Delete(struct string *name)
+{
+	char *path = unix_path(name->text);
+	if (remove(path)) {
+		WARNING("remove: %s", strerror(errno));
+		return 0;
+	}
+	free(path);
+	return 1;
+}
+
 HLL_UNIMPLEMENTED(int, File, Copy, struct string *src, struct string *dst);
-HLL_UNIMPLEMENTED(int, File, Delete, struct string *name);
 HLL_UNIMPLEMENTED(int, File, SetFind, struct string *name);
 HLL_UNIMPLEMENTED(int, File, GetFind, struct string **name);
 HLL_UNIMPLEMENTED(int, File, MakeDirectory, struct string *name);
@@ -198,10 +208,10 @@ HLL_LIBRARY(File,
 	    HLL_EXPORT(Close, File_Close),
 	    HLL_EXPORT(Read, File_Read),
 	    HLL_EXPORT(Write, File_Write),
-	    HLL_EXPORT(File, File_Copy),
-	    HLL_EXPORT(File, File_Delete),
+	    HLL_EXPORT(Copy, File_Copy),
+	    HLL_EXPORT(Delete, File_Delete),
 	    HLL_EXPORT(GetTime, File_GetTime),
-	    HLL_EXPORT(File, File_SetFind),
-	    HLL_EXPORT(File, File_GetFind),
-	    HLL_EXPORT(File, File_MakeDirectory));
+	    HLL_EXPORT(SetFind, File_SetFind),
+	    HLL_EXPORT(GetFind, File_GetFind),
+	    HLL_EXPORT(MakeDirectory, File_MakeDirectory));
 
