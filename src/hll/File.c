@@ -176,7 +176,7 @@ int File_GetTime(struct string *filename, struct page **page)
 		return 0;
 	}
 
-	date[0].i = tm->tm_year;
+	date[0].i = tm->tm_year + 1900;
 	date[1].i = tm->tm_mon;
 	date[2].i = tm->tm_mday;
 	date[3].i = tm->tm_hour;
