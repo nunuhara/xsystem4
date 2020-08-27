@@ -29,7 +29,7 @@
 
 struct acx *acx = NULL;
 
-bool ACXLoader_Load(struct string *filename)
+static bool ACXLoader_Load(struct string *filename)
 {
 	char *path = gamedir_path(filename->text);
 	acx = acx_load(path);
@@ -37,23 +37,23 @@ bool ACXLoader_Load(struct string *filename)
 	return !!acx;
 }
 
-void ACXLoader_Release(void)
+static void ACXLoader_Release(void)
 {
 	acx_free(acx);
 	acx = NULL;
 }
 
-int ACXLoader_GetNumofLine(void)
+static int ACXLoader_GetNumofLine(void)
 {
 	return acx ? acx->nr_lines : 0;
 }
 
-int ACXLoader_GetNumofColumn(void)
+static int ACXLoader_GetNumofColumn(void)
 {
 	return acx ? acx->nr_columns : 0;
 }
 
-bool ACXLoader_GetDataInt(int line, int col, int *ptr)
+static bool ACXLoader_GetDataInt(int line, int col, int *ptr)
 {
 	if (!acx)
 		return false;
@@ -65,7 +65,7 @@ bool ACXLoader_GetDataInt(int line, int col, int *ptr)
 	return true;
 }
 
-bool ACXLoader_GetDataString(int line, int col, struct string **ptr)
+static bool ACXLoader_GetDataString(int line, int col, struct string **ptr)
 {
 	if (!acx)
 		return false;
@@ -77,7 +77,7 @@ bool ACXLoader_GetDataString(int line, int col, struct string **ptr)
 	return true;
 }
 
-bool ACXLoader_GetDataStruct(int line, struct page **page)
+static bool ACXLoader_GetDataStruct(int line, struct page **page)
 {
 	if (!acx)
 		return false;

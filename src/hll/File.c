@@ -36,7 +36,7 @@ static char *file_contents = NULL;
 static size_t file_size = 0;
 static size_t file_cursor = 0;
 
-int File_Open(struct string *filename, int type)
+static int File_Open(struct string *filename, int type)
 {
 	const char *mode;
 	if (type == 1) {
@@ -62,7 +62,7 @@ int File_Open(struct string *filename, int type)
 	return !!current_file;
 }
 
-int File_Close(void)
+static int File_Close(void)
 {
 	if (!current_file) {
 		VM_ERROR("File.Close called, but no open file");
@@ -77,7 +77,7 @@ int File_Close(void)
 	return r;
 }
 
-int File_Read(struct page **_page)
+static int File_Read(struct page **_page)
 {
 	struct page *page = *_page;
 	if (page->type != STRUCT_PAGE) {
@@ -121,7 +121,7 @@ int File_Read(struct page **_page)
 	return 1;
 }
 
-int File_Write(struct page *page)
+static int File_Write(struct page *page)
 {
 	if (!current_file) {
 		VM_ERROR("File.Write called, but no open file");
@@ -157,7 +157,7 @@ struct tagSaveDate {
 
  */
 
-int File_GetTime(struct string *filename, struct page **page)
+static int File_GetTime(struct string *filename, struct page **page)
 {
 	struct stat s;
 	char *path = unix_path(filename->text);
@@ -187,7 +187,7 @@ int File_GetTime(struct string *filename, struct page **page)
 	return 1;
 }
 
-int File_Delete(struct string *name)
+static int File_Delete(struct string *name)
 {
 	char *path = unix_path(name->text);
 	if (remove(path)) {
@@ -198,20 +198,29 @@ int File_Delete(struct string *name)
 	return 1;
 }
 
-HLL_UNIMPLEMENTED(int, File, Copy, struct string *src, struct string *dst);
-HLL_UNIMPLEMENTED(int, File, SetFind, struct string *name);
-HLL_UNIMPLEMENTED(int, File, GetFind, struct string **name);
-HLL_UNIMPLEMENTED(int, File, MakeDirectory, struct string *name);
+static int File_MakeDirectory(struct string *name)
+{
+	char *path = unix_path(name->text);
+	if (mkdir_p(path)) {
+		WARNING("mkdir_p: %s", strerror(errno));
+	}
+	free(path);
+	return 1;
+}
+
+//int File_Copy(struct string *src, struct string *dst);
+//int File_SetFind(struct string *name);
+//int File_GetFind(struct string **name);
 
 HLL_LIBRARY(File,
 	    HLL_EXPORT(Open, File_Open),
 	    HLL_EXPORT(Close, File_Close),
 	    HLL_EXPORT(Read, File_Read),
 	    HLL_EXPORT(Write, File_Write),
-	    HLL_EXPORT(Copy, File_Copy),
+	    //HLL_EXPORT(Copy, File_Copy),
 	    HLL_EXPORT(Delete, File_Delete),
 	    HLL_EXPORT(GetTime, File_GetTime),
-	    HLL_EXPORT(SetFind, File_SetFind),
-	    HLL_EXPORT(GetFind, File_GetFind),
+	    //HLL_EXPORT(SetFind, File_SetFind),
+	    //HLL_EXPORT(GetFind, File_GetFind),
 	    HLL_EXPORT(MakeDirectory, File_MakeDirectory));
 

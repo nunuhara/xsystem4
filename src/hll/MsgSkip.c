@@ -50,7 +50,7 @@ static void msgskip_save(void)
 
 static bool msgskip_initialized = false;
 
-int MsgSkip_Init(struct string *name)
+static int MsgSkip_Init(struct string *name)
 {
 	if (msgskip_initialized)
 		return 1;
@@ -78,36 +78,36 @@ int MsgSkip_Init(struct string *name)
 	return 1;
 }
 
-void MsgSkip_SetFlag(int msgnum)
+static void MsgSkip_SetFlag(int msgnum)
 {
 	if (msgnum >= nr_flags)
 		return;
 	flags[msgnum] = 1;
 }
 
-int MsgSkip_GetFlag(int msgnum)
+static int MsgSkip_GetFlag(int msgnum)
 {
 	if (msgnum >= nr_flags)
 		return 0;
 	return !!flags[msgnum];
 }
 
-void MsgSkip_SetEnable(int enable)
+static void MsgSkip_SetEnable(int enable)
 {
 	enabled = !!enable;
 }
 
-int MsgSkip_GetEnable(void)
+static int MsgSkip_GetEnable(void)
 {
 	return enabled;
 }
 
-void MsgSkip_SetState(int _state)
+static void MsgSkip_SetState(int _state)
 {
 	state = _state;
 }
 
-int MsgSkip_GetState(void)
+static int MsgSkip_GetState(void)
 {
 	return state;
 }

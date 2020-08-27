@@ -17,16 +17,17 @@
 #include "hll.h"
 
 HLL_WARN_UNIMPLEMENTED(0, int, PlayMovie, Init, void);
-HLL_UNIMPLEMENTED(int, PlayMovie, Load, struct string *filename);
-HLL_UNIMPLEMENTED(int, PlayMovie, Play, void);
-HLL_UNIMPLEMENTED(void, PlayMovie, Stop, void);
-HLL_UNIMPLEMENTED(int, PlayMovie, IsPlay, void);
-HLL_UNIMPLEMENTED(void, PlayMovie, Release, void);
+//int PlayMovie_Load(struct string *filename);
+//int PlayMovie_Play(void);
+//void PlayMovie_Stop(void);
+//int PlayMovie_IsPlay(void);
+//void PlayMovie_Release(void);
 
 HLL_LIBRARY(PlayMovie,
-	    HLL_EXPORT(Init, PlayMovie_Init),
-	    HLL_EXPORT(Load, PlayMovie_Load),
-	    HLL_EXPORT(Play, PlayMovie_Play),
-	    HLL_EXPORT(Stop, PlayMovie_Stop),
-	    HLL_EXPORT(IsPlay, PlayMovie_IsPlay),
-	    HLL_EXPORT(Release, PlayMovie_Release));
+	    HLL_EXPORT(Init, PlayMovie_Init)
+	    //HLL_EXPORT(Load, PlayMovie_Load),
+	    //HLL_EXPORT(Play, PlayMovie_Play),
+	    //HLL_EXPORT(Stop, PlayMovie_Stop),
+	    //HLL_EXPORT(IsPlay, PlayMovie_IsPlay),
+	    //HLL_EXPORT(Release, PlayMovie_Release)
+	);

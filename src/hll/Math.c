@@ -28,56 +28,56 @@ static inline float deg2rad(float deg)
 	return deg * (M_PI / 180.0);
 }
 
-float Math_Cos(float x)
+static float Math_Cos(float x)
 {
 	return cosf(deg2rad(x));
 }
 
-float Math_Sin(float x)
+static float Math_Sin(float x)
 {
 	return sinf(deg2rad(x));
 }
 
-int Math_Min(int a, int b)
+static int Math_Min(int a, int b)
 {
 	return a < b ? a : b;
 }
 
-float Math_MinF(float a, float b)
+static float Math_MinF(float a, float b)
 {
 	return a < b ? a : b;
 }
 
-int Math_Max(int a, int b)
+static int Math_Max(int a, int b)
 {
 	return a > b ? a : b;
 }
 
-float Math_MaxF(float a, float b)
+static float Math_MaxF(float a, float b)
 {
 	return a > b ? a : b;
 }
 
-void Math_Swap(int *a, int *b)
+static void Math_Swap(int *a, int *b)
 {
 	int tmp = *a;
 	*a = *b;
 	*b = tmp;
 }
 
-void Math_SwapF(float *a, float *b)
+static void Math_SwapF(float *a, float *b)
 {
 	float tmp = *a;
 	*a = *b;
 	*b = tmp;
 }
 
-HLL_UNIMPLEMENTED(void, Math, SetRandMode, int mode);
-HLL_UNIMPLEMENTED(float, Math, RandF, void);
-HLL_UNIMPLEMENTED(void, Math, RandTableInit, int num, int size);
-HLL_UNIMPLEMENTED(int, Math, RandTable, int num);
-HLL_UNIMPLEMENTED(void, Math, RandTable2Init, int num, struct page *array);
-HLL_UNIMPLEMENTED(int, Math, RandTable2, int num);
+//void Math_SetRandMode(int mode);
+//float Math_RandF(void);
+//void Math_RandTableInit(int num, int size);
+//int Math_RandTable(int num);
+//void Math_RandTable2Init(int num, struct page *array);
+//int Math_RandTable2(int num);
 
 HLL_LIBRARY(Math,
 	    HLL_EXPORT(Cos, Math_Cos),
@@ -89,13 +89,13 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(AbsF, fabsf),
 	    HLL_EXPORT(Pow, powf),
 	    HLL_EXPORT(SetSeed, srand),
-	    HLL_EXPORT(SetRandMode, Math_SetRandMode),
+	    //HLL_EXPORT(SetRandMode, Math_SetRandMode),
 	    HLL_EXPORT(Rand, rand),
-	    HLL_EXPORT(RandF, Math_RandF),
-	    HLL_EXPORT(RandTableInit, Math_RandTableInit),
-	    HLL_EXPORT(RandTable, Math_RandTable),
-	    HLL_EXPORT(RandTable2Init, Math_RandTable2Init),
-	    HLL_EXPORT(RandTable2, Math_RandTable2),
+	    //HLL_EXPORT(RandF, Math_RandF),
+	    //HLL_EXPORT(RandTableInit, Math_RandTableInit),
+	    //HLL_EXPORT(RandTable, Math_RandTable),
+	    //HLL_EXPORT(RandTable2Init, Math_RandTable2Init),
+	    //HLL_EXPORT(RandTable2, Math_RandTable2),
 	    HLL_EXPORT(Min, Math_Min),
 	    HLL_EXPORT(MinF, Math_MinF),
 	    HLL_EXPORT(Max, Math_Max),

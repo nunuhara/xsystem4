@@ -31,12 +31,12 @@ static size_t log_viewer_size = 0;
 static size_t log_viewer_i = 0;
 static struct log_data *log_viewer = NULL;
 
-int MsgLogViewer_Numof(void)
+static int MsgLogViewer_Numof(void)
 {
 	return log_viewer_i;
 }
 
-void MsgLogViewer_Clear(void)
+static void MsgLogViewer_Clear(void)
 {
 	for (size_t i = 0; i < log_viewer_i; i++) {
 		free_string(log_viewer[i].text);
@@ -49,7 +49,7 @@ void MsgLogViewer_Clear(void)
 
 HLL_WARN_UNIMPLEMENTED( , void, MsgLogViewer, Add, struct page *log);
 
-void MsgLogViewer_Get(int index, struct page **log)
+static void MsgLogViewer_Get(int index, struct page **log)
 {
 	// ???
 	if ((size_t)index >= log_viewer_i) {
@@ -85,7 +85,7 @@ static void log_viewer_push(struct string *s, int voice, int separator)
 
 int MsgLogManager_Numof(void);
 
-void MsgLogViewer_ConvertFromMsgLogManager(possibly_unused int msg_log_manager)
+static void MsgLogViewer_ConvertFromMsgLogManager(possibly_unused int msg_log_manager)
 {
 	int log_size = MsgLogManager_Numof();
 	MsgLogViewer_Clear();

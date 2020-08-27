@@ -31,7 +31,7 @@ static Point pos;
 
 static struct string *result;
 
-void InputString_ClearResultString(void)
+static void InputString_ClearResultString(void)
 {
 	if (result)
 		free_string(result);
@@ -45,24 +45,24 @@ struct string *InputString_GetResultString(void)
 	return s;
 }
 
-void InputString_SetFont(int nSize, possibly_unused struct string *pIName, int nWeight)
+static void InputString_SetFont(int nSize, possibly_unused struct string *pIName, int nWeight)
 {
 	font_size = nSize;
 	font_weight = nWeight;
 }
 
-void InputString_SetPos(int nX, int nY)
+static void InputString_SetPos(int nX, int nY)
 {
 	pos.x = nX;
 	pos.y = nY;
 }
 
-void InputString_Begin(void)
+static void InputString_Begin(void)
 {
 	InputString_ClearResultString();
 }
 
-void InputString_End(void)
+static void InputString_End(void)
 {
 	InputString_ClearResultString();
 }
@@ -81,14 +81,14 @@ static void handle_input(const char *text)
 //{
 //}
 
-void InputString_OpenIME(void)
+static void InputString_OpenIME(void)
 {
 	register_input_handler(handle_input);
 //	register_editing_handler(handle_editing);
 	SDL_StartTextInput();
 }
 
-void InputString_CloseIME(void)
+static void InputString_CloseIME(void)
 {
 	SDL_StopTextInput();
 	clear_input_handler();

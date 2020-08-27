@@ -228,7 +228,7 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 			}
 		}
 		if (!dst[i].fun)
-			WARNING("Unimplemented library function: %s.%s", ainlib->name, ainlib->functions[i].name);
+			;//WARNING("Unimplemented library function: %s.%s", ainlib->name, ainlib->functions[i].name);
 		else if (ainlib->functions[i].nr_arguments >= HLL_MAX_ARGS)
 			ERROR("Too many arguments to library function: %s", ainlib->functions[i].name);
 	}

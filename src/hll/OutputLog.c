@@ -19,7 +19,7 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
-void OutputLog_Output(int handle, struct string *s)
+static void OutputLog_Output(int handle, struct string *s)
 {
 	char *u = sjis2utf(s->text, s->size);
 	printf("%s", u);

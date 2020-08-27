@@ -85,38 +85,35 @@ static unsigned get_font_face(int font, float height)
 }
 */
 
-void SengokuRanceFont_AlphaComposite(int spriteNumberDest, int destX, int destY, int spriteNumberSrc, int srcX, int srcY, int w, int h);
+//static void SengokuRanceFont_AlphaComposite(int spriteNumberDest, int destX, int destY, int spriteNumberSrc, int srcX, int srcY, int w, int h);
 
-void SengokuRanceFont_SetFontType(int type)
+static void SengokuRanceFont_SetFontType(int type)
 {
 	WARNING("SengokuRanceFont.SetFontType(%d)", type);
 }
 
-void SengokuRanceFont_SetFontSize(float size)
+static void SengokuRanceFont_SetFontSize(float size)
 {
 	sr_tm.size = size;
 }
 
-void SengokuRanceFont_SetFontColor(int r, int g, int b)
+static void SengokuRanceFont_SetFontColor(int r, int g, int b)
 {
 	sr_tm.color.r = r;
 	sr_tm.color.g = g;
 	sr_tm.color.b = b;
 }
 
-void SengokuRanceFont_SetBoldWidth(float boldWidth)
-{
-	// ???
-}
+//static void SengokuRanceFont_SetBoldWidth(float boldWidth);
 
-void SengokuRanceFont_SetEdgeColor(int r, int g, int b)
+static void SengokuRanceFont_SetEdgeColor(int r, int g, int b)
 {
 	sr_tm.outline_color.r = r;
 	sr_tm.outline_color.g = g;
 	sr_tm.outline_color.b = b;
 }
 
-void SengokuRanceFont_SetEdgeWidth(float w)
+static void SengokuRanceFont_SetEdgeWidth(float w)
 {
 	sr_tm.outline_left = w;
 	sr_tm.outline_up = w;
@@ -124,28 +121,25 @@ void SengokuRanceFont_SetEdgeWidth(float w)
 	sr_tm.outline_down = w;
 }
 
-float SengokuRanceFont_GetTextWidth(struct string *str)
+static float SengokuRanceFont_GetTextWidth(struct string *str)
 {
 	return str->size * 8;
 }
 
-float SengokuRanceFont_GetCharacterWidth(int charCode)
-{
-	return 8;
-}
+//static float SengokuRanceFont_GetCharacterWidth(int charCode);
 
-void SengokuRanceFont_SetTextX(float x);
-void SengokuRanceFont_SetTextY(int y);
-void SengokuRanceFont_SetTextPos(float x, int y);
-void SengokuRanceFont_SetScaleX(float scaleX);
-void SengokuRanceFont_DrawTextToSprite(int spriteNumber, struct string *str);
-void SengokuRanceFont_DrawTextPreload(struct string *str);
-void SengokuRanceFont_SetFontFileName(struct string *fontName);
-void SengokuRanceFont_SetCharacterSpacing(float characterSpacing);
-void SengokuRanceFont_SetSpaceScaleX(float spaceScaleX);
-void SengokuRanceFont_SetReduceDescender(int reduceDescender);
+//static void SengokuRanceFont_SetTextX(float x);
+//static void SengokuRanceFont_SetTextY(int y);
+//static void SengokuRanceFont_SetTextPos(float x, int y);
+//static void SengokuRanceFont_SetScaleX(float scaleX);
+//static void SengokuRanceFont_DrawTextToSprite(int spriteNumber, struct string *str);
+//static void SengokuRanceFont_DrawTextPreload(struct string *str);
+//static void SengokuRanceFont_SetFontFileName(struct string *fontName);
+//static void SengokuRanceFont_SetCharacterSpacing(float characterSpacing);
+//static void SengokuRanceFont_SetSpaceScaleX(float spaceScaleX);
+//static void SengokuRanceFont_SetReduceDescender(int reduceDescender);
 
-void SengokuRanceFont_SP_ClearState(int sp_no)
+static void SengokuRanceFont_SP_ClearState(int sp_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp)
@@ -156,37 +150,37 @@ void SengokuRanceFont_SP_ClearState(int sp_no)
 	sp->text.pos.y = 0;
 }
 
-float SengokuRanceFont_SP_GetTextCharSpace(int spriteNumber);
-float SengokuRanceFont_SP_GetTextHomeX(int spriteNumber);
-int SengokuRanceFont_SP_GetTextHomeY(int spriteNumber);
-int SengokuRanceFont_SP_GetTextLineSpace(int spriteNumber);
-float SengokuRanceFont_SP_GetTextPosX(int spriteNumber);
-int SengokuRanceFont_SP_GetTextPosY(int spriteNumber);
-void SengokuRanceFont_SP_SetTextCharSpace(int spriteNumber, float characterSpacing);
+//static float SengokuRanceFont_SP_GetTextCharSpace(int spriteNumber);
+//static float SengokuRanceFont_SP_GetTextHomeX(int spriteNumber);
+//static int SengokuRanceFont_SP_GetTextHomeY(int spriteNumber);
+//static int SengokuRanceFont_SP_GetTextLineSpace(int spriteNumber);
+//static float SengokuRanceFont_SP_GetTextPosX(int spriteNumber);
+//static int SengokuRanceFont_SP_GetTextPosY(int spriteNumber);
+//static void SengokuRanceFont_SP_SetTextCharSpace(int spriteNumber, float characterSpacing);
 
-void SengokuRanceFont_SP_SetTextHome(int sp_no, float x, int y)
+static void SengokuRanceFont_SP_SetTextHome(int sp_no, float x, int y)
 {
 	sact_SP_SetTextHome(sp_no, x, y);
 }
 
-//void SengokuRanceFont_SP_SetTextLineSpace(int spriteNumber, int lineSpacing) {}
+//static void SengokuRanceFont_SP_SetTextLineSpace(int spriteNumber, int lineSpacing) {}
 
-void SengokuRanceFont_SP_SetTextPos(int sp_no, float x, int y)
+static void SengokuRanceFont_SP_SetTextPos(int sp_no, float x, int y)
 {
 	sact_SP_SetTextPos(sp_no, x, y);
 }
 
-//void SengokuRanceFont_SP_TextClear(int spriteNumber) {}
-//void SengokuRanceFont_SP_TextCopy(int destSpriteNumber, int sourceSpriteNumber) {}
+//static void SengokuRanceFont_SP_TextClear(int spriteNumber) {}
+//static void SengokuRanceFont_SP_TextCopy(int destSpriteNumber, int sourceSpriteNumber) {}
 
-void SengokuRanceFont_SP_TextHome(int sp_no, float size)
+static void SengokuRanceFont_SP_TextHome(int sp_no, float size)
 {
 	sact_SP_TextHome(sp_no, size);
 }
 
-void SengokuRanceFont_SP_TextNewLine(int spriteNumber, float fontSize);
+//static void SengokuRanceFont_SP_TextNewLine(int spriteNumber, float fontSize);
 
-void SengokuRanceFont_SP_SetTextMetricsClassic(int sp_no, struct page *page)
+static void SengokuRanceFont_SP_SetTextMetricsClassic(int sp_no, struct page *page)
 {
 	struct text_style *ts = get_sp_metrics(sp_no);
 	ts->font_type     = get_font_type(256);
@@ -209,7 +203,7 @@ void SengokuRanceFont_SP_SetTextMetricsClassic(int sp_no, struct page *page)
 	ts->font_size     = fnl_get_font_size(&fontlib->fonts[ts->font_type], ts->size);
 }
 
-void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *page)
+static void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *page)
 {
 	struct text_style *ts = get_sp_metrics(sp_no);
 	ts->font_type          = get_font_type(page->values[0].i < 0 ? 256 : page->values[0].i);
@@ -235,7 +229,7 @@ void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *page)
 
 }
 
-void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
+static void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	struct text_style *ts = get_sp_metrics(sp_no);
@@ -260,41 +254,41 @@ void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
 	sp->text.pos.x += fnl_draw_text(fontlib, ts, &sp->text.texture, sp->text.pos.x, sp->text.pos.y, text->text);
 }
 
-void SengokuRanceFont_SP_TextDrawPreload(int spriteNumber, struct string *text);
-void SengokuRanceFont_SP_SetFontSize(int spriteNumber, float fontSize);
-void SengokuRanceFont_SP_SetFontType(int spriteNumber, int fontType);
-void SengokuRanceFont_SP_SetFontColor(int spriteNumber, int r, int g, int b);
-void SengokuRanceFont_SP_SetBoldWidth(int spriteNumber, float boldWidth);
-void SengokuRanceFont_SP_SetEdgeColor(int spriteNumber, int r, int g, int b);
-void SengokuRanceFont_SP_SetEdgeWidth(int spriteNumber, float edgeWidth);
-void SengokuRanceFont_SP_SetScaleX(int spriteNumber, float scaleX);
-void SengokuRanceFont_SP_SetSpaceScaleX(int spriteNumber, float spaceScaleX);
-float SengokuRanceFont_SP_GetFontSize(int spriteNumber);
-int SengokuRanceFont_SP_GetFontType(int spriteNumber);
-void SengokuRanceFont_SP_GetFontColor(int spriteNumber, int *r, int *g, int *b);
-float SengokuRanceFont_SP_GetBoldWidth(int spriteNumber);
-void SengokuRanceFont_SP_GetEdgeColor(int spriteNumber, int *r, int *g, int *b);
-float SengokuRanceFont_SP_GetEdgeWidth(int spriteNumber);
-float SengokuRanceFont_SP_GetScaleX(int spriteNumber);
-float SengokuRanceFont_SP_GetSpaceScaleX(int spriteNumber);
+//static void SengokuRanceFont_SP_TextDrawPreload(int spriteNumber, struct string *text);
+//static void SengokuRanceFont_SP_SetFontSize(int spriteNumber, float fontSize);
+//static void SengokuRanceFont_SP_SetFontType(int spriteNumber, int fontType);
+//static void SengokuRanceFont_SP_SetFontColor(int spriteNumber, int r, int g, int b);
+//static void SengokuRanceFont_SP_SetBoldWidth(int spriteNumber, float boldWidth);
+//static void SengokuRanceFont_SP_SetEdgeColor(int spriteNumber, int r, int g, int b);
+//static void SengokuRanceFont_SP_SetEdgeWidth(int spriteNumber, float edgeWidth);
+//static void SengokuRanceFont_SP_SetScaleX(int spriteNumber, float scaleX);
+//static void SengokuRanceFont_SP_SetSpaceScaleX(int spriteNumber, float spaceScaleX);
+//static float SengokuRanceFont_SP_GetFontSize(int spriteNumber);
+//static int SengokuRanceFont_SP_GetFontType(int spriteNumber);
+//static void SengokuRanceFont_SP_GetFontColor(int spriteNumber, int *r, int *g, int *b);
+//static float SengokuRanceFont_SP_GetBoldWidth(int spriteNumber);
+//static void SengokuRanceFont_SP_GetEdgeColor(int spriteNumber, int *r, int *g, int *b);
+//static float SengokuRanceFont_SP_GetEdgeWidth(int spriteNumber);
+//static float SengokuRanceFont_SP_GetScaleX(int spriteNumber);
+//static float SengokuRanceFont_SP_GetSpaceScaleX(int spriteNumber);
 
-float SengokuRanceFont_GetActualFontSize(int font_type, float font_size)
+static float SengokuRanceFont_GetActualFontSize(int font_type, float font_size)
 {
 	font_type = get_font_type(font_type);
 	return fnl_get_font_size(&fontlib->fonts[font_type], font_size)->size;
 }
 
-float SengokuRanceFont_GetActualFontSizeRoundDown(int fontType, float fontSize);
-int SengokuRanceFont_SP_GetTextLastCharCode(int spriteNumber);
-void SengokuRanceFont_SP_SetTextLastCharCode(int spriteNumber, int lastChar);
-int SengokuRanceFont_SP_GetReduceDescender(int spriteNumber);
+//static float SengokuRanceFont_GetActualFontSizeRoundDown(int fontType, float fontSize);
+//static int SengokuRanceFont_SP_GetTextLastCharCode(int spriteNumber);
+//static void SengokuRanceFont_SP_SetTextLastCharCode(int spriteNumber, int lastChar);
+//static int SengokuRanceFont_SP_GetReduceDescender(int spriteNumber);
 
-void SengokuRanceFont_SP_SetReduceDescender(int spriteNumber, int reduceDescender)
+static void SengokuRanceFont_SP_SetReduceDescender(int spriteNumber, int reduceDescender)
 {
 	WARNING("SengokuRanceFont.SP_SetReduceDescender(%d, %d)", spriteNumber, reduceDescender);
 }
 
-void SengokuRanceFont_ModuleInit(void)
+static void SengokuRanceFont_ModuleInit(void)
 {
 	DIR *dir;
 	struct dirent *d;
@@ -326,10 +320,10 @@ HLL_LIBRARY(SengokuRanceFont,
 	    //HLL_EXPORT(AlphaComposite, SengokuRanceFont_AlphaComposite),
 	    HLL_EXPORT(SetFontType, SengokuRanceFont_SetFontType),
 	    HLL_EXPORT(SetFontSize, SengokuRanceFont_SetFontSize),
-	    //HLL_EXPORT(SetFontColor, SengokuRanceFont_SetFontColor),
+	    HLL_EXPORT(SetFontColor, SengokuRanceFont_SetFontColor),
 	    //HLL_EXPORT(SetBoldWidth, SengokuRanceFont_SetBoldWidth),
-	    //HLL_EXPORT(SetEdgeColor, SengokuRanceFont_SetEdgeColor),
-	    //HLL_EXPORT(SetEdgeWidth, SengokuRanceFont_SetEdgeWidth),
+	    HLL_EXPORT(SetEdgeColor, SengokuRanceFont_SetEdgeColor),
+	    HLL_EXPORT(SetEdgeWidth, SengokuRanceFont_SetEdgeWidth),
 	    HLL_EXPORT(GetTextWidth, SengokuRanceFont_GetTextWidth),
 	    //HLL_EXPORT(GetCharacterWidth, SengokuRanceFont_GetCharacterWidth),
 	    //HLL_EXPORT(SetTextX, SengokuRanceFont_SetTextX),

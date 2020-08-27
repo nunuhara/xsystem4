@@ -31,12 +31,12 @@
 #include "sact.h"
 #include "xsystem4.h"
 
-int sact_GAME_MSG_GetNumOf(void)
+static int sact_GAME_MSG_GetNumOf(void)
 {
 	return ain->nr_messages;
 }
 
-void sact_IntToZenkaku(struct string **s, int value, int figures, int zero_pad)
+static void sact_IntToZenkaku(struct string **s, int value, int figures, int zero_pad)
 {
 	int i;
 	char buf[512];
@@ -46,7 +46,7 @@ void sact_IntToZenkaku(struct string **s, int value, int figures, int zero_pad)
 	string_append_cstr(s, buf, i);
 }
 
-void sact_IntToHankaku(struct string **s, int value, int figures, int zero_pad)
+static void sact_IntToHankaku(struct string **s, int value, int figures, int zero_pad)
 {
 	int i;
 	char buf[512];
@@ -56,41 +56,41 @@ void sact_IntToHankaku(struct string **s, int value, int figures, int zero_pad)
 	string_append_cstr(s, buf, i);
 }
 
-int sact_Mouse_GetPos(int *x, int *y)
+static int sact_Mouse_GetPos(int *x, int *y)
 {
 	handle_events();
 	mouse_get_pos(x, y);
 	return mouse_focus && keyboard_focus;
 }
 
-int sact_Mouse_SetPos(int x, int y)
+static int sact_Mouse_SetPos(int x, int y)
 {
 	handle_events();
 	mouse_set_pos(x, y);
 	return mouse_focus && keyboard_focus;
 }
 
-void sact_Mouse_ClearWheel(void)
+static void sact_Mouse_ClearWheel(void)
 {
 	mouse_clear_wheel();
 }
 
-void sact_Mouse_GetWheel(int *forward, int *back)
+static void sact_Mouse_GetWheel(int *forward, int *back)
 {
 	mouse_get_wheel(forward, back);
 }
 
-void sact_Joypad_ClearKeyDownFlag(int n)
+static void sact_Joypad_ClearKeyDownFlag(int n)
 {
 	// TODO
 }
 
-int sact_Joypad_IsKeyDown(int num, int key)
+static int sact_Joypad_IsKeyDown(int num, int key)
 {
 	return 0; // TODO
 }
 
-bool sact_Joypad_GetAnalogStickStatus(int num, int type, float *degree, float *power)
+static bool sact_Joypad_GetAnalogStickStatus(int num, int type, float *degree, float *power)
 {
 	//hll_unimplemented_warning(SACT2, Joypad_GetAnalogStickStatus);
 	*degree = 0.0;
@@ -98,7 +98,7 @@ bool sact_Joypad_GetAnalogStickStatus(int num, int type, float *degree, float *p
 	return true;
 }
 
-bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *right, bool *up, bool *down)
+static bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *right, bool *up, bool *down)
 {
 	//hll_unimplemented_warning(SACT2, Joypad_GetDigitalStickStatus);
 	*left  = false;
@@ -108,109 +108,109 @@ bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *righ
 	return 1;
 }
 
-int sact_Key_ClearFlag(void)
+static int sact_Key_ClearFlag(void)
 {
 	key_clear_flag();
 	return 1;
 }
 
-int sact_Key_IsDown(int keycode)
+static int sact_Key_IsDown(int keycode)
 {
 	handle_events();
 	return key_is_down(keycode);
 }
 
-int sact_CG_IsExist(int cg_no)
+static int sact_CG_IsExist(int cg_no)
 {
 	return ald[ALDFILE_CG] && archive_exists(ald[ALDFILE_CG], cg_no - 1);
 }
 
-int sact_Music_IsExist(int n)
+static int sact_Music_IsExist(int n)
 {
 	return bgm_exists(n - 1);
 }
 
-int sact_Music_Prepare(int ch, int n)
+static int sact_Music_Prepare(int ch, int n)
 {
 	return bgm_prepare(ch, n - 1);
 }
 
-int sact_Music_Unprepare(int ch)
+static int sact_Music_Unprepare(int ch)
 {
 	return bgm_unprepare(ch);
 }
 
-int sact_Music_Play(int ch)
+static int sact_Music_Play(int ch)
 {
 	return bgm_play(ch);
 }
 
-int sact_Music_Stop(int ch)
+static int sact_Music_Stop(int ch)
 {
 	return bgm_stop(ch);
 }
 
-int sact_Music_IsPlay(int ch)
+static int sact_Music_IsPlay(int ch)
 {
 	return bgm_is_playing(ch);
 }
 
-int sact_Music_Fade(int ch, int time, int volume, int stop)
+static int sact_Music_Fade(int ch, int time, int volume, int stop)
 {
 	return bgm_fade(ch, time, volume, stop);
 }
 
-int sact_Sound_IsExist(int n)
+static int sact_Sound_IsExist(int n)
 {
 	return wav_exists(n - 1);
 }
 
-int sact_Sound_GetUnuseChannel(void)
+static int sact_Sound_GetUnuseChannel(void)
 {
 	return wav_get_unused_channel();
 }
 
-int sact_Sound_Prepare(int ch, int n)
+static int sact_Sound_Prepare(int ch, int n)
 {
 	return wav_prepare(ch, n - 1);
 }
 
-int sact_Sound_Unprepare(int ch)
+static int sact_Sound_Unprepare(int ch)
 {
 	return wav_unprepare(ch);
 }
 
-int sact_Sound_Play(int ch)
+static int sact_Sound_Play(int ch)
 {
 	return wav_play(ch);
 }
 
-int sact_Sound_Stop(int ch)
+static int sact_Sound_Stop(int ch)
 {
 	return wav_stop(ch);
 }
 
-int sact_Sound_IsPlay(int ch)
+static int sact_Sound_IsPlay(int ch)
 {
 	return wav_is_playing(ch);
 }
 
-int sact_Sound_Fade(int ch, int time, int volume, int stop)
+static int sact_Sound_Fade(int ch, int time, int volume, int stop)
 {
 	return wav_fade(ch, time, volume, stop);
 }
 
-int sact_Sound_ReverseLR(int ch)
+static int sact_Sound_ReverseLR(int ch)
 {
 	return wav_reverse_LR(ch);
 }
 
-int sact_Sound_GetTimeLength(int ch)
+static int sact_Sound_GetTimeLength(int ch)
 {
 	return wav_get_time_length(ch);
 }
 
-void sact_System_GetDate(int *year, int *month, int *mday, int *wday)
+static void sact_System_GetDate(int *year, int *month, int *mday, int *wday)
 {
 	time_t t = time(NULL);
 	struct tm *tm = localtime(&t);
@@ -221,7 +221,7 @@ void sact_System_GetDate(int *year, int *month, int *mday, int *wday)
 	*wday  = tm->tm_wday;
 }
 
-void sact_System_GetTime(int *hour, int *min, int *sec, int *ms)
+static void sact_System_GetTime(int *hour, int *min, int *sec, int *ms)
 {
 	time_t t = time(NULL);
 	struct tm *tm = localtime(&t);
@@ -234,41 +234,41 @@ void sact_System_GetTime(int *hour, int *min, int *sec, int *ms)
 	*ms   = ts.tv_nsec / 1000000;
 }
 
-void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int border)
+static void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int border)
 {
 	gfx_copy_use_amap_border(sact_get_texture(dst), dx, dy, sact_get_texture(src), sx, sy, w, h, border);
 }
 
-HLL_UNIMPLEMENTED(int, SACT2, Error, struct string *err);
-HLL_UNIMPLEMENTED(int, SACT2, WP_GetSP, int sp);
-HLL_UNIMPLEMENTED(int, SACT2, WP_SetSP, int sp);
+//int SACT2_Error(struct string *err);
+//int SACT2_WP_GetSP(int sp);
+//int SACT2_WP_SetSP(int sp);
 HLL_WARN_UNIMPLEMENTED(1, int, SACT2, EffectSetMask, int cg);
-HLL_UNIMPLEMENTED(int, SACT2, EffectSetMaskSP, int sp);
+//int SACT2_EffectSetMaskSP(int sp);
 HLL_WARN_UNIMPLEMENTED( , void, SACT2, QuakeScreen, int amp_x, int amp_y, int time, int key);
-HLL_UNIMPLEMENTED(void, SACT2, QUAKE_SET_CROSS, int amp_x, int amp_y);
-HLL_UNIMPLEMENTED(void, SACT2, QUAKE_SET_ROTATION, int amp, int cycle);
-HLL_UNIMPLEMENTED(int, SACT2, SP_SetCGFromFile, int sp, struct string *filename);
-HLL_UNIMPLEMENTED(int, SACT2, SP_SaveCG, int sp, struct string *filename);
-HLL_UNIMPLEMENTED(int, SACT2, SP_CreateCustom, int sp);
-HLL_UNIMPLEMENTED(int, SACT2, SP_TextBackSpace, int sp_no);
-HLL_UNIMPLEMENTED(void, SACT2, GAME_MSG_Get, int index, struct string **text);
-HLL_UNIMPLEMENTED(int, SACT2, StringPopFront, struct string **dst, struct string **src);
-HLL_UNIMPLEMENTED(int, SACT2, Joypad_GetNumof, void);
+//void SACT2_QUAKE_SET_CROSS(int amp_x, int amp_y);
+//void SACT2_QUAKE_SET_ROTATION(int amp, int cycle);
+//int SACT2_SP_SetCGFromFile(int sp, struct string *filename);
+//int SACT2_SP_SaveCG(int sp, struct string *filename);
+//int SACT2_SP_CreateCustom(int sp);
+//int SACT2_SP_TextBackSpace(int sp_no);
+//void SACT2_GAME_MSG_Get(int index, struct string **text);
+//int SACT2_StringPopFront(struct string **dst, struct string **src);
+//int SACT2_Joypad_GetNumof(void);
 HLL_WARN_UNIMPLEMENTED( , void, SACT2, JoypadQuake_Set, int num, int type, int magnitude);
-HLL_UNIMPLEMENTED(int,  SACT2, CSV_Load, struct string *filename);
-HLL_UNIMPLEMENTED(int,  SACT2, CSV_Save, void);
-HLL_UNIMPLEMENTED(int,  SACT2, CSV_SaveAs, struct string *filename);
-HLL_UNIMPLEMENTED(int,  SACT2, CSV_CountLines, void);
-HLL_UNIMPLEMENTED(int,  SACT2, CSV_CountColumns, void);
-HLL_UNIMPLEMENTED(void, SACT2, CSV_Get, struct string **s, int line, int column);
-HLL_UNIMPLEMENTED(int,  SACT2, CSV_Set, int line, int column, struct string *data);
-HLL_UNIMPLEMENTED(int,  SACT2, CSV_GetInt, int line, int column);
-HLL_UNIMPLEMENTED(void, SACT2, CSV_SetInt, int line, int column, int data);
-HLL_UNIMPLEMENTED(void, SACT2, CSV_Realloc, int lines, int columns);
+//int  SACT2_CSV_Load(struct string *filename);
+//int  SACT2_CSV_Save(void);
+//int  SACT2_CSV_SaveAs(struct string *filename);
+//int  SACT2_CSV_CountLines(void);
+//int  SACT2_CSV_CountColumns(void);
+//void SACT2_CSV_Get(struct string **s, int line, int column);
+//int  SACT2_CSV_Set(int line, int column, struct string *data);
+//int  SACT2_CSV_GetInt(int line, int column);
+//void SACT2_CSV_SetInt(int line, int column, int data);
+//void SACT2_CSV_Realloc(int lines, int columns);
 HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_SetLoopCount, int ch, int count);
 HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetLoopCount, int ch);
-HLL_UNIMPLEMENTED(int, SACT2, Music_SetLoopStartPos, int ch, int pos);
-HLL_UNIMPLEMENTED(int, SACT2, Music_SetLoopEndPos, int ch, int pos);
+//int SACT2_Music_SetLoopStartPos(int ch, int pos);
+//int SACT2_Music_SetLoopEndPos(int ch, int pos);
 HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_StopFade, int ch);
 HLL_WARN_UNIMPLEMENTED(0, int, SACT2, Music_IsFade, int ch);
 HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Pause, int ch);
@@ -279,49 +279,49 @@ HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetLength, int ch);
 HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetSamplePos, int ch);
 HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetSampleLength, int ch);
 HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Seek, int ch, int pos);
-HLL_UNIMPLEMENTED(int, SACT2, Sound_SetLoopCount, int ch, int count);
-HLL_UNIMPLEMENTED(int, SACT2, Sound_GetLoopCount, int ch);
-HLL_UNIMPLEMENTED(int, SACT2, Sound_StopFade, int ch);
-HLL_UNIMPLEMENTED(int, SACT2, Sound_IsFade, int ch);
-HLL_UNIMPLEMENTED(int, SACT2, Sound_GetPos, int ch);
-HLL_UNIMPLEMENTED(int, SACT2, Sound_GetLength, int ch);
-HLL_UNIMPLEMENTED(int, SACT2, Sound_GetVolume, int ch);
-HLL_UNIMPLEMENTED(int, SACT2, Sound_GetGroupNum, int ch);
-HLL_UNIMPLEMENTED(bool, SACT2, Sound_PrepareFromFile, int ch, struct string *filename);
-HLL_UNIMPLEMENTED(void, SACT2, CG_RotateRGB, int dst, int dx, int dy, int w, int h, int rotate_type);
-HLL_UNIMPLEMENTED(void, SACT2, Debug_Pause, void);
-HLL_UNIMPLEMENTED(void, SACT2, Debug_GetFuncStack, struct string **s, int nest);
+//int SACT2_Sound_SetLoopCount(int ch, int count);
+//int SACT2_Sound_GetLoopCount(int ch);
+//int SACT2_Sound_StopFade(int ch);
+//int SACT2_Sound_IsFade(int ch);
+//int SACT2_Sound_GetPos(int ch);
+//int SACT2_Sound_GetLength(int ch);
+//int SACT2_Sound_GetVolume(int ch);
+//int SACT2_Sound_GetGroupNum(int ch);
+//bool SACT2_Sound_PrepareFromFile(int ch, struct string *filename);
+//void SACT2_CG_RotateRGB(int dst, int dx, int dy, int w, int h, int rotate_type);
+//void SACT2_Debug_Pause(void);
+//void SACT2_Debug_GetFuncStack(struct string **s, int nest);
 HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_SetBrightness, int sp_no, int brightness);
 HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_GetBrightness, int sp_no);
 
 HLL_LIBRARY(SACT2,
 	    HLL_EXPORT(_ModuleFini, sact_ModuleFini),
 	    HLL_EXPORT(Init, sact_Init),
-	    HLL_EXPORT(Error, SACT2_Error),
+	    //HLL_EXPORT(Error, SACT2_Error),
 	    HLL_EXPORT(SetWP, sact_SetWP),
 	    HLL_EXPORT(SetWP_Color, sact_SetWP_Color),
-	    HLL_EXPORT(WP_GetSP, SACT2_WP_GetSP),
-	    HLL_EXPORT(WP_SetSP, SACT2_WP_SetSP),
+	    //HLL_EXPORT(WP_GetSP, SACT2_WP_GetSP),
+	    //HLL_EXPORT(WP_SetSP, SACT2_WP_SetSP),
 	    HLL_EXPORT(GetScreenWidth, sact_GetScreenWidth),
 	    HLL_EXPORT(GetScreenHeight, sact_GetScreenHeight),
 	    HLL_EXPORT(GetMainSurfaceNumber, sact_GetMainSurfaceNumber),
 	    HLL_EXPORT(Update, sact_Update),
 	    HLL_EXPORT(Effect, sact_Effect),
 	    HLL_EXPORT(EffectSetMask, SACT2_EffectSetMask),
-	    HLL_EXPORT(EffectSetMaskSP, SACT2_EffectSetMaskSP),
+	    //HLL_EXPORT(EffectSetMaskSP, SACT2_EffectSetMaskSP),
 	    HLL_EXPORT(QuakeScreen, SACT2_QuakeScreen),
-	    HLL_EXPORT(QUAKE_SET_CROSS, SACT2_QUAKE_SET_CROSS),
-	    HLL_EXPORT(QUAKE_SET_ROTATION, SACT2_QUAKE_SET_ROTATION),
+	    //HLL_EXPORT(QUAKE_SET_CROSS, SACT2_QUAKE_SET_CROSS),
+	    //HLL_EXPORT(QUAKE_SET_ROTATION, SACT2_QUAKE_SET_ROTATION),
 	    HLL_EXPORT(SP_GetUnuseNum, sact_SP_GetUnuseNum),
 	    HLL_EXPORT(SP_Count, sact_SP_Count),
 	    HLL_EXPORT(SP_Enum, sact_SP_Enum),
 	    HLL_EXPORT(SP_GetMaxZ, sact_SP_GetMaxZ),
 	    HLL_EXPORT(SP_SetCG, sact_SP_SetCG),
-	    HLL_EXPORT(SP_SetCGFromFile, SACT2_SP_SetCGFromFile),
-	    HLL_EXPORT(SP_SaveCG, SACT2_SP_SaveCG),
+	    //HLL_EXPORT(SP_SetCGFromFile, SACT2_SP_SetCGFromFile),
+	    //HLL_EXPORT(SP_SaveCG, SACT2_SP_SaveCG),
 	    HLL_EXPORT(SP_Create, sact_SP_Create),
 	    HLL_EXPORT(SP_CreatePixelOnly, sact_SP_CreatePixelOnly),
-	    HLL_EXPORT(SP_CreateCustom, SACT2_SP_CreateCustom),
+	    //HLL_EXPORT(SP_CreateCustom, SACT2_SP_CreateCustom),
 	    HLL_EXPORT(SP_Delete, sact_SP_Delete),
 	    HLL_EXPORT(SP_SetPos, sact_SP_SetPos),
 	    HLL_EXPORT(SP_SetX, sact_SP_SetX),
@@ -348,7 +348,7 @@ HLL_LIBRARY(SACT2,
 	    HLL_EXPORT(SP_TextClear, sact_SP_TextClear),
 	    HLL_EXPORT(SP_TextHome, sact_SP_TextHome),
 	    HLL_EXPORT(SP_TextNewLine, sact_SP_TextNewLine),
-	    HLL_EXPORT(SP_TextBackSpace, SACT2_SP_TextBackSpace),
+	    //HLL_EXPORT(SP_TextBackSpace, SACT2_SP_TextBackSpace),
 	    HLL_EXPORT(SP_TextCopy, sact_SP_TextCopy),
 	    HLL_EXPORT(SP_GetTextHomeX, sact_SP_GetTextHomeX),
 	    HLL_EXPORT(SP_GetTextHomeY, sact_SP_GetTextHomeY),
@@ -359,17 +359,17 @@ HLL_LIBRARY(SACT2,
 	    HLL_EXPORT(SP_IsPtIn, sact_SP_IsPtIn),
 	    HLL_EXPORT(SP_IsPtInRect, sact_SP_IsPtInRect),
 	    HLL_EXPORT(GAME_MSG_GetNumof, sact_GAME_MSG_GetNumOf),
-	    HLL_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get),
+	    //HLL_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get),
 	    HLL_EXPORT(IntToZenkaku, sact_IntToZenkaku),
 	    HLL_EXPORT(IntToHankaku, sact_IntToHankaku),
-	    HLL_EXPORT(StringPopFront, SACT2_StringPopFront),
+	    //HLL_EXPORT(StringPopFront, SACT2_StringPopFront),
 	    HLL_EXPORT(Mouse_GetPos, sact_Mouse_GetPos),
 	    HLL_EXPORT(Mouse_SetPos, sact_Mouse_SetPos),
 	    HLL_EXPORT(Mouse_ClearWheel, sact_Mouse_ClearWheel),
 	    HLL_EXPORT(Mouse_GetWheel, sact_Mouse_GetWheel),
 	    HLL_EXPORT(Joypad_ClearKeyDownFlag, sact_Joypad_ClearKeyDownFlag),
 	    HLL_EXPORT(Joypad_IsKeyDown, sact_Joypad_IsKeyDown),
-	    HLL_EXPORT(Joypad_GetNumof, SACT2_Joypad_GetNumof),
+	    //HLL_EXPORT(Joypad_GetNumof, SACT2_Joypad_GetNumof),
 	    HLL_EXPORT(JoypadQuake_Set, SACT2_JoypadQuake_Set),
 	    HLL_EXPORT(Joypad_GetAnalogStickStatus, sact_Joypad_GetAnalogStickStatus),
 	    HLL_EXPORT(Joypad_GetDigitalStickStatus, sact_Joypad_GetDigitalStickStatus),
@@ -378,16 +378,16 @@ HLL_LIBRARY(SACT2,
 	    HLL_EXPORT(Timer_Get, vm_time),
 	    HLL_EXPORT(CG_IsExist, sact_CG_IsExist),
 	    HLL_EXPORT(CG_GetMetrics, sact_CG_GetMetrics),
-	    HLL_EXPORT(CSV_Load, SACT2_CSV_Load),
-	    HLL_EXPORT(CSV_Save, SACT2_CSV_Save),
-	    HLL_EXPORT(CSV_SaveAs, SACT2_CSV_SaveAs),
-	    HLL_EXPORT(CSV_CountLines, SACT2_CSV_CountLines),
-	    HLL_EXPORT(CSV_CountColumns, SACT2_CSV_CountColumns),
-	    HLL_EXPORT(CSV_Get, SACT2_CSV_Get),
-	    HLL_EXPORT(CSV_Set, SACT2_CSV_Set),
-	    HLL_EXPORT(CSV_GetInt, SACT2_CSV_GetInt),
-	    HLL_EXPORT(CSV_SetInt, SACT2_CSV_SetInt),
-	    HLL_EXPORT(CSV_Realloc, SACT2_CSV_Realloc),
+	    //HLL_EXPORT(CSV_Load, SACT2_CSV_Load),
+	    //HLL_EXPORT(CSV_Save, SACT2_CSV_Save),
+	    //HLL_EXPORT(CSV_SaveAs, SACT2_CSV_SaveAs),
+	    //HLL_EXPORT(CSV_CountLines, SACT2_CSV_CountLines),
+	    //HLL_EXPORT(CSV_CountColumns, SACT2_CSV_CountColumns),
+	    //HLL_EXPORT(CSV_Get, SACT2_CSV_Get),
+	    //HLL_EXPORT(CSV_Set, SACT2_CSV_Set),
+	    //HLL_EXPORT(CSV_GetInt, SACT2_CSV_GetInt),
+	    //HLL_EXPORT(CSV_SetInt, SACT2_CSV_SetInt),
+	    //HLL_EXPORT(CSV_Realloc, SACT2_CSV_Realloc),
 	    HLL_EXPORT(Music_IsExist, sact_Music_IsExist),
 	    HLL_EXPORT(Music_Prepare, sact_Music_Prepare),
 	    HLL_EXPORT(Music_Unprepare, sact_Music_Unprepare),
@@ -396,8 +396,8 @@ HLL_LIBRARY(SACT2,
 	    HLL_EXPORT(Music_IsPlay, sact_Music_IsPlay),
 	    HLL_EXPORT(Music_SetLoopCount, SACT2_Music_SetLoopCount),
 	    HLL_EXPORT(Music_GetLoopCount, SACT2_Music_GetLoopCount),
-	    HLL_EXPORT(Music_SetLoopStartPos, SACT2_Music_SetLoopStartPos),
-	    HLL_EXPORT(Music_SetLoopEndPos, SACT2_Music_SetLoopEndPos),
+	    //HLL_EXPORT(Music_SetLoopStartPos, SACT2_Music_SetLoopStartPos),
+	    //HLL_EXPORT(Music_SetLoopEndPos, SACT2_Music_SetLoopEndPos),
 	    HLL_EXPORT(Music_Fade, sact_Music_Fade),
 	    HLL_EXPORT(Music_StopFade, SACT2_Music_StopFade),
 	    HLL_EXPORT(Music_IsFade, SACT2_Music_IsFade),
@@ -416,24 +416,24 @@ HLL_LIBRARY(SACT2,
 	    HLL_EXPORT(Sound_Play, sact_Sound_Play),
 	    HLL_EXPORT(Sound_Stop, sact_Sound_Stop),
 	    HLL_EXPORT(Sound_IsPlay, sact_Sound_IsPlay),
-	    HLL_EXPORT(Sound_SetLoopCount, SACT2_Sound_SetLoopCount),
-	    HLL_EXPORT(Sound_GetLoopCount, SACT2_Sound_GetLoopCount),
+	    //HLL_EXPORT(Sound_SetLoopCount, SACT2_Sound_SetLoopCount),
+	    //HLL_EXPORT(Sound_GetLoopCount, SACT2_Sound_GetLoopCount),
 	    HLL_EXPORT(Sound_Fade, sact_Sound_Fade),
-	    HLL_EXPORT(Sound_StopFade, SACT2_Sound_StopFade),
-	    HLL_EXPORT(Sound_IsFade, SACT2_Sound_IsFade),
-	    HLL_EXPORT(Sound_GetPos, SACT2_Sound_GetPos),
-	    HLL_EXPORT(Sound_GetLength, SACT2_Sound_GetLength),
+	    //HLL_EXPORT(Sound_StopFade, SACT2_Sound_StopFade),
+	    //HLL_EXPORT(Sound_IsFade, SACT2_Sound_IsFade),
+	    //HLL_EXPORT(Sound_GetPos, SACT2_Sound_GetPos),
+	    //HLL_EXPORT(Sound_GetLength, SACT2_Sound_GetLength),
 	    HLL_EXPORT(Sound_ReverseLR, sact_Sound_ReverseLR),
-	    HLL_EXPORT(Sound_GetVolume, SACT2_Sound_GetVolume),
+	    //HLL_EXPORT(Sound_GetVolume, SACT2_Sound_GetVolume),
 	    HLL_EXPORT(Sound_GetTimeLength, sact_Sound_GetTimeLength),
-	    HLL_EXPORT(Sound_GetGroupNum, SACT2_Sound_GetGroupNum),
-	    HLL_EXPORT(Sound_PrepareFromFile, SACT2_Sound_PrepareFromFile),
+	    //HLL_EXPORT(Sound_GetGroupNum, SACT2_Sound_GetGroupNum),
+	    //HLL_EXPORT(Sound_PrepareFromFile, SACT2_Sound_PrepareFromFile),
 	    HLL_EXPORT(System_GetDate, sact_System_GetDate),
 	    HLL_EXPORT(System_GetTime, sact_System_GetTime),
-	    HLL_EXPORT(CG_RotateRGB, SACT2_CG_RotateRGB),
+	    //HLL_EXPORT(CG_RotateRGB, SACT2_CG_RotateRGB),
 	    HLL_EXPORT(CG_BlendAMapBin, sact_CG_BlendAMapBin),
-	    HLL_EXPORT(Debug_Pause, SACT2_Debug_Pause),
-	    HLL_EXPORT(Debug_GetFuncStack, SACT2_Debug_GetFuncStack),
+	    //HLL_EXPORT(Debug_Pause, SACT2_Debug_Pause),
+	    //HLL_EXPORT(Debug_GetFuncStack, SACT2_Debug_GetFuncStack),
 	    HLL_EXPORT(SP_GetAMapValue, sact_SP_GetAMapValue),
 	    HLL_EXPORT(SP_GetPixelValue, sact_SP_GetPixelValue),
 	    HLL_EXPORT(SP_SetBrightness, SACT2_SP_SetBrightness),

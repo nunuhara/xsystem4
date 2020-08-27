@@ -17,23 +17,23 @@
 #include "hll.h"
 #include "gfx/gfx.h"
 
-int SystemServiceEx_GetOverlayPresent(void)
+static int SystemServiceEx_GetOverlayPresent(void)
 {
 	return 0;
 }
 
-HLL_UNIMPLEMENTED(int, SystemServiceEx, GetUpdateResult, void);
+//int SystemServiceEx_GetUpdateResult(void);
 HLL_WARN_UNIMPLEMENTED(0, int, SystemServiceEx, GetOverlayActive, void);
-HLL_UNIMPLEMENTED(void, SystemServiceEx, UpdateMainSurface, int x, int y, int w, int h);
-HLL_UNIMPLEMENTED(int, SystemServiceEx, GetHasPresented, void);
-HLL_UNIMPLEMENTED(void, SystemServiceEx, ClearHasPresented, void);
+//void SystemServiceEx_UpdateMainSurface(int x, int y, int w, int h);
+//int SystemServiceEx_GetHasPresented(void);
+//void SystemServiceEx_ClearHasPresented(void);
 
 HLL_LIBRARY(SystemServiceEx,
-	    HLL_EXPORT(GetUpdateResult, SystemServiceEx_GetUpdateResult),
+	    //HLL_EXPORT(GetUpdateResult, SystemServiceEx_GetUpdateResult),
 	    HLL_EXPORT(GetOverlayPresent, SystemServiceEx_GetOverlayPresent),
 	    HLL_EXPORT(GetOverlayActive, SystemServiceEx_GetOverlayActive),
-	    HLL_EXPORT(UpdateMainSurface, SystemServiceEx_UpdateMainSurface),
-	    HLL_EXPORT(SetWaitVSync, gfx_set_wait_vsync),
-	    HLL_EXPORT(GetHasPresented, SystemServiceEx_GetHasPresented),
-	    HLL_EXPORT(ClearHasPresented, SystemServiceEx_ClearHasPresented));
-
+	    //HLL_EXPORT(UpdateMainSurface, SystemServiceEx_UpdateMainSurface),
+	    HLL_EXPORT(SetWaitVSync, gfx_set_wait_vsync)
+	    //HLL_EXPORT(GetHasPresented, SystemServiceEx_GetHasPresented),
+	    //HLL_EXPORT(ClearHasPresented, SystemServiceEx_ClearHasPresented)
+	);

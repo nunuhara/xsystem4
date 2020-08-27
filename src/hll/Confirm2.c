@@ -19,11 +19,11 @@
 
 HLL_WARN_UNIMPLEMENTED( , void, Confirm2, Init, void *imainsystem);
 HLL_WARN_UNIMPLEMENTED(1, int,  Confirm2, ExistKeyFile, struct string *filename, int keynum);
-HLL_UNIMPLEMENTED(int, Confirm2, CheckProtectFile, struct string *filename, int keynum);
-HLL_UNIMPLEMENTED(int, Confirm2, CreateKeyFile, struct string *filename, int keynum);
+//int Confirm2_CheckProtectFile(struct string *filename, int keynum);
+//int Confirm2_CreateKeyFile(struct string *filename, int keynum);
 
 
-void Confirm2_ExistKeyFile2(possibly_unused struct string *pIFileName, possibly_unused int nKeyNum, struct string **pIResult)
+static void Confirm2_ExistKeyFile2(possibly_unused struct string *pIFileName, possibly_unused int nKeyNum, struct string **pIResult)
 {
 	// XXX: this is the magic value for Yokubori Saboten
 	//      need to check if this works for other games
@@ -33,6 +33,6 @@ void Confirm2_ExistKeyFile2(possibly_unused struct string *pIFileName, possibly_
 HLL_LIBRARY(Confirm2,
 	    HLL_EXPORT(Init, Confirm2_Init),
 	    HLL_EXPORT(ExistKeyFile, Confirm2_ExistKeyFile),
-	    HLL_EXPORT(CheckProtectFile, Confirm2_CheckProtectFile),
-	    HLL_EXPORT(CreateKeyFile, Confirm2_CreateKeyFile),
+	    //HLL_EXPORT(CheckProtectFile, Confirm2_CheckProtectFile),
+	    //HLL_EXPORT(CreateKeyFile, Confirm2_CreateKeyFile),
 	    HLL_EXPORT(ExistKeyFile2, Confirm2_ExistKeyFile2));

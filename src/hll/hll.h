@@ -24,11 +24,6 @@
 #include "vm.h"
 #include "system4.h"
 
-#define HLL_UNIMPLEMENTED(rtype, libname, fname, ...)		\
-	static rtype libname ## _ ## fname(__VA_ARGS__) {	\
-		VM_ERROR("Unimplemented HLL function: " #libname "." #fname); \
-	}
-
 #define HLL_WARN_UNIMPLEMENTED(rval, rtype, libname, fname, ...)\
 	static rtype libname ## _ ## fname(__VA_ARGS__) {	\
 		WARNING("Unimplemented HLL function: " #libname "." #fname); \
