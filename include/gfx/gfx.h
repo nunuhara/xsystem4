@@ -103,6 +103,7 @@ void gfx_copy_use_amap_under(struct texture *dst, int dx, int dy, struct texture
 void gfx_copy_use_amap_border(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int threshold);
 void gfx_copy_amap_max(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_copy_amap_min(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
+void gfx_blend(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int a);
 void gfx_blend_amap(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_blend_amap_alpha(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int a);
 void gfx_fill(struct texture *dst, int x, int y, int w, int h, int r, int g, int b);
