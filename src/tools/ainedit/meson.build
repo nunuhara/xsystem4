@@ -21,5 +21,4 @@ ainedit += bisongen.process('asm_parser.y', 'text_parser.y', 'jaf_parser.y')
 executable('ainedit', ainedit,
            dependencies : tool_deps,
            c_args : ['-Wno-unused-parameter'],
-           include_directories : incdir,
-           link_with : libsys4)
+           include_directories : incdir)

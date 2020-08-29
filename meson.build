@@ -20,4 +20,7 @@ bison = find_program('bison')
 
 incdir = include_directories('include')
 
+libsys4_proj = subproject('libsys4')
+libsys4_dep = libsys4_proj.get_variable('libsys4_dep')
+
 subdir('src')

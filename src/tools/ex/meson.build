@@ -15,11 +15,9 @@ exbuild += bisongen.process('ex_parser.y')
 executable('exdump', exdump,
            dependencies : tool_deps,
            c_args : ['-Wno-unused-parameter'],
-           include_directories : incdir,
-           link_with : libsys4)
+           include_directories : incdir)
 
 executable('exbuild', exbuild,
            dependencies : tool_deps,
            c_args : ['-Wno-unused-parameter'],
-           include_directories : incdir,
-           link_with : libsys4)
+           include_directories : incdir)

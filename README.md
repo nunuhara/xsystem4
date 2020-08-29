@@ -25,6 +25,13 @@ First install the dependencies (corresponding Debian package in parentheses):
 * SDL2_ttf (libsdl2-ttf-dev)
 * zlib (zlib1g-dev)
 
+Then fetch the git submodules,
+
+    git submodule init
+    git submodule update
+
+(Alternatively, pass `--recurse-submodules` when cloning this repository)
+
 Then build the xsystem4 executable with meson,
 
     mkdir build

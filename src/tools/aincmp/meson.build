@@ -4,12 +4,10 @@ aincmp = ['../dasm.c',
 
 executable('aincmp', aincmp,
            dependencies : tool_deps,
-           include_directories : incdir,
-           link_with : libsys4)
+           include_directories : incdir)
 
 excmp = ['excmp.c']
 
 executable('excmp', excmp,
            dependencies : tool_deps,
-           include_directories : incdir,
-           link_with : libsys4)
+           include_directories : incdir)

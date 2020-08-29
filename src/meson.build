@@ -1,28 +1,3 @@
-# sources for libsys4.a
-system4 = ['acx.c',
-           'afa.c',
-           'ain.c',
-           'ajp.c',
-           'ald.c',
-           'archive.c',
-           'buffer.c',
-           'cg.c',
-           'dcf.c',
-           'ex.c',
-           'file.c',
-           'flat.c',
-           'fnl.c',
-           'hashtable.c',
-            'ini.c',
-           'instructions.c',
-           'pms.c',
-           'qnt.c',
-           'string.c',
-           'system.c',
-           'utfsjis.c',
-           'webp.c',
-]
-
 # sources for xsystem4
 xsystem4 = ['audio.c',
             'cJSON.c',
@@ -62,7 +37,7 @@ xsystem4 = ['audio.c',
             'hll/SystemServiceEx.c',
 ]
 
-xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, ffi, gl, glew]
+xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, ffi, gl, glew, libsys4_dep]
 if chibi.found()
     xsystem4_deps += chibi
     xsystem4 += 'debugger.c'
@@ -77,17 +52,9 @@ bisongen = generator(bison,
                      output: ['@BASENAME@.tab.c', '@BASENAME@.tab.h'],
                      arguments : ['--verbose', '@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@'])
 
-system4 += flexgen.process('ini_lexer.l')
-system4 += bisongen.process('ini_parser.y')
-
-libsys4 = static_library('sys4', system4,
-                         dependencies : [libm, zlib, tj, webp, png],
-                         include_directories : incdir)
-
 executable('xsystem4', xsystem4,
            dependencies : xsystem4_deps,
            c_args : ['-Wno-unused-parameter'],
-           include_directories : incdir,
-           link_with : libsys4)
+           include_directories : incdir)
 
 subdir('tools')

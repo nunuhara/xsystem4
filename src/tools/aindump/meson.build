@@ -10,5 +10,4 @@ aindump = ['../../cJSON.c',
 
 executable('aindump', aindump,
            dependencies : tool_deps,
-           include_directories : incdir,
-           link_with : libsys4)
+           include_directories : incdir)

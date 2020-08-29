@@ -12,11 +12,9 @@ acxbuild += bisongen.process('csv_parser.y')
 executable('acxdump', acxdump,
            dependencies : tool_deps,
            c_args : ['-Wno-unused-parameter'],
-           include_directories : incdir,
-           link_with : libsys4)
+           include_directories : incdir)
 
 executable('acxbuild', acxbuild,
            dependencies : tool_deps,
            c_args : ['-Wno-unused-parameter'],
-           include_directories : incdir,
-           link_with : libsys4)
+           include_directories : incdir)
