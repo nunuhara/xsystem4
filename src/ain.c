@@ -172,7 +172,7 @@ static struct func_list *get_function(struct ain *ain, const char *name)
 	return ht_get(ain->_func_ht, name, NULL);
 }
 
-struct ain_function *ain_get_function(struct ain *ain, char *name)
+int ain_get_function(struct ain *ain, char *name)
 {
 	size_t len;
 	long n = 0;
@@ -191,14 +191,8 @@ struct ain_function *ain_get_function(struct ain *ain, char *name)
 
 	struct func_list *funs = get_function(ain, name);
 	if (!funs || n >= funs->nr_slots)
-		return NULL;
-	return &ain->functions[funs->slots[n]];
-}
-
-int ain_get_function_no(struct ain *ain, char *name)
-{
-	struct ain_function *f = ain_get_function(ain, name);
-	return f ? f - ain->functions : -1;
+		return -1;
+	return funs->slots[n];
 }
 
 int ain_get_function_index(struct ain *ain, struct ain_function *f)
@@ -215,61 +209,48 @@ err:
 	ERROR("Invalid function: '%s'", f->name);
 }
 
-struct ain_struct *ain_get_struct(struct ain *ain, char *name)
+int ain_get_struct(struct ain *ain, char *name)
 {
-	return ht_get(ain->_struct_ht, name, NULL);
-}
-
-int ain_get_struct_no(struct ain *ain, char *name)
-{
-	struct ain_struct *s = ain_get_struct(ain, name);
+	struct ain_struct *s = ht_get(ain->_struct_ht, name, NULL);
 	return s ? s - ain->structures : -1;
 }
 
-int ain_add_struct(struct ain *ain, char *name)
+int ain_add_struct(struct ain *ain, struct ain_struct *struc)
 {
 	ain->structures = xrealloc_array(ain->structures, ain->nr_structures, ain->nr_structures+1, sizeof(struct ain_struct));
-	ain->structures[ain->nr_structures].name = strdup(name);
-	ain->structures[ain->nr_structures].constructor = -1;
-	ain->structures[ain->nr_structures].destructor = -1;
+	ain->structures[ain->nr_structures] = *struc;
 	struct_ht_add(ain, &ain->structures[ain->nr_structures]);
 	ain->nr_structures++;
 	return ain->nr_structures - 1;
 }
 
-struct ain_variable *ain_add_global(struct ain *ain, char *name)
+int ain_add_global(struct ain *ain, struct ain_variable *var)
 {
 	int no = ain->nr_globals;
 	ain->globals = xrealloc_array(ain->globals, ain->nr_globals, ain->nr_globals+1, sizeof(struct ain_variable));
-	ain->globals[no].name = strdup(name);
+	ain->globals[no] = *var;
 	if (AIN_VERSION_GTE(ain, 12, 0))
 		ain->globals[no].name2 = strdup("");
 	ain->globals[no].var_type = AIN_VAR_GLOBAL;
 	ain->nr_globals++;
-	return &ain->globals[no];
+	return no;
 }
 
-struct ain_variable *ain_get_global(struct ain *ain, const char *name)
+int ain_get_global(struct ain *ain, const char *name)
 {
-	// TODO: use hash table for faster lookup
 	for (int i = 0; i < ain->nr_globals; i++) {
 		if (!strcmp(ain->globals[i].name, name))
-			return &ain->globals[i];
+			return i;
 	}
-	return NULL;
+	return -1;
 }
 
-int ain_get_global_no(struct ain *ain, const char *name)
-{
-	struct ain_variable *v = ain_get_global(ain, name);
-	return v ? v - ain->globals : -1;
-}
-
-void ain_add_initval(struct ain *ain, struct ain_initval *init)
+int ain_add_initval(struct ain *ain, struct ain_initval *init)
 {
 	ain->global_initvals = xrealloc_array(ain->global_initvals, ain->nr_initvals, ain->nr_initvals+1,
 					      sizeof(struct ain_initval));
 	ain->global_initvals[ain->nr_initvals++] = *init;
+	return ain->nr_initvals - 1;
 }
 
 int ain_add_function(struct ain *ain, struct ain_function *fun)

@@ -998,7 +998,7 @@ static void compile_declaration(struct compiler_state *state, struct jaf_block_i
 
 static void compile_global_init_function(struct compiler_state *state)
 {
-	if (ain_get_function(state->ain, "0"))
+	if (ain_get_function(state->ain, "0") >= 0)
 		return;
 
 	struct ain_function f = {0};

@@ -33,11 +33,14 @@ void jaf_define_struct(struct ain *ain, struct jaf_block_item *def)
 	if (!def->struc.name)
 		ERROR("Anonymous structs not supported");
 
-	char *u = encode_text(def->struc.name->text);
-	if (ain_get_struct(ain, u))
+	struct ain_struct s = {
+		.name = encode_text(def->struc.name->text),
+		.constructor = -1,
+		.destructor = -1,
+	};
+	if (ain_get_struct(ain, s.name) >= 0)
 		ERROR("Redefining structs not supported");
-	def->struc.struct_no = ain_add_struct(ain, u);
-	free(u);
+	def->struc.struct_no = ain_add_struct(ain, &s);
 }
 
 void jaf_define_functype(struct ain *ain, struct jaf_fundecl *decl)
@@ -116,7 +119,7 @@ static void resolve_typedef(struct ain *ain, struct jaf_type_specifier *type)
 {
 	int no;
 	char *u = encode_text(type->name->text);
-	if ((no = ain_get_struct_no(ain, u)) >= 0) {
+	if ((no = ain_get_struct(ain, u)) >= 0) {
 		type->type = JAF_STRUCT;
 		type->struct_no = no;
 	} else if ((no = ain_get_functype(ain, u)) >= 0) {
@@ -231,7 +234,7 @@ static void analyze_message(struct jaf_env *env, struct jaf_block_item *item)
 	}
 
 	char *u = encode_text(item->msg.func->text);
-	if ((item->msg.func_no = ain_get_function_no(env->ain, u)) < 0)
+	if ((item->msg.func_no = ain_get_function(env->ain, u)) < 0)
 		ERROR("Undefined function: %s", item->msg.func->text);
 	free(u);
 }
@@ -565,11 +568,10 @@ static void add_functype(struct ain *ain, struct jaf_fundecl *decl)
 
 static void add_global(struct ain *ain, struct jaf_vardecl *decl)
 {
-	char *u = encode_text(decl->name->text);
-	struct ain_variable *v = ain_add_global(ain, u);
-	jaf_to_ain_type(ain, &v->type, decl->type);
-	decl->var_no = v - ain->globals;
-	free(u);
+	struct ain_variable v = {0};
+	v.name = encode_text(decl->name->text);
+	jaf_to_ain_type(ain, &v.type, decl->type);
+	ain_add_global(ain, &v);
 }
 
 static void jaf_process_declarations(struct ain *ain, struct jaf_block *block)

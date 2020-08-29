@@ -311,7 +311,7 @@ struct ain_variable *jaf_env_lookup(struct jaf_env *env, const char *name, int *
 		scope = scope->parent;
 	}
 
-	int no = ain_get_global_no(env->ain, name);
+	int no = ain_get_global(env->ain, name);
 	if (no >= 0) {
 		*var_no = no;
 		return &env->ain->globals[no];
@@ -329,7 +329,7 @@ static void jaf_check_types_identifier(struct jaf_env *env, struct jaf_expressio
 		expr->valuetype = v->type;
 		expr->ident.var_type = v->var_type;
 		expr->ident.var_no = no;
-	} else if ((no = ain_get_function_no(env->ain, u)) >= 0) {
+	} else if ((no = ain_get_function(env->ain, u)) >= 0) {
 		expr->valuetype.data = AIN_FUNCTION;
 		expr->valuetype.struc = no;
 	} else {

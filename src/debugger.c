@@ -148,14 +148,15 @@ static void set_function_breakpoint(const char *_name, sexp handler)
 	}
 
 	char *name = utf2sjis(_name, 0);
-	struct ain_function *f = ain_get_function(ain, name);
+	int fno = ain_get_function(ain, name);
 	free(name);
 
-	if (!f) {
+	if (fno < 0) {
 		SCM_ERROR("No function with name '%s'", _name);
 		return;
 	}
 
+	struct ain_function *f = &ain->functions[fno];
 	breakpoints = xrealloc_array(breakpoints, nr_breakpoints, nr_breakpoints+1, sizeof(struct breakpoint));
 	breakpoints[nr_breakpoints].restore_op = LittleEndian_getW(ain->code, f->address);
 	breakpoints[nr_breakpoints].handler = handler;

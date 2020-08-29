@@ -92,7 +92,7 @@ struct jaf_block *jaf_parse(struct ain *ain, const char **files, unsigned nr_fil
 int sym_type(char *name)
 {
     char *u = encode_text(name);
-    if (ain_get_struct(jaf_ain_out, u)) {
+    if (ain_get_struct(jaf_ain_out, u) >= 0) {
 	free(u);
 	return TYPEDEF_NAME;
     }

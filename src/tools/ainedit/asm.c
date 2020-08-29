@@ -279,11 +279,11 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enu
 	}
 	case T_FUNC: {
 		char *u = encode_text(arg);
-		struct ain_function *f = ain_get_function(ain, u);
+		int fno = ain_get_function(ain, u);
 		free(u);
-		if (!f)
+		if (fno < 0)
 			ASM_ERROR(state, "Unable to resolve function: '%s'", arg);
-		return f - ain->functions;
+		return fno;
 	}
 	case T_STRING: {
 		return asm_add_string(state, arg);
@@ -324,11 +324,11 @@ static uint32_t asm_resolve_arg(struct asm_state *state, enum opcode opcode, enu
 	}
 	case T_STRUCT: {
 		char *u = encode_text(arg);
-		struct ain_struct *s = ain_get_struct(state->ain, u);
+		int sno = ain_get_struct(state->ain, u);
 		free(u);
-		if (!s)
+		if (sno < 0)
 			ASM_ERROR(state, "Unable to resolve struct: '%s'", arg);
-		return s - state->ain->structures;
+		return sno;
 	}
 	case T_SYSCALL: {
 		for (int i = 0; i < NR_SYSCALLS; i++) {

@@ -338,23 +338,22 @@ struct ain *ain_new(int version);
 void ain_decrypt(uint8_t *buf, size_t len);
 
 void ain_init_member_functions(struct ain *ain, char *(*to_ascii)(const char*));
-struct ain_function *ain_get_function(struct ain *ain, char *name);
-int ain_get_function_no(struct ain *ain, char *name);
+
+int ain_get_function(struct ain *ain, char *name);
 int ain_get_function_index(struct ain *ain, struct ain_function *f);
-struct ain_struct *ain_get_struct(struct ain *ain, char *name);
-int ain_get_struct_no(struct ain *ain, char *name);
-int ain_add_struct(struct ain *ain, char *name);
-struct ain_variable *ain_add_global(struct ain *ain, char *name);
-struct ain_variable *ain_get_global(struct ain *ain, const char *name);
-int ain_get_global_no(struct ain *ain, const char *name);
-void ain_add_initval(struct ain *ain, struct ain_initval *init);
-int ain_add_function(struct ain *ain, struct ain_function *fun);
-int ain_add_functype(struct ain *ain, struct ain_function_type *fun);
+int ain_get_global(struct ain *ain, const char *name);
+int ain_get_struct(struct ain *ain, char *name);
 int ain_get_functype(struct ain *ain, const char *name);
+
+int ain_add_function(struct ain *ain, struct ain_function *fun);
+int ain_add_global(struct ain *ain, struct ain_variable *var);
+int ain_add_initval(struct ain *ain, struct ain_initval *init);
+int ain_add_struct(struct ain *ain, struct ain_struct *struc);
+int ain_add_library(struct ain *ain, struct ain_library *lib);
+int ain_add_functype(struct ain *ain, struct ain_function_type *fun);
 int ain_add_string(struct ain *ain, const char *str);
 int ain_add_message(struct ain *ain, const char *str);
 int ain_add_file(struct ain *ain, const char *filename);
-int ain_add_library(struct ain *ain, struct ain_library *lib);
 
 void ain_free(struct ain *ain);
 void ain_free_functions(struct ain *ain);
