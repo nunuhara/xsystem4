@@ -1,9 +1,0 @@
-int lte(int a, int b)
-{
-	return a <= b;
-}
-
-int main()
-{
-	return !lte(3, 3);
-}

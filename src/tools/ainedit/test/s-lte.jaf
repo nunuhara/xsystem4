@@ -1,9 +1,0 @@
-int lte(string a, string b)
-{
-	return a <= b;
-}
-
-int main()
-{
-	return !lte("a", "a");
-}

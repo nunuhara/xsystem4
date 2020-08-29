@@ -44,17 +44,7 @@ if chibi.found()
     add_project_arguments('-DDEBUGGER_ENABLED', language : 'c')
 endif
 
-flexgen = generator(flex,
-                    output : '@BASENAME@.yy.c',
-                    arguments : ['-o', '@OUTPUT@', '@INPUT@'])
-
-bisongen = generator(bison,
-                     output: ['@BASENAME@.tab.c', '@BASENAME@.tab.h'],
-                     arguments : ['--verbose', '@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@'])
-
 executable('xsystem4', xsystem4,
            dependencies : xsystem4_deps,
            c_args : ['-Wno-unused-parameter'],
            include_directories : incdir)
-
-subdir('tools')

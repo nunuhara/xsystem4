@@ -1,9 +1,0 @@
-int lt(int a, int b)
-{
-	return a < b;
-}
-
-int main()
-{
-	return !lt(2, 3);
-}

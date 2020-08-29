@@ -1,9 +1,0 @@
-int mula(int a, int b)
-{
-	return a *= b;
-}
-
-int main()
-{
-	return !(mula(2, 3) == 6);
-}

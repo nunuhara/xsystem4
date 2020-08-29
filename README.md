@@ -4,9 +4,11 @@ xsystem4
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
 operating systems.
 
-NOTE: This is a work in progress. Some simple ADV games run more or less okay,
-      but most games are not fully working or have game-breaking bug when run
-      with xsystem4.
+NOTE: This is a work in progress. I am focusing primarily on the Japenese
+      version of Sengoku Rance (and by extension, the English fan translation)
+      which is currently more or less playable. Some other games from the same
+      era may also work, but I have not done any significant testing on them so
+      breakage is likely.
 
 Building
 --------
@@ -18,6 +20,7 @@ First install the dependencies (corresponding Debian package in parentheses):
 * flex (flex)
 * meson (meson)
 * libffi (libffi-dev)
+* libpng (libpng-dev)
 * libturbojpeg (libturbojpeg0-dev)
 * libwebp (libwebp-dev)
 * SDL2 (libsdl2-dev)

@@ -1,9 +1,0 @@
-int gte(string a, string b)
-{
-	return a >= b;
-}
-
-int main()
-{
-	return !gte("a", "a");
-}

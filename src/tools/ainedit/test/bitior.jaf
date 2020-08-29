@@ -1,9 +1,0 @@
-int ior(int a, int b)
-{
-	return a | b;
-}
-
-int main()
-{
-	return !(ior(1, 2) == 3);
-}

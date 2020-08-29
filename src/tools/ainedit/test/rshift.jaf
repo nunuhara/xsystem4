@@ -1,9 +1,0 @@
-int rshift(int a, int b)
-{
-	return a >> b;
-}
-
-int main()
-{
-	return !(rshift(8, 3) == 1);
-}
