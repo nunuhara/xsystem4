@@ -16,7 +16,7 @@
 
 #version 140
 
-uniform sampler2D texture;
+uniform sampler2D tex;
 uniform vec2 bot_left;
 uniform vec2 top_right;
 
@@ -29,11 +29,11 @@ float point_in_rect(vec2 p, vec2 bot_left, vec2 top_right) {
 }
 
 void main() {
-        ivec2 size = textureSize(texture, 0);
+        ivec2 size = textureSize(tex, 0);
         vec2 tex_bot_left = bot_left / size;
         vec2 tex_top_right = top_right / size;
 
-        vec4 texel = texture2D(texture, tex_coord);
+        vec4 texel = texture(tex, tex_coord);
         texel.a = 1;
         float t = point_in_rect(tex_coord, tex_bot_left, tex_top_right);
         frag_color = t * texel + (1 - t) * vec4(0, 0, 0, 0);
