@@ -24,7 +24,7 @@
 #include <SDL.h>
 #include <GL/glew.h>
 
-struct {
+struct sdl_private {
 	SDL_Window *window;
 	SDL_PixelFormat *format;
 	struct {
@@ -36,6 +36,7 @@ struct {
 	bool dirty;
 	bool ms_active; /* mouse is active */
 	bool fs_on;
-} sdl;
+};
+extern struct sdl_private sdl;
 
 #endif /* SYSTEM4_GFX_PRIVATE_H */

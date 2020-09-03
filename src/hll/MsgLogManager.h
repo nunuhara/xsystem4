@@ -31,6 +31,6 @@ struct msg_log_entry {
 	};
 };
 
-struct msg_log_entry *msg_log;
+extern struct msg_log_entry *msg_log;
 
 #endif /* SYSTEM4_MSGLOGMANAGER_H */

@@ -19,7 +19,7 @@
 
 #include "system4/ald.h"
 
-struct archive *ald[ALDFILETYPE_MAX];
+extern struct archive *ald[ALDFILETYPE_MAX];
 
 struct config {
 	char *game_name;
@@ -34,7 +34,7 @@ struct config {
 	char *wai_path;
 };
 
-struct config config;
+extern struct config config;
 
 char *unix_path(const char *path);
 char *gamedir_path(const char *path);

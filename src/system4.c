@@ -151,6 +151,7 @@ static void read_user_config(void)
 	free(path);
 }
 
+struct archive *ald[ALDFILETYPE_MAX];
 static char *ald_filenames[ALDFILETYPE_MAX][ALD_FILEMAX];
 static int ald_count[ALDFILETYPE_MAX];
 

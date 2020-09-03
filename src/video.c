@@ -28,6 +28,8 @@
 #include "file.h"
 #include "xsystem4.h"
 
+struct sdl_private sdl;
+
 /*
  * Transform from the window coordinate system -> clip-space.
  *

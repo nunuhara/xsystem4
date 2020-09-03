@@ -21,7 +21,7 @@
 #include <stdbool.h>
 #include "system4/instructions.h"
 
-bool dbg_enabled;
+extern bool dbg_enabled;
 
 void dbg_init(void);
 void dbg_fini(void);

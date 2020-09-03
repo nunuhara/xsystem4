@@ -134,8 +134,8 @@ enum sact_keycode {
 	VK_NR_KEYCODES
 };
 
-bool mouse_focus;
-bool keyboard_focus;
+extern bool mouse_focus;
+extern bool keyboard_focus;
 
 void handle_events(void);
 bool key_is_down(enum sact_keycode code);

@@ -45,8 +45,8 @@ struct vm_pointer {
 #endif
 };
 
-struct vm_pointer *heap;
-size_t heap_size;
+extern struct vm_pointer *heap;
+extern size_t heap_size;
 
 void heap_init(void);
 void heap_delete(void);
@@ -64,8 +64,8 @@ void heap_set_page(int slot, struct page *page);
 
 #ifdef VM_PRIVATE
 
-int32_t *heap_free_stack;
-size_t heap_free_ptr;
+extern int32_t *heap_free_stack;
+extern size_t heap_free_ptr;
 
 #endif /* VM_PRIVATE */
 #endif /* SYSTEM4_HEAP_H */

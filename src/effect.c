@@ -75,7 +75,7 @@ static const char *effect_names[NR_EFFECTS] = {
 	[EFFECT_2ROT_ZOOM_BLEND_BLUR]   = "SACT_EFFECT_2ROT_ZOOM_BLEND_BLUR",
 };
 
-GLuint main_surface_fb;
+extern GLuint main_surface_fb;
 
 static void effect_crossfade(Texture *old, Texture *new, float progress)
 {

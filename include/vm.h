@@ -43,10 +43,10 @@ struct static_library {
 	struct static_hll_function functions[];
 };
 
-struct ain *ain;
+extern struct ain *ain;
 
-union vm_value *stack;
-int32_t stack_ptr;
+extern union vm_value *stack;
+extern int32_t stack_ptr;
 
 static inline union vm_value _vm_id(union vm_value v)
 {
@@ -124,10 +124,10 @@ struct function_call {
 	int32_t struct_page;
 };
 
-struct function_call call_stack[4096];
-int32_t call_stack_ptr;
+extern struct function_call call_stack[4096];
+extern int32_t call_stack_ptr;
 
-size_t instr_ptr;
+extern size_t instr_ptr;
 
 int vm_save_image(const char *key, const char *path);
 void vm_load_image(const char *key, const char *path);
