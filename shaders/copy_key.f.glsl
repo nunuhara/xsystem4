@@ -16,14 +16,14 @@
 
 #version 140
 
-uniform sampler2D texture;
+uniform sampler2D tex;
 uniform vec4 color;
 
 in vec2 tex_coord;
 out vec4 frag_color;
 
 void main() {
-        vec4 texel = texture2D(texture, tex_coord);
+        vec4 texel = texture(tex, tex_coord);
         if (texel.rgb == color.rgb)
                 discard;
         frag_color = texel;

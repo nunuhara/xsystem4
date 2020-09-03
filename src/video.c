@@ -103,7 +103,7 @@ void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const c
 	dst->program = program;
 	dst->world_transform = glGetUniformLocation(program, "world_transform");
 	dst->view_transform = glGetUniformLocation(program, "view_transform");
-	dst->texture = glGetUniformLocation(program, "texture");
+	dst->texture = glGetUniformLocation(program, "tex");
 	dst->vertex = glGetAttribLocation(program, "vertex_pos");
 	dst->alpha_mod = glGetAttribLocation(program, "alpha_mod");
 	dst->prepare = NULL;
@@ -125,6 +125,9 @@ static int gl_initialize(void)
 	};
 
 	GLuint index_data[] = { 0, 1, 2, 3 };
+
+	glGenVertexArrays(1, &sdl.gl.vao);
+	glBindVertexArray(sdl.gl.vao);
 
 	glGenBuffers(1, &sdl.gl.vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, sdl.gl.vbo);

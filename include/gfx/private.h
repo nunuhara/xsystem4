@@ -29,6 +29,7 @@ struct {
 	SDL_PixelFormat *format;
 	struct {
 		SDL_GLContext context;
+		GLuint vao;
 		GLuint vbo;
 		GLuint ibo;
 	} gl;
