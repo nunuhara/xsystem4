@@ -22,6 +22,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <getopt.h>
+#include <limits.h>
 
 #include "system4.h"
 #include "system4/ain.h"
