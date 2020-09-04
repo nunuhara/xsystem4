@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <dirent.h>
+#include <limits.h>
 
 #include "system4.h"
 #include "system4/fnl.h"
