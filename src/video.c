@@ -19,6 +19,7 @@
 #include <GL/glew.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 
 #include "system4.h"
 #include "system4/cg.h"
@@ -67,16 +68,26 @@ void prepare_default_shader(struct gfx_render_job *job, void *data)
 	glUniform1f(s->alpha_mod, t->alpha_mod / 255.0);
 }
 
+static GLchar *read_shader_file(const char *path)
+{
+	GLchar *source = file_read(path, NULL);
+	if (!source) {
+		char full_path[PATH_MAX];
+		snprintf(full_path, PATH_MAX, XSYS4_DATA_DIR "/%s", path);
+		source = file_read(full_path, NULL);
+		if (!source)
+			ERROR("Failed to load shader file %s", full_path, strerror(errno));
+	}
+	return source;
+}
+
 static GLuint load_shader_file(const char *path, GLenum type)
 {
 	GLint shader_compiled;
 	GLuint shader;
 	const GLchar *source;
 
-	source = file_read(path, NULL);
-	if (!source)
-		ERROR("Failed to load shader file %s: %s", path, strerror(errno));
-
+	source = read_shader_file(path);
 	shader = glCreateShader(type);
 	glShaderSource(shader, 1, &source, NULL);
 	glCompileShader(shader);

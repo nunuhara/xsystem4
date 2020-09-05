@@ -47,4 +47,5 @@ endif
 executable('xsystem4', xsystem4,
            dependencies : xsystem4_deps,
            c_args : ['-Wno-unused-parameter'],
-           include_directories : incdir)
+           include_directories : incdir,
+           install : true)

@@ -38,8 +38,8 @@
 
 // TODO: install fonts on system, and provide run-time configuration option
 const char *font_paths[] = {
-	[FONT_GOTHIC] = "fonts/VL-Gothic-Regular.ttf",
-	[FONT_MINCHO] = "fonts/HanaMinA.ttf"
+	[FONT_GOTHIC] = XSYS4_DATA_DIR "/fonts/VL-Gothic-Regular.ttf",
+	[FONT_MINCHO] = XSYS4_DATA_DIR "/fonts/HanaMinA.ttf"
 };
 
 struct font {

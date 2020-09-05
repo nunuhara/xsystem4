@@ -40,6 +40,10 @@ Then build the xsystem4 executable with meson,
     mkdir build
     meson build
     ninja -C build
+    
+Finally install it to your system (optional),
+
+    ninja -C build install
 
 Running
 -------
@@ -48,6 +52,3 @@ You can run a game by passing the path to its "System40.ini" to the xsystem4
 executable.
 
     build/src/xsystem4 /path/to/System40.ini
-
-For now, xsystem4 needs to be run in the top-level project directory (i.e. the
-directory that contains this README file). This will change in the future.
