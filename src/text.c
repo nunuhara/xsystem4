@@ -35,11 +35,22 @@
  */
 
 #define MAX_FONT_SIZE 128
+#define DEFAULT_FONT_GOTHIC "fonts/VL-Gothic-Regular.ttf"
+#define DEFAULT_FONT_MINCHO "fonts/HanaMinA.ttf"
 
-// TODO: install fonts on system, and provide run-time configuration option
+static const char *local_font_paths[] = {
+	[FONT_GOTHIC] = DEFAULT_FONT_GOTHIC,
+	[FONT_MINCHO] = DEFAULT_FONT_MINCHO
+};
+
+static const char *default_font_paths[] = {
+	[FONT_GOTHIC] = XSYS4_DATA_DIR "/" DEFAULT_FONT_GOTHIC,
+	[FONT_MINCHO] = XSYS4_DATA_DIR "/" DEFAULT_FONT_MINCHO
+};
+
 const char *font_paths[] = {
-	[FONT_GOTHIC] = XSYS4_DATA_DIR "/fonts/VL-Gothic-Regular.ttf",
-	[FONT_MINCHO] = XSYS4_DATA_DIR "/fonts/HanaMinA.ttf"
+	[FONT_GOTHIC] = XSYS4_DATA_DIR "/" DEFAULT_FONT_GOTHIC,
+	[FONT_MINCHO] = XSYS4_DATA_DIR "/" DEFAULT_FONT_MINCHO
 };
 
 struct font {
@@ -74,6 +85,16 @@ static struct font_metrics font_metrics = {
 	}
 };
 
+static TTF_Font *open_font(enum font_face face, unsigned int size)
+{
+	TTF_Font *font;
+	if ((font = TTF_OpenFont(font_paths[face], size)))
+		return font;
+	if ((font = TTF_OpenFont(default_font_paths[face], size)))
+		return font;
+	return TTF_OpenFont(local_font_paths[face], size);
+}
+
 bool gfx_set_font(enum font_face face, unsigned int size)
 {
 	struct _font *ff = &font_table[face];
@@ -92,7 +113,7 @@ bool gfx_set_font(enum font_face face, unsigned int size)
 
 	// open font if needed
 	if (!ff->fonts[size].size) {
-		if (!(ff->fonts[size].font = TTF_OpenFont(font_paths[face], size))) {
+		if (!(ff->fonts[size].font = open_font(face, size))) {
 			WARNING("Error opening font: %s:%d", font_paths[face], size);
 			return false;
 		}
