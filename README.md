@@ -48,7 +48,12 @@ Finally install it to your system (optional),
 Running
 -------
 
-You can run a game by passing the path to its "System40.ini" to the xsystem4
-executable.
+You can run a game by passing the path to its game directory to the xsystem4
+executable,
 
-    build/src/xsystem4 /path/to/System40.ini
+    build/src/xsystem4 /path/to/game_directory
+
+Alternatively, run xsystem4 from within the game directory,
+
+    cd /path/to/game_directory
+    xsystem4

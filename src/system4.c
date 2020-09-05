@@ -27,6 +27,7 @@
 #include "system4.h"
 #include "system4/ain.h"
 #include "system4/ald.h"
+#include "system4/file.h"
 #include "system4/ini.h"
 #include "system4/instructions.h"
 #include "system4/string.h"
@@ -294,6 +295,34 @@ static void config_init(void)
 	mkdir_p(new_save_dir);
 }
 
+static void config_init_with_ini(const char *ini_path)
+{
+	read_config(ini_path);
+	if (!config.ain_filename)
+		ERROR("No AIN filename specified in %s", ini_path);
+	char *tmp = strdup(ini_path);
+	config.game_dir = strdup(dirname(tmp));
+	free(tmp);
+	config_init();
+}
+
+static void config_init_with_dir(const char *dir)
+{
+	char path[PATH_MAX];
+	snprintf(path, PATH_MAX, "%s/System40.ini", dir);
+	config_init_with_ini(path);
+}
+
+static void config_init_with_ain(const char *ain_path)
+{
+	char *basename_tmp = strdup(ain_path);
+	char *dirname_tmp = strdup(ain_path);
+	config.ain_filename = strdup(basename(basename_tmp));
+	config.game_dir = strdup(dirname(dirname_tmp));
+	free(basename_tmp);
+	free(dirname_tmp);
+	config_init();
+}
 
 #if (!defined(_WIN32) && !defined(__WIN32__))
 #include <sys/wait.h>
@@ -373,7 +402,6 @@ enum {
 int main(int argc, char *argv[])
 {
 	initialize_instructions();
-	size_t len;
 	char *ainfile;
 	int err = AIN_SUCCESS;
 	bool audit = false;
@@ -431,33 +459,24 @@ int main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	// TODO: if no argument given, try to read System40.ini/AliceStart.ini from current dir
-	if (argc != 1) {
-		ERROR("Wrong number of arguments");
-		return 1;
+	if (argc < 1) {
+		config_init_with_dir(".");
+	} else if (argc > 1) {
+		usage();
+		ERROR("Too many arguments");
+	} else if (is_directory(argv[0])) {
+		config_init_with_dir(argv[0]);
+	} else if (!strcasecmp(file_extension(argv[0]), "ini")) {
+		config_init_with_ini(argv[0]);
+	} else if (!strcasecmp(file_extension(argv[0]), "ain")) {
+		config_init_with_ain(argv[0]);
 	}
-
-	len = strlen(argv[0]);
-	if (len > 4 && !strcasecmp(&argv[0][len - 4], ".ini")) {
-		read_config(argv[0]);
-		if (!config.ain_filename)
-			ERROR("No AIN filename specified in %s", argv[0]);
-
-		config.game_dir = strdup(dirname(argv[0]));
-		ainfile = gamedir_path(config.ain_filename);
-	} else if (len > 4 && !strcasecmp(&argv[0][len - 4], ".ain")) {
-		ainfile = strdup(argv[0]);
-		config.ain_filename = strdup(basename(argv[0]));
-		config.game_dir = strdup(dirname(argv[0]));
-	} else  {
-		ERROR("Not an AIN/INI file: %s", &argv[0][len - 4]);
-	}
+	ainfile = gamedir_path(config.ain_filename);
 
 #if (!defined(_WIN32) && !defined(__WIN32__))
 	signal(SIGCHLD, cleanup);
 #endif
 
-	config_init();
 	read_user_config();
 
 	// NOTE: some command line options are handled here so that they
