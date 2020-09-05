@@ -487,15 +487,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_EXISTS_SAVE_FILE: {
 		int slot = stack_pop().i;
-		struct string *name = heap[slot].s;
-		size_t dir_len = strlen(config.save_dir);
-		char *path = xmalloc(dir_len + 1 + name->size + 1);
-
-		strncpy(path, config.save_dir, dir_len);
-		path[dir_len] = '/';
-		strncpy(path+dir_len+1, name->text, name->size);
-		path[dir_len+1+name->size] = '\0';
-
+		char *path = savedir_path(heap[slot].s->text);
 		stack_push(file_exists(path));
 		heap_unref(slot);
 		free(path);

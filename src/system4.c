@@ -73,10 +73,12 @@ char *gamedir_path(const char *path)
 
 char *savedir_path(const char *filename)
 {
-	char *path = xmalloc(strlen(config.save_dir) + 1 + strlen(filename) + 1);
+	char *utf = sjis2utf(filename, 0);
+	char *path = xmalloc(strlen(config.save_dir) + 1 + strlen(utf) + 1);
 	strcpy(path, config.save_dir);
 	strcat(path, "/");
-	strcat(path, filename);
+	strcat(path, utf);
+	free(utf);
 	return path;
 }
 
