@@ -47,8 +47,18 @@ struct sact_sprite {
 	int cg_no;
 };
 
+extern bool sact_dirty;
+
+static inline void sprite_dirty(struct sact_sprite *sp)
+{
+	if (sp && sp->show)
+		sact_dirty = true;
+}
+
 struct sact_sprite *sact_get_sprite(int sp);
+struct sact_sprite *sact_get_sprite_dirty(int sp);
 struct texture *sact_get_texture(int sp_no);
+struct texture *sact_get_texture_dirty(int sp_no);
 
 void sact_render_scene(void);
 

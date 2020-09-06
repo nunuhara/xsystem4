@@ -32,6 +32,8 @@
 
 static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
 
+bool sact_dirty = true;
+
 static struct sact_sprite **sprites = NULL;
 static int nr_sprites = 0;
 
@@ -65,6 +67,14 @@ struct sact_sprite *sact_get_sprite(int sp)
 	return sprites[sp];
 }
 
+struct sact_sprite *sact_get_sprite_dirty(int sp)
+{
+	if (sp < -1 || sp >= nr_sprites)
+		return NULL;
+	sprite_dirty(sprites[sp]);
+	return sprites[sp];
+}
+
 struct texture *sact_get_texture(int sp_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
@@ -76,10 +86,23 @@ struct texture *sact_get_texture(int sp_no)
 	return &sp->texture;
 }
 
+struct texture *sact_get_texture_dirty(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
+	if (!sp)
+		return NULL;
+	if (!sp->texture.handle) {
+		gfx_init_texture_with_color(&sp->texture, sp->rect.w, sp->rect.h, sp->color);
+	}
+	return &sp->texture;
+
+}
+
 static struct sact_sprite *alloc_sprite(int sp)
 {
 	sprites[sp] = xcalloc(1, sizeof(struct sact_sprite));
 	sprites[sp]->no = sp;
+	sprite_dirty(sprites[sp]);
 	return sprites[sp];
 }
 
@@ -152,6 +175,7 @@ int sact_SetWP(int cg_no)
 	gfx_delete_texture(&wp.texture);
 	gfx_init_texture_with_cg(&wp.texture, cg);
 	cg_free(cg);
+	sact_dirty = true;
 	return 1;
 }
 
@@ -198,8 +222,11 @@ void sact_render_scene(void)
 int sact_Update(void)
 {
 	handle_events();
-	sact_render_scene();
-	gfx_swap();
+	if (sact_dirty) {
+		sact_render_scene();
+		gfx_swap();
+		sact_dirty = false;
+	}
 	return 1;
 }
 
@@ -246,7 +273,7 @@ int sact_SP_GetMaxZ(void)
 
 int sact_SP_SetCG(int sp_no, int cg_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp)
 		sact_SP_Create(sp_no, 1, 1, 0, 0, 0, 255);
 	if (!(sp = sact_get_sprite(sp_no))) {
@@ -272,7 +299,7 @@ static struct sact_sprite *create_sprite(int sp_no, int width, int height, int r
 	if (sp_no >= nr_sprites) {
 		realloc_sprite_table(sp_no+256);
 	}
-	if (!(sp = sact_get_sprite(sp_no)))
+	if (!(sp = sact_get_sprite_dirty(sp_no)))
 		sp = alloc_sprite(sp_no);
 	sp->color = (SDL_Color) { .r = r, .g = g, .b = b, .a = (a >= 0 ? a : 255) };
 	sp->rect.w = width;
@@ -302,12 +329,13 @@ int sact_SP_Delete(int sp_no)
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
 	free_sprite(sp);
+	sact_dirty = true;
 	return 1;
 }
 
 int sact_SP_SetPos(int sp_no, int x, int y)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 1;
 	sp->rect.x = x;
 	sp->rect.y = y;
@@ -316,7 +344,7 @@ int sact_SP_SetPos(int sp_no, int x, int y)
 
 int sact_SP_SetX(int sp_no, int x)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 0;
 	sp->rect.x = x;
 	return 1;
@@ -324,7 +352,7 @@ int sact_SP_SetX(int sp_no, int x)
 
 int sact_SP_SetY(int sp_no, int y)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 0;
 	sp->rect.y = y;
 	return 1;
@@ -332,7 +360,7 @@ int sact_SP_SetY(int sp_no, int y)
 
 int sact_SP_SetZ(int sp_no, int z)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 0;
 	sp->z = z;
 	if (sp->show) {
@@ -351,7 +379,7 @@ int sact_SP_GetBlendRate(int sp_no)
 
 int sact_SP_SetBlendRate(int sp_no, int rate)
 {
-	struct texture *t = sact_get_texture(sp_no);
+	struct texture *t = sact_get_texture_dirty(sp_no);
 	if (!t) return 0;
 	t->alpha_mod = max(0, min(255, rate));
 	return 1;
@@ -364,6 +392,7 @@ int sact_SP_SetShow(int sp_no, bool show)
 	if (show == sp->show)
 		return 1;
 	sp->show = show;
+	sprite_dirty(sp);
 	if (show)
 		sprite_register(sp);
 	else
@@ -373,7 +402,7 @@ int sact_SP_SetShow(int sp_no, bool show)
 
 int sact_SP_SetDrawMethod(int sp_no, int method)
 {
-	struct texture *t = sact_get_texture(sp_no);
+	struct texture *t = sact_get_texture_dirty(sp_no);
 	if (!t) return 0;
 	if (method < 0 || method >= NR_DRAW_METHODS) {
 		WARNING("unknown draw method: %d", method);
@@ -446,7 +475,7 @@ int sact_SP_GetShow(int sp_no)
 
 int sact_SP_SetTextHome(int sp_no, int x, int y)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 0;
 	sp->text.home = (Point) { .x = x, .y = y };
 	return 1;
@@ -454,7 +483,7 @@ int sact_SP_SetTextHome(int sp_no, int x, int y)
 
 int sact_SP_SetTextLineSpace(int sp_no, int px)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 1;
 	sp->text.line_space = px;
 	return 1;
@@ -462,7 +491,7 @@ int sact_SP_SetTextLineSpace(int sp_no, int px)
 
 int sact_SP_SetTextCharSpace(int sp_no, int px)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 1;
 	sp->text.char_space = px;
 	return 1;
@@ -470,7 +499,7 @@ int sact_SP_SetTextCharSpace(int sp_no, int px)
 
 int sact_SP_SetTextPos(int sp_no, int x, int y)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 0;
 	sp->text.pos = (Point) { .x = x, .y = y };
 	return 1;
@@ -503,7 +532,7 @@ static void init_text_metrics(struct text_metrics *tm, union vm_value *_tm)
 
 int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_metrics *tm)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 0;
 
 	if (!sp->text.texture.handle) {
@@ -536,7 +565,7 @@ static void clear_text(struct sact_sprite *sp)
 
 int sact_SP_TextClear(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 0;
 	clear_text(sp);
 	return 1;
@@ -544,7 +573,7 @@ int sact_SP_TextClear(int sp_no)
 
 int sact_SP_TextHome(int sp_no, possibly_unused int size)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 0;
 	// FIXME: do something with nTextSize
 	sp->text.pos = sp->text.home;
@@ -553,7 +582,7 @@ int sact_SP_TextHome(int sp_no, possibly_unused int size)
 
 int sact_SP_TextNewLine(int sp_no, int size)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_get_sprite_dirty(sp_no);
 	if (!sp) return 0;
 	sp->text.pos = POINT(sp->text.home.x, sp->text.pos.y + size + sp->text.line_space);
 	return 1;
@@ -561,7 +590,7 @@ int sact_SP_TextNewLine(int sp_no, int size)
 
 int sact_SP_TextCopy(int dno, int sno)
 {
-	struct sact_sprite *dsp = sact_get_sprite(dno);
+	struct sact_sprite *dsp = sact_get_sprite_dirty(dno);
 	struct sact_sprite *ssp = sact_get_sprite(sno);
 	if (!ssp)
 		return 0;

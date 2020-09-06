@@ -19,101 +19,102 @@
 #include "gfx/types.h"
 #include "system4/string.h"
 
-#define TEX(sp_no) sact_get_texture(sp_no)
+#define STEX(sp_no) sact_get_texture(sp_no)
+#define DTEX(sp_no) sact_get_texture_dirty(sp_no)
 
 static void DrawGraph_Copy(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
-	gfx_copy(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+	gfx_copy(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
 static void DrawGraph_CopyBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int rate)
 {
-	gfx_copy_bright(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, rate);
+	gfx_copy_bright(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, rate);
 }
 
 static void DrawGraph_CopyAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
-	gfx_copy_amap(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+	gfx_copy_amap(STEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
 static void DrawGraph_CopySprite(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b)
 {
-	gfx_copy_sprite(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, COLOR(r, g, b, 0));
+	gfx_copy_sprite(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, COLOR(r, g, b, 0));
 }
 
 static void DrawGraph_CopyUseAMapUnder(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
 {
-	gfx_copy_use_amap_under(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, alpha);
+	gfx_copy_use_amap_under(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha);
 }
 
 static void DrawGraph_CopyUseAMapBorder(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
 {
-	gfx_copy_use_amap_border(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, alpha);
+	gfx_copy_use_amap_border(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha);
 }
 
 static void DrawGraph_CopyAMapMax(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
-	gfx_copy_amap_max(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+	gfx_copy_amap_max(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
 static void DrawGraph_CopyAMapMin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
-	gfx_copy_amap_min(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+	gfx_copy_amap_min(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
 static void DrawGraph_Blend(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
 {
-	gfx_blend(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, alpha);
+	gfx_blend(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha);
 }
 
 static void DrawGraph_BlendAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
-	gfx_blend_amap(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+	gfx_blend_amap(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
 static void DrawGraph_BlendAMapAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
 {
-	gfx_blend_amap_alpha(TEX(dst), dx, dy, TEX(src), sx, sy, w, h, alpha);
+	gfx_blend_amap_alpha(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha);
 }
 
 static void DrawGraph_Fill(int dst, int x, int y, int w, int h, int r, int g, int b)
 {
-	gfx_fill(TEX(dst), x, y, w, h, r, g, b);
+	gfx_fill(DTEX(dst), x, y, w, h, r, g, b);
 }
 
 static void DrawGraph_FillAlphaColor(int dst, int x, int y, int w, int h, int r, int g, int b, int rate)
 {
-	gfx_fill_alpha_color(TEX(dst), x, y, w, h, r, g, b, rate);
+	gfx_fill_alpha_color(DTEX(dst), x, y, w, h, r, g, b, rate);
 }
 
 static void DrawGraph_FillAMap(int dst, int x, int y, int w, int h, int alpha)
 {
-	gfx_fill_amap(TEX(dst), x, y, w, h, alpha);
+	gfx_fill_amap(DTEX(dst), x, y, w, h, alpha);
 }
 
 static void DrawGraph_AddDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
-	gfx_add_da_daxsa(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+	gfx_add_da_daxsa(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
 static void DrawGraph_CopyStretch(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
 {
-	gfx_copy_stretch(TEX(dst), dx, dy, dw, dh, TEX(src), sx, sy, sw, sh);
+	gfx_copy_stretch(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh);
 }
 
 static void DrawGraph_CopyStretchAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
 {
-	gfx_copy_stretch_amap(TEX(dst), dx, dy, dw, dh, TEX(src), sx, sy, sw, sh);
+	gfx_copy_stretch_amap(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh);
 }
 
 static void DrawGraph_DrawTextToPMap(int dst, int x, int y, struct string *s)
 {
-	gfx_draw_text_to_pmap(TEX(dst), x, y, s->text);
+	gfx_draw_text_to_pmap(DTEX(dst), x, y, s->text);
 }
 
 static void DrawGraph_DrawTextToAMap(int dst, int x, int y, struct string *s)
 {
-	gfx_draw_text_to_amap(TEX(dst), x, y, s->text);
+	gfx_draw_text_to_amap(DTEX(dst), x, y, s->text);
 }
 
 static void DrawGraph_SetFontColor(int r, int g, int b)
@@ -131,27 +132,27 @@ static void DrawGraph_GetFontColor(int *r, int *g, int *b)
 
 static void DrawGraph_CopyRotZoom(int dst, int src, int sx, int sy, int w, int h, float rotate, float mag)
 {
-	gfx_copy_rot_zoom(TEX(dst), TEX(src), sx, sy, w, h, rotate, mag);
+	gfx_copy_rot_zoom(DTEX(dst), STEX(src), sx, sy, w, h, rotate, mag);
 }
 
 static void DrawGraph_CopyRotZoomAMap(int dst, int src, int sx, int sy, int w, int h, float rotate, float mag)
 {
-	gfx_copy_rot_zoom_amap(TEX(dst), TEX(src), sx, sy, w, h, rotate, mag);
+	gfx_copy_rot_zoom_amap(DTEX(dst), STEX(src), sx, sy, w, h, rotate, mag);
 }
 
 static void DrawGraph_CopyRotZoomUseAMap(int dst, int src, int sx, int sy, int w, int h, float rotate, float mag)
 {
-	gfx_copy_rot_zoom_use_amap(TEX(dst), TEX(src), sx, sy, w, h, rotate, mag);
+	gfx_copy_rot_zoom_use_amap(DTEX(dst), STEX(src), sx, sy, w, h, rotate, mag);
 }
 
 static void DrawGraph_CopyReverseLR(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
-	gfx_copy_reverse_LR(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+	gfx_copy_reverse_LR(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
 static void DrawGraph_CopyReverseAMapLR(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
-	gfx_copy_reverse_amap_LR(TEX(dst), dx, dy, TEX(src), sx, sy, w, h);
+	gfx_copy_reverse_amap_LR(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
 static bool DrawGraph_GetAlphaColor(int surface, int x, int y, int *a)

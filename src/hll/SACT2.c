@@ -236,7 +236,7 @@ static void sact_System_GetTime(int *hour, int *min, int *sec, int *ms)
 
 static void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int border)
 {
-	gfx_copy_use_amap_border(sact_get_texture(dst), dx, dy, sact_get_texture(src), sx, sy, w, h, border);
+	gfx_copy_use_amap_border(sact_get_texture_dirty(dst), dx, dy, sact_get_texture(src), sx, sy, w, h, border);
 }
 
 //int SACT2_Error(struct string *err);
