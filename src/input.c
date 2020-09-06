@@ -22,149 +22,6 @@
 #include "vm.h"
 
 bool key_state[VK_NR_KEYCODES];
-static enum sact_keycode sdl_keytable[];
-
-bool mouse_focus = true;
-bool keyboard_focus = true;
-
-static enum sact_keycode sdl_to_sact_button(int button)
-{
-	switch (button) {
-	case SDL_BUTTON_LEFT:   return VK_LBUTTON;
-	case SDL_BUTTON_RIGHT:  return VK_RBUTTON;
-	case SDL_BUTTON_MIDDLE: return VK_MBUTTON;
-	default:                return 0;
-	}
-}
-
-bool key_is_down(enum sact_keycode code)
-{
-	return key_state[code];
-}
-
-void key_clear_flag(void)
-{
-	for (int i = 0; i < VK_NR_KEYCODES; i++) {
-		key_state[i] = false;
-	}
-}
-
-void mouse_get_pos(int *x, int *y)
-{
-	SDL_GetMouseState(x, y);
-}
-
-void mouse_set_pos(int x, int y)
-{
-	SDL_WarpMouseInWindow(sdl.window, x, y);
-}
-
-static int wheel_dir = 0;
-
-void mouse_get_wheel(int *forward, int *back)
-{
-	*forward = wheel_dir > 0;
-	*back = wheel_dir < 0;
-}
-
-void mouse_clear_wheel(void)
-{
-	wheel_dir = 0;
-}
-
-static void key_event(SDL_KeyboardEvent *e, bool pressed)
-{
-	enum sact_keycode code = sdl_keytable[e->keysym.scancode];
-	if (code)
-		key_state[code] = pressed;
-}
-
-static void mouse_event(SDL_MouseButtonEvent *e)
-{
-	enum sact_keycode code = sdl_to_sact_button(e->button);
-	if (code)
-		key_state[code] = e->state == SDL_PRESSED;
-}
-
-static void(*input_handler)(const char*);
-static void(*editing_handler)(const char*, int, int);
-
-void register_input_handler(void(*handler)(const char*))
-{
-	input_handler = handler;
-}
-
-void clear_input_handler(void)
-{
-	input_handler = NULL;
-}
-
-void register_editing_handler(void(*handler)(const char*, int, int))
-{
-	editing_handler = handler;
-}
-
-void clear_editing_handler(void)
-{
-	editing_handler = NULL;
-}
-
-void handle_events(void)
-{
-	SDL_Event e;
-	while (SDL_PollEvent(&e)) {
-		switch (e.type) {
-		case SDL_QUIT:
-			vm_exit(0);
-			break;
-		case SDL_WINDOWEVENT:
-			switch (e.window.event) {
-			case SDL_WINDOWEVENT_EXPOSED:
-				sdl.dirty = true;
-				break;
-			case SDL_WINDOWEVENT_ENTER:
-				mouse_focus = true;
-				break;
-			case SDL_WINDOWEVENT_LEAVE:
-				mouse_focus = false;
-				break;
-			case SDL_WINDOWEVENT_FOCUS_GAINED:
-				keyboard_focus = true;
-				break;
-			case SDL_WINDOWEVENT_FOCUS_LOST:
-				keyboard_focus = false;
-				break;
-			}
-			break;
-		case SDL_KEYDOWN:
-			if (e.key.keysym.scancode == SDL_SCANCODE_F9)
-				vm_stack_trace();
-			key_event(&e.key, true);
-			break;
-		case SDL_KEYUP:
-			key_event(&e.key, false);
-			break;
-		case SDL_MOUSEBUTTONUP:
-		case SDL_MOUSEBUTTONDOWN:
-			mouse_event(&e.button);
-			break;
-		case SDL_MOUSEWHEEL:
-			wheel_dir = e.wheel.y;
-			break;
-		case SDL_TEXTINPUT:
-			if (input_handler)
-				input_handler(e.text.text);
-			break;
-		case SDL_TEXTEDITING:
-			if (editing_handler)
-				editing_handler(e.edit.text, e.edit.start, e.edit.length);
-			break;
-		default:
-			break;
-		}
-	}
-}
-
 static enum sact_keycode sdl_keytable[] = {
 	[SDL_SCANCODE_0] = VK_0,
 	[SDL_SCANCODE_1] = VK_1,
@@ -273,3 +130,147 @@ static enum sact_keycode sdl_keytable[] = {
 	[SDL_SCANCODE_NUMLOCKCLEAR] = VK_NUMLOCK,
 	[SDL_SCANCODE_SCROLLLOCK] = VK_SCROLL,
 };
+
+bool mouse_focus = true;
+bool keyboard_focus = true;
+
+static enum sact_keycode sdl_to_sact_button(int button)
+{
+	switch (button) {
+	case SDL_BUTTON_LEFT:   return VK_LBUTTON;
+	case SDL_BUTTON_RIGHT:  return VK_RBUTTON;
+	case SDL_BUTTON_MIDDLE: return VK_MBUTTON;
+	default:                return 0;
+	}
+}
+
+bool key_is_down(enum sact_keycode code)
+{
+	return key_state[code];
+}
+
+void key_clear_flag(void)
+{
+	for (int i = 0; i < VK_NR_KEYCODES; i++) {
+		key_state[i] = false;
+	}
+}
+
+void mouse_get_pos(int *x, int *y)
+{
+	SDL_GetMouseState(x, y);
+}
+
+void mouse_set_pos(int x, int y)
+{
+	SDL_WarpMouseInWindow(sdl.window, x, y);
+}
+
+static int wheel_dir = 0;
+
+void mouse_get_wheel(int *forward, int *back)
+{
+	*forward = wheel_dir > 0;
+	*back = wheel_dir < 0;
+}
+
+void mouse_clear_wheel(void)
+{
+	wheel_dir = 0;
+}
+
+static void key_event(SDL_KeyboardEvent *e, bool pressed)
+{
+	if (e->keysym.scancode >= (sizeof(sdl_keytable)/sizeof(*sdl_keytable)))
+		return;
+	enum sact_keycode code = sdl_keytable[e->keysym.scancode];
+	if (code)
+		key_state[code] = pressed;
+}
+
+static void mouse_event(SDL_MouseButtonEvent *e)
+{
+	enum sact_keycode code = sdl_to_sact_button(e->button);
+	if (code)
+		key_state[code] = e->state == SDL_PRESSED;
+}
+
+static void(*input_handler)(const char*);
+static void(*editing_handler)(const char*, int, int);
+
+void register_input_handler(void(*handler)(const char*))
+{
+	input_handler = handler;
+}
+
+void clear_input_handler(void)
+{
+	input_handler = NULL;
+}
+
+void register_editing_handler(void(*handler)(const char*, int, int))
+{
+	editing_handler = handler;
+}
+
+void clear_editing_handler(void)
+{
+	editing_handler = NULL;
+}
+
+void handle_events(void)
+{
+	SDL_Event e;
+	while (SDL_PollEvent(&e)) {
+		switch (e.type) {
+		case SDL_QUIT:
+			vm_exit(0);
+			break;
+		case SDL_WINDOWEVENT:
+			switch (e.window.event) {
+			case SDL_WINDOWEVENT_EXPOSED:
+				sdl.dirty = true;
+				break;
+			case SDL_WINDOWEVENT_ENTER:
+				mouse_focus = true;
+				break;
+			case SDL_WINDOWEVENT_LEAVE:
+				mouse_focus = false;
+				break;
+			case SDL_WINDOWEVENT_FOCUS_GAINED:
+				keyboard_focus = true;
+				break;
+			case SDL_WINDOWEVENT_FOCUS_LOST:
+				keyboard_focus = false;
+				break;
+			}
+			break;
+		case SDL_KEYDOWN:
+			if (e.key.keysym.scancode == SDL_SCANCODE_F9)
+				vm_stack_trace();
+			key_event(&e.key, true);
+			break;
+		case SDL_KEYUP:
+			key_event(&e.key, false);
+			break;
+		case SDL_MOUSEBUTTONUP:
+		case SDL_MOUSEBUTTONDOWN:
+			mouse_event(&e.button);
+			break;
+		case SDL_MOUSEWHEEL:
+			wheel_dir = e.wheel.y;
+			break;
+		case SDL_TEXTINPUT:
+			if (input_handler)
+				input_handler(e.text.text);
+			break;
+		case SDL_TEXTEDITING:
+			if (editing_handler)
+				editing_handler(e.edit.text, e.edit.start, e.edit.length);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
