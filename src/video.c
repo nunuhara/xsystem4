@@ -183,7 +183,8 @@ int gfx_init(void)
 		ERROR("SDL_GL_CreateContext failed: %s", SDL_GetError());
 
 	glewExperimental = GL_TRUE;
-	if (glewInit() != GLEW_OK)
+	GLenum err = glewInit();
+	if (err != GLEW_OK && err != GLEW_ERROR_NO_GLX_DISPLAY)
 		ERROR("glewInit failed");
 
 	SDL_GL_SetSwapInterval(0);
