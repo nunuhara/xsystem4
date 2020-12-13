@@ -340,21 +340,21 @@ static void ain_audit(FILE *f, struct ain *ain)
 		uint16_t opcode = LittleEndian_getW(ain->code, addr);
 		const struct instruction *instr = &instructions[opcode];
 		if (opcode >= NR_OPCODES) {
-			ERROR("0x%08" SIZE_T_FMT "x: Invalid/unknown opcode: %x", opcode);
+			ERROR("0x%08zx: Invalid/unknown opcode: %x", opcode);
 		}
 		if (!instr->implemented) {
-			fprintf(f, "0x%08" SIZE_T_FMT "x: %s (unimplemented instruction)\n", addr, instr->name);
+			fprintf(f, "0x%08zx: %s (unimplemented instruction)\n", addr, instr->name);
 		}
 		if (opcode == CALLSYS) {
 			uint32_t syscode = LittleEndian_getDW(ain->code, addr + 2);
 			if (syscode >= NR_SYSCALLS) {
-				ERROR("0x%08" SIZE_T_FMT "x: CALLSYS system.(0x%x)\n", addr, syscode);
+				ERROR("0x%08zx: CALLSYS system.(0x%x)\n", addr, syscode);
 			}
 			const char * const name = syscalls[syscode].name;
 			if (!name) {
-				fprintf(f, "0x%08" SIZE_T_FMT "x: CALLSYS system.(0x%x)\n", addr, syscode);
+				fprintf(f, "0x%08zx: CALLSYS system.(0x%x)\n", addr, syscode);
 			} else if (!syscalls[syscode].implemented) {
-				fprintf(f, "0x%08" SIZE_T_FMT "x: CALLSYS %s (unimplemented system call)\n", addr, name);
+				fprintf(f, "0x%08zx: CALLSYS %s (unimplemented system call)\n", addr, name);
 			}
 
 		}
@@ -362,10 +362,10 @@ static void ain_audit(FILE *f, struct ain *ain)
 			uint32_t lib = LittleEndian_getDW(ain->code, addr+2);
 			uint32_t fun = LittleEndian_getDW(ain->code, addr+6);
 			if (!library_exists(lib)) {
-				fprintf(f, "0x%08" SIZE_T_FMT "x: CALLHLL %s.%s (unimplemented library)\n", addr,
+				fprintf(f, "0x%08zx: CALLHLL %s.%s (unimplemented library)\n", addr,
 					ain->libraries[lib].name, ain->libraries[lib].functions[fun].name);
 			} else if (!library_function_exists(lib, fun)) {
-				fprintf(f, "0x%08" SIZE_T_FMT "x: CALLHLL %s.%s (unimplemented function)\n", addr,
+				fprintf(f, "0x%08zx: CALLHLL %s.%s (unimplemented function)\n", addr,
 					ain->libraries[lib].name, ain->libraries[lib].functions[fun].name);
 			}
 		}
