@@ -26,6 +26,7 @@
 
 struct wav_slot {
 	Mix_Chunk *chunk;
+	struct archive_data *dfile;
 	int channel;
 	int no;
 	bool reverse;
@@ -33,6 +34,7 @@ struct wav_slot {
 
 struct bgm_slot {
 	Mix_Music *music;
+	struct archive_data *dfile;
 	int no;
 };
 
@@ -212,42 +214,44 @@ bool bgm_exists(int no)
 	return ald[ALDFILE_BGM] && archive_exists(ald[ALDFILE_BGM], no);
 }
 
-static Mix_Chunk *wav_load_chunk(int no)
+static bool wav_load_chunk(int no, struct wav_slot *slot)
 {
 	struct archive_data *dfile = archive_get(ald[ALDFILE_WAVE], no);
 	if (!dfile) {
 		WARNING("Failed to load WAV %d", no);
-		return NULL;
+		return false;
 	}
 
 	Mix_Chunk *chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(dfile->data, dfile->size), 1);
-	archive_free_data(dfile);
-
 	if (!chunk) {
 		WARNING("WAV %d: not a valid audio file", no);
-		return NULL;
+		return false;
 	}
 
-	return chunk;
+	slot->chunk = chunk;
+	slot->dfile = dfile;
+	slot->no = no;
+	return true;
 }
 
-static Mix_Music *bgm_load_music(int no)
+static bool bgm_load_music(int no, struct bgm_slot *slot)
 {
 	struct archive_data *dfile = archive_get(ald[ALDFILE_BGM], no);
 	if (!dfile) {
 		WARNING("Failed to load WAV %d", no);
-		return NULL;
+		return false;
 	}
 
 	Mix_Music *music = Mix_LoadMUSType_RW(SDL_RWFromConstMem(dfile->data, dfile->size), MUS_WAV, SDL_TRUE);
-	archive_free_data(dfile);
-
 	if (!music) {
 		WARNING("BGM %d: not a valid audio file", no);
-		return NULL;
+		return false;
 	}
 
-	return music;
+	slot->music = music;
+	slot->dfile = dfile;
+	slot->no = no;
+	return true;
 }
 
 static void wav_unload_slot(struct wav_slot *slot)
@@ -256,6 +260,8 @@ static void wav_unload_slot(struct wav_slot *slot)
 		Mix_HaltChannel(slot->channel);
 		Mix_FreeChunk(slot->chunk);
 		slot->chunk = NULL;
+		archive_free_data(slot->dfile);
+		slot->dfile = NULL;
 	}
 	slot->channel = -1;
 }
@@ -265,6 +271,8 @@ static void bgm_unload_slot(struct bgm_slot *slot)
 	if (slot->music) {
 		Mix_FreeMusic(slot->music);
 		slot->music = NULL;
+		archive_free_data(slot->dfile);
+		slot->dfile = NULL;
 	}
 }
 
@@ -275,10 +283,7 @@ int wav_prepare(int ch, int no)
 
 	struct wav_slot *slot = wav_alloc_channel(ch);
 	wav_unload_slot(slot);
-
-	wav.slots[ch].chunk = wav_load_chunk(no);
-	wav.slots[ch].no = no;
-	return !!wav.slots[ch].chunk;
+	return wav_load_chunk(no, slot);
 }
 
 int bgm_prepare(int ch, int no)
@@ -288,10 +293,7 @@ int bgm_prepare(int ch, int no)
 
 	struct bgm_slot *slot = bgm_alloc_channel(ch);
 	bgm_unload_slot(slot);
-
-	bgm.slots[ch].music = bgm_load_music(no);
-	bgm.slots[ch].no = no;
-	return !!bgm.slots[ch].music;
+	return bgm_load_music(no, slot);
 }
 
 int wav_unprepare(int ch)
