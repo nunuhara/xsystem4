@@ -95,9 +95,19 @@ void test_strings(void)
 	test_bool("(4.222).String(2)", (f = 4.222, f.String(2) == "4.22"), true);
 	// C_REF
 	test_equal("ab‚ ‚¢‚¤[3]", (s = "ab‚ ‚¢‚¤", s[3]), '‚¢');
+	test_equal("abc[3]", (s = "abc", s[3]), 0);
+	test_equal("ab‚ ‚¢‚¤[5]", (s = "ab‚ ‚¢‚¤", s[5]), 0);
+	test_equal("ab‚ ‚¢‚¤[8]", (s = "ab‚ ‚¢‚¤", s[8]), 0);
+	// This throws
+	// test_equal("ab‚ ‚¢‚¤[9]", (s = "ab‚ ‚¢‚¤", s[9]), 0);
+
 	// C_ASSIGN
 	test_string("ab‚ ‚¢‚¤[1] = 'c'", (s = "ab‚ ‚¢‚¤", s[1] = 'c', s), "ac‚ ‚¢‚¤");
 	test_string("ab‚ ‚¢‚¤[3] = '‚ '", (s = "ab‚ ‚¢‚¤", s[3] = '‚ ', s), "ab‚ ‚ ‚¤");
 	test_string("ab‚ ‚¢‚¤[1] = '‚ '", (s = "ab‚ ‚¢‚¤", s[1] = '‚ ', s), "a‚ ‚ ‚¢‚¤");
 	test_string("ab‚ ‚¢‚¤[3] = 'c'", (s = "ab‚ ‚¢‚¤", s[3] = 'c', s), "ab‚ c‚¤");
+	test_string("ab‚ ‚¢‚¤[5] = 'c'", (s = "ab‚ ‚¢‚¤", s[5] = 'c', s), "ab‚ ‚¢‚¤");
+	test_string("ab‚ ‚¢‚¤[7] = 'c'", (s = "ab‚ ‚¢‚¤", s[7] = 'c', s), "ab‚ ‚¢‚¤");
+	// This throws
+	// test_string("ab‚ ‚¢‚¤[8] = 'c'", (s = "ab‚ ‚¢‚¤", s[8] = 'c', s), "ab‚ ‚¢‚¤");
 }
