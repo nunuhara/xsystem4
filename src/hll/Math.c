@@ -23,6 +23,24 @@
 
 #include "hll.h"
 
+struct shuffle_table {
+	int id;
+	struct shuffle_table *next;
+	int *elems;
+	int size;
+	int i;
+};
+static struct shuffle_table *shuffle_tables;
+
+static struct shuffle_table *find_shuffle_table(int id)
+{
+	for (struct shuffle_table *tbl = shuffle_tables; tbl; tbl = tbl->next) {
+		if (tbl->id == id)
+			return tbl;
+	}
+	return NULL;
+}
+
 static inline float deg2rad(float deg)
 {
 	return deg * (M_PI / 180.0);
@@ -73,9 +91,56 @@ static void Math_SwapF(float *a, float *b)
 }
 
 //void Math_SetRandMode(int mode);
-//float Math_RandF(void);
-//void Math_RandTableInit(int num, int size);
-//int Math_RandTable(int num);
+
+static float Math_RandF(void)
+{
+	return rand() * (1.0 / (RAND_MAX + 1U));
+}
+
+static void shuffle_array(int *a, int len)
+{
+	for (int i = len - 1; i > 0; i--) {
+		int j = Math_RandF() * i;
+		int tmp = a[j];
+		a[j] = a[i];
+		a[i] = tmp;
+	}
+}
+
+static void Math_RandTableInit(int num, int size)
+{
+	struct shuffle_table *tbl = find_shuffle_table(num);
+	if (tbl) {
+		free(tbl->elems);
+	} else {
+		tbl = xmalloc(sizeof(struct shuffle_table));
+		tbl->id = num;
+		tbl->next = shuffle_tables;
+		shuffle_tables = tbl;
+	}
+	tbl->elems = xmalloc(size * sizeof(int));
+	tbl->size = size;
+	tbl->i = 0;
+	for (int i = 0; i < size; i++)
+		tbl->elems[i] = i;
+	shuffle_array(tbl->elems, size);
+}
+
+static int Math_RandTable(int num)
+{
+	struct shuffle_table *tbl = find_shuffle_table(num);
+	if (!tbl) {
+		WARNING("Invalid rand table id %d", num);
+		return 0;
+	}
+	if (tbl->i >= tbl->size) {
+		// reshuffle
+		shuffle_array(tbl->elems, tbl->size);
+		tbl->i = 0;
+	}
+	return tbl->elems[tbl->i++];
+}
+
 //void Math_RandTable2Init(int num, struct page *array);
 //int Math_RandTable2(int num);
 
@@ -91,9 +156,9 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(SetSeed, srand),
 	    //HLL_EXPORT(SetRandMode, Math_SetRandMode),
 	    HLL_EXPORT(Rand, rand),
-	    //HLL_EXPORT(RandF, Math_RandF),
-	    //HLL_EXPORT(RandTableInit, Math_RandTableInit),
-	    //HLL_EXPORT(RandTable, Math_RandTable),
+	    HLL_EXPORT(RandF, Math_RandF),
+	    HLL_EXPORT(RandTableInit, Math_RandTableInit),
+	    HLL_EXPORT(RandTable, Math_RandTable),
 	    //HLL_EXPORT(RandTable2Init, Math_RandTable2Init),
 	    //HLL_EXPORT(RandTable2, Math_RandTable2),
 	    HLL_EXPORT(Min, Math_Min),
