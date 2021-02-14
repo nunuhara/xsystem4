@@ -140,6 +140,7 @@ extern struct static_library lib_Confirm2;
 extern struct static_library lib_DrawGraph;
 extern struct static_library lib_DrawPluginManager;
 extern struct static_library lib_File;
+extern struct static_library lib_Gpx2Plus;
 extern struct static_library lib_InputString;
 extern struct static_library lib_Math;
 extern struct static_library lib_MsgLogManager;
@@ -160,6 +161,7 @@ static struct static_library *static_libraries[] = {
 	&lib_DrawGraph,
 	&lib_DrawPluginManager,
 	&lib_File,
+	&lib_Gpx2Plus,
 	&lib_InputString,
 	&lib_Math,
 	&lib_MsgLogManager,
