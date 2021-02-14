@@ -2,8 +2,9 @@
 
 void test_math(void)
 {
-	int ia, ib;
+	int i, ia, ib;
 	float fa, fb;
+	array@int ar[10];
 	test_float("Math.Cos(40)", Math.Cos(40), 0.766044);
 	test_float("Math.Sin(40)", Math.Sin(40), 0.642788);
 	test_float("Math.Atan(40)", Math.Atan(40), 1.545802);
@@ -29,4 +30,12 @@ void test_math(void)
 	Math.SwapF(fa, fb);
 	test_float("Math.SwapF(a, b), a", fa, 2.0);
 	test_float("Math.SwapF(a, b), b", fb, 1.0);
+
+	Math.RandTableInit(42, 10);
+	for (i = 0; i < 10; i++) {
+		ar[Math.RandTable(42)] = 1;
+	}
+	for (i = 0; i < 10; i++) {
+		test_equal(string(i) + " appears in random shuffle table", ar[i], 1);
+	}
 }
