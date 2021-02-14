@@ -484,10 +484,15 @@ static void Gpx2Plus_MsgDraw(int surface, int x, int y)
 			int len = 0, a1, a2, a3;
 			if (*s != '<') {
 				char *lb = strchr(s, '<');
-				len = lb ? lb - s : strlen(s);
-				char *ss = strndup(s, len);
-				pos.x += gfx_render_text(dst, pos, ss, &tm, 0 /* char_space */);
-				free(ss);
+				if (lb) {
+					len = lb - s;
+					*lb = '\0';
+				} else {
+					len = strlen(s);
+				}
+				pos.x += gfx_render_text(dst, pos, s, &tm, 0 /* char_space */);
+				if (lb)
+					*lb = '<';
 			} else if (sscanf(s, "<F%d>%n", &a1, &len) == 1) {
 				tm.face = a1;
 			} else if (sscanf(s, "<S%d>%n", &a1, &len) == 1) {
