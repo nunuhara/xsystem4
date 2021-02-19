@@ -137,6 +137,7 @@ extern struct static_library lib_AliceLogo;
 extern struct static_library lib_AliceLogo2;
 extern struct static_library lib_AliceLogo3;
 extern struct static_library lib_Confirm2;
+extern struct static_library lib_DataFile;
 extern struct static_library lib_DrawGraph;
 extern struct static_library lib_DrawPluginManager;
 extern struct static_library lib_File;
@@ -158,6 +159,7 @@ static struct static_library *static_libraries[] = {
 	&lib_AliceLogo2,
 	&lib_AliceLogo3,
 	&lib_Confirm2,
+	&lib_DataFile,
 	&lib_DrawGraph,
 	&lib_DrawPluginManager,
 	&lib_File,
