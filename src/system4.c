@@ -205,6 +205,11 @@ static void init_gamedata_dir(const char *path)
 				ald_filenames[ALDFILE_WAVE][dno] = strdup(filepath);
 				ald_count[ALDFILE_WAVE] = max(ald_count[ALDFILE_WAVE], dno+1);
 				break;
+			case 'd':
+			case 'D':
+				ald_filenames[ALDFILE_DATA][dno] = strdup(filepath);
+				ald_count[ALDFILE_DATA] = max(ald_count[ALDFILE_DATA], dno+1);
+				break;
 			default:
 				WARNING("Unhandled ALD file: %s", d->d_name);
 				break;
@@ -231,6 +236,8 @@ static void init_gamedata_dir(const char *path)
 		ald_init(ALDFILE_CG, ald_filenames[ALDFILE_CG], ald_count[ALDFILE_CG]);
 	if (ald_count[ALDFILE_WAVE] > 0)
 		ald_init(ALDFILE_WAVE, ald_filenames[ALDFILE_WAVE], ald_count[ALDFILE_WAVE]);
+	if (ald_count[ALDFILE_DATA] > 0)
+		ald_init(ALDFILE_DATA, ald_filenames[ALDFILE_DATA], ald_count[ALDFILE_DATA]);
 
 	closedir(dir);
 }
