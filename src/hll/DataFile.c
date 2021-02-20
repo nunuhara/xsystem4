@@ -182,7 +182,7 @@ static struct gdat *gdat_read(struct buffer *r)
 
 static struct gdat_table *gdat_get_table(struct gdat *dat, int table)
 {
-	if (!dat || table < 0 || table >= dat->nr_tables) {
+	if (!dat || table < 0 || (uint32_t)table >= dat->nr_tables) {
 		WARNING("Table index out of bounds: %d", table);
 		return NULL;
 	}
@@ -194,7 +194,7 @@ static struct gdat_row *gdat_get_row(struct gdat *dat, int table, int row)
 	struct gdat_table *tbl = gdat_get_table(dat, table);
 	if (!tbl)
 		return NULL;
-	if (row < 0 || row >= tbl->nr_rows) {
+	if (row < 0 || (uint32_t)row >= tbl->nr_rows) {
 		WARNING("Row index out of bounds: %d", row);
 		return NULL;
 	}
@@ -206,7 +206,7 @@ static struct gdat_col *gdat_get_column(struct gdat *dat, int table, int row, in
 	struct gdat_row *r = gdat_get_row(dat, table, row);
 	if (!r)
 		return NULL;
-	if (col < 0 || col >= r->nr_cols) {
+	if (col < 0 || (uint32_t)col >= r->nr_cols) {
 		WARNING("Column index out of bounds: %d", col);
 		return NULL;
 	}
@@ -307,13 +307,13 @@ static int DataFile_SarchLabel(struct string *label)
 static int DataFile_GetNumofVertical(int label)
 {
 	struct gdat_table *tbl = gdat_get_table(current_gdat, label);
-	return tbl ? tbl->nr_rows : -1;
+	return tbl ? (int)tbl->nr_rows : -1;
 }
 
 static int DataFile_GetNumofHorizontal(int label, int vartical)
 {
 	struct gdat_row *row = gdat_get_row(current_gdat, label, vartical);
-	return row ? row->nr_cols : -1;
+	return row ? (int)row->nr_cols : -1;
 }
 
 static int DataFile_SarchString(int label, int horizontal, struct string *data)
@@ -321,9 +321,11 @@ static int DataFile_SarchString(int label, int horizontal, struct string *data)
 	struct gdat_table *tbl = gdat_get_table(current_gdat, label);
 	if (!tbl)
 		return -1;
-	for (int i = 0; i < tbl->nr_rows; i++) {
+	if (horizontal < 0)
+		return -1;
+	for (uint32_t i = 0; i < tbl->nr_rows; i++) {
 		struct gdat_row *row = &tbl->rows[i];
-		if (horizontal < row->nr_cols &&
+		if ((uint32_t)horizontal < row->nr_cols &&
 			row->cols[horizontal].type == GDAT_STRING &&
 			!strcmp(current_gdat->strings[row->cols[horizontal].index]->text, data->text))
 			return i;
@@ -336,9 +338,11 @@ static int DataFile_SarchInt(int label, int horizontal, int data)
 	struct gdat_table *tbl = gdat_get_table(current_gdat, label);
 	if (!tbl)
 		return -1;
-	for (int i = 0; i < tbl->nr_rows; i++) {
+	if (horizontal < 0)
+		return -1;
+	for (uint32_t i = 0; i < tbl->nr_rows; i++) {
 		struct gdat_row *row = &tbl->rows[i];
-		if (horizontal < row->nr_cols &&
+		if ((uint32_t)horizontal < row->nr_cols &&
 			row->cols[horizontal].type == GDAT_INT &&
 			current_gdat->ints[row->cols[horizontal].index] == data)
 			return i;
