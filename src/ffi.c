@@ -136,44 +136,58 @@ extern struct static_library lib_ACXLoader;
 extern struct static_library lib_AliceLogo;
 extern struct static_library lib_AliceLogo2;
 extern struct static_library lib_AliceLogo3;
+extern struct static_library lib_BanMisc;
+extern struct static_library lib_Bitarray;
+extern struct static_library lib_Confirm;
 extern struct static_library lib_Confirm2;
 extern struct static_library lib_DataFile;
 extern struct static_library lib_DrawGraph;
 extern struct static_library lib_DrawPluginManager;
 extern struct static_library lib_File;
 extern struct static_library lib_Gpx2Plus;
+extern struct static_library lib_InputDevice;
 extern struct static_library lib_InputString;
 extern struct static_library lib_Math;
+extern struct static_library lib_MenuMsg;
 extern struct static_library lib_MsgLogManager;
 extern struct static_library lib_MsgLogViewer;
 extern struct static_library lib_MsgSkip;
 extern struct static_library lib_OutputLog;
+extern struct static_library lib_PlayDemo;
 extern struct static_library lib_PlayMovie;
 extern struct static_library lib_SACT2;
 extern struct static_library lib_SengokuRanceFont;
 extern struct static_library lib_SystemServiceEx;
+extern struct static_library lib_Timer;
 
 static struct static_library *static_libraries[] = {
 	&lib_ACXLoader,
 	&lib_AliceLogo,
 	&lib_AliceLogo2,
 	&lib_AliceLogo3,
+	&lib_BanMisc,
+	&lib_Bitarray,
+	&lib_Confirm,
 	&lib_Confirm2,
 	&lib_DataFile,
 	&lib_DrawGraph,
 	&lib_DrawPluginManager,
 	&lib_File,
 	&lib_Gpx2Plus,
+	&lib_InputDevice,
 	&lib_InputString,
 	&lib_Math,
+	&lib_MenuMsg,
 	&lib_MsgLogManager,
 	&lib_MsgLogViewer,
 	&lib_MsgSkip,
 	&lib_OutputLog,
+	&lib_PlayDemo,
 	&lib_PlayMovie,
 	&lib_SACT2,
 	&lib_SengokuRanceFont,
 	&lib_SystemServiceEx,
+	&lib_Timer,
 	NULL
 };
 
