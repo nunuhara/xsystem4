@@ -18,6 +18,7 @@
 
 #include "system4.h"
 #include "system4/ald.h"
+#include "system4/file.h"
 
 #include "audio.h"
 #include "xsystem4.h"
@@ -242,7 +243,13 @@ static bool bgm_load_music(int no, struct bgm_slot *slot)
 		return false;
 	}
 
-	Mix_Music *music = Mix_LoadMUSType_RW(SDL_RWFromConstMem(dfile->data, dfile->size), MUS_WAV, SDL_TRUE);
+	Mix_MusicType type = MUS_WAV;
+	const char *ext = file_extension(dfile->name);
+	if (!strcmp(ext, "ogg")) {
+		type = MUS_OGG;
+	}
+
+	Mix_Music *music = Mix_LoadMUSType_RW(SDL_RWFromConstMem(dfile->data, dfile->size), type, SDL_TRUE);
 	if (!music) {
 		WARNING("BGM %d: not a valid audio file", no);
 		return false;

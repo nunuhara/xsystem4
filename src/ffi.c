@@ -147,6 +147,7 @@ extern struct static_library lib_File;
 extern struct static_library lib_Gpx2Plus;
 extern struct static_library lib_InputDevice;
 extern struct static_library lib_InputString;
+extern struct static_library lib_KiwiSoundEngine;
 extern struct static_library lib_Math;
 extern struct static_library lib_MenuMsg;
 extern struct static_library lib_MsgLogManager;
@@ -176,6 +177,7 @@ static struct static_library *static_libraries[] = {
 	&lib_Gpx2Plus,
 	&lib_InputDevice,
 	&lib_InputString,
+	&lib_KiwiSoundEngine,
 	&lib_Math,
 	&lib_MenuMsg,
 	&lib_MsgLogManager,
