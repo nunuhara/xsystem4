@@ -58,9 +58,20 @@ void exit_unref(int slot);
 
 bool heap_index_valid(int index);
 bool page_index_valid(int index);
+bool string_index_valid(int index);
 
 struct page *heap_get_page(int index);
+struct string *heap_get_string(int index);
 void heap_set_page(int slot, struct page *page);
+
+/*
+ * Guarantee `headroom` free slots are available on the heap.
+ *
+ * XXX: this is a hack to fix an issue with HLL calls where a pointer into the
+ *      heap can be made invalid by a heap reallocation triggered within the
+ *      body of the HLL function.
+ */
+void heap_guarantee(unsigned headroom);
 
 #ifdef VM_PRIVATE
 

@@ -45,6 +45,30 @@ static const char *vm_ptrtype_string(enum vm_pointer_type type) {
 	return "INVALID POINTER TYPE";
 }
 
+static void heap_grow(size_t new_size)
+{
+	heap = xrealloc(heap, sizeof(struct vm_pointer) * new_size);
+	heap_free_stack = xrealloc(heap_free_stack, sizeof(int32_t) * new_size);
+	for (size_t i = heap_size; i < new_size; i++) {
+		heap[i].ref = 0;
+		heap_free_stack[i] = i;
+	}
+	heap_size = new_size;
+}
+
+void heap_guarantee(unsigned headroom)
+{
+	if (heap_size - heap_free_ptr >= headroom)
+		return;
+
+	size_t new_size = heap_size;
+	while (new_size - heap_free_ptr < headroom) {
+		new_size += HEAP_ALLOC_STEP;
+	}
+
+	heap_grow(new_size);
+}
+
 void heap_init(void)
 {
 	if (!heap) {
@@ -63,15 +87,8 @@ void heap_init(void)
 
 int32_t heap_alloc_slot(enum vm_pointer_type type)
 {
-	// grow heap if needed
 	if (heap_free_ptr >= heap_size) {
-		heap = xrealloc(heap, sizeof(struct vm_pointer) * (heap_size+HEAP_ALLOC_STEP));
-		heap_free_stack = xrealloc(heap_free_stack, sizeof(int32_t) * (heap_size+HEAP_ALLOC_STEP));
-		for (size_t i = heap_size; i < heap_size+HEAP_ALLOC_STEP; i++) {
-			heap[i].ref = 0;
-			heap_free_stack[i] = i;
-		}
-		heap_size += HEAP_ALLOC_STEP;
+		heap_grow(heap_size+HEAP_ALLOC_STEP);
 	}
 
 	int32_t slot = heap_free_stack[heap_free_ptr++];
@@ -80,6 +97,7 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 #ifdef DEBUG_HEAP
 	heap[slot].alloc_addr = instr_ptr;
 	heap[slot].ref_addr = 0;
+	heap[slot].free_addr = 0;
 #endif
 	return slot;
 }
@@ -183,11 +201,23 @@ bool page_index_valid(int index)
 	return heap_index_valid(index) && heap[index].type == VM_PAGE;
 }
 
+bool string_index_valid(int index)
+{
+	return heap_index_valid(index) && heap[index].type == VM_STRING;
+}
+
 struct page *heap_get_page(int index)
 {
 	if (!page_index_valid(index))
 		VM_ERROR("Invalid page index: %d", index);
 	return heap[index].page;
+}
+
+struct string *heap_get_string(int index)
+{
+	if (!string_index_valid(index))
+		VM_ERROR("Invalid string index: %d", index);
+	return heap[index].s;
 }
 
 void heap_set_page(int slot, struct page *page)

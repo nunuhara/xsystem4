@@ -54,6 +54,11 @@ void hll_call(int libno, int fno)
 	if (!fun->fun)
 		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
 
+	// XXX: Try to prevent the heap from being reallocated mid-call.
+	//      This only works to the extent that HLL functions can guarantee
+	//      no more than 64 heap allocations occur within the call...
+	heap_guarantee(64);
+
 	void *args[HLL_MAX_ARGS];
 	void *ptrs[HLL_MAX_ARGS];
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
