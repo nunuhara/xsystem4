@@ -43,10 +43,10 @@ static struct gpx_surface **surfaces = NULL;
 static int nr_surfaces = 0;
 
 static struct {
-	struct string **strs;
+	char *text;
 	int len;
 	int cap;
-} messages;
+} msgbuf;
 
 static struct gpx_surface *create_surface(int width, int height)
 {
@@ -107,9 +107,10 @@ static void Gpx2Plus_Init(possibly_unused void *imainsystem, possibly_unused str
 	struct gpx_surface *sf = create_surface(t->w, t->h);
 	assert(sf->no == 0);
 
-	messages.cap = 16;
-	messages.len = 0;
-	messages.strs = xmalloc(messages.cap * sizeof(struct string *));
+	msgbuf.cap = 1024;
+	msgbuf.len = 0;
+	msgbuf.text = xmalloc(msgbuf.cap);
+	msgbuf.text[0] = '\0';
 
 	gfx_set_font_weight(FW_NORMAL);
 }
@@ -440,18 +441,42 @@ static void Gpx2Plus_GetFontColor(int *r, int *g, int *b)
 
 static void Gpx2Plus_MsgAddText(struct string *text)
 {
-	if (messages.len >= messages.cap) {
-		messages.cap *= 2;
-		messages.strs = xrealloc(messages.strs, messages.cap * sizeof(struct string *));
+	while (msgbuf.len + text->size >= msgbuf.cap) {
+		msgbuf.cap *= 2;
+		msgbuf.text = xrealloc(msgbuf.text, msgbuf.cap);
 	}
-	messages.strs[messages.len++] = string_ref(text);
+	strcpy(msgbuf.text + msgbuf.len, text->text);
+	msgbuf.len += text->size;
 }
 
 static void Gpx2Plus_MsgClearText(void)
 {
-	for (int i = 0; i < messages.len; i++)
-		free_string(messages.strs[i]);
-	messages.len = 0;
+	msgbuf.len = 0;
+	msgbuf.text[0] = '\0';
+}
+
+static int calculate_line_height(int current_size, const char *s)
+{
+	int max_size = 0, len;
+	while (*s) {
+		if (*s != '<') {
+			max_size = max(max_size, current_size);
+			s = strchr(s, '<');
+			if (!s)
+				break;
+		}
+		if (!strncmp(s, "<R>", 3))
+			break;
+		if (sscanf(s, "<S%d>%n", &current_size, &len) == 1)
+			s += len;
+		else {
+			s = strchr(s, '>');
+			if (!s)
+				break;
+			s++;
+		}
+	}
+	return max_size ? max_size : current_size;
 }
 
 static void Gpx2Plus_MsgDraw(int surface, int x, int y)
@@ -459,53 +484,73 @@ static void Gpx2Plus_MsgDraw(int surface, int x, int y)
 	struct texture *dst = get_texture(surface);
 	if (!dst)
 		return;
-	struct text_metrics tm = { .weight = FW_NORMAL };
+
+	struct text_metrics tm = { .size = 16, .weight = FW_NORMAL };
+	int char_space = 0;
+	int line_space = 0;
+	int old_size = 16;
+	enum font_face old_face = FONT_GOTHIC;
+
 	Point pos = POINT(x, y);
-	for (int i = 0; i < messages.len; i++) {
-		char *s = messages.strs[i]->text;
-		while (*s) {
-			int len = 0, a1, a2, a3;
-			if (*s != '<') {
-				char *lb = strchr(s, '<');
-				if (lb) {
-					len = lb - s;
-					*lb = '\0';
-				} else {
-					len = strlen(s);
-				}
-				pos.x += gfx_render_text(dst, pos, s, &tm, 0 /* char_space */);
-				if (lb)
-					*lb = '<';
-			} else if (sscanf(s, "<F%d>%n", &a1, &len) == 1) {
-				tm.face = a1;
-			} else if (sscanf(s, "<S%d>%n", &a1, &len) == 1) {
-				tm.size = a1;
-			} else if (sscanf(s, "<C%d,%d,%d>%n", &a1, &a2, &a3, &len) == 3) {
-				tm.color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
-			} else if (sscanf(s, "<KC%d,%d,%d>%n", &a1, &a2, &a3, &len) == 3) {
-				tm.outline_color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
-			} else if (!strncmp(s, "<K>", 3)) {
-				len = 3;
-				tm.outline_right = tm.outline_down = 2;
-			} else if (!strncmp(s, "</K>", 3)) {
-				len = 4;
-				tm.outline_right = tm.outline_down = 0;
-			} else if (!strncmp(s, "<R>", 3)) {
-				len = 3;
-				pos.x = x;
-				pos.y += tm.size;
+	char *s = msgbuf.text;
+	int line_height = calculate_line_height(tm.size, s);
+	while (*s) {
+		int skiplen = 0, a1, a2, a3;
+		if (*s != '<') {
+			char *lb = strchr(s, '<');
+			if (lb) {
+				skiplen = lb - s;
+				*lb = '\0';
 			} else {
-				char *rb = strchr(s, '>');
-				if (rb) {
-					WARNING("Unknown command %.*s", ++rb - s, s);
-					len = rb - s;
-				} else {
-					WARNING("Unfinished command in message '%s'", messages.strs[i]->text);
-					break;
-				}
+				skiplen = strlen(s);
 			}
-			s += len;
+			pos.y += line_height - tm.size;  // bottom align
+			pos.x += gfx_render_text(dst, pos, s, &tm, char_space);
+			pos.y -= line_height - tm.size;
+			if (lb)
+				*lb = '<';
+		} else if (sscanf(s, "<F%d>%n", &a1, &skiplen) == 1) {
+			old_face = tm.face;
+			tm.face = a1;
+		} else if (!strncmp(s, "</F>", 4)) {
+			skiplen = 4;
+			tm.face = old_face;
+		} else if (sscanf(s, "<S%d>%n", &a1, &skiplen) == 1) {
+			old_size = tm.size;
+			tm.size = a1;
+		} else if (!strncmp(s, "</S>", 4)) {
+			skiplen = 4;
+			tm.size = old_size;
+		} else if (sscanf(s, "<C%d,%d,%d>%n", &a1, &a2, &a3, &skiplen) == 3) {
+			tm.color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
+		} else if (sscanf(s, "<KC%d,%d,%d>%n", &a1, &a2, &a3, &skiplen) == 3) {
+			tm.outline_color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
+		} else if (!strncmp(s, "<K>", 3)) {
+			skiplen = 3;
+			tm.outline_right = tm.outline_down = 2;
+		} else if (!strncmp(s, "</K>", 4)) {
+			skiplen = 4;
+			tm.outline_right = tm.outline_down = 0;
+		} else if (!strncmp(s, "<R>", 3)) {
+			skiplen = 3;
+			pos.x = x;
+			pos.y += line_height + line_space;
+			line_height = calculate_line_height(tm.size, s + skiplen);
+		} else if (sscanf(s, "<SPW%d>%n", &a1, &skiplen) == 1) {
+			char_space = a1;
+		} else if (sscanf(s, "<SPH%d>%n", &a1, &skiplen) == 1) {
+			line_space = a1;
+		} else {
+			char *rb = strchr(s, '>');
+			if (rb) {
+				WARNING("Unknown command %.*s", ++rb - s, s);
+				skiplen = rb - s;
+			} else {
+				WARNING("Unfinished command in message '%s'", msgbuf.text);
+				break;
+			}
 		}
+		s += skiplen;
 	}
 }
 
