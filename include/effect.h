@@ -73,4 +73,6 @@ enum effect {
 	NR_EFFECTS
 };
 
+extern const char *effect_names[NR_EFFECTS];
+
 #endif /* SYSTEM4_EFFECT_H */

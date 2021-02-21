@@ -24,6 +24,7 @@
 
 #include "hll.h"
 #include "audio.h"
+#include "effect.h"
 #include "gfx/gfx.h"
 #include "input.h"
 #include "vm.h"
@@ -42,10 +43,10 @@ static struct gpx_surface **surfaces = NULL;
 static int nr_surfaces = 0;
 
 static struct {
-	struct string **strs;
+	char *text;
 	int len;
 	int cap;
-} messages;
+} msgbuf;
 
 static struct gpx_surface *create_surface(int width, int height)
 {
@@ -106,9 +107,10 @@ static void Gpx2Plus_Init(possibly_unused void *imainsystem, possibly_unused str
 	struct gpx_surface *sf = create_surface(t->w, t->h);
 	assert(sf->no == 0);
 
-	messages.cap = 16;
-	messages.len = 0;
-	messages.strs = xmalloc(messages.cap * sizeof(struct string *));
+	msgbuf.cap = 1024;
+	msgbuf.len = 0;
+	msgbuf.text = xmalloc(msgbuf.cap);
+	msgbuf.text[0] = '\0';
 
 	gfx_set_font_weight(FW_NORMAL);
 }
@@ -381,24 +383,6 @@ static void Gpx2Plus_CopyReverseAMapLR(int destSurface, int dx, int dy, int srcS
 // void CopyReverseAMapUD(int nDestSurface, int nDx, int nDy, int nSrcSurface, int nSx, int nSy, int nWidth, int nHeight);
 // void BlendScreenWDS(int nWriteSurface, int nWx, int nWy, int nDestSurface, int nDx, int nDy, int nSrcSurface, int nSx, int nSy, int nWidth, int nHeight);
 
-static void Gpx2Plus_Update(int x, int y, int width, int height);
-static int Gpx2Plus_EffectCopy(int effect, int wx, int wy,
-							   int destSurface, int dx, int dy,
-							   int srcSurface, int sx, int sy,
-							   int width, int height, int totalTime)
-{
-	// TODO: Apply effect
-	WARNING("gpx_EffectCopy %d (%d, %d) %d (%d, %d) <- %d (%d, %d) %dx%d %dms",
-			effect, wx, wy, destSurface, dx, dy, srcSurface, sx, sy, width, height, totalTime);
-	struct texture *dst = get_texture(0);
-	struct texture *src = get_texture(srcSurface);
-	if (!dst || !src)
-		return 0;
-	gfx_copy(dst, wx, wy, src, sx, sy, width, height);
-	Gpx2Plus_Update(0, 0, 640, 480);
-	return 1;
-}
-
 // void SetClickCancelFlag(int nFlag);
 
 static void Gpx2Plus_Update(int x, int y, int width, int height)
@@ -457,18 +441,42 @@ static void Gpx2Plus_GetFontColor(int *r, int *g, int *b)
 
 static void Gpx2Plus_MsgAddText(struct string *text)
 {
-	if (messages.len >= messages.cap) {
-		messages.cap *= 2;
-		messages.strs = xrealloc(messages.strs, messages.cap * sizeof(struct string *));
+	while (msgbuf.len + text->size >= msgbuf.cap) {
+		msgbuf.cap *= 2;
+		msgbuf.text = xrealloc(msgbuf.text, msgbuf.cap);
 	}
-	messages.strs[messages.len++] = string_ref(text);
+	strcpy(msgbuf.text + msgbuf.len, text->text);
+	msgbuf.len += text->size;
 }
 
 static void Gpx2Plus_MsgClearText(void)
 {
-	for (int i = 0; i < messages.len; i++)
-		free_string(messages.strs[i]);
-	messages.len = 0;
+	msgbuf.len = 0;
+	msgbuf.text[0] = '\0';
+}
+
+static int calculate_line_height(int current_size, const char *s)
+{
+	int max_size = 0, len;
+	while (*s) {
+		if (*s != '<') {
+			max_size = max(max_size, current_size);
+			s = strchr(s, '<');
+			if (!s)
+				break;
+		}
+		if (!strncmp(s, "<R>", 3))
+			break;
+		if (sscanf(s, "<S%d>%n", &current_size, &len) == 1)
+			s += len;
+		else {
+			s = strchr(s, '>');
+			if (!s)
+				break;
+			s++;
+		}
+	}
+	return max_size ? max_size : current_size;
 }
 
 static void Gpx2Plus_MsgDraw(int surface, int x, int y)
@@ -476,54 +484,192 @@ static void Gpx2Plus_MsgDraw(int surface, int x, int y)
 	struct texture *dst = get_texture(surface);
 	if (!dst)
 		return;
-	struct text_metrics tm = { .weight = FW_NORMAL };
+
+	struct text_metrics tm = { .size = 16, .weight = FW_NORMAL };
+	int char_space = 0;
+	int line_space = 0;
+	int old_size = 16;
+	enum font_face old_face = FONT_GOTHIC;
+
 	Point pos = POINT(x, y);
-	for (int i = 0; i < messages.len; i++) {
-		char *s = messages.strs[i]->text;
-		while (*s) {
-			int len = 0, a1, a2, a3;
-			if (*s != '<') {
-				char *lb = strchr(s, '<');
-				if (lb) {
-					len = lb - s;
-					*lb = '\0';
-				} else {
-					len = strlen(s);
-				}
-				pos.x += gfx_render_text(dst, pos, s, &tm, 0 /* char_space */);
-				if (lb)
-					*lb = '<';
-			} else if (sscanf(s, "<F%d>%n", &a1, &len) == 1) {
-				tm.face = a1;
-			} else if (sscanf(s, "<S%d>%n", &a1, &len) == 1) {
-				tm.size = a1;
-			} else if (sscanf(s, "<C%d,%d,%d>%n", &a1, &a2, &a3, &len) == 3) {
-				tm.color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
-			} else if (sscanf(s, "<KC%d,%d,%d>%n", &a1, &a2, &a3, &len) == 3) {
-				tm.outline_color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
-			} else if (!strncmp(s, "<K>", 3)) {
-				len = 3;
-				tm.outline_right = tm.outline_down = 2;
-			} else if (!strncmp(s, "</K>", 3)) {
-				len = 4;
-				tm.outline_right = tm.outline_down = 0;
-			} else if (!strncmp(s, "<R>", 3)) {
-				len = 3;
-				pos.x = x;
-				pos.y += tm.size;
+	char *s = msgbuf.text;
+	int line_height = calculate_line_height(tm.size, s);
+	while (*s) {
+		int skiplen = 0, a1, a2, a3;
+		if (*s != '<') {
+			char *lb = strchr(s, '<');
+			if (lb) {
+				skiplen = lb - s;
+				*lb = '\0';
 			} else {
-				char *rb = strchr(s, '>');
-				if (rb) {
-					WARNING("Unknown command %.*s", ++rb - s, s);
-					len = rb - s;
-				} else {
-					WARNING("Unfinished command in message '%s'", messages.strs[i]->text);
-					break;
-				}
+				skiplen = strlen(s);
 			}
-			s += len;
+			pos.y += line_height - tm.size;  // bottom align
+			pos.x += gfx_render_text(dst, pos, s, &tm, char_space);
+			pos.y -= line_height - tm.size;
+			if (lb)
+				*lb = '<';
+		} else if (sscanf(s, "<F%d>%n", &a1, &skiplen) == 1) {
+			old_face = tm.face;
+			tm.face = a1;
+		} else if (!strncmp(s, "</F>", 4)) {
+			skiplen = 4;
+			tm.face = old_face;
+		} else if (sscanf(s, "<S%d>%n", &a1, &skiplen) == 1) {
+			old_size = tm.size;
+			tm.size = a1;
+		} else if (!strncmp(s, "</S>", 4)) {
+			skiplen = 4;
+			tm.size = old_size;
+		} else if (sscanf(s, "<C%d,%d,%d>%n", &a1, &a2, &a3, &skiplen) == 3) {
+			tm.color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
+		} else if (sscanf(s, "<KC%d,%d,%d>%n", &a1, &a2, &a3, &skiplen) == 3) {
+			tm.outline_color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
+		} else if (!strncmp(s, "<K>", 3)) {
+			skiplen = 3;
+			tm.outline_right = tm.outline_down = 2;
+		} else if (!strncmp(s, "</K>", 4)) {
+			skiplen = 4;
+			tm.outline_right = tm.outline_down = 0;
+		} else if (!strncmp(s, "<R>", 3)) {
+			skiplen = 3;
+			pos.x = x;
+			pos.y += line_height + line_space;
+			line_height = calculate_line_height(tm.size, s + skiplen);
+		} else if (sscanf(s, "<SPW%d>%n", &a1, &skiplen) == 1) {
+			char_space = a1;
+		} else if (sscanf(s, "<SPH%d>%n", &a1, &skiplen) == 1) {
+			line_space = a1;
+		} else {
+			char *rb = strchr(s, '>');
+			if (rb) {
+				WARNING("Unknown command %.*s", ++rb - s, s);
+				skiplen = rb - s;
+			} else {
+				WARNING("Unfinished command in message '%s'", msgbuf.text);
+				break;
+			}
 		}
+		s += skiplen;
 	}
+}
+
+struct gpx_effect_params {
+	struct texture *dst;
+	int dx;
+	int dy;
+	struct texture *old;
+	int ox;
+	int oy;
+	struct texture *new;
+	int nx;
+	int ny;
+	int w;
+	int h;
+};
+
+static void gpx_effect_crossfade(struct gpx_effect_params *e, float progress)
+{
+	gfx_copy(e->dst, e->dx, e->dy, e->old, e->ox, e->oy, e->w, e->h);
+	gfx_blend(e->dst, e->dx, e->dy, e->new, e->nx, e->ny, e->w, e->h, progress * 255);
+}
+
+static void gpx_effect_fadeout(struct gpx_effect_params *e, float progress)
+{
+	gfx_copy_bright(e->dst, e->dx, e->dy, e->old, e->ox, e->oy, e->w, e->h, (1.0 - progress) * 255);
+}
+
+static void gpx_effect_fadein(struct gpx_effect_params *e, float progress)
+{
+	gfx_copy_bright(e->dst, e->dx, e->dy, e->new, e->nx, e->ny, e->w, e->h, progress * 255);
+}
+
+static void gpx_effect_whiteout(struct gpx_effect_params *e, float progress)
+{
+	gfx_fill(e->dst, e->dx, e->dy, e->w, e->h, 255, 255, 255);
+	gfx_blend(e->dst, e->dx, e->dy, e->old, e->ox, e->oy, e->w, e->h, (1.0 - progress) * 255);
+}
+
+static void gpx_effect_whitein(struct gpx_effect_params *e, float progress)
+{
+	gfx_fill(e->dst, e->dx, e->dy, e->w, e->h, 255, 255, 255);
+	gfx_blend(e->dst, e->dx, e->dy, e->new, e->nx, e->ny, e->w, e->h, progress * 255);
+}
+
+static void gpx_effect_oscillate(struct gpx_effect_params *e, float progress)
+{
+	int dx = e->dx, dy = e->dy;
+	int nx = e->nx, ny = e->ny;
+	int w = e->w, h = e->h;
+
+	if (progress < 1.0) {
+		int delta_x = rand() % (e->w / 10) - (e->w / 20);
+		int delta_y = rand() % (e->h / 10) - (e->h / 20);
+		if (delta_x >= 0)
+			dx += delta_x;
+		else
+			nx -= delta_x;
+		if (delta_y >= 0)
+			dy += delta_y;
+		else
+			ny -= delta_y;
+		w -= abs(delta_x);
+		h -= abs(delta_y);
+	}
+
+	gfx_copy(e->dst, dx, dy, e->new, nx, ny, w, h);
+}
+
+typedef void (*gpx_effect_callback)(struct gpx_effect_params *params, float progress);
+
+static gpx_effect_callback gpx_effects[NR_EFFECTS] = {
+	[EFFECT_CROSSFADE] = gpx_effect_crossfade,
+	[EFFECT_FADEOUT]   = gpx_effect_fadeout,
+	[EFFECT_FADEIN]    = gpx_effect_fadein,
+	[EFFECT_WHITEOUT]  = gpx_effect_whiteout,
+	[EFFECT_WHITEIN]   = gpx_effect_whitein,
+	[EFFECT_OSCILLATE] = gpx_effect_oscillate,
+};
+
+static int Gpx2Plus_EffectCopy(int effect, int wx, int wy,
+							   int destSurface, int dx, int dy,
+							   int srcSurface, int sx, int sy,
+							   int width, int height, int totalTime)
+{
+	struct gpx_effect_params params = {
+		.dst = get_texture(0),           .dx = wx, .dy = wy,
+		.old = get_texture(destSurface), .ox = dx, .oy = dy,
+		.new = get_texture(srcSurface),  .nx = sx, .ny = sy,
+		.w = width, .h = height
+	};
+	if (!params.dst || !params.old || !params.new)
+		return 0;
+
+	if (effect == 0) {
+		// No effect, called while message skipping.
+		gfx_copy(params.dst, wx, wy, params.new, sx, sy, width, height);
+		Gpx2Plus_Update(wx, wy, width, height);
+		return 1;
+	}
+
+	if (effect < 0 || effect >= NR_EFFECTS) {
+		WARNING("Invalid or unknown effect: %d", effect);
+		effect = EFFECT_CROSSFADE;
+	}
+	if (!gpx_effects[effect]) {
+		WARNING("Unimplemented effect: %s", effect_names[effect]);
+		effect = EFFECT_CROSSFADE;
+	}
+	gpx_effect_callback effect_func = gpx_effects[effect];
+
+	for (int i = 0; i < totalTime; i += 16) {
+		effect_func(&params, (float)i / (float)totalTime);
+		Gpx2Plus_Update(wx, wy, width, height);
+		SDL_Delay(16);
+	}
+	effect_func(&params, 1.0);
+	Gpx2Plus_Update(wx, wy, width, height);
+	return 1;
 }
 
 HLL_LIBRARY(Gpx2Plus,
