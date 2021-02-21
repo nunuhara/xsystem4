@@ -71,6 +71,7 @@ static void log_viewer_alloc(void)
 	if (!log_viewer_size)
 		log_viewer_size = 128;
 	log_viewer = xrealloc(log_viewer, sizeof(struct log_data) * log_viewer_size * 2);
+	log_viewer_size *= 2;
 }
 
 static void log_viewer_push(struct string *s, int voice, int separator)
