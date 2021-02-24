@@ -264,7 +264,8 @@ static bool bgm_load_music(int no, struct bgm_slot *slot)
 static void wav_unload_slot(struct wav_slot *slot)
 {
 	if (slot->chunk) {
-		Mix_HaltChannel(slot->channel);
+		if (slot->channel >= 0)
+			Mix_HaltChannel(slot->channel);
 		Mix_FreeChunk(slot->chunk);
 		slot->chunk = NULL;
 		archive_free_data(slot->dfile);
