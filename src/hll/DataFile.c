@@ -18,10 +18,10 @@
 #include <zlib.h>
 
 #include "system4/buffer.h"
+#include "system4/mt19937int.h"
 #include "system4/string.h"
 
 #include "hll.h"
-#include "mt19937int.h"
 #include "xsystem4.h"
 
 enum value_type {
@@ -271,9 +271,10 @@ static int DataFile_Open(int link)
 	uint8_t *compressed_data = xmalloc(compressed_size);
 	buffer_read_bytes(&r, compressed_data, compressed_size);
 	archive_free_data(dfile);
-	sgenrand(4588163);
+	struct mt19937 mt;
+	mt19937_init(&mt, 4588163);
 	for (size_t i = 0; i < compressed_size; i++)
-		compressed_data[i] ^= genrand();
+		compressed_data[i] ^= mt19937_genrand(&mt);
 
 	uint8_t *raw = xmalloc(uncompressed_size);
 	int rv = uncompress(raw, &uncompressed_size, compressed_data, compressed_size);
