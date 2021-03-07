@@ -134,14 +134,17 @@ union vm_value global_get(int varno)
 	return heap[0].page->values[varno];
 }
 
-void global_set(int varno, union vm_value val)
+void global_set(int varno, union vm_value val, bool call_dtors)
 {
 	switch (ain->globals[varno].type.data) {
 	case AIN_STRING:
 	case AIN_STRUCT:
 	case AIN_ARRAY_TYPE:
 		if (heap[0].page->values[varno].i > 0) {
-			heap_unref(heap[0].page->values[varno].i);
+			if (call_dtors)
+				heap_unref(heap[0].page->values[varno].i);
+			else
+				exit_unref(heap[0].page->values[varno].i);
 		}
 	default:
 		break;

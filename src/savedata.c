@@ -347,7 +347,9 @@ int load_globals(const char *keyname, const char *filename, const char *group_na
 			goto cleanup;
 		}
 		current_global = i;
-		global_set(i, json_to_vm_value(ain->globals[i].type.data, ain->globals[i].type.struc, ain->globals[i].type.rank, value));
+
+		bool call_dtors = false; // Destructors for old objects are not called.
+		global_set(i, json_to_vm_value(ain->globals[i].type.data, ain->globals[i].type.struc, ain->globals[i].type.rank, value), call_dtors);
 		if (n)
 			(*n)++;
 	}

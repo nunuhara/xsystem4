@@ -90,7 +90,7 @@ static inline void stack_push_value(union vm_value v)
 union vm_value stack_pop(void);
 
 union vm_value global_get(int varno);
-void global_set(int varno, union vm_value val);
+void global_set(int varno, union vm_value val, bool call_dtors);
 struct page *local_page(void);
 
 int vm_string_ref(struct string *s);
