@@ -16,11 +16,13 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <zlib.h>
 
 #include "system4.h"
 #include "system4/string.h"
 #include "system4/acx.h"
+#include "system4/file.h"
 
 #include "hll.h"
 #include "little_endian.h"
@@ -31,8 +33,26 @@ struct acx *acx = NULL;
 
 static bool ACXLoader_Load(struct string *filename)
 {
+	int error = ACX_SUCCESS;
 	char *path = gamedir_path(filename->text);
-	acx = acx_load(path);
+	acx = acx_load(path, &error);
+
+	// XXX: Fix for games (e.g. Tsuma Shibori) that shipped with incorrectly
+	//      cased file names
+	if (error == ACX_ERROR_FILE) {
+		char *ipath = path_get_icase(path);
+		if (ipath) {
+			free(path);
+			path = ipath;
+			acx = acx_load(path, &error);
+		}
+	}
+
+	if (error == ACX_ERROR_FILE) {
+		WARNING("acx_load(\"%s\"): %s", path, strerror(errno));
+	} else if (error == ACX_ERROR_INVALID) {
+		WARNING("acx_load(\"%s\"): invalid .acx file");
+	}
 	free(path);
 	return !!acx;
 }
