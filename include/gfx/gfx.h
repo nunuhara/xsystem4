@@ -99,6 +99,7 @@ void gfx_copy(struct texture *dst, int dx, int dy, struct texture *src, int sx, 
 void gfx_copy_bright(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int rate);
 void gfx_copy_amap(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_copy_sprite(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, SDL_Color color);
+void gfx_copy_color_reverse(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_copy_use_amap_under(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int threshold);
 void gfx_copy_use_amap_border(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int threshold);
 void gfx_copy_amap_max(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);

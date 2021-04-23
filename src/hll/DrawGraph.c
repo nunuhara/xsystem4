@@ -42,6 +42,11 @@ static void DrawGraph_CopySprite(int dst, int dx, int dy, int src, int sx, int s
 	gfx_copy_sprite(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, COLOR(r, g, b, 0));
 }
 
+static void DrawGraph_CopyColorReverse(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_color_reverse(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
+
 static void DrawGraph_CopyUseAMapUnder(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
 {
 	gfx_copy_use_amap_under(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha);
@@ -166,7 +171,6 @@ static void DrawGraph_SetFontName(struct string *text)
 	gfx_set_font_name(text->text);
 }
 
-//void DrawGraph_CopyColorReverse(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_BlendSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
 //void DrawGraph_BlendAddSatur(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_BlendAMapSrcOnly(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
@@ -225,7 +229,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(CopyBright, DrawGraph_CopyBright),
 	    HLL_EXPORT(CopyAMap, DrawGraph_CopyAMap),
 	    HLL_EXPORT(CopySprite, DrawGraph_CopySprite),
-	    //HLL_EXPORT(CopyColorReverse, DrawGraph_CopyColorReverse),
+	    HLL_EXPORT(CopyColorReverse, DrawGraph_CopyColorReverse),
 	    HLL_EXPORT(CopyUseAMapUnder, DrawGraph_CopyUseAMapUnder),
 	    HLL_EXPORT(CopyUseAMapBorder, DrawGraph_CopyUseAMapBorder),
 	    HLL_EXPORT(CopyAMapMax, DrawGraph_CopyAMapMax),
