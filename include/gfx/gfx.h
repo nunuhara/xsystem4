@@ -111,6 +111,7 @@ void gfx_fill(struct texture *dst, int x, int y, int w, int h, int r, int g, int
 void gfx_fill_alpha_color(struct texture *dst, int x, int y, int w, int h, int r, int g, int b, int a);
 void gfx_fill_amap(struct texture *dst, int x, int y, int w, int h, int a);
 void gfx_add_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
+void gfx_sub_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_copy_stretch(struct texture *dst, int dx, int dy, int dw, int dh, struct texture *src, int sx, int sy, int sw, int sh);
 void gfx_copy_stretch_amap(struct texture *dst, int dx, int dy, int dw, int dh, struct texture *src, int sx, int sy, int sw, int sh);
 void gfx_copy_rot_zoom(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag);

@@ -345,6 +345,16 @@ void gfx_add_da_daxsa(Texture *dst, int dx, int dy, Texture *src, int sx, int sy
 	restore_blend_mode();
 }
 
+void gfx_sub_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h)
+{
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
 // FIXME: DrawGraph.dll does some really strange clipping on the src/dst rectangles
 //        before drawing. This implementation does what you would normally expect
 //        a stretch function to do when passed negative (x,y) coordinates.
