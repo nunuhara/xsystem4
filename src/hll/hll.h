@@ -31,6 +31,7 @@
 	}
 
 #define HLL_EXPORT(fname, funptr) { .name = #fname, .fun = funptr }
+#define HLL_TODO_EXPORT(fname, funptr) { .name = #fname, .fun = NULL }
 
 #define HLL_LIBRARY(lname, ...)				\
 	struct static_library lib_ ## lname = {		\

@@ -294,147 +294,173 @@ HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Seek, int ch, int pos);
 HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_SetBrightness, int sp_no, int brightness);
 HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_GetBrightness, int sp_no);
 
-HLL_LIBRARY(SACT2,
-	    HLL_EXPORT(_ModuleFini, sact_ModuleFini),
-	    HLL_EXPORT(Init, sact_Init),
-	    //HLL_EXPORT(Error, SACT2_Error),
-	    HLL_EXPORT(SetWP, sact_SetWP),
-	    HLL_EXPORT(SetWP_Color, sact_SetWP_Color),
-	    //HLL_EXPORT(WP_GetSP, SACT2_WP_GetSP),
-	    //HLL_EXPORT(WP_SetSP, SACT2_WP_SetSP),
-	    HLL_EXPORT(GetScreenWidth, sact_GetScreenWidth),
-	    HLL_EXPORT(GetScreenHeight, sact_GetScreenHeight),
-	    HLL_EXPORT(GetMainSurfaceNumber, sact_GetMainSurfaceNumber),
-	    HLL_EXPORT(Update, sact_Update),
-	    HLL_EXPORT(Effect, sact_Effect),
-	    HLL_EXPORT(EffectSetMask, SACT2_EffectSetMask),
-	    //HLL_EXPORT(EffectSetMaskSP, SACT2_EffectSetMaskSP),
-	    HLL_EXPORT(QuakeScreen, SACT2_QuakeScreen),
-	    //HLL_EXPORT(QUAKE_SET_CROSS, SACT2_QUAKE_SET_CROSS),
-	    //HLL_EXPORT(QUAKE_SET_ROTATION, SACT2_QUAKE_SET_ROTATION),
-	    HLL_EXPORT(SP_GetUnuseNum, sact_SP_GetUnuseNum),
-	    HLL_EXPORT(SP_Count, sact_SP_Count),
-	    HLL_EXPORT(SP_Enum, sact_SP_Enum),
-	    HLL_EXPORT(SP_GetMaxZ, sact_SP_GetMaxZ),
-	    HLL_EXPORT(SP_SetCG, sact_SP_SetCG),
-	    //HLL_EXPORT(SP_SetCGFromFile, SACT2_SP_SetCGFromFile),
-	    //HLL_EXPORT(SP_SaveCG, SACT2_SP_SaveCG),
-	    HLL_EXPORT(SP_Create, sact_SP_Create),
-	    HLL_EXPORT(SP_CreatePixelOnly, sact_SP_CreatePixelOnly),
-	    //HLL_EXPORT(SP_CreateCustom, SACT2_SP_CreateCustom),
-	    HLL_EXPORT(SP_Delete, sact_SP_Delete),
-	    HLL_EXPORT(SP_SetPos, sact_SP_SetPos),
-	    HLL_EXPORT(SP_SetX, sact_SP_SetX),
-	    HLL_EXPORT(SP_SetY, sact_SP_SetY),
-	    HLL_EXPORT(SP_SetZ, sact_SP_SetZ),
-	    HLL_EXPORT(SP_SetBlendRate, sact_SP_SetBlendRate),
-	    HLL_EXPORT(SP_SetShow, sact_SP_SetShow),
-	    HLL_EXPORT(SP_SetDrawMethod, sact_SP_SetDrawMethod),
-	    HLL_EXPORT(SP_IsUsing, sact_SP_IsUsing),
-	    HLL_EXPORT(SP_ExistAlpha, sact_SP_ExistsAlpha),
-	    HLL_EXPORT(SP_GetPosX, sact_SP_GetPosX),
-	    HLL_EXPORT(SP_GetPosY, sact_SP_GetPosY),
-	    HLL_EXPORT(SP_GetWidth, sact_SP_GetWidth),
-	    HLL_EXPORT(SP_GetHeight, sact_SP_GetHeight),
-	    HLL_EXPORT(SP_GetZ, sact_SP_GetZ),
-	    HLL_EXPORT(SP_GetBlendRate, sact_SP_GetBlendRate),
-	    HLL_EXPORT(SP_GetShow, sact_SP_GetShow),
-	    HLL_EXPORT(SP_GetDrawMethod, sact_SP_GetDrawMethod),
-	    HLL_EXPORT(SP_SetTextHome, sact_SP_SetTextHome),
-	    HLL_EXPORT(SP_SetTextLineSpace, sact_SP_SetTextLineSpace),
-	    HLL_EXPORT(SP_SetTextCharSpace, sact_SP_SetTextCharSpace),
-	    HLL_EXPORT(SP_SetTextPos, sact_SP_SetTextPos),
-	    HLL_EXPORT(SP_TextDraw, sact_SP_TextDraw),
-	    HLL_EXPORT(SP_TextClear, sact_SP_TextClear),
-	    HLL_EXPORT(SP_TextHome, sact_SP_TextHome),
-	    HLL_EXPORT(SP_TextNewLine, sact_SP_TextNewLine),
-	    //HLL_EXPORT(SP_TextBackSpace, SACT2_SP_TextBackSpace),
-	    HLL_EXPORT(SP_TextCopy, sact_SP_TextCopy),
-	    HLL_EXPORT(SP_GetTextHomeX, sact_SP_GetTextHomeX),
-	    HLL_EXPORT(SP_GetTextHomeY, sact_SP_GetTextHomeY),
-	    HLL_EXPORT(SP_GetTextCharSpace, sact_SP_GetTextCharSpace),
-	    HLL_EXPORT(SP_GetTextPosX, sact_SP_GetTextPosX),
-	    HLL_EXPORT(SP_GetTextPosY, sact_SP_GetTextPosY),
-	    HLL_EXPORT(SP_GetTextLineSpace, sact_SP_GetTextLineSpace),
-	    HLL_EXPORT(SP_IsPtIn, sact_SP_IsPtIn),
-	    HLL_EXPORT(SP_IsPtInRect, sact_SP_IsPtInRect),
-	    HLL_EXPORT(GAME_MSG_GetNumof, sact_GAME_MSG_GetNumOf),
-	    //HLL_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get),
-	    HLL_EXPORT(IntToZenkaku, sact_IntToZenkaku),
-	    HLL_EXPORT(IntToHankaku, sact_IntToHankaku),
-	    //HLL_EXPORT(StringPopFront, SACT2_StringPopFront),
-	    HLL_EXPORT(Mouse_GetPos, sact_Mouse_GetPos),
-	    HLL_EXPORT(Mouse_SetPos, sact_Mouse_SetPos),
-	    HLL_EXPORT(Mouse_ClearWheel, sact_Mouse_ClearWheel),
-	    HLL_EXPORT(Mouse_GetWheel, sact_Mouse_GetWheel),
-	    HLL_EXPORT(Joypad_ClearKeyDownFlag, sact_Joypad_ClearKeyDownFlag),
-	    HLL_EXPORT(Joypad_IsKeyDown, sact_Joypad_IsKeyDown),
-	    //HLL_EXPORT(Joypad_GetNumof, SACT2_Joypad_GetNumof),
-	    HLL_EXPORT(JoypadQuake_Set, SACT2_JoypadQuake_Set),
-	    HLL_EXPORT(Joypad_GetAnalogStickStatus, sact_Joypad_GetAnalogStickStatus),
-	    HLL_EXPORT(Joypad_GetDigitalStickStatus, sact_Joypad_GetDigitalStickStatus),
-	    HLL_EXPORT(Key_ClearFlag, sact_Key_ClearFlag),
-	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown),
-	    HLL_EXPORT(Timer_Get, vm_time),
-	    HLL_EXPORT(CG_IsExist, sact_CG_IsExist),
-	    HLL_EXPORT(CG_GetMetrics, sact_CG_GetMetrics),
-	    //HLL_EXPORT(CSV_Load, SACT2_CSV_Load),
-	    //HLL_EXPORT(CSV_Save, SACT2_CSV_Save),
-	    //HLL_EXPORT(CSV_SaveAs, SACT2_CSV_SaveAs),
-	    //HLL_EXPORT(CSV_CountLines, SACT2_CSV_CountLines),
-	    //HLL_EXPORT(CSV_CountColumns, SACT2_CSV_CountColumns),
-	    //HLL_EXPORT(CSV_Get, SACT2_CSV_Get),
-	    //HLL_EXPORT(CSV_Set, SACT2_CSV_Set),
-	    //HLL_EXPORT(CSV_GetInt, SACT2_CSV_GetInt),
-	    //HLL_EXPORT(CSV_SetInt, SACT2_CSV_SetInt),
-	    //HLL_EXPORT(CSV_Realloc, SACT2_CSV_Realloc),
-	    HLL_EXPORT(Music_IsExist, sact_Music_IsExist),
-	    HLL_EXPORT(Music_Prepare, sact_Music_Prepare),
-	    HLL_EXPORT(Music_Unprepare, sact_Music_Unprepare),
-	    HLL_EXPORT(Music_Play, sact_Music_Play),
-	    HLL_EXPORT(Music_Stop, sact_Music_Stop),
-	    HLL_EXPORT(Music_IsPlay, sact_Music_IsPlay),
-	    HLL_EXPORT(Music_SetLoopCount, SACT2_Music_SetLoopCount),
-	    HLL_EXPORT(Music_GetLoopCount, SACT2_Music_GetLoopCount),
-	    //HLL_EXPORT(Music_SetLoopStartPos, SACT2_Music_SetLoopStartPos),
-	    //HLL_EXPORT(Music_SetLoopEndPos, SACT2_Music_SetLoopEndPos),
-	    HLL_EXPORT(Music_Fade, sact_Music_Fade),
-	    HLL_EXPORT(Music_StopFade, SACT2_Music_StopFade),
-	    HLL_EXPORT(Music_IsFade, SACT2_Music_IsFade),
-	    HLL_EXPORT(Music_Pause, SACT2_Music_Pause),
-	    HLL_EXPORT(Music_Restart, SACT2_Music_Restart),
-	    HLL_EXPORT(Music_IsPause, SACT2_Music_IsPause),
-	    HLL_EXPORT(Music_GetPos, SACT2_Music_GetPos),
-	    HLL_EXPORT(Music_GetLength, SACT2_Music_GetLength),
-	    HLL_EXPORT(Music_GetSamplePos, SACT2_Music_GetSamplePos),
-	    HLL_EXPORT(Music_GetSampleLength, SACT2_Music_GetSampleLength),
-	    HLL_EXPORT(Music_Seek, SACT2_Music_Seek),
-	    HLL_EXPORT(Sound_IsExist, sact_Sound_IsExist),
-	    HLL_EXPORT(Sound_GetUnuseChannel, sact_Sound_GetUnuseChannel),
-	    HLL_EXPORT(Sound_Prepare, sact_Sound_Prepare),
-	    HLL_EXPORT(Sound_Unprepare, sact_Sound_Unprepare),
-	    HLL_EXPORT(Sound_Play, sact_Sound_Play),
-	    HLL_EXPORT(Sound_Stop, sact_Sound_Stop),
-	    HLL_EXPORT(Sound_IsPlay, sact_Sound_IsPlay),
-	    //HLL_EXPORT(Sound_SetLoopCount, SACT2_Sound_SetLoopCount),
-	    //HLL_EXPORT(Sound_GetLoopCount, SACT2_Sound_GetLoopCount),
-	    HLL_EXPORT(Sound_Fade, sact_Sound_Fade),
-	    //HLL_EXPORT(Sound_StopFade, SACT2_Sound_StopFade),
-	    //HLL_EXPORT(Sound_IsFade, SACT2_Sound_IsFade),
-	    //HLL_EXPORT(Sound_GetPos, SACT2_Sound_GetPos),
-	    //HLL_EXPORT(Sound_GetLength, SACT2_Sound_GetLength),
-	    HLL_EXPORT(Sound_ReverseLR, sact_Sound_ReverseLR),
-	    //HLL_EXPORT(Sound_GetVolume, SACT2_Sound_GetVolume),
-	    HLL_EXPORT(Sound_GetTimeLength, sact_Sound_GetTimeLength),
-	    //HLL_EXPORT(Sound_GetGroupNum, SACT2_Sound_GetGroupNum),
-	    //HLL_EXPORT(Sound_PrepareFromFile, SACT2_Sound_PrepareFromFile),
-	    HLL_EXPORT(System_GetDate, sact_System_GetDate),
-	    HLL_EXPORT(System_GetTime, sact_System_GetTime),
-	    //HLL_EXPORT(CG_RotateRGB, SACT2_CG_RotateRGB),
-	    HLL_EXPORT(CG_BlendAMapBin, sact_CG_BlendAMapBin),
-	    //HLL_EXPORT(Debug_Pause, SACT2_Debug_Pause),
-	    //HLL_EXPORT(Debug_GetFuncStack, SACT2_Debug_GetFuncStack),
-	    HLL_EXPORT(SP_GetAMapValue, sact_SP_GetAMapValue),
-	    HLL_EXPORT(SP_GetPixelValue, sact_SP_GetPixelValue),
-	    HLL_EXPORT(SP_SetBrightness, SACT2_SP_SetBrightness),
-	    HLL_EXPORT(SP_GetBrightness, SACT2_SP_GetBrightness));
+#define SACT_EXPORTS \
+	    HLL_EXPORT(_ModuleFini, sact_ModuleFini), \
+	    HLL_EXPORT(Init, sact_Init), \
+	    HLL_TODO_EXPORT(Error, SACT2_Error), \
+	    HLL_EXPORT(SetWP, sact_SetWP), \
+	    HLL_EXPORT(SetWP_Color, sact_SetWP_Color), \
+	    HLL_TODO_EXPORT(WP_GetSP, SACT2_WP_GetSP), \
+	    HLL_TODO_EXPORT(WP_SetSP, SACT2_WP_SetSP), \
+	    HLL_EXPORT(GetScreenWidth, sact_GetScreenWidth), \
+	    HLL_EXPORT(GetScreenHeight, sact_GetScreenHeight), \
+	    HLL_EXPORT(GetMainSurfaceNumber, sact_GetMainSurfaceNumber), \
+	    HLL_EXPORT(Update, sact_Update), \
+	    HLL_EXPORT(Effect, sact_Effect), \
+	    HLL_EXPORT(EffectSetMask, SACT2_EffectSetMask), \
+	    HLL_TODO_EXPORT(EffectSetMaskSP, SACT2_EffectSetMaskSP), \
+	    HLL_EXPORT(QuakeScreen, SACT2_QuakeScreen), \
+	    HLL_TODO_EXPORT(QUAKE_SET_CROSS, SACT2_QUAKE_SET_CROSS), \
+	    HLL_TODO_EXPORT(QUAKE_SET_ROTATION, SACT2_QUAKE_SET_ROTATION), \
+	    HLL_EXPORT(SP_GetUnuseNum, sact_SP_GetUnuseNum), \
+	    HLL_EXPORT(SP_Count, sact_SP_Count), \
+	    HLL_EXPORT(SP_Enum, sact_SP_Enum), \
+	    HLL_EXPORT(SP_GetMaxZ, sact_SP_GetMaxZ), \
+	    HLL_EXPORT(SP_SetCG, sact_SP_SetCG), \
+	    HLL_TODO_EXPORT(SP_SetCGFromFile, SACT2_SP_SetCGFromFile), \
+	    HLL_TODO_EXPORT(SP_SaveCG, SACT2_SP_SaveCG), \
+	    HLL_EXPORT(SP_Create, sact_SP_Create), \
+	    HLL_EXPORT(SP_CreatePixelOnly, sact_SP_CreatePixelOnly), \
+	    HLL_TODO_EXPORT(SP_CreateCustom, SACT2_SP_CreateCustom), \
+	    HLL_EXPORT(SP_Delete, sact_SP_Delete), \
+	    HLL_EXPORT(SP_SetPos, sact_SP_SetPos), \
+	    HLL_EXPORT(SP_SetX, sact_SP_SetX), \
+	    HLL_EXPORT(SP_SetY, sact_SP_SetY), \
+	    HLL_EXPORT(SP_SetZ, sact_SP_SetZ), \
+	    HLL_EXPORT(SP_SetBlendRate, sact_SP_SetBlendRate), \
+	    HLL_EXPORT(SP_SetShow, sact_SP_SetShow), \
+	    HLL_EXPORT(SP_SetDrawMethod, sact_SP_SetDrawMethod), \
+	    HLL_EXPORT(SP_IsUsing, sact_SP_IsUsing), \
+	    HLL_EXPORT(SP_ExistAlpha, sact_SP_ExistsAlpha), \
+	    HLL_EXPORT(SP_GetPosX, sact_SP_GetPosX), \
+	    HLL_EXPORT(SP_GetPosY, sact_SP_GetPosY), \
+	    HLL_EXPORT(SP_GetWidth, sact_SP_GetWidth), \
+	    HLL_EXPORT(SP_GetHeight, sact_SP_GetHeight), \
+	    HLL_EXPORT(SP_GetZ, sact_SP_GetZ), \
+	    HLL_EXPORT(SP_GetBlendRate, sact_SP_GetBlendRate), \
+	    HLL_EXPORT(SP_GetShow, sact_SP_GetShow), \
+	    HLL_EXPORT(SP_GetDrawMethod, sact_SP_GetDrawMethod), \
+	    HLL_EXPORT(SP_SetTextHome, sact_SP_SetTextHome), \
+	    HLL_EXPORT(SP_SetTextLineSpace, sact_SP_SetTextLineSpace), \
+	    HLL_EXPORT(SP_SetTextCharSpace, sact_SP_SetTextCharSpace), \
+	    HLL_EXPORT(SP_SetTextPos, sact_SP_SetTextPos), \
+	    HLL_EXPORT(SP_TextDraw, sact_SP_TextDraw), \
+	    HLL_EXPORT(SP_TextClear, sact_SP_TextClear), \
+	    HLL_EXPORT(SP_TextHome, sact_SP_TextHome), \
+	    HLL_EXPORT(SP_TextNewLine, sact_SP_TextNewLine), \
+	    HLL_TODO_EXPORT(SP_TextBackSpace, SACT2_SP_TextBackSpace), \
+	    HLL_EXPORT(SP_TextCopy, sact_SP_TextCopy), \
+	    HLL_EXPORT(SP_GetTextHomeX, sact_SP_GetTextHomeX), \
+	    HLL_EXPORT(SP_GetTextHomeY, sact_SP_GetTextHomeY), \
+	    HLL_EXPORT(SP_GetTextCharSpace, sact_SP_GetTextCharSpace), \
+	    HLL_EXPORT(SP_GetTextPosX, sact_SP_GetTextPosX), \
+	    HLL_EXPORT(SP_GetTextPosY, sact_SP_GetTextPosY), \
+	    HLL_EXPORT(SP_GetTextLineSpace, sact_SP_GetTextLineSpace), \
+	    HLL_EXPORT(SP_IsPtIn, sact_SP_IsPtIn), \
+	    HLL_EXPORT(SP_IsPtInRect, sact_SP_IsPtInRect), \
+	    HLL_EXPORT(GAME_MSG_GetNumof, sact_GAME_MSG_GetNumOf), \
+	    HLL_TODO_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get), \
+	    HLL_EXPORT(IntToZenkaku, sact_IntToZenkaku), \
+	    HLL_EXPORT(IntToHankaku, sact_IntToHankaku), \
+	    HLL_TODO_EXPORT(StringPopFront, SACT2_StringPopFront), \
+	    HLL_EXPORT(Mouse_GetPos, sact_Mouse_GetPos), \
+	    HLL_EXPORT(Mouse_SetPos, sact_Mouse_SetPos), \
+	    HLL_EXPORT(Mouse_ClearWheel, sact_Mouse_ClearWheel), \
+	    HLL_EXPORT(Mouse_GetWheel, sact_Mouse_GetWheel), \
+	    HLL_EXPORT(Joypad_ClearKeyDownFlag, sact_Joypad_ClearKeyDownFlag), \
+	    HLL_EXPORT(Joypad_IsKeyDown, sact_Joypad_IsKeyDown), \
+	    HLL_TODO_EXPORT(Joypad_GetNumof, SACT2_Joypad_GetNumof), \
+	    HLL_EXPORT(JoypadQuake_Set, SACT2_JoypadQuake_Set), \
+	    HLL_EXPORT(Joypad_GetAnalogStickStatus, sact_Joypad_GetAnalogStickStatus), \
+	    HLL_EXPORT(Joypad_GetDigitalStickStatus, sact_Joypad_GetDigitalStickStatus), \
+	    HLL_EXPORT(Key_ClearFlag, sact_Key_ClearFlag), \
+	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown), \
+	    HLL_EXPORT(Timer_Get, vm_time), \
+	    HLL_EXPORT(CG_IsExist, sact_CG_IsExist), \
+	    HLL_EXPORT(CG_GetMetrics, sact_CG_GetMetrics), \
+	    HLL_TODO_EXPORT(CSV_Load, SACT2_CSV_Load), \
+	    HLL_TODO_EXPORT(CSV_Save, SACT2_CSV_Save), \
+	    HLL_TODO_EXPORT(CSV_SaveAs, SACT2_CSV_SaveAs), \
+	    HLL_TODO_EXPORT(CSV_CountLines, SACT2_CSV_CountLines), \
+	    HLL_TODO_EXPORT(CSV_CountColumns, SACT2_CSV_CountColumns), \
+	    HLL_TODO_EXPORT(CSV_Get, SACT2_CSV_Get), \
+	    HLL_TODO_EXPORT(CSV_Set, SACT2_CSV_Set), \
+	    HLL_TODO_EXPORT(CSV_GetInt, SACT2_CSV_GetInt), \
+	    HLL_TODO_EXPORT(CSV_SetInt, SACT2_CSV_SetInt), \
+	    HLL_TODO_EXPORT(CSV_Realloc, SACT2_CSV_Realloc), \
+	    HLL_EXPORT(Music_IsExist, sact_Music_IsExist), \
+	    HLL_EXPORT(Music_Prepare, sact_Music_Prepare), \
+	    HLL_EXPORT(Music_Unprepare, sact_Music_Unprepare), \
+	    HLL_EXPORT(Music_Play, sact_Music_Play), \
+	    HLL_EXPORT(Music_Stop, sact_Music_Stop), \
+	    HLL_EXPORT(Music_IsPlay, sact_Music_IsPlay), \
+	    HLL_EXPORT(Music_SetLoopCount, SACT2_Music_SetLoopCount), \
+	    HLL_EXPORT(Music_GetLoopCount, SACT2_Music_GetLoopCount), \
+	    HLL_TODO_EXPORT(Music_SetLoopStartPos, SACT2_Music_SetLoopStartPos), \
+	    HLL_TODO_EXPORT(Music_SetLoopEndPos, SACT2_Music_SetLoopEndPos), \
+	    HLL_EXPORT(Music_Fade, sact_Music_Fade), \
+	    HLL_EXPORT(Music_StopFade, SACT2_Music_StopFade), \
+	    HLL_EXPORT(Music_IsFade, SACT2_Music_IsFade), \
+	    HLL_EXPORT(Music_Pause, SACT2_Music_Pause), \
+	    HLL_EXPORT(Music_Restart, SACT2_Music_Restart), \
+	    HLL_EXPORT(Music_IsPause, SACT2_Music_IsPause), \
+	    HLL_EXPORT(Music_GetPos, SACT2_Music_GetPos), \
+	    HLL_EXPORT(Music_GetLength, SACT2_Music_GetLength), \
+	    HLL_EXPORT(Music_GetSamplePos, SACT2_Music_GetSamplePos), \
+	    HLL_EXPORT(Music_GetSampleLength, SACT2_Music_GetSampleLength), \
+	    HLL_EXPORT(Music_Seek, SACT2_Music_Seek), \
+	    HLL_EXPORT(Sound_IsExist, sact_Sound_IsExist), \
+	    HLL_EXPORT(Sound_GetUnuseChannel, sact_Sound_GetUnuseChannel), \
+	    HLL_EXPORT(Sound_Prepare, sact_Sound_Prepare), \
+	    HLL_EXPORT(Sound_Unprepare, sact_Sound_Unprepare), \
+	    HLL_EXPORT(Sound_Play, sact_Sound_Play), \
+	    HLL_EXPORT(Sound_Stop, sact_Sound_Stop), \
+	    HLL_EXPORT(Sound_IsPlay, sact_Sound_IsPlay), \
+	    HLL_TODO_EXPORT(Sound_SetLoopCount, SACT2_Sound_SetLoopCount), \
+	    HLL_TODO_EXPORT(Sound_GetLoopCount, SACT2_Sound_GetLoopCount), \
+	    HLL_EXPORT(Sound_Fade, sact_Sound_Fade), \
+	    HLL_TODO_EXPORT(Sound_StopFade, SACT2_Sound_StopFade), \
+	    HLL_TODO_EXPORT(Sound_IsFade, SACT2_Sound_IsFade), \
+	    HLL_TODO_EXPORT(Sound_GetPos, SACT2_Sound_GetPos), \
+	    HLL_TODO_EXPORT(Sound_GetLength, SACT2_Sound_GetLength), \
+	    HLL_EXPORT(Sound_ReverseLR, sact_Sound_ReverseLR), \
+	    HLL_TODO_EXPORT(Sound_GetVolume, SACT2_Sound_GetVolume), \
+	    HLL_EXPORT(Sound_GetTimeLength, sact_Sound_GetTimeLength), \
+	    HLL_TODO_EXPORT(Sound_GetGroupNum, SACT2_Sound_GetGroupNum), \
+	    HLL_TODO_EXPORT(Sound_PrepareFromFile, SACT2_Sound_PrepareFromFile), \
+	    HLL_EXPORT(System_GetDate, sact_System_GetDate), \
+	    HLL_EXPORT(System_GetTime, sact_System_GetTime), \
+	    HLL_TODO_EXPORT(CG_RotateRGB, SACT2_CG_RotateRGB), \
+	    HLL_EXPORT(CG_BlendAMapBin, sact_CG_BlendAMapBin), \
+	    HLL_TODO_EXPORT(Debug_Pause, SACT2_Debug_Pause), \
+	    HLL_TODO_EXPORT(Debug_GetFuncStack, SACT2_Debug_GetFuncStack), \
+	    HLL_EXPORT(SP_GetAMapValue, sact_SP_GetAMapValue), \
+	    HLL_EXPORT(SP_GetPixelValue, sact_SP_GetPixelValue), \
+	    HLL_EXPORT(SP_SetBrightness, SACT2_SP_SetBrightness), \
+	    HLL_EXPORT(SP_GetBrightness, SACT2_SP_GetBrightness)
+
+static int SACTDX_TRANS_Begin(int nNum)
+{
+	// TODO
+	return 1;
+}
+
+static int SACTDX_TRANS_Update(float fRate)
+{
+	// TODO
+	return 1;
+}
+
+static int SACTDX_TRANS_End(void)
+{
+	// TODO
+	return 1;
+}
+
+#define SACTDX_EXPORTS \
+	HLL_EXPORT(TRANS_Begin, SACTDX_TRANS_Begin), \
+		HLL_EXPORT(TRANS_Update, SACTDX_TRANS_Update), \
+		HLL_EXPORT(TRANS_End, SACTDX_TRANS_End)
+
+HLL_LIBRARY(SACT2, SACT_EXPORTS);
+HLL_LIBRARY(SACTDX, SACT_EXPORTS, SACTDX_EXPORTS);
