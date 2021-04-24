@@ -524,6 +524,29 @@ static void system_call(enum syscall_code code)
 		nanosleep(&ts, NULL);
 		break;
 	}
+	case SYS_RESUME_READ_COMMENT: {// system.ResumeReadComment(string szKeyName, string szFileName, ref array@string aszComment)
+		int success;
+		int comment = stack_pop().i;
+		int filename = stack_pop().i;
+		int keyname = stack_pop().i;
+		// FIXME: free ref'd array if allocated
+		heap_set_page(comment, vm_load_image_comments(heap[keyname].s->text, heap[filename].s->text, &success));
+		heap_unref(filename);
+		heap_unref(keyname);
+		stack_push(success);
+		break;
+	}
+	case SYS_RESUME_WRITE_COMMENT: { // system.ResumeWriteComment(string szKeyName, string szFileName, ref array@string aszComment)
+		int comment = stack_pop().i;
+		int filename = stack_pop().i;
+		int keyname = stack_pop().i;
+		stack_push(vm_write_image_comments(heap_get_string(keyname)->text,
+						   heap_get_string(filename)->text,
+						   heap_get_page(comment)));
+		heap_unref(filename);
+		heap_unref(keyname);
+		break;
+	}
 	case SYS_GROUP_SAVE: { // system.GroupSave(string szKeyName, string szFileName, string szGroupName, ref int nNumofLoad)
 		union vm_value *n = stack_pop_var();
 		int groupname = stack_pop().i;

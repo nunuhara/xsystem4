@@ -131,6 +131,8 @@ extern size_t instr_ptr;
 
 int vm_save_image(const char *key, const char *path);
 void vm_load_image(const char *key, const char *path);
+struct page *vm_load_image_comments(const char *key, const char *path, int *success);
+int vm_write_image_comments(const char *key, const char *path, struct page *comments);
 
 #endif /* VM_PRIVATE */
 #endif /* SYSTEM4_VM_H */

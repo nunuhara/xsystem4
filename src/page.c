@@ -270,7 +270,7 @@ static enum ain_data_type unref_array_type(enum ain_data_type type)
 	case AIN_REF_ARRAY_LONG_INT:  return AIN_ARRAY_LONG_INT;
 	case AIN_REF_ARRAY_DELEGATE:  return AIN_ARRAY_DELEGATE;
 	case AIN_ARRAY_TYPE:          return type;
-	default: ERROR("Attempt to array allocate non-array type");
+	default: VM_ERROR("Attempt to array allocate non-array type");
 	}
 }
 
