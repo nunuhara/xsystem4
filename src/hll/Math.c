@@ -166,5 +166,7 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(Max, Math_Max),
 	    HLL_EXPORT(MaxF, Math_MaxF),
 	    HLL_EXPORT(Swap, Math_Swap),
-	    HLL_EXPORT(SwapF, Math_SwapF));
+	    HLL_EXPORT(SwapF, Math_SwapF),
+	    HLL_EXPORT(Log, logf),
+	    HLL_EXPORT(Log10, log10f));
 

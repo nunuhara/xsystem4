@@ -29,6 +29,8 @@ struct config {
 	char *home_dir;
 	int view_width;
 	int view_height;
+	size_t mixer_nr_channels;
+	char **mixer_channels;
 
 	char *bgi_path;
 	char *wai_path;

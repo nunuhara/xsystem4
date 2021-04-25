@@ -573,6 +573,12 @@ static void system_call(enum syscall_code code)
 		heap_unref(keyname);
 		break;
 	}
+	case SYS_EXIST_FUNC: { // system.ExistFunc(string szFuncName)
+		int funcname = stack_pop().i;
+		stack_push(ain_get_function(ain, heap[funcname].s->text) > 0);
+		heap_unref(funcname);
+		break;
+	}
 	default:
 		VM_ERROR("Unimplemented syscall: 0x%X", code);
 	}

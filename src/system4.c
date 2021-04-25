@@ -47,7 +47,9 @@ struct config config = {
 	.save_dir = NULL,
 	.home_dir = NULL,
 	.view_width = 800,
-	.view_height = 600
+	.view_height = 600,
+	.mixer_nr_channels = 0,
+	.mixer_channels = NULL,
 };
 
 char *unix_path(const char *path)
@@ -97,6 +99,24 @@ static int ini_integer(struct ini_entry *entry)
 	return entry->value.i;
 }
 
+static void read_mixer_channels(struct ini_entry *entry)
+{
+	if (entry->value.type != INI_LIST)
+		ERROR("ini value for 'VolumeValancer' is not a list");
+
+	config.mixer_nr_channels = entry->value.list_size;
+	config.mixer_channels = xcalloc(entry->value.list_size, sizeof(char*));
+	for (size_t i = 0; i < entry->value.list_size; i++) {
+		if (entry->value.list[i].type == INI_NULL) {
+			WARNING("No name given for VolumeValancer[%d]", i);
+			continue;
+		}
+		if (entry->value.list[i].type != INI_STRING)
+			ERROR("ini value for 'VolumeValancer' list entry is not a string");
+		config.mixer_channels[i] = strdup(entry->value.list[i].s->text);
+	}
+}
+
 static void read_config(const char *path)
 {
 	int ini_size;
@@ -115,6 +135,8 @@ static void read_config(const char *path)
 			config.view_width = ini_integer(&ini[i]);
 		} else if (!strcmp(ini[i].name->text, "ViewHeight")) {
 			config.view_height = ini_integer(&ini[i]);
+		} else if (!strcmp(ini[i].name->text, "VolumeValancer")) {
+			read_mixer_channels(&ini[i]);
 		}
 		ini_free_entry(&ini[i]);
 	}

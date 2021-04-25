@@ -98,6 +98,7 @@ static cJSON *_type_check(const char *file, const char *func, int line, int type
 static void read_register(unsigned handle, const char *filename)
 {
 	struct passregister *reg = registers + handle;
+	free(reg->filename);
 	reg->filename = savedir_path(filename);
 
 	size_t data_len;
@@ -122,6 +123,7 @@ static void read_register(unsigned handle, const char *filename)
 		}
 
 		cJSON_Delete(obj);
+		free(data);
 	}
 }
 
@@ -131,6 +133,7 @@ static bool PassRegister_SetFileName(int handle, struct string *filename)
 		return false;
 	if ((size_t)handle >= nr_registers) {
 		registers = xrealloc_array(registers, nr_registers, handle+1, sizeof(struct passregister));
+		nr_registers = handle+1;
 	}
 	read_register(handle, filename->text);
 	return true;
@@ -255,6 +258,18 @@ static bool PassRegister_ExistText(int handle, struct string *text)
 	return exist_text(handle, text->text);
 }
 
+static void PassRegister_fini(void)
+{
+	for (size_t i = 0; i < nr_registers; i++) {
+		free(registers[i].filename);
+		free(registers[i].integers);
+		free(registers[i].strings);
+	}
+	free(registers);
+	registers = NULL;
+	nr_registers = 0;
+}
+
 HLL_LIBRARY(PassRegister,
 	    HLL_EXPORT(SetFileName, PassRegister_SetFileName),
 	    HLL_EXPORT(RegistNumber, PassRegister_RegistNumber),
@@ -263,4 +278,5 @@ HLL_LIBRARY(PassRegister,
 	    HLL_EXPORT(UnregistText, PassRegister_UnregistText),
 	    HLL_EXPORT(UnregistAll, PassRegister_UnregistAll),
 	    HLL_EXPORT(ExistNumber, PassRegister_ExistNumber),
-	    HLL_EXPORT(ExistText, PassRegister_ExistText));
+	    HLL_EXPORT(ExistText, PassRegister_ExistText),
+	    HLL_EXPORT(_ModuleFini, PassRegister_fini));
