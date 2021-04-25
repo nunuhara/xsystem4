@@ -18,6 +18,7 @@ xsystem4 = ['audio.c',
             'vm.c',
 
             'hll/ACXLoader.c',
+            'hll/ADVSYS.c',
             'hll/AliceLogo.c',
             'hll/AliceLogo2.c',
             'hll/AliceLogo3.c',

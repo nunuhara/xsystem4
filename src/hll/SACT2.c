@@ -439,6 +439,26 @@ HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_GetBrightness, int sp_no);
 	    HLL_EXPORT(SP_SetBrightness, SACT2_SP_SetBrightness), \
 	    HLL_EXPORT(SP_GetBrightness, SACT2_SP_GetBrightness)
 
+static void SACTDX_SetVolumeMixerMasterGroupNum(int n)
+{
+	// TODO
+}
+
+static void SACTDX_SetVolumeMixerSEGroupNum(int n)
+{
+	// TODO
+}
+
+static void SACTDX_SetVolumeMixerBGMGroupNum(int n)
+{
+	// TODO
+}
+
+static int SACTDX_Sound_GetGroupNumFromDataNum(int n)
+{
+	return 0;
+}
+
 static int SACTDX_TRANS_Begin(int nNum)
 {
 	// TODO
@@ -458,9 +478,13 @@ static int SACTDX_TRANS_End(void)
 }
 
 #define SACTDX_EXPORTS \
-	HLL_EXPORT(TRANS_Begin, SACTDX_TRANS_Begin), \
-		HLL_EXPORT(TRANS_Update, SACTDX_TRANS_Update), \
-		HLL_EXPORT(TRANS_End, SACTDX_TRANS_End)
+	HLL_EXPORT(SetVolumeMixerMasterGroupNum, SACTDX_SetVolumeMixerMasterGroupNum), \
+	HLL_EXPORT(SetVolumeMixerSEGroupNum, SACTDX_SetVolumeMixerSEGroupNum), \
+	HLL_EXPORT(SetVolumeMixerBGMGroupNum, SACTDX_SetVolumeMixerBGMGroupNum), \
+	HLL_EXPORT(Sound_GetGroupNumFromDataNum, SACTDX_Sound_GetGroupNumFromDataNum), \
+	HLL_EXPORT(TRANS_Begin, SACTDX_TRANS_Begin),		\
+	HLL_EXPORT(TRANS_Update, SACTDX_TRANS_Update),		\
+	HLL_EXPORT(TRANS_End, SACTDX_TRANS_End)
 
 HLL_LIBRARY(SACT2, SACT_EXPORTS);
 HLL_LIBRARY(SACTDX, SACT_EXPORTS, SACTDX_EXPORTS);

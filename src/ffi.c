@@ -138,6 +138,7 @@ void hll_call(int libno, int fno)
 }
 
 extern struct static_library lib_ACXLoader;
+extern struct static_library lib_ADVSYS;
 extern struct static_library lib_AliceLogo;
 extern struct static_library lib_AliceLogo2;
 extern struct static_library lib_AliceLogo3;
@@ -171,6 +172,7 @@ extern struct static_library lib_Timer;
 
 static struct static_library *static_libraries[] = {
 	&lib_ACXLoader,
+	&lib_ADVSYS,
 	&lib_AliceLogo,
 	&lib_AliceLogo2,
 	&lib_AliceLogo3,
