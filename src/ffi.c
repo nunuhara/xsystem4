@@ -159,6 +159,7 @@ extern struct static_library lib_MsgLogManager;
 extern struct static_library lib_MsgLogViewer;
 extern struct static_library lib_MsgSkip;
 extern struct static_library lib_OutputLog;
+extern struct static_library lib_PassRegister;
 extern struct static_library lib_PlayDemo;
 extern struct static_library lib_PlayMovie;
 extern struct static_library lib_SACT2;
@@ -191,6 +192,7 @@ static struct static_library *static_libraries[] = {
 	&lib_MsgLogViewer,
 	&lib_MsgSkip,
 	&lib_OutputLog,
+	&lib_PassRegister,
 	&lib_PlayDemo,
 	&lib_PlayMovie,
 	&lib_SACT2,
