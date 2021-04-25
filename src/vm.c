@@ -480,6 +480,10 @@ static void system_call(enum syscall_code code)
 		stack_push(vm_time());
 		break;
 	}
+	case SYS_GET_GAME_NAME: {// system.GetGameName(void)
+		stack_push_string(make_string(config.game_name, strlen(config.game_name)));
+		break;
+	}
 	case SYS_ERROR: {// system.Error(string szText)
 		struct string *str = stack_peek_string(0);
 		char *utf = sjis2utf(str->text, str->size);
