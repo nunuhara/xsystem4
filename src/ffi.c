@@ -142,6 +142,7 @@ extern struct static_library lib_ADVSYS;
 extern struct static_library lib_AliceLogo;
 extern struct static_library lib_AliceLogo2;
 extern struct static_library lib_AliceLogo3;
+extern struct static_library lib_AliceLogo4;
 extern struct static_library lib_BanMisc;
 extern struct static_library lib_Bitarray;
 extern struct static_library lib_Confirm;
@@ -177,6 +178,7 @@ static struct static_library *static_libraries[] = {
 	&lib_AliceLogo,
 	&lib_AliceLogo2,
 	&lib_AliceLogo3,
+	&lib_AliceLogo4,
 	&lib_BanMisc,
 	&lib_Bitarray,
 	&lib_Confirm,
