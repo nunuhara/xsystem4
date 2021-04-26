@@ -166,6 +166,7 @@ extern struct static_library lib_PlayMovie;
 extern struct static_library lib_SACT2;
 extern struct static_library lib_SACTDX;
 extern struct static_library lib_SengokuRanceFont;
+extern struct static_library lib_StoatSpriteEngine;
 extern struct static_library lib_SystemService;
 extern struct static_library lib_SystemServiceEx;
 extern struct static_library lib_Timer;
@@ -200,6 +201,7 @@ static struct static_library *static_libraries[] = {
 	&lib_SACT2,
 	&lib_SACTDX,
 	&lib_SengokuRanceFont,
+	&lib_StoatSpriteEngine,
 	&lib_SystemService,
 	&lib_SystemServiceEx,
 	&lib_Timer,
