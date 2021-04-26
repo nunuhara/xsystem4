@@ -22,6 +22,7 @@
 
 #include "system4.h"
 #include "system4/ain.h"
+#include "system4/file.h"
 #include "system4/string.h"
 
 #include "savedata.h"
@@ -358,4 +359,20 @@ int load_globals(const char *keyname, const char *filename, const char *group_na
 cleanup:
 	cJSON_Delete(save);
 	return retval;
+}
+
+int delete_save_file(const char *filename)
+{
+	char *path = savedir_path(filename);
+	if (!file_exists(path)) {
+		free(path);
+		return 0;
+	}
+	if (remove(path)) {
+		WARNING("remove(\"%s\"): %s", path, strerror(errno));
+		free(path);
+		return 0;
+	}
+	free(path);
+	return 1;
 }
