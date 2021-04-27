@@ -203,7 +203,7 @@ static void DrawGraph_SetFontName(struct string *text)
 //void DrawGraph_CopyStretchBlendAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
 //void DrawGraph_CopyStretchInterp(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
 //void DrawGraph_CopyStretchAMapInterp(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
-HLL_WARN_UNIMPLEMENTED(&EMPTY_STRING, struct string*, DrawGraph, GetFontName, void);
+HLL_WARN_UNIMPLEMENTED(string_ref(&EMPTY_STRING), struct string*, DrawGraph, GetFontName, void);
 //void DrawGraph_CopyRotZoom2Bilinear(int dst, float cx, float cy, int src, float scx, float scy, float rot, float mag);
 //void DrawGraph_CopyRotateY(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
 //void DrawGraph_CopyRotateYUseAMap(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
