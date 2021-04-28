@@ -375,6 +375,8 @@ void array_copy(struct page *dst, int dst_i, struct page *src, int src_i, int n)
 		ERROR("Not an array");
 	if (!array_index_ok(dst, dst_i) || !array_index_ok(src, src_i))
 		ERROR("Out of bounds array access");
+	if (!array_index_ok(dst, dst_i + n - 1) || !array_index_ok(src, src_i + n - 1))
+		ERROR("Out of bounds array access");
 	if (dst->rank != 1 || src->rank != 1)
 		ERROR("Tried to copy to/from a multi-dimensional array");
 	if (dst->a_type != src->a_type)

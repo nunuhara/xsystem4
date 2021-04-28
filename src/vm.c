@@ -1486,6 +1486,10 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int pageno = stack_peek(rank+1).i;
 		int array = heap[pageno].page->values[varno].i;
 		enum ain_data_type data_type = variable_type(heap[pageno].page, varno, &struct_type, NULL);
+		if (heap[array].page) {
+			delete_page_vars(heap[array].page);
+			free_page(heap[array].page);
+		}
 		heap_set_page(array, alloc_array(rank, stack_peek_ptr(rank-1), data_type, struct_type, true));
 		stack_ptr -= rank + 2;
 		break;
@@ -1745,18 +1749,25 @@ static void describe_page(struct page *page)
 		return;
 	}
 
+	char *u;
 	switch (page->type) {
 	case GLOBAL_PAGE:
 		sys_message("GLOBAL_PAGE\n");
 		break;
 	case LOCAL_PAGE:
-		sys_message("LOCAL_PAGE: %s\n", ain->functions[page->index].name);
+		u = sjis2utf(ain->functions[page->index].name, 0);
+		sys_message("LOCAL_PAGE: %s\n", u);
+		free(u);
 		break;
 	case STRUCT_PAGE:
-		sys_message("STRUCT_PAGE: %s\n", ain->structures[page->index].name);
+		u = sjis2utf(ain->structures[page->index].name, 0);
+		sys_message("STRUCT_PAGE: %s\n", u);
+		free(u);
 		break;
 	case ARRAY_PAGE:
-		sys_message("ARRAY_PAGE: %s\n", ain_strtype(ain, page->a_type, page->struct_type));
+		u = sjis2utf(ain_strtype(ain, page->a_type, page->struct_type), 0);
+		sys_message("ARRAY_PAGE: %s\n", u);
+		free(u);
 		break;
 	}
 }
