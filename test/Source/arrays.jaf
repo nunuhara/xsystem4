@@ -212,6 +212,20 @@ void test_array_constructors(void)
 	test_bool("array constructors", !failed, true);
 }
 
+struct struct_with_ref {
+	ref inner_struct s;
+};
+
+void test_array_push_struct_with_ref(void)
+{
+	array@struct_with_ref ar;
+	struct_with_ref o;
+	inner_struct i;
+	o.s <- i;
+	ar.PushBack(o);
+	// Returning from this function should not double-free i.
+}
+
 void test_arrays(void)
 {
 	test_array_set();
@@ -227,4 +241,5 @@ void test_arrays(void)
 	test_array_insert();
 	test_array_sort();
 	test_array_constructors();
+	test_array_push_struct_with_ref();
 }

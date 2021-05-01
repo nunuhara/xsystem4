@@ -224,6 +224,9 @@ union vm_value vm_copy(union vm_value v, enum ain_data_type type)
 	case AIN_STRUCT:
 	case AIN_ARRAY_TYPE:
 		return (union vm_value) { .i = vm_copy_page(heap[v.i].page) };
+	case AIN_REF_TYPE:
+		heap_ref(v.i);
+		return v;
 	default:
 		return v;
 	}

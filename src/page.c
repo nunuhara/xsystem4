@@ -369,6 +369,8 @@ static bool array_index_ok(struct page *array, int i)
 
 void array_copy(struct page *dst, int dst_i, struct page *src, int src_i, int n)
 {
+	if (n <= 0)
+		return;
 	if (!dst || !src)
 		ERROR("Array is NULL");
 	if (dst->type != ARRAY_PAGE || src->type != ARRAY_PAGE)
