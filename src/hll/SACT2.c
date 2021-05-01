@@ -29,12 +29,536 @@
 #include "queue.h"
 #include "gfx/gfx.h"
 #include "sact.h"
+#include "vm/page.h"
 #include "xsystem4.h"
+
+static struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
+
+static struct sact_sprite **sprites = NULL;
+static int nr_sprites = 0;
+
+// NOTE: Used externally by DrawGraph and SengokuRanceFont
+struct sact_sprite *sact_get_sprite(int sp)
+{
+	if (sp < -1 || sp >= nr_sprites)
+		return NULL;
+	return sprites[sp];
+}
+
+static struct sact_sprite *sact_alloc_sprite(int sp)
+{
+	sprites[sp] = xcalloc(1, sizeof(struct sact_sprite));
+	sprites[sp]->no = sp;
+	sprite_dirty(sprites[sp]);
+	return sprites[sp];
+}
+
+static void sact_free_sprite(struct sact_sprite *sp)
+{
+	if (sprites[sp->no] == NULL)
+		VM_ERROR("Double free of sact_sprite");
+	sprites[sp->no] = NULL;
+	sprite_free(sp);
+}
+
+static void realloc_sprite_table(int n)
+{
+	int old_nr_sprites = nr_sprites;
+	nr_sprites = n;
+
+	struct sact_sprite **tmp = xrealloc(sprites-1, sizeof(struct sact_sprite*) * (nr_sprites+1));
+	sprites = tmp + 1;
+
+	memset(sprites + old_nr_sprites, 0, sizeof(struct sact_sprite*) * (nr_sprites - old_nr_sprites));
+}
+
+int sact_Init(possibly_unused void *_, possibly_unused int cg_cache_size)
+{
+	// already initialized
+	if (sprites)
+		return 1;
+
+	gfx_init();
+	gfx_font_init();
+	audio_init();
+
+	nr_sprites = 256;
+	sprites = xmalloc(sizeof(struct sact_sprite*) * 257);
+	memset(sprites, 0, sizeof(struct sact_sprite*) * 257);
+
+	// create sprite for main_surface
+	Texture *t = gfx_main_surface();
+	struct sact_sprite *sp = sact_create_sprite(0, t->w, t->h, 0, 0, 0, 255);
+	sp->texture = *t; // XXX: textures normally shouldn't be copied like this...
+
+	sprites++;
+	return 1;
+}
+
+void sact_ModuleFini(void)
+{
+	for (int i = 0; i < nr_sprites; i++) {
+		if (sprites[i]) {
+			sact_free_sprite(sprites[i]);
+		}
+	}
+}
+
+//int SACT2_Error(struct string *err);
+//int SACT2_WP_GetSP(int sp);
+//int SACT2_WP_SetSP(int sp);
+
+int sact_GetScreenWidth(void)
+{
+	return config.view_width;
+}
+
+int sact_GetScreenHeight(void)
+{
+	return config.view_height;
+}
+
+int sact_GetMainSurfaceNumber(void)
+{
+	return -1;
+}
+
+int sact_Update(void)
+{
+	handle_events();
+	if (sact_dirty) {
+		sprite_render_scene();
+		sprite_flip();
+	}
+	return 1;
+}
+
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, EffectSetMask, int cg);
+//int SACT2_EffectSetMaskSP(int sp);
+HLL_WARN_UNIMPLEMENTED( , void, SACT2, QuakeScreen, int amp_x, int amp_y, int time, int key);
+//void SACT2_QUAKE_SET_CROSS(int amp_x, int amp_y);
+//void SACT2_QUAKE_SET_ROTATION(int amp, int cycle);
+
+int sact_SP_GetUnuseNum(int min)
+{
+	for (int i = min; i < nr_sprites; i++) {
+		if (!sprites[i])
+			return i;
+	}
+
+	int n = max(min, nr_sprites);
+	realloc_sprite_table(n + 256);
+	return n;
+}
+
+int sact_SP_Count(void)
+{
+	int count = 0;
+	for (int i = 0; i < nr_sprites; i++) {
+		if (sprites[i])
+			count++;
+	}
+	return count;
+}
+
+int sact_SP_Enum(struct page **array)
+{
+	int count = 0;
+	int size = (*array)->nr_vars;
+	for (int i = 0; i < nr_sprites && count < size; i++) {
+		if (sprites[i]) {
+			(*array)->values[count++].i = i;
+		}
+	}
+	return count;
+}
+
+int sact_SP_SetCG(int sp_no, int cg_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp)
+		sact_SP_Create(sp_no, 1, 1, 0, 0, 0, 255);
+	if (!(sp = sact_get_sprite(sp_no))) {
+		WARNING("Failed to create sprite");
+		return 0;
+	}
+	return sprite_set_cg(sp, cg_no);
+}
+
+//int SACT2_SP_SetCGFromFile(int sp, struct string *filename);
+//int SACT2_SP_SaveCG(int sp, struct string *filename);
+
+static struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a)
+{
+	struct sact_sprite *sp;
+	if (sp_no < 0)
+		VM_ERROR("Invalid sprite number: %d", sp_no);
+	if (sp_no >= nr_sprites) {
+		realloc_sprite_table(sp_no+256);
+	}
+	if (!(sp = sact_get_sprite(sp_no)))
+		sp = sact_alloc_sprite(sp_no);
+
+	sprite_init(sp, width, height, r, g, b, a);
+	return sp;
+}
+
+int sact_SP_Create(int sp_no, int width, int height, int r, int g, int b, int a)
+{
+	sact_create_sprite(sp_no, width, height, r, g, b, a);
+	return 1;
+}
+
+int sact_SP_CreatePixelOnly(int sp_no, int width, int height)
+{
+	sact_create_sprite(sp_no, width, height, 0, 0, 0, -1);
+	return 1;
+}
+
+//int SACT2_SP_CreateCustom(int sp);
+
+int sact_SP_Delete(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sact_free_sprite(sp);
+	return 1;
+}
+
+int sact_SP_SetPos(int sp_no, int x, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 1;
+	sprite_set_pos(sp, x, y);
+	return 1;
+}
+
+int sact_SP_SetX(int sp_no, int x)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_set_x(sp, x);
+	return 1;
+}
+
+int sact_SP_SetY(int sp_no, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_set_y(sp, y);
+	return 1;
+}
+
+int sact_SP_SetZ(int sp_no, int z)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_set_z(sp, z);
+	return 1;
+}
+
+int sact_SP_GetBlendRate(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_blend_rate(sp);
+}
+
+int sact_SP_SetBlendRate(int sp_no, int rate)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_set_blend_rate(sp, rate);
+	return 1;
+}
+
+int sact_SP_SetShow(int sp_no, bool show)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_set_show(sp, show);
+	return 1;
+}
+
+int sact_SP_SetDrawMethod(int sp_no, int method)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_set_draw_method(sp, method);
+	return 1;
+}
+
+int sact_SP_GetDrawMethod(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return DRAW_METHOD_NORMAL;
+	return sprite_get_draw_method(sp);
+}
+
+int sact_SP_IsUsing(int sp_no)
+{
+	return sact_get_sprite(sp_no) != NULL;
+}
+
+int sact_SP_ExistsAlpha(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_exists_alpha(sp);
+}
+
+int sact_SP_GetPosX(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_pos_x(sp);
+}
+
+int sact_SP_GetPosY(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_pos_y(sp);
+}
+
+int sact_SP_GetWidth(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_width(sp);
+}
+
+int sact_SP_GetHeight(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_height(sp);
+}
+
+int sact_SP_GetZ(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_z(sp);
+}
+
+int sact_SP_GetShow(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_show(sp);
+}
+
+int sact_SP_SetTextHome(int sp_no, int x, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_set_text_home(sp, x, y);
+	return 1;
+}
+
+int sact_SP_SetTextLineSpace(int sp_no, int px)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 1;
+	sprite_set_text_line_space(sp, px);
+	return 1;
+}
+
+int sact_SP_SetTextCharSpace(int sp_no, int px)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 1;
+	sprite_set_text_char_space(sp, px);
+	return 1;
+}
+
+int sact_SP_SetTextPos(int sp_no, int x, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_set_text_pos(sp, x, y);
+	return 1;
+}
+
+static void init_text_metrics(struct text_metrics *tm, union vm_value *_tm)
+{
+	*tm = (struct text_metrics) {
+		.color = {
+			.r = _tm[0].i,
+			.g = _tm[1].i,
+			.b = _tm[2].i,
+			.a = 255
+		},
+		.outline_color = {
+			.r = _tm[10].i,
+			.g = _tm[11].i,
+			.b = _tm[12].i,
+			.a = 255
+		},
+		.size          = _tm[3].i,
+		.weight        = _tm[4].i,
+		.face          = _tm[5].i,
+		.outline_left  = _tm[6].i,
+		.outline_up    = _tm[7].i,
+		.outline_right = _tm[8].i,
+		.outline_down  = _tm[9].i,
+	};
+}
+
+int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_metrics *tm)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_text_draw(sp, text, tm);
+	return 1;
+}
+
+int sact_SP_TextDraw(int sp_no, struct string *text, struct page *_tm)
+{
+	struct text_metrics tm;
+	init_text_metrics(&tm, _tm->values);
+	_sact_SP_TextDraw(sp_no, text, &tm);
+	return 1;
+}
+
+int sact_SP_TextClear(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_text_clear(sp);
+	return 1;
+}
+
+int sact_SP_TextHome(int sp_no, int size)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_text_home(sp, size);
+	return 1;
+}
+
+int sact_SP_TextNewLine(int sp_no, int size)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_text_new_line(sp, size);
+	return 1;
+}
+
+//int SACT2_SP_TextBackSpace(int sp_no);
+
+int sact_SP_TextCopy(int dno, int sno)
+{
+	struct sact_sprite *dsp = sact_get_sprite(dno);
+	struct sact_sprite *ssp = sact_get_sprite(sno);
+	if (!ssp)
+		return 0;
+	if (!dsp) {
+		sact_SP_Create(dno, 1, 1, 0, 0, 0, 0);
+		if (!(dsp = sact_get_sprite(dno))) {
+			WARNING("Failed to create sprite");
+			return 0;
+		}
+	}
+
+	sprite_text_copy(dsp, ssp);
+	return 1;
+}
+
+int sact_SP_GetTextHomeX(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_text_home_x(sp);
+}
+
+int sact_SP_GetTextHomeY(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_text_home_y(sp);
+}
+
+int sact_SP_GetTextCharSpace(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_text_char_space(sp);
+}
+
+int sact_SP_GetTextPosX(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_text_pos_x(sp);
+}
+
+int sact_SP_GetTextPosY(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_text_pos_y(sp);
+}
+
+int sact_SP_GetTextLineSpace(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_text_line_space(sp);
+}
+
+int sact_SP_IsPtIn(int sp_no, int x, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_is_point_in(sp, x, y);
+}
+
+int sact_SP_IsPtInRect(int sp_no, int x, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_is_point_in_rect(sp, x, y);
+}
+
+int sact_CG_GetMetrics(int cg_no, struct page **page)
+{
+	union vm_value *cgm = (*page)->values;
+	struct cg_metrics metrics;
+	if (!cg_get_metrics(ald[ALDFILE_CG], cg_no - 1, &metrics))
+		return 0;
+	cgm[0].i = metrics.w;
+	cgm[1].i = metrics.h;
+	cgm[2].i = metrics.bpp;
+	cgm[3].i = metrics.has_pixel;
+	cgm[4].i = metrics.has_alpha;
+	cgm[5].i = metrics.pixel_pitch;
+	cgm[6].i = metrics.alpha_pitch;
+	return 1;
+}
+
+int sact_SP_GetAMapValue(int sp_no, int x, int y)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_get_amap_value(sp, x, y);
+}
+
+int sact_SP_GetPixelValue(int sp_no, int x, int y, int *r, int *g, int *b)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_get_pixel_value(sp, x, y, r, g, b);
+	return 1;
+}
 
 static int sact_GAME_MSG_GetNumOf(void)
 {
 	return ain->nr_messages;
 }
+
+//void SACT2_GAME_MSG_Get(int index, struct string **text);
 
 static void sact_IntToZenkaku(struct string **s, int value, int figures, int zero_pad)
 {
@@ -55,6 +579,8 @@ static void sact_IntToHankaku(struct string **s, int value, int figures, int zer
 	i = int_to_cstr(buf, 512, value, figures, zero_pad, false);
 	string_append_cstr(s, buf, i);
 }
+
+//int SACT2_StringPopFront(struct string **dst, struct string **src);
 
 static int sact_Mouse_GetPos(int *x, int *y)
 {
@@ -89,6 +615,9 @@ static int sact_Joypad_IsKeyDown(int num, int key)
 {
 	return 0; // TODO
 }
+
+//int SACT2_Joypad_GetNumof(void);
+HLL_WARN_UNIMPLEMENTED( , void, SACT2, JoypadQuake_Set, int num, int type, int magnitude);
 
 static bool sact_Joypad_GetAnalogStickStatus(int num, int type, float *degree, float *power)
 {
@@ -125,6 +654,17 @@ static int sact_CG_IsExist(int cg_no)
 	return ald[ALDFILE_CG] && archive_exists(ald[ALDFILE_CG], cg_no - 1);
 }
 
+//int  SACT2_CSV_Load(struct string *filename);
+//int  SACT2_CSV_Save(void);
+//int  SACT2_CSV_SaveAs(struct string *filename);
+//int  SACT2_CSV_CountLines(void);
+//int  SACT2_CSV_CountColumns(void);
+//void SACT2_CSV_Get(struct string **s, int line, int column);
+//int  SACT2_CSV_Set(int line, int column, struct string *data);
+//int  SACT2_CSV_GetInt(int line, int column);
+//void SACT2_CSV_SetInt(int line, int column, int data);
+//void SACT2_CSV_Realloc(int lines, int columns);
+
 static int sact_Music_IsExist(int n)
 {
 	return bgm_exists(n - 1);
@@ -155,10 +695,26 @@ static int sact_Music_IsPlay(int ch)
 	return bgm_is_playing(ch);
 }
 
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_SetLoopCount, int ch, int count);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetLoopCount, int ch);
+//int SACT2_Music_SetLoopStartPos(int ch, int pos);
+//int SACT2_Music_SetLoopEndPos(int ch, int pos);
+
 static int sact_Music_Fade(int ch, int time, int volume, int stop)
 {
 	return bgm_fade(ch, time, volume, stop);
 }
+
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_StopFade, int ch);
+HLL_WARN_UNIMPLEMENTED(0, int, SACT2, Music_IsFade, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Pause, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Restart, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_IsPause, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetPos, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetLength, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetSamplePos, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetSampleLength, int ch);
+HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Seek, int ch, int pos);
 
 static int sact_Sound_IsExist(int n)
 {
@@ -195,20 +751,33 @@ static int sact_Sound_IsPlay(int ch)
 	return wav_is_playing(ch);
 }
 
+//int SACT2_Sound_SetLoopCount(int ch, int count);
+//int SACT2_Sound_GetLoopCount(int ch);
+
 static int sact_Sound_Fade(int ch, int time, int volume, int stop)
 {
 	return wav_fade(ch, time, volume, stop);
 }
+
+//int SACT2_Sound_StopFade(int ch);
+//int SACT2_Sound_IsFade(int ch);
+//int SACT2_Sound_GetPos(int ch);
+//int SACT2_Sound_GetLength(int ch);
 
 static int sact_Sound_ReverseLR(int ch)
 {
 	return wav_reverse_LR(ch);
 }
 
+//int SACT2_Sound_GetVolume(int ch);
+
 static int sact_Sound_GetTimeLength(int ch)
 {
 	return wav_get_time_length(ch);
 }
+
+//int SACT2_Sound_GetGroupNum(int ch);
+//bool SACT2_Sound_PrepareFromFile(int ch, struct string *filename);
 
 static void sact_System_GetDate(int *year, int *month, int *mday, int *wday)
 {
@@ -234,61 +803,19 @@ static void sact_System_GetTime(int *hour, int *min, int *sec, int *ms)
 	*ms   = ts.tv_nsec / 1000000;
 }
 
+//void SACT2_CG_RotateRGB(int dst, int dx, int dy, int w, int h, int rotate_type);
+
 static void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int border)
 {
-	gfx_copy_use_amap_border(sact_get_texture_dirty(dst), dx, dy, sact_get_texture(src), sx, sy, w, h, border);
+	struct sact_sprite *dsp = sact_get_sprite(dst);
+	struct sact_sprite *ssp = sact_get_sprite(src);
+	if (!dsp) return;
+	struct texture *dtx = sprite_get_texture(dsp);
+	struct texture *stx = ssp ? sprite_get_texture(ssp) : NULL;
+	gfx_copy_use_amap_border(dtx, dx, dy, stx, sx, sy, w, h, border);
+	sprite_dirty(dsp);
 }
 
-//int SACT2_Error(struct string *err);
-//int SACT2_WP_GetSP(int sp);
-//int SACT2_WP_SetSP(int sp);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, EffectSetMask, int cg);
-//int SACT2_EffectSetMaskSP(int sp);
-HLL_WARN_UNIMPLEMENTED( , void, SACT2, QuakeScreen, int amp_x, int amp_y, int time, int key);
-//void SACT2_QUAKE_SET_CROSS(int amp_x, int amp_y);
-//void SACT2_QUAKE_SET_ROTATION(int amp, int cycle);
-//int SACT2_SP_SetCGFromFile(int sp, struct string *filename);
-//int SACT2_SP_SaveCG(int sp, struct string *filename);
-//int SACT2_SP_CreateCustom(int sp);
-//int SACT2_SP_TextBackSpace(int sp_no);
-//void SACT2_GAME_MSG_Get(int index, struct string **text);
-//int SACT2_StringPopFront(struct string **dst, struct string **src);
-//int SACT2_Joypad_GetNumof(void);
-HLL_WARN_UNIMPLEMENTED( , void, SACT2, JoypadQuake_Set, int num, int type, int magnitude);
-//int  SACT2_CSV_Load(struct string *filename);
-//int  SACT2_CSV_Save(void);
-//int  SACT2_CSV_SaveAs(struct string *filename);
-//int  SACT2_CSV_CountLines(void);
-//int  SACT2_CSV_CountColumns(void);
-//void SACT2_CSV_Get(struct string **s, int line, int column);
-//int  SACT2_CSV_Set(int line, int column, struct string *data);
-//int  SACT2_CSV_GetInt(int line, int column);
-//void SACT2_CSV_SetInt(int line, int column, int data);
-//void SACT2_CSV_Realloc(int lines, int columns);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_SetLoopCount, int ch, int count);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetLoopCount, int ch);
-//int SACT2_Music_SetLoopStartPos(int ch, int pos);
-//int SACT2_Music_SetLoopEndPos(int ch, int pos);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_StopFade, int ch);
-HLL_WARN_UNIMPLEMENTED(0, int, SACT2, Music_IsFade, int ch);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Pause, int ch);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Restart, int ch);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_IsPause, int ch);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetPos, int ch);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetLength, int ch);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetSamplePos, int ch);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_GetSampleLength, int ch);
-HLL_WARN_UNIMPLEMENTED(1, int, SACT2, Music_Seek, int ch, int pos);
-//int SACT2_Sound_SetLoopCount(int ch, int count);
-//int SACT2_Sound_GetLoopCount(int ch);
-//int SACT2_Sound_StopFade(int ch);
-//int SACT2_Sound_IsFade(int ch);
-//int SACT2_Sound_GetPos(int ch);
-//int SACT2_Sound_GetLength(int ch);
-//int SACT2_Sound_GetVolume(int ch);
-//int SACT2_Sound_GetGroupNum(int ch);
-//bool SACT2_Sound_PrepareFromFile(int ch, struct string *filename);
-//void SACT2_CG_RotateRGB(int dst, int dx, int dy, int w, int h, int rotate_type);
 //void SACT2_Debug_Pause(void);
 //void SACT2_Debug_GetFuncStack(struct string **s, int nest);
 HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_SetBrightness, int sp_no, int brightness);

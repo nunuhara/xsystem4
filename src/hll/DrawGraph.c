@@ -19,8 +19,22 @@
 #include "gfx/types.h"
 #include "system4/string.h"
 
-#define STEX(sp_no) sact_get_texture(sp_no)
-#define DTEX(sp_no) sact_get_texture_dirty(sp_no)
+// Get texture for source sprite
+static struct texture *STEX(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return NULL;
+	return sprite_get_texture(sp);
+}
+
+// Get texture for destination sprite
+static struct texture *DTEX(int sp_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return NULL;
+	sprite_dirty(sp);
+	return sprite_get_texture(sp);
+}
 
 static void DrawGraph_Copy(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {

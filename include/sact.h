@@ -18,54 +18,13 @@
 #define SYSTEM4_SACT_H
 
 #include <stdbool.h>
-#include <SDL.h>
-#include <GL/glew.h>
-#include "queue.h"
-#include "gfx/gfx.h"
-#include "gfx/types.h"
-
-struct string;
-struct page;
-union vm_value;
-
-struct sact_sprite {
-	TAILQ_ENTRY(sact_sprite) entry;
-	struct texture texture;
-	SDL_Color color;
-	Rectangle rect;
-	struct {
-		struct string *str;
-		struct texture texture;
-		Point home;
-		Point pos;
-		int char_space;
-		int line_space;
-	} text;
-	int z;
-	bool show;
-	int no;
-	int cg_no;
-};
-
-extern bool sact_dirty;
-
-static inline void sprite_dirty(struct sact_sprite *sp)
-{
-	if (sp && sp->show)
-		sact_dirty = true;
-}
+#include "sprite.h"
 
 struct sact_sprite *sact_get_sprite(int sp);
-struct sact_sprite *sact_get_sprite_dirty(int sp);
-struct texture *sact_get_texture(int sp_no);
-struct texture *sact_get_texture_dirty(int sp_no);
-
-void sact_render_scene(void);
-
 void sact_ModuleFini(void);
 int sact_Init(void *_, int cg_cache_size);
-int sact_SetWP(int cg_no);
-int sact_SetWP_Color(int r, int g, int b);
+#define sact_SetWP sprite_set_wp
+#define sact_SetWP_Color sprite_set_wp_color
 int sact_GetScreenWidth(void);
 int sact_GetScreenHeight(void);
 int sact_GetMainSurfaceNumber(void);
@@ -74,7 +33,7 @@ int sact_Effect(int type, int time, int key);
 int sact_SP_GetUnuseNum(int min);
 int sact_SP_Count(void);
 int sact_SP_Enum(struct page **array);
-int sact_SP_GetMaxZ(void);
+#define sact_SP_GetMaxZ sprite_get_max_z
 int sact_SP_SetCG(int sp, int cg);
 int sact_SP_Create(int sp, int width, int height, int r, int g, int b, int a);
 int sact_SP_CreatePixelOnly(int sp, int width, int height);

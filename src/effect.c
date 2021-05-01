@@ -105,7 +105,7 @@ int sact_Effect(int type, possibly_unused int time, possibly_unused int key)
 	// get old & new scene textures
 	Texture old, new;
 	gfx_copy_main_surface(&old);
-	sact_render_scene();
+	sprite_render_scene();
 	gfx_copy_main_surface(&new);
 
 	effect_callback effect = effects[type];
