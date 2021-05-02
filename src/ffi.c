@@ -149,6 +149,7 @@ extern struct static_library lib_Confirm;
 extern struct static_library lib_Confirm2;
 extern struct static_library lib_DataFile;
 extern struct static_library lib_DrawGraph;
+extern struct static_library lib_DrawMovie2;
 extern struct static_library lib_DrawPluginManager;
 extern struct static_library lib_File;
 extern struct static_library lib_Gpx2Plus;
@@ -185,6 +186,7 @@ static struct static_library *static_libraries[] = {
 	&lib_Confirm2,
 	&lib_DataFile,
 	&lib_DrawGraph,
+	&lib_DrawMovie2,
 	&lib_DrawPluginManager,
 	&lib_File,
 	&lib_Gpx2Plus,
