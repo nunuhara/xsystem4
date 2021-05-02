@@ -16,12 +16,14 @@
 
 #include <math.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "system4.h"
 #include "system4/ain.h"
 #include "system4/ald.h"
 #include "system4/cg.h"
 #include "system4/string.h"
+#include "system4/utfsjis.h"
 
 #include "hll.h"
 #include "audio.h"
@@ -31,6 +33,7 @@
 #include "sact.h"
 #include "vm/page.h"
 #include "xsystem4.h"
+#include "sact.h"
 
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, JoypadQuake_Set, int num, int type, int magnitude);
 HLL_WARN_UNIMPLEMENTED(1, int,  StoatSpriteEngine, Music_SetLoopCount, int ch, int count);
@@ -51,27 +54,280 @@ HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerMasterGroupNum,
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerSEGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerBGMGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED(0, int,  StoatSpriteEngine, Sound_GetGroupNumFromDataNum, int n);
-HLL_WARN_UNIMPLEMENTED(1, int,  StoatSpriteEngine, TRANS_Begin, int nNum);
-HLL_WARN_UNIMPLEMENTED(1, int,  StoatSpriteEngine, TRANS_Update, float fRate);
-HLL_WARN_UNIMPLEMENTED(1, int,  StoatSpriteEngine, TRANS_End);
 
-//static bool StoatSpriteEngine_SP_SetTextSprite(int nSprite, string Text);
-//static void StoatSpriteEngine_SP_SetTextSpriteType(int nType);
-//static void StoatSpriteEngine_SP_SetTextSpriteSize(int nSize);
-//static void StoatSpriteEngine_SP_SetTextSpriteColor(int nR, int nG, int nB);
-//static void StoatSpriteEngine_SP_SetTextSpriteBoldWeight(float fBoldWeight);
-//static void StoatSpriteEngine_SP_SetTextSpriteEdgeWeight(float fEdgeWeight);
-//static void StoatSpriteEngine_SP_SetTextSpriteEdgeColor(int nR, int nG, int nB);
-//static bool StoatSpriteEngine_SP_SetDashTextSprite(int nSprite, int nWidth, int nHeight);
+static struct text_metrics text_sprite_tm = {
+	.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
+	.outline_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
+	.size = 16,
+	.weight = FW_NORMAL,
+	.face = FONT_GOTHIC,
+	.outline_left = 0,
+	.outline_up = 0,
+	.outline_right = 0,
+	.outline_down = 0
+};
+
+static int extract_sjis_char(char *src, char *dst)
+{
+	if (SJIS_2BYTE(*src)) {
+		dst[0] = src[0];
+		dst[1] = src[1];
+		dst[2] = '\0';
+		return 2;
+	}
+	dst[0] = src[0];
+	dst[1] = '\0';
+	return 1;
+}
+
+static bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
+{
+	if (text->size < 1)
+		return false;
+
+	char s[3];
+	extract_sjis_char(text->text, s);
+	int w = text_sprite_tm.size;
+	int h = text_sprite_tm.size;
+	// XXX: System40.exe lies about the height of half-width characters.
+	//      E.g. a size 64 letter "H" is reported as 32 pixels tall.
+	//      Probably doesn't matter...?
+	if (isascii(s[0]))
+		w /= 2;
+	struct sact_sprite *sp = sact_create_sprite(sp_no, w, h, 0, 0, 0, 0);
+	sprite_get_texture(sp); // XXX: force initialization of texture
+	gfx_render_text(&sp->texture, (Point) { .x=0, .y=0 }, s, &text_sprite_tm, 0);
+	sprite_dirty(sp);
+	return true;
+}
+
+static void StoatSpriteEngine_SP_SetTextSpriteType(int type)
+{
+	text_sprite_tm.face = type;
+}
+
+static void StoatSpriteEngine_SP_SetTextSpriteSize(int size)
+{
+	text_sprite_tm.size = size;
+}
+
+static void StoatSpriteEngine_SP_SetTextSpriteColor(int r, int g, int b)
+{
+	text_sprite_tm.color = (SDL_Color) { .r = r, .g = g, .b = b, .a = 255 };
+}
+
+static void StoatSpriteEngine_SP_SetTextSpriteBoldWeight(float weight)
+{
+	//NOTICE("StoatSpriteEngine.SP_SetTextSpriteBoldWeight(%f)", weight);
+}
+
+static void StoatSpriteEngine_SP_SetTextSpriteEdgeWeight(float weight)
+{
+	text_sprite_tm.outline_left = weight;
+	text_sprite_tm.outline_up = weight;
+	text_sprite_tm.outline_right = weight;
+	text_sprite_tm.outline_down = weight;
+	//NOTICE("StoatSpriteEngine.SP_SetTextSpriteEdgeWeight(%f)", weight);
+}
+
+static void StoatSpriteEngine_SP_SetTextSpriteEdgeColor(int r, int g, int b)
+{
+	text_sprite_tm.outline_color = (SDL_Color) { .r = r, .g = g, .b = b, .a = 255 };
+}
+
+static bool StoatSpriteEngine_SP_SetDashTextSprite(int sp_no, int width, int height)
+{
+	// TODO: This function just draws a horizontal line on the sprite texture
+	NOTICE("StoatSpriteEngine.SP_SetDashTextSprite(%d, %d, %d)", sp_no, width, height);
+	return true;
+}
+
 //static void StoatSpriteEngine_FPS_SetShow(bool bShow);
-//static bool StoatSpriteEngine_KEY_GetState(int nKey);
 
-//static bool StoatSpriteEngine_MultiSprite_SetCG(int nType, int nNum, int nCG);
-//static bool StoatSpriteEngine_MultiSprite_SetPos(int nType, int nNum, int nX, int nY);
-//static bool StoatSpriteEngine_MultiSprite_SetDefaultPos(int nType, int nNum, int nDefaultX, int nDefaultY);
-//static bool StoatSpriteEngine_MultiSprite_SetZ(int nType, int nNum, int nZ);
-//static bool StoatSpriteEngine_MultiSprite_SetAlpha(int nType, int nNum, int nAlpha);
-//static bool StoatSpriteEngine_MultiSprite_SetTransitionInfo(int nType, int nNum, int nTransitionNumber, int nTransitionTime);
+static bool StoatSpriteEngine_KEY_GetState(int key)
+{
+	return key_is_down(key);
+}
+
+struct multisprite {
+	int type;
+	int no;
+	int z;
+	Point pos;
+	Point default_pos;
+	int alpha;
+	int cg;
+	bool cg_dirty;
+	bool moving;
+	struct {
+		Point start;
+		Point end;
+		int start_alpha;
+		int end_alpha;
+		int begin_wait_time;
+		int time;
+		float move_accel;
+	} move;
+	struct {
+		int no;
+		int time;
+	} trans;
+	struct sact_sprite sp;
+};
+
+struct sp_table {
+	struct multisprite **sprites;
+	int nr_sprites;
+};
+
+#define NR_SP_TYPES 64
+
+struct sp_table sp_types[NR_SP_TYPES] = {0};
+
+static struct multisprite *multisprite_alloc(int type, int n)
+{
+	sp_types[type].sprites[n] = xcalloc(1, sizeof(struct multisprite));
+	sp_types[type].sprites[n]->type = type;
+	sp_types[type].sprites[n]->no = n;
+	sp_types[type].sprites[n]->alpha = 255;
+	sp_types[type].sprites[n]->z = 1;
+	sprite_dirty(&sp_types[type].sprites[n]->sp);
+	return sp_types[type].sprites[n];
+}
+
+static void realloc_sprite_table(struct sp_table *table, int n)
+{
+	table->sprites = xrealloc_array(table->sprites, table->nr_sprites, n, sizeof(struct multisprite*));
+	table->nr_sprites = n;
+}
+
+static struct multisprite *multisprite_get(int type, int n)
+{
+	if (type < 0 || type >= NR_SP_TYPES)
+		return NULL;
+	if (n < 0)
+		return NULL;
+	if (n >= sp_types[type].nr_sprites) {
+		realloc_sprite_table(&sp_types[type], n + 256);
+	}
+	if (!sp_types[type].sprites[n]) {
+		multisprite_alloc(type, n);
+		sprite_init(&sp_types[type].sprites[n]->sp, 1, 1, 0, 0, 0, 255);
+	}
+	return sp_types[type].sprites[n];
+}
+
+static void multisprite_free(struct multisprite *sp)
+{
+	if (!sp)
+		return;
+	if (sp_types[sp->type].sprites[sp->no] == NULL)
+		VM_ERROR("Double free of multisprite");
+	sp_types[sp->type].sprites[sp->no] = NULL;
+	sprite_free(&sp->sp);
+	free(sp);
+
+}
+
+static void multisprite_reset_cg(struct multisprite *sp)
+{
+	sp->cg = 0;
+	sp->cg_dirty = true;
+}
+
+static int StoatSpriteEngine_Init(void *imain_system, int cg_cache_size)
+{
+	sact_Init(imain_system, cg_cache_size);
+	for (int i = 0; i < NR_SP_TYPES; i++) {
+		sp_types[i].nr_sprites = 16;
+		sp_types[i].sprites = xcalloc(16, sizeof(struct multisprite*));
+	}
+	return 1;
+}
+
+static void StoatSpriteEngine_ModuleFini(void)
+{
+	sact_ModuleFini();
+	for (int i = 0; i < NR_SP_TYPES; i++) {
+		for (int j = 0; j < sp_types[i].nr_sprites; j++) {
+			multisprite_free(sp_types[i].sprites[j]);
+		}
+	}
+}
+
+static void multisprite_update(struct multisprite *ms)
+{
+	sprite_set_z(&ms->sp, ms->z);
+	sprite_set_pos(&ms->sp, ms->pos.x, ms->pos.y);
+	sprite_set_blend_rate(&ms->sp, ms->alpha);
+	if (ms->cg_dirty) {
+		if (ms->cg) {
+			sprite_set_cg(&ms->sp, ms->cg);
+			sprite_set_show(&ms->sp, true);
+		} else {
+			sprite_set_show(&ms->sp, false);
+		}
+		ms->cg_dirty = false;
+	}
+}
+
+static bool StoatSpriteEngine_MultiSprite_SetCG(int type, int n, int cg_no)
+{
+	if (cg_no && !sact_CG_IsExist(cg_no)) {
+		WARNING("Invalid CG number: %d", cg_no);
+		return false;
+	}
+
+	struct multisprite *ms = multisprite_get(type, n);
+	ms->cg = cg_no;
+	ms->cg_dirty = true;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_SetPos(int type, int n, int x, int y)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->pos.x = x;
+	ms->pos.y = y;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_SetDefaultPos(int type, int n, int x, int y)
+{
+	struct multisprite *sp = multisprite_get(type, n);
+	if (!sp) return false;
+	sp->default_pos.x = x;
+	sp->default_pos.y = y;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_SetZ(int type, int n, int z)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->z = z;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_SetAlpha(int type, int n, int alpha)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->alpha = alpha;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_SetTransitionInfo(int type, int n, int trans_no, int trans_time)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	// FIXME: when does this transition actually occur?
+	ms->trans.no = trans_no;
+	ms->trans.time = trans_time;
+	return true;
+}
+
 //static bool StoatSpriteEngine_MultiSprite_SetLinkedMessageFrame(int nType, int nNum, bool bLink);
 //static bool StoatSpriteEngine_MultiSprite_SetParentMessageFrameNum(int nType, int nNum, int nMessageAreaNum);
 //static bool StoatSpriteEngine_MultiSprite_SetOriginPosMode(int nType, int nNum, int nMode);
@@ -82,22 +338,188 @@ HLL_WARN_UNIMPLEMENTED(1, int,  StoatSpriteEngine, TRANS_End);
 //static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetBoldWeight(int nType, int nNum, float fBoldWeight);
 //static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeWeight(int nType, int nNum, float fEdgeWeight);
 //static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeColor(int nType, int nNum, int nR, int nG, int nB);
-//static bool StoatSpriteEngine_MultiSprite_GetTransitionInfo(int nType, int nNum, ref int nTransitionNumber, ref int nTransitionTime);
-//static int StoatSpriteEngine_MultiSprite_GetCG(int nType, int nNum);
-//static bool StoatSpriteEngine_MultiSprite_GetPos(int nType, int nNum, ref int nX, ref int nY);
-//static bool StoatSpriteEngine_MultiSprite_GetAlpha(int nType, int nNum, ref int nAlpha);
-//static bool StoatSpriteEngine_MultiSprite_ResetDefaultPos(int nType, int nNum);
-//static bool StoatSpriteEngine_MultiSprite_ResetAllDefaultPos(int nType);
-//static void StoatSpriteEngine_MultiSprite_ResetAllCG(void);
+
+static bool StoatSpriteEngine_MultiSprite_GetTransitionInfo(int type, int n, int *trans_no, int *trans_time)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	*trans_no = ms->trans.no;
+	*trans_time = ms->trans.time;
+	return true;
+}
+
+static int StoatSpriteEngine_MultiSprite_GetCG(int type, int n)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	return ms->cg;
+}
+
+static bool StoatSpriteEngine_MultiSprite_GetPos(int type, int n, int *x, int *y)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	*x = ms->pos.x;
+	*y = ms->pos.y;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_GetAlpha(int type, int n, int *alpha)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	*alpha = ms->alpha;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_ResetDefaultPos(int type, int n)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->pos = ms->default_pos;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_ResetAllDefaultPos(int type)
+{
+	for (int i = 0; i < sp_types[type].nr_sprites; i++) {
+		if (sp_types[type].sprites[i]) {
+			sp_types[type].sprites[i]->pos = sp_types[type].sprites[i]->default_pos;
+		}
+	}
+	return true;
+}
+
+static void StoatSpriteEngine_MultiSprite_ResetAllCG(void)
+{
+	for (int i = 0; i < NR_SP_TYPES; i++) {
+		for (int j = 0; j < sp_types[i].nr_sprites; j++) {
+			if (sp_types[i].sprites[j]) {
+				multisprite_reset_cg(sp_types[i].sprites[j]);
+			}
+		}
+	}
+}
+
 //static void StoatSpriteEngine_MultiSprite_SetAllShowMessageFrame(bool bShow);
-//static bool StoatSpriteEngine_MultiSprite_BeginMove(int nType, int nNum, int nX0, int nY0, int nX1, int nY1, int nTime, int nBeginWaitTime, float fMoveAcceleration);
-//static bool StoatSpriteEngine_MultiSprite_BeginMoveWithAlpha(int nType, int nNum, int nX0, int nY0, int nAlpha0, int nX1, int nY1, int nAlpha1, int nTime, int nBeginWaitTime, float fMoveAcceleration);
-//static int StoatSpriteEngine_MultiSprite_GetMaxMoveTotalTime(void);
-//static void StoatSpriteEngine_MultiSprite_SetAllMoveCurrentTime(int nTime);
-//static void StoatSpriteEngine_MultiSprite_EndAllMove(void);
-//static bool StoatSpriteEngine_MultiSprite_UpdateView(void);
+
+static bool StoatSpriteEngine_MultiSprite_BeginMove(int type, int n, int x0, int y0, int x1, int y1, int t, int begin_wait_time, float move_accel)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->move.start.x = x0;
+	ms->move.start.y = y0;
+	ms->move.start_alpha = ms->alpha;
+	ms->move.end.x = x1;
+	ms->move.end.y = y1;
+	ms->move.end_alpha = ms->alpha;
+	ms->move.time = t;
+	ms->move.begin_wait_time = begin_wait_time;
+	ms->move.move_accel = move_accel;
+	ms->moving = true;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_BeginMoveWithAlpha(int type, int n, int x0, int y0, int a0, int x1, int y1, int a1, int t, int begin_wait_time, float move_accel)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->move.start.x = x0;
+	ms->move.start.y = y0;
+	ms->move.start_alpha = a0;
+	ms->move.end.x = x1;
+	ms->move.end.y = y1;
+	ms->move.end_alpha = a1;
+	ms->move.time = t;
+	ms->move.begin_wait_time = begin_wait_time;
+	ms->move.move_accel = move_accel;
+	ms->moving = true;
+	return true;
+}
+
+static int StoatSpriteEngine_MultiSprite_GetMaxMoveTotalTime(void)
+{
+	int t = 0;
+	for (int i = 0; i < NR_SP_TYPES; i++) {
+		for (int j = 0; j < sp_types[i].nr_sprites; j++) {
+			struct multisprite *ms = sp_types[i].sprites[j];
+			if (ms && ms->moving) {
+				t = max(t, ms->move.time + ms->move.begin_wait_time);
+			}
+		}
+	}
+	return t;
+}
+
+static void multisprite_set_move_current_time(struct multisprite *ms, int time)
+{
+	if (!time || time <= ms->move.begin_wait_time) {
+		ms->pos = ms->move.start;
+		return;
+	}
+
+	// adjust for begin wait
+	time -= ms->move.begin_wait_time;
+
+	if (time >= ms->move.time) {
+		ms->pos = ms->move.end;
+		return;
+	}
+
+	// calculate (x,y) at time/move_time
+	int d_x = ms->move.end.x - ms->move.start.x;
+	int d_y = ms->move.end.y - ms->move.start.y;
+	double percent = (double)time / ms->move.time;
+	// TODO: acceleration
+	ms->pos.x = ms->move.start.x + (d_x * percent);
+	ms->pos.y = ms->move.start.y + (d_y * percent);
+}
+
+static void StoatSpriteEngine_MultiSprite_SetAllMoveCurrentTime(int time)
+{
+	for (int i = 0; i < NR_SP_TYPES; i++) {
+		for (int j = 0; j < sp_types[i].nr_sprites; j++) {
+			struct multisprite *ms = sp_types[i].sprites[j];
+			if (ms && ms->moving) {
+				multisprite_set_move_current_time(ms, time);
+			}
+		}
+	}
+}
+
+static void StoatSpriteEngine_MultiSprite_EndAllMove(void)
+{
+	for (int i = 0; i < NR_SP_TYPES; i++) {
+		for (int j = 0; j < sp_types[i].nr_sprites; j++) {
+			struct multisprite *ms = sp_types[i].sprites[j];
+			if (ms && ms->moving) {
+				ms->pos = ms->move.end;
+			}
+		}
+	}
+}
+
+static bool StoatSpriteEngine_MultiSprite_UpdateView(void)
+{
+	for (int i = 0; i < NR_SP_TYPES; i++) {
+		for (int j = 0; j < sp_types[i].nr_sprites; j++) {
+			if (sp_types[i].sprites[j]) {
+				multisprite_update(sp_types[i].sprites[j]);
+			}
+		}
+	}
+	return true;
+}
+
 //static void StoatSpriteEngine_MultiSprite_Rebuild(void);
-//static bool StoatSpriteEngine_MultiSprite_Encode(ref array@int pIEncodeData);
+
+static bool StoatSpriteEngine_MultiSprite_Encode(struct page **data)
+{
+	union vm_value dim = { .i = 1 };
+	*data = alloc_array(1, &dim, AIN_ARRAY_INT, 0, false);
+	return true;
+}
+
 //static bool StoatSpriteEngine_MultiSprite_Decode(ref array@int pIEncodeData);
 
 static int StoatSpriteEngine_SYSTEM_IsResetOnce(void)
@@ -106,10 +528,11 @@ static int StoatSpriteEngine_SYSTEM_IsResetOnce(void)
 }
 
 HLL_LIBRARY(StoatSpriteEngine,
+	    HLL_EXPORT(_ModuleFini, StoatSpriteEngine_ModuleFini), \
 	    HLL_EXPORT(SetVolumeMixerMasterGroupNum, StoatSpriteEngine_SetVolumeMixerMasterGroupNum), \
 	    HLL_EXPORT(SetVolumeMixerSEGroupNum, StoatSpriteEngine_SetVolumeMixerSEGroupNum), \
 	    HLL_EXPORT(SetVolumeMixerBGMGroupNum, StoatSpriteEngine_SetVolumeMixerBGMGroupNum), \
-	    HLL_EXPORT(Init, sact_Init), \
+	    HLL_EXPORT(Init, StoatSpriteEngine_Init), \
 	    HLL_TODO_EXPORT(Error, SACT2_Error), \
 	    HLL_EXPORT(SetWP_Color, sact_SetWP_Color), \
 	    HLL_EXPORT(GetScreenWidth, sact_GetScreenWidth), \
@@ -162,14 +585,14 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(SP_GetTextLineSpace, sact_SP_GetTextLineSpace), \
 	    HLL_EXPORT(SP_IsPtIn, sact_SP_IsPtIn), \
 	    HLL_EXPORT(SP_IsPtInRect, sact_SP_IsPtInRect), \
-	    HLL_TODO_EXPORT(SP_SetTextSprite, StoatSpriteEngine_SP_SetTextSprite), \
-	    HLL_TODO_EXPORT(SP_SetTextSpriteType, StoatSpriteEngine_SP_SetTextSpriteType), \
-	    HLL_TODO_EXPORT(SP_SetTextSpriteSize, StoatSpriteEngine_SP_SetTextSpriteSize), \
-	    HLL_TODO_EXPORT(SP_SetTextSpriteColor, StoatSpriteEngine_SP_SetTextSpriteColor), \
-	    HLL_TODO_EXPORT(SP_SetTextSpriteBoldWeight, StoatSpriteEngine_SP_SetTextSpriteBoldWeight), \
-	    HLL_TODO_EXPORT(SP_SetTextSpriteEdgeWeight, StoatSpriteEngine_SP_SetTextSpriteEdgeWeight), \
-	    HLL_TODO_EXPORT(SP_SetTextSpriteEdgeColor, StoatSpriteEngine_SP_SetTextSpriteEdgeColor), \
-	    HLL_TODO_EXPORT(SP_SetDashTextSprite, StoatSpriteEngine_SP_SetDashTextSprite), \
+	    HLL_EXPORT(SP_SetTextSprite, StoatSpriteEngine_SP_SetTextSprite), \
+	    HLL_EXPORT(SP_SetTextSpriteType, StoatSpriteEngine_SP_SetTextSpriteType), \
+	    HLL_EXPORT(SP_SetTextSpriteSize, StoatSpriteEngine_SP_SetTextSpriteSize), \
+	    HLL_EXPORT(SP_SetTextSpriteColor, StoatSpriteEngine_SP_SetTextSpriteColor), \
+	    HLL_EXPORT(SP_SetTextSpriteBoldWeight, StoatSpriteEngine_SP_SetTextSpriteBoldWeight), \
+	    HLL_EXPORT(SP_SetTextSpriteEdgeWeight, StoatSpriteEngine_SP_SetTextSpriteEdgeWeight), \
+	    HLL_EXPORT(SP_SetTextSpriteEdgeColor, StoatSpriteEngine_SP_SetTextSpriteEdgeColor), \
+	    HLL_EXPORT(SP_SetDashTextSprite, StoatSpriteEngine_SP_SetDashTextSprite), \
 	    HLL_TODO_EXPORT(FPS_SetShow, StoatSpriteEngine_FPS_SetShow), \
 	    HLL_EXPORT(GAME_MSG_GetNumof, sact_GAME_MSG_GetNumOf), \
 	    HLL_TODO_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get), \
@@ -188,7 +611,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(Joypad_GetDigitalStickStatus, sact_Joypad_GetDigitalStickStatus), \
 	    HLL_EXPORT(Key_ClearFlag, sact_Key_ClearFlag), \
 	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown), \
-	    HLL_TODO_EXPORT(KEY_GetState, StoatSpriteEngine_KEY_GetState), \
+	    HLL_EXPORT(KEY_GetState, StoatSpriteEngine_KEY_GetState), \
 	    HLL_EXPORT(Timer_Get, vm_time), \
 	    HLL_EXPORT(CG_IsExist, sact_CG_IsExist), \
 	    HLL_EXPORT(CG_GetMetrics, sact_CG_GetMetrics), \
@@ -261,19 +684,19 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_TODO_EXPORT(Music_AnalyzeSampleData, SACTDX_Music_AnalyzeSampleData), \
 	    HLL_TODO_EXPORT(Key_ClearFlagNoCtrl, SACTDX_Key_ClearFlagNoCtrl), \
 	    HLL_TODO_EXPORT(Key_ClearFlagOne, SACTDX_Key_ClearFlagOne), \
-	    HLL_EXPORT(TRANS_Begin, StoatSpriteEngine_TRANS_Begin),	    \
-	    HLL_EXPORT(TRANS_Update, StoatSpriteEngine_TRANS_Update),	    \
-	    HLL_EXPORT(TRANS_End, StoatSpriteEngine_TRANS_End),	\
+	    HLL_EXPORT(TRANS_Begin, sact_TRANS_Begin),	    \
+	    HLL_EXPORT(TRANS_Update, sact_TRANS_Update),	    \
+	    HLL_EXPORT(TRANS_End, sact_TRANS_End),	\
 	    HLL_TODO_EXPORT(VIEW_SetMode, SACTDX_VIEW_SetMode),	\
 	    HLL_TODO_EXPORT(VIEW_GetMode, SACTDX_VIEW_GetMode),	\
 	    HLL_TODO_EXPORT(DX_GetUsePower2Texture, SACTDX_DX_GetUsePower2Texture),	\
 	    HLL_TODO_EXPORT(DX_SetUsePower2Texture, SACTDX_DX_SetUsePower2Texture), \
-	    HLL_TODO_EXPORT(MultiSprite_SetCG, StoatSpriteEngine_MultiSprite_SetCG), \
-	    HLL_TODO_EXPORT(MultiSprite_SetPos, StoatSpriteEngine_MultiSprite_SetPos), \
-	    HLL_TODO_EXPORT(MultiSprite_SetDefaultPos, StoatSpriteEngine_MultiSprite_SetDefaultPos), \
-	    HLL_TODO_EXPORT(MultiSprite_SetZ, StoatSpriteEngine_MultiSprite_SetZ),	\
-	    HLL_TODO_EXPORT(MultiSprite_SetAlpha, StoatSpriteEngine_MultiSprite_SetAlpha), \
-	    HLL_TODO_EXPORT(MultiSprite_SetTransitionInfo, StoatSpriteEngine_MultiSprite_SetTransitionInfo), \
+	    HLL_EXPORT(MultiSprite_SetCG, StoatSpriteEngine_MultiSprite_SetCG), \
+	    HLL_EXPORT(MultiSprite_SetPos, StoatSpriteEngine_MultiSprite_SetPos), \
+	    HLL_EXPORT(MultiSprite_SetDefaultPos, StoatSpriteEngine_MultiSprite_SetDefaultPos), \
+	    HLL_EXPORT(MultiSprite_SetZ, StoatSpriteEngine_MultiSprite_SetZ),	\
+	    HLL_EXPORT(MultiSprite_SetAlpha, StoatSpriteEngine_MultiSprite_SetAlpha), \
+	    HLL_EXPORT(MultiSprite_SetTransitionInfo, StoatSpriteEngine_MultiSprite_SetTransitionInfo), \
 	    HLL_TODO_EXPORT(MultiSprite_SetLinkedMessageFrame, StoatSpriteEngine_MultiSprite_SetLinkedMessageFrame), \
 	    HLL_TODO_EXPORT(MultiSprite_SetParentMessageFrameNum, StoatSpriteEngine_MultiSprite_SetParentMessageFrameNum), \
 	    HLL_TODO_EXPORT(MultiSprite_SetOriginPosMode, StoatSpriteEngine_MultiSprite_SetOriginPosMode), \
@@ -284,22 +707,22 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_TODO_EXPORT(MultiSprite_CharSpriteProperty_SetBoldWeight, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetBoldWeight), \
 	    HLL_TODO_EXPORT(MultiSprite_CharSpriteProperty_SetEdgeWeight, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeWeight), \
 	    HLL_TODO_EXPORT(MultiSprite_CharSpriteProperty_SetEdgeColor, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeColor), \
-	    HLL_TODO_EXPORT(MultiSprite_GetTransitionInfo, StoatSpriteEngine_MultiSprite_GetTransitionInfo), \
-	    HLL_TODO_EXPORT(MultiSprite_GetCG, StoatSpriteEngine_MultiSprite_GetCG), \
-	    HLL_TODO_EXPORT(MultiSprite_GetPos, StoatSpriteEngine_MultiSprite_GetPos), \
-	    HLL_TODO_EXPORT(MultiSprite_GetAlpha, StoatSpriteEngine_MultiSprite_GetAlpha), \
-	    HLL_TODO_EXPORT(MultiSprite_ResetDefaultPos, StoatSpriteEngine_MultiSprite_ResetDefaultPos), \
-	    HLL_TODO_EXPORT(MultiSprite_ResetAllDefaultPos, StoatSpriteEngine_MultiSprite_ResetAllDefaultPos), \
-	    HLL_TODO_EXPORT(MultiSprite_ResetAllCG, StoatSpriteEngine_MultiSprite_ResetAllCG), \
+	    HLL_EXPORT(MultiSprite_GetTransitionInfo, StoatSpriteEngine_MultiSprite_GetTransitionInfo), \
+	    HLL_EXPORT(MultiSprite_GetCG, StoatSpriteEngine_MultiSprite_GetCG), \
+	    HLL_EXPORT(MultiSprite_GetPos, StoatSpriteEngine_MultiSprite_GetPos), \
+	    HLL_EXPORT(MultiSprite_GetAlpha, StoatSpriteEngine_MultiSprite_GetAlpha), \
+	    HLL_EXPORT(MultiSprite_ResetDefaultPos, StoatSpriteEngine_MultiSprite_ResetDefaultPos), \
+	    HLL_EXPORT(MultiSprite_ResetAllDefaultPos, StoatSpriteEngine_MultiSprite_ResetAllDefaultPos), \
+	    HLL_EXPORT(MultiSprite_ResetAllCG, StoatSpriteEngine_MultiSprite_ResetAllCG), \
 	    HLL_TODO_EXPORT(MultiSprite_SetAllShowMessageFrame, StoatSpriteEngine_MultiSprite_SetAllShowMessageFrame), \
-	    HLL_TODO_EXPORT(MultiSprite_BeginMove, StoatSpriteEngine_MultiSprite_BeginMove), \
-	    HLL_TODO_EXPORT(MultiSprite_BeginMoveWithAlpha, StoatSpriteEngine_MultiSprite_BeginMoveWithAlpha), \
-	    HLL_TODO_EXPORT(MultiSprite_GetMaxMoveTotalTime, StoatSpriteEngine_MultiSprite_GetMaxMoveTotalTime), \
-	    HLL_TODO_EXPORT(MultiSprite_SetAllMoveCurrentTime, StoatSpriteEngine_MultiSprite_SetAllMoveCurrentTime), \
-	    HLL_TODO_EXPORT(MultiSprite_EndAllMove, StoatSpriteEngine_MultiSprite_EndAllMove), \
-	    HLL_TODO_EXPORT(MultiSprite_UpdateView, StoatSpriteEngine_MultiSprite_UpdateView), \
+	    HLL_EXPORT(MultiSprite_BeginMove, StoatSpriteEngine_MultiSprite_BeginMove), \
+	    HLL_EXPORT(MultiSprite_BeginMoveWithAlpha, StoatSpriteEngine_MultiSprite_BeginMoveWithAlpha), \
+	    HLL_EXPORT(MultiSprite_GetMaxMoveTotalTime, StoatSpriteEngine_MultiSprite_GetMaxMoveTotalTime), \
+	    HLL_EXPORT(MultiSprite_SetAllMoveCurrentTime, StoatSpriteEngine_MultiSprite_SetAllMoveCurrentTime), \
+	    HLL_EXPORT(MultiSprite_EndAllMove, StoatSpriteEngine_MultiSprite_EndAllMove), \
+	    HLL_EXPORT(MultiSprite_UpdateView, StoatSpriteEngine_MultiSprite_UpdateView), \
 	    HLL_TODO_EXPORT(MultiSprite_Rebuild, StoatSpriteEngine_MultiSprite_Rebuild), \
-	    HLL_TODO_EXPORT(MultiSprite_Encode, StoatSpriteEngine_MultiSprite_Encode), \
+	    HLL_EXPORT(MultiSprite_Encode, StoatSpriteEngine_MultiSprite_Encode), \
 	    HLL_TODO_EXPORT(MultiSprite_Decode, StoatSpriteEngine_MultiSprite_Decode), \
 	    HLL_EXPORT(SYSTEM_IsResetOnce, StoatSpriteEngine_SYSTEM_IsResetOnce));
 

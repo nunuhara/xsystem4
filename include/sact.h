@@ -21,6 +21,7 @@
 #include "sprite.h"
 
 struct sact_sprite *sact_get_sprite(int sp);
+struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
 void sact_ModuleFini(void);
 int sact_Init(void *_, int cg_cache_size);
 #define sact_SetWP sprite_set_wp
@@ -95,5 +96,8 @@ int sact_Sound_Prepare(int ch, int n);
 void sact_System_GetDate(int *year, int *month, int *mday, int *wday);
 void sact_System_GetTime(int *hour, int *min, int *sec, int *ms);
 void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int border);
+int sact_TRANS_Begin(int type);
+int sact_TRANS_Update(float rate);
+int sact_TRANS_End(void);
 
 #endif /* SYSTEM4_SACT_H */

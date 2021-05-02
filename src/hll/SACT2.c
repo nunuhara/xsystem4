@@ -32,8 +32,6 @@
 #include "vm/page.h"
 #include "xsystem4.h"
 
-static struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
-
 static struct sact_sprite **sprites = NULL;
 static int nr_sprites = 0;
 
@@ -59,6 +57,7 @@ static void sact_free_sprite(struct sact_sprite *sp)
 		VM_ERROR("Double free of sact_sprite");
 	sprites[sp->no] = NULL;
 	sprite_free(sp);
+	free(sp);
 }
 
 static void realloc_sprite_table(int n)
@@ -188,7 +187,7 @@ int sact_SP_SetCG(int sp_no, int cg_no)
 //int SACT2_SP_SetCGFromFile(int sp, struct string *filename);
 //int SACT2_SP_SaveCG(int sp, struct string *filename);
 
-static struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a)
+struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a)
 {
 	struct sact_sprite *sp;
 	if (sp_no < 0)
@@ -903,9 +902,6 @@ HLL_WARN_UNIMPLEMENTED(0, int,  SACTDX, Sound_GetGroupNumFromDataNum, int n);
 //static int SACTDX_Music_AnalyzeSampleData(ref array@float l, ref array@float r, ref array@int src, int chns, int bps);
 //static void SACTDX_Key_ClearFlagNoCtrl(void);
 //static void SACTDX_Key_ClearFlagOne(int nKeyCode);
-HLL_WARN_UNIMPLEMENTED(1, int, SACTDX, TRANS_Begin, int nNum);
-HLL_WARN_UNIMPLEMENTED(1, int, SACTDX, TRANS_Update, float fRate);
-HLL_WARN_UNIMPLEMENTED(1, int, SACTDX, TRANS_End);
 //static bool SACTDX_VIEW_SetMode(int nMode);
 //static int SACTDX_VIEW_GetMode(void);
 //static bool SACTDX_DX_GetUsePower2Texture(void);
@@ -924,9 +920,9 @@ HLL_WARN_UNIMPLEMENTED(1, int, SACTDX, TRANS_End);
 	HLL_TODO_EXPORT(Music_AnalyzeSampleData, SACTDX_Music_AnalyzeSampleData), \
 	HLL_TODO_EXPORT(Key_ClearFlagNoCtrl, SACTDX_Key_ClearFlagNoCtrl), \
 	HLL_TODO_EXPORT(Key_ClearFlagOne, SACTDX_Key_ClearFlagOne), \
-	HLL_EXPORT(TRANS_Begin, SACTDX_TRANS_Begin),	    \
-	HLL_EXPORT(TRANS_Update, SACTDX_TRANS_Update),	    \
-	HLL_EXPORT(TRANS_End, SACTDX_TRANS_End),	\
+	HLL_EXPORT(TRANS_Begin, sact_TRANS_Begin),	    \
+	HLL_EXPORT(TRANS_Update, sact_TRANS_Update),	    \
+	HLL_EXPORT(TRANS_End, sact_TRANS_End),	\
 	HLL_TODO_EXPORT(VIEW_SetMode, SACTDX_VIEW_SetMode),	\
 	HLL_TODO_EXPORT(VIEW_GetMode, SACTDX_VIEW_GetMode),	\
 	HLL_TODO_EXPORT(DX_GetUsePower2Texture, SACTDX_DX_GetUsePower2Texture),	\

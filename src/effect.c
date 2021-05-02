@@ -122,3 +122,47 @@ int sact_Effect(int type, possibly_unused int time, possibly_unused int key)
 	return 1;
 }
 
+static struct {
+	bool on;
+	int type;
+	Texture old;
+	Texture new;
+} trans = {0};
+
+int sact_TRANS_Begin(int type)
+{
+	if (type <= 0 || type >= NR_EFFECTS) {
+		WARNING("Invalid or unknown effect: %d", type);
+		return 0;
+	}
+	if (!effects[type]) {
+		WARNING("Unimplemented effect: %s", effect_names[type]);
+		return 0;
+	}
+
+	trans.on = true;
+	trans.type = type;
+	gfx_copy_main_surface(&trans.old);
+	sprite_render_scene();
+	gfx_copy_main_surface(&trans.new);
+	return 1;
+}
+
+int sact_TRANS_Update(float rate)
+{
+	if (!trans.on) {
+		return 0;
+	}
+	gfx_clear();
+	effects[trans.type](&trans.old, &trans.new, rate);
+	gfx_swap();
+	return 1;
+}
+
+int sact_TRANS_End(void)
+{
+	trans.on = false;
+	gfx_delete_texture(&trans.old);
+	gfx_delete_texture(&trans.new);
+	return 1;
+}

@@ -64,7 +64,6 @@ void sprite_free(struct sact_sprite *sp)
 		sprite_unregister(sp);
 	gfx_delete_texture(&sp->texture);
 	gfx_delete_texture(&sp->text.texture);
-	free(sp);
 }
 
 void sprite_render_scene(void)
