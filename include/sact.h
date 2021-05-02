@@ -76,5 +76,24 @@ int sact_SP_IsPtInRect(int sp_no, int x, int y);
 int sact_CG_GetMetrics(int cg_no, struct page **page);
 int sact_SP_GetAMapValue(int sp_no, int x, int y);
 int sact_SP_GetPixelValue(int sp_no, int x, int y, int *r, int *g, int *b);
+int sact_GAME_MSG_GetNumOf(void);
+void sact_IntToZenkaku(struct string **s, int value, int figures, int zero_pad);
+void sact_IntToHankaku(struct string **s, int value, int figures, int zero_pad);
+int sact_Mouse_GetPos(int *x, int *y);
+int sact_Mouse_SetPos(int x, int y);
+void sact_Joypad_ClearKeyDownFlag(int n);
+int sact_Joypad_IsKeyDown(int num, int key);
+bool sact_Joypad_GetAnalogStickStatus(int num, int type, float *degree, float *power);
+bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *right, bool *up, bool *down);
+int sact_Key_ClearFlag(void);
+int sact_Key_IsDown(int keycode);
+int sact_CG_IsExist(int cg_no);
+int sact_Music_IsExist(int n);
+int sact_Music_Prepare(int ch, int n);
+int sact_Sound_IsExist(int n);
+int sact_Sound_Prepare(int ch, int n);
+void sact_System_GetDate(int *year, int *month, int *mday, int *wday);
+void sact_System_GetTime(int *hour, int *min, int *sec, int *ms);
+void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int border);
 
 #endif /* SYSTEM4_SACT_H */
