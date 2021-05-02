@@ -144,6 +144,11 @@ static int Math_RandTable(int num)
 //void Math_RandTable2Init(int num, struct page *array);
 //int Math_RandTable2(int num);
 
+int Math_Ceil(float f)
+{
+	return (int)ceilf(f);
+}
+
 HLL_LIBRARY(Math,
 	    HLL_EXPORT(Cos, Math_Cos),
 	    HLL_EXPORT(Sin, Math_Sin),
@@ -168,5 +173,6 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(Swap, Math_Swap),
 	    HLL_EXPORT(SwapF, Math_SwapF),
 	    HLL_EXPORT(Log, logf),
-	    HLL_EXPORT(Log10, log10f));
+	    HLL_EXPORT(Log10, log10f),
+	    HLL_EXPORT(Ceil, Math_Ceil));
 
