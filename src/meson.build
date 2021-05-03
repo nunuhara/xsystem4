@@ -51,6 +51,7 @@ xsystem4 = ['audio.c',
             'hll/SystemService.c',
             'hll/SystemServiceEx.c',
             'hll/Timer.c',
+            'hll/VSFile.c',
 ]
 
 xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, ffi, gl, glew, libsys4_dep]

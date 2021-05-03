@@ -172,6 +172,7 @@ extern struct static_library lib_StoatSpriteEngine;
 extern struct static_library lib_SystemService;
 extern struct static_library lib_SystemServiceEx;
 extern struct static_library lib_Timer;
+extern struct static_library lib_VSFile;
 
 static struct static_library *static_libraries[] = {
 	&lib_ACXLoader,
@@ -209,6 +210,7 @@ static struct static_library *static_libraries[] = {
 	&lib_SystemService,
 	&lib_SystemServiceEx,
 	&lib_Timer,
+	&lib_VSFile,
 	NULL
 };
 

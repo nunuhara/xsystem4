@@ -520,7 +520,7 @@ static bool StoatSpriteEngine_MultiSprite_Encode(struct page **data)
 	return true;
 }
 
-//static bool StoatSpriteEngine_MultiSprite_Decode(ref array@int pIEncodeData);
+HLL_WARN_UNIMPLEMENTED(true, bool, StoatSpriteEngine, MultiSprite_Decode, struct page **data);
 
 static int StoatSpriteEngine_SYSTEM_IsResetOnce(void)
 {
@@ -723,7 +723,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(MultiSprite_UpdateView, StoatSpriteEngine_MultiSprite_UpdateView), \
 	    HLL_TODO_EXPORT(MultiSprite_Rebuild, StoatSpriteEngine_MultiSprite_Rebuild), \
 	    HLL_EXPORT(MultiSprite_Encode, StoatSpriteEngine_MultiSprite_Encode), \
-	    HLL_TODO_EXPORT(MultiSprite_Decode, StoatSpriteEngine_MultiSprite_Decode), \
+	    HLL_EXPORT(MultiSprite_Decode, StoatSpriteEngine_MultiSprite_Decode), \
 	    HLL_EXPORT(SYSTEM_IsResetOnce, StoatSpriteEngine_SYSTEM_IsResetOnce));
 
 
