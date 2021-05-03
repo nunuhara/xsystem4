@@ -27,6 +27,7 @@
 #include "system4.h"
 #include "system4/ain.h"
 #include "system4/instructions.h"
+#include "system4/file.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -586,6 +587,18 @@ static void system_call(enum syscall_code code)
 		int funcname = stack_pop().i;
 		stack_push(ain_get_function(ain, heap[funcname].s->text) > 0);
 		heap_unref(funcname);
+		break;
+	}
+	case SYS_COPY_SAVE_FILE: { // system.CopySaveFile(string szDestFileName, string szSourceFileName)
+		int src = stack_pop().i;
+		int dst = stack_pop().i;
+		char *u_src = savedir_path(heap[src].s->text);
+		char *u_dst = savedir_path(heap[dst].s->text);
+		stack_push(file_copy(u_src, u_dst));
+		free(u_src);
+		free(u_dst);
+		heap_unref(src);
+		heap_unref(dst);
 		break;
 	}
 	default:
