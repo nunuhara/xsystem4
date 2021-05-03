@@ -489,3 +489,17 @@ void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx
 
 	restore_blend_mode();
 }
+
+void gfx_fill_with_alpha(Texture *dst, int x, int y, int w, int h, int r, int g, int b, int a)
+{
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(x, y, 0, 0, w, h);
+	data.r = r / 255.0;
+	data.g = g / 255.0;
+	data.b = b / 255.0;
+	data.a = a / 255.0;
+	run_copy_shader(&fill_shader.s, dst, NULL, &data);
+
+	restore_blend_mode();
+}
