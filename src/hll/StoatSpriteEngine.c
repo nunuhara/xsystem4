@@ -401,7 +401,14 @@ static void StoatSpriteEngine_MultiSprite_ResetAllCG(void)
 	}
 }
 
-//static void StoatSpriteEngine_MultiSprite_SetAllShowMessageFrame(bool bShow);
+static void StoatSpriteEngine_MultiSprite_SetAllShowMessageFrame(bool show)
+{
+	for (int i = 0; i < sp_types[0].nr_sprites; i++) {
+		if (sp_types[0].sprites[i]) {
+			sprite_set_show(&sp_types[0].sprites[i]->sp, show);
+		}
+	}
+}
 
 static bool StoatSpriteEngine_MultiSprite_BeginMove(int type, int n, int x0, int y0, int x1, int y1, int t, int begin_wait_time, float move_accel)
 {
@@ -714,7 +721,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(MultiSprite_ResetDefaultPos, StoatSpriteEngine_MultiSprite_ResetDefaultPos), \
 	    HLL_EXPORT(MultiSprite_ResetAllDefaultPos, StoatSpriteEngine_MultiSprite_ResetAllDefaultPos), \
 	    HLL_EXPORT(MultiSprite_ResetAllCG, StoatSpriteEngine_MultiSprite_ResetAllCG), \
-	    HLL_TODO_EXPORT(MultiSprite_SetAllShowMessageFrame, StoatSpriteEngine_MultiSprite_SetAllShowMessageFrame), \
+	    HLL_EXPORT(MultiSprite_SetAllShowMessageFrame, StoatSpriteEngine_MultiSprite_SetAllShowMessageFrame), \
 	    HLL_EXPORT(MultiSprite_BeginMove, StoatSpriteEngine_MultiSprite_BeginMove), \
 	    HLL_EXPORT(MultiSprite_BeginMoveWithAlpha, StoatSpriteEngine_MultiSprite_BeginMoveWithAlpha), \
 	    HLL_EXPORT(MultiSprite_GetMaxMoveTotalTime, StoatSpriteEngine_MultiSprite_GetMaxMoveTotalTime), \
