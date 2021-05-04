@@ -96,11 +96,7 @@ int sact_Init(possibly_unused void *_, possibly_unused int cg_cache_size)
 
 void sact_ModuleFini(void)
 {
-	for (int i = 0; i < nr_sprites; i++) {
-		if (sprites[i]) {
-			sact_free_sprite(sprites[i]);
-		}
-	}
+	sact_SP_DeleteAll();
 }
 
 //int SACT2_Error(struct string *err);
@@ -221,6 +217,16 @@ int sact_SP_Delete(int sp_no)
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
 	sact_free_sprite(sp);
+	return 1;
+}
+
+int sact_SP_DeleteAll(void)
+{
+	for (int i = 0; i < nr_sprites; i++) {
+		if (sprites[i]) {
+			sact_free_sprite(sprites[i]);
+		}
+	}
 	return 1;
 }
 

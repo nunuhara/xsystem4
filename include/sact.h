@@ -39,6 +39,7 @@ int sact_SP_SetCG(int sp, int cg);
 int sact_SP_Create(int sp, int width, int height, int r, int g, int b, int a);
 int sact_SP_CreatePixelOnly(int sp, int width, int height);
 int sact_SP_Delete(int sp);
+int sact_SP_DeleteAll(void);
 int sact_SP_SetPos(int sp_no, int x, int y);
 int sact_SP_SetX(int sp_no, int x);
 int sact_SP_SetY(int sp_no, int y);
