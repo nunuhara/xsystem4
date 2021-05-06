@@ -143,10 +143,12 @@ extern struct static_library lib_AliceLogo;
 extern struct static_library lib_AliceLogo2;
 extern struct static_library lib_AliceLogo3;
 extern struct static_library lib_AliceLogo4;
+extern struct static_library lib_AnteaterADVEngine;
 extern struct static_library lib_BanMisc;
 extern struct static_library lib_Bitarray;
 extern struct static_library lib_Confirm;
 extern struct static_library lib_Confirm2;
+extern struct static_library lib_CrayfishLogViewer;
 extern struct static_library lib_DataFile;
 extern struct static_library lib_DrawGraph;
 extern struct static_library lib_DrawMovie2;
@@ -181,10 +183,12 @@ static struct static_library *static_libraries[] = {
 	&lib_AliceLogo2,
 	&lib_AliceLogo3,
 	&lib_AliceLogo4,
+	&lib_AnteaterADVEngine,
 	&lib_BanMisc,
 	&lib_Bitarray,
 	&lib_Confirm,
 	&lib_Confirm2,
+	&lib_CrayfishLogViewer,
 	&lib_DataFile,
 	&lib_DrawGraph,
 	&lib_DrawMovie2,

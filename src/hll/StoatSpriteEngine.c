@@ -34,6 +34,7 @@
 #include "vm/page.h"
 #include "xsystem4.h"
 #include "sact.h"
+#include "AnteaterADVEngine.h"
 
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, JoypadQuake_Set, int num, int type, int magnitude);
 HLL_WARN_UNIMPLEMENTED(1, int,  StoatSpriteEngine, Music_SetLoopCount, int ch, int count);
@@ -566,7 +567,6 @@ HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetInvalidateFrameSkip
 //bool StoatSpriteEngine_ADVLogList_Save(ref array@int pIVMArray);
 //bool StoatSpriteEngine_ADVLogList_Load(ref array@int pIVMArray);
 
-
 HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(_ModuleFini, StoatSpriteEngine_ModuleFini),
 	    HLL_EXPORT(SetVolumeMixerMasterGroupNum, StoatSpriteEngine_SetVolumeMixerMasterGroupNum),
@@ -782,18 +782,16 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_TODO_EXPORT(ADVSceneKeeper_Clear, StoatSpriteEngine_ADVSceneKeeper_Clear),
 	    HLL_TODO_EXPORT(ADVSceneKeeper_Save, StoatSpriteEngine_ADVSceneKeeper_Save),
 	    HLL_TODO_EXPORT(ADVSceneKeeper_Load, StoatSpriteEngine_ADVSceneKeeper_Load),
-	    HLL_TODO_EXPORT(ADVLogList_Clear, StoatSpriteEngine_ADVLogList_Clear),
-	    HLL_TODO_EXPORT(ADVLogList_AddText, StoatSpriteEngine_ADVLogList_AddText),
-	    HLL_TODO_EXPORT(ADVLogList_AddNewLine, StoatSpriteEngine_ADVLogList_AddNewLine),
-	    HLL_TODO_EXPORT(ADVLogList_AddNewPage, StoatSpriteEngine_ADVLogList_AddNewPage),
-	    HLL_TODO_EXPORT(ADVLogList_AddVoice, StoatSpriteEngine_ADVLogList_AddVoice),
-	    HLL_TODO_EXPORT(ADVLogList_SetEnable, StoatSpriteEngine_ADVLogList_SetEnable),
-	    HLL_TODO_EXPORT(ADVLogList_IsEnable, StoatSpriteEngine_ADVLogList_IsEnable),
-	    HLL_TODO_EXPORT(ADVLogList_GetNumofADVLog, StoatSpriteEngine_ADVLogList_GetNumofADVLog),
-	    HLL_TODO_EXPORT(ADVLogList_GetNumofADVLogText, StoatSpriteEngine_ADVLogList_GetNumofADVLogText),
-	    HLL_TODO_EXPORT(ADVLogList_GetADVLogText, StoatSpriteEngine_ADVLogList_GetADVLogText),
-	    HLL_TODO_EXPORT(ADVLogList_GetADVLogVoice, StoatSpriteEngine_ADVLogList_GetADVLogVoice),
-	    HLL_TODO_EXPORT(ADVLogList_Save, StoatSpriteEngine_ADVLogList_Save),
-	    HLL_TODO_EXPORT(ADVLogList_Load, StoatSpriteEngine_ADVLogList_Load));
-
-
+	    HLL_EXPORT(ADVLogList_Clear, ADVLogList_Clear),
+	    HLL_EXPORT(ADVLogList_AddText, ADVLogList_AddText),
+	    HLL_EXPORT(ADVLogList_AddNewLine, ADVLogList_AddNewLine),
+	    HLL_EXPORT(ADVLogList_AddNewPage, ADVLogList_AddNewPage),
+	    HLL_EXPORT(ADVLogList_AddVoice, ADVLogList_AddVoice),
+	    HLL_EXPORT(ADVLogList_SetEnable, ADVLogList_SetEnable),
+	    HLL_EXPORT(ADVLogList_IsEnable, ADVLogList_IsEnable),
+	    HLL_EXPORT(ADVLogList_GetNumofADVLog, ADVLogList_GetNumofADVLog),
+	    HLL_EXPORT(ADVLogList_GetNumofADVLogText, ADVLogList_GetNumofADVLogText),
+	    HLL_EXPORT(ADVLogList_GetADVLogText, ADVLogList_GetADVLogText),
+	    HLL_EXPORT(ADVLogList_GetADVLogVoice, ADVLogList_GetADVLogVoice),
+	    HLL_EXPORT(ADVLogList_Save, ADVLogList_Save),
+	    HLL_EXPORT(ADVLogList_Load, ADVLogList_Load));
