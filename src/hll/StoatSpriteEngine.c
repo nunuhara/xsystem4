@@ -35,6 +35,7 @@
 #include "xsystem4.h"
 #include "sact.h"
 #include "AnteaterADVEngine.h"
+#include "CharSpriteManager.h"
 
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, JoypadQuake_Set, int num, int type, int magnitude);
 HLL_WARN_UNIMPLEMENTED(1, int,  StoatSpriteEngine, Music_SetLoopCount, int ch, int count);
@@ -553,19 +554,6 @@ HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetInvalidateFrameSkip
 //void StoatSpriteEngine_ADVSceneKeeper_Clear(void);
 //bool StoatSpriteEngine_ADVSceneKeeper_Save(ref array@int pIVMArray);
 //bool StoatSpriteEngine_ADVSceneKeeper_Load(ref array@int pIVMArray);
-//void StoatSpriteEngine_ADVLogList_Clear(void);
-//void StoatSpriteEngine_ADVLogList_AddText(ref string pIText);
-//void StoatSpriteEngine_ADVLogList_AddNewLine(void);
-//void StoatSpriteEngine_ADVLogList_AddNewPage(void);
-//void StoatSpriteEngine_ADVLogList_AddVoice(int nVoiceNumber);
-//void StoatSpriteEngine_ADVLogList_SetEnable(bool bEnable);
-//bool StoatSpriteEngine_ADVLogList_IsEnable(void);
-//int StoatSpriteEngine_ADVLogList_GetNumofADVLog(void);
-//int StoatSpriteEngine_ADVLogList_GetNumofADVLogText(int nADVLog);
-//void StoatSpriteEngine_ADVLogList_GetADVLogText(int nADVLog, int nText, ref string pIText);
-//int StoatSpriteEngine_ADVLogList_GetADVLogVoice(int nADVLog);
-//bool StoatSpriteEngine_ADVLogList_Save(ref array@int pIVMArray);
-//bool StoatSpriteEngine_ADVLogList_Load(ref array@int pIVMArray);
 
 HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(_ModuleFini, StoatSpriteEngine_ModuleFini),
@@ -765,6 +753,20 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(MultiSprite_Rebuild, StoatSpriteEngine_MultiSprite_Rebuild),
 	    HLL_EXPORT(MultiSprite_Encode, StoatSpriteEngine_MultiSprite_Encode),
 	    HLL_EXPORT(MultiSprite_Decode, StoatSpriteEngine_MultiSprite_Decode),
+	    HLL_EXPORT(CharSpriteManager_CreateHandle, CharSpriteManager_CreateHandle),
+	    HLL_EXPORT(CharSpriteManager_ReleaseHandle, CharSpriteManager_ReleaseHandle),
+	    HLL_EXPORT(CharSpriteManager_Clear, CharSpriteManager_Clear),
+	    HLL_TODO_EXPORT(CharSpriteManager_Rebuild, CharSpriteManager_Rebuild),
+	    HLL_TODO_EXPORT(CharSpriteManager_Save, CharSpriteManager_Save),
+	    HLL_TODO_EXPORT(CharSpriteManager_Load, CharSpriteManager_Load),
+	    HLL_EXPORT(CharSprite_Release, CharSprite_Release),
+	    HLL_EXPORT(CharSprite_SetChar, CharSprite_SetChar),
+	    HLL_EXPORT(CharSprite_SetPos, CharSprite_SetPos),
+	    HLL_EXPORT(CharSprite_SetZ, CharSprite_SetZ),
+	    HLL_EXPORT(CharSprite_SetAlphaRate, CharSprite_SetAlphaRate),
+	    HLL_EXPORT(CharSprite_SetShow, CharSprite_SetShow),
+	    HLL_EXPORT(CharSprite_GetChar, CharSprite_GetChar),
+	    HLL_EXPORT(CharSprite_GetAlphaRate, CharSprite_GetAlphaRate),
 	    HLL_EXPORT(SYSTEM_IsResetOnce, StoatSpriteEngine_SYSTEM_IsResetOnce),
 	    HLL_EXPORT(SYSTEM_SetConfigOverFrameRateSleep, StoatSpriteEngine_SYSTEM_SetConfigOverFrameRateSleep),
 	    HLL_EXPORT(SYSTEM_GetConfigOverFrameRateSleep, StoatSpriteEngine_SYSTEM_GetConfigOverFrameRateSleep),

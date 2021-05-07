@@ -69,6 +69,7 @@ void sprite_free(struct sact_sprite *sp)
 	sprite_unregister(sp);
 	gfx_delete_texture(&sp->texture);
 	gfx_delete_texture(&sp->text.texture);
+	memset(sp, 0, sizeof(struct sact_sprite));
 }
 
 void sprite_render_scene(void)
