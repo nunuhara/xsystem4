@@ -39,29 +39,34 @@ TAILQ_HEAD(listhead, sact_sprite) sprite_list =
 
 void sprite_register(struct sact_sprite *sp)
 {
+	if (sp->in_scene)
+		return;
+
 	struct sact_sprite *p;
 	TAILQ_FOREACH(p, &sprite_list, entry) {
 		if (p->z > sp->z) {
 			TAILQ_INSERT_BEFORE(p, sp, entry);
+			sp->in_scene = true;
 			return;
 		}
 	}
 	TAILQ_INSERT_TAIL(&sprite_list, sp, entry);
-	if (sp->show)
-		scene_dirty();
+	sp->in_scene = true;
+	scene_dirty();
 }
 
 void sprite_unregister(struct sact_sprite *sp)
 {
+	if (!sp->in_scene)
+		return;
 	TAILQ_REMOVE(&sprite_list, sp, entry);
-	if (sp->show)
-		scene_dirty();
+	sp->in_scene = false;
+	scene_dirty();
 }
 
 void sprite_free(struct sact_sprite *sp)
 {
-	if (sp->show)
-		sprite_unregister(sp);
+	sprite_unregister(sp);
 	gfx_delete_texture(&sp->texture);
 	gfx_delete_texture(&sp->text.texture);
 }
@@ -135,20 +140,23 @@ int sprite_set_cg(struct sact_sprite *sp, int cg_no)
 	sp->rect.h = cg->metrics.h;
 	sp->cg_no = cg_no;
 	cg_free(cg);
+
+	sp->has_pixel = true;
 	sprite_dirty(sp);
 	return 1;
 }
 
+/*
+ * Attach pixel data to a sprite. The texture is initialized lazily.
+ */
 void sprite_init(struct sact_sprite *sp, int w, int h, int r, int g, int b, int a)
 {
 	sp->color = (SDL_Color) { .r = r, .g = g, .b = b, .a = (a >= 0 ? a : 255) };
 	sp->rect.w = w;
 	sp->rect.h = h;
-	if (!sp->show) {
-		sp->show = true;
-		sprite_register(sp);
-	}
 	gfx_delete_texture(&sp->texture);
+
+	sp->has_pixel = true;
 	sprite_dirty(sp);
 }
 
@@ -181,7 +189,7 @@ void sprite_set_y(struct sact_sprite *sp, int y)
 void sprite_set_z(struct sact_sprite *sp, int z)
 {
 	sp->z = z;
-	if (sp->show) {
+	if (sp->in_scene) {
 		sprite_unregister(sp);
 		sprite_register(sp);
 	}
@@ -200,14 +208,8 @@ void sprite_set_blend_rate(struct sact_sprite *sp, int rate)
 
 void sprite_set_show(struct sact_sprite *sp, bool show)
 {
-	if (show == sp->show)
-		return;
-	sp->show = show;
+	sp->hidden = !show;
 	sprite_dirty(sp);
-	if (show)
-		sprite_register(sp);
-	else
-		sprite_unregister(sp);
 }
 
 int sprite_set_draw_method(struct sact_sprite *sp, int method)

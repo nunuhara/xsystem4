@@ -35,14 +35,6 @@
 static struct sact_sprite **sprites = NULL;
 static int nr_sprites = 0;
 
-// NOTE: Used externally by DrawGraph and SengokuRanceFont
-struct sact_sprite *sact_get_sprite(int sp)
-{
-	if (sp < -1 || sp >= nr_sprites)
-		return NULL;
-	return sprites[sp];
-}
-
 static struct sact_sprite *sact_alloc_sprite(int sp)
 {
 	sprites[sp] = xcalloc(1, sizeof(struct sact_sprite));
@@ -69,6 +61,19 @@ static void realloc_sprite_table(int n)
 	sprites = tmp + 1;
 
 	memset(sprites + old_nr_sprites, 0, sizeof(struct sact_sprite*) * (nr_sprites - old_nr_sprites));
+}
+
+// NOTE: Used externally by DrawGraph and SengokuRanceFont
+struct sact_sprite *sact_get_sprite(int sp)
+{
+	if (sp < -1)
+		return NULL;
+	if (sp >= nr_sprites)
+		realloc_sprite_table(sp+256);
+	if (!sprites[sp]) {
+		return sact_alloc_sprite(sp);
+	}
+	return sprites[sp];
 }
 
 int sact_Init(possibly_unused void *_, possibly_unused int cg_cache_size)
