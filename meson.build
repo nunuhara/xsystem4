@@ -15,6 +15,7 @@ tj = dependency('libturbojpeg')
 webp = dependency('libwebp')
 png = dependency('libpng')
 chibi = dependency('chibi-scheme', required : get_option('debugger'))
+cglm = dependency('cglm')
 
 flex = find_program('flex')
 bison = find_program('bison')

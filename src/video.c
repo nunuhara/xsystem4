@@ -155,6 +155,7 @@ static int gl_initialize(void)
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
+	glBindVertexArray(0);
 
 	return 0;
 }
@@ -234,6 +235,7 @@ static void main_surface_init(int w, int h)
 	main_surface.w = w;
 	main_surface.h = h;
 	main_surface.has_alpha = true;
+	main_surface.flip_y = false;
 	main_surface.alpha_mod = 255;
 	main_surface.draw_method = DRAW_METHOD_NORMAL;
 
@@ -326,6 +328,7 @@ void gfx_prepare_job(struct gfx_render_job *job)
  */
 void gfx_run_job(struct gfx_render_job *job)
 {
+	glBindVertexArray(sdl.gl.vao);
 	glEnableVertexAttribArray(job->shader->vertex);
 
 	glBindBuffer(GL_ARRAY_BUFFER, sdl.gl.vbo);
@@ -335,6 +338,7 @@ void gfx_run_job(struct gfx_render_job *job)
 	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL);
 
 	glDisableVertexAttribArray(job->shader->vertex);
+	glBindVertexArray(0);
 	glUseProgram(0);
 }
 
@@ -381,6 +385,10 @@ void gfx_render_texture(struct texture *t, Rectangle *r)
 		t->world_transform[12] = 0;
 		t->world_transform[13] = 0;
 	}
+	if (t->flip_y) {
+		t->world_transform[13] += t->world_transform[5];
+		t->world_transform[5] *= -1;
+	}
 
 	struct gfx_render_job job = {
 		.shader = &default_shader.s,
@@ -391,6 +399,10 @@ void gfx_render_texture(struct texture *t, Rectangle *r)
 	};
 	gfx_render(&job);
 
+	if (t->flip_y) {
+		t->world_transform[5] *= -1;
+		t->world_transform[13] -= t->world_transform[5];
+	}
 	if (t->draw_method != DRAW_METHOD_NORMAL || t->alpha_mod != 255)
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
@@ -415,6 +427,7 @@ static void init_texture(struct texture *t, int w, int h)
 	t->h = h;
 
 	t->has_alpha = true;
+	t->flip_y = false;
 	t->alpha_mod = 255;
 	t->draw_method = DRAW_METHOD_NORMAL;
 

@@ -17,6 +17,7 @@ First install the dependencies (corresponding Debian package in parentheses):
 
 * chibi-scheme [optional, for debugger]
 * bison (bison)
+* cglm (libcglm-dev)
 * flex (flex)
 * meson (meson)
 * libffi (libffi-dev)

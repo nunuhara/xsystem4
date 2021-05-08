@@ -30,6 +30,7 @@
 #include "gfx/gfx.h"
 #include "sact.h"
 #include "vm/page.h"
+#include "dungeon/dungeon.h"
 #include "xsystem4.h"
 
 static struct sact_sprite **sprites = NULL;
@@ -63,7 +64,7 @@ static void realloc_sprite_table(int n)
 	memset(sprites + old_nr_sprites, 0, sizeof(struct sact_sprite*) * (nr_sprites - old_nr_sprites));
 }
 
-// NOTE: Used externally by DrawGraph and SengokuRanceFont
+// NOTE: Used externally by DrawGraph, SengokuRanceFont and dungeon.c
 struct sact_sprite *sact_get_sprite(int sp)
 {
 	if (sp < -1)
@@ -126,6 +127,7 @@ int sact_GetMainSurfaceNumber(void)
 int sact_Update(void)
 {
 	handle_events();
+	dungeon_update();
 	if (sact_dirty) {
 		sprite_render_scene();
 		sprite_flip();
