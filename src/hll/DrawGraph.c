@@ -91,6 +91,11 @@ static void DrawGraph_BlendAMap(int dst, int dx, int dy, int src, int sx, int sy
 	gfx_blend_amap(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
+static void DrawGraph_BlendAMapColor(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b)
+{
+	gfx_blend_amap_color(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, r, g, b);
+}
+
 static void DrawGraph_BlendAMapAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
 {
 	gfx_blend_amap_alpha(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha);
@@ -116,7 +121,12 @@ static void DrawGraph_AddDA_DAxSA(int dst, int dx, int dy, int src, int sx, int 
 	gfx_add_da_daxsa(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
-void DrawGraph_SubDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+static void DrawGraph_BlendDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_blend_da_daxsa(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
+
+static void DrawGraph_SubDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
 	gfx_sub_da_daxsa(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
@@ -193,7 +203,6 @@ static void DrawGraph_SetFontName(struct string *text)
 //void DrawGraph_BlendSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
 //void DrawGraph_BlendAddSatur(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_BlendAMapSrcOnly(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
-//void DrawGraph_BlendAMapColor(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b);
 //void DrawGraph_BlendAMapColorAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b, int a);
 //void DrawGraph_BlendAMapBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int rate);
 //void DrawGraph_BlendAMapAlphaSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
@@ -209,7 +218,6 @@ static void DrawGraph_SetFontName(struct string *text)
 //void DrawGraph_SaturDP_DPxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_ScreenDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_SpriteCopyAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int key);
-//void DrawGraph_BlendDA_DAxSA, int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_BrightDestOnly(int dst, int x, int y, int w, int h, int rate);
 //void DrawGraph_CopyTextureWrap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v);
 //void DrawGraph_CopyTextureWrapAlpha(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v, int alpha);
@@ -272,7 +280,7 @@ HLL_LIBRARY(DrawGraph,
 	    //HLL_EXPORT(BlendAddSatur, DrawGraph_BlendAddSatur),
 	    HLL_EXPORT(BlendAMap, DrawGraph_BlendAMap),
 	    //HLL_EXPORT(BlendAMapSrcOnly, DrawGraph_BlendAMapSrcOnly),
-	    //HLL_EXPORT(BlendAMapColor, DrawGraph_BlendAMapColor),
+	    HLL_EXPORT(BlendAMapColor, DrawGraph_BlendAMapColor),
 	    //HLL_EXPORT(BlendAMapColorAlpha, DrawGraph_BlendAMapColorAlpha),
 	    HLL_EXPORT(BlendAMapAlpha, DrawGraph_BlendAMapAlpha),
 	    //HLL_EXPORT(BlendAMapBright, DrawGraph_BlendAMapBright),
@@ -293,7 +301,7 @@ HLL_LIBRARY(DrawGraph,
 	    //HLL_EXPORT(ScreenDA_DAxSA, DrawGraph_ScreenDA_DAxSA),
 	    HLL_EXPORT(AddDA_DAxSA, DrawGraph_AddDA_DAxSA),
 	    //HLL_EXPORT(SpriteCopyAMap, DrawGraph_SpriteCopyAMap),
-	    //HLL_EXPORT(BlendDA_DAxSA, DrawGraph_BlendDA_DAxSA),
+	    HLL_EXPORT(BlendDA_DAxSA, DrawGraph_BlendDA_DAxSA),
 	    HLL_EXPORT(SubDA_DAxSA, DrawGraph_SubDA_DAxSA),
 	    //HLL_EXPORT(BrightDestOnly, DrawGraph_BrightDestOnly),
 	    //HLL_EXPORT(CopyTextureWrap, DrawGraph_CopyTextureWrap),
