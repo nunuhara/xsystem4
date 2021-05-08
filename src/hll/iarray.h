@@ -18,8 +18,11 @@
 #define SYSTEM4_HLL_IARRAY_H
 
 #include <stddef.h>
+#include <stdbool.h>
 
 struct string;
+struct page;
+struct ain_type;
 
 // TODO: implement using array page directly?
 struct iarray_writer {
@@ -32,6 +35,9 @@ void iarray_init_writer(struct iarray_writer *w, const char *header);
 void iarray_free_writer(struct iarray_writer *w);
 void iarray_write(struct iarray_writer *w, int data);
 void iarray_write_string(struct iarray_writer *w, struct string *s);
+void iarray_write_struct(struct iarray_writer *w, struct page *page);
+void iarray_write_array(struct iarray_writer *w, struct page *page);
+
 struct page *iarray_to_page(struct iarray_writer *w);
 
 struct iarray_reader {
@@ -41,8 +47,10 @@ struct iarray_reader {
 	int error;
 };
 
-void iarray_init_reader(struct iarray_reader *r, struct page *a);
+bool iarray_init_reader(struct iarray_reader *r, struct page *a, const char *header);
 int iarray_read(struct iarray_reader *r);
 struct string *iarray_read_string(struct iarray_reader *r);
+struct page *iarray_read_struct(struct iarray_reader *r, int struct_type);
+struct page *iarray_read_array(struct iarray_reader *r, struct ain_type *t);
 
 #endif /* SYSTEM4_HLL_IARRAY_H */

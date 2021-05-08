@@ -63,6 +63,8 @@ bool string_index_valid(int index);
 struct page *heap_get_page(int index);
 struct string *heap_get_string(int index);
 void heap_set_page(int slot, struct page *page);
+int32_t heap_alloc_page(struct page *page);
+int32_t heap_alloc_string(struct string *s);
 
 /*
  * Guarantee `headroom` free slots are available on the heap.

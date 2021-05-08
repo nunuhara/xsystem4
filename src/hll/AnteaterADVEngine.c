@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include "system4/string.h"
+#include "system4/utfsjis.h"
 
 #include "vm/page.h"
 
@@ -217,10 +218,8 @@ bool ADVLogList_Load(struct page **data)
 	if (!(*data))
 		return false;
 	struct iarray_reader r;
-	iarray_init_reader(&r, *data);
-	if (iarray_read(&r) != 'A' || iarray_read(&r) != 'D' || iarray_read(&r) != 'L')
-		return false;
-	if (iarray_read(&r) || iarray_read(&r))
+	iarray_init_reader(&r, *data, "ADL");
+	if (iarray_read(&r))
 		return false;
 
 	ADVLogList_Clear();
@@ -273,12 +272,119 @@ error:
 	return false;
 }
 
-//bool ADVSceneKeeper_AddADVScene(struct page **page);
-//int ADVSceneKeeper_GetNumofADVScene(void);
-//bool ADVSceneKeeper_GetADVScene(int nIndex, struct page **page);
-//void ADVSceneKeeper_Clear(void);
-//bool ADVSceneKeeper_Save(struct page **iarray);
-//bool ADVSceneKeeper_Load(struct page **iarray);
+static struct {
+	unsigned n;
+	struct page **data;
+} scenes = {0};
+
+static int scene_struct_no(void)
+{
+	static int no = -1;
+	if (no < 0) {
+		char *s = utf2sjis("画面保管_t", 0);
+		no = ain_get_struct(ain, s);
+		free(s);
+		if (no < 0)
+			VM_ERROR("Missing definition for struct 画面保管_t");
+	}
+	return no;
+}
+
+bool ADVSceneKeeper_AddADVScene(struct page **page)
+{
+	assert(*page);
+	assert((*page)->type == STRUCT_PAGE);
+	if ((*page)->index != scene_struct_no()) {
+		WARNING("Invalid struct type: %d", (*page)->index);
+		return false;
+	}
+	scenes.data = xrealloc_array(scenes.data, scenes.n, scenes.n+1, sizeof(struct page*));
+	scenes.data[scenes.n++] = copy_page(*page);
+	return true;
+}
+
+int ADVSceneKeeper_GetNumofADVScene(void)
+{
+	return scenes.n;
+}
+
+bool ADVSceneKeeper_GetADVScene(int index, struct page **page)
+{
+	if (index < 0 || (unsigned)index >= scenes.n)
+		return false;
+
+	if (*page) {
+		delete_page_vars(*page);
+		free_page(*page);
+	}
+
+	*page = copy_page(scenes.data[index]);
+	return true;
+}
+
+void ADVSceneKeeper_Clear(void)
+{
+	for (unsigned i = 0; i < scenes.n; i++) {
+		delete_page_vars(scenes.data[i]);
+		free_page(scenes.data[i]);
+	}
+	free(scenes.data);
+	scenes.data = NULL;
+	scenes.n = 0;
+}
+
+bool ADVSceneKeeper_Save(struct page **iarray)
+{
+	if (*iarray) {
+		delete_page_vars(*iarray);
+		free_page(*iarray);
+	}
+	// NOTE: AnteaterADVEngine.dll knows about the structure of the input;
+	//       this implementation just serializes whatever it's given. Note
+	//       also that the structure of 画面保管_t objects differs between games.
+	struct iarray_writer w;
+	iarray_init_writer(&w, "ADS");
+	iarray_write(&w, 3); // version? Mankuchu puts 3 here
+	iarray_write(&w, scenes.n);
+	for (unsigned i = 0; i < scenes.n; i++) {
+		iarray_write_struct(&w, scenes.data[i]);
+	}
+	*iarray = iarray_to_page(&w);
+	iarray_free_writer(&w);
+	return true;
+}
+
+bool ADVSceneKeeper_Load(struct page **iarray)
+{
+	if (!(*iarray))
+		return false;
+
+	ADVSceneKeeper_Clear();
+
+	struct iarray_reader r;
+	iarray_init_reader(&r, *iarray, "ADS");
+
+	if (iarray_read(&r) != 3)
+		goto error;
+
+	int nr_scenes = iarray_read(&r);
+	if (nr_scenes < 0 || nr_scenes > 10000)
+		goto error;
+
+	scenes.n = 0;
+	scenes.data = xcalloc(nr_scenes, sizeof(struct page*));
+
+	int struct_type = scene_struct_no();
+	for (int i = 0; i < nr_scenes; i++) {
+		scenes.data[scenes.n++] = iarray_read_struct(&r, struct_type);
+		if (r.error)
+			goto error;
+	}
+	return true;
+error:
+	ADVSceneKeeper_Clear();
+	return false;
+}
 
 HLL_LIBRARY(AnteaterADVEngine,
 	    HLL_EXPORT(ADVLogList_Clear, ADVLogList_Clear),
@@ -295,10 +401,10 @@ HLL_LIBRARY(AnteaterADVEngine,
 	    HLL_EXPORT(ADVLogList_GetADVLogVoice, ADVLogList_GetADVLogVoice),
 	    HLL_EXPORT(ADVLogList_Save, ADVLogList_Save),
 	    HLL_EXPORT(ADVLogList_Load, ADVLogList_Load),
-	    HLL_TODO_EXPORT(ADVSceneKeeper_AddADVScene, ADVSceneKeeper_AddADVScene),
-	    HLL_TODO_EXPORT(ADVSceneKeeper_GetNumofADVScene, ADVSceneKeeper_GetNumofADVScene),
-	    HLL_TODO_EXPORT(ADVSceneKeeper_GetADVScene, ADVSceneKeeper_GetADVScene),
-	    HLL_TODO_EXPORT(ADVSceneKeeper_Clear, ADVSceneKeeper_Clear),
-	    HLL_TODO_EXPORT(ADVSceneKeeper_Save, ADVSceneKeeper_Save),
-	    HLL_TODO_EXPORT(ADVSceneKeeper_Load, ADVSceneKeeper_Load)
+	    HLL_EXPORT(ADVSceneKeeper_AddADVScene, ADVSceneKeeper_AddADVScene),
+	    HLL_EXPORT(ADVSceneKeeper_GetNumofADVScene, ADVSceneKeeper_GetNumofADVScene),
+	    HLL_EXPORT(ADVSceneKeeper_GetADVScene, ADVSceneKeeper_GetADVScene),
+	    HLL_EXPORT(ADVSceneKeeper_Clear, ADVSceneKeeper_Clear),
+	    HLL_EXPORT(ADVSceneKeeper_Save, ADVSceneKeeper_Save),
+	    HLL_EXPORT(ADVSceneKeeper_Load, ADVSceneKeeper_Load)
 	);

@@ -224,3 +224,17 @@ void heap_set_page(int slot, struct page *page)
 {
 	heap[slot].page = page;
 }
+
+int32_t heap_alloc_string(struct string *s)
+{
+	int slot = heap_alloc_slot(VM_STRING);
+	heap[slot].s = s;
+	return slot;
+}
+
+int32_t heap_alloc_page(struct page *page)
+{
+	int slot = heap_alloc_slot(VM_PAGE);
+	heap[slot].page = page;
+	return slot;
+}
