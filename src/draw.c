@@ -59,6 +59,7 @@ static struct copy_shader copy_color_reverse_shader;
 static struct copy_shader copy_key_shader;
 static struct copy_shader copy_use_amap_under_shader;
 static struct copy_shader copy_use_amap_border_shader;
+static struct copy_shader blend_amap_color_shader;
 static struct copy_shader blend_amap_alpha_shader;
 static struct copy_shader fill_shader;
 static struct copy_shader hitbox_shader;
@@ -102,6 +103,9 @@ void gfx_draw_init(void)
 
 	// copy shader that only keeps fragments above a certain alpha threshold
 	load_copy_shader(&copy_use_amap_border_shader, "shaders/render.v.glsl", "shaders/copy_use_amap_border.f.glsl");
+
+	// copy shader that sets source RGB to a constant
+	load_copy_shader(&blend_amap_color_shader, "shaders/render.v.glsl", "shaders/blend_amap_color.f.glsl");
 
 	// copy shader that multiples the source alpha by a constant
 	load_copy_shader(&blend_amap_alpha_shader, "shaders/render.v.glsl", "shaders/blend_amap_alpha.f.glsl");
@@ -285,6 +289,21 @@ void gfx_blend_amap(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, 
 	restore_blend_mode();
 }
 
+void gfx_blend_amap_color(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int r, int g, int b)
+{
+	// color = (r,g,b) * src_alpha + dst_color * (1 - src_alpha)
+	// alpha = dst_alpha
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	data.r = r / 255.0;
+	data.g = g / 255.0;
+	data.b = b / 255.0;
+	run_copy_shader(&blend_amap_color_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
 void gfx_blend_amap_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int a)
 {
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -337,7 +356,21 @@ void gfx_fill_amap(Texture *dst, int x, int y, int w, int h, int a)
 
 void gfx_add_da_daxsa(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
-	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ONE); // ???
+	// color = dst_color
+	// alpha = src_alpha + dst_alpha
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ONE);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_blend_da_daxsa(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	// color = dst_color
+	// alpha = src_alpha * dst_alpha
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ZERO, GL_SRC_ALPHA);
 
 	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
 	run_copy_shader(&copy_shader.s, dst, src, &data);
@@ -347,7 +380,10 @@ void gfx_add_da_daxsa(Texture *dst, int dx, int dy, Texture *src, int sx, int sy
 
 void gfx_sub_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h)
 {
-	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	// color = dst_color
+	// alpha = dst_alpha - src_alpha
+	glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_REVERSE_SUBTRACT);
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ONE);
 
 	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
 	run_copy_shader(&copy_shader.s, dst, src, &data);
