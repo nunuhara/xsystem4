@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
@@ -54,6 +55,11 @@ static float Math_Cos(float x)
 static float Math_Sin(float x)
 {
 	return sinf(deg2rad(x));
+}
+
+static void Math_SetSeedByCurrentTime(void)
+{
+	srand(time(NULL));
 }
 
 static int Math_Min(int a, int b)
@@ -159,6 +165,7 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(AbsF, fabsf),
 	    HLL_EXPORT(Pow, powf),
 	    HLL_EXPORT(SetSeed, srand),
+	    HLL_EXPORT(SetSeedByCurrentTime, Math_SetSeedByCurrentTime),
 	    //HLL_EXPORT(SetRandMode, Math_SetRandMode),
 	    HLL_EXPORT(Rand, rand),
 	    HLL_EXPORT(RandF, Math_RandF),
