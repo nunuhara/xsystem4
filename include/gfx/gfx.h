@@ -38,6 +38,7 @@ typedef struct texture {
 	GLfloat world_transform[16];
 	int w, h;
 	bool has_alpha;
+	bool flip_y;
 	int alpha_mod;
 	enum draw_method draw_method;
 } Texture;

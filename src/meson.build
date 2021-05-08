@@ -17,6 +17,14 @@ xsystem4 = ['audio.c',
             'video.c',
             'vm.c',
 
+            'dungeon/dgn.c',
+            'dungeon/dtx.c',
+            'dungeon/dungeon.c',
+            'dungeon/event_markers.c',
+            'dungeon/mesh.c',
+            'dungeon/skybox.c',
+            'dungeon/tes.c',
+
             'hll/ACXLoader.c',
             'hll/ADVSYS.c',
             'hll/AliceLogo.c',
@@ -31,6 +39,7 @@ xsystem4 = ['audio.c',
             'hll/Confirm2.c',
             'hll/CrayfishLogViewer.c',
             'hll/DataFile.c',
+            'hll/DrawDungeon.c',
             'hll/DrawGraph.c',
             'hll/DrawMovie2.c',
             'hll/DrawPluginManager.c',
@@ -58,7 +67,7 @@ xsystem4 = ['audio.c',
             'hll/VSFile.c',
 ]
 
-xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, ffi, gl, glew, libsys4_dep]
+xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, ffi, gl, glew, cglm, libsys4_dep]
 if chibi.found()
     xsystem4_deps += chibi
     xsystem4 += 'debugger.c'
