@@ -151,6 +151,19 @@ static bool StoatSpriteEngine_KEY_GetState(int key)
 	return key_is_down(key);
 }
 
+static bool keep_previous_view = true;
+
+HLL_WARN_UNIMPLEMENTED((keep_previous_view = on, true), bool, StoatSpriteEngine, KeepPreviousView_SetMode, bool on);
+HLL_WARN_UNIMPLEMENTED(keep_previous_view, bool, StoatSpriteEngine, KeepPreviousView_GetMode);
+
+/*
+ * NOTE: The multisprite "type" alters the behavior of the multisprite functions.
+ *
+ *     Type 0 - Default y pos is height/2; linked message frame by default
+ *     Type 5 - Text sprites; SetCG has no effect; SetText only works on type 5
+ */
+
+
 struct multisprite {
 	int type;
 	int no;
@@ -174,7 +187,10 @@ struct multisprite {
 		int no;
 		int time;
 	} trans;
+	bool linked_message_frame;
 	struct sact_sprite sp;
+	struct text_metrics tm;
+	int char_space;
 };
 
 struct sp_table {
@@ -188,13 +204,31 @@ struct sp_table sp_types[NR_SP_TYPES] = {0};
 
 static struct multisprite *multisprite_alloc(int type, int n)
 {
-	sp_types[type].sprites[n] = xcalloc(1, sizeof(struct multisprite));
-	sp_types[type].sprites[n]->type = type;
-	sp_types[type].sprites[n]->no = n;
-	sp_types[type].sprites[n]->alpha = 255;
-	sp_types[type].sprites[n]->z = 1;
-	sprite_dirty(&sp_types[type].sprites[n]->sp);
-	return sp_types[type].sprites[n];
+	struct multisprite *ms = xcalloc(1, sizeof(struct multisprite));
+	sp_types[type].sprites[n] = ms;
+
+	ms->type = type;
+	ms->no = n;
+	ms->alpha = 255;
+	ms->z = 1;
+	if (type == 0) {
+		ms->sp.rect.y = config.view_height/2;
+		ms->linked_message_frame = true;
+	} else if (type == 5) {
+		ms->tm = (struct text_metrics) {
+			.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
+			.outline_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
+			.size = 16,
+			.weight = FW_NORMAL,
+			.face = FONT_GOTHIC,
+			.outline_left = 0,
+			.outline_up = 0,
+			.outline_right = 0,
+			.outline_down = 0
+		};
+	}
+	sprite_dirty(&ms->sp);
+	return ms;
 }
 
 static void realloc_sprite_table(struct sp_table *table, int n)
@@ -264,7 +298,8 @@ static void multisprite_update(struct multisprite *ms)
 	sprite_set_blend_rate(&ms->sp, ms->alpha);
 	if (ms->cg_dirty) {
 		if (ms->cg) {
-			sprite_set_cg(&ms->sp, ms->cg);
+			if (ms->type != 5)
+				sprite_set_cg(&ms->sp, ms->cg);
 			sprite_set_show(&ms->sp, true);
 		} else {
 			sprite_set_show(&ms->sp, false);
@@ -279,6 +314,8 @@ static bool StoatSpriteEngine_MultiSprite_SetCG(int type, int n, int cg_no)
 		WARNING("Invalid CG number: %d", cg_no);
 		return false;
 	}
+	if (type == 5)
+		return true;
 
 	struct multisprite *ms = multisprite_get(type, n);
 	ms->cg = cg_no;
@@ -330,16 +367,105 @@ static bool StoatSpriteEngine_MultiSprite_SetTransitionInfo(int type, int n, int
 	return true;
 }
 
-//static bool StoatSpriteEngine_MultiSprite_SetLinkedMessageFrame(int nType, int nNum, bool bLink);
+static bool StoatSpriteEngine_MultiSprite_SetLinkedMessageFrame(int type, int n, bool link)
+{
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->linked_message_frame = link;
+	return true;
+}
+
+HLL_WARN_UNIMPLEMENTED(1, bool, StoatSpriteEngine, MultiSprite_SetParentMessageFrameNum,
+		       int type, int n, int message_area_num);
 //static bool StoatSpriteEngine_MultiSprite_SetParentMessageFrameNum(int nType, int nNum, int nMessageAreaNum);
 //static bool StoatSpriteEngine_MultiSprite_SetOriginPosMode(int nType, int nNum, int nMode);
-//static bool StoatSpriteEngine_MultiSprite_SetText(int nType, int nNum, string Text);
-//static bool StoatSpriteEngine_MultiSprite_SetCharSpace(int nType, int nNum, int nCharSpace);
-//static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetSize(int nType, int nNum, int nSize);
-//static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetColor(int nType, int nNum, int nR, int nG, int nB);
-//static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetBoldWeight(int nType, int nNum, float fBoldWeight);
-//static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeWeight(int nType, int nNum, float fEdgeWeight);
-//static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeColor(int nType, int nNum, int nR, int nG, int nB);
+
+static bool StoatSpriteEngine_MultiSprite_SetText(int type, int n, struct string *text)
+{
+	if (type != 5)
+		return true;
+
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+
+	int w = text->size * (ms->tm.size/2);
+	int h = ms->tm.size;
+	sprite_init(&ms->sp, w, h, 0, 0, 0, 0);
+	sprite_get_texture(&ms->sp); // XXX: force initialization of texture
+	gfx_render_text(&ms->sp.texture, (Point) { .x=0, .y=0 }, text->text, &ms->tm, ms->char_space);
+	sprite_dirty(&ms->sp);
+
+	ms->cg = 1;
+	ms->cg_dirty = true;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_SetCharSpace(int type, int n, int char_space)
+{
+	if (type != 5)
+		return true;
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->char_space = char_space;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetSize(int type, int n, int size)
+{
+	if (type != 5)
+		return true;
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->tm.size = size;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetColor(int type, int n, int r, int g, int b)
+{
+	if (type != 5)
+		return true;
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->tm.color.r = r;
+	ms->tm.color.g = g;
+	ms->tm.color.b = b;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetBoldWeight(int type, int n, float weight)
+{
+	if (type != 5)
+		return true;
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->tm.weight = weight * 1000; // FIXME: use float value internally
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeWeight(int type, int n, float weight)
+{
+	if (type != 5)
+		return true;
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->tm.outline_left = weight;
+	ms->tm.outline_up = weight;
+	ms->tm.outline_right = weight;
+	ms->tm.outline_down = weight;
+	return true;
+}
+
+static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeColor(int type, int n, int r, int g, int b)
+{
+	if (type != 5)
+		return true;
+	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms) return false;
+	ms->tm.outline_color.r = r;
+	ms->tm.outline_color.g = g;
+	ms->tm.outline_color.b = b;
+	return true;
+}
 
 static bool StoatSpriteEngine_MultiSprite_GetTransitionInfo(int type, int n, int *trans_no, int *trans_time)
 {
@@ -405,9 +531,11 @@ static void StoatSpriteEngine_MultiSprite_ResetAllCG(void)
 
 static void StoatSpriteEngine_MultiSprite_SetAllShowMessageFrame(bool show)
 {
-	for (int i = 0; i < sp_types[0].nr_sprites; i++) {
-		if (sp_types[0].sprites[i]) {
-			sprite_set_show(&sp_types[0].sprites[i]->sp, show);
+	for (int i = 0; i < NR_SP_TYPES; i++) {
+		for (int j = 0; j < sp_types[i].nr_sprites; j++) {
+			if (sp_types[i].sprites[j] && sp_types[i].sprites[j]->linked_message_frame) {
+				sprite_set_show(&sp_types[i].sprites[j]->sp, show);
+			}
 		}
 	}
 }
@@ -548,12 +676,6 @@ HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetConfigFrameSkipWhil
 HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetConfigFrameSkipWhileMessageSkip);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetInvalidateFrameSkipWhileMessageSkip, bool on);
 HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetInvalidateFrameSkipWhileMessageSkip);
-//bool StoatSpriteEngine_ADVSceneKeeper_AddADVScene(ref struct pIVMStruct2);
-//int StoatSpriteEngine_ADVSceneKeeper_GetNumofADVScene(void);
-//bool StoatSpriteEngine_ADVSceneKeeper_GetADVScene(int nIndex, ref struct pIVMStruct2);
-//void StoatSpriteEngine_ADVSceneKeeper_Clear(void);
-//bool StoatSpriteEngine_ADVSceneKeeper_Save(ref array@int pIVMArray);
-//bool StoatSpriteEngine_ADVSceneKeeper_Load(ref array@int pIVMArray);
 
 HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(_ModuleFini, StoatSpriteEngine_ModuleFini),
@@ -720,22 +842,24 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_TODO_EXPORT(VIEW_GetMode, SACTDX_VIEW_GetMode),
 	    HLL_TODO_EXPORT(DX_GetUsePower2Texture, SACTDX_DX_GetUsePower2Texture),
 	    HLL_TODO_EXPORT(DX_SetUsePower2Texture, SACTDX_DX_SetUsePower2Texture),
+	    HLL_EXPORT(KeepPreviousView_SetMode, StoatSpriteEngine_KeepPreviousView_SetMode),
+	    HLL_EXPORT(KeepPreviousView_GetMode, StoatSpriteEngine_KeepPreviousView_GetMode),
 	    HLL_EXPORT(MultiSprite_SetCG, StoatSpriteEngine_MultiSprite_SetCG),
 	    HLL_EXPORT(MultiSprite_SetPos, StoatSpriteEngine_MultiSprite_SetPos),
 	    HLL_EXPORT(MultiSprite_SetDefaultPos, StoatSpriteEngine_MultiSprite_SetDefaultPos),
 	    HLL_EXPORT(MultiSprite_SetZ, StoatSpriteEngine_MultiSprite_SetZ),
 	    HLL_EXPORT(MultiSprite_SetAlpha, StoatSpriteEngine_MultiSprite_SetAlpha),
 	    HLL_EXPORT(MultiSprite_SetTransitionInfo, StoatSpriteEngine_MultiSprite_SetTransitionInfo),
-	    HLL_TODO_EXPORT(MultiSprite_SetLinkedMessageFrame, StoatSpriteEngine_MultiSprite_SetLinkedMessageFrame),
-	    HLL_TODO_EXPORT(MultiSprite_SetParentMessageFrameNum, StoatSpriteEngine_MultiSprite_SetParentMessageFrameNum),
+	    HLL_EXPORT(MultiSprite_SetLinkedMessageFrame, StoatSpriteEngine_MultiSprite_SetLinkedMessageFrame),
+	    HLL_EXPORT(MultiSprite_SetParentMessageFrameNum, StoatSpriteEngine_MultiSprite_SetParentMessageFrameNum),
 	    HLL_TODO_EXPORT(MultiSprite_SetOriginPosMode, StoatSpriteEngine_MultiSprite_SetOriginPosMode),
-	    HLL_TODO_EXPORT(MultiSprite_SetText, StoatSpriteEngine_MultiSprite_SetText),
-	    HLL_TODO_EXPORT(MultiSprite_SetCharSpace, StoatSpriteEngine_MultiSprite_SetCharSpace),
-	    HLL_TODO_EXPORT(MultiSprite_CharSpriteProperty_SetSize, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetSize),
-	    HLL_TODO_EXPORT(MultiSprite_CharSpriteProperty_SetColor, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetColor),
-	    HLL_TODO_EXPORT(MultiSprite_CharSpriteProperty_SetBoldWeight, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetBoldWeight),
-	    HLL_TODO_EXPORT(MultiSprite_CharSpriteProperty_SetEdgeWeight, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeWeight),
-	    HLL_TODO_EXPORT(MultiSprite_CharSpriteProperty_SetEdgeColor, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeColor),
+	    HLL_EXPORT(MultiSprite_SetText, StoatSpriteEngine_MultiSprite_SetText),
+	    HLL_EXPORT(MultiSprite_SetCharSpace, StoatSpriteEngine_MultiSprite_SetCharSpace),
+	    HLL_EXPORT(MultiSprite_CharSpriteProperty_SetSize, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetSize),
+	    HLL_EXPORT(MultiSprite_CharSpriteProperty_SetColor, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetColor),
+	    HLL_EXPORT(MultiSprite_CharSpriteProperty_SetBoldWeight, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetBoldWeight),
+	    HLL_EXPORT(MultiSprite_CharSpriteProperty_SetEdgeWeight, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeWeight),
+	    HLL_EXPORT(MultiSprite_CharSpriteProperty_SetEdgeColor, StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeColor),
 	    HLL_EXPORT(MultiSprite_GetTransitionInfo, StoatSpriteEngine_MultiSprite_GetTransitionInfo),
 	    HLL_EXPORT(MultiSprite_GetCG, StoatSpriteEngine_MultiSprite_GetCG),
 	    HLL_EXPORT(MultiSprite_GetPos, StoatSpriteEngine_MultiSprite_GetPos),
