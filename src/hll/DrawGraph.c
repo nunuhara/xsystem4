@@ -249,7 +249,11 @@ HLL_WARN_UNIMPLEMENTED(string_ref(&EMPTY_STRING), struct string*, DrawGraph, Get
 //void DrawGraph_DrawLineToAMap(int dst, int x0, int y0, int x1, int y1, int alpha);
 //void DrawGraph_DrawPolygon(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2);
 //void DrawGraph_DrawColorPolygon(int dst, int tex, float x0, float y0, float z0, int r0, int g0, int b0, int a0, float x1, float y1, float z1, int r1, int g1, int b1, int a1, float x2, float y2, float z2, int r2, int g2, int b2, int a2);
-//void DrawGraph_CopyWithAlphaMap(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight);
+void DrawGraph_CopyWithAlphaMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_with_alpha_map(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
+
 void DrawGraph_FillWithAlpha(int dst, int x, int y, int w, int h, int r, int g, int b, int a)
 {
 	gfx_fill_with_alpha(DTEX(dst), x, y, w, h, r, g, b, a);
@@ -360,7 +364,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(GetAlphaColor, DrawGraph_GetAlphaColor),
 	    //HLL_EXPORT(DrawPolygon, DrawGraph_DrawPolygon),
 	    //HLL_EXPORT(DrawColorPolygon, DrawGraph_DrawColorPolygon)
-	    //HLL_EXPORT(CopyWithAlphaMap, DrawGraph_CopyWithAlphaMap),
+	    HLL_EXPORT(CopyWithAlphaMap, DrawGraph_CopyWithAlphaMap),
 	    HLL_EXPORT(FillWithAlpha, DrawGraph_FillWithAlpha)
 	    //HLL_EXPORT(CopyStretchWithAlphaMap, DrawGraph_CopyStretchWithAlphaMap),
 	    //HLL_EXPORT(CopyStretchBilinearWithAlphaMap, DrawGraph_CopyStretchBilinearWithAlphaMap),
