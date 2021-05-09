@@ -147,6 +147,21 @@ int sprite_set_cg(struct sact_sprite *sp, int cg_no)
 	return 1;
 }
 
+int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path)
+{
+	struct cg *cg = cg_load_file(path);
+	if (!cg)
+		return 0;
+	gfx_init_texture_with_cg(&sp->texture, cg);
+	sp->rect.w = cg->metrics.w;
+	sp->rect.h = cg->metrics.h;
+	cg_free(cg);
+
+	sp->has_pixel = true;
+	sprite_dirty(sp);
+	return 1;
+}
+
 /*
  * Attach pixel data to a sprite. The texture is initialized lazily.
  */

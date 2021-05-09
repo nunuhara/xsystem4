@@ -187,7 +187,21 @@ int sact_SP_SetCG(int sp_no, int cg_no)
 	return sprite_set_cg(sp, cg_no);
 }
 
-//int SACT2_SP_SetCGFromFile(int sp, struct string *filename);
+int SACT2_SP_SetCGFromFile(int sp_no, struct string *filename)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp)
+		sact_SP_Create(sp_no, 1, 1, 0, 0, 0, 255);
+	if (!(sp = sact_get_sprite(sp_no))) {
+		WARNING("Failed to create sprite");
+		return 0;
+	}
+	char *path = gamedir_path(filename->text);
+	int r = sprite_set_cg_from_file(sp, path);
+	free(path);
+	return r;
+}
+
 //int SACT2_SP_SaveCG(int sp, struct string *filename);
 
 struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a)
@@ -781,7 +795,7 @@ HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_GetBrightness, int sp_no);
 	    HLL_EXPORT(SP_Enum, sact_SP_Enum), \
 	    HLL_EXPORT(SP_GetMaxZ, sact_SP_GetMaxZ), \
 	    HLL_EXPORT(SP_SetCG, sact_SP_SetCG), \
-	    HLL_TODO_EXPORT(SP_SetCGFromFile, SACT2_SP_SetCGFromFile), \
+	    HLL_EXPORT(SP_SetCGFromFile, SACT2_SP_SetCGFromFile), \
 	    HLL_TODO_EXPORT(SP_SaveCG, SACT2_SP_SaveCG), \
 	    HLL_EXPORT(SP_Create, sact_SP_Create), \
 	    HLL_EXPORT(SP_CreatePixelOnly, sact_SP_CreatePixelOnly), \
