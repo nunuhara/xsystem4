@@ -155,6 +155,7 @@ extern struct static_library lib_DrawGraph;
 extern struct static_library lib_DrawMovie2;
 extern struct static_library lib_DrawPluginManager;
 extern struct static_library lib_File;
+extern struct static_library lib_FileOperation;
 extern struct static_library lib_Gpx2Plus;
 extern struct static_library lib_IbisInputEngine;
 extern struct static_library lib_InputDevice;
@@ -197,6 +198,7 @@ static struct static_library *static_libraries[] = {
 	&lib_DrawMovie2,
 	&lib_DrawPluginManager,
 	&lib_File,
+	&lib_FileOperation,
 	&lib_Gpx2Plus,
 	&lib_IbisInputEngine,
 	&lib_InputDevice,
