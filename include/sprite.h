@@ -91,6 +91,7 @@ struct texture *sprite_get_texture(struct sact_sprite *sp);
 int sprite_set_wp(int cg_no);
 int sprite_set_wp_color(int r, int g, int b);
 int sprite_set_cg(struct sact_sprite *sp, int cg_no);
+int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path);
 void sprite_init(struct sact_sprite *sp, int w, int h, int r, int g, int b, int a);
 int sprite_get_max_z(void);
 void sprite_set_pos(struct sact_sprite *sp, int x, int y);
