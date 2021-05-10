@@ -26,6 +26,7 @@
 
 #include "hll.h"
 #include "little_endian.h"
+#include "vm/heap.h"
 #include "vm/page.h"
 #include "xsystem4.h"
 
@@ -93,6 +94,8 @@ static bool ACXLoader_GetDataString(int line, int col, struct string **ptr)
 		return false;
 	if (col < 0 || col >= acx->nr_columns)
 		return false;
+	if (*ptr)
+		free_string(*ptr);
 	*ptr = string_ref(acx_get_string(acx, line, col));
 	return true;
 }
@@ -108,7 +111,10 @@ static bool ACXLoader_GetDataStruct(int line, struct page **page)
 	int nr_columns = acx->nr_columns;
 	for (int i = 0; i < nr_columns; i++) {
 		if (acx->column_types[i] == ACX_STRING) {
-			s[i].i = vm_string_ref(acx_get_string(acx, line, i));
+			if (heap[s[i].i].s) {
+				free_string(heap[s[i].i].s);
+			}
+			heap[s[i].i].s = string_ref(acx_get_string(acx, line, i));
 		} else {
 			s[i].i = acx_get_int(acx, line, i);
 		}
