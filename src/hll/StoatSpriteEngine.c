@@ -151,6 +151,8 @@ static bool StoatSpriteEngine_KEY_GetState(int key)
 	return key_is_down(key);
 }
 
+HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, VIEW_SetOffsetPos, int x, int y);
+
 static bool keep_previous_view = true;
 
 HLL_WARN_UNIMPLEMENTED((keep_previous_view = on, true), bool, StoatSpriteEngine, KeepPreviousView_SetMode, bool on);
@@ -670,8 +672,20 @@ HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetConfigOverFrameRate
 HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetConfigOverFrameRateSleep);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetConfigSleepByInactiveWindow, bool on);
 HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetConfigSleepByInactiveWindow);
-HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetReadMessageSkipping, bool on);
-HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetReadMessageSkipping);
+
+static bool read_message_skipping = false;
+
+static void StoatSpriteEngine_SYSTEM_SetReadMessageSkipping(bool on)
+{
+	read_message_skipping = on;
+}
+
+
+static bool StoatSpriteEngine_SYSTEM_GetReadMessageSkipping(void)
+{
+	return read_message_skipping;
+}
+
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetConfigFrameSkipWhileMessageSkip, bool on);
 HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetConfigFrameSkipWhileMessageSkip);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetInvalidateFrameSkipWhileMessageSkip, bool on);
@@ -840,6 +854,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(TRANS_End, sact_TRANS_End),
 	    HLL_TODO_EXPORT(VIEW_SetMode, SACTDX_VIEW_SetMode),
 	    HLL_TODO_EXPORT(VIEW_GetMode, SACTDX_VIEW_GetMode),
+	    HLL_EXPORT(VIEW_SetOffsetPos, StoatSpriteEngine_VIEW_SetOffsetPos),
 	    HLL_TODO_EXPORT(DX_GetUsePower2Texture, SACTDX_DX_GetUsePower2Texture),
 	    HLL_TODO_EXPORT(DX_SetUsePower2Texture, SACTDX_DX_SetUsePower2Texture),
 	    HLL_EXPORT(KeepPreviousView_SetMode, StoatSpriteEngine_KeepPreviousView_SetMode),
