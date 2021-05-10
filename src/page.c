@@ -191,7 +191,7 @@ void delete_page_vars(struct page *page)
 
 void delete_page(int slot)
 {
-	struct page *page = heap[slot].page;
+	struct page *page = heap_get_page(slot);
 	if (page->type == STRUCT_PAGE) {
 		delete_struct(page->index, slot);
 	}

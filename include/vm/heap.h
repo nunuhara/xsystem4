@@ -63,6 +63,8 @@ bool string_index_valid(int index);
 struct page *heap_get_page(int index);
 struct string *heap_get_string(int index);
 void heap_set_page(int slot, struct page *page);
+void heap_string_assign(int slot, struct string *string);
+void heap_struct_assign(int lval, int rval);
 int32_t heap_alloc_page(struct page *page);
 int32_t heap_alloc_string(struct string *s);
 

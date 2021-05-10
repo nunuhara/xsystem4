@@ -22,6 +22,7 @@
 #include <time.h>
 #include <errno.h>
 #include <setjmp.h>
+#include <assert.h>
 #include <SDL.h> // for system.MsgBox
 
 #include "system4.h"
@@ -158,9 +159,19 @@ static int32_t struct_page_slot(void)
 	return call_stack[call_stack_ptr-1].struct_page;
 }
 
-static union vm_value *struct_page(void)
+static struct page *struct_page(void)
 {
-	return heap[struct_page_slot()].page->values;
+	return heap[struct_page_slot()].page;
+}
+
+static union vm_value member_get(int varno)
+{
+	return struct_page()->values[varno];
+}
+
+static void member_set(int varno, int32_t value)
+{
+	struct_page()->values[varno].i = value;
 }
 
 static union vm_value stack_peek(int n)
@@ -221,10 +232,10 @@ union vm_value vm_copy(union vm_value v, enum ain_data_type type)
 {
 	switch (type) {
 	case AIN_STRING:
-		return (union vm_value) { .i = vm_string_ref(heap[v.i].s) };
+		return (union vm_value) { .i = vm_string_ref(heap_get_string(v.i)) };
 	case AIN_STRUCT:
 	case AIN_ARRAY_TYPE:
-		return (union vm_value) { .i = vm_copy_page(heap[v.i].page) };
+		return (union vm_value) { .i = vm_copy_page(heap_get_page(v.i)) };
 	case AIN_REF_TYPE:
 		heap_ref(v.i);
 		return v;
@@ -360,7 +371,7 @@ static void system_call(enum syscall_code code)
 	case SYS_GLOBAL_SAVE: { // system.GlobalSave(string szKeyName, string szFileName)
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
-		stack_push(save_globals(heap[keyname].s->text, heap[filename].s->text));
+		stack_push(save_globals(heap_get_string(keyname)->text, heap_get_string(filename)->text));
 		heap_unref(filename);
 		heap_unref(keyname);
 		break;
@@ -368,7 +379,7 @@ static void system_call(enum syscall_code code)
 	case SYS_GLOBAL_LOAD: { // system.GlobalLoad(string szKeyName, string szFileName)
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
-		stack_push(load_globals(heap[keyname].s->text, heap[filename].s->text, NULL, NULL));
+		stack_push(load_globals(heap_get_string(keyname)->text, heap_get_string(filename)->text, NULL, NULL));
 		heap_unref(filename);
 		heap_unref(keyname);
 		break;
@@ -407,7 +418,7 @@ static void system_call(enum syscall_code code)
 			SDL_MESSAGEBOX_INFORMATION,
 			NULL,
 			"xsystem4",
-			str->text,
+			utf,
 			SDL_arraysize(buttons),
 			buttons,
 			NULL
@@ -434,7 +445,7 @@ static void system_call(enum syscall_code code)
 	case SYS_RESUME_LOAD: {
 		int filename_slot = stack_pop().i;
 		int key_slot = stack_pop().i;
-		vm_load_image(heap[key_slot].s->text, heap[filename_slot].s->text);
+		vm_load_image(heap_get_string(key_slot)->text, heap_get_string(filename_slot)->text);
 		//heap_unref(stack_pop().i);
 		//heap_unref(stack_pop().i);
 		stack_pop();
@@ -444,7 +455,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_EXISTS_FILE: { // system.ExistsFile(string szFileName)
 		int str = stack_pop().i;
-		char *path = unix_path(heap[str].s->text);
+		char *path = unix_path(heap_get_string(str)->text);
 		stack_push(file_exists(path));
 		heap_unref(str);
 		free(path);
@@ -498,7 +509,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_EXISTS_SAVE_FILE: {
 		int slot = stack_pop().i;
-		char *path = savedir_path(heap[slot].s->text);
+		char *path = savedir_path(heap_get_string(slot)->text);
 		stack_push(file_exists(path));
 		heap_unref(slot);
 		free(path);
@@ -538,7 +549,9 @@ static void system_call(enum syscall_code code)
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
 		// FIXME: free ref'd array if allocated
-		heap_set_page(comment, vm_load_image_comments(heap[keyname].s->text, heap[filename].s->text, &success));
+		heap_set_page(comment, vm_load_image_comments(heap_get_string(keyname)->text,
+							      heap_get_string(filename)->text,
+							      &success));
 		heap_unref(filename);
 		heap_unref(keyname);
 		stack_push(success);
@@ -560,7 +573,10 @@ static void system_call(enum syscall_code code)
 		int groupname = stack_pop().i;
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
-		stack_push(save_group(heap[keyname].s->text, heap[filename].s->text, heap[groupname].s->text, &n->i));
+		stack_push(save_group(heap_get_string(keyname)->text,
+				      heap_get_string(filename)->text,
+				      heap_get_string(groupname)->text,
+				      &n->i));
 		heap_unref(groupname);
 		heap_unref(filename);
 		heap_unref(keyname);
@@ -571,7 +587,10 @@ static void system_call(enum syscall_code code)
 		int groupname = stack_pop().i;
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
-		stack_push(load_globals(heap[keyname].s->text, heap[filename].s->text, heap[groupname].s->text, &n->i));
+		stack_push(load_globals(heap_get_string(keyname)->text,
+					heap_get_string(filename)->text,
+					heap_get_string(groupname)->text,
+					&n->i));
 		heap_unref(groupname);
 		heap_unref(filename);
 		heap_unref(keyname);
@@ -579,21 +598,21 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_DELETE_SAVE_FILE: { // system.DeleteSaveFile(string szFileName)
 		int filename = stack_pop().i;
-		stack_push(delete_save_file(heap[filename].s->text));
+		stack_push(delete_save_file(heap_get_string(filename)->text));
 		heap_unref(filename);
 		break;
 	}
 	case SYS_EXIST_FUNC: { // system.ExistFunc(string szFuncName)
 		int funcname = stack_pop().i;
-		stack_push(ain_get_function(ain, heap[funcname].s->text) > 0);
+		stack_push(ain_get_function(ain, heap_get_string(funcname)->text) > 0);
 		heap_unref(funcname);
 		break;
 	}
 	case SYS_COPY_SAVE_FILE: { // system.CopySaveFile(string szDestFileName, string szSourceFileName)
 		int src = stack_pop().i;
 		int dst = stack_pop().i;
-		char *u_src = savedir_path(heap[src].s->text);
-		char *u_dst = savedir_path(heap[dst].s->text);
+		char *u_src = savedir_path(heap_get_string(src)->text);
+		char *u_dst = savedir_path(heap_get_string(dst)->text);
 		stack_push(file_copy(u_src, u_dst));
 		free(u_src);
 		free(u_dst);
@@ -744,7 +763,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case SH_STRUCTREF: { // VARNO
-		stack_push(struct_page()[get_argument(0)]);
+		stack_push(member_get(get_argument(0)));
 		break;
 	}
 	case SH_LOCALASSIGN: { // VARNO, VALUE
@@ -777,9 +796,9 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int src_var = stack_pop().i;
 		int src_page = stack_pop().i;
 		int dst_var = stack_pop().i;
-		int dst_page = stack_pop().i;
-		heap[dst_page].page->values[dst_var].i = src_page;
-		heap[dst_page].page->values[dst_var+1].i = src_var;
+		struct page *dst = heap_get_page(stack_pop().i);
+		page_set_var(dst, dst_var, src_page);
+		page_set_var(dst, dst_var+1, src_var);
 		stack_push(src_page);
 		stack_push(src_var);
 		break;
@@ -842,7 +861,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		// XXX: I am GUESSING that the VM pre-allocates the scenario function's
 		//      local page here. It certainly pushes what appears to be a page
 		//      index to the stack.
-		stack_push(alloc_scenario_page(heap[str].s->text));
+		stack_push(alloc_scenario_page(heap_get_string(str)->text));
 		heap_unref(str);
 		break;
 	}
@@ -883,7 +902,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case STRSWITCH: {
 		int str = stack_pop().i;
-		exec_strswitch(get_argument(0), heap[str].s);
+		exec_strswitch(get_argument(0), heap_get_string(str));
 		heap_unref(str);
 		break;
 	}
@@ -892,8 +911,8 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int file = stack_pop().i; // filename
 		int expr = stack_pop().i; // expression
 		if (!stack_pop().i) {
-			char *filename = sjis2utf(heap[file].s->text, heap[file].s->size);
-			char *value = sjis2utf(heap[expr].s->text, heap[expr].s->size);
+			char *filename = sjis2utf(heap_get_string(file)->text, heap[file].s->size);
+			char *value = sjis2utf(heap_get_string(expr)->text, heap[expr].s->size);
 			sys_message("Assertion failed at %s:%d: %s\n", filename, line, value);
 			free(filename);
 			free(value);
@@ -1285,17 +1304,14 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case S_REF: {
 		// Dereference a reference to a string
 		int str = stack_pop_var()->i;
-		stack_push_string(string_ref(heap[str].s));
+		stack_push_string(string_ref(heap_get_string(str)));
 		break;
 	}
 	//case S_REFREF: // ???: why/how is this different from regular REFREF?
 	case S_ASSIGN: { // A = B
 		int rval = stack_peek(0).i;
 		int lval = stack_peek(1).i;
-		if (heap[lval].s) {
-			free_string(heap[lval].s);
-		}
-		heap[lval].s = string_ref(heap[rval].s);
+		heap_string_assign(lval, heap_get_string(rval));
 		// remove A from the stack, but leave B
 		stack_set(1, rval);
 		stack_pop();
@@ -1315,7 +1331,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int b = stack_pop().i;
 		int a = stack_pop().i;
 		// TODO: can use string_append here?
-		stack_push_string(string_concatenate(heap[a].s, heap[b].s));
+		stack_push_string(string_concatenate(heap_get_string(a), heap_get_string(b)));
 		heap_unref(a);
 		heap_unref(b);
 		break;
@@ -1364,18 +1380,18 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case S_LENGTH: {
 		int str = stack_pop_var()->i;
-		stack_push(sjis_count_char(heap[str].s->text));
+		stack_push(sjis_count_char(heap_get_string(str)->text));
 		break;
 	}
 	case S_LENGTH2: {
 		int str = stack_pop().i;
-		stack_push(sjis_count_char(heap[str].s->text));
+		stack_push(sjis_count_char(heap_get_string(str)->text));
 		heap_unref(str);
 		break;
 	}
 	case S_LENGTHBYTE: {
 		int str = stack_pop_var()->i;
-		stack_push(heap[str].s->size);
+		stack_push(heap_get_string(str)->size);
 		break;
 	}
 	case S_EMPTY: {
@@ -1449,7 +1465,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		//int functype = stack_pop().i;
 		stack_pop();
 		int str = stack_pop().i;
-		stack_pop_var()->i = get_function_by_name(heap[str].s->text);
+		stack_pop_var()->i = get_function_by_name(heap_get_string(str)->text);
 		stack_push(str);
 		break;
 	}
@@ -1457,7 +1473,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case C_REF: {
 		int i = stack_pop().i;
 		int str = stack_pop().i;
-		stack_push(string_get_char(heap[str].s, i));
+		stack_push(string_get_char(heap_get_string(str), i));
 		break;
 	}
 	case C_ASSIGN: {
@@ -1483,12 +1499,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_pop(); // struct type
 		int rval = stack_pop().i;
 		int lval = stack_pop().i;
-		if (lval == -1)
-			VM_ERROR("Assignment to null-pointer");
-		if (heap[lval].page) {
-			delete_page(lval);
-		}
-		heap_set_page(lval, copy_page(heap[rval].page));
+		heap_struct_assign(lval, rval);
 		stack_push(rval);
 		break;
 	}
@@ -1618,6 +1629,257 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case A_REVERSE: {
 		int array = stack_pop_var()->i;
 		array_reverse(heap[array].page);
+		break;
+	}
+	//
+	// -- Shorthand Instructions (added in Alice 2010) ---
+	//
+	case SH_SR_ASSIGN: {
+		int rval = stack_pop_var()->i;
+		int lval = stack_pop().i;
+		heap_struct_assign(lval, rval);
+		break;
+	}
+	case SH_MEM_ASSIGN_LOCAL: {
+		member_set(get_argument(0), local_get(get_argument(1)).i);
+		break;
+	}
+	case A_NUMOF_GLOB_1: {
+		int array = global_get(get_argument(0)).i;
+		stack_push(array_numof(heap_get_page(array), 1));
+		break;
+	}
+	case A_NUMOF_STRUCT_1: {
+		int array = member_get(get_argument(0)).i;
+		stack_push(array_numof(heap_get_page(array), 1));
+		break;
+	}
+	case SH_MEM_ASSIGN_IMM: {
+		member_set(get_argument(0), get_argument(1));
+		break;
+	}
+	case SH_LOCALREFREF: {
+		stack_push(local_get(get_argument(0)));
+		stack_push(local_get(get_argument(0)+1));
+		break;
+	}
+	case SH_IF_LOC_LT_IMM: {
+		if (local_get(get_argument(0)).i < get_argument(1))
+			instr_ptr = get_argument(2);
+		else
+			instr_ptr += instruction_width(SH_IF_LOC_LT_IMM);
+		break;
+	}
+	case SH_IF_LOC_GE_IMM: {
+		if (local_get(get_argument(0)).i >= get_argument(1))
+			instr_ptr = get_argument(2);
+		else
+			instr_ptr += instruction_width(SH_IF_LOC_GE_IMM);
+		break;
+	}
+	case SH_LOCREF_ASSIGN_MEM: {
+		struct page *page = heap_get_page(local_get(get_argument(0)).i);
+		int index = local_get(get_argument(0)+1).i;
+		page_set_var(page, index, member_get(get_argument(1)));
+		break;
+	}
+	case PAGE_REF: {
+		struct page *page = heap_get_page(stack_pop().i);
+		stack_push(page_get_var(page, get_argument(0)));
+		break;
+	}
+	case SH_GLOBAL_ASSIGN_LOCAL: {
+		global_set(get_argument(0), local_get(get_argument(1)), true);
+		break;
+	}
+	case SH_LOCAL_ASSIGN_STRUCTREF: {
+		local_set(get_argument(0), member_get(get_argument(1)).i);
+		break;
+	}
+	case SH_IF_STRUCTREF_NE_LOCALREF: {
+		if (member_get(get_argument(0)).i != local_get(get_argument(1)).i)
+			instr_ptr = get_argument(2);
+		else
+			instr_ptr += instruction_width(SH_IF_STRUCTREF_NE_LOCALREF);
+		break;
+	}
+	case SH_IF_STRUCTREF_GT_IMM: {
+		if (member_get(get_argument(0)).i > get_argument(1))
+			instr_ptr = get_argument(2);
+		else
+			instr_ptr += instruction_width(SH_IF_STRUCTREF_GT_IMM);
+		break;
+	}
+	case SH_STRUCTREF_CALLMETHOD_NO_PARAM: {
+		int memb_page = member_get(get_argument(0)).i;
+		function_call(get_argument(1), instr_ptr + instruction_width(SH_STRUCTREF_CALLMETHOD_NO_PARAM));
+		call_stack[call_stack_ptr-1].struct_page = memb_page;
+		break;
+	}
+	case SH_STRUCTREF2: {
+		int memb = member_get(get_argument(0)).i;
+		stack_push(page_get_var(heap_get_page(memb), get_argument(1)));
+		break;
+	}
+	case SH_STRUCTREF2_CALLMETHOD_NO_PARAM: {
+		int memb1 = member_get(get_argument(0)).i;
+		int memb2 = page_get_var(heap_get_page(memb1), get_argument(1)).i;
+		function_call(get_argument(2), instr_ptr + instruction_width(SH_STRUCTREF2_CALLMETHOD_NO_PARAM));
+		call_stack[call_stack_ptr-1].struct_page = memb2;
+		break;
+	}
+	case SH_IF_STRUCTREF_Z: {
+		if (!member_get(get_argument(0)).i)
+			instr_ptr = get_argument(1);
+		else
+			instr_ptr += instruction_width(SH_IF_STRUCTREF_Z);
+		break;
+	}
+	case SH_IF_STRUCT_A_NOT_EMPTY: {
+		int array = member_get(get_argument(0)).i;
+		if (heap_get_page(array))
+			instr_ptr = get_argument(1);
+		else
+			instr_ptr += instruction_width(SH_IF_STRUCT_A_NOT_EMPTY);
+		break;
+	}
+	case SH_IF_LOC_GT_IMM: {
+		if (local_get(get_argument(0)).i > get_argument(1))
+			instr_ptr = get_argument(2);
+		else
+			instr_ptr += instruction_width(SH_IF_LOC_GT_IMM);
+		break;
+	}
+	case SH_IF_STRUCTREF_NE_IMM: {
+		if (member_get(get_argument(0)).i != get_argument(1))
+			instr_ptr = get_argument(2);
+		else
+			instr_ptr += instruction_width(SH_IF_STRUCTREF_NE_IMM);
+		break;
+	}
+	case THISCALLMETHOD_NOPARAM: {
+		int this_page = struct_page_slot();
+		function_call(get_argument(0), instr_ptr + instruction_width(THISCALLMETHOD_NOPARAM));
+		call_stack[call_stack_ptr-1].struct_page = this_page;
+		break;
+	}
+	case SH_IF_LOC_NE_IMM: {
+		if (local_get(get_argument(0)).i != get_argument(1))
+			instr_ptr = get_argument(2);
+		else
+			instr_ptr += instruction_width(SH_IF_LOC_NE_IMM);
+		break;
+	}
+	case SH_IF_STRUCTREF_EQ_IMM: {
+		if (member_get(get_argument(0)).i == get_argument(1))
+			instr_ptr = get_argument(2);
+		else
+			instr_ptr += instruction_width(SH_IF_STRUCTREF_EQ_IMM);
+		break;
+	}
+	case SH_GLOBAL_ASSIGN_IMM: {
+		global_set(get_argument(0), (union vm_value) { .i = get_argument(1) }, false);
+		break;
+	}
+	case SH_LOCALSTRUCT_ASSIGN_IMM: {
+		struct page *page = heap_get_page(local_get(get_argument(0)).i);
+		page_set_var(page, get_argument(1), get_argument(2));
+		break;
+	}
+	case SH_STRUCT_A_PUSHBACK_LOCAL_STRUCT: {
+		int struct_type;
+		int array = member_get(get_argument(0)).i;
+		union vm_value val = vm_copy(local_get(get_argument(1)), AIN_STRUCT);
+		enum ain_data_type data_type = variable_type(struct_page(), get_argument(0), &struct_type, NULL);
+		heap_set_page(array, array_pushback(heap_get_page(array), val, data_type, struct_type));
+		break;
+	}
+	case SH_LOCAL_A_PUSHBACK_LOCAL_STRUCT: {
+		int struct_type;
+		int array = local_get(get_argument(0)).i;
+		union vm_value val = vm_copy(local_get(get_argument(1)), AIN_STRUCT);
+		enum ain_data_type data_type = variable_type(local_page(), get_argument(0), &struct_type, NULL);
+		heap_set_page(array, array_pushback(heap_get_page(array), val, data_type, struct_type));
+		break;
+	}
+	case SH_IF_SREF_NE_STR0: {
+		struct string *a = heap_get_string(stack_pop_var()->i);
+		struct string *b = ain->strings[get_argument(0)];
+		if (strcmp(a->text, b->text))
+			instr_ptr = get_argument(1);
+		else
+			instr_ptr += instruction_width(SH_IF_SREF_NE_STR0);
+		break;
+	}
+	case SH_S_ASSIGN_REF: {
+		int rval = stack_pop_var()->i;
+		int lval = stack_pop().i;
+		heap_string_assign(lval, heap_get_string(rval));
+		break;
+	}
+	case SH_LOCALSREF_EQ_STR0: {
+		struct string *a = heap_get_string(local_get(get_argument(0)).i);
+		struct string *b = ain->strings[get_argument(1)];
+		stack_push(!strcmp(a->text, b->text));
+		break;
+	}
+	case SH_LOCALSREF_NE_STR0: {
+		struct string *a = heap_get_string(local_get(get_argument(0)).i);
+		struct string *b = ain->strings[get_argument(1)];
+		stack_push(!!strcmp(a->text, b->text));
+		break;
+	}
+	case SH_STRUCT_SR_REF: {
+		int sr = member_get(get_argument(0)).i;
+		stack_push(vm_copy_page(heap_get_page(sr)));
+		// NOTE: argument 1 (struct type) not used
+		break;
+	}
+	case SH_STRUCT_S_REF: {
+		int str = member_get(get_argument(0)).i;
+		stack_push_string(string_ref(heap_get_string(str)));
+		break;
+	}
+	case S_REF2: {
+		struct page *page = heap_get_page(stack_pop().i);
+		struct string *s = heap_get_string(page_get_var(page, get_argument(0)).i);
+		stack_push_string(string_ref(s));
+		break;
+	}
+	case SH_LOCAL_S_REF: {
+		int str = local_get(get_argument(0)).i;
+		stack_push_string(string_ref(heap_get_string(str)));
+		break;
+	}
+	case SH_LOCAL_APUSHBACK_LOCALSREF: {
+		int array = local_get(get_argument(0)).i;
+		union vm_value val = vm_copy(local_get(get_argument(1)), AIN_STRING);
+		heap_set_page(array, array_pushback(heap_get_page(array), val, AIN_ARRAY_STRING, -1));
+		break;
+	}
+	case SH_S_ASSIGN_STR0: {
+		int lval = stack_pop().i;
+		heap_string_assign(lval, ain->strings[get_argument(0)]);
+		break;
+	}
+	case SH_SASSIGN_LOCALSREF: {
+		int lval = stack_pop().i;
+		struct string *rval = heap_get_string(local_get(get_argument(0)).i);
+		heap_string_assign(lval, rval);
+		break;
+	}
+	case SH_STRUCTREF_SASSIGN_LOCALSREF: {
+		int lval = member_get(get_argument(0)).i;
+		int rval = local_get(get_argument(1)).i;
+		heap_string_assign(lval, heap_get_string(rval));
+		break;
+	}
+	case SH_LOCALSREF_EMPTY: {
+		stack_push(!heap_get_string(local_get(get_argument(0)).i)->size);
+		break;
+	}
+	case SH_STRUCTSREF_EMPTY: {
+		stack_push(!heap_get_string(member_get(get_argument(0)).i)->size);
 		break;
 	}
 	// -- NOOPs ---

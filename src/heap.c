@@ -222,7 +222,47 @@ struct string *heap_get_string(int index)
 
 void heap_set_page(int slot, struct page *page)
 {
+#ifdef DEBUG_HEAP
+	if (!page_index_valid(slot))
+		VM_ERROR("Invalid page index: %d", index);
+#endif
 	heap[slot].page = page;
+}
+
+void heap_string_assign(int slot, struct string *string)
+{
+#ifdef DEBUG_HEAP
+	if (!string_index_valid(slot))
+		VM_ERROR("Tried to assign string to non-string slot");
+#endif
+	if (heap[slot].s) {
+		free_string(heap[slot].s);
+	}
+	heap[slot].s = string_ref(string);
+}
+
+void heap_struct_assign(int lval, int rval)
+{
+	if (lval == -1)
+		VM_ERROR("Assignment to null-pointer");
+	if (lval == rval)
+		return;
+#ifdef DEBUG_HEAP
+	if (!page_index_valid(lval))
+		VM_ERROR("Invalid page index: %d", lval);
+	if (!page_index_valid(rval))
+		VM_ERROR("Invalid page index: %d", rval);
+	if (heap[lval].page && heap[lval].page->type != STRUCT_PAGE)
+		VM_ERROR("SR_ASSIGN to non-struct page");
+	if (heap[rval].page && heap[rval].page->type != STRUCT_PAGE)
+		VM_ERROR("SR_ASSIGN from non-struct page");
+	if (heap[lval].page && heap[rval].page && heap[lval].page->index != heap[rval].page->index)
+		VM_ERROR("SR_ASSIGN with different struct types");
+#endif
+	if (heap[lval].page) {
+		delete_page(lval);
+	}
+	heap_set_page(lval, copy_page(heap[rval].page));
 }
 
 int32_t heap_alloc_string(struct string *s)

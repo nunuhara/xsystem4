@@ -61,6 +61,26 @@ struct page {
 	union vm_value values[];
 };
 
+static inline union vm_value page_get_var(struct page *page, int i)
+{
+#ifdef DEBUG_HEAP
+	if (i < 0 || i >= page->nr_vars)
+		VM_ERROR("Invalid page index: %d", i);
+#endif
+	return page->values[i];
+}
+
+static inline void _page_set_var(struct page *page, int i, union vm_value v)
+{
+#ifdef DEBUG_HEAP
+	if (i < 0 || i >= page->nr_vars)
+		VM_ERROR("Invalid page index: %d", i);
+#endif
+	page->values[i] = v;
+}
+
+#define page_set_var(page, i, v) _page_set_var(page, i, vm_value_cast(v))
+
 // variables
 union vm_value variable_initval(enum ain_data_type type);
 void variable_fini(union vm_value v, enum ain_data_type type);
