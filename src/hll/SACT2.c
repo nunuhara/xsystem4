@@ -568,6 +568,8 @@ int sact_SP_GetAMapValue(int sp_no, int x, int y)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
+	if (x < 0 || x >= sp->rect.w || y < 0 || y >= sp->rect.h)
+		return -1;
 	return sprite_get_amap_value(sp, x, y);
 }
 

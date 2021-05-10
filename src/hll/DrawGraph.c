@@ -191,6 +191,12 @@ static void DrawGraph_CopyReverseAMapLR(int dst, int dx, int dy, int src, int sx
 
 static bool DrawGraph_GetAlphaColor(int surface, int x, int y, int *a)
 {
+	struct sact_sprite *sp = sact_get_sprite(surface);
+	// NOTE: System40.exe errors here
+	if (!sp)
+		VM_ERROR("Invalid sprite index: %d", surface);
+	if (x < 0 || x >= sp->rect.w || y < 0 || y >= sp->rect.h)
+		return false;
 	*a = sact_SP_GetAMapValue(surface, x, y);
 	return true;
 }
