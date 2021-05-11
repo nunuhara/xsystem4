@@ -445,7 +445,7 @@ void gfx_init_texture_with_cg(struct texture *t, struct cg *cg)
 	t->has_alpha = cg->metrics.has_alpha;
 }
 
-void gfx_init_texture_with_color(struct texture *t, int w, int h, SDL_Color color)
+void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color)
 {
 	// create pixel data
 	int c = SDL_MapRGBA(sdl.format, color.r, color.g, color.b, color.a);
@@ -455,6 +455,20 @@ void gfx_init_texture_with_color(struct texture *t, int w, int h, SDL_Color colo
 	}
 
 	gfx_init_texture_with_pixels(t, w, h, pixels, GL_RGBA);
+	free(pixels);
+}
+
+void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color)
+{
+	uint8_t *pixels = xmalloc(w*h*3);
+	for (int i = 0; i < w*h; i++) {
+		pixels[i*3+0] = color.r;
+		pixels[i*3+1] = color.g;
+		pixels[i*3+2] = color.b;
+	}
+
+	init_texture(t, w, h);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 	free(pixels);
 }
 

@@ -49,6 +49,7 @@ struct sact_sprite {
 	// This flag indicates that pixel data has been attached to a sprite; it
 	// does NOT guarantee that the texture is initialized.
 	bool has_pixel;
+	bool has_alpha;
 	// This flag indicates whether or not the sprite is included in the
 	// the current scene. A sprite should be in the scene if there is pixel
 	// or text data attached to it and it is not hidden.

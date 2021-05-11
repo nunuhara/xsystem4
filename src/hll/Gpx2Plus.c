@@ -84,7 +84,7 @@ static struct texture *get_texture(int sf_no)
 		return NULL;
 	struct gpx_surface *sf = surfaces[sf_no];
 	if (!sf->texture.handle)
-		gfx_init_texture_with_color(&sf->texture, sf->w, sf->h, (SDL_Color){0, 0, 0, 255});
+		gfx_init_texture_rgba(&sf->texture, sf->w, sf->h, (SDL_Color){0, 0, 0, 255});
 	return &sf->texture;
 }
 

@@ -249,7 +249,7 @@ static void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
 	if (!sp->text.texture.handle) {
 		SDL_Color c = ts->color;
 		c.a = 0;
-		gfx_init_texture_with_color(&sp->text.texture, sp->rect.w, sp->rect.h, c);
+		gfx_init_texture_rgba(&sp->text.texture, sp->rect.w, sp->rect.h, c);
 	}
 
 	sp->text.pos.x += fnl_draw_text(fontlib, ts, &sp->text.texture, sp->text.pos.x, sp->text.pos.y, text->text);

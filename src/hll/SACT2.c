@@ -577,6 +577,8 @@ int sact_SP_GetAMapValue(int sp_no, int x, int y)
 	if (!sp) return -1;
 	if (x < 0 || x >= sp->rect.w || y < 0 || y >= sp->rect.h)
 		return -1;
+	if (!sp->has_alpha)
+		return -1;
 	return sprite_get_amap_value(sp, x, y);
 }
 

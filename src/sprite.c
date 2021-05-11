@@ -72,6 +72,16 @@ void sprite_free(struct sact_sprite *sp)
 	memset(sp, 0, sizeof(struct sact_sprite));
 }
 
+static void sprite_init_texture(struct sact_sprite *sp)
+{
+	if (!sp->texture.handle) {
+		if (sp->has_alpha)
+			gfx_init_texture_rgba(&sp->texture, sp->rect.w, sp->rect.h, sp->color);
+		else
+			gfx_init_texture_rgb(&sp->texture, sp->rect.w, sp->rect.h, sp->color);
+	}
+}
+
 void sprite_render_scene(void)
 {
 	gfx_clear();
@@ -81,9 +91,7 @@ void sprite_render_scene(void)
 	}
 	struct sact_sprite *p;
 	TAILQ_FOREACH(p, &sprite_list, entry) {
-		if (!p->texture.handle) {
-			gfx_init_texture_with_color(&p->texture, p->rect.w, p->rect.h, p->color);
-		}
+		sprite_init_texture(p);
 		gfx_render_texture(&p->texture, &p->rect);
 		if (p->text.texture.handle) {
 			gfx_render_texture(&p->text.texture, &p->rect);
@@ -99,9 +107,7 @@ void sprite_flip(void)
 
 struct texture *sprite_get_texture(struct sact_sprite *sp)
 {
-	if (!sp->texture.handle) {
-		gfx_init_texture_with_color(&sp->texture, sp->rect.w, sp->rect.h, sp->color);
-	}
+	sprite_init_texture(sp);
 	return &sp->texture;
 }
 
@@ -140,10 +146,10 @@ int sprite_set_cg(struct sact_sprite *sp, int cg_no)
 	sp->rect.w = cg->metrics.w;
 	sp->rect.h = cg->metrics.h;
 	sp->cg_no = cg_no;
-	cg_free(cg);
-
 	sp->has_pixel = true;
+	sp->has_alpha = cg->metrics.has_alpha;
 	sprite_dirty(sp);
+	cg_free(cg);
 	return 1;
 }
 
@@ -155,10 +161,10 @@ int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path)
 	gfx_init_texture_with_cg(&sp->texture, cg);
 	sp->rect.w = cg->metrics.w;
 	sp->rect.h = cg->metrics.h;
-	cg_free(cg);
-
 	sp->has_pixel = true;
+	sp->has_alpha = cg->metrics.has_alpha;
 	sprite_dirty(sp);
+	cg_free(cg);
 	return 1;
 }
 
@@ -173,6 +179,7 @@ void sprite_init(struct sact_sprite *sp, int w, int h, int r, int g, int b, int 
 	gfx_delete_texture(&sp->texture);
 
 	sp->has_pixel = true;
+	sp->has_alpha = a >= 0;
 	sprite_dirty(sp);
 }
 
@@ -246,7 +253,7 @@ int sprite_get_draw_method(struct sact_sprite *sp)
 
 int sprite_exists_alpha(struct sact_sprite *sp)
 {
-	return sp->texture.has_alpha;
+	return sp->has_alpha;
 }
 
 void sprite_set_text_home(struct sact_sprite *sp, int x, int y)
@@ -282,7 +289,7 @@ void sprite_text_draw(struct sact_sprite *sp, struct string *text, struct text_m
 		else
 			c = tm->color;
 		c.a = 0;
-		gfx_init_texture_with_color(&sp->text.texture, sp->rect.w, sp->rect.h, c);
+		gfx_init_texture_rgba(&sp->text.texture, sp->rect.w, sp->rect.h, c);
 	}
 
 	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos, text->text, tm, sp->text.char_space);
@@ -313,7 +320,7 @@ void sprite_text_copy(struct sact_sprite *dsp, struct sact_sprite *ssp)
 	sprite_text_clear(dsp);
 	if (ssp->text.texture.handle) {
 		SDL_Color c = { 0, 0, 0, 0 };
-		gfx_init_texture_with_color(&dsp->text.texture, dsp->rect.w, dsp->rect.h, c);
+		gfx_init_texture_rgba(&dsp->text.texture, dsp->rect.w, dsp->rect.h, c);
 		gfx_copy(&dsp->text.texture, 0, 0, &ssp->text.texture, 0, 0, ssp->text.texture.w, ssp->text.texture.h);
 		gfx_copy_amap(&dsp->text.texture, 0, 0, &ssp->text.texture, 0, 0, ssp->text.texture.w, ssp->text.texture.h);
 	}
