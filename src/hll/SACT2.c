@@ -77,6 +77,13 @@ struct sact_sprite *sact_get_sprite(int sp)
 	return sprites[sp];
 }
 
+struct sact_sprite *sact_try_get_sprite(int sp)
+{
+	if (sp < -1 || sp >= nr_sprites)
+		return NULL;
+	return sprites[sp];
+}
+
 int sact_Init(possibly_unused void *_, possibly_unused int cg_cache_size)
 {
 	// already initialized
@@ -316,61 +323,61 @@ int sact_SP_SetDrawMethod(int sp_no, int method)
 
 int sact_SP_GetDrawMethod(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return DRAW_METHOD_NORMAL;
 	return sprite_get_draw_method(sp);
 }
 
 int sact_SP_IsUsing(int sp_no)
 {
-	return sact_get_sprite(sp_no) != NULL;
+	return sact_try_get_sprite(sp_no) != NULL;
 }
 
 int sact_SP_ExistsAlpha(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_exists_alpha(sp);
 }
 
 int sact_SP_GetPosX(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_pos_x(sp);
 }
 
 int sact_SP_GetPosY(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_pos_y(sp);
 }
 
 int sact_SP_GetWidth(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_width(sp);
 }
 
 int sact_SP_GetHeight(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_height(sp);
 }
 
 int sact_SP_GetZ(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_z(sp);
 }
 
 int sact_SP_GetShow(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_show(sp);
 }
@@ -451,7 +458,7 @@ int sact_SP_TextDraw(int sp_no, struct string *text, struct page *_tm)
 int sact_SP_TextClear(int sp_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	if (!sp) return 0;
+	if (!sp) return 1; // always returns 1
 	sprite_text_clear(sp);
 	return 1;
 }
@@ -494,56 +501,56 @@ int sact_SP_TextCopy(int dno, int sno)
 
 int sact_SP_GetTextHomeX(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_text_home_x(sp);
 }
 
 int sact_SP_GetTextHomeY(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_text_home_y(sp);
 }
 
 int sact_SP_GetTextCharSpace(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_text_char_space(sp);
 }
 
 int sact_SP_GetTextPosX(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_text_pos_x(sp);
 }
 
 int sact_SP_GetTextPosY(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_text_pos_y(sp);
 }
 
 int sact_SP_GetTextLineSpace(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_text_line_space(sp);
 }
 
 int sact_SP_IsPtIn(int sp_no, int x, int y)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_is_point_in(sp, x, y);
 }
 
 int sact_SP_IsPtInRect(int sp_no, int x, int y)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_is_point_in_rect(sp, x, y);
 }
@@ -566,8 +573,8 @@ int sact_CG_GetMetrics(int cg_no, struct page **page)
 
 int sact_SP_GetAMapValue(int sp_no, int x, int y)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	if (!sp) return 0;
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	if (!sp) return -1;
 	if (x < 0 || x >= sp->rect.w || y < 0 || y >= sp->rect.h)
 		return -1;
 	return sprite_get_amap_value(sp, x, y);
@@ -575,7 +582,7 @@ int sact_SP_GetAMapValue(int sp_no, int x, int y)
 
 int sact_SP_GetPixelValue(int sp_no, int x, int y, int *r, int *g, int *b)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	sprite_get_pixel_value(sp, x, y, r, g, b);
 	return 1;

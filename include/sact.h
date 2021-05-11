@@ -21,6 +21,7 @@
 #include "sprite.h"
 
 struct sact_sprite *sact_get_sprite(int sp);
+struct sact_sprite *sact_try_get_sprite(int sp);
 struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
 void sact_ModuleFini(void);
 int sact_Init(void *_, int cg_cache_size);
