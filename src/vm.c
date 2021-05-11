@@ -953,7 +953,11 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case DIV: {
-		stack[stack_ptr-2].i /= stack[stack_ptr-1].i;
+		if (!stack[stack_ptr-1].i) {
+			stack[stack_ptr-2].i = 0;
+		} else {
+			stack[stack_ptr-2].i /= stack[stack_ptr-1].i;
+		}
 		stack_ptr--;
 		break;
 	}
@@ -1042,7 +1046,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case DIVA: {
 		int32_t n = stack_pop().i;
-		stack_push(stack_pop_var()->i /= n);
+		stack_push(n ? stack_pop_var()->i /= n : 0);
 		break;
 	}
 	case MODA: {
@@ -1118,7 +1122,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case LI_DIV: {
 		int64_t a = stack[stack_ptr-2].i;
 		int64_t b = stack[stack_ptr-1].i;
-		stack[stack_ptr-2].i = lint_clamp(a / b);
+		stack[stack_ptr-2].i = b ? lint_clamp(a / b) : 0;
 		stack_ptr--;
 		break;
 	}
@@ -1155,7 +1159,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case LI_DIVA: {
 		int64_t n = stack_pop().i;
 		union vm_value *v = stack_pop_var();
-		stack_push(v->i = lint_clamp((int64_t)v->i / n));
+		stack_push(v->i = (n ? lint_clamp((int64_t)v->i / n) : 0));
 		break;
 	}
 	case LI_MODA: {
