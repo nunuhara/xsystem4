@@ -69,13 +69,91 @@ static int SystemService_SetMixerMute(int n, possibly_unused int mute)
 }
 
 //int SystemService_GetGameVersion(void);
+//void SystemService_GetGameName(ref string GameName);
 //bool SystemService_AddURLMenu(string szTitle, string szURL);
+
 static bool SystemService_IsFullScreen(void)
 {
 	return false;
 }
+
 //bool SystemService_ChangeNormalScreen(void);
-//bool SystemService_ChangeFullScreen(void);
+HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, ChangeFullScreen);
+HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, InitMainWindowPosAndSize);
+//bool SystemService_MoveMouseCursorPosImmediately(int nX, int nY);
+//bool SystemService_SetHideMouseCursorByGame(bool bHide);
+//bool SystemService_GetHideMouseCursorByGame(void);
+//bool SystemService_SetUsePower2Texture(bool bUse);
+//bool SystemService_GetUsePower2Texture(void);
+
+// XXX: 5 settings in Haru Urare, may be different in other games
+#define NR_WINDOW_SETTINGS 5
+static int window_settings[NR_WINDOW_SETTINGS] = {
+	// defaults based on Haru Urare
+	0,
+	0,
+	0,
+	0,
+	1,
+};
+
+static int get_window_setting(int type)
+{
+	// XXX: only type 1 is non-boolean (Haru Urare)
+	if (type == 1)
+		return window_settings[1];
+	return !!window_settings[type];
+}
+
+static bool SystemService_SetWindowSetting(int type, int value)
+{
+	if (type < 0 || type >= NR_WINDOW_SETTINGS) {
+		WARNING("Invalid window setting type: %d", type);
+		return false;
+	}
+	window_settings[type] = value;
+	return true;
+}
+
+static bool SystemService_GetWindowSetting(int type, int *value)
+{
+	if (type < 0 || type >= NR_WINDOW_SETTINGS) {
+		WARNING("Invalid window setting type: %d", type);
+		return false;
+	}
+	*value = get_window_setting(type);
+	return true;
+}
+
+// XXX: Values for 'type' above 1 are invalid in Haru Urare, may be different in other games
+#define NR_MOUSE_CURSOR_CONFIG 1
+static int mouse_cursor_config[NR_MOUSE_CURSOR_CONFIG] = {0};
+
+static bool SystemService_SetMouseCursorConfig(int type, int value)
+{
+	if (type < 0 || type >= NR_MOUSE_CURSOR_CONFIG) {
+		WARNING("Invalid mouse cursor config type: %d", type);
+		return false;
+	}
+	mouse_cursor_config[type] = value;
+	return true;
+}
+
+static bool SystemService_GetMouseCursorConfig(int type, int *value)
+{
+	if (type < 0 || type >= NR_MOUSE_CURSOR_CONFIG) {
+		WARNING("Invalid mouse cursor config type: %d", type);
+		return false;
+	}
+	// XXX: the value returned here is always 1 or 0
+	*value = !!mouse_cursor_config[type];
+	return true;
+}
+
+//bool SystemService_RunProgram(struct string *program_file_name, struct string *parameter);
+//bool SystemService_IsOpenedMutex(struct string *mutex_name);
+//void SystemService_GetGameFolderPath(struct string **folder_path);
+
 static void SystemService_RestrainScreensaver(void) { }
 
 HLL_LIBRARY(SystemService,
@@ -83,13 +161,27 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(GetMixerName, SystemService_GetMixerName),
 	    HLL_EXPORT(GetMixerVolume, SystemService_GetMixerVolume),
 	    HLL_EXPORT(GetMixerMute, SystemService_GetMixerMute),
-	    //HLL_EXPORT(SetMixerName, SystemService_SetMixerName),
+	    HLL_TODO_EXPORT(SetMixerName, SystemService_SetMixerName),
 	    HLL_EXPORT(SetMixerVolume, SystemService_SetMixerVolume),
 	    HLL_EXPORT(SetMixerMute, SystemService_SetMixerMute),
-	    //HLL_EXPORT(GetGameVersion, SystemService_GetGameVersion),
-	    //HLL_EXPORT(AddURLMenu, SystemService_AddURLMenu),
+	    HLL_TODO_EXPORT(GetGameVersion, SystemService_GetGameVersion),
+	    HLL_TODO_EXPORT(GetGameName, SystemService_GetGameName),
+	    HLL_TODO_EXPORT(AddURLMenu, SystemService_AddURLMenu),
 	    HLL_EXPORT(IsFullScreen, SystemService_IsFullScreen),
-	    //HLL_EXPORT(ChangeNormalScreen, SystemService_ChangeNormalScreen),
-	    //HLL_EXPORT(ChangeFullScreen, SystemService_ChangeFullScreen),
+	    HLL_TODO_EXPORT(ChangeNormalScreen, SystemService_ChangeNormalScreen),
+	    HLL_EXPORT(ChangeFullScreen, SystemService_ChangeFullScreen),
+	    HLL_EXPORT(InitMainWindowPosAndSize, SystemService_InitMainWindowPosAndSize),
+	    HLL_TODO_EXPORT(MoveMouseCursorPosImmediately, SystemService_MoveMouseCursorPosImmediately),
+	    HLL_TODO_EXPORT(SetHideMouseCursorByGame, SystemService_SetHideMouseCursorByGame),
+	    HLL_TODO_EXPORT(GetHideMouseCursorByGame, SystemService_GetHideMouseCursorByGame),
+	    HLL_TODO_EXPORT(SetUsePower2Texture, SystemService_SetUsePower2Texture),
+	    HLL_TODO_EXPORT(GetUsePower2Texture, SystemService_GetUsePower2Texture),
+	    HLL_EXPORT(SetWindowSetting, SystemService_SetWindowSetting),
+	    HLL_EXPORT(GetWindowSetting, SystemService_GetWindowSetting),
+	    HLL_EXPORT(SetMouseCursorConfig, SystemService_SetMouseCursorConfig),
+	    HLL_EXPORT(GetMouseCursorConfig, SystemService_GetMouseCursorConfig),
+	    HLL_TODO_EXPORT(RunProgram, SystemService_RunProgram),
+	    HLL_TODO_EXPORT(IsOpenedMutex, SystemService_IsOpenedMutex),
+	    HLL_TODO_EXPORT(GetGameFolderPath, SystemService_GetGameFolderPath),
 	    HLL_EXPORT(RestrainScreensaver, SystemService_RestrainScreensaver)
 	);
