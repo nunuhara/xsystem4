@@ -131,6 +131,11 @@ static union vm_value *local_ptr(int varno)
 	return local_page()->values + varno;
 }
 
+struct page *global_page(void)
+{
+	return heap[0].page;
+}
+
 union vm_value global_get(int varno)
 {
 	return heap[0].page->values[varno];
@@ -361,6 +366,17 @@ static const SDL_MessageBoxButtonData buttons[] = {
 
 static noreturn void vm_reset(void);
 
+static struct string *get_func_stack_name(int index)
+{
+	int i = call_stack_ptr - (1 + index);
+	if (i < 0 || i >= call_stack_ptr) {
+		return cstr_to_string("Invalid stack index");
+	}
+	struct function_call *call = &call_stack[i];
+	struct ain_function *fun = &ain->functions[call->fno];
+	return cstr_to_string(fun->name);
+}
+
 static void system_call(enum syscall_code code)
 {
 	switch (code) {
@@ -520,15 +536,7 @@ static void system_call(enum syscall_code code)
 		break;
 	}
 	case SYS_GET_FUNC_STACK_NAME: { // system.GetFuncStackName(int nIndex)
-		int i = call_stack_ptr - (1 + stack_pop().i);
-		if (i < 0 || i >= call_stack_ptr) {
-			const char *msg = "Invalid stack index";
-			stack_push_string(make_string(msg, strlen(msg)));
-			return;
-		}
-		struct function_call *call = &call_stack[i];
-		struct ain_function *fun = &ain->functions[call->fno];
-		stack_push_string(make_string(fun->name, strlen(fun->name)));
+		stack_push_string(get_func_stack_name(stack_pop().i));
 		break;
 	}
 	case SYS_PEEK: {// system.Peek(void)
@@ -1667,6 +1675,11 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_push(local_get(get_argument(0)+1));
 		break;
 	}
+	case SH_LOCALASSIGN_SUB_IMM: {
+		int n = get_argument(0);
+		local_set(n, local_get(n).i - get_argument(1));
+		break;
+	}
 	case SH_IF_LOC_LT_IMM: {
 		if (local_get(get_argument(0)).i < get_argument(1))
 			instr_ptr = get_argument(2);
@@ -1723,6 +1736,18 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case SH_STRUCTREF2: {
 		int memb = member_get(get_argument(0)).i;
 		stack_push(page_get_var(heap_get_page(memb), get_argument(1)));
+		break;
+	}
+	case SH_REF_STRUCTREF2: {
+		int page = stack_pop().i;
+		int memb = page_get_var(heap_get_page(page), get_argument(0)).i;
+		stack_push(page_get_var(heap_get_page(memb), get_argument(1)));
+		break;
+	}
+	case SH_STRUCTREF3: {
+		int memb0 = member_get(get_argument(0)).i;
+		int memb1 = page_get_var(heap_get_page(memb0), get_argument(1)).i;
+		stack_push(page_get_var(heap_get_page(memb1), get_argument(2)));
 		break;
 	}
 	case SH_STRUCTREF2_CALLMETHOD_NO_PARAM: {
@@ -1798,6 +1823,14 @@ static enum opcode execute_instruction(enum opcode opcode)
 		heap_set_page(array, array_pushback(heap_get_page(array), val, data_type, struct_type));
 		break;
 	}
+	case SH_GLOBAL_A_PUSHBACK_LOCAL_STRUCT: {
+		int struct_type;
+		int array = global_get(get_argument(0)).i;
+		union vm_value val = vm_copy(local_get(get_argument(1)), AIN_STRUCT);
+		enum ain_data_type data_type = variable_type(global_page(), get_argument(0), &struct_type, NULL);
+		heap_set_page(array, array_pushback(heap_get_page(array), val, data_type, struct_type));
+		break;
+	}
 	case SH_LOCAL_A_PUSHBACK_LOCAL_STRUCT: {
 		int struct_type;
 		int array = local_get(get_argument(0)).i;
@@ -1821,10 +1854,26 @@ static enum opcode execute_instruction(enum opcode opcode)
 		heap_string_assign(lval, heap_get_string(rval));
 		break;
 	}
+	case SH_SREF_EMPTY: {
+		stack_push(!heap_get_string(stack_pop_var()->i)->size);
+		break;
+	}
+	case SH_STRUCTSREF_EQ_LOCALSREF: {
+		struct string *a = heap_get_string(member_get(get_argument(0)).i);
+		struct string *b = heap_get_string(local_get(get_argument(1)).i);
+		stack_push(!strcmp(a->text, b->text));
+		break;
+	}
 	case SH_LOCALSREF_EQ_STR0: {
 		struct string *a = heap_get_string(local_get(get_argument(0)).i);
 		struct string *b = ain->strings[get_argument(1)];
 		stack_push(!strcmp(a->text, b->text));
+		break;
+	}
+	case SH_STRUCTSREF_NE_LOCALSREF: {
+		struct string *a = heap_get_string(member_get(get_argument(0)).i);
+		struct string *b = heap_get_string(local_get(get_argument(1)).i);
+		stack_push(!!strcmp(a->text, b->text));
 		break;
 	}
 	case SH_LOCALSREF_NE_STR0: {
@@ -1850,15 +1899,31 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_push_string(string_ref(s));
 		break;
 	}
+	case SH_GLOBAL_S_REF: {
+		int str = global_get(get_argument(0)).i;
+		stack_push_string(string_ref(heap_get_string(str)));
+		break;
+	}
 	case SH_LOCAL_S_REF: {
 		int str = local_get(get_argument(0)).i;
 		stack_push_string(string_ref(heap_get_string(str)));
+		break;
+	}
+	case SH_LOCALREF_SASSIGN_LOCALSREF: {
+		int lval = local_get(get_argument(0)).i;
+		int rval = local_get(get_argument(1)).i;
+		heap_string_assign(lval, heap_get_string(rval));
 		break;
 	}
 	case SH_LOCAL_APUSHBACK_LOCALSREF: {
 		int array = local_get(get_argument(0)).i;
 		union vm_value val = vm_copy(local_get(get_argument(1)), AIN_STRING);
 		heap_set_page(array, array_pushback(heap_get_page(array), val, AIN_ARRAY_STRING, -1));
+		break;
+	}
+	case SH_S_ASSIGN_CALLSYS19: {
+		struct string *name = get_func_stack_name(stack_pop().i);
+		heap_string_assign(stack_pop_var()->i, name);
 		break;
 	}
 	case SH_S_ASSIGN_STR0: {
@@ -1882,8 +1947,24 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_push(!heap_get_string(local_get(get_argument(0)).i)->size);
 		break;
 	}
+	case SH_GLOBAL_APUSHBACK_LOCALSREF: {
+		int array = global_get(get_argument(0)).i;
+		union vm_value val = vm_copy(local_get(get_argument(1)), AIN_STRING);
+		heap_set_page(array, array_pushback(heap_get_page(array), val, AIN_ARRAY_STRING, -1));
+		break;
+	}
+	case SH_STRUCT_APUSHBACK_LOCALSREF: {
+		int array = member_get(get_argument(0)).i;
+		union vm_value val = vm_copy(local_get(get_argument(1)), AIN_STRING);
+		heap_set_page(array, array_pushback(heap_get_page(array), val, AIN_ARRAY_STRING, -1));
+		break;
+	}
 	case SH_STRUCTSREF_EMPTY: {
 		stack_push(!heap_get_string(member_get(get_argument(0)).i)->size);
+		break;
+	}
+	case SH_GLOBALSREF_EMPTY: {
+		stack_push(!heap_get_string(global_get(get_argument(0)).i)->size);
 		break;
 	}
 	// -- NOOPs ---
