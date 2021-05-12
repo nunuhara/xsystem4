@@ -34,6 +34,7 @@ int ADVLogList_GetNumofADVLogText(int nADVLog);
 void ADVLogList_GetADVLogText(int nADVLog, int nText, struct string **text);
 int ADVLogList_GetNumofADVLogVoice(int nADVLog);
 int ADVLogList_GetADVLogVoice(int nADVLog, int Index);
+int ADVLogList_GetADVLogVoiceLast(int log_no); // for StoatSpriteEngine
 bool ADVLogList_Save(struct page **iarray);
 bool ADVLogList_Load(struct page **iarray);
 bool ADVSceneKeeper_AddADVScene(struct page **page);

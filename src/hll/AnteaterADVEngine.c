@@ -171,6 +171,15 @@ int ADVLogList_GetADVLogVoice(int log_no, int voice_no)
 	return logs[log_no].voices[voice_no];
 }
 
+int ADVLogList_GetADVLogVoiceLast(int log_no)
+{
+	check_log_nr(log_no);
+	unsigned nr_voices = logs[log_no].nr_voices;
+	if (!nr_voices)
+		return 0;
+	return logs[log_no].voices[nr_voices - 1];
+}
+
 bool ADVLogList_Save(struct page **iarray)
 {
 	// 0x64 <- 'A'

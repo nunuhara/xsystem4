@@ -933,6 +933,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(ADVLogList_GetNumofADVLog, ADVLogList_GetNumofADVLog),
 	    HLL_EXPORT(ADVLogList_GetNumofADVLogText, ADVLogList_GetNumofADVLogText),
 	    HLL_EXPORT(ADVLogList_GetADVLogText, ADVLogList_GetADVLogText),
-	    HLL_EXPORT(ADVLogList_GetADVLogVoice, ADVLogList_GetADVLogVoice),
+	    // XXX: StoatSpriteEngine interface differs from AnteaterADVEngine here
+	    HLL_EXPORT(ADVLogList_GetADVLogVoice, ADVLogList_GetADVLogVoiceLast),
 	    HLL_EXPORT(ADVLogList_Save, ADVLogList_Save),
 	    HLL_EXPORT(ADVLogList_Load, ADVLogList_Load));
