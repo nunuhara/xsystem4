@@ -61,6 +61,12 @@ void iarray_write(struct iarray_writer *w, int data)
 	w->data[w->size++] = data;
 }
 
+void iarray_write_float(struct iarray_writer *w, float data)
+{
+	union { float f; int i; } cast = { .f = data };
+	iarray_write(w, cast.i);
+}
+
 void iarray_write_string(struct iarray_writer *w, struct string *s)
 {
 	for (char *p = s->text; *p ;p++) {
@@ -164,6 +170,12 @@ int iarray_read(struct iarray_reader *r)
 		return 0;
 	}
 	return r->data[r->pos++].i;
+}
+
+float iarray_read_float(struct iarray_reader *r)
+{
+	union { float f; int i; } cast = { .i = iarray_read(r) };
+	return cast.f;
 }
 
 struct string *iarray_read_string(struct iarray_reader *r)

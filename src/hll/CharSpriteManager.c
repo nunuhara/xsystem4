@@ -24,6 +24,7 @@
 #include "vm/page.h"
 #include "sprite.h"
 #include "CharSpriteManager.h"
+#include "iarray.h"
 
 /*
  * NOTE: This is not a library on it's own, but rather part of
@@ -36,14 +37,25 @@ struct charsprite {
 	//       arbitrary string because CharSprite_GetChar returns it.
 	struct string *ch;
 	struct text_metrics tm;
+	// NOTE: this is needed because we have to hide all sprites after loading
+	//       regardless of their original visibility. When Rebuild is called,
+	//       this value is used to correctly set the visibility.
+	bool show;
 };
 
-static struct {
+struct charsprite_manager {
 	unsigned size;
 	struct charsprite **sprites;
 	unsigned nr_free;
 	int *free;
-} chars = {0};
+};
+
+static struct charsprite_manager chars = {0};
+
+// XXX: after CharSpriteManager_Load, CharSpriteManager_Rebuild must be called to
+//      make the loaded data visible. It is stored here until then.
+static struct charsprite_manager load_chars = {0};
+static bool loaded = false;
 
 static void grow_chars(unsigned new_size) {
 	assert(new_size > chars.size);
@@ -95,19 +107,35 @@ int CharSpriteManager_CreateHandle(void)
 	return handle;
 }
 
+static void charsprite_free(struct charsprite *cs)
+{
+	sprite_free(&cs->sp);
+	if (cs->ch) {
+		free_string(cs->ch);
+	}
+	free(cs);
+}
+
 bool CharSpriteManager_ReleaseHandle(int handle)
 {
 	if (!handle_valid(handle))
 		return false;
 
-	sprite_free(&chars.sprites[handle]->sp);
-	if (chars.sprites[handle]->ch) {
-		free_string(chars.sprites[handle]->ch);
-	}
-	free(chars.sprites[handle]);
+	charsprite_free(chars.sprites[handle]);
 	chars.sprites[handle] = NULL;
 	chars.free[chars.nr_free++] = handle;
 	return true;
+}
+
+static void charsprite_manager_free(struct charsprite_manager *csm)
+{
+	for (unsigned i = 0; i < csm->size; i++) {
+		if (csm->sprites[i])
+			charsprite_free(csm->sprites[i]);
+	}
+	free(csm->sprites);
+	free(csm->free);
+	memset(csm, 0, sizeof(*csm));
 }
 
 void CharSpriteManager_Clear(void)
@@ -117,9 +145,207 @@ void CharSpriteManager_Clear(void)
 	}
 }
 
-//static void CharSpriteManager_Rebuild(void);
-//static bool CharSpriteManager_Save(struct page **iarray);
-//static bool CharSpriteManager_Load(struct page **iarray);
+static int extract_sjis_char(char *src, char *dst)
+{
+	if (SJIS_2BYTE(*src)) {
+		dst[0] = src[0];
+		dst[1] = src[1];
+		dst[2] = '\0';
+		return 2;
+	}
+	dst[0] = src[0];
+	dst[1] = '\0';
+	return 1;
+}
+
+static void charsprite_render(struct charsprite *cs)
+{
+	char ch[3];
+	extract_sjis_char(cs->ch->text, ch);
+
+	int w = cs->tm.size;
+	int h = cs->tm.size;
+	if (isascii(ch[0]))
+		w /= 2;
+
+	sprite_init(&cs->sp, w, h, 0, 0, 0, 0);
+	sprite_get_texture(&cs->sp); // XXX: force initialization of texture
+	gfx_render_text(&cs->sp.texture, (Point) { .x=0, .y = 0 }, ch, &cs->tm, 0);
+	sprite_dirty(&cs->sp);
+
+}
+
+void CharSpriteManager_Rebuild(void)
+{
+	if (!loaded)
+		return;
+
+	charsprite_manager_free(&chars);
+	chars = load_chars;
+
+	// reset visibility
+	for (unsigned i = 0; i < chars.size; i++) {
+		if (!chars.sprites[i])
+			continue;
+		charsprite_render(chars.sprites[i]);
+		sprite_set_show(&chars.sprites[i]->sp, chars.sprites[i]->show);
+	}
+
+	memset(&load_chars, 0, sizeof(load_chars));
+	loaded = false;
+}
+
+bool CharSpriteManager_Save(struct page **iarray)
+{
+	// 'C'
+	// 'S'
+	// 'M'
+	// 0x0
+	// 0x0
+	// 0x1  <- nr handles (NOT necessary the length of the following list)
+	// 0x1  <- ???
+	// 0x67 <- 'C' (char text)
+	// 0    <- '\0'
+	// 0    <- m_nType
+	// 64   <- m_nSize
+	// ...
+	// 0   <- x
+	// 0   <- y
+	// 0   <- z
+	// 255 <- alpha rate
+	// 1   <- show
+	// 2000 <- handle + 2000
+
+	struct iarray_writer w;
+	iarray_init_writer(&w, "CSM");
+	iarray_write(&w, 0); // version?
+	iarray_write(&w, chars.size);
+
+	for (unsigned i = 0; i < chars.size; i++) {
+		if (!chars.sprites[i])
+			continue;
+
+		struct charsprite *s = chars.sprites[i];
+		iarray_write(&w, 1); // ???
+		iarray_write_string(&w, s->ch);
+		iarray_write(&w, s->tm.face);
+		iarray_write(&w, s->tm.size);
+		iarray_write(&w, s->tm.color.r);
+		iarray_write(&w, s->tm.color.g);
+		iarray_write(&w, s->tm.color.b);
+		iarray_write(&w, s->tm.color.a);
+		//iarray_write_float(&w, s->tm.weight);
+		iarray_write_float(&w, 1.0);
+		iarray_write_float(&w, s->tm.outline_left);
+		iarray_write(&w, s->tm.outline_color.r);
+		iarray_write(&w, s->tm.outline_color.g);
+		iarray_write(&w, s->tm.outline_color.b);
+		iarray_write(&w, s->tm.outline_color.a);
+		iarray_write(&w, sprite_get_pos_x(&s->sp));
+		iarray_write(&w, sprite_get_pos_y(&s->sp));
+		iarray_write(&w, sprite_get_z(&s->sp));
+		iarray_write(&w, sprite_get_blend_rate(&s->sp));
+		iarray_write(&w, sprite_get_show(&s->sp));
+		iarray_write(&w, 2000 + i);
+
+		// NOTE: Allocated but uninitialized handles are saved with a
+		//       handle of -1. These persist even after loading and
+		//       re-saving.
+		//       I've haven't implemented this as there's no way to know
+		//       the original handle number after loading anyways. Seems
+		//       like a memory leak in the original implementation.
+	}
+
+	if (*iarray) {
+		delete_page_vars(*iarray);
+		free_page(*iarray);
+	}
+	*iarray = iarray_to_page(&w);
+	iarray_free_writer(&w);
+	return true;
+}
+
+bool CharSpriteManager_Load(struct page **data)
+{
+	struct charsprite_manager csm = {0};
+
+	if (!(*data))
+		return false;
+
+	struct iarray_reader r;
+	iarray_init_reader(&r, *data, "CSM");
+	if (iarray_read(&r))
+		return false;
+
+	int nr_handles = iarray_read(&r);
+	if (nr_handles < 0 || nr_handles > 100000)
+		goto error;
+
+	csm.size = nr_handles;
+	csm.sprites = xcalloc(nr_handles, sizeof(struct charsprite*));
+
+	// load handles
+	while (!iarray_end(&r)) {
+		// character data
+		struct charsprite *cs = xcalloc(1, sizeof(struct charsprite));
+		iarray_read(&r); // ???
+		cs->ch = iarray_read_string(&r);
+		cs->tm.face = iarray_read(&r);
+		cs->tm.size = iarray_read(&r);
+		cs->tm.color.r = iarray_read(&r);
+		cs->tm.color.g = iarray_read(&r);
+		cs->tm.color.b = iarray_read(&r);
+		cs->tm.color.a = iarray_read(&r);
+		cs->tm.weight = FW_NORMAL; iarray_read_float(&r); // FIXME
+		cs->tm.outline_left = iarray_read_float(&r);
+		cs->tm.outline_up = cs->tm.outline_left;
+		cs->tm.outline_right = cs->tm.outline_left;
+		cs->tm.outline_down = cs->tm.outline_left;
+		cs->tm.outline_color.r = iarray_read(&r);
+		cs->tm.outline_color.g = iarray_read(&r);
+		cs->tm.outline_color.b = iarray_read(&r);
+		cs->tm.outline_color.a = iarray_read(&r);
+
+		// sprite data
+		int x = iarray_read(&r);
+		int y = iarray_read(&r);
+		sprite_set_show(&cs->sp, false);
+		sprite_set_pos(&cs->sp, x, y);
+		sprite_set_z(&cs->sp, iarray_read(&r));
+		sprite_set_blend_rate(&cs->sp, iarray_read(&r));
+		cs->show = iarray_read(&r);
+
+		// insert charsprite into array
+		int handle = iarray_read(&r) - 2000;
+		if (handle < 0 || (unsigned)handle >= csm.size || csm.sprites[handle]) {
+			sprite_free(&cs->sp);
+			free(cs);
+			goto error;
+		}
+		csm.sprites[handle] = cs;
+
+		if (r.error)
+			goto error;
+	}
+
+	// initialize free list
+	csm.free = xcalloc(csm.size, sizeof(int));
+	for (unsigned i = 0; i < csm.size; i++) {
+		if (!csm.sprites[i])
+			csm.free[csm.nr_free++] = i;
+	}
+
+	if (loaded) {
+		charsprite_manager_free(&load_chars);
+	}
+	load_chars = csm;
+	loaded = true;
+	return true;
+error:
+	WARNING("CharSpriteManager_Load failed");
+	charsprite_manager_free(&csm);
+	return false;
+}
 
 void CharSprite_Release(int handle)
 {
@@ -155,19 +381,6 @@ static void CASCharSpriteProperty_to_text_metrics(struct text_metrics *tm, struc
 	CASColor_to_SDL_Color(&tm->outline_color, page->values[5].i);
 }
 
-static int extract_sjis_char(char *src, char *dst)
-{
-	if (SJIS_2BYTE(*src)) {
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = '\0';
-		return 2;
-	}
-	dst[0] = src[0];
-	dst[1] = '\0';
-	return 1;
-}
-
 void CharSprite_SetChar(int handle, struct string **s, struct page **property)
 {
 	struct charsprite *sp = charsprite_get(handle);
@@ -185,19 +398,7 @@ void CharSprite_SetChar(int handle, struct string **s, struct page **property)
 	}
 
 	sp->ch = string_ref(*s);
-
-	char ch[3];
-	extract_sjis_char((*s)->text, ch);
-
-	int w = sp->tm.size;
-	int h = sp->tm.size;
-	if (isascii(ch[0]))
-		w /= 2;
-
-	sprite_init(&sp->sp, w, h, 0, 0, 0, 0);
-	sprite_get_texture(&sp->sp); // XXX: force initialization of texture
-	gfx_render_text(&sp->sp.texture, (Point) { .x=0, .y = 0 }, ch, &sp->tm, 0);
-	sprite_dirty(&sp->sp);
+	charsprite_render(sp);
 }
 
 void CharSprite_SetPos(int handle, int x, int y)

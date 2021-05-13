@@ -34,6 +34,7 @@ struct iarray_writer {
 void iarray_init_writer(struct iarray_writer *w, const char *header);
 void iarray_free_writer(struct iarray_writer *w);
 void iarray_write(struct iarray_writer *w, int data);
+void iarray_write_float(struct iarray_writer *w, float data);
 void iarray_write_string(struct iarray_writer *w, struct string *s);
 void iarray_write_struct(struct iarray_writer *w, struct page *page);
 void iarray_write_array(struct iarray_writer *w, struct page *page);
@@ -47,8 +48,14 @@ struct iarray_reader {
 	int error;
 };
 
+static inline bool iarray_end(struct iarray_reader *r)
+{
+	return r->pos >= r->size;
+}
+
 bool iarray_init_reader(struct iarray_reader *r, struct page *a, const char *header);
 int iarray_read(struct iarray_reader *r);
+float iarray_read_float(struct iarray_reader *r);
 struct string *iarray_read_string(struct iarray_reader *r);
 struct page *iarray_read_struct(struct iarray_reader *r, int struct_type);
 struct page *iarray_read_array(struct iarray_reader *r, struct ain_type *t);
