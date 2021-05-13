@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "system4/string.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -45,8 +46,9 @@ static const char *vm_ptrtype_string(enum vm_pointer_type type) {
 	return "INVALID POINTER TYPE";
 }
 
-static void heap_grow(size_t new_size)
+void heap_grow(size_t new_size)
 {
+	assert(new_size > heap_size);
 	heap = xrealloc(heap, sizeof(struct vm_pointer) * new_size);
 	heap_free_stack = xrealloc(heap_free_stack, sizeof(int32_t) * new_size);
 	for (size_t i = heap_size; i < new_size; i++) {

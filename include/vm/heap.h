@@ -50,6 +50,7 @@ extern size_t heap_size;
 
 void heap_init(void);
 void heap_delete(void);
+void heap_grow(size_t new_size);
 
 int32_t heap_alloc_slot(enum vm_pointer_type type);
 void heap_ref(int slot);

@@ -256,6 +256,9 @@ static void delete_heap(void)
 //      Out-of-order allocations would break the above assumption!
 static void alloc_heap_slot(int slot)
 {
+	if ((size_t)slot >= heap_size) {
+		heap_grow(heap_size * 2);
+	}
 	heap_free_stack[slot] = heap_free_stack[heap_free_ptr];
 	heap_free_ptr++;
 }
