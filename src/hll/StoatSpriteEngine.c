@@ -699,6 +699,10 @@ static bool StoatSpriteEngine_MultiSprite_Encode(struct page **data)
 {
 	NOTICE("MultiSprite_Encode");
 	union vm_value dim = { .i = 1 };
+	if (*data) {
+		delete_page_vars(*data);
+		free_page(*data);
+	}
 	*data = alloc_array(1, &dim, AIN_ARRAY_INT, 0, false);
 	return true;
 }
@@ -710,16 +714,35 @@ static int StoatSpriteEngine_SYSTEM_IsResetOnce(void)
 	return 0;
 }
 
-HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetConfigOverFrameRateSleep, bool on);
-HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetConfigOverFrameRateSleep);
-HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetConfigSleepByInactiveWindow, bool on);
-HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetConfigSleepByInactiveWindow);
+static bool config_over_frame_rate_sleep = true;
+
+static void StoatSpriteEngine_SYSTEM_SetConfigOverFrameRateSleep(bool on)
+{
+	config_over_frame_rate_sleep = !!on;
+}
+
+static bool StoatSpriteEngine_SYSTEM_GetConfigOverFrameRateSleep(void)
+{
+	return config_over_frame_rate_sleep;
+}
+
+static bool config_sleep_by_inactive_window = false;
+
+static void StoatSpriteEngine_SYSTEM_SetConfigSleepByInactiveWindow(bool on)
+{
+	config_sleep_by_inactive_window = !!on;
+}
+
+static bool StoatSpriteEngine_SYSTEM_GetConfigSleepByInactiveWindow(void)
+{
+	return config_sleep_by_inactive_window;
+}
 
 static bool read_message_skipping = false;
 
 static void StoatSpriteEngine_SYSTEM_SetReadMessageSkipping(bool on)
 {
-	read_message_skipping = on;
+	read_message_skipping = !!on;
 }
 
 
@@ -728,10 +751,29 @@ static bool StoatSpriteEngine_SYSTEM_GetReadMessageSkipping(void)
 	return read_message_skipping;
 }
 
-HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetConfigFrameSkipWhileMessageSkip, bool on);
-HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetConfigFrameSkipWhileMessageSkip);
-HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SYSTEM_SetInvalidateFrameSkipWhileMessageSkip, bool on);
-HLL_WARN_UNIMPLEMENTED(0, bool, StoatSpriteEngine, SYSTEM_GetInvalidateFrameSkipWhileMessageSkip);
+static bool config_frame_skip_while_message_skip = true;
+
+static void StoatSpriteEngine_SYSTEM_SetConfigFrameSkipWhileMessageSkip(bool on)
+{
+	config_frame_skip_while_message_skip = !!on;
+}
+
+static bool StoatSpriteEngine_SYSTEM_GetConfigFrameSkipWhileMessageSkip(void)
+{
+	return config_frame_skip_while_message_skip;
+}
+
+static bool invalidate_frame_skip_while_message_skip = false;
+
+static void StoatSpriteEngine_SYSTEM_SetInvalidateFrameSkipWhileMessageSkip(bool on)
+{
+	invalidate_frame_skip_while_message_skip = !!on;
+}
+
+static bool StoatSpriteEngine_SYSTEM_GetInvalidateFrameSkipWhileMessageSkip(void)
+{
+	return invalidate_frame_skip_while_message_skip;
+}
 
 HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(_ModuleFini, StoatSpriteEngine_ModuleFini),
