@@ -1899,6 +1899,13 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_push_string(string_ref(s));
 		break;
 	}
+	case SH_REF_LOCAL_ASSIGN_STRUCTREF2: {
+		struct page *memb = heap_get_page(member_get(get_argument(0)).i);
+		int page = local_get(get_argument(1)).i;
+		int var = local_get(get_argument(1) + 1).i;
+		page_set_var(heap_get_page(page), var, page_get_var(memb, get_argument(2)));
+		break;
+	}
 	case SH_GLOBAL_S_REF: {
 		int str = global_get(get_argument(0)).i;
 		stack_push_string(string_ref(heap_get_string(str)));
@@ -1923,7 +1930,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case SH_S_ASSIGN_CALLSYS19: {
 		struct string *name = get_func_stack_name(stack_pop().i);
-		heap_string_assign(stack_pop_var()->i, name);
+		heap_string_assign(stack_pop().i, name);
 		break;
 	}
 	case SH_S_ASSIGN_STR0: {
