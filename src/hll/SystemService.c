@@ -69,7 +69,13 @@ static int SystemService_SetMixerMute(int n, possibly_unused int mute)
 }
 
 //int SystemService_GetGameVersion(void);
-//void SystemService_GetGameName(ref string GameName);
+static void SystemService_GetGameName(struct string **game_name)
+{
+	if (*game_name)
+		free_string(*game_name);
+	*game_name = cstr_to_string(config.game_name);
+}
+
 //bool SystemService_AddURLMenu(string szTitle, string szURL);
 
 static bool SystemService_IsFullScreen(void)
@@ -165,7 +171,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(SetMixerVolume, SystemService_SetMixerVolume),
 	    HLL_EXPORT(SetMixerMute, SystemService_SetMixerMute),
 	    HLL_TODO_EXPORT(GetGameVersion, SystemService_GetGameVersion),
-	    HLL_TODO_EXPORT(GetGameName, SystemService_GetGameName),
+	    HLL_EXPORT(GetGameName, SystemService_GetGameName),
 	    HLL_TODO_EXPORT(AddURLMenu, SystemService_AddURLMenu),
 	    HLL_EXPORT(IsFullScreen, SystemService_IsFullScreen),
 	    HLL_TODO_EXPORT(ChangeNormalScreen, SystemService_ChangeNormalScreen),
