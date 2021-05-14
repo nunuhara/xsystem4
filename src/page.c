@@ -304,15 +304,15 @@ struct page *alloc_array(int rank, union vm_value *dimensions, enum ain_data_typ
 struct page *realloc_array(struct page *src, int rank, union vm_value *dimensions, enum ain_data_type data_type, int struct_type, bool init_structs)
 {
 	if (rank < 1)
-		ERROR("Tried to allocate 0-rank array");
+		VM_ERROR("Tried to allocate 0-rank array");
 	if (!src && !dimensions->i)
 		return NULL;
 	if (!src)
 		return alloc_array(rank, dimensions, data_type, struct_type, init_structs);
 	if (src->type != ARRAY_PAGE)
-		ERROR("Not an array");
+		VM_ERROR("Not an array");
 	if (src->rank != rank)
-		ERROR("Attempt to reallocate array with different rank");
+		VM_ERROR("Attempt to reallocate array with different rank");
 	if (!dimensions->i) {
 		delete_page_vars(src);
 		free_page(src);
@@ -372,17 +372,17 @@ void array_copy(struct page *dst, int dst_i, struct page *src, int src_i, int n)
 	if (n <= 0)
 		return;
 	if (!dst || !src)
-		ERROR("Array is NULL");
+		VM_ERROR("Array is NULL");
 	if (dst->type != ARRAY_PAGE || src->type != ARRAY_PAGE)
-		ERROR("Not an array");
+		VM_ERROR("Not an array");
 	if (!array_index_ok(dst, dst_i) || !array_index_ok(src, src_i))
-		ERROR("Out of bounds array access");
+		VM_ERROR("Out of bounds array access");
 	if (!array_index_ok(dst, dst_i + n - 1) || !array_index_ok(src, src_i + n - 1))
-		ERROR("Out of bounds array access");
+		VM_ERROR("Out of bounds array access");
 	if (dst->rank != 1 || src->rank != 1)
-		ERROR("Tried to copy to/from a multi-dimensional array");
+		VM_ERROR("Tried to copy to/from a multi-dimensional array");
 	if (dst->a_type != src->a_type)
-		ERROR("Array types do not match");
+		VM_ERROR("Array types do not match");
 
 	for (int i = 0; i < n; i++) {
 		enum ain_data_type type = array_type(dst->a_type);
@@ -393,9 +393,9 @@ void array_copy(struct page *dst, int dst_i, struct page *src, int src_i, int n)
 int array_fill(struct page *dst, int dst_i, int n, union vm_value v)
 {
 	if (!dst)
-		ERROR("Array is NULL");
+		return 0;
 	if (dst->type != ARRAY_PAGE)
-		ERROR("Not an array");
+		VM_ERROR("Not an array");
 
 	// clamp (dst_i, dst_i+n) to range of array
 	if (dst_i < 0) {
@@ -419,9 +419,9 @@ struct page *array_pushback(struct page *dst, union vm_value v, enum ain_data_ty
 {
 	if (dst) {
 		if (dst->type != ARRAY_PAGE)
-			ERROR("Not an array");
+			VM_ERROR("Not an array");
 		if (dst->rank != 1)
-			ERROR("Tried pushing to a multi-dimensional array");
+			VM_ERROR("Tried pushing to a multi-dimensional array");
 
 		int index = dst->nr_vars;
 		union vm_value dims[1] = { (union vm_value) { .i = index + 1 } };
@@ -440,9 +440,9 @@ struct page *array_popback(struct page *dst)
 	if (!dst)
 		return NULL;
 	if (dst->type != ARRAY_PAGE)
-		ERROR("Not an array");
+		VM_ERROR("Not an array");
 	if (dst->rank != 1)
-		ERROR("Tried popping from a multi-dimensional array");
+		VM_ERROR("Tried popping from a multi-dimensional array");
 
 	union vm_value dims[1] = { (union vm_value) { .i = dst->nr_vars - 1 } };
 	dst = realloc_array(dst, 1, dims, dst->a_type, dst->struct_type, false);
@@ -455,9 +455,9 @@ struct page *array_erase(struct page *page, int i, bool *success)
 	if (!page)
 		return NULL;
 	if (page->type != ARRAY_PAGE)
-		ERROR("Not an array");
+		VM_ERROR("Not an array");
 	if (page->rank != 1)
-		ERROR("Tried erasing from a multi-dimensional array");
+		VM_ERROR("Tried erasing from a multi-dimensional array");
 	if (!array_index_ok(page, i))
 		return page;
 
@@ -487,9 +487,9 @@ struct page *array_insert(struct page *page, int i, union vm_value v, enum ain_d
 		return array_pushback(NULL, v, data_type, struct_type);
 	}
 	if (page->type != ARRAY_PAGE)
-		ERROR("Not an array");
+		VM_ERROR("Not an array");
 	if (page->rank != 1)
-		ERROR("Tried inserting into a multi-dimensional array");
+		VM_ERROR("Tried inserting into a multi-dimensional array");
 
 	// NOTE: you cannot insert at the end of an array due to how i is clamped
 	if (i >= page->nr_vars)
