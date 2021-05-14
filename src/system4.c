@@ -111,9 +111,17 @@ static void read_mixer_channels(struct ini_entry *entry)
 			WARNING("No name given for VolumeValancer[%d]", i);
 			continue;
 		}
-		if (entry->value.list[i].type != INI_STRING)
-			ERROR("ini value for 'VolumeValancer' list entry is not a string");
-		config.mixer_channels[i] = strdup(entry->value.list[i].s->text);
+		if (entry->value.list[i].type == INI_STRING) {
+			config.mixer_channels[i] = strdup(entry->value.list[i].s->text);
+		} else if (entry->value.list[i].type == INI_LIST) {
+			if (entry->value.list[i].list_size != 2)
+				ERROR("ini value for 'VolumeValancer' is list of wrong size");
+			if (entry->value.list[i].list[0].type != INI_STRING)
+				ERROR("ini value for 'VolumeValancer' name is not a string");
+			if (entry->value.list[i].list[1].type != INI_INTEGER)
+				ERROR("ini value for 'VolumeValancer' level is not an integer");
+			config.mixer_channels[i] = strdup(entry->value.list[i].list[0].s->text);
+		}
 	}
 }
 
@@ -339,6 +347,9 @@ static void config_init_with_dir(const char *dir)
 {
 	char path[PATH_MAX];
 	snprintf(path, PATH_MAX, "%s/System40.ini", dir);
+	if (!file_exists(path)) {
+		snprintf(path, PATH_MAX, "%s/AliceStart.ini", dir);
+	}
 	config_init_with_ini(path);
 }
 
