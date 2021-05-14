@@ -265,15 +265,12 @@ void DrawGraph_FillWithAlpha(int dst, int x, int y, int w, int h, int r, int g, 
 	gfx_fill_with_alpha(DTEX(dst), x, y, w, h, r, g, b, a);
 }
 
-//void DrawGraph_CopyStretchWithAlphaMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight);
-//void DrawGraph_CopyStretchBilinearWithAlphaMap(int nDest, int nDx, int nDy, int nDWidth, int nDHeight, int nSrc, int nSx, int nSy, int nSWidth, int nSHeight);
-//void DrawGraph_CopyGrayscale(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight);
+void DrawGraph_CopyStretchWithAlphaMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
+{
+	gfx_copy_stretch_with_alpha_map(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh);
+}
 
-//HLL_EXPORT(CopyWithAlphaMap, DrawGraph_CopyWithAlphaMap),
-//HLL_EXPORT(FillWithAlpha, DrawGraph_FillWithAlpha),
-//HLL_EXPORT(CopyStretchWithAlphaMap, DrawGraph_CopyStretchWithAlphaMap),
-//HLL_EXPORT(CopyStretchBilinearWithAlphaMap, DrawGraph_CopyStretchBilinearWithAlphaMap),
-//HLL_EXPORT(CopyGrayscale, DrawGraph_CopyGrayscale),
+//void DrawGraph_CopyGrayscale(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight);
 
 HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(Copy, DrawGraph_Copy),
@@ -371,8 +368,9 @@ HLL_LIBRARY(DrawGraph,
 	    //HLL_EXPORT(DrawPolygon, DrawGraph_DrawPolygon),
 	    //HLL_EXPORT(DrawColorPolygon, DrawGraph_DrawColorPolygon)
 	    HLL_EXPORT(CopyWithAlphaMap, DrawGraph_CopyWithAlphaMap),
-	    HLL_EXPORT(FillWithAlpha, DrawGraph_FillWithAlpha)
-	    //HLL_EXPORT(CopyStretchWithAlphaMap, DrawGraph_CopyStretchWithAlphaMap),
-	    //HLL_EXPORT(CopyStretchBilinearWithAlphaMap, DrawGraph_CopyStretchBilinearWithAlphaMap),
+	    HLL_EXPORT(FillWithAlpha, DrawGraph_FillWithAlpha),
+	    HLL_EXPORT(CopyStretchWithAlphaMap, DrawGraph_CopyStretchWithAlphaMap),
+	    // NOTE: xsystem4 uses bilinear interpolation by default
+	    HLL_EXPORT(CopyStretchBilinearWithAlphaMap, DrawGraph_CopyStretchWithAlphaMap)
 	    //HLL_EXPORT(CopyGrayscale, DrawGraph_CopyGrayscale),
 	);
