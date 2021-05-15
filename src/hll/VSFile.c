@@ -28,6 +28,56 @@
 static bool vs_read = false;
 static FILE *vs_file = NULL;
 
+enum vsf_valuetype {
+	VSF_BYTE = 0,
+	VSF_INT = 1,
+	VSF_FLOAT = 2,
+	VSF_STRING = 3,
+};
+
+static bool vsf_write(const void *ptr, size_t size)
+{
+	if (fwrite(ptr, size, 1, vs_file) != 1) {
+		WARNING("fwrite failed: %s", strerror(errno));
+		return false;
+	}
+	return true;
+}
+
+static bool vsf_read(uint8_t *dst, size_t size)
+{
+	if (fread(dst, size, 1, vs_file) != 1) {
+		WARNING("fread failed: %s", strerror(errno));
+		return false;
+	}
+	return true;
+}
+
+static bool vsf_read_type(enum vsf_valuetype type)
+{
+	if (!vs_file || !vs_read) {
+		WARNING("VSFile is not opened for reading");
+		return false;
+	}
+
+	int c = fgetc(vs_file);
+	if ((enum vsf_valuetype)c != type) {
+		ungetc(c, vs_file);
+		return false;
+	}
+	return true;
+}
+
+static bool vsf_write_type(enum vsf_valuetype type)
+{
+	if (!vs_file || vs_read) {
+		WARNING("VSFile is not opened for writing");
+		return false;
+	}
+	uint8_t b = type;
+	return vsf_write(&b, 1);
+}
+
 static char *process_filename(struct string *filename)
 {
 	char *u = sjis2utf(filename->text, filename->size);
@@ -56,12 +106,27 @@ static bool vsfile_open(struct string *filename, bool read)
 
 static bool VSFile_OpenForWrite(struct string *filename)
 {
-	return vsfile_open(filename, false);
+	if (!vsfile_open(filename, false))
+		return false;
+	if (!vsf_write("VSF\0\0\0\0", 8)) {
+		fclose(vs_file);
+		vs_file = NULL;
+		return false;
+	}
+	return true;
 }
 
 static bool VSFile_OpenForRead(struct string *filename)
 {
-	return vsfile_open(filename, true);
+	if (!vsfile_open(filename, true))
+		return false;
+	uint8_t hdr[8];
+	if (!vsf_read(hdr, 8) || memcmp(hdr, "VSF\0\0\0\0", 8)) {
+		fclose(vs_file);
+		vs_file = NULL;
+		return false;
+	}
+	return true;
 }
 
 static bool VSFile_Close(void)
@@ -77,40 +142,24 @@ static bool VSFile_Close(void)
 
 static bool VSFile_WriteByte(int data)
 {
-	if (!vs_file || vs_read) {
-		WARNING("VSFile is not opened for writing");
-		return false;
-	}
+	vsf_write_type(VSF_BYTE);
+
 	uint8_t b = data;
-	if (fwrite(&b, 1, 1, vs_file) != 1) {
-		WARNING("fwrite failed: %s", strerror(errno));
-		return false;
-	}
-	return true;
+	return vsf_write(&b, 1);
 }
 
 static bool VSFile_WriteInt(int data)
 {
-	if (!vs_file || vs_read) {
-		WARNING("VSFile is not opened for writing");
-		return false;
-	}
+	vsf_write_type(VSF_INT);
 
 	uint8_t b[4];
 	LittleEndian_putDW(b, 0, data);
-	if (fwrite(&b, 4, 1, vs_file) != 1) {
-		WARNING("fwrite failed: %s", strerror(errno));
-		return false;
-	}
-	return true;
+	return vsf_write(b, 4);
 }
 
 static bool VSFile_WriteFloat(float data)
 {
-	if (!vs_file || vs_read) {
-		WARNING("VSFile is not opened for writing");
-		return false;
-	}
+	vsf_write_type(VSF_FLOAT);
 
 	uint8_t b[4];
 	union {
@@ -119,19 +168,12 @@ static bool VSFile_WriteFloat(float data)
 	} cast;
 	cast.f = data;
 	LittleEndian_putDW(b, 0, cast.i);
-	if (fwrite(&b, 4, 1, vs_file) != 1) {
-		WARNING("fwrite failed: %s", strerror(errno));
-		return false;
-	}
-	return true;
+	return vsf_write(b, 4);
 }
 
 static bool VSFile_WriteString(struct string *str)
 {
-	if (!vs_file || vs_read) {
-		WARNING("VSFile is not opened for writing");
-		return false;
-	}
+	vsf_write_type(VSF_STRING);
 
 	if (fwrite(str->text, str->size+1, 1, vs_file) != 1) {
 		WARNING("fwrite failed: %s", strerror(errno));
@@ -142,55 +184,37 @@ static bool VSFile_WriteString(struct string *str)
 
 static bool VSFile_ReadByte(int *data)
 {
-	if (!vs_file || !vs_read) {
-		WARNING("VSFile is not opened for reading");
-		return false;
-	}
+	vsf_read_type(VSF_BYTE);
 
 	uint8_t b;
-	if (fread(&b, 1, 1, vs_file) != 1) {
-		WARNING("fread failed: %s", strerror(errno));
+	if (!vsf_read(&b, 1))
 		return false;
-	}
-
 	*data = b;
 	return true;
 }
 
 static bool VSFile_ReadInt(int *data)
 {
-	if (!vs_file || !vs_read) {
-		WARNING("VSFile is not opened for reading");
-		return false;
-	}
+	vsf_read_type(VSF_INT);
 
 	uint8_t b[4];
-	if (fread(&b, 4, 1, vs_file) != 1) {
-		WARNING("fread failed: %s", strerror(errno));
+	if (!vsf_read(b, 4))
 		return false;
-	}
-
 	*data = LittleEndian_getDW(b, 0);
 	return true;
 }
 
 static bool VSFile_ReadFloat(float *data)
 {
-	if (!vs_file || !vs_read) {
-		WARNING("VSFile is not opened for reading");
-		return false;
-	}
+	vsf_read_type(VSF_FLOAT);
 
 	uint8_t b[4];
 	union {
 		uint32_t i;
 		float f;
 	} cast;
-	if (fread(&b, 4, 1, vs_file) != 1) {
-		WARNING("fread failed: %s", strerror(errno));
+	if (!vsf_read(b, 4))
 		return false;
-	}
-
 	cast.i = LittleEndian_getDW(b, 0);
 	*data = cast.f;
 	return true;
@@ -198,16 +222,12 @@ static bool VSFile_ReadFloat(float *data)
 
 static bool VSFile_ReadString(struct string **str)
 {
-	if (!vs_file || !vs_read) {
-		WARNING("VSFile is not opened for reading");
-		return false;
-	}
+	vsf_read_type(VSF_STRING);
 
 	char b;
 	struct string *s = make_string("", 0);
 	while (true) {
-		if (fread(&b, 1, 1, vs_file) != 1) {
-			WARNING("fread failed: %s", strerror(errno));
+		if (!vsf_read((uint8_t*)&b, 1)) {
 			free_string(s);
 			return false;
 		}
