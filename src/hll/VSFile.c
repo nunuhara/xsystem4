@@ -236,6 +236,8 @@ static bool VSFile_ReadString(struct string **str)
 		string_append_cstr(&s, &b, 1);
 	}
 
+	if (*str)
+		free_string(*str);
 	*str = s;
 	return true;
 }
