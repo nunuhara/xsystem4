@@ -82,7 +82,7 @@ static int extract_sjis_char(char *src, char *dst)
 	return 1;
 }
 
-static bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
+bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 {
 	if (text->size < 1)
 		return false;
@@ -103,27 +103,27 @@ static bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 	return true;
 }
 
-static void StoatSpriteEngine_SP_SetTextSpriteType(int type)
+void StoatSpriteEngine_SP_SetTextSpriteType(int type)
 {
 	text_sprite_tm.face = type;
 }
 
-static void StoatSpriteEngine_SP_SetTextSpriteSize(int size)
+void StoatSpriteEngine_SP_SetTextSpriteSize(int size)
 {
 	text_sprite_tm.size = size;
 }
 
-static void StoatSpriteEngine_SP_SetTextSpriteColor(int r, int g, int b)
+void StoatSpriteEngine_SP_SetTextSpriteColor(int r, int g, int b)
 {
 	text_sprite_tm.color = (SDL_Color) { .r = r, .g = g, .b = b, .a = 255 };
 }
 
-static void StoatSpriteEngine_SP_SetTextSpriteBoldWeight(float weight)
+void StoatSpriteEngine_SP_SetTextSpriteBoldWeight(float weight)
 {
 	//NOTICE("StoatSpriteEngine.SP_SetTextSpriteBoldWeight(%f)", weight);
 }
 
-static void StoatSpriteEngine_SP_SetTextSpriteEdgeWeight(float weight)
+void StoatSpriteEngine_SP_SetTextSpriteEdgeWeight(float weight)
 {
 	text_sprite_tm.outline_left = weight;
 	text_sprite_tm.outline_up = weight;
@@ -132,12 +132,12 @@ static void StoatSpriteEngine_SP_SetTextSpriteEdgeWeight(float weight)
 	//NOTICE("StoatSpriteEngine.SP_SetTextSpriteEdgeWeight(%f)", weight);
 }
 
-static void StoatSpriteEngine_SP_SetTextSpriteEdgeColor(int r, int g, int b)
+void StoatSpriteEngine_SP_SetTextSpriteEdgeColor(int r, int g, int b)
 {
 	text_sprite_tm.outline_color = (SDL_Color) { .r = r, .g = g, .b = b, .a = 255 };
 }
 
-static bool StoatSpriteEngine_SP_SetDashTextSprite(int sp_no, int width, int height)
+bool StoatSpriteEngine_SP_SetDashTextSprite(int sp_no, int width, int height)
 {
 	// TODO: This function just draws a horizontal line on the sprite texture
 	NOTICE("StoatSpriteEngine.SP_SetDashTextSprite(%d, %d, %d)", sp_no, width, height);
@@ -145,16 +145,12 @@ static bool StoatSpriteEngine_SP_SetDashTextSprite(int sp_no, int width, int hei
 }
 
 //static void StoatSpriteEngine_FPS_SetShow(bool bShow);
-
-static bool StoatSpriteEngine_KEY_GetState(int key)
-{
-	return key_is_down(key);
-}
+//static bool StoatSpriteEngine_FPS_GetShow(void);
+//static float StoatSpriteEngine_FPS_Get(void);
 
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, VIEW_SetOffsetPos, int x, int y);
 
 static bool keep_previous_view = true;
-
 HLL_WARN_UNIMPLEMENTED((keep_previous_view = on, true), bool, StoatSpriteEngine, KeepPreviousView_SetMode, bool on);
 HLL_WARN_UNIMPLEMENTED(keep_previous_view, bool, StoatSpriteEngine, KeepPreviousView_GetMode);
 
@@ -709,71 +705,76 @@ static bool StoatSpriteEngine_MultiSprite_Encode(struct page **data)
 
 HLL_WARN_UNIMPLEMENTED(true, bool, StoatSpriteEngine, MultiSprite_Decode, struct page **data);
 
-static int StoatSpriteEngine_SYSTEM_IsResetOnce(void)
+int StoatSpriteEngine_SYSTEM_IsResetOnce(void)
 {
 	return 0;
 }
 
 static bool config_over_frame_rate_sleep = true;
 
-static void StoatSpriteEngine_SYSTEM_SetConfigOverFrameRateSleep(bool on)
+void StoatSpriteEngine_SYSTEM_SetConfigOverFrameRateSleep(bool on)
 {
 	config_over_frame_rate_sleep = !!on;
 }
 
-static bool StoatSpriteEngine_SYSTEM_GetConfigOverFrameRateSleep(void)
+bool StoatSpriteEngine_SYSTEM_GetConfigOverFrameRateSleep(void)
 {
 	return config_over_frame_rate_sleep;
 }
 
 static bool config_sleep_by_inactive_window = false;
 
-static void StoatSpriteEngine_SYSTEM_SetConfigSleepByInactiveWindow(bool on)
+void StoatSpriteEngine_SYSTEM_SetConfigSleepByInactiveWindow(bool on)
 {
 	config_sleep_by_inactive_window = !!on;
 }
 
-static bool StoatSpriteEngine_SYSTEM_GetConfigSleepByInactiveWindow(void)
+bool StoatSpriteEngine_SYSTEM_GetConfigSleepByInactiveWindow(void)
 {
 	return config_sleep_by_inactive_window;
 }
 
 static bool read_message_skipping = false;
 
-static void StoatSpriteEngine_SYSTEM_SetReadMessageSkipping(bool on)
+void StoatSpriteEngine_SYSTEM_SetReadMessageSkipping(bool on)
 {
 	read_message_skipping = !!on;
 }
 
 
-static bool StoatSpriteEngine_SYSTEM_GetReadMessageSkipping(void)
+bool StoatSpriteEngine_SYSTEM_GetReadMessageSkipping(void)
 {
 	return read_message_skipping;
 }
 
 static bool config_frame_skip_while_message_skip = true;
 
-static void StoatSpriteEngine_SYSTEM_SetConfigFrameSkipWhileMessageSkip(bool on)
+void StoatSpriteEngine_SYSTEM_SetConfigFrameSkipWhileMessageSkip(bool on)
 {
 	config_frame_skip_while_message_skip = !!on;
 }
 
-static bool StoatSpriteEngine_SYSTEM_GetConfigFrameSkipWhileMessageSkip(void)
+bool StoatSpriteEngine_SYSTEM_GetConfigFrameSkipWhileMessageSkip(void)
 {
 	return config_frame_skip_while_message_skip;
 }
 
 static bool invalidate_frame_skip_while_message_skip = false;
 
-static void StoatSpriteEngine_SYSTEM_SetInvalidateFrameSkipWhileMessageSkip(bool on)
+void StoatSpriteEngine_SYSTEM_SetInvalidateFrameSkipWhileMessageSkip(bool on)
 {
 	invalidate_frame_skip_while_message_skip = !!on;
 }
 
-static bool StoatSpriteEngine_SYSTEM_GetInvalidateFrameSkipWhileMessageSkip(void)
+bool StoatSpriteEngine_SYSTEM_GetInvalidateFrameSkipWhileMessageSkip(void)
 {
 	return invalidate_frame_skip_while_message_skip;
 }
+
+//static int StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize(void);
+//static int StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize(void);
+//static int StoatSpriteEngine_Debug_GetFillRate(void);
+//static int StoatSpriteEngine_MUSIC_ReloadParam(struct string **text);
 
 HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(_ModuleFini, StoatSpriteEngine_ModuleFini),
@@ -843,6 +844,8 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(SP_SetTextSpriteEdgeColor, StoatSpriteEngine_SP_SetTextSpriteEdgeColor),
 	    HLL_EXPORT(SP_SetDashTextSprite, StoatSpriteEngine_SP_SetDashTextSprite),
 	    HLL_TODO_EXPORT(FPS_SetShow, StoatSpriteEngine_FPS_SetShow),
+	    HLL_TODO_EXPORT(FPS_GetShow, StoatSpriteEngine_FPS_GetShow),
+	    HLL_TODO_EXPORT(FPS_Get, StoatSpriteEngine_FPS_Get),
 	    HLL_EXPORT(GAME_MSG_GetNumof, sact_GAME_MSG_GetNumOf),
 	    HLL_TODO_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get),
 	    HLL_EXPORT(IntToZenkaku, sact_IntToZenkaku),
@@ -860,7 +863,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(Joypad_GetDigitalStickStatus, sact_Joypad_GetDigitalStickStatus),
 	    HLL_EXPORT(Key_ClearFlag, sact_Key_ClearFlag),
 	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown),
-	    HLL_EXPORT(KEY_GetState, StoatSpriteEngine_KEY_GetState),
+	    HLL_EXPORT(KEY_GetState, key_is_down),
 	    HLL_EXPORT(Timer_Get, vm_time),
 	    HLL_EXPORT(CG_IsExist, sact_CG_IsExist),
 	    HLL_EXPORT(CG_GetMetrics, sact_CG_GetMetrics),
@@ -1021,4 +1024,8 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    // XXX: StoatSpriteEngine interface differs from AnteaterADVEngine here
 	    HLL_EXPORT(ADVLogList_GetADVLogVoice, ADVLogList_GetADVLogVoiceLast),
 	    HLL_EXPORT(ADVLogList_Save, ADVLogList_Save),
-	    HLL_EXPORT(ADVLogList_Load, ADVLogList_Load));
+	    HLL_EXPORT(ADVLogList_Load, ADVLogList_Load),
+	    HLL_TODO_EXPORT(Debug_GetCurrentAllocatedMemorySize, StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize),
+	    HLL_TODO_EXPORT(Debug_GetMaxAllocatedMemorySize, StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize),
+	    HLL_TODO_EXPORT(Debug_GetFillRate, StoatSpriteEngine_Debug_GetFillRate),
+	    HLL_TODO_EXPORT(MUSIC_ReloadParam, StoatSpriteEngine_MUSIC_ReloadParam));

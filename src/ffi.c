@@ -14,9 +14,13 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#define VM_PRIVATE
+
+#include <stdlib.h>
 #include <string.h>
 #include <ffi.h>
 #include "system4/ain.h"
+#include "system4/utfsjis.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
@@ -42,6 +46,129 @@ bool library_function_exists(int libno, int fno)
 {
 	return libraries[libno] && libraries[libno][fno].fun;
 }
+
+/*
+ * Primitive HLL function tracing facility.
+ */
+//#define TRACE_HLL
+#ifdef TRACE_HLL
+#include "system4/string.h"
+
+static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
+		      struct hll_function *fun, union vm_value *r, void *_args)
+{
+	// list of traced libraries
+	if (!strcmp(lib->name, "StoatSpriteEngine")) {
+		// list of excluded functions
+		if (!strcmp(f->name, "CharSprite_GetAlphaRate")) goto notrace;
+		if (!strcmp(f->name, "CharSprite_SetAlphaRate")) goto notrace;
+		if (!strcmp(f->name, "KEY_GetState")) goto notrace;
+		if (!strcmp(f->name, "Mouse_ClearWheel")) goto notrace;
+		if (!strcmp(f->name, "Mouse_GetPos")) goto notrace;
+		if (!strcmp(f->name, "Mouse_GetWheel")) goto notrace;
+		if (!strcmp(f->name, "MultiSprite_UpdateView")) goto notrace;
+		if (!strcmp(f->name, "SP_ExistAlpha")) goto notrace;
+		if (!strcmp(f->name, "SP_GetHeight")) goto notrace;
+		if (!strcmp(f->name, "SP_GetWidth")) goto notrace;
+		if (!strcmp(f->name, "SP_IsPtIn")) goto notrace;
+		if (!strcmp(f->name, "SP_IsPtInRect")) goto notrace;
+		if (!strcmp(f->name, "SYSTEM_SetReadMessageSkipping")) goto notrace;
+		if (!strcmp(f->name, "TRANS_Update")) goto notrace;
+		if (!strcmp(f->name, "Update")) goto notrace;
+		else goto notrace;
+	}
+	else if (!strcmp(lib->name, "VSFile"));
+	//else if (!strcmp(lib->name, "DrawGraph"));
+	//else if (!strcmp(lib->name, "SACT2"));
+	//else if (!strcmp(lib->name, "SengokuRanceFont"));
+	else goto notrace;
+
+	char *u = sjis2utf(ain->functions[call_stack[call_stack_ptr-1].fno].name, 0);
+	sys_message("(%s) ", u);
+	free(u);
+
+	sys_message("%s.%s(", lib->name, f->name);
+	union vm_value **args = _args;
+	for (int i = 0; i < f->nr_arguments; i++) {
+		if (i > 0) {
+			sys_message(", ");
+		}
+		sys_message("%s=", f->arguments[i].name);
+		switch (f->arguments[i].type.data) {
+		case AIN_INT:
+		case AIN_LONG_INT:
+			sys_message("%d", args[i]->i);
+			break;
+		case AIN_FLOAT:
+			sys_message("%f", args[i]->f);
+			break;
+		case AIN_STRING: {
+			struct string ***strs = _args;
+			struct string *s = *strs[i];
+			char *u = sjis2utf(s->text, s->size);
+			sys_message("\"%s\"", u);
+			free(u);
+			break;
+		}
+		case AIN_BOOL:
+			sys_message("%s", args[i]->i ? "true" : "false");
+			break;
+		case AIN_STRUCT:
+			sys_message("<struct>");
+			break;
+		case AIN_ARRAY_TYPE:
+			sys_message("<array>");
+			break;
+		case AIN_REF_TYPE:
+			sys_message("<ref>");
+			break;
+		default:
+			sys_message("<%d>", f->arguments[i].type.data);
+			break;
+		}
+	}
+	sys_message(")");
+
+	ffi_call(&fun->cif, (void*)fun->fun, r, _args);
+
+	switch (f->return_type.data) {
+	case AIN_VOID:
+		break;
+	case AIN_INT:
+		sys_message(" -> %d", r->i);
+		break;
+	case AIN_FLOAT:
+		sys_message(" -> %f", r->f);
+		break;
+	case AIN_STRING:
+		sys_message(" -> \"%s\"", ((struct string*)r->ref)->text);
+		break;
+	case AIN_BOOL:
+		sys_message(" -> %s", r->i ? "true" : "false");
+		break;
+	default:
+		sys_message(" -> <%d>", f->return_type.data);
+		break;
+	}
+	for (int i = 0; i < f->nr_arguments; i++) {
+		union vm_value ***args = _args;
+		switch (f->arguments[i].type.data) {
+		case AIN_REF_INT:
+			sys_message(" (%s=%d)", f->arguments[i].name, (*args[i])->i);
+			break;
+		case AIN_REF_FLOAT:
+			sys_message(" (%s=%f)", f->arguments[i].name, (*args[i])->f);
+			break;
+		default:
+			break;
+		}
+	}
+	sys_message("\n");
+	return;
+notrace:
+	ffi_call(&fun->cif, (void*)fun->fun, r, _args);
+}
+#endif /* TRACE_HLL */
 
 void hll_call(int libno, int fno)
 {
@@ -103,7 +230,12 @@ void hll_call(int libno, int fno)
 	}
 
 	union vm_value r;
+#ifdef TRACE_HLL
+	trace_hll_call(&ain->libraries[libno], f, fun, &r, args);
+#else
 	ffi_call(&fun->cif, (void*)fun->fun, &r, args);
+#endif
+
 
 	for (int i = 0, j = 0; i < f->nr_arguments; i++, j++) {
 		// XXX: We don't increase the ref count when passing ref arguments to HLL
@@ -146,6 +278,7 @@ extern struct static_library lib_AliceLogo4;
 extern struct static_library lib_AnteaterADVEngine;
 extern struct static_library lib_BanMisc;
 extern struct static_library lib_Bitarray;
+extern struct static_library lib_ChipmunkSpriteEngine;
 extern struct static_library lib_Confirm;
 extern struct static_library lib_Confirm2;
 extern struct static_library lib_CrayfishLogViewer;
@@ -189,6 +322,7 @@ static struct static_library *static_libraries[] = {
 	&lib_AnteaterADVEngine,
 	&lib_BanMisc,
 	&lib_Bitarray,
+	&lib_ChipmunkSpriteEngine,
 	&lib_Confirm,
 	&lib_Confirm2,
 	&lib_CrayfishLogViewer,

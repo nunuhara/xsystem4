@@ -102,4 +102,26 @@ int sact_TRANS_Begin(int type);
 int sact_TRANS_Update(float rate);
 int sact_TRANS_End(void);
 
+bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text);
+void StoatSpriteEngine_SP_SetTextSpriteType(int type);
+void StoatSpriteEngine_SP_SetTextSpriteSize(int size);
+void StoatSpriteEngine_SP_SetTextSpriteColor(int r, int g, int b);
+void StoatSpriteEngine_SP_SetTextSpriteBoldWeight(float weight);
+void StoatSpriteEngine_SP_SetTextSpriteEdgeWeight(float weight);
+void StoatSpriteEngine_SP_SetTextSpriteEdgeColor(int r, int g, int b);
+bool StoatSpriteEngine_SP_SetDashTextSprite(int sp_no, int width, int height);
+//int StoatSpriteEngine_SP_SetBrightness(int sp_no, int brightness);
+//int StoatSpriteEngine_SP_GetBrightness(int sp_no);
+int StoatSpriteEngine_SYSTEM_IsResetOnce(void);
+void StoatSpriteEngine_SYSTEM_SetConfigOverFrameRateSleep(bool on);
+bool StoatSpriteEngine_SYSTEM_GetConfigOverFrameRateSleep(void);
+void StoatSpriteEngine_SYSTEM_SetConfigSleepByInactiveWindow(bool on);
+bool StoatSpriteEngine_SYSTEM_GetConfigSleepByInactiveWindow(void);
+void StoatSpriteEngine_SYSTEM_SetReadMessageSkipping(bool on);
+bool StoatSpriteEngine_SYSTEM_GetReadMessageSkipping(void);
+void StoatSpriteEngine_SYSTEM_SetConfigFrameSkipWhileMessageSkip(bool on);
+bool StoatSpriteEngine_SYSTEM_GetConfigFrameSkipWhileMessageSkip(void);
+void StoatSpriteEngine_SYSTEM_SetInvalidateFrameSkipWhileMessageSkip(bool on);
+bool StoatSpriteEngine_SYSTEM_GetInvalidateFrameSkipWhileMessageSkip(void);
+
 #endif /* SYSTEM4_SACT_H */
