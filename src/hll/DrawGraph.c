@@ -216,8 +216,17 @@ static void DrawGraph_SetFontName(struct string *text)
 //void DrawGraph_BlendScreen(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_BlendMultiply(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_BlendScreenAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha);
-//void DrawGraph_FillAMapOverBorder(int dst, int x, int y, int w, int h, int alpha, int border);
-//void DrawGraph_FillAMapUnderBorder(int dst, int x, int y, int w, int h, int alpha, int border);
+
+void DrawGraph_FillAMapOverBorder(int dst, int x, int y, int w, int h, int alpha, int border)
+{
+	gfx_fill_amap_over_border(DTEX(dst), x, y, w, h, alpha, border);
+}
+
+void DrawGraph_FillAMapUnderBorder(int dst, int x, int y, int w, int h, int alpha, int border)
+{
+	gfx_fill_amap_under_border(DTEX(dst), x, y, w, h, alpha, border);
+}
+
 //void DrawGraph_FillAMapGradationUD(int dst, int x, int y, int w, int h, int up_a, int down_a);
 //void DrawGraph_FillScreen(int dst, int x, int y, int w, int h, int r, int g, int b);
 //void DrawGraph_FillMultiply(int dst, int x, int y, int w, int h, int r, int g, int b);
@@ -299,8 +308,8 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(Fill, DrawGraph_Fill),
 	    HLL_EXPORT(FillAlphaColor, DrawGraph_FillAlphaColor),
 	    HLL_EXPORT(FillAMap, DrawGraph_FillAMap),
-	    //HLL_EXPORT(FillAMapOverBorder, DrawGraph_FillAMapOverBorder),
-	    //HLL_EXPORT(FillAMapUnderBorder, DrawGraph_FillAMapUnderBorder),
+	    HLL_EXPORT(FillAMapOverBorder, DrawGraph_FillAMapOverBorder),
+	    HLL_EXPORT(FillAMapUnderBorder, DrawGraph_FillAMapUnderBorder),
 	    //HLL_EXPORT(FillAMapGradationUD, DrawGraph_FillAMapGradationUD),
 	    //HLL_EXPORT(FillScreen, DrawGraph_FillScreen),
 	    //HLL_EXPORT(FillMultiply, DrawGraph_FillMultiply),

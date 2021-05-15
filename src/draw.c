@@ -62,6 +62,8 @@ static struct copy_shader copy_use_amap_border_shader;
 static struct copy_shader blend_amap_color_shader;
 static struct copy_shader blend_amap_alpha_shader;
 static struct copy_shader fill_shader;
+static struct copy_shader fill_amap_over_border_shader;
+static struct copy_shader fill_amap_under_border_shader;
 static struct copy_shader hitbox_shader;
 static struct copy_shader hitbox_noblend_shader;
 
@@ -113,6 +115,12 @@ void gfx_draw_init(void)
 	// basic fill shader
 	load_copy_shader(&fill_shader, "shaders/render.v.glsl", "shaders/fill.f.glsl");
 
+	// fill shader that only fills fragments above a certain alpha threshold
+	load_copy_shader(&fill_amap_over_border_shader, "shaders/render.v.glsl", "shaders/fill_amap_over_border.f.glsl");
+
+	// fill shader that only fills fragments below a certain alpha threshold
+	load_copy_shader(&fill_amap_under_border_shader, "shaders/render.v.glsl", "shaders/fill_amap_under_border.f.glsl");
+
 	// shader that discards texels that fail a hitbox test
 	load_copy_shader(&hitbox_shader, "shaders/render.v.glsl", "shaders/hitbox.f.glsl");
 
@@ -136,10 +144,8 @@ static void run_draw_shader(Shader *s, Texture *dst, Texture *src, GLfloat *mw_t
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 }
 
-static void run_copy_shader(Shader *s, Texture *dst, Texture *src, struct copy_data *data)
+static void _run_copy_shader(Shader *s, Texture *dst, Texture *src, GLfloat src_w, GLfloat src_h, struct copy_data *data)
 {
-	GLfloat src_w = src ? src->w : data->w;
-	GLfloat src_h = src ? src->h : data->h;
 	GLfloat scale_x = (GLfloat)data->w / data->sw;
 	GLfloat scale_y = (GLfloat)data->h / data->sh;
 	GLfloat mw_transform[16] = {
@@ -160,6 +166,20 @@ static void run_copy_shader(Shader *s, Texture *dst, Texture *src, struct copy_d
 		[15] =  1
 	};
 	run_draw_shader(s, dst, src, mw_transform, wv_transform, data);
+}
+
+static void run_copy_shader(Shader *s, Texture *dst, Texture *src, struct copy_data *data)
+{
+	GLfloat src_w = src ? src->w : data->w;
+	GLfloat src_h = src ? src->h : data->h;
+	_run_copy_shader(s, dst, src, src_w, src_h, data);
+}
+
+static void run_fill_shader(Shader *s, Texture *dst, struct copy_data *data)
+{
+	// NOTE: this differs from `run_copy_shader(s, dst, NULL, data)` in that
+	//       `dst` can be sampled in the shader
+	_run_copy_shader(s, dst, dst, data->w, data->h, data);
 }
 
 static void restore_blend_mode(void)
@@ -522,6 +542,30 @@ void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx
 
 	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
 	run_draw_shader(&copy_shader.s, dst, src, mw_transform, wv_transform, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_fill_amap_over_border(Texture *dst, int x, int y, int w, int h, int alpha, int border)
+{
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(x, y, 0, 0, w, h);
+	data.a = alpha / 255.0;
+	data.threshold = border / 255.0;
+	run_fill_shader(&fill_amap_over_border_shader.s, dst, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_fill_amap_under_border(Texture *dst, int x, int y, int w, int h, int alpha, int border)
+{
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(x, y, 0, 0, w, h);
+	data.a = alpha / 255.0;
+	data.threshold = border / 255.0;
+	run_fill_shader(&fill_amap_under_border_shader.s, dst, &data);
 
 	restore_blend_mode();
 }
