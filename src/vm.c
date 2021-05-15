@@ -1600,8 +1600,8 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case A_EMPTY: {
-		int array = stack_pop_var()->i;
-		stack_push(!heap[array].page);
+		struct page *array = heap_get_page(stack_pop_var()->i);
+		stack_push(!array || !array->nr_vars);
 		break;
 	}
 	case A_ERASE: {
@@ -1765,8 +1765,8 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case SH_IF_STRUCT_A_NOT_EMPTY: {
-		int array = member_get(get_argument(0)).i;
-		if (heap_get_page(array))
+		struct page *array = heap_get_page(member_get(get_argument(0)).i);
+		if (array && array->nr_vars)
 			instr_ptr = get_argument(1);
 		else
 			instr_ptr += instruction_width(SH_IF_STRUCT_A_NOT_EMPTY);
@@ -1972,6 +1972,35 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case SH_GLOBALSREF_EMPTY: {
 		stack_push(!heap_get_string(global_get(get_argument(0)).i)->size);
+		break;
+	}
+	case SH_SASSIGN_STRUCTSREF: {
+		int lval = stack_pop().i;
+		int rval = member_get(get_argument(0)).i;
+		heap_string_assign(lval, heap_get_string(rval));
+		break;
+	}
+	case SH_SASSIGN_GLOBALSREF: {
+		int lval = stack_pop().i;
+		int rval = global_get(get_argument(0)).i;
+		heap_string_assign(lval, heap_get_string(rval));
+		break;
+	}
+	case SH_STRUCTSREF_NE_STR0: {
+		struct string *a = heap_get_string(member_get(get_argument(0)).i);
+		struct string *b = ain->strings[get_argument(1)];
+		stack_push(!!strcmp(a->text, b->text));
+		break;
+	}
+	case SH_GLOBALSREF_NE_STR0: {
+		struct string *a = heap_get_string(global_get(get_argument(0)).i);
+		struct string *b = ain->strings[get_argument(1)];
+		stack_push(!!strcmp(a->text, b->text));
+		break;
+	}
+	case SH_LOC_LT_IMM_OR_LOC_GE_IMM: {
+		int i = local_get(get_argument(0)).i;
+		stack_push(i < get_argument(1) || i >= get_argument(2));
 		break;
 	}
 	// -- NOOPs ---
