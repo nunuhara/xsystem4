@@ -15,13 +15,16 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 #include <zlib.h>
 
+#include "system4/archive.h"
 #include "system4/buffer.h"
 #include "system4/mt19937int.h"
 #include "system4/string.h"
 
 #include "hll.h"
+#include "asset_manager.h"
 #include "xsystem4.h"
 
 enum value_type {
@@ -248,7 +251,7 @@ possibly_unused static void gdat_dump_as_json(struct gdat *dat, FILE *fp)
 
 static int DataFile_Open(int link)
 {
-	struct archive_data *dfile = archive_get(ald[ALDFILE_DATA], link - 1);
+	struct archive_data *dfile = asset_get(ASSET_DATA, link - 1);
 	if (!dfile) {
 		WARNING("Failed to load data file %d", link);
 		return 0;

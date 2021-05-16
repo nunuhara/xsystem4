@@ -17,11 +17,11 @@
 #include <stdlib.h>
 
 #include "system4.h"
-#include "system4/ald.h"
 #include "system4/cg.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
+#include "asset_manager.h"
 #include "audio.h"
 #include "input.h"
 #include "gfx/gfx.h"
@@ -118,7 +118,7 @@ int sprite_set_wp(int cg_no)
 		return 1;
 	}
 
-	struct cg *cg = cg_load(ald[ALDFILE_CG], cg_no - 1);
+	struct cg *cg = asset_cg_load(cg_no);
 	if (!cg)
 		return 0;
 
@@ -139,7 +139,7 @@ int sprite_set_wp_color(int r, int g, int b)
 
 int sprite_set_cg(struct sact_sprite *sp, int cg_no)
 {
-	struct cg *cg = cg_load(ald[ALDFILE_CG], cg_no - 1);
+	struct cg *cg = asset_cg_load(cg_no);
 	if (!cg)
 		return 0;
 	gfx_init_texture_with_cg(&sp->texture, cg);

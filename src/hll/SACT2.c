@@ -19,11 +19,11 @@
 
 #include "system4.h"
 #include "system4/ain.h"
-#include "system4/ald.h"
 #include "system4/cg.h"
 #include "system4/string.h"
 
 #include "hll.h"
+#include "asset_manager.h"
 #include "audio.h"
 #include "input.h"
 #include "queue.h"
@@ -559,7 +559,7 @@ int sact_CG_GetMetrics(int cg_no, struct page **page)
 {
 	union vm_value *cgm = (*page)->values;
 	struct cg_metrics metrics;
-	if (!cg_get_metrics(ald[ALDFILE_CG], cg_no - 1, &metrics))
+	if (!asset_cg_get_metrics(cg_no, &metrics))
 		return 0;
 	cgm[0].i = metrics.w;
 	cgm[1].i = metrics.h;
@@ -678,7 +678,7 @@ int sact_Key_IsDown(int keycode)
 
 int sact_CG_IsExist(int cg_no)
 {
-	return ald[ALDFILE_CG] && archive_exists(ald[ALDFILE_CG], cg_no - 1);
+	return asset_exists(ASSET_CG, cg_no - 1);
 }
 
 //int  SACT2_CSV_Load(struct string *filename);

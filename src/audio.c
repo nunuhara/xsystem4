@@ -17,9 +17,10 @@
 #include <SDL_mixer.h>
 
 #include "system4.h"
-#include "system4/ald.h"
+#include "system4/archive.h"
 #include "system4/file.h"
 
+#include "asset_manager.h"
 #include "audio.h"
 #include "xsystem4.h"
 
@@ -207,17 +208,17 @@ static struct bgm_slot *bgm_get_slot(int ch)
 
 bool wav_exists(int no)
 {
-	return ald[ALDFILE_WAVE] && archive_exists(ald[ALDFILE_WAVE], no);
+	return asset_exists(ASSET_SOUND, no);
 }
 
 bool bgm_exists(int no)
 {
-	return ald[ALDFILE_BGM] && archive_exists(ald[ALDFILE_BGM], no);
+	return asset_exists(ASSET_BGM, no);
 }
 
 static bool wav_load_chunk(int no, struct wav_slot *slot)
 {
-	struct archive_data *dfile = archive_get(ald[ALDFILE_WAVE], no);
+	struct archive_data *dfile = asset_get(ASSET_SOUND, no);
 	if (!dfile) {
 		WARNING("Failed to load WAV %d", no);
 		return false;
@@ -237,7 +238,7 @@ static bool wav_load_chunk(int no, struct wav_slot *slot)
 
 static bool bgm_load_music(int no, struct bgm_slot *slot)
 {
-	struct archive_data *dfile = archive_get(ald[ALDFILE_BGM], no);
+	struct archive_data *dfile = asset_get(ASSET_BGM, no);
 	if (!dfile) {
 		WARNING("Failed to load WAV %d", no);
 		return false;

@@ -1,5 +1,6 @@
 # sources for xsystem4
 xsystem4 = ['audio.c',
+            'asset_manager.c',
             'cJSON.c',
             'draw.c',
             'effect.c',

@@ -17,9 +17,7 @@
 #ifndef XSYSTEM4_H
 #define XSYSTEM4_H
 
-#include "system4/ald.h"
-
-extern struct archive *ald[ALDFILETYPE_MAX];
+#include <stddef.h>
 
 struct config {
 	char *game_name;

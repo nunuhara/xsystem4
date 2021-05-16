@@ -26,7 +26,6 @@
 
 #include "system4.h"
 #include "system4/ain.h"
-#include "system4/ald.h"
 #include "system4/file.h"
 #include "system4/ini.h"
 #include "system4/instructions.h"
@@ -34,6 +33,7 @@
 #include "system4/utfsjis.h"
 
 #include "xsystem4.h"
+#include "asset_manager.h"
 #include "debugger.h"
 #include "file.h"
 #include "gfx/gfx.h"
@@ -183,93 +183,6 @@ static void read_user_config(void)
 	path = gamedir_path(".xsys4rc");
 	read_user_config_file(path);
 	free(path);
-}
-
-struct archive *ald[ALDFILETYPE_MAX];
-static char *ald_filenames[ALDFILETYPE_MAX][ALD_FILEMAX];
-static int ald_count[ALDFILETYPE_MAX];
-
-void ald_init(int type, char **files, int count)
-{
-	int error = ARCHIVE_SUCCESS;
-	ald[type] = ald_open(files, count, ARCHIVE_MMAP, &error);
-	if (error)
-		ERROR("Failed to open ALD file: %s\n", archive_strerror(error));
-}
-
-static void init_gamedata_dir(const char *path)
-{
-	DIR *dir;
-	struct dirent *d;
-	char filepath[512] = { [511] = '\0' };
-
-	if (!(dir = opendir(path))) {
-		ERROR("Failed to open directory: %s", path);
-	}
-
-	// get ALD filenames
-	while ((d = readdir(dir))) {
-		int dno;
-		size_t len = strlen(d->d_name);
-		snprintf(filepath, 511, "%s/%s", path, d->d_name);
-		if (!strcasecmp(d->d_name+len-4, ".ald")) {
-			dno = toupper(*(d->d_name+len-5)) - 'A';
-			if (dno < 0 || dno >= ALD_FILEMAX) {
-				WARNING("Invalid ALD index: %s", d->d_name);
-				continue;
-			}
-
-			switch (*(d->d_name+len-6)) {
-			case 'b':
-			case 'B':
-				ald_filenames[ALDFILE_BGM][dno] = strdup(filepath);
-				ald_count[ALDFILE_BGM] = max(ald_count[ALDFILE_BGM], dno+1);
-				break;
-			case 'g':
-			case 'G':
-				ald_filenames[ALDFILE_CG][dno] = strdup(filepath);
-				ald_count[ALDFILE_CG] = max(ald_count[ALDFILE_CG], dno+1);
-				break;
-			case 'w':
-			case 'W':
-				ald_filenames[ALDFILE_WAVE][dno] = strdup(filepath);
-				ald_count[ALDFILE_WAVE] = max(ald_count[ALDFILE_WAVE], dno+1);
-				break;
-			case 'd':
-			case 'D':
-				ald_filenames[ALDFILE_DATA][dno] = strdup(filepath);
-				ald_count[ALDFILE_DATA] = max(ald_count[ALDFILE_DATA], dno+1);
-				break;
-			default:
-				WARNING("Unhandled ALD file: %s", d->d_name);
-				break;
-			}
-		} else if (!strcasecmp(d->d_name+len-4, ".bgi")) {
-			if (config.bgi_path) {
-				WARNING("Multiple bgi files");
-				continue;
-			}
-			config.bgi_path = strdup(filepath);
-		} else if (!strcasecmp(d->d_name+len-4, ".wai")) {
-			if (config.wai_path) {
-				WARNING("Multiple wai files");
-				continue;
-			}
-			config.wai_path = strdup(filepath);
-		}
-	}
-
-	// open ALD archives
-	if (ald_count[ALDFILE_BGM] > 0)
-		ald_init(ALDFILE_BGM, ald_filenames[ALDFILE_BGM], ald_count[ALDFILE_BGM]);
-	if (ald_count[ALDFILE_CG] > 0)
-		ald_init(ALDFILE_CG, ald_filenames[ALDFILE_CG], ald_count[ALDFILE_CG]);
-	if (ald_count[ALDFILE_WAVE] > 0)
-		ald_init(ALDFILE_WAVE, ald_filenames[ALDFILE_WAVE], ald_count[ALDFILE_WAVE]);
-	if (ald_count[ALDFILE_DATA] > 0)
-		ald_init(ALDFILE_DATA, ald_filenames[ALDFILE_DATA], ald_count[ALDFILE_DATA]);
-
-	closedir(dir);
 }
 
 static char *get_xsystem4_home(void)
@@ -536,7 +449,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	init_gamedata_dir(config.game_dir);
+	asset_manager_init();
 
 #ifdef DEBUGGER_ENABLED
 	dbg_init();

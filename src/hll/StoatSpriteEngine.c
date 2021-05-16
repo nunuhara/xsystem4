@@ -20,7 +20,6 @@
 
 #include "system4.h"
 #include "system4/ain.h"
-#include "system4/ald.h"
 #include "system4/cg.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"

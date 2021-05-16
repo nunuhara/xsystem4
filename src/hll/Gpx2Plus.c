@@ -17,12 +17,12 @@
 #include <assert.h>
 
 #include "system4.h"
-#include "system4/ald.h"
 #include "system4/cg.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
 #include "hll.h"
+#include "asset_manager.h"
 #include "audio.h"
 #include "effect.h"
 #include "gfx/gfx.h"
@@ -175,7 +175,7 @@ static int Gpx2Plus_LoadCG(int cg_num)
 {
 	if (!cg_num)
 		return -1;
-	struct cg *cg = cg_load(ald[ALDFILE_CG], cg_num - 1);
+	struct cg *cg = asset_cg_load(cg_num);
 	if (!cg)
 		return -1;
 	struct gpx_surface *sf = create_surface(1, 1);
