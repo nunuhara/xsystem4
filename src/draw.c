@@ -570,6 +570,102 @@ void gfx_fill_amap_under_border(Texture *dst, int x, int y, int w, int h, int al
 	restore_blend_mode();
 }
 
+void gfx_copy_width_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur)
+{
+	GLfloat f_rate = 1.0 / (blur * 2 + 1);
+	glBlendColor(f_rate, f_rate, f_rate, f_rate);
+
+	glBlendFuncSeparate(GL_CONSTANT_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	glBlendFuncSeparate(GL_CONSTANT_COLOR, GL_ONE, GL_ZERO, GL_ONE);
+
+	for (int i = 1; i <= blur; i++) {
+		struct copy_data data = COPY_DATA(dx, dy, sx + i, sy, w - i, h);
+		run_copy_shader(&copy_shader.s, dst, src, &data);
+	}
+	for (int i = 1; i <= blur; i++) {
+		struct copy_data data = COPY_DATA(dx + i, dy, sx, sy, w - i, h);
+		run_copy_shader(&copy_shader.s, dst, src, &data);
+	}
+
+	restore_blend_mode();
+}
+
+void gfx_copy_height_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur)
+{
+	GLfloat f_rate = 1.0 / (blur * 2 + 1);
+	glBlendColor(f_rate, f_rate, f_rate, f_rate);
+
+	glBlendFuncSeparate(GL_CONSTANT_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	glBlendFuncSeparate(GL_CONSTANT_COLOR, GL_ONE, GL_ZERO, GL_ONE);
+
+	for (int i = 1; i <= blur; i++) {
+		struct copy_data data = COPY_DATA(dx, dy, sx, sy + i, w, h - i);
+		run_copy_shader(&copy_shader.s, dst, src, &data);
+	}
+	for (int i = 1; i <= blur; i++) {
+		struct copy_data data = COPY_DATA(dx, dy + i, sx, sy, w, h - i);
+		run_copy_shader(&copy_shader.s, dst, src, &data);
+	}
+
+	restore_blend_mode();
+}
+
+void gfx_copy_amap_width_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur)
+{
+	GLfloat f_rate = 1.0 / (blur * 2 + 1);
+	glBlendColor(f_rate, f_rate, f_rate, f_rate);
+
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_CONSTANT_COLOR, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_CONSTANT_COLOR, GL_ONE);
+
+	for (int i = 1; i <= blur; i++) {
+		struct copy_data data = COPY_DATA(dx, dy, sx + i, sy, w - i, h);
+		run_copy_shader(&copy_shader.s, dst, src, &data);
+	}
+	for (int i = 1; i <= blur; i++) {
+		struct copy_data data = COPY_DATA(dx + i, dy, sx, sy, w - i, h);
+		run_copy_shader(&copy_shader.s, dst, src, &data);
+	}
+
+	restore_blend_mode();
+}
+
+void gfx_copy_amap_height_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur)
+{
+	GLfloat f_rate = 1.0 / (blur * 2 + 1);
+	glBlendColor(f_rate, f_rate, f_rate, f_rate);
+
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_CONSTANT_COLOR, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_CONSTANT_COLOR, GL_ONE);
+
+	for (int i = 1; i <= blur; i++) {
+		struct copy_data data = COPY_DATA(dx, dy, sx, sy + i, w, h - i);
+		run_copy_shader(&copy_shader.s, dst, src, &data);
+	}
+	for (int i = 1; i <= blur; i++) {
+		struct copy_data data = COPY_DATA(dx, dy + i, sx, sy, w, h - i);
+		run_copy_shader(&copy_shader.s, dst, src, &data);
+	}
+
+	restore_blend_mode();
+}
+
 void gfx_copy_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
 	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
