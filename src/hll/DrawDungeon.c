@@ -22,6 +22,7 @@
 
 #include "dungeon/dgn.h"
 #include "dungeon/dungeon.h"
+#include "dungeon/map.h"
 #include "dungeon/tes.h"
 #include "hll.h"
 
@@ -188,9 +189,12 @@ CELL_GETTER(DrawDungeon_GetBattleBack, -1, cell->battle_background);
 #define CELL_SETTER(name, expr) \
 	static void name(int surface, int x, int y, int z, int value) \
 	{ \
-		struct dgn_cell *cell = dungeon_get_cell(surface, x, y, z); \
-		if (cell) \
-			expr = value; \
+		struct dungeon_context *ctx = dungeon_get_context(surface); \
+		if (!ctx || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z)) \
+			return; \
+		struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z); \
+		expr = value; \
+		dungeon_map_update_cell(ctx, x, y, z); \
 	}
 
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDoorNAngle, int surface, int x, int y, int z, float angle);
@@ -214,16 +218,9 @@ CELL_SETTER(DrawDungeon_SetEnterS, cell->enterable_south);
 CELL_SETTER(DrawDungeon_SetEnterE, cell->enterable_east);
 //void DrawDungeon_SetSkyTextureSet(int surface, int set);
 
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, DrawMap, int surface, int sprite);
-//void DrawDungeon_SetMapAllViewFlag(int surfacce, int flag);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDrawMapFloor, int surface, int floor);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, DrawLMap, int surface, int sprite);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetMapCG, int surface, int index, int sprite);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDrawLMapFloor, int surface, int floor);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDrawMapRadar, int surface, int flag);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDrawHalfFlag, int surface, int flag);
 HLL_WARN_UNIMPLEMENTED(0, int,  DrawDungeon, GetDrawHalfFlag, int surface);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetWalked, int surface, int x, int y, int z, int flag);
 //void DrawDungeon_SetWalkedAll(int surface);
 //int DrawDungeon_CalcNumofFloor(int surface);
 //int DrawDungeon_CalcNumofWalk(int surface);
@@ -232,7 +229,7 @@ HLL_WARN_UNIMPLEMENTED(0, int,  DrawDungeon, CalcConquer, int surface);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetInterlaceMode, int surface, int flag);
 HLL_WARN_UNIMPLEMENTED(1, bool, DrawDungeon, SetDirect3DMode, int surface, int flag);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SaveDrawSettingFlag, int direct3D, int interlace, int half);
-//void DrawDungeon_GetDrawSettingFlag(int *direct3D, int *half);
+HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, GetDrawSettingFlag, int *direct3D, int *half);
 HLL_WARN_UNIMPLEMENTED(1, bool, DrawDungeon, IsDrawSettingFile, void);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, DeleteDrawSettingFile, void);
 HLL_WARN_UNIMPLEMENTED(1, bool, DrawDungeon, IsSSEFlag, void);
@@ -345,16 +342,16 @@ HLL_LIBRARY(DrawDungeon,
 			HLL_EXPORT(SetTexDoorS, dungeon_set_door_south),
 			HLL_EXPORT(SetTexDoorE, dungeon_set_door_east),
 			HLL_TODO_EXPORT(SetSkyTextureSet, DrawDungeon_SetSkyTextureSet),
-			HLL_EXPORT(DrawMap, DrawDungeon_DrawMap),
-			HLL_TODO_EXPORT(SetMapAllViewFlag, DrawDungeon_SetMapAllViewFlag),
-			HLL_EXPORT(SetDrawMapFloor, DrawDungeon_SetDrawMapFloor),
-			HLL_EXPORT(DrawLMap, DrawDungeon_DrawLMap),
-			HLL_EXPORT(SetMapCG, DrawDungeon_SetMapCG),
-			HLL_EXPORT(SetDrawLMapFloor, DrawDungeon_SetDrawLMapFloor),
+			HLL_EXPORT(DrawMap, dungeon_map_draw),
+			HLL_EXPORT(SetMapAllViewFlag, dungeon_map_set_all_view),
+			HLL_EXPORT(SetDrawMapFloor, dungeon_map_set_small_map_floor),
+			HLL_EXPORT(DrawLMap, dungeon_map_draw_lmap),
+			HLL_EXPORT(SetMapCG, dungeon_map_set_cg),
+			HLL_EXPORT(SetDrawLMapFloor, dungeon_map_set_large_map_floor),
 			HLL_EXPORT(SetDrawMapRadar, DrawDungeon_SetDrawMapRadar),
 			HLL_EXPORT(SetDrawHalfFlag, DrawDungeon_SetDrawHalfFlag),
 			HLL_EXPORT(GetDrawHalfFlag, DrawDungeon_GetDrawHalfFlag),
-			HLL_EXPORT(SetWalked, DrawDungeon_SetWalked),
+			HLL_EXPORT(SetWalked, dungeon_map_set_walked),
 			HLL_TODO_EXPORT(SetWalkedAll, DrawDungeon_SetWalkedAll),
 			HLL_TODO_EXPORT(CalcNumofFloor, DrawDungeon_CalcNumofFloor),
 			HLL_TODO_EXPORT(CalcNumofWalk, DrawDungeon_CalcNumofWalk),
@@ -363,7 +360,7 @@ HLL_LIBRARY(DrawDungeon,
 			HLL_EXPORT(SetInterlaceMode, DrawDungeon_SetInterlaceMode),
 			HLL_EXPORT(SetDirect3DMode, DrawDungeon_SetDirect3DMode),
 			HLL_EXPORT(SaveDrawSettingFlag, DrawDungeon_SaveDrawSettingFlag),
-			HLL_TODO_EXPORT(GetDrawSettingFlag, DrawDungeon_GetDrawSettingFlag),
+			HLL_EXPORT(GetDrawSettingFlag, DrawDungeon_GetDrawSettingFlag),
 			HLL_EXPORT(IsDrawSettingFile, DrawDungeon_IsDrawSettingFile),
 			HLL_EXPORT(DeleteDrawSettingFile, DrawDungeon_DeleteDrawSettingFile),
 			HLL_EXPORT(IsSSEFlag, DrawDungeon_IsSSEFlag),

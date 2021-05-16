@@ -28,6 +28,7 @@ struct tes;
 struct mesh;
 struct skybox;
 struct event_markers;
+struct dungeon_map;
 
 struct camera {
 	float pos[3];
@@ -48,6 +49,7 @@ struct dungeon_context {
 	int surface;
 	bool loaded;
 	bool draw_enabled;
+	struct dungeon_map *map;
 	struct camera camera;
 	struct dgn *dgn;
 	struct dtx *dtx;
