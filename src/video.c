@@ -44,13 +44,11 @@ struct sdl_private sdl;
  * |  0    0    0    1 |
  * +-                 -+
  */
-static GLfloat world_view_transform[16] = {
-	[10] =  2,
-	[12] = -1,
-	[13] = -1,
-	[14] = -1,
-	[15] =  1
-};
+static mat4 world_view_transform = MAT4(
+	0, 0, 0, -1,
+	0, 0, 0, -1,
+	0, 0, 2, -1,
+	0, 0, 0,  1);
 
 struct default_shader {
 	struct shader s;
@@ -248,8 +246,8 @@ void gfx_set_window_size(int w, int h)
 {
 	sdl.w = w;
 	sdl.h = h;
-	world_view_transform[0] = 2.0 / w;
-	world_view_transform[5] = 2.0 / h;
+	world_view_transform[0][0] = 2.0 / w;
+	world_view_transform[1][1] = 2.0 / h;
 	SDL_SetWindowSize(sdl.window, w, h);
 	main_surface_init(w, h);
 }
@@ -378,30 +376,25 @@ void gfx_render_texture(struct texture *t, Rectangle *r)
 		break;
 	}
 
-	if (r) {
-		t->world_transform[12] = r->x;
-		t->world_transform[13] = r->y;
-	} else {
-		t->world_transform[12] = 0;
-		t->world_transform[13] = 0;
-	}
+	t->world_transform[3][0] = r ? r->x : 0;
+	t->world_transform[3][1] = r ? r->y : 0;
 	if (t->flip_y) {
-		t->world_transform[13] += t->world_transform[5];
-		t->world_transform[5] *= -1;
+		t->world_transform[3][1] += t->world_transform[1][1];
+		t->world_transform[1][1] *= -1;
 	}
 
 	struct gfx_render_job job = {
 		.shader = &default_shader.s,
 		.texture = t->handle,
-		.world_transform = t->world_transform,
-		.view_transform = world_view_transform,
+		.world_transform = t->world_transform[0],
+		.view_transform = world_view_transform[0],
 		.data = t
 	};
 	gfx_render(&job);
 
 	if (t->flip_y) {
-		t->world_transform[5] *= -1;
-		t->world_transform[13] -= t->world_transform[5];
+		t->world_transform[1][1] *= -1;
+		t->world_transform[3][1] -= t->world_transform[1][1];
 	}
 	if (t->draw_method != DRAW_METHOD_NORMAL || t->alpha_mod != 255)
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
@@ -417,11 +410,10 @@ static void init_texture(struct texture *t, int w, int h)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	memset(t->world_transform, 0, sizeof(GLfloat)*16);
-	t->world_transform[0] = w;
-	t->world_transform[5] = h;
-	t->world_transform[10] = 1;
-	// z ???
-	t->world_transform[15] = 1;
+	t->world_transform[0][0] = w;
+	t->world_transform[1][1] = h;
+	t->world_transform[2][2] = 1;
+	t->world_transform[3][3] = 1;
 
 	t->w = w;
 	t->h = h;

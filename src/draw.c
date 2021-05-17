@@ -17,6 +17,8 @@
 #include <math.h>
 #include <SDL.h>
 #include <GL/glew.h>
+#include <cglm/cglm.h>
+
 #include "gfx/gfx.h"
 #include "gfx/private.h"
 #include "system4.h"
@@ -128,15 +130,15 @@ void gfx_draw_init(void)
 	load_copy_shader(&hitbox_noblend_shader, "shaders/render.v.glsl", "shaders/hitbox_noblend.f.glsl");
 }
 
-static void run_draw_shader(Shader *s, Texture *dst, Texture *src, GLfloat *mw_transform, GLfloat *wv_transform, struct copy_data *data)
+static void run_draw_shader(Shader *s, Texture *dst, Texture *src, mat4 mw_transform, mat4 wv_transform, struct copy_data *data)
 {
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, data->vpx, data->vpy, data->vpw, data->vph);
 
 	struct gfx_render_job job = {
 		.shader = s,
 		.texture = src ? src->handle : 0,
-		.world_transform = mw_transform,
-		.view_transform = wv_transform,
+		.world_transform = mw_transform[0],
+		.view_transform = wv_transform[0],
 		.data = data
 	};
 	gfx_render(&job);
@@ -148,23 +150,13 @@ static void _run_copy_shader(Shader *s, Texture *dst, Texture *src, GLfloat src_
 {
 	GLfloat scale_x = (GLfloat)data->w / data->sw;
 	GLfloat scale_y = (GLfloat)data->h / data->sh;
-	GLfloat mw_transform[16] = {
-		[0]  = src_w * scale_x,
-		[5]  = src_h * scale_y,
-		[10] = 1,
-		[12] = -data->sx * scale_y,
-		[13] = -data->sy * scale_y,
-		[15] = 1
-	};
-	GLfloat wv_transform[16] = {
-		[0]  =  2.0 / data->w,
-		[5]  =  2.0 / data->h,
-		[10] =  2,
-		[12] = -1,
-		[13] = -1,
-		[14] = -1,
-		[15] =  1
-	};
+
+	mat4 mw_transform = MAT4(
+	     src_w * scale_x, 0,               0, -data->sx * scale_y,
+	     0,               src_h * scale_y, 0, -data->sy * scale_y,
+	     0,               0,               1, 0,
+	     0,               0,               0, 1);
+	mat4 wv_transform = WV_TRANSFORM(data->w, data->h);
 	run_draw_shader(s, dst, src, mw_transform, wv_transform, data);
 }
 
@@ -439,33 +431,20 @@ void gfx_copy_stretch_amap(Texture *dst, int dx, int dy, int dw, int dh, Texture
 // FIXME: this doesn't work correctly when the src rectangle crosses the edge of the CG.
 static void copy_rot_zoom(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag, Shader *shader)
 {
-	double theta = -rotate * (M_PI / 180.0);
-	double mag_cos_theta = cos(theta) * mag;
-	double mag_sin_theta = sin(theta) * mag;
-
-	// 1. scale to src texture size
+	// 1. scale src vertices to texture size
 	// 2. translate so that center point of copy region is at origin
 	// 3. rotate
+	// 4. scale
 	// 4. tranlate to center of dst texture
-	GLfloat mw_transform[16] = {
-		[0]  =  mag_cos_theta * src->w,
-		[1]  =  mag_sin_theta * src->w,
-		[4]  = -mag_sin_theta * src->h,
-		[5]  =  mag_cos_theta * src->h,
-		[10] =  1,
-		[12] =  (dst->w - (w*mag_cos_theta) - (2*sx*mag_cos_theta) + (h*mag_sin_theta) + (2*sy*mag_sin_theta)) / 2.0,
-		[13] =  (dst->h - (h*mag_cos_theta) - (2*sy*mag_cos_theta) - (w*mag_sin_theta) - (2*sx*mag_sin_theta)) / 2.0,
-		[15] =  1,
-	};
-	GLfloat wv_transform[16] = {
-		[0]  =  2.0 / dst->w,
-		[5]  =  2.0 / dst->h,
-		[10] =  2,
-		[12] = -1,
-		[13] = -1,
-		[14] = -1,
-		[15] = 1
-	};
+	// (applied in reverse order)
+	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
+	glm_translate(mw_transform, (vec3){ dst->w/2.0, dst->h/2.0, 0 });
+	glm_scale(mw_transform, (vec3){ mag, mag, 0 });
+	glm_rotate_z(mw_transform, -rotate * (M_PI/180.0), mw_transform);
+	glm_translate(mw_transform, (vec3){ -(sx+w/2.0), -(sy+h/2.0), 0 });
+	glm_scale(mw_transform, (vec3){ src->w, src->h, 1 });
+
+	mat4 wv_transform = WV_TRANSFORM(dst->w, dst->h);
 
 	struct copy_data data = ROTATE_DATA(dst, sx, sy, w, h);
 	run_draw_shader(shader, dst, src, mw_transform, wv_transform, &data);
@@ -473,6 +452,7 @@ static void copy_rot_zoom(Texture *dst, Texture *src, int sx, int sy, int w, int
 
 void gfx_copy_rot_zoom(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag)
 {
+	gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 0);
 	copy_rot_zoom(dst, src, sx, sy, w, h, rotate, mag, &hitbox_noblend_shader.s);
 }
 
@@ -492,23 +472,12 @@ void gfx_copy_rot_zoom_use_amap(Texture *dst, Texture *src, int sx, int sy, int 
 
 void gfx_copy_reverse_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
-	GLfloat mw_transform[16] = {
-		[0]  = -src->w,
-		[5]  =  src->h,
-		[10] =  1,
-		[12] =  sx + w,
-		[13] = -sy,
-		[15] =  1
-	};
-	GLfloat wv_transform[16] = {
-		[0]  =  2.0 / w,
-		[5]  =  2.0 / h,
-		[10] =  2,
-		[12] = -1,
-		[13] = -1,
-		[14] = -1,
-		[15] =  1
-	};
+	mat4 mw_transform = MAT4(
+	     -src->w, 0,      0, sx + w,
+	     0,       src->h, 0, -sy,
+	     0,       0,      1, 0,
+	     0,       0,      0, 1);
+	mat4 wv_transform = WV_TRANSFORM(w, h);
 
 	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE);
 
@@ -520,23 +489,12 @@ void gfx_copy_reverse_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int
 
 void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
-	GLfloat mw_transform[16] = {
-		[0]  = -src->w,
-		[5]  =  src->h,
-		[10] =  1,
-		[12] =  sx + w,
-		[13] = -sy,
-		[15] =  1
-	};
-	GLfloat wv_transform[16] = {
-		[0]  =  2.0 / w,
-		[5]  =  2.0 / h,
-		[10] =  2,
-		[12] = -1,
-		[13] = -1,
-		[14] = -1,
-		[15] =  1
-	};
+	mat4 mw_transform = MAT4(
+	     -src->w, 0,      0, sx + w,
+	     0,       src->h, 0, -sy,
+	     0,       0,      1, 0,
+	     0,       0,      0, 1);
+	mat4 wv_transform = WV_TRANSFORM(w, h);
 
 	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
 

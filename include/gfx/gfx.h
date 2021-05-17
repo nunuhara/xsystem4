@@ -35,7 +35,7 @@ enum draw_method {
 
 typedef struct texture {
 	GLuint handle;
-	GLfloat world_transform[16];
+	mat4 world_transform;
 	int w, h;
 	bool has_alpha;
 	bool flip_y;

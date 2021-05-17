@@ -120,24 +120,16 @@ static void draw_text(Texture *dst, Texture *glyph, int x, int y, float scale)
 {
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, x, y, glyph->w, glyph->h);
 
-	GLfloat mw_transform[16] = {
-		[0]  = glyph->w * scale,
-		[5]  = glyph->h * scale,
-		[10] = 1,
-		[15] = 1
-	};
-	GLfloat wv_transform[16] = {
-		[0]  =  2.0 / glyph->w,
-		[5]  =  2.0 / glyph->h,
-		[10] =  2,
-		[12] = -1,
-		[13] = -1,
-		[15] =  1
-	};
+	mat4 mw_transform = MAT4(
+	     glyph->w * scale, 0,                0, 0,
+	     0,                glyph->h * scale, 0, 0,
+	     0,                0,                1, 0,
+	     0,                0,                0, 1);
+	mat4 wv_transform = WV_TRANSFORM(glyph->w, glyph->h);
 	struct gfx_render_job job = {
 		.texture = glyph->handle,
-		.world_transform = mw_transform,
-		.view_transform = wv_transform,
+		.world_transform = mw_transform[0],
+		.view_transform = wv_transform[0],
 		.data = glyph
 	};
 	gfx_render(&job);

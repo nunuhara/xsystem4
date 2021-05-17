@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <SDL.h>
+#include <cglm/types.h>
 
 typedef SDL_Color Color;
 
@@ -40,5 +41,19 @@ typedef struct {
 typedef SDL_Rect Rectangle;
 
 #define RECT(_x, _y, _w, _h) ((Rectangle){.x=_x, .y=_y, .w=_w, .h=_h})
+
+#define MAT4(r0c0, r0c1, r0c2, r0c3, r1c0, r1c1, r1c2, r1c3, r2c0, r2c1, r2c2, r2c3, r3c0, r3c1, r3c2, r3c3) \
+	{								\
+		{ r0c0, r1c0, r2c0, r3c0 },				\
+		{ r0c1, r1c1, r2c1, r3c1 },				\
+		{ r0c2, r1c2, r2c2, r3c2 },				\
+		{ r0c3, r1c3, r2c3, r3c3 }				\
+	}
+
+#define WV_TRANSFORM(w, h)			\
+	MAT4(2.0 / w, 0,       0, -1,		\
+	     0,       2.0 / h, 0, -1,		\
+	     0,       0,       2, -1,		\
+	     0,       0,       0,  1)
 
 #endif /* SYSTEM4_GRAPHICS_H */
