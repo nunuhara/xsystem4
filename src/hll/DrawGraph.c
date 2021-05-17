@@ -236,8 +236,17 @@ static void DrawGraph_FillAMapUnderBorder(int dst, int x, int y, int w, int h, i
 //void DrawGraph_BrightDestOnly(int dst, int x, int y, int w, int h, int rate);
 //void DrawGraph_CopyTextureWrap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v);
 //void DrawGraph_CopyTextureWrapAlpha(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v, int alpha);
-//void DrawGraph_CopyStretchBlend(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int alpha);
-//void DrawGraph_CopyStretchBlendAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
+
+static void DrawGraph_CopyStretchBlend(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int alpha)
+{
+	gfx_copy_stretch_blend(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh, alpha);
+}
+
+static void DrawGraph_CopyStretchBlendAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
+{
+	gfx_copy_stretch_blend_amap(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh);
+}
+
 //void DrawGraph_CopyStretchInterp(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
 //void DrawGraph_CopyStretchAMapInterp(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
 HLL_WARN_UNIMPLEMENTED(string_ref(&EMPTY_STRING), struct string*, DrawGraph, GetFontName, void);
@@ -349,11 +358,12 @@ HLL_LIBRARY(DrawGraph,
 	    //HLL_EXPORT(CopyTextureWrap, DrawGraph_CopyTextureWrap),
 	    //HLL_EXPORT(CopyTextureWrapAlpha, DrawGraph_CopyTextureWrapAlpha),
 	    HLL_EXPORT(CopyStretch, DrawGraph_CopyStretch),
-	    //HLL_EXPORT(CopyStretchBlend, DrawGraph_CopyStretchBlend),
-	    //HLL_EXPORT(CopyStretchBlendAMap, DrawGraph_CopyStretchBlendAMap),
+	    HLL_EXPORT(CopyStretchBlend, DrawGraph_CopyStretchBlend),
+	    HLL_EXPORT(CopyStretchBlendAMap, DrawGraph_CopyStretchBlendAMap),
 	    HLL_EXPORT(CopyStretchAMap, DrawGraph_CopyStretchAMap),
-	    //HLL_EXPORT(CopyStretchInterp, DrawGraph_CopyStretchInterp),
-	    //HLL_EXPORT(CopyStretchAMapInterp, DrawGraph_CopyStretchAMapInterp),
+	    // NOTE: xsystem4 uses bilinear interpolation by default
+	    HLL_EXPORT(CopyStretchInterp, DrawGraph_CopyStretch),
+	    HLL_EXPORT(CopyStretchAMapInterp, DrawGraph_CopyStretchAMap),
 	    HLL_EXPORT(CopyReduce, DrawGraph_CopyStretch),
 	    HLL_EXPORT(CopyReduceAMap, DrawGraph_CopyStretchAMap),
 	    HLL_EXPORT(DrawTextToPMap, DrawGraph_DrawTextToPMap),
