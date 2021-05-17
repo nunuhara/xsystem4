@@ -366,6 +366,30 @@ void gfx_fill_amap(Texture *dst, int x, int y, int w, int h, int a)
 	restore_blend_mode();
 }
 
+void gfx_fill_amap_over_border(Texture *dst, int x, int y, int w, int h, int alpha, int border)
+{
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(x, y, 0, 0, w, h);
+	data.a = alpha / 255.0;
+	data.threshold = border / 255.0;
+	run_fill_shader(&fill_amap_over_border_shader.s, dst, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_fill_amap_under_border(Texture *dst, int x, int y, int w, int h, int alpha, int border)
+{
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(x, y, 0, 0, w, h);
+	data.a = alpha / 255.0;
+	data.threshold = border / 255.0;
+	run_fill_shader(&fill_amap_under_border_shader.s, dst, &data);
+
+	restore_blend_mode();
+}
+
 void gfx_add_da_daxsa(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
 	// color = dst_color
@@ -470,6 +494,41 @@ void gfx_copy_rot_zoom_use_amap(Texture *dst, Texture *src, int sx, int sy, int 
 	copy_rot_zoom(dst, src, sx, sy, w, h, rotate, mag, &hitbox_shader.s);
 }
 
+static void copy_rotate_y(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag, Shader *shader)
+{
+	Texture *src = front;
+	if (rot > 90.0 && rot <= 270.0) {
+		src = back;
+	}
+
+	gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 0);
+
+	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
+	glm_rotate_y(mw_transform, rot * (M_PI/180.0), mw_transform);
+	glm_scale(mw_transform, (vec3){ src->w * mag, src->h * mag, 0 });
+	glm_translate(mw_transform, (vec3){ -0.5, -0.5, 0});
+
+	mat4 proj_transform;
+	float fov = 45.0 * (M_PI / 180.0);
+	// calculate the camera distance such that the height at the pivot is unchanged
+	float cam_off = ((float)dst->h * 0.5) / tanf(fov * 0.5);
+	glm_perspective(fov, (float)dst->w / dst->h, 0.1, cam_off + w * mag, proj_transform);
+	glm_translate(proj_transform, (vec3){ 0, 0, -cam_off });
+
+	struct copy_data data = ROTATE_DATA(dst, sx, sy, w, h);
+	run_draw_shader(shader, dst, src, mw_transform, proj_transform, &data);
+}
+
+void gfx_copy_rotate_y(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag)
+{
+	copy_rotate_y(dst, front, back, sx, sy, w, h, rot, mag, &hitbox_noblend_shader.s);
+}
+
+void gfx_copy_rotate_y_use_amap(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag)
+{
+	copy_rotate_y(dst, front, back, sx, sy, w, h, rot, mag, &hitbox_shader.s);
+}
+
 void gfx_copy_reverse_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
 	mat4 mw_transform = MAT4(
@@ -500,30 +559,6 @@ void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx
 
 	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
 	run_draw_shader(&copy_shader.s, dst, src, mw_transform, wv_transform, &data);
-
-	restore_blend_mode();
-}
-
-void gfx_fill_amap_over_border(Texture *dst, int x, int y, int w, int h, int alpha, int border)
-{
-	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
-
-	struct copy_data data = COPY_DATA(x, y, 0, 0, w, h);
-	data.a = alpha / 255.0;
-	data.threshold = border / 255.0;
-	run_fill_shader(&fill_amap_over_border_shader.s, dst, &data);
-
-	restore_blend_mode();
-}
-
-void gfx_fill_amap_under_border(Texture *dst, int x, int y, int w, int h, int alpha, int border)
-{
-	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
-
-	struct copy_data data = COPY_DATA(x, y, 0, 0, w, h);
-	data.a = alpha / 255.0;
-	data.threshold = border / 255.0;
-	run_fill_shader(&fill_amap_under_border_shader.s, dst, &data);
 
 	restore_blend_mode();
 }

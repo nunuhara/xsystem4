@@ -17,6 +17,7 @@
 
 #include <SDL.h>
 #include <GL/glew.h>
+#include <cglm/cglm.h>
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
@@ -47,7 +48,7 @@ struct sdl_private sdl;
 static mat4 world_view_transform = MAT4(
 	0, 0, 0, -1,
 	0, 0, 0, -1,
-	0, 0, 2, -1,
+	0, 0, 1, -1,
 	0, 0, 0,  1);
 
 struct default_shader {
@@ -276,25 +277,17 @@ void gfx_swap(void)
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	static GLfloat mw_transform[16] = {
-		[0]  = 1,
-		[5]  = 1,
-		[10] = 1,
-		[15] = 1
-	};
-	static GLfloat wv_transform[16] = {
-		[0]  =  2,
-		[5]  = -2,
-		[10] =  1,
-		[12] = -1,
-		[13] =  1,
-		[15] =  1
-	};
+	static mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
+	static mat4 wv_transform = MAT4(
+		2,  0, 0, -1,
+		0, -2, 0,  1,
+		0,  0, 1,  0,
+		0,  0, 0,  1);
 	struct gfx_render_job job = {
 		.shader = &default_shader.s,
 		.texture = main_surface.handle,
-		.world_transform = mw_transform,
-		.view_transform = wv_transform,
+		.world_transform = mw_transform[0],
+		.view_transform = wv_transform[0],
 		.data = &main_surface
 	};
 	gfx_render(&job);

@@ -53,7 +53,7 @@ typedef SDL_Rect Rectangle;
 #define WV_TRANSFORM(w, h)			\
 	MAT4(2.0 / w, 0,       0, -1,		\
 	     0,       2.0 / h, 0, -1,		\
-	     0,       0,       2, -1,		\
+	     0,       0,       1, -1,		\
 	     0,       0,       0,  1)
 
 #endif /* SYSTEM4_GRAPHICS_H */
