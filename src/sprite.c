@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -103,6 +104,35 @@ int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path)
 	sprite_dirty(sp);
 	cg_free(cg);
 	return 1;
+}
+
+int sprite_save_cg(struct sact_sprite *sp, const char *path)
+{
+	void *pixels = gfx_get_pixels(sprite_get_texture(sp));
+
+	struct cg cg = {
+		.type = ALCG_UNKNOWN,
+		.metrics = {
+			.w = sp->rect.w,
+			.h = sp->rect.h,
+			.bpp = 24,
+			.has_pixel = sp->sp.has_pixel,
+			.has_alpha = sp->sp.has_alpha,
+			.pixel_pitch = sp->rect.w * 3,
+			.alpha_pitch = 1
+		},
+		.pixels = pixels
+	};
+	FILE *fp = fopen(path, "wb");
+	if (!fp) {
+		WARNING("Failed to open %s: %s", path, strerror(errno));
+		free(pixels);
+		return 0;
+	}
+	int r = cg_write(&cg, ALCG_QNT, fp);
+	fclose(fp);
+	free(pixels);
+	return r;
 }
 
 /*

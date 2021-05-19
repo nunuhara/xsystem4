@@ -114,7 +114,7 @@ void sact_ModuleFini(void)
 }
 
 //int SACT2_Error(struct string *err);
-//int SACT2_WP_GetSP(int sp);
+HLL_WARN_UNIMPLEMENTED(0, int, SACT2, WP_GetSP, int sp);
 //int SACT2_WP_SetSP(int sp);
 
 int sact_GetScreenWidth(void)
@@ -195,7 +195,7 @@ int sact_SP_SetCG(int sp_no, int cg_no)
 	return sprite_set_cg(sp, cg_no);
 }
 
-int SACT2_SP_SetCGFromFile(int sp_no, struct string *filename)
+int sact_SP_SetCGFromFile(int sp_no, struct string *filename)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp)
@@ -210,7 +210,16 @@ int SACT2_SP_SetCGFromFile(int sp_no, struct string *filename)
 	return r;
 }
 
-//int SACT2_SP_SaveCG(int sp, struct string *filename);
+int sact_SP_SaveCG(int sp_no, struct string *filename)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp)
+		return 0;
+	char *path = gamedir_path(filename->text);
+	int r = sprite_save_cg(sp, path);
+	free(path);
+	return r;
+}
 
 struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a)
 {
@@ -790,7 +799,7 @@ HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_GetBrightness, int sp_no);
 	    HLL_TODO_EXPORT(Error, SACT2_Error), \
 	    HLL_EXPORT(SetWP, sact_SetWP), \
 	    HLL_EXPORT(SetWP_Color, sact_SetWP_Color), \
-	    HLL_TODO_EXPORT(WP_GetSP, SACT2_WP_GetSP), \
+	    HLL_EXPORT(WP_GetSP, SACT2_WP_GetSP), \
 	    HLL_TODO_EXPORT(WP_SetSP, SACT2_WP_SetSP), \
 	    HLL_EXPORT(GetScreenWidth, sact_GetScreenWidth), \
 	    HLL_EXPORT(GetScreenHeight, sact_GetScreenHeight), \
@@ -807,8 +816,8 @@ HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_GetBrightness, int sp_no);
 	    HLL_EXPORT(SP_Enum, sact_SP_Enum), \
 	    HLL_EXPORT(SP_GetMaxZ, sact_SP_GetMaxZ), \
 	    HLL_EXPORT(SP_SetCG, sact_SP_SetCG), \
-	    HLL_EXPORT(SP_SetCGFromFile, SACT2_SP_SetCGFromFile), \
-	    HLL_TODO_EXPORT(SP_SaveCG, SACT2_SP_SaveCG), \
+	    HLL_EXPORT(SP_SetCGFromFile, sact_SP_SetCGFromFile), \
+	    HLL_EXPORT(SP_SaveCG, sact_SP_SaveCG), \
 	    HLL_EXPORT(SP_Create, sact_SP_Create), \
 	    HLL_EXPORT(SP_CreatePixelOnly, sact_SP_CreatePixelOnly), \
 	    HLL_TODO_EXPORT(SP_CreateCustom, SACT2_SP_CreateCustom), \

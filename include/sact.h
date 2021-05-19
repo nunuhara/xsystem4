@@ -37,6 +37,8 @@ int sact_SP_Count(void);
 int sact_SP_Enum(struct page **array);
 #define sact_SP_GetMaxZ scene_get_max_z
 int sact_SP_SetCG(int sp, int cg);
+int sact_SP_SetCGFromFile(int sp, struct string *filename);
+int sact_SP_SaveCG(int sp, struct string *filename);
 int sact_SP_Create(int sp, int width, int height, int r, int g, int b, int a);
 int sact_SP_CreatePixelOnly(int sp, int width, int height);
 int sact_SP_Delete(int sp);
