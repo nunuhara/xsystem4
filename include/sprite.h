@@ -46,6 +46,8 @@ struct sact_sprite {
 	} text;
 	// The Z-layer of the sprite within the scene.
 	int z;
+	// The secondary Z-layer (for GoatGUIEngine)
+	int z2;
 	// This flag indicates that pixel data has been attached to a sprite; it
 	// does NOT guarantee that the texture is initialized.
 	bool has_pixel;
@@ -57,10 +59,12 @@ struct sact_sprite {
 	// When a sprite is hidden, it is removed from the scene. Attaching new
 	// pixel data does not alter the state of this flag.
 	bool hidden;
-	// The sprite handle.
+	// The sprite handle
 	int no;
 	// The CG number attached to the sprite.
 	int cg_no;
+	// The rendering function
+	void (*render)(struct sact_sprite*);
 };
 
 extern bool sact_dirty;
@@ -99,6 +103,7 @@ void sprite_set_pos(struct sact_sprite *sp, int x, int y);
 void sprite_set_x(struct sact_sprite *sp, int x);
 void sprite_set_y(struct sact_sprite *sp, int y);
 void sprite_set_z(struct sact_sprite *sp, int z);
+void sprite_set_z2(struct sact_sprite *sp, int z, int z2);
 int sprite_get_blend_rate(struct sact_sprite *sp);
 void sprite_set_blend_rate(struct sact_sprite *sp, int rate);
 void sprite_set_show(struct sact_sprite *sp, bool show);
@@ -110,6 +115,7 @@ static inline int sprite_get_pos_y(struct sact_sprite *sp) { return sp->rect.y; 
 static inline int sprite_get_width(struct sact_sprite *sp) { return sp->rect.w; }
 static inline int sprite_get_height(struct sact_sprite *sp) { return sp->rect.h; }
 static inline int sprite_get_z(struct sact_sprite *sp) { return sp->z; }
+static inline int sprite_get_z2(struct sact_sprite *sp) { return sp->z2; }
 static inline int sprite_get_show(struct sact_sprite *sp) { return !sp->hidden; }
 void sprite_set_text_home(struct sact_sprite *sp, int x, int y);
 void sprite_set_text_line_space(struct sact_sprite *sp, int px);

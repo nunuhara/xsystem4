@@ -15,6 +15,7 @@
  */
 
 #include <stdlib.h>
+#include <assert.h>
 
 #include "system4.h"
 #include "system4/cg.h"
@@ -44,7 +45,13 @@ void sprite_register(struct sact_sprite *sp)
 
 	struct sact_sprite *p;
 	TAILQ_FOREACH(p, &sprite_list, entry) {
-		if (p->z > sp->z) {
+		if (p->z == sp->z) {
+			if (p->z2 > sp->z2) {
+				TAILQ_INSERT_BEFORE(p, sp, entry);
+				sp->in_scene = true;
+				return;
+			}
+		} else if (p->z > sp->z) {
 			TAILQ_INSERT_BEFORE(p, sp, entry);
 			sp->in_scene = true;
 			return;
@@ -91,10 +98,14 @@ void sprite_render_scene(void)
 	}
 	struct sact_sprite *p;
 	TAILQ_FOREACH(p, &sprite_list, entry) {
-		sprite_init_texture(p);
-		gfx_render_texture(&p->texture, &p->rect);
-		if (p->text.texture.handle) {
-			gfx_render_texture(&p->text.texture, &p->rect);
+		if (p->render) {
+			p->render(p);
+		} else {
+			sprite_init_texture(p);
+			gfx_render_texture(&p->texture, &p->rect);
+			if (p->text.texture.handle) {
+				gfx_render_texture(&p->text.texture, &p->rect);
+			}
 		}
 	}
 }
@@ -212,6 +223,16 @@ void sprite_set_y(struct sact_sprite *sp, int y)
 void sprite_set_z(struct sact_sprite *sp, int z)
 {
 	sp->z = z;
+	if (sp->in_scene) {
+		sprite_unregister(sp);
+		sprite_register(sp);
+	}
+}
+
+void sprite_set_z2(struct sact_sprite *sp, int z, int z2)
+{
+	sp->z = z;
+	sp->z2 = z2;
 	if (sp->in_scene) {
 		sprite_unregister(sp);
 		sprite_register(sp);
