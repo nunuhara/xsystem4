@@ -153,6 +153,7 @@ int sprite_set_cg(struct sact_sprite *sp, int cg_no)
 	struct cg *cg = asset_cg_load(cg_no);
 	if (!cg)
 		return 0;
+	gfx_delete_texture(&sp->texture);
 	gfx_init_texture_with_cg(&sp->texture, cg);
 	sp->rect.w = cg->metrics.w;
 	sp->rect.h = cg->metrics.h;
@@ -169,6 +170,7 @@ int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path)
 	struct cg *cg = cg_load_file(path);
 	if (!cg)
 		return 0;
+	gfx_delete_texture(&sp->texture);
 	gfx_init_texture_with_cg(&sp->texture, cg);
 	sp->rect.w = cg->metrics.w;
 	sp->rect.h = cg->metrics.h;
