@@ -20,6 +20,7 @@
 #include <cglm/cglm.h>
 
 #include "gfx/gfx.h"
+#include "input.h"
 #include "queue.h"
 #include "sprite.h"
 #include "xsystem4.h"
@@ -71,6 +72,7 @@ struct parts_motion {
 
 struct parts {
 	struct sact_sprite sp;
+	TAILQ_ENTRY(parts) parts_list_entry;
 	int no;
 	int sprite_deform;
 	int state;
@@ -78,14 +80,26 @@ struct parts {
 	int on_cursor_sound;
 	int on_click_sound;
 	int origin_mode;
+	// The actual hitbox of the sprite (accounting for origin-mode, scale, etc)
+	Rectangle pos;
 	struct { float x, y; } scale;
 	struct { float x, y, z; } rotation;
 	TAILQ_HEAD(, parts_motion) motion;
 };
 
-static void parts_render_motion(struct sact_sprite *sp);
+static void parts_render(struct sact_sprite *sp);
 
 static struct hash_table *parts_table = NULL;
+static TAILQ_HEAD(listhead, parts) parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
+
+// true between calls to BeginClick and EndClick
+static bool began_click = false;
+// true when the left mouse button was down last update
+static bool prev_clicking = false;
+// the last clicked parts number
+static int clicked_parts = 0;
+// the mouse position at last update
+static Point prev_pos = {0};
 
 static bool GoatGUIEngine_Init(void)
 {
@@ -104,8 +118,8 @@ static struct parts *parts_alloc(void)
 	parts->rotation.z = 0.0;
 	parts->sp.z = 0;
 	parts->sp.z2 = 2;
+	parts->sp.render = parts_render;
 	TAILQ_INIT(&parts->motion);
-	parts->sp.render = parts_render_motion;
 	return parts;
 }
 
@@ -118,6 +132,7 @@ static struct parts *parts_get(int parts_no)
 	struct parts *parts = parts_alloc();
 	parts->no = parts_no;
 	slot->value = parts;
+	TAILQ_INSERT_HEAD(&parts_list, parts, parts_list_entry);
 	return parts;
 }
 
@@ -161,9 +176,20 @@ static void parts_release(int parts_no)
 	if (!slot->value)
 		return;
 
-	parts_clear(slot->value);
-	free(slot->value);
+	struct parts *parts = slot->value;
+	parts_clear(parts);
+	TAILQ_REMOVE(&parts_list, parts, parts_list_entry);
+	free(parts);
 	slot->value = NULL;
+
+}
+
+static void parts_release_all(void)
+{
+	while (!TAILQ_EMPTY(&parts_list)) {
+		struct parts *parts = TAILQ_FIRST(&parts_list);
+		parts_release(parts->no);
+	}
 }
 
 static bool is_motion = false;
@@ -225,30 +251,76 @@ static Point motion_calculate_point(struct parts_motion *m, int t)
 	};
 }
 
-static void origin_mode_translate(mat4 dst, int mode, int w, int h)
+static void origin_mode_offset(int mode, int w, int h, int *_x, int *_y)
 {
-	vec3 off =  { 0, 0, 0 };
+	int x, y;
 	switch (mode) {
-	case 1: return;
-	case 2: off[0] = -w/2; off[1] = 0;    break;
-	case 3: off[0] = -w;   off[1] = -h/2; break;
-	case 4: off[0] = 0;    off[1] = -h/2; break;
-	case 5: off[0] = -w/2; off[1] = -h/2; break;
-	case 6: off[0] = -w;   off[1] = -h/2; break;
-	case 7: off[0] = 0;    off[1] = -h;   break;
-	case 8: off[0] = -w/2; off[1] = -h;   break;
-	case 9: off[0] = -w;   off[1] = -h;   break;
+	case 1: x = 0;    y = 0;    break;
+	case 2: x = -w/2; y = 0;    break;
+	case 3: x = -w;   y = -h/2; break;
+	case 4: x = 0;    y = -h/2; break;
+	case 5: x = -w/2; y = -h/2; break;
+	case 6: x = -w;   y = -h/2; break;
+	case 7: x = 0;    y = -h;   break;
+	case 8: x = -w/2; y = -h;   break;
+	case 9: x = -w;   y = -h;   break;
 	default:
 		// why...
-		off[0] = mode;
-		off[1] = (3*h)/4;
+		x = mode;
+		y = (3*h)/4;
 		break;
 	}
 
-	glm_translate(dst, off);
+	*_x = x;
+	*_y = y;
 }
 
-static void parts_render_motion(struct sact_sprite *sp)
+static void origin_mode_translate(mat4 dst, int mode, int w, int h)
+{
+	int x, y;
+	origin_mode_offset(mode, w, h, &x, &y);
+	glm_translate(dst, (vec3) { x, y, 0 });
+}
+
+static void parts_recalculate_pos(struct parts *parts)
+{
+	int x, y;
+	origin_mode_offset(parts->origin_mode, parts->sp.rect.w, parts->sp.rect.h, &x, &y);
+	parts->pos = (Rectangle) {
+		.x = parts->sp.rect.x + x,
+		.y = parts->sp.rect.y + y,
+		.w = parts->sp.rect.w,
+		.h = parts->sp.rect.h,
+	};
+}
+
+static void parts_set_pos(struct parts *parts, Point pos)
+{
+	sprite_set_pos(&parts->sp, pos.x, pos.y);
+	parts_recalculate_pos(parts);
+}
+
+static void parts_set_scale_x(struct parts *parts, float mag)
+{
+	parts->scale.x = mag;
+	parts_recalculate_pos(parts);
+	sprite_dirty(&parts->sp);
+}
+
+static void parts_set_scale_y(struct parts *parts, float mag)
+{
+	parts->scale.y = mag;
+	parts_recalculate_pos(parts);
+	sprite_dirty(&parts->sp);
+}
+
+static void parts_set_rotation_z(struct parts *parts, float rot)
+{
+	parts->rotation.z = rot;
+	sprite_dirty(&parts->sp);
+}
+
+static void parts_render(struct sact_sprite *sp)
 {
 	struct parts *parts = (struct parts*)sp;
 	if (!parts->sp.cg_no)
@@ -281,21 +353,17 @@ static void parts_render_motion(struct sact_sprite *sp)
 static void parts_update_with_motion(struct parts *parts, struct parts_motion *motion)
 {
 	switch (motion->type) {
-	case PARTS_MOTION_POS: {
-		Point pt = motion_calculate_point(motion, motion_t);
-		sprite_set_pos(&parts->sp, pt.x, pt.y);
+	case PARTS_MOTION_POS:
+		parts_set_pos(parts, motion_calculate_point(motion, motion_t));
 		break;
-	}
 	case PARTS_MOTION_ALPHA:
 		sprite_set_blend_rate(&parts->sp, motion_calculate_i(motion, motion_t));
 		break;
 	case PARTS_MOTION_MAG_X:
-		parts->scale.x = motion_calculate_f(motion, motion_t);
-		sprite_dirty(&parts->sp);
+		parts_set_scale_x(parts, motion_calculate_f(motion, motion_t));
 		break;
 	case PARTS_MOTION_MAG_Y:
-		parts->scale.y = motion_calculate_f(motion, motion_t);
-		sprite_dirty(&parts->sp);
+		parts_set_scale_y(parts, motion_calculate_f(motion, motion_t));
 		break;
 		/*
 		  case PARTS_MOTION_ROTATE_X:
@@ -308,85 +376,97 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 		  break;
 		*/
 	case PARTS_MOTION_ROTATE_Z:
-		parts->rotation.z = motion_calculate_f(motion, motion_t);
-		sprite_dirty(&parts->sp);
+		parts_set_rotation_z(parts, motion_calculate_f(motion, motion_t));
 		break;
 	default:
 		WARNING("Invalid motion type: %d", motion->type);
 	}
 }
 
-static void parts_update_motion(struct parts *parts)
+static void parts_update_all_motion(void)
 {
-	struct parts_motion *motion;
-	TAILQ_FOREACH(motion, &parts->motion, entry) {
-		if (motion->begin_time > motion_t)
-			break;
-		// FIXME? What if a motion begins and ends within the span of another?
-		//        This implementation will cancel the earlier motion and remain
-		//        at the end-state of the second motion.
-		parts_update_with_motion(parts, motion);
-	}
-}
-
-static void parts_init_motion(struct parts *parts)
-{
-	if (!parts)
-		return;
-
-	bool initialized[PARTS_NR_MOTION_TYPES] = {0};
-
-	struct parts_motion *motion;
-	TAILQ_FOREACH(motion, &parts->motion, entry) {
-		if (!initialized[motion->type]) {
+	struct parts *parts;
+	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+		struct parts_motion *motion;
+		TAILQ_FOREACH(motion, &parts->motion, entry) {
+			if (motion->begin_time > motion_t)
+				break;
+			// FIXME? What if a motion begins and ends within the span of another?
+			//        This implementation will cancel the earlier motion and remain
+			//        at the end-state of the second motion.
 			parts_update_with_motion(parts, motion);
-			initialized[motion->type] = true;
 		}
 	}
 }
 
-static void render_all_iter(void *parts)
-{
-	if (!parts)
-		return;
-	parts_update_motion(parts);
-	parts_render_motion(parts);
-}
-
-static void parts_update_all_motion(void)
-{
-	// TODO? Could optimize by keeping a linked list of parts with motion data
-	ht_foreach_value(parts_table, render_all_iter);
-}
-
-static void init_all_iter(void *parts)
-{
-	if (!parts)
-		return;
-	parts_init_motion(parts);
-	parts_render_motion(parts);
-}
-
+/*
+ * NOTE: If a motion begins at e.g. t=100 with a value of v=0, then that value
+ *       becomes the initial value of v at t=0.
+ */
 static void parts_init_all_motion(void)
 {
-	ht_foreach_value(parts_table, init_all_iter);
-}
-
-static void fini_all_iter(void *parts)
-{
-	if (!parts)
-		return;
-	parts_clear_motion(parts);
+	struct parts *parts;
+	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+		struct parts_motion *motion;
+		bool initialized[PARTS_NR_MOTION_TYPES] = {0};
+		TAILQ_FOREACH(motion, &parts->motion, entry) {
+			if (!initialized[motion->type]) {
+				parts_update_with_motion(parts, motion);
+				initialized[motion->type] = true;
+			}
+		}
+	}
 }
 
 static void parts_fini_all_motion(void)
 {
-	ht_foreach_value(parts_table, fini_all_iter);
+	struct parts *parts;
+	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+		parts_clear_motion(parts);
+	}
 }
 
 static void GoatGUIEngine_Update(possibly_unused int passed_time, possibly_unused bool message_window_show)
 {
-	// ???
+	if (!began_click)
+		return;
+
+	Point cur_pos;
+	bool cur_clicking = key_is_down(VK_LBUTTON);
+	bool parts_clicked = false;
+	mouse_get_pos(&cur_pos.x, &cur_pos.y);
+
+	struct parts *parts;
+	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+		if (!parts->clickable)
+			continue;
+		bool prev_in = SDL_PointInRect(&prev_pos, &parts->pos);
+		bool cur_in = SDL_PointInRect(&cur_pos, &parts->pos);
+
+		// unhover event
+		if (prev_in && !cur_in) {
+			// TODO: switch to unhovered state
+		}
+		// hover event
+		if (cur_in && !prev_in) {
+			// TODO: play parts->on_cursor_sound
+			// TODO: switch to hovered state
+		}
+		// click event
+		if (cur_in && prev_clicking && !cur_clicking) {
+			clicked_parts = parts->no;
+			parts_clicked = true;
+			// TODO: play parts->on_click_sound
+			// TODO? switch to clicked state?
+		}
+	}
+
+	if (prev_clicking && !cur_clicking && !parts_clicked) {
+		// TODO: play misclick sound
+	}
+
+	prev_clicking = cur_clicking;
+	prev_pos = cur_pos;
 }
 
 static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused int sprite_deform, possibly_unused int state)
@@ -394,6 +474,7 @@ static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused in
 	struct parts *parts = parts_get(parts_no);
 	if (!sprite_set_cg(&parts->sp, cg_no))
 		return false;
+	parts_recalculate_pos(parts);
 	return true;
 }
 
@@ -403,7 +484,13 @@ static int GoatGUIEngine_GetPartsCGNumber(int parts_no, possibly_unused int stat
 }
 
 bool GoatGUIEngine_SetLoopCG(int PartsNumber, int CGNumber, int NumofCG, int TimePerCG, int State);
-bool GoatGUIEngine_SetText(int PartsNumber, struct string *pIText, int State);
+
+static bool GoatGUIEngine_SetText(int PartsNumber, struct string *pIText, int State)
+{
+	// TODO
+	return true;
+}
+
 bool GoatGUIEngine_AddPartsText(int PartsNumber, struct string *pIText, int State);
 bool GoatGUIEngine_DeletePartsTopTextLine(int PartsNumber, int State);
 
@@ -448,13 +535,22 @@ static void GoatGUIEngine_ReleaseParts(int parts_no)
 	parts_release(parts_no);
 }
 
-void GoatGUIEngine_ReleaseAllParts(void);
-void GoatGUIEngine_ReleaseAllPartsWithoutSystem(void);
+static void GoatGUIEngine_ReleaseAllParts(void)
+{
+	parts_release_all();
+}
+
+static void GoatGUIEngine_ReleaseAllPartsWithoutSystem(void)
+{
+	// FIXME: what's the difference?
+	parts_release_all();
+}
 
 static void GoatGUIEngine_SetPos(int parts_no, int x, int y)
 {
 	struct parts *parts = parts_get(parts_no);
 	sprite_set_pos(&parts->sp, x, y);
+	parts_recalculate_pos(parts);
 }
 
 /*
@@ -488,16 +584,30 @@ static void GoatGUIEngine_SetClickable(int parts_no, bool clickable)
 	parts->clickable = !!clickable;
 }
 
-int GoatGUIEngine_GetPartsX(int PartsNumber);
-int GoatGUIEngine_GetPartsY(int PartsNumber);
+static int GoatGUIEngine_GetPartsX(int parts_no)
+{
+	return sprite_get_pos_x(&parts_get(parts_no)->sp);
+}
+
+static int GoatGUIEngine_GetPartsY(int parts_no)
+{
+	return sprite_get_pos_y(&parts_get(parts_no)->sp);
+}
 
 static int GoatGUIEngine_GetPartsZ(int parts_no)
 {
 	return sprite_get_z2(&parts_get(parts_no)->sp) - 1;
 }
 
-bool GoatGUIEngine_GetPartsShow(int PartsNumber);
-int GoatGUIEngine_GetPartsAlpha(int PartsNumber);
+static bool GoatGUIEngine_GetPartsShow(int parts_no)
+{
+	return sprite_get_show(&parts_get(parts_no)->sp);
+}
+
+static int GoatGUIEngine_GetPartsAlpha(int parts_no)
+{
+	return sprite_get_blend_rate(&parts_get(parts_no)->sp);
+}
 
 static bool GoatGUIEngine_GetPartsClickable(int parts_no)
 {
@@ -508,6 +618,7 @@ static void GoatGUIEngine_SetPartsOriginPosMode(int parts_no, int origin_pos_mod
 {
 	struct parts *parts = parts_get(parts_no);
 	parts->origin_mode = origin_pos_mode;
+	parts_recalculate_pos(parts);
 	sprite_dirty(&parts->sp);
 }
 
@@ -517,9 +628,23 @@ static int GoatGUIEngine_GetPartsOriginPosMode(int parts_no)
 }
 
 void GoatGUIEngine_SetParentPartsNumber(int PartsNumber, int ParentPartsNumber);
-bool GoatGUIEngine_SetPartsGroupNumber(int PartsNumber, int GroupNumber);
-void GoatGUIEngine_SetPartsGroupDecideOnCursor(int GroupNumber, bool DecideOnCursor);
-void GoatGUIEngine_SetPartsGroupDecideClick(int GroupNumber, bool DecideClick);
+
+static bool GoatGUIEngine_SetPartsGroupNumber(int PartsNumber, int GroupNumber)
+{
+	// TODO
+	return true;
+}
+
+static void GoatGUIEngine_SetPartsGroupDecideOnCursor(int GroupNumber, bool DecideOnCursor)
+{
+	// TODO
+}
+
+static void GoatGUIEngine_SetPartsGroupDecideClick(int GroupNumber, bool DecideClick)
+{
+	// TODO
+}
+
 void GoatGUIEngine_SetOnCursorShowLinkPartsNumber(int PartsNumber, int LinkPartsNumber);
 
 static void GoatGUIEngine_SetPartsMessageWindowShowLink(int parts_no, bool message_window_show_link)
@@ -551,17 +676,17 @@ static bool GoatGUIEngine_SetClickMissSoundNumber(int ClickMissSoundNumber)
 
 static void GoatGUIEngine_BeginClick(void)
 {
-	// TODO
+	began_click = true;
 }
 
 static void GoatGUIEngine_EndClick(void)
 {
-	// TODO
+	began_click = false;
 }
 
 static int GoatGUIEngine_GetClickPartsNumber(void)
 {
-	return 0; // TODO
+	return clicked_parts;
 }
 
 static void GoatGUIEngine_AddMotionPos(int parts_no, int begin_x, int begin_y, int end_x, int end_y, int begin_t, int end_t)
@@ -693,7 +818,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(SetPartsCG, GoatGUIEngine_SetPartsCG),
 	    HLL_EXPORT(GetPartsCGNumber, GoatGUIEngine_GetPartsCGNumber),
 	    HLL_TODO_EXPORT(SetLoopCG, GoatGUIEngine_SetLoopCG),
-	    HLL_TODO_EXPORT(SetText, GoatGUIEngine_SetText),
+	    HLL_EXPORT(SetText, GoatGUIEngine_SetText),
 	    HLL_TODO_EXPORT(AddPartsText, GoatGUIEngine_AddPartsText),
 	    HLL_TODO_EXPORT(DeletePartsTopTextLine, GoatGUIEngine_DeletePartsTopTextLine),
 	    HLL_EXPORT(SetFont, GoatGUIEngine_SetFont),
@@ -721,26 +846,26 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_TODO_EXPORT(BackPartsFlashBeginFrame, GoatGUIEngine_BackPartsFlashBeginFrame),
 	    HLL_TODO_EXPORT(StepPartsFlashFinalFrame, GoatGUIEngine_StepPartsFlashFinalFrame),
 	    HLL_EXPORT(ReleaseParts, GoatGUIEngine_ReleaseParts),
-	    HLL_TODO_EXPORT(ReleaseAllParts, GoatGUIEngine_ReleaseAllParts),
-	    HLL_TODO_EXPORT(ReleaseAllPartsWithoutSystem, GoatGUIEngine_ReleaseAllPartsWithoutSystem),
+	    HLL_EXPORT(ReleaseAllParts, GoatGUIEngine_ReleaseAllParts),
+	    HLL_EXPORT(ReleaseAllPartsWithoutSystem, GoatGUIEngine_ReleaseAllPartsWithoutSystem),
 	    HLL_EXPORT(SetPos, GoatGUIEngine_SetPos),
 	    HLL_EXPORT(SetZ, GoatGUIEngine_SetZ),
 	    HLL_EXPORT(SetShow, GoatGUIEngine_SetShow),
 	    HLL_EXPORT(SetAlpha, GoatGUIEngine_SetAlpha),
 	    HLL_TODO_EXPORT(SetPartsDrawFilter, GoatGUIEngine_SetPartsDrawFilter),
 	    HLL_EXPORT(SetClickable, GoatGUIEngine_SetClickable),
-	    HLL_TODO_EXPORT(GetPartsX, GoatGUIEngine_GetPartsX),
-	    HLL_TODO_EXPORT(GetPartsY, GoatGUIEngine_GetPartsY),
+	    HLL_EXPORT(GetPartsX, GoatGUIEngine_GetPartsX),
+	    HLL_EXPORT(GetPartsY, GoatGUIEngine_GetPartsY),
 	    HLL_EXPORT(GetPartsZ, GoatGUIEngine_GetPartsZ),
-	    HLL_TODO_EXPORT(GetPartsShow, GoatGUIEngine_GetPartsShow),
-	    HLL_TODO_EXPORT(GetPartsAlpha, GoatGUIEngine_GetPartsAlpha),
+	    HLL_EXPORT(GetPartsShow, GoatGUIEngine_GetPartsShow),
+	    HLL_EXPORT(GetPartsAlpha, GoatGUIEngine_GetPartsAlpha),
 	    HLL_EXPORT(GetPartsClickable, GoatGUIEngine_GetPartsClickable),
 	    HLL_EXPORT(SetPartsOriginPosMode, GoatGUIEngine_SetPartsOriginPosMode),
 	    HLL_EXPORT(GetPartsOriginPosMode, GoatGUIEngine_GetPartsOriginPosMode),
 	    HLL_TODO_EXPORT(SetParentPartsNumber, GoatGUIEngine_SetParentPartsNumber),
-	    HLL_TODO_EXPORT(SetPartsGroupNumber, GoatGUIEngine_SetPartsGroupNumber),
-	    HLL_TODO_EXPORT(SetPartsGroupDecideOnCursor, GoatGUIEngine_SetPartsGroupDecideOnCursor),
-	    HLL_TODO_EXPORT(SetPartsGroupDecideClick, GoatGUIEngine_SetPartsGroupDecideClick),
+	    HLL_EXPORT(SetPartsGroupNumber, GoatGUIEngine_SetPartsGroupNumber),
+	    HLL_EXPORT(SetPartsGroupDecideOnCursor, GoatGUIEngine_SetPartsGroupDecideOnCursor),
+	    HLL_EXPORT(SetPartsGroupDecideClick, GoatGUIEngine_SetPartsGroupDecideClick),
 	    HLL_TODO_EXPORT(SetOnCursorShowLinkPartsNumber, GoatGUIEngine_SetOnCursorShowLinkPartsNumber),
 	    HLL_EXPORT(SetPartsMessageWindowShowLink, GoatGUIEngine_SetPartsMessageWindowShowLink),
 	    HLL_TODO_EXPORT(GetPartsMessageWindowShowLink, GoatGUIEngine_GetPartsMessageWindowShowLink),
