@@ -16,13 +16,15 @@
 
 #include <assert.h>
 
+#include "system4/cg.h"
 #include "system4/hashtable.h"
 #include <cglm/cglm.h>
 
+#include "asset_manager.h"
 #include "gfx/gfx.h"
 #include "input.h"
 #include "queue.h"
-#include "sprite.h"
+#include "scene.h"
 #include "xsystem4.h"
 #include "hll.h"
 
@@ -71,7 +73,9 @@ struct parts_motion {
 };
 
 struct parts {
-	struct sact_sprite sp;
+	struct sprite sp;
+	Texture texture;
+	unsigned cg_no;
 	TAILQ_ENTRY(parts) parts_list_entry;
 	int no;
 	int sprite_deform;
@@ -80,6 +84,7 @@ struct parts {
 	int on_cursor_sound;
 	int on_click_sound;
 	int origin_mode;
+	Rectangle rect;
 	// The actual hitbox of the sprite (accounting for origin-mode, scale, etc)
 	Rectangle pos;
 	struct { float x, y; } scale;
@@ -87,7 +92,7 @@ struct parts {
 	TAILQ_HEAD(, parts_motion) motion;
 };
 
-static void parts_render(struct sact_sprite *sp);
+static void parts_render(struct sprite *sp);
 
 static struct hash_table *parts_table = NULL;
 static TAILQ_HEAD(listhead, parts) parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
@@ -167,7 +172,8 @@ static void parts_clear_motion(struct parts *parts)
 static void parts_clear(struct parts *parts)
 {
 	parts_clear_motion(parts);
-	sprite_free(&parts->sp);
+	scene_unregister_sprite(&parts->sp);
+	gfx_delete_texture(&parts->texture);
 }
 
 static void parts_release(int parts_no)
@@ -285,48 +291,56 @@ static void origin_mode_translate(mat4 dst, int mode, int w, int h)
 static void parts_recalculate_pos(struct parts *parts)
 {
 	int x, y;
-	origin_mode_offset(parts->origin_mode, parts->sp.rect.w, parts->sp.rect.h, &x, &y);
+	origin_mode_offset(parts->origin_mode, parts->rect.w, parts->rect.h, &x, &y);
 	parts->pos = (Rectangle) {
-		.x = parts->sp.rect.x + x,
-		.y = parts->sp.rect.y + y,
-		.w = parts->sp.rect.w,
-		.h = parts->sp.rect.h,
+		.x = parts->rect.x + x,
+		.y = parts->rect.y + y,
+		.w = parts->rect.w,
+		.h = parts->rect.h,
 	};
 }
 
 static void parts_set_pos(struct parts *parts, Point pos)
 {
-	sprite_set_pos(&parts->sp, pos.x, pos.y);
+	parts->rect.x = pos.x;
+	parts->rect.y = pos.y;
 	parts_recalculate_pos(parts);
+	scene_sprite_dirty(&parts->sp);
 }
 
 static void parts_set_scale_x(struct parts *parts, float mag)
 {
 	parts->scale.x = mag;
 	parts_recalculate_pos(parts);
-	sprite_dirty(&parts->sp);
+	scene_sprite_dirty(&parts->sp);
 }
 
 static void parts_set_scale_y(struct parts *parts, float mag)
 {
 	parts->scale.y = mag;
 	parts_recalculate_pos(parts);
-	sprite_dirty(&parts->sp);
+	scene_sprite_dirty(&parts->sp);
 }
 
 static void parts_set_rotation_z(struct parts *parts, float rot)
 {
 	parts->rotation.z = rot;
-	sprite_dirty(&parts->sp);
+	scene_sprite_dirty(&parts->sp);
 }
 
-static void parts_render(struct sact_sprite *sp)
+static void parts_set_alpha(struct parts *parts, int alpha)
+{
+	parts->texture.alpha_mod = max(0, min(255, alpha));
+	scene_sprite_dirty(&parts->sp);
+}
+
+static void parts_render(struct sprite *sp)
 {
 	struct parts *parts = (struct parts*)sp;
-	if (!parts->sp.cg_no)
+	if (!parts->cg_no)
 		return;
 
-	Rectangle *d = &parts->sp.rect;
+	Rectangle *d = &parts->rect;
 	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
 	glm_translate(mw_transform, (vec3) { d->x, d->y, 0 });
 	// FIXME: need perspective for 3D rotate
@@ -341,10 +355,10 @@ static void parts_render(struct sact_sprite *sp)
 
 	struct gfx_render_job job = {
 		.shader = NULL, // default shader
-		.texture = parts->sp.texture.handle,
+		.texture = parts->texture.handle,
 		.world_transform = mw_transform[0],
 		.view_transform = wv_transform[0],
-		.data = &parts->sp.texture,
+		.data = &parts->texture,
 	};
 
 	gfx_render(&job);
@@ -357,7 +371,7 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 		parts_set_pos(parts, motion_calculate_point(motion, motion_t));
 		break;
 	case PARTS_MOTION_ALPHA:
-		sprite_set_blend_rate(&parts->sp, motion_calculate_i(motion, motion_t));
+		parts_set_alpha(parts, motion_calculate_i(motion, motion_t));
 		break;
 	case PARTS_MOTION_MAG_X:
 		parts_set_scale_x(parts, motion_calculate_f(motion, motion_t));
@@ -472,15 +486,26 @@ static void GoatGUIEngine_Update(possibly_unused int passed_time, possibly_unuse
 static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused int sprite_deform, possibly_unused int state)
 {
 	struct parts *parts = parts_get(parts_no);
-	if (!sprite_set_cg(&parts->sp, cg_no))
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
 		return false;
+	gfx_delete_texture(&parts->texture);
+	gfx_init_texture_with_cg(&parts->texture, cg);
+	parts->rect.w = cg->metrics.w;
+	parts->rect.h = cg->metrics.h;
+	parts->cg_no = cg_no;
+	parts->sp.has_pixel = true;
+	parts->sp.has_alpha = cg->metrics.has_alpha;
+	parts->sp.render = parts_render;
 	parts_recalculate_pos(parts);
+	scene_sprite_dirty(&parts->sp);
+	cg_free(cg);
 	return true;
 }
 
 static int GoatGUIEngine_GetPartsCGNumber(int parts_no, possibly_unused int state)
 {
-	return parts_get(parts_no)->sp.cg_no;
+	return parts_get(parts_no)->cg_no;
 }
 
 bool GoatGUIEngine_SetLoopCG(int PartsNumber, int CGNumber, int NumofCG, int TimePerCG, int State);
@@ -548,9 +573,7 @@ static void GoatGUIEngine_ReleaseAllPartsWithoutSystem(void)
 
 static void GoatGUIEngine_SetPos(int parts_no, int x, int y)
 {
-	struct parts *parts = parts_get(parts_no);
-	sprite_set_pos(&parts->sp, x, y);
-	parts_recalculate_pos(parts);
+	parts_set_pos(parts_get(parts_no), (Point){ x, y });
 }
 
 /*
@@ -561,52 +584,49 @@ static void GoatGUIEngine_SetPos(int parts_no, int x, int y)
  */
 static void GoatGUIEngine_SetZ(int parts_no, int z)
 {
-	sprite_set_z2(&parts_get(parts_no)->sp, 0, z+1);
+	scene_set_sprite_z2(&parts_get(parts_no)->sp, 0, z+1);
 }
 
 static void GoatGUIEngine_SetShow(int parts_no, bool show)
 {
-	struct parts *parts = parts_get(parts_no);
-	sprite_set_show(&parts->sp, show);
+	scene_set_sprite_show(&parts_get(parts_no)->sp, show);
 }
 
 static void GoatGUIEngine_SetAlpha(int parts_no, int alpha)
 {
-	struct parts *parts = parts_get(parts_no);
-	sprite_set_blend_rate(&parts->sp, alpha);
+	parts_set_alpha(parts_get(parts_no), alpha);
 }
 
 void GoatGUIEngine_SetPartsDrawFilter(int PartsNumber, int DrawFilter);
 
 static void GoatGUIEngine_SetClickable(int parts_no, bool clickable)
 {
-	struct parts *parts = parts_get(parts_no);
-	parts->clickable = !!clickable;
+	parts_get(parts_no)->clickable = !!clickable;
 }
 
 static int GoatGUIEngine_GetPartsX(int parts_no)
 {
-	return sprite_get_pos_x(&parts_get(parts_no)->sp);
+	return parts_get(parts_no)->rect.x;
 }
 
 static int GoatGUIEngine_GetPartsY(int parts_no)
 {
-	return sprite_get_pos_y(&parts_get(parts_no)->sp);
+	return parts_get(parts_no)->rect.y;
 }
 
 static int GoatGUIEngine_GetPartsZ(int parts_no)
 {
-	return sprite_get_z2(&parts_get(parts_no)->sp) - 1;
+	return parts_get(parts_no)->sp.z2 - 1;
 }
 
 static bool GoatGUIEngine_GetPartsShow(int parts_no)
 {
-	return sprite_get_show(&parts_get(parts_no)->sp);
+	return scene_get_sprite_show(&parts_get(parts_no)->sp);
 }
 
 static int GoatGUIEngine_GetPartsAlpha(int parts_no)
 {
-	return sprite_get_blend_rate(&parts_get(parts_no)->sp);
+	return parts_get(parts_no)->texture.alpha_mod;
 }
 
 static bool GoatGUIEngine_GetPartsClickable(int parts_no)
@@ -619,7 +639,7 @@ static void GoatGUIEngine_SetPartsOriginPosMode(int parts_no, int origin_pos_mod
 	struct parts *parts = parts_get(parts_no);
 	parts->origin_mode = origin_pos_mode;
 	parts_recalculate_pos(parts);
-	sprite_dirty(&parts->sp);
+	scene_sprite_dirty(&parts->sp);
 }
 
 static int GoatGUIEngine_GetPartsOriginPosMode(int parts_no)

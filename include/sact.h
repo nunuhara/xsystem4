@@ -25,8 +25,8 @@ struct sact_sprite *sact_try_get_sprite(int sp);
 struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
 void sact_ModuleFini(void);
 int sact_Init(void *_, int cg_cache_size);
-#define sact_SetWP sprite_set_wp
-#define sact_SetWP_Color sprite_set_wp_color
+#define sact_SetWP scene_set_wp
+#define sact_SetWP_Color scene_set_wp_color
 int sact_GetScreenWidth(void);
 int sact_GetScreenHeight(void);
 int sact_GetMainSurfaceNumber(void);
@@ -35,7 +35,7 @@ int sact_Effect(int type, int time, int key);
 int sact_SP_GetUnuseNum(int min);
 int sact_SP_Count(void);
 int sact_SP_Enum(struct page **array);
-#define sact_SP_GetMaxZ sprite_get_max_z
+#define sact_SP_GetMaxZ scene_get_max_z
 int sact_SP_SetCG(int sp, int cg);
 int sact_SP_Create(int sp, int width, int height, int r, int g, int b, int a);
 int sact_SP_CreatePixelOnly(int sp, int width, int height);

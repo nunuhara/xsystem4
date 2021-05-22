@@ -21,12 +21,14 @@
 #include <SDL.h>
 #include "queue.h"
 #include "gfx/gfx.h"
+#include "scene.h"
 
 struct string;
 struct page;
 union vm_value;
 
 struct sact_sprite {
+	struct sprite sp;
 	TAILQ_ENTRY(sact_sprite) entry;
 	// The sprite's texture (CG or solid color). Initialized lazily.
 	struct texture texture;
@@ -44,79 +46,40 @@ struct sact_sprite {
 		int char_space;
 		int line_space;
 	} text;
-	// The Z-layer of the sprite within the scene.
-	int z;
-	// The secondary Z-layer (for GoatGUIEngine)
-	int z2;
-	// This flag indicates that pixel data has been attached to a sprite; it
-	// does NOT guarantee that the texture is initialized.
-	bool has_pixel;
-	bool has_alpha;
-	// This flag indicates whether or not the sprite is included in the
-	// the current scene. A sprite should be in the scene if there is pixel
-	// or text data attached to it and it is not hidden.
-	bool in_scene;
-	// When a sprite is hidden, it is removed from the scene. Attaching new
-	// pixel data does not alter the state of this flag.
-	bool hidden;
 	// The sprite handle
 	int no;
 	// The CG number attached to the sprite.
 	int cg_no;
-	// The rendering function
-	void (*render)(struct sact_sprite*);
 };
-
-extern bool sact_dirty;
-
-void sprite_register(struct sact_sprite *sp);
-void sprite_unregister(struct sact_sprite *sp);
 
 static inline void sprite_dirty(struct sact_sprite *sp)
 {
-	if (!sp)
-		return;
-	sact_dirty = true;
-	if (sp->hidden) {
-		sprite_unregister(sp);
-	} else if (sp->has_pixel || sp->text.texture.handle) {
-		sprite_register(sp);
-	}
-}
-
-static inline void scene_dirty(void)
-{
-	sact_dirty = true;
+	scene_sprite_dirty(&sp->sp);
 }
 
 void sprite_free(struct sact_sprite *sp);
-void sprite_render_scene(void);
-void sprite_flip(void);
 struct texture *sprite_get_texture(struct sact_sprite *sp);
-int sprite_set_wp(int cg_no);
-int sprite_set_wp_color(int r, int g, int b);
 int sprite_set_cg(struct sact_sprite *sp, int cg_no);
 int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path);
 void sprite_init(struct sact_sprite *sp, int w, int h, int r, int g, int b, int a);
-int sprite_get_max_z(void);
 void sprite_set_pos(struct sact_sprite *sp, int x, int y);
 void sprite_set_x(struct sact_sprite *sp, int x);
 void sprite_set_y(struct sact_sprite *sp, int y);
-void sprite_set_z(struct sact_sprite *sp, int z);
-void sprite_set_z2(struct sact_sprite *sp, int z, int z2);
+static inline void sprite_set_z(struct sact_sprite *sp, int z) { scene_set_sprite_z(&sp->sp, z); }
+static inline void sprite_set_z2(struct sact_sprite *sp, int z, int z2) { scene_set_sprite_z2(&sp->sp, z, z2); }
 int sprite_get_blend_rate(struct sact_sprite *sp);
 void sprite_set_blend_rate(struct sact_sprite *sp, int rate);
-void sprite_set_show(struct sact_sprite *sp, bool show);
+static inline void sprite_set_show(struct sact_sprite *sp, bool show) { scene_set_sprite_show(&sp->sp, show); }
 int sprite_set_draw_method(struct sact_sprite *sp, int method);
 int sprite_get_draw_method(struct sact_sprite *sp);
-int sprite_exists_alpha(struct sact_sprite *sp);
+static inline int sprite_exists_alpha(struct sact_sprite *sp) { return sp->sp.has_alpha; }
 static inline int sprite_get_pos_x(struct sact_sprite *sp) { return sp->rect.x; }
 static inline int sprite_get_pos_y(struct sact_sprite *sp) { return sp->rect.y; }
 static inline int sprite_get_width(struct sact_sprite *sp) { return sp->rect.w; }
 static inline int sprite_get_height(struct sact_sprite *sp) { return sp->rect.h; }
-static inline int sprite_get_z(struct sact_sprite *sp) { return sp->z; }
-static inline int sprite_get_z2(struct sact_sprite *sp) { return sp->z2; }
-static inline int sprite_get_show(struct sact_sprite *sp) { return !sp->hidden; }
+static inline int sprite_get_z(struct sact_sprite *sp) { return sp->sp.z; }
+static inline int sprite_get_z2(struct sact_sprite *sp) { return sp->sp.z2; }
+static inline int sprite_get_show(struct sact_sprite *sp) { return !sp->sp.hidden; }
 void sprite_set_text_home(struct sact_sprite *sp, int x, int y);
 void sprite_set_text_line_space(struct sact_sprite *sp, int px);
 void sprite_set_text_char_space(struct sact_sprite *sp, int px);

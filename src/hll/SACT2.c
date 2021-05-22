@@ -29,6 +29,7 @@
 #include "queue.h"
 #include "gfx/gfx.h"
 #include "sact.h"
+#include "scene.h"
 #include "vm/page.h"
 #include "dungeon/dungeon.h"
 #include "xsystem4.h"
@@ -135,9 +136,9 @@ int sact_Update(void)
 {
 	handle_events();
 	dungeon_update();
-	if (sact_dirty) {
-		sprite_render_scene();
-		sprite_flip();
+	if (scene_is_dirty) {
+		scene_render();
+		scene_flip();
 	}
 	return 1;
 }
@@ -577,7 +578,7 @@ int sact_SP_GetAMapValue(int sp_no, int x, int y)
 	if (!sp) return -1;
 	if (x < 0 || x >= sp->rect.w || y < 0 || y >= sp->rect.h)
 		return -1;
-	if (!sp->has_alpha)
+	if (!sp->sp.has_alpha)
 		return -1;
 	return sprite_get_amap_value(sp, x, y);
 }

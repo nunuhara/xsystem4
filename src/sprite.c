@@ -33,47 +33,12 @@
 
 bool sact_dirty = true;
 
-static struct sact_sprite wp;
-
 TAILQ_HEAD(listhead, sact_sprite) sprite_list =
 	TAILQ_HEAD_INITIALIZER(sprite_list);
 
-void sprite_register(struct sact_sprite *sp)
-{
-	if (sp->in_scene)
-		return;
-
-	struct sact_sprite *p;
-	TAILQ_FOREACH(p, &sprite_list, entry) {
-		if (p->z == sp->z) {
-			if (p->z2 > sp->z2) {
-				TAILQ_INSERT_BEFORE(p, sp, entry);
-				sp->in_scene = true;
-				return;
-			}
-		} else if (p->z > sp->z) {
-			TAILQ_INSERT_BEFORE(p, sp, entry);
-			sp->in_scene = true;
-			return;
-		}
-	}
-	TAILQ_INSERT_TAIL(&sprite_list, sp, entry);
-	sp->in_scene = true;
-	scene_dirty();
-}
-
-void sprite_unregister(struct sact_sprite *sp)
-{
-	if (!sp->in_scene)
-		return;
-	TAILQ_REMOVE(&sprite_list, sp, entry);
-	sp->in_scene = false;
-	scene_dirty();
-}
-
 void sprite_free(struct sact_sprite *sp)
 {
-	sprite_unregister(sp);
+	scene_unregister_sprite(&sp->sp);
 	gfx_delete_texture(&sp->texture);
 	gfx_delete_texture(&sp->text.texture);
 	memset(sp, 0, sizeof(struct sact_sprite));
@@ -82,38 +47,21 @@ void sprite_free(struct sact_sprite *sp)
 static void sprite_init_texture(struct sact_sprite *sp)
 {
 	if (!sp->texture.handle) {
-		if (sp->has_alpha)
+		if (sp->sp.has_alpha)
 			gfx_init_texture_rgba(&sp->texture, sp->rect.w, sp->rect.h, sp->color);
 		else
 			gfx_init_texture_rgb(&sp->texture, sp->rect.w, sp->rect.h, sp->color);
 	}
 }
 
-void sprite_render_scene(void)
+static void sprite_render(struct sprite *_sp)
 {
-	gfx_clear();
-	if (wp.texture.handle) {
-		Rectangle r = RECT(0, 0, wp.texture.w, wp.texture.h);
-		gfx_render_texture(&wp.texture, &r);
+	struct sact_sprite *sp = (struct sact_sprite*)_sp;
+	sprite_init_texture(sp);
+	gfx_render_texture(&sp->texture, &sp->rect);
+	if (sp->text.texture.handle) {
+		gfx_render_texture(&sp->text.texture, &sp->rect);
 	}
-	struct sact_sprite *p;
-	TAILQ_FOREACH(p, &sprite_list, entry) {
-		if (p->render) {
-			p->render(p);
-		} else {
-			sprite_init_texture(p);
-			gfx_render_texture(&p->texture, &p->rect);
-			if (p->text.texture.handle) {
-				gfx_render_texture(&p->text.texture, &p->rect);
-			}
-		}
-	}
-}
-
-void sprite_flip(void)
-{
-	gfx_swap();
-	sact_dirty = false;
 }
 
 struct texture *sprite_get_texture(struct sact_sprite *sp)
@@ -121,32 +69,6 @@ struct texture *sprite_get_texture(struct sact_sprite *sp)
 	sprite_init_texture(sp);
 	return &sp->texture;
 }
-
-int sprite_set_wp(int cg_no)
-{
-	if (!cg_no) {
-		gfx_delete_texture(&wp.texture);
-		return 1;
-	}
-
-	struct cg *cg = asset_cg_load(cg_no);
-	if (!cg)
-		return 0;
-
-	gfx_delete_texture(&wp.texture);
-	gfx_init_texture_with_cg(&wp.texture, cg);
-	cg_free(cg);
-	scene_dirty();
-	return 1;
-}
-
-int sprite_set_wp_color(int r, int g, int b)
-{
-	gfx_set_clear_color(r, g, b, 255);
-	scene_dirty();
-	return 1;
-}
-
 
 int sprite_set_cg(struct sact_sprite *sp, int cg_no)
 {
@@ -158,8 +80,9 @@ int sprite_set_cg(struct sact_sprite *sp, int cg_no)
 	sp->rect.w = cg->metrics.w;
 	sp->rect.h = cg->metrics.h;
 	sp->cg_no = cg_no;
-	sp->has_pixel = true;
-	sp->has_alpha = cg->metrics.has_alpha;
+	sp->sp.has_pixel = true;
+	sp->sp.has_alpha = cg->metrics.has_alpha;
+	sp->sp.render = sprite_render;
 	sprite_dirty(sp);
 	cg_free(cg);
 	return 1;
@@ -174,8 +97,9 @@ int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path)
 	gfx_init_texture_with_cg(&sp->texture, cg);
 	sp->rect.w = cg->metrics.w;
 	sp->rect.h = cg->metrics.h;
-	sp->has_pixel = true;
-	sp->has_alpha = cg->metrics.has_alpha;
+	sp->sp.has_pixel = true;
+	sp->sp.has_alpha = cg->metrics.has_alpha;
+	sp->sp.render = sprite_render;
 	sprite_dirty(sp);
 	cg_free(cg);
 	return 1;
@@ -191,16 +115,10 @@ void sprite_init(struct sact_sprite *sp, int w, int h, int r, int g, int b, int 
 	sp->rect.h = h;
 	gfx_delete_texture(&sp->texture);
 
-	sp->has_pixel = true;
-	sp->has_alpha = a >= 0;
+	sp->sp.has_pixel = true;
+	sp->sp.has_alpha = a >= 0;
+	sp->sp.render = sprite_render;
 	sprite_dirty(sp);
-}
-
-int sprite_get_max_z(void)
-{
-	if (TAILQ_EMPTY(&sprite_list))
-		return 0;
-	return TAILQ_LAST(&sprite_list, listhead)->z;
 }
 
 void sprite_set_pos(struct sact_sprite *sp, int x, int y)
@@ -222,25 +140,6 @@ void sprite_set_y(struct sact_sprite *sp, int y)
 	sprite_dirty(sp);
 }
 
-void sprite_set_z(struct sact_sprite *sp, int z)
-{
-	sp->z = z;
-	if (sp->in_scene) {
-		sprite_unregister(sp);
-		sprite_register(sp);
-	}
-}
-
-void sprite_set_z2(struct sact_sprite *sp, int z, int z2)
-{
-	sp->z = z;
-	sp->z2 = z2;
-	if (sp->in_scene) {
-		sprite_unregister(sp);
-		sprite_register(sp);
-	}
-}
-
 int sprite_get_blend_rate(struct sact_sprite *sp)
 {
 	return sprite_get_texture(sp)->alpha_mod;
@@ -249,12 +148,6 @@ int sprite_get_blend_rate(struct sact_sprite *sp)
 void sprite_set_blend_rate(struct sact_sprite *sp, int rate)
 {
 	sprite_get_texture(sp)->alpha_mod = max(0, min(255, rate));
-	sprite_dirty(sp);
-}
-
-void sprite_set_show(struct sact_sprite *sp, bool show)
-{
-	sp->hidden = !show;
 	sprite_dirty(sp);
 }
 
@@ -272,11 +165,6 @@ int sprite_set_draw_method(struct sact_sprite *sp, int method)
 int sprite_get_draw_method(struct sact_sprite *sp)
 {
 	return sprite_get_texture(sp)->draw_method;
-}
-
-int sprite_exists_alpha(struct sact_sprite *sp)
-{
-	return sp->has_alpha;
 }
 
 void sprite_set_text_home(struct sact_sprite *sp, int x, int y)
