@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <libgen.h>
 #include <dirent.h>
 #include <ctype.h>
@@ -62,27 +63,39 @@ char *unix_path(const char *path)
 	return utf;
 }
 
-char *gamedir_path(const char *path)
+static bool is_absolute_path(const char *path)
 {
-	char *utf = unix_path(path);
-	char *gamepath = xmalloc(strlen(config.game_dir) + strlen(utf) + 2);
-	strcpy(gamepath, config.game_dir);
-	strcat(gamepath, "/");
-	strcat(gamepath, utf);
-
-	free(utf);
-	return gamepath;
+#if (defined(_WIN32) || defined(__WIN32__))
+	int i = (isalpha(path[0]) && path[1] == ':') ? 2 : 0;
+	return path[i] == '/' || path[i] == '\\';
+#else
+	return path[0] == '/';
+#endif
 }
 
-char *savedir_path(const char *filename)
+static char *resolve_path(const char *dir, const char *path)
 {
-	char *utf = sjis2utf(filename, 0);
-	char *path = xmalloc(strlen(config.save_dir) + 1 + strlen(utf) + 1);
-	strcpy(path, config.save_dir);
-	strcat(path, "/");
-	strcat(path, utf);
+	char *utf = unix_path(path);
+	if (is_absolute_path(utf))
+		return utf;
+
+	char *resolved = xmalloc(strlen(dir) + strlen(utf) + 2);
+	strcpy(resolved, dir);
+	strcat(resolved, "/");
+	strcat(resolved, utf);
+
 	free(utf);
-	return path;
+	return resolved;
+}
+
+char *gamedir_path(const char *path)
+{
+	return resolve_path(config.game_dir, path);
+}
+
+char *savedir_path(const char *path)
+{
+	return resolve_path(config.save_dir, path);
 }
 
 static struct string *ini_string(struct ini_entry *entry)
