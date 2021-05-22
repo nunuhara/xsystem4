@@ -51,6 +51,11 @@ struct {
 	int playing;
 } bgm;
 
+// Anonymous channels for playing sounds in-engine. audio_update must be called
+// periodically to clean up channels that have finished playing.
+#define NR_ANONYMOUS_CHANNELS 64
+static int anonymous_channels[NR_ANONYMOUS_CHANNELS];
+
 #define BGI_MAX 100
 
 struct bgi {
@@ -126,12 +131,48 @@ void audio_init(void)
 
 	if (config.bgi_path)
 		bgi_read(config.bgi_path);
+
+	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
+		anonymous_channels[i] = -1;
+	}
 }
 
 void audio_fini(void)
 {
 	Mix_CloseAudio();
 	Mix_Quit();
+}
+
+void audio_update(void)
+{
+	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
+		if (anonymous_channels[i] >= 0) {
+			if (!wav_is_playing(anonymous_channels[i])) {
+				NOTICE("FREEING CHANNEL");
+				wav_unprepare(anonymous_channels[i]);
+				anonymous_channels[i] = -1;
+			}
+		}
+	}
+}
+
+bool audio_play_sound(int sound_no)
+{
+	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
+		if (anonymous_channels[i] == -1) {
+			int ch = wav_get_unused_channel();
+			if (!wav_prepare(ch, sound_no))
+				return false;
+			if (!wav_play(ch)) {
+				wav_unprepare(ch);
+				return false;
+			}
+			anonymous_channels[i] = ch;
+			return true;
+		}
+	}
+	WARNING("Failed to allocate anonymous audio channel");
+	return false;
 }
 
 static void wav_realloc(int new_size)

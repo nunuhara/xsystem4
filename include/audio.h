@@ -21,6 +21,8 @@
 
 void audio_init(void);
 void audio_fini(void);
+void audio_update(void);
+bool audio_play_sound(int sound_no);
 
 bool wav_exists(int no);
 bool bgm_exists(int no);
