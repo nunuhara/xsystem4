@@ -24,10 +24,15 @@
 #include "vm.h"
 #include "system4.h"
 
-#define HLL_WARN_UNIMPLEMENTED(rval, rtype, libname, fname, ...)\
-	static rtype libname ## _ ## fname(__VA_ARGS__) {	\
+#define HLL_WARN_UNIMPLEMENTED(rval, rtype, libname, fname, ...)	\
+	static rtype libname ## _ ## fname(__VA_ARGS__) {		\
 		WARNING("Unimplemented HLL function: " #libname "." #fname); \
-		return rval;					\
+		return rval;						\
+	}
+
+#define HLL_QUIET_UNIMPLEMENTED(rval, rtype, libname, fname, ...)	\
+	static rtype libname ## _ ## fname(__VA_ARGS__) {		\
+		return rval;						\
 	}
 
 #define HLL_EXPORT(fname, funptr) { .name = #fname, .fun = funptr }

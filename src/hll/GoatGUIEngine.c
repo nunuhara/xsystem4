@@ -21,6 +21,7 @@
 #include <cglm/cglm.h>
 
 #include "asset_manager.h"
+#include "audio.h"
 #include "gfx/gfx.h"
 #include "input.h"
 #include "queue.h"
@@ -36,6 +37,14 @@ static inline float deg2rad(float deg)
 {
 	return deg * (M_PI / 180.0);
 }
+
+// NOTE: actual value is +1
+enum parts_state_type {
+	PARTS_STATE_DEFAULT = 0,
+	PARTS_STATE_HOVERED = 1,
+	PARTS_STATE_CLICKED = 2,
+#define PARTS_NR_STATES 3
+};
 
 enum parts_motion_type {
 	PARTS_MOTION_POS,
@@ -72,20 +81,35 @@ struct parts_motion {
 	int end_time;
 };
 
-struct parts {
-	struct sprite sp;
+struct parts_state {
 	Texture texture;
 	unsigned cg_no;
+	// If there's a CG loop animation set up, the textures are stored in
+	// `frames` and the current texture is copied into `texture`.
+	unsigned nr_frames;
+	Texture *frames;
+	// The length of each frame
+	unsigned frame_time;
+	// The time elapsed since the last frame
+	unsigned elapsed;
+	// Index of the current frame
+	unsigned current_frame;
+};
+
+struct parts {
+	struct sprite sp;
+	enum parts_state_type state;
+	struct parts_state states[PARTS_NR_STATES];
 	TAILQ_ENTRY(parts) parts_list_entry;
 	int no;
 	int sprite_deform;
-	int state;
 	bool clickable;
 	int on_cursor_sound;
 	int on_click_sound;
 	int origin_mode;
 	Rectangle rect;
 	// The actual hitbox of the sprite (accounting for origin-mode, scale, etc)
+	uint8_t alpha;
 	Rectangle pos;
 	struct { float x, y; } scale;
 	struct { float x, y, z; } rotation;
@@ -101,8 +125,10 @@ static TAILQ_HEAD(listhead, parts) parts_list = TAILQ_HEAD_INITIALIZER(parts_lis
 static bool began_click = false;
 // true when the left mouse button was down last update
 static bool prev_clicking = false;
-// the last clicked parts number
+// the last (fully) clicked parts number
 static int clicked_parts = 0;
+// the current (partially) clicked parts number
+static int click_down_parts = 0;
 // the mouse position at last update
 static Point prev_pos = {0};
 
@@ -115,6 +141,8 @@ static bool GoatGUIEngine_Init(void)
 static struct parts *parts_alloc(void)
 {
 	struct parts *parts = xcalloc(1, sizeof(struct parts));
+	parts->on_cursor_sound = -1;
+	parts->on_click_sound = -1;
 	parts->origin_mode = 1;
 	parts->scale.x = 1.0;
 	parts->scale.y = 1.0;
@@ -173,7 +201,19 @@ static void parts_clear(struct parts *parts)
 {
 	parts_clear_motion(parts);
 	scene_unregister_sprite(&parts->sp);
-	gfx_delete_texture(&parts->texture);
+	for (int i = 0; i < PARTS_NR_STATES; i++) {
+		struct parts_state *state = &parts->states[i];
+		if (state->nr_frames) {
+			for (unsigned i = 0; i < state->nr_frames; i++) {
+				gfx_delete_texture(&state->frames[i]);
+			}
+			free(state->frames);
+			state->frames = NULL;
+			state->nr_frames = 0;
+		} else {
+			gfx_delete_texture(&state->texture);
+		}
+	}
 }
 
 static void parts_release(int parts_no)
@@ -187,7 +227,6 @@ static void parts_release(int parts_no)
 	TAILQ_REMOVE(&parts_list, parts, parts_list_entry);
 	free(parts);
 	slot->value = NULL;
-
 }
 
 static void parts_release_all(void)
@@ -330,14 +369,25 @@ static void parts_set_rotation_z(struct parts *parts, float rot)
 
 static void parts_set_alpha(struct parts *parts, int alpha)
 {
-	parts->texture.alpha_mod = max(0, min(255, alpha));
+	parts->alpha = max(0, min(255, alpha));
+	for (int i = 0; i < PARTS_NR_STATES; i++) {
+		parts->states[i].texture.alpha_mod = parts->alpha;
+	}
 	scene_sprite_dirty(&parts->sp);
+}
+
+static void parts_set_state(struct parts *parts, enum parts_state_type state)
+{
+	if (parts->state != state) {
+		parts->state = state;
+		scene_sprite_dirty(&parts->sp);
+	}
 }
 
 static void parts_render(struct sprite *sp)
 {
 	struct parts *parts = (struct parts*)sp;
-	if (!parts->cg_no)
+	if (!parts->states[parts->state].cg_no)
 		return;
 
 	Rectangle *d = &parts->rect;
@@ -355,10 +405,10 @@ static void parts_render(struct sprite *sp)
 
 	struct gfx_render_job job = {
 		.shader = NULL, // default shader
-		.texture = parts->texture.handle,
+		.texture = parts->states[parts->state].texture.handle,
 		.world_transform = mw_transform[0],
 		.view_transform = wv_transform[0],
-		.data = &parts->texture,
+		.data = &parts->states[parts->state].texture,
 	};
 
 	gfx_render(&job);
@@ -440,75 +490,149 @@ static void parts_fini_all_motion(void)
 	}
 }
 
-static void GoatGUIEngine_Update(possibly_unused int passed_time, possibly_unused bool message_window_show)
+static void parts_update_loop(struct parts *parts, int passed_time)
 {
-	if (!began_click)
+	struct parts_state *state = &parts->states[parts->state];
+	if (passed_time <= 0 || !state->nr_frames)
 		return;
+
+	const unsigned elapsed = state->elapsed + passed_time;
+	const unsigned frame_diff = elapsed / state->frame_time;
+	const unsigned remainder = elapsed % state->frame_time;
+
+	if (frame_diff > 0) {
+		state->elapsed = remainder;
+		state->current_frame = (state->current_frame + frame_diff) % state->nr_frames;
+		state->texture = state->frames[state->current_frame];
+		scene_sprite_dirty(&parts->sp);
+	} else {
+		state->elapsed = elapsed;
+	}
+}
+
+static void GoatGUIEngine_Update(int passed_time, possibly_unused bool message_window_show)
+{
+	audio_update();
 
 	Point cur_pos;
 	bool cur_clicking = key_is_down(VK_LBUTTON);
-	bool parts_clicked = false;
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
 
 	struct parts *parts;
 	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+		parts_update_loop(parts, passed_time);
 		if (!parts->clickable)
 			continue;
 		bool prev_in = SDL_PointInRect(&prev_pos, &parts->pos);
 		bool cur_in = SDL_PointInRect(&cur_pos, &parts->pos);
 
-		// unhover event
-		if (prev_in && !cur_in) {
-			// TODO: switch to unhovered state
+		if (!cur_in) {
+			parts_set_state(parts, PARTS_STATE_DEFAULT);
+			continue;
 		}
-		// hover event
-		if (cur_in && !prev_in) {
-			// TODO: play parts->on_cursor_sound
-			// TODO: switch to hovered state
+		// click down: just remember the parts number for later
+		if (cur_clicking && !prev_clicking) {
+			click_down_parts = parts->no;
 		}
-		// click event
-		if (cur_in && prev_clicking && !cur_clicking) {
+		if (cur_clicking && click_down_parts == parts->no) {
+			parts_set_state(parts, PARTS_STATE_CLICKED);
+		} else {
+			if (!prev_in) {
+				audio_play_sound(parts->on_cursor_sound);
+			}
+			parts_set_state(parts, PARTS_STATE_HOVERED);
+		}
+		// click event: only if the click down event had same parts number
+		if (prev_clicking && !cur_clicking && click_down_parts == parts->no) {
+			audio_play_sound(parts->on_click_sound);
 			clicked_parts = parts->no;
-			parts_clicked = true;
-			// TODO: play parts->on_click_sound
-			// TODO? switch to clicked state?
 		}
 	}
 
-	if (prev_clicking && !cur_clicking && !parts_clicked) {
-		// TODO: play misclick sound
+	if (prev_clicking && !cur_clicking) {
+		if (!click_down_parts) {
+			// TODO: play misclick sound
+		}
+		click_down_parts = 0;
 	}
 
 	prev_clicking = cur_clicking;
 	prev_pos = cur_pos;
 }
 
-static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused int sprite_deform, possibly_unused int state)
+static void parts_add_cg(struct parts *parts, struct cg *cg)
 {
+	if (parts->rect.w && parts->rect.w != cg->metrics.w)
+		WARNING("Width of parts CGs differ: %d / %d", parts->rect.w, cg->metrics.w);
+	if (parts->rect.h && parts->rect.h != cg->metrics.h)
+		WARNING("Heights of parts CGs differ: %d / %d", parts->rect.h, cg->metrics.h);
+	parts->rect.w = cg->metrics.w;
+	parts->rect.h = cg->metrics.h;
+	parts->sp.has_pixel = true;
+	parts->sp.has_alpha = cg->metrics.has_alpha;
+}
+
+static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused int sprite_deform, int state)
+{
+	state--;
+	if (state < 0 || state > 2) {
+		WARNING("Invalid parts state: %d", state);
+		return false;
+	}
+
 	struct parts *parts = parts_get(parts_no);
 	struct cg *cg = asset_cg_load(cg_no);
 	if (!cg)
 		return false;
-	gfx_delete_texture(&parts->texture);
-	gfx_init_texture_with_cg(&parts->texture, cg);
-	parts->rect.w = cg->metrics.w;
-	parts->rect.h = cg->metrics.h;
-	parts->cg_no = cg_no;
-	parts->sp.has_pixel = true;
-	parts->sp.has_alpha = cg->metrics.has_alpha;
-	parts->sp.render = parts_render;
+	gfx_delete_texture(&parts->states[state].texture);
+	gfx_init_texture_with_cg(&parts->states[state].texture, cg);
+	parts->states[state].cg_no = cg_no;
+	parts_add_cg(parts, cg);
 	parts_recalculate_pos(parts);
 	scene_sprite_dirty(&parts->sp);
 	cg_free(cg);
 	return true;
 }
 
-static int GoatGUIEngine_GetPartsCGNumber(int parts_no, possibly_unused int state)
+static int GoatGUIEngine_GetPartsCGNumber(int parts_no, int state)
 {
-	return parts_get(parts_no)->cg_no;
+	return parts_get(parts_no)->states[state].cg_no;
 }
 
-bool GoatGUIEngine_SetLoopCG(int PartsNumber, int CGNumber, int NumofCG, int TimePerCG, int State);
+static bool GoatGUIEngine_SetLoopCG(int parts_no, int cg_no, int nr_frames, int frame_time, int state)
+{
+	state--;
+	if (state < 0 || state > 2) {
+		WARNING("Invalid parts state: %d", state);
+		return false;
+	}
+	if (nr_frames <= 0 || nr_frames > 10000) {
+		WARNING("Invalid frame count: %d", nr_frames);
+	}
+
+	struct parts *parts = parts_get(parts_no);
+	Texture *frames = xcalloc(nr_frames, sizeof(Texture));
+	for (int i = 0; i < nr_frames; i++) {
+		struct cg *cg = asset_cg_load(cg_no + i);
+		if (!cg) {
+			for (int j = 0; j < i; j++) {
+				gfx_delete_texture(&frames[j]);
+			}
+			free(frames);
+			return false;
+		}
+		gfx_init_texture_with_cg(&frames[i], cg);
+		parts_add_cg(parts, cg);
+		cg_free(cg);
+	}
+	parts->states[state].frames = frames;
+	parts->states[state].nr_frames = nr_frames;
+	parts->states[state].frame_time = frame_time;
+	parts->states[state].elapsed = 0;
+	parts->states[state].current_frame = 0;
+	parts->states[state].texture = frames[0];
+	return true;
+}
 
 static bool GoatGUIEngine_SetText(int PartsNumber, struct string *pIText, int State)
 {
@@ -626,7 +750,7 @@ static bool GoatGUIEngine_GetPartsShow(int parts_no)
 
 static int GoatGUIEngine_GetPartsAlpha(int parts_no)
 {
-	return parts_get(parts_no)->texture.alpha_mod;
+	return parts_get(parts_no)->alpha;
 }
 
 static bool GoatGUIEngine_GetPartsClickable(int parts_no)
@@ -676,19 +800,29 @@ bool GoatGUIEngine_GetPartsMessageWindowShowLink(int PartsNumber);
 
 static bool GoatGUIEngine_SetPartsOnCursorSoundNumber(int parts_no, int sound_no)
 {
+	if (!asset_exists(ASSET_SOUND, sound_no-1)) {
+		WARNING("Invalid sound number: %d", sound_no);
+		return false;
+	}
+
 	struct parts *parts = parts_get(parts_no);
-	parts->on_cursor_sound = sound_no;
-	return true; // FIXME: verify sound number
+	parts->on_cursor_sound = sound_no-1;
+	return true;
 }
 
 static bool GoatGUIEngine_SetPartsClickSoundNumber(int parts_no, int sound_no)
 {
+	if (!asset_exists(ASSET_SOUND, sound_no-1)) {
+		WARNING("Invalid sound number: %d", sound_no);
+		return false;
+	}
+
 	struct parts *parts = parts_get(parts_no);
-	parts->on_click_sound = sound_no;
-	return true; // FIXME: verify sound number
+	parts->on_click_sound = sound_no-1;
+	return true;
 }
 
-static bool GoatGUIEngine_SetClickMissSoundNumber(int ClickMissSoundNumber)
+static bool GoatGUIEngine_SetClickMissSoundNumber(int sound_no)
 {
 	// TODO
 	return true;
@@ -702,6 +836,7 @@ static void GoatGUIEngine_BeginClick(void)
 static void GoatGUIEngine_EndClick(void)
 {
 	began_click = false;
+	clicked_parts = 0;
 }
 
 static int GoatGUIEngine_GetClickPartsNumber(void)
@@ -718,7 +853,6 @@ static void GoatGUIEngine_AddMotionPos(int parts_no, int begin_x, int begin_y, i
 	motion->end.x = end_x;
 	motion->end.y = end_y;
 	parts_add_motion(parts, motion);
-
 }
 
 static void GoatGUIEngine_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int end_t)
@@ -837,7 +971,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(Update, GoatGUIEngine_Update),
 	    HLL_EXPORT(SetPartsCG, GoatGUIEngine_SetPartsCG),
 	    HLL_EXPORT(GetPartsCGNumber, GoatGUIEngine_GetPartsCGNumber),
-	    HLL_TODO_EXPORT(SetLoopCG, GoatGUIEngine_SetLoopCG),
+	    HLL_EXPORT(SetLoopCG, GoatGUIEngine_SetLoopCG),
 	    HLL_EXPORT(SetText, GoatGUIEngine_SetText),
 	    HLL_TODO_EXPORT(AddPartsText, GoatGUIEngine_AddPartsText),
 	    HLL_TODO_EXPORT(DeletePartsTopTextLine, GoatGUIEngine_DeletePartsTopTextLine),
