@@ -1503,6 +1503,10 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_push(vm_copy_page(heap[stack_pop_var()->i].page));
 		break;
 	}
+	case SR_REF2: {
+		stack_push(vm_copy_page(heap[stack_pop().i].page));
+		break;
+	}
 	case SR_POP: {
 		heap_unref(stack_pop().i);
 		break;

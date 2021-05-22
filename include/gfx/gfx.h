@@ -94,6 +94,7 @@ void gfx_delete_texture(struct texture *t);
 GLuint gfx_set_framebuffer(GLenum target, Texture *t, int x, int y, int w, int h);
 void gfx_reset_framebuffer(GLenum target, GLuint fbo);
 SDL_Color gfx_get_pixel(Texture *t, int x, int y);
+void *gfx_get_pixels(Texture *t);
 
 // drawing
 void gfx_draw_init(void);

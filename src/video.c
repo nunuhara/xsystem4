@@ -511,3 +511,12 @@ SDL_Color gfx_get_pixel(Texture *t, int x, int y)
 		.a = pixel[3],
 	};
 }
+
+void *gfx_get_pixels(Texture *t)
+{
+	GLuint fbo = gfx_set_framebuffer(GL_READ_FRAMEBUFFER, t, 0, 0, t->w, t->h);
+	void *pixels = xmalloc(t->w * t->h * 4);
+	glReadPixels(0, 0, t->w, t->h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+	gfx_reset_framebuffer(GL_READ_FRAMEBUFFER, fbo);
+	return pixels;
+}

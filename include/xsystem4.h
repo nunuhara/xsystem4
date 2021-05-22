@@ -38,6 +38,6 @@ extern struct config config;
 
 char *unix_path(const char *path);
 char *gamedir_path(const char *path);
-char *savedir_path(const char *filename);
+char *savedir_path(const char *path);
 
 #endif /* XSYSTEM4_H */

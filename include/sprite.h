@@ -61,6 +61,7 @@ void sprite_free(struct sact_sprite *sp);
 struct texture *sprite_get_texture(struct sact_sprite *sp);
 int sprite_set_cg(struct sact_sprite *sp, int cg_no);
 int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path);
+int sprite_save_cg(struct sact_sprite *sp, const char *path);
 void sprite_init(struct sact_sprite *sp, int w, int h, int r, int g, int b, int a);
 void sprite_set_pos(struct sact_sprite *sp, int x, int y);
 void sprite_set_x(struct sact_sprite *sp, int x);
