@@ -177,7 +177,8 @@ void dungeon_map_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, 
 	switch (cell->floor_event) {
 	case 11: symbol = SYMBOL_TREASURE; break;
 	case 12: symbol = SYMBOL_MONSTER; break;
-	case 14: symbol = SYMBOL_EVENT; break;
+	case 14:
+	case 140: symbol = SYMBOL_EVENT; break;
 	case 15: symbol = SYMBOL_HEART; break;
 	case 16: symbol = SYMBOL_CROSS; break;
 	case 17: symbol = SYMBOL_EXIT; break;

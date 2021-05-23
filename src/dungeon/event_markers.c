@@ -34,29 +34,31 @@ enum floor_marker_type {
 };
 
 struct marker_info {
+	int event_type;
 	int texture_index;
 	int texture_count;
 	int floor_marker_type;
 };
 
-#define MAX_MARKER_INFO 19
-
-static const struct marker_info rance6_marker_info[MAX_MARKER_INFO] = {
-	[11] = {41,  3, MAGIC_CIRCLE},  // treasure chest
-	[12] = {51,  7, RED_OCTAGRAM},  // enemy
-	[14] = { 8,  5, MAGIC_CIRCLE},  // green star
-	[15] = {21, 10, MAGIC_CIRCLE},  // heart
-	[16] = {45,  5, MAGIC_CIRCLE},  // BP cross
-	[17] = {58,  5, MAGIC_CIRCLE},  // exit
-	[18] = {31, 10, MAGIC_CIRCLE},  // teleporter
+static const struct marker_info rance6_marker_info[] = {
+	{ 11, 41,  3, MAGIC_CIRCLE},  // treasure chest
+	{ 12, 51,  7, RED_OCTAGRAM},  // enemy
+	{ 14,  8,  5, MAGIC_CIRCLE},  // green star
+	{ 15, 21, 10, MAGIC_CIRCLE},  // heart
+	{ 16, 45,  5, MAGIC_CIRCLE},  // BP cross
+	{ 17, 58,  5, MAGIC_CIRCLE},  // exit
+	{ 18, 31, 10, MAGIC_CIRCLE},  // teleporter
+	{140, 13,  5, RED_OCTAGRAM},  // red star
+	{0},
 };
 
-const struct marker_info *get_marker_info(unsigned event_type)
+const struct marker_info *get_marker_info(int event_type)
 {
-	static const struct marker_info null_marker_info = {};
-	if (event_type >= MAX_MARKER_INFO)
-		return &null_marker_info;
-	return &rance6_marker_info[event_type];
+	for (const struct marker_info *info = rance6_marker_info; info->event_type; info++) {
+		if (info->event_type == event_type)
+			return info;
+	}
+	return NULL;
 }
 
 static inline uint32_t cell_id(int x, int y, int z) {
@@ -245,7 +247,7 @@ void event_markers_set(struct event_markers *em, int x, int y, int z, int event_
 	}
 
 	const struct marker_info *info = get_marker_info(event_type);
-	if (info->texture_count) {
+	if (info) {
 		// Add a new marker
 		if (em->nr_sprites == em->cap_sprites) {
 			em->cap_sprites *= 2;
