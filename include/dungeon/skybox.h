@@ -14,11 +14,16 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include <GL/glew.h>
+#ifndef SYSTEM4_DUNGEON_SKYBOX_H
+#define SYSTEM4_DUNGEON_SKYBOX_H
+
+#include <cglm/types.h>
 
 struct dtx;
 struct skybox;
 
 struct skybox *skybox_create(struct dtx *dtx);
 void skybox_free(struct skybox *s);
-void skybox_render(struct skybox *s, const GLfloat *view_transform, const GLfloat *proj_transform);
+void skybox_render(struct skybox *s, const mat4 view_transform, const mat4 proj_transform);
+
+#endif /* SYSTEM4_DUNGEON_SKYBOX_H */

@@ -262,11 +262,11 @@ void dungeon_render(struct dungeon_context *ctx)
 	for (int i = 0; i < ctx->nr_meshes; i++) {
 		struct mesh *m = ctx->meshes[i];
 		if (m && !mesh_is_transparent(m))
-			mesh_render(m, local_transform[0], view_transform[0], proj_transform[0]);
+			mesh_render(m, local_transform, view_transform, proj_transform);
 	}
 
 	// Render the skybox.
-	skybox_render(ctx->skybox, view_transform[0], proj_transform[0]);
+	skybox_render(ctx->skybox, view_transform, proj_transform);
 
 	// Render transparent objects.
 	glEnable(GL_BLEND);
@@ -274,11 +274,11 @@ void dungeon_render(struct dungeon_context *ctx)
 	for (int i = 0; i < ctx->nr_meshes; i++) {
 		struct mesh *m = ctx->meshes[i];
 		if (m && mesh_is_transparent(m))
-			mesh_render(m, local_transform[0], view_transform[0], proj_transform[0]);
+			mesh_render(m, local_transform, view_transform, proj_transform);
 	}
 
 	// Render event markers.
-	event_markers_render(ctx->events, view_transform[0], proj_transform[0]);
+	event_markers_render(ctx->events, view_transform, proj_transform);
 
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
@@ -331,7 +331,8 @@ void dungeon_set_texture_ceiling(int surface, int x, int y, int z, int texture)
 	if (cell->ceiling >= 0)
 		mesh_remove_ceiling(ctx_mesh(ctx, DTX_CEILING, cell->ceiling), x, y, z);
 	cell->ceiling = texture;
-	mesh_add_ceiling(ctx_mesh(ctx, DTX_CEILING, cell->ceiling), x, y, z);
+	if (texture >= 0)
+		mesh_add_ceiling(ctx_mesh(ctx, DTX_CEILING, cell->ceiling), x, y, z);
 }
 
 void dungeon_set_texture_north(int surface, int x, int y, int z, int texture)
@@ -345,7 +346,8 @@ void dungeon_set_texture_north(int surface, int x, int y, int z, int texture)
 	if (cell->north_wall >= 0)
 		mesh_remove_north_wall(ctx_mesh(ctx, DTX_WALL, cell->north_wall), x, y, z);
 	cell->north_wall = texture;
-	mesh_add_north_wall(ctx_mesh(ctx, DTX_WALL, cell->north_wall), x, y, z);
+	if (texture >= 0)
+		mesh_add_north_wall(ctx_mesh(ctx, DTX_WALL, cell->north_wall), x, y, z);
 	dungeon_map_update_cell(ctx, x, y, z);
 }
 
@@ -360,7 +362,8 @@ void dungeon_set_texture_south(int surface, int x, int y, int z, int texture)
 	if (cell->south_wall >= 0)
 		mesh_remove_south_wall(ctx_mesh(ctx, DTX_WALL, cell->south_wall), x, y, z);
 	cell->south_wall = texture;
-	mesh_add_south_wall(ctx_mesh(ctx, DTX_WALL, cell->south_wall), x, y, z);
+	if (texture >= 0)
+		mesh_add_south_wall(ctx_mesh(ctx, DTX_WALL, cell->south_wall), x, y, z);
 	dungeon_map_update_cell(ctx, x, y, z);
 }
 
@@ -375,7 +378,8 @@ void dungeon_set_texture_east(int surface, int x, int y, int z, int texture)
 	if (cell->east_wall >= 0)
 		mesh_remove_east_wall(ctx_mesh(ctx, DTX_WALL, cell->east_wall), x, y, z);
 	cell->east_wall = texture;
-	mesh_add_east_wall(ctx_mesh(ctx, DTX_WALL, cell->east_wall), x, y, z);
+	if (texture >= 0)
+		mesh_add_east_wall(ctx_mesh(ctx, DTX_WALL, cell->east_wall), x, y, z);
 	dungeon_map_update_cell(ctx, x, y, z);
 }
 
@@ -390,7 +394,8 @@ void dungeon_set_texture_west(int surface, int x, int y, int z, int texture)
 	if (cell->west_wall >= 0)
 		mesh_remove_west_wall(ctx_mesh(ctx, DTX_WALL, cell->west_wall), x, y, z);
 	cell->west_wall = texture;
-	mesh_add_west_wall(ctx_mesh(ctx, DTX_WALL, cell->west_wall), x, y, z);
+	if (texture >= 0)
+		mesh_add_west_wall(ctx_mesh(ctx, DTX_WALL, cell->west_wall), x, y, z);
 	dungeon_map_update_cell(ctx, x, y, z);
 }
 
@@ -405,7 +410,8 @@ void dungeon_set_door_north(int surface, int x, int y, int z, int texture)
 	if (cell->north_door >= 0)
 		mesh_remove_north_wall(ctx_mesh(ctx, DTX_DOOR, cell->north_door), x, y, z);
 	cell->north_door = texture;
-	mesh_add_north_wall(ctx_mesh(ctx, DTX_DOOR, cell->north_door), x, y, z);
+	if (texture >= 0)
+		mesh_add_north_wall(ctx_mesh(ctx, DTX_DOOR, cell->north_door), x, y, z);
 	dungeon_map_update_cell(ctx, x, y, z);
 }
 
@@ -420,7 +426,8 @@ void dungeon_set_door_south(int surface, int x, int y, int z, int texture)
 	if (cell->south_door >= 0)
 		mesh_remove_south_wall(ctx_mesh(ctx, DTX_DOOR, cell->south_door), x, y, z);
 	cell->south_door = texture;
-	mesh_add_south_wall(ctx_mesh(ctx, DTX_DOOR, cell->south_door), x, y, z);
+	if (texture >= 0)
+		mesh_add_south_wall(ctx_mesh(ctx, DTX_DOOR, cell->south_door), x, y, z);
 	dungeon_map_update_cell(ctx, x, y, z);
 }
 
@@ -435,7 +442,8 @@ void dungeon_set_door_east(int surface, int x, int y, int z, int texture)
 	if (cell->east_door >= 0)
 		mesh_remove_east_wall(ctx_mesh(ctx, DTX_DOOR, cell->east_door), x, y, z);
 	cell->east_door = texture;
-	mesh_add_east_wall(ctx_mesh(ctx, DTX_DOOR, cell->east_door), x, y, z);
+	if (texture >= 0)
+		mesh_add_east_wall(ctx_mesh(ctx, DTX_DOOR, cell->east_door), x, y, z);
 	dungeon_map_update_cell(ctx, x, y, z);
 }
 
@@ -450,6 +458,7 @@ void dungeon_set_door_west(int surface, int x, int y, int z, int texture)
 	if (cell->west_door >= 0)
 		mesh_remove_west_wall(ctx_mesh(ctx, DTX_DOOR, cell->west_door), x, y, z);
 	cell->west_door = texture;
-	mesh_add_west_wall(ctx_mesh(ctx, DTX_DOOR, cell->west_door), x, y, z);
+	if (texture >= 0)
+		mesh_add_west_wall(ctx_mesh(ctx, DTX_DOOR, cell->west_door), x, y, z);
 	dungeon_map_update_cell(ctx, x, y, z);
 }

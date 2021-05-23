@@ -14,7 +14,11 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#ifndef SYSTEM4_DUNGEON_MESH_H
+#define SYSTEM4_DUNGEON_MESH_H
+
 #include <GL/glew.h>
+#include <cglm/types.h>
 
 /*
  * A mesh represents a set of objects with the same shape and texture.
@@ -33,7 +37,7 @@ void mesh_fini(void);
 struct mesh *mesh_create(enum mesh_type type, GLuint texture, bool has_alpha);
 void mesh_free(struct mesh *m);
 bool mesh_is_transparent(struct mesh *m);
-void mesh_render(struct mesh *m, const GLfloat *local_transform, const GLfloat *view_transform, const GLfloat *proj_transform);
+void mesh_render(struct mesh *m, const mat4 local_transform, const mat4 view_transform, const mat4 proj_transform);
 void mesh_add_floor(struct mesh *m, int x, int y, int z);
 void mesh_add_ceiling(struct mesh *m, int x, int y, int z);
 void mesh_add_north_wall(struct mesh *m, int x, int y, int z);
@@ -47,3 +51,5 @@ void mesh_remove_north_wall(struct mesh *m, int x, int y, int z);
 void mesh_remove_south_wall(struct mesh *m, int x, int y, int z);
 void mesh_remove_east_wall(struct mesh *m, int x, int y, int z);
 void mesh_remove_west_wall(struct mesh *m, int x, int y, int z);
+
+#endif /* SYSTEM4_DUNGEON_MESH_H */

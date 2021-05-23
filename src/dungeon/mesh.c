@@ -180,7 +180,7 @@ bool mesh_is_transparent(struct mesh *m)
 	return m->has_alpha;
 }
 
-void mesh_render(struct mesh *m, const GLfloat *local_transform, const GLfloat *view_transform, const GLfloat *proj_transform)
+void mesh_render(struct mesh *m, const mat4 local_transform, const mat4 view_transform, const mat4 proj_transform)
 {
 	if (!m || !m->nr_instances)
 		return;
@@ -193,9 +193,9 @@ void mesh_render(struct mesh *m, const GLfloat *local_transform, const GLfloat *
 	}
 
 	glUseProgram(mesh_shader.s.program);
-	glUniformMatrix4fv(mesh_shader.local_transform, 1, GL_FALSE, local_transform);
-	glUniformMatrix4fv(mesh_shader.s.view_transform, 1, GL_FALSE, view_transform);
-	glUniformMatrix4fv(mesh_shader.proj_transform, 1, GL_FALSE, proj_transform);
+	glUniformMatrix4fv(mesh_shader.local_transform, 1, GL_FALSE, local_transform[0]);
+	glUniformMatrix4fv(mesh_shader.s.view_transform, 1, GL_FALSE, view_transform[0]);
+	glUniformMatrix4fv(mesh_shader.proj_transform, 1, GL_FALSE, proj_transform[0]);
 
 	glBindVertexArray(m->vao);
 	glActiveTexture(GL_TEXTURE0);

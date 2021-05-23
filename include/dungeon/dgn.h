@@ -109,6 +109,8 @@ struct dgn {
 
 struct dgn *dgn_parse(uint8_t *data, size_t size);
 void dgn_free(struct dgn *dgn);
+
+int dgn_cell_index(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z);
 struct dgn_cell *dgn_cell_at(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z);
 
 static inline bool dgn_is_in_map(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z)
