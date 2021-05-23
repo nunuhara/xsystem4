@@ -312,6 +312,25 @@ void dungeon_map_set_walked(int surface, int x, int y, int z, int flag)
 		reveal_cell(ctx, x, y, z + 1);
 }
 
+int dungeon_map_calc_conquer(int surface)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->dgn)
+		return 0;
+
+	int nr_cells = ctx->dgn->size_x * ctx->dgn->size_y * ctx->dgn->size_z;
+	int enterable = 0;
+	int walked = 0;
+	for (int i = 0; i < nr_cells; i++) {
+		if (!ctx->dgn->cells[i].enterable)
+			continue;
+		enterable++;
+		if (ctx->map->walk_data[i])
+			walked++;
+	}
+	return walked * 100 / enterable;
+}
+
 /*
  * WalkData serialization format (in Rance VI):
  *

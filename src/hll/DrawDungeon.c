@@ -225,7 +225,6 @@ HLL_WARN_UNIMPLEMENTED(0, int,  DrawDungeon, GetDrawHalfFlag, int surface);
 //int DrawDungeon_CalcNumofFloor(int surface);
 //int DrawDungeon_CalcNumofWalk(int surface);
 //int DrawDungeon_CalcNumofWalk2(int surface);
-HLL_WARN_UNIMPLEMENTED(0, int,  DrawDungeon, CalcConquer, int surface);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetInterlaceMode, int surface, int flag);
 HLL_WARN_UNIMPLEMENTED(1, bool, DrawDungeon, SetDirect3DMode, int surface, int flag);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SaveDrawSettingFlag, int direct3D, int interlace, int half);
@@ -354,7 +353,7 @@ HLL_LIBRARY(DrawDungeon,
 			HLL_TODO_EXPORT(CalcNumofFloor, DrawDungeon_CalcNumofFloor),
 			HLL_TODO_EXPORT(CalcNumofWalk, DrawDungeon_CalcNumofWalk),
 			HLL_TODO_EXPORT(CalcNumofWalk2, DrawDungeon_CalcNumofWalk2),
-			HLL_EXPORT(CalcConquer, DrawDungeon_CalcConquer),
+			HLL_EXPORT(CalcConquer, dungeon_map_calc_conquer),
 			HLL_EXPORT(SetInterlaceMode, DrawDungeon_SetInterlaceMode),
 			HLL_EXPORT(SetDirect3DMode, DrawDungeon_SetDirect3DMode),
 			HLL_EXPORT(SaveDrawSettingFlag, DrawDungeon_SaveDrawSettingFlag),
