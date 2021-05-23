@@ -262,11 +262,11 @@ void dungeon_render(struct dungeon_context *ctx)
 	for (int i = 0; i < ctx->nr_meshes; i++) {
 		struct mesh *m = ctx->meshes[i];
 		if (m && !mesh_is_transparent(m))
-			mesh_render(m, local_transform[0], view_transform[0], proj_transform[0]);
+			mesh_render(m, local_transform, view_transform, proj_transform);
 	}
 
 	// Render the skybox.
-	skybox_render(ctx->skybox, view_transform[0], proj_transform[0]);
+	skybox_render(ctx->skybox, view_transform, proj_transform);
 
 	// Render transparent objects.
 	glEnable(GL_BLEND);
@@ -274,11 +274,11 @@ void dungeon_render(struct dungeon_context *ctx)
 	for (int i = 0; i < ctx->nr_meshes; i++) {
 		struct mesh *m = ctx->meshes[i];
 		if (m && mesh_is_transparent(m))
-			mesh_render(m, local_transform[0], view_transform[0], proj_transform[0]);
+			mesh_render(m, local_transform, view_transform, proj_transform);
 	}
 
 	// Render event markers.
-	event_markers_render(ctx->events, view_transform[0], proj_transform[0]);
+	event_markers_render(ctx->events, view_transform, proj_transform);
 
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);

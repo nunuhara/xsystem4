@@ -111,13 +111,13 @@ void skybox_free(struct skybox *s)
 	free(s);
 }
 
-void skybox_render(struct skybox *s, const GLfloat *view_transform, const GLfloat *proj_transform)
+void skybox_render(struct skybox *s, const mat4 view_transform, const mat4 proj_transform)
 {
 	glDepthFunc(GL_LEQUAL);
 	glUseProgram(s->shader.program);
 
-	glUniformMatrix4fv(s->shader.view_transform, 1, GL_FALSE, view_transform);
-	glUniformMatrix4fv(s->proj_transform, 1, GL_FALSE, proj_transform);
+	glUniformMatrix4fv(s->shader.view_transform, 1, GL_FALSE, view_transform[0]);
+	glUniformMatrix4fv(s->proj_transform, 1, GL_FALSE, proj_transform[0]);
 
 	glBindVertexArray(s->vao);
 	glActiveTexture(GL_TEXTURE0);
