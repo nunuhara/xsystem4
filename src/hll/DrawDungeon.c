@@ -249,8 +249,6 @@ static int DrawDungeon_GetTexSound(int surface, int type, int num)
 
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, StopTimer, void);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, RestartTimer, void);
-HLL_WARN_UNIMPLEMENTED(0, bool, DrawDungeon, LoadWalkData, int surface, int map, struct page **anWalkData);
-HLL_WARN_UNIMPLEMENTED(1, bool, DrawDungeon, SaveWalkData, int surface, int map, struct page **anWalkData);
 
 HLL_LIBRARY(DrawDungeon,
 			HLL_EXPORT(Init, DrawDungeon_Init),
@@ -369,6 +367,6 @@ HLL_LIBRARY(DrawDungeon,
 			HLL_EXPORT(GetTexSound, DrawDungeon_GetTexSound),
 			HLL_EXPORT(StopTimer, DrawDungeon_StopTimer),
 			HLL_EXPORT(RestartTimer, DrawDungeon_RestartTimer),
-			HLL_EXPORT(LoadWalkData, DrawDungeon_LoadWalkData),
-			HLL_EXPORT(SaveWalkData, DrawDungeon_SaveWalkData)
+			HLL_EXPORT(LoadWalkData, dungeon_map_load_walk_data),
+			HLL_EXPORT(SaveWalkData, dungeon_map_save_walk_data)
 			);

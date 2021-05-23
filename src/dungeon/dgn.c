@@ -114,9 +114,14 @@ void dgn_free(struct dgn *dgn)
 	free(dgn);
 }
 
-struct dgn_cell *dgn_cell_at(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z)
+int dgn_cell_index(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z)
 {
 	if (x >= dgn->size_x || y >= dgn->size_y || z >= dgn->size_z)
 		VM_ERROR("cell location out of range: (%d, %d, %d)", x, y, z);
-	return &dgn->cells[(z * dgn->size_y + y) * dgn->size_x + x];
+	return (z * dgn->size_y + y) * dgn->size_x + x;
+}
+
+struct dgn_cell *dgn_cell_at(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z)
+{
+	return &dgn->cells[dgn_cell_index(dgn, x, y, z)];
 }
