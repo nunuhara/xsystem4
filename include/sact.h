@@ -104,6 +104,7 @@ int sact_TRANS_Begin(int type);
 int sact_TRANS_Update(float rate);
 int sact_TRANS_End(void);
 
+extern struct text_metrics text_sprite_tm;
 bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text);
 void StoatSpriteEngine_SP_SetTextSpriteType(int type);
 void StoatSpriteEngine_SP_SetTextSpriteSize(int size);

@@ -14,6 +14,9 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include "system4/string.h"
+#include "system4/utfsjis.h"
+
 #include "asset_manager.h"
 #include "input.h"
 #include "sact.h"
@@ -52,7 +55,18 @@ HLL_WARN_UNIMPLEMENTED(keep_previous_view, bool, ChipmunkSpriteEngine, KeepPrevi
 //static int ChipmunkSpriteEngine_Sprite_GetTextureFilterType(int sp_no);
 //static bool ChipmunkSpriteEngine_SP_RenderView(int sp_no);
 //static bool ChipmunkSpriteEngine_SP_GetFontDescent(int *descent);
-//static bool ChipmunkSpriteEngine_SP_GetFontWidth(struct string *text, int *width);
+
+static bool ChipmunkSpriteEngine_SP_GetFontWidth(struct string *text, int *width)
+{
+	if (!text || !text->size) {
+		*width = 0;
+		return true;
+	}
+
+	*width = SJIS_2BYTE(text->text[0]) ? text_sprite_tm.size : text_sprite_tm.size / 2;
+	return true;
+}
+
 //static bool ChipmunkSpriteEngine_SP_SetAlphaClipperSpriteNumber(int sp_no, int ac_sp_no);
 //static int ChipmunkSpriteEngine_SP_GetAlphaClipperSpriteNumber(int sp_no);
 //static int CG_GetFormat(int cg_no);
@@ -119,7 +133,7 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SP_SetTextSpriteEdgeWeight, StoatSpriteEngine_SP_SetTextSpriteEdgeWeight),
 	    HLL_EXPORT(SP_SetTextSpriteEdgeColor, StoatSpriteEngine_SP_SetTextSpriteEdgeColor),
 	    HLL_TODO_EXPORT(SP_GetFontDescent, ChipmunkSpriteEngine_SP_GetFontDescent),
-	    HLL_TODO_EXPORT(SP_GetFontWidth, ChipmunkSpriteEngine_SP_GetFontWidth),
+	    HLL_EXPORT(SP_GetFontWidth, ChipmunkSpriteEngine_SP_GetFontWidth),
 	    HLL_EXPORT(SP_SetDashTextSprite, StoatSpriteEngine_SP_SetDashTextSprite),
 	    HLL_TODO_EXPORT(SP_SetAlphaClipperSpriteNumber, ChipmunkSpriteEngine_SP_SetAlphaClipperSpriteNumber),
 	    HLL_TODO_EXPORT(SP_GetAlphaClipperSpriteNumber, ChipmunkSpriteEngine_SP_GetAlphaClipperSpriteNumber),

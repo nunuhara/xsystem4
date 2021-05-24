@@ -56,7 +56,7 @@ HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerSEGroupNum, int
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerBGMGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED(0, int,  StoatSpriteEngine, Sound_GetGroupNumFromDataNum, int n);
 
-static struct text_metrics text_sprite_tm = {
+struct text_metrics text_sprite_tm = {
 	.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
 	.outline_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
 	.size = 16,
