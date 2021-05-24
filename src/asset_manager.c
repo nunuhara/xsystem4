@@ -279,6 +279,15 @@ struct cg *asset_cg_load(int no)
 	return cg_load(archives[ASSET_CG], no - 1);
 }
 
+bool asset_cg_exists(int no)
+{
+	if (!archives[ASSET_CG])
+		return false;
+	if (!(no = cg_translate_index(no)))
+		return false;
+	return true;
+}
+
 bool asset_cg_get_metrics(int no, struct cg_metrics *metrics)
 {
 	if (!archives[ASSET_CG])

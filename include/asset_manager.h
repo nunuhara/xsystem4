@@ -42,6 +42,7 @@ struct archive_data *asset_get(enum asset_type type, int no);
 // FIXME: CG code should be refactored to read from buffer only, not archive,
 //        then caller can just use asset_get and cg_load
 struct cg *asset_cg_load(int no);
+bool asset_cg_exists(int no);
 bool asset_cg_get_metrics(int no, struct cg_metrics *metrics);
 void asset_cg_index_init(void);
 
