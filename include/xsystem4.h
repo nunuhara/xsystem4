@@ -40,4 +40,8 @@ char *unix_path(const char *path);
 char *gamedir_path(const char *path);
 char *savedir_path(const char *path);
 
+#ifndef XSYS4_DATA_DIR
+#define XSYS4_DATA_DIR "/usr/local/share/xsystem4"
+#endif
+
 #endif /* XSYSTEM4_H */

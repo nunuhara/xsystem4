@@ -17,9 +17,12 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include "system4.h"
+#include "system4/string.h"
+#include "system4/utfsjis.h"
+
 #include "gfx/gfx.h"
 #include "gfx/types.h"
-#include "system4/utfsjis.h"
+#include "xsystem4.h"
 
 /*
  * NOTE: There are two different text rendering APIs: SACT2 and DrawGraph.
@@ -88,6 +91,9 @@ static struct font_metrics font_metrics = {
 static TTF_Font *open_font(enum font_face face, unsigned int size)
 {
 	TTF_Font *font;
+	// FIXME: face = 256 renders as a solid block for some reason...
+	if (face > 1)
+		face = 0;
 	if ((font = TTF_OpenFont(font_paths[face], size)))
 		return font;
 	if ((font = TTF_OpenFont(default_font_paths[face], size)))
@@ -298,9 +304,6 @@ static int sact_to_sdl_fontstyle(int style)
 }
 
 // NOTE: This is the SACT2 text rendering interface.
-// FIXME: If char spacing is set up (via SACT2.SetTextCharSpace), this doesn't do the right
-//        thing. Need to render each character individually and add the specified spacing.
-//        Should add a char_space field to text_metrics to keep this function stateless.
 // FIXME: Should use a separate background texture for outlines so that outlines never clip
 //        into previously rendered text.
 static int _gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm)
@@ -355,7 +358,7 @@ static int _gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metr
 	return width;
 }
 
-static int extract_sjis_char(char *src, char *dst)
+static int extract_sjis_char(const char *src, char *dst)
 {
 	if (SJIS_2BYTE(*src)) {
 		dst[0] = src[0];
