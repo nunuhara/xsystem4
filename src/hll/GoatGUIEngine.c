@@ -18,6 +18,8 @@
 
 #include "system4/cg.h"
 #include "system4/hashtable.h"
+#include "system4/string.h"
+#include "system4/utfsjis.h"
 #include <cglm/cglm.h>
 
 #include "asset_manager.h"
@@ -81,19 +83,48 @@ struct parts_motion {
 	int end_time;
 };
 
-struct parts_state {
+struct parts_text_line {
+	unsigned height;
+};
+
+enum parts_type {
+	PARTS_CG,
+	PARTS_TEXT,
+	PARTS_ANIMATION,
+};
+
+struct parts_cg {
+	Texture texture;
+	int no;
+};
+
+struct parts_text {
+	Texture texture;
+	unsigned nr_lines;
+	struct parts_text_line *lines;
+	unsigned char_space;
+	unsigned line_space;
+	Point cursor;
+	struct text_metrics tm;
+};
+
+struct parts_animation {
 	Texture texture;
 	unsigned cg_no;
-	// If there's a CG loop animation set up, the textures are stored in
-	// `frames` and the current texture is copied into `texture`.
 	unsigned nr_frames;
 	Texture *frames;
-	// The length of each frame
 	unsigned frame_time;
-	// The time elapsed since the last frame
 	unsigned elapsed;
-	// Index of the current frame
 	unsigned current_frame;
+};
+
+struct parts_state {
+	enum parts_type type;
+	union {
+		struct parts_cg cg;
+		struct parts_text text;
+		struct parts_animation anim;
+	};
 };
 
 struct parts {
@@ -132,15 +163,34 @@ static int click_down_parts = 0;
 // the mouse position at last update
 static Point prev_pos = {0};
 
+// true after call to BeginMotion until the motion ends or EndMotion is called
+static bool is_motion = false;
+// the elapsed time of the current motion
+static int motion_t = 0;
+// the end time of the current motion
+static int motion_end_t = 0;
+
 static bool GoatGUIEngine_Init(void)
 {
 	parts_table = ht_create(1024);
 	return 1;
 }
 
-static struct parts *parts_alloc(void)
+static struct text_metrics default_text_metrics = {
+	.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
+	.outline_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
+	.size = 16,
+	.weight = FW_NORMAL,
+	.face = FONT_GOTHIC,
+	.outline_left = 0,
+	.outline_up = 0,
+	.outline_right = 0,
+	.outline_down = 0,
+};
+
+static void parts_init(struct parts *parts)
 {
-	struct parts *parts = xcalloc(1, sizeof(struct parts));
+	memset(parts, 0, sizeof(struct parts));
 	parts->on_cursor_sound = -1;
 	parts->on_click_sound = -1;
 	parts->origin_mode = 1;
@@ -153,6 +203,12 @@ static struct parts *parts_alloc(void)
 	parts->sp.z2 = 2;
 	parts->sp.render = parts_render;
 	TAILQ_INIT(&parts->motion);
+}
+
+static struct parts *parts_alloc(void)
+{
+	struct parts *parts = xcalloc(1, sizeof(struct parts));
+	parts_init(parts);
 	return parts;
 }
 
@@ -169,9 +225,54 @@ static struct parts *parts_get(int parts_no)
 	return parts;
 }
 
-possibly_unused static struct parts *parts_try_get(int parts_no)
+static void parts_state_free(struct parts_state *state)
 {
-	return ht_get_int(parts_table, parts_no, NULL);
+	switch (state->type) {
+	case PARTS_CG:
+		gfx_delete_texture(&state->cg.texture);
+		break;
+	case PARTS_TEXT:
+		free(state->text.lines);
+		break;
+	case PARTS_ANIMATION:
+		for (unsigned i = 0; i < state->anim.nr_frames; i++) {
+			gfx_delete_texture(&state->anim.frames[i]);
+		}
+		break;
+	}
+}
+
+static void parts_state_reset(struct parts_state *state, enum parts_type type)
+{
+	parts_state_free(state);
+	state->type = type;
+	if (type == PARTS_TEXT) {
+		state->text.tm = default_text_metrics;
+	}
+}
+
+static struct parts_cg *parts_get_cg(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_CG) {
+		parts_state_reset(&parts->states[state], PARTS_CG);
+	}
+	return &parts->states[state].cg;
+}
+
+static struct parts_text *parts_get_text(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_TEXT) {
+		parts_state_reset(&parts->states[state], PARTS_TEXT);
+	}
+	return &parts->states[state].text;
+}
+
+static struct parts_animation *parts_get_animation(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_ANIMATION) {
+		parts_state_reset(&parts->states[state], PARTS_ANIMATION);
+	}
+	return &parts->states[state].anim;
 }
 
 static struct parts_motion *parts_motion_alloc(enum parts_motion_type type, int begin_time, int end_time)
@@ -202,17 +303,7 @@ static void parts_clear(struct parts *parts)
 	parts_clear_motion(parts);
 	scene_unregister_sprite(&parts->sp);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		struct parts_state *state = &parts->states[i];
-		if (state->nr_frames) {
-			for (unsigned i = 0; i < state->nr_frames; i++) {
-				gfx_delete_texture(&state->frames[i]);
-			}
-			free(state->frames);
-			state->frames = NULL;
-			state->nr_frames = 0;
-		} else {
-			gfx_delete_texture(&state->texture);
-		}
+		parts_state_free(&parts->states[i]);
 	}
 }
 
@@ -236,10 +327,6 @@ static void parts_release_all(void)
 		parts_release(parts->no);
 	}
 }
-
-static bool is_motion = false;
-static int motion_t = 0;
-static int motion_end_t = 0;
 
 static void parts_add_motion(struct parts *parts, struct parts_motion *motion)
 {
@@ -371,7 +458,20 @@ static void parts_set_alpha(struct parts *parts, int alpha)
 {
 	parts->alpha = max(0, min(255, alpha));
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		parts->states[i].texture.alpha_mod = parts->alpha;
+		struct parts_state *s = &parts->states[i];
+		switch (s->type) {
+		case PARTS_CG:
+			s->cg.texture.alpha_mod = parts->alpha;
+			break;
+		case PARTS_TEXT:
+			s->text.texture.alpha_mod = parts->alpha;
+			break;
+		case PARTS_ANIMATION:
+			for (unsigned i = 0; i < s->anim.nr_frames; i++) {
+				s->anim.frames[i].alpha_mod = parts->alpha;
+			}
+			break;
+		}
 	}
 	scene_sprite_dirty(&parts->sp);
 }
@@ -384,12 +484,13 @@ static void parts_set_state(struct parts *parts, enum parts_state_type state)
 	}
 }
 
-static void parts_render(struct sprite *sp)
+static void parts_render_text(struct parts *parts)
 {
-	struct parts *parts = (struct parts*)sp;
-	if (!parts->states[parts->state].cg_no)
-		return;
+	gfx_render_texture(&parts->states[parts->state].text.texture, &parts->rect);
+}
 
+static void parts_render_cg(struct parts *parts, Texture *t)
+{
 	Rectangle *d = &parts->rect;
 	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
 	glm_translate(mw_transform, (vec3) { d->x, d->y, 0 });
@@ -405,13 +506,29 @@ static void parts_render(struct sprite *sp)
 
 	struct gfx_render_job job = {
 		.shader = NULL, // default shader
-		.texture = parts->states[parts->state].texture.handle,
+		.texture = t->handle,
 		.world_transform = mw_transform[0],
 		.view_transform = wv_transform[0],
-		.data = &parts->states[parts->state].texture,
+		.data = t,
 	};
 
 	gfx_render(&job);
+}
+
+static void parts_render(struct sprite *sp)
+{
+	struct parts *parts = (struct parts*)sp;
+	switch (parts->states[parts->state].type) {
+	case PARTS_CG:
+		parts_render_cg(parts, &parts->states[parts->state].cg.texture);
+		break;
+	case PARTS_TEXT:
+		parts_render_text(parts);
+		break;
+	case PARTS_ANIMATION:
+		parts_render_cg(parts, &parts->states[parts->state].anim.texture);
+		break;
+	}
 }
 
 static void parts_update_with_motion(struct parts *parts, struct parts_motion *motion)
@@ -492,21 +609,58 @@ static void parts_fini_all_motion(void)
 
 static void parts_update_loop(struct parts *parts, int passed_time)
 {
-	struct parts_state *state = &parts->states[parts->state];
-	if (passed_time <= 0 || !state->nr_frames)
+	if (parts->states[parts->state].type != PARTS_ANIMATION)
 		return;
 
-	const unsigned elapsed = state->elapsed + passed_time;
-	const unsigned frame_diff = elapsed / state->frame_time;
-	const unsigned remainder = elapsed % state->frame_time;
+	struct parts_animation *anim = &parts->states[parts->state].anim;
+	if (passed_time <= 0 || !anim->nr_frames)
+		return;
+
+	const unsigned elapsed = anim->elapsed + passed_time;
+	const unsigned frame_diff = elapsed / anim->frame_time;
+	const unsigned remainder = elapsed % anim->frame_time;
 
 	if (frame_diff > 0) {
-		state->elapsed = remainder;
-		state->current_frame = (state->current_frame + frame_diff) % state->nr_frames;
-		state->texture = state->frames[state->current_frame];
+		anim->elapsed = remainder;
+		anim->current_frame = (anim->current_frame + frame_diff) % anim->nr_frames;
+		anim->texture = anim->frames[anim->current_frame];
 		scene_sprite_dirty(&parts->sp);
 	} else {
-		state->elapsed = elapsed;
+		anim->elapsed = elapsed;
+	}
+}
+
+static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking)
+{
+	if (!began_click || !parts->clickable)
+		return;
+
+	bool prev_in = SDL_PointInRect(&prev_pos, &parts->pos);
+	bool cur_in = SDL_PointInRect(&cur_pos, &parts->pos);
+
+	if (!cur_in) {
+		parts_set_state(parts, PARTS_STATE_DEFAULT);
+		return;
+	}
+
+	// click down: just remember the parts number for later
+	if (cur_clicking && !prev_clicking) {
+		click_down_parts = parts->no;
+	}
+
+	if (cur_clicking && click_down_parts == parts->no) {
+		parts_set_state(parts, PARTS_STATE_CLICKED);
+	} else {
+		if (!prev_in) {
+			audio_play_sound(parts->on_cursor_sound);
+		}
+		parts_set_state(parts, PARTS_STATE_HOVERED);
+	}
+
+	// click event: only if the click down event had same parts number
+	if (prev_clicking && !cur_clicking && click_down_parts == parts->no) {
+		audio_play_sound(parts->on_click_sound);
+		clicked_parts = parts->no;
 	}
 }
 
@@ -521,32 +675,7 @@ static void GoatGUIEngine_Update(int passed_time, possibly_unused bool message_w
 	struct parts *parts;
 	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
 		parts_update_loop(parts, passed_time);
-		if (!parts->clickable)
-			continue;
-		bool prev_in = SDL_PointInRect(&prev_pos, &parts->pos);
-		bool cur_in = SDL_PointInRect(&cur_pos, &parts->pos);
-
-		if (!cur_in) {
-			parts_set_state(parts, PARTS_STATE_DEFAULT);
-			continue;
-		}
-		// click down: just remember the parts number for later
-		if (cur_clicking && !prev_clicking) {
-			click_down_parts = parts->no;
-		}
-		if (cur_clicking && click_down_parts == parts->no) {
-			parts_set_state(parts, PARTS_STATE_CLICKED);
-		} else {
-			if (!prev_in) {
-				audio_play_sound(parts->on_cursor_sound);
-			}
-			parts_set_state(parts, PARTS_STATE_HOVERED);
-		}
-		// click event: only if the click down event had same parts number
-		if (prev_clicking && !cur_clicking && click_down_parts == parts->no) {
-			audio_play_sound(parts->on_click_sound);
-			clicked_parts = parts->no;
-		}
+		parts_update_mouse(parts, cur_pos, cur_clicking);
 	}
 
 	if (prev_clicking && !cur_clicking) {
@@ -584,9 +713,10 @@ static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused in
 	struct cg *cg = asset_cg_load(cg_no);
 	if (!cg)
 		return false;
-	gfx_delete_texture(&parts->states[state].texture);
-	gfx_init_texture_with_cg(&parts->states[state].texture, cg);
-	parts->states[state].cg_no = cg_no;
+	struct parts_cg *parts_cg = parts_get_cg(parts, state);
+	gfx_delete_texture(&parts_cg->texture);
+	gfx_init_texture_with_cg(&parts_cg->texture, cg);
+	parts_cg->no = cg_no;
 	parts_add_cg(parts, cg);
 	parts_recalculate_pos(parts);
 	scene_sprite_dirty(&parts->sp);
@@ -596,7 +726,13 @@ static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused in
 
 static int GoatGUIEngine_GetPartsCGNumber(int parts_no, int state)
 {
-	return parts_get(parts_no)->states[state].cg_no;
+	state--;
+	if (state < 0 || state > 2) {
+		WARNING("Invalid parts state: %d", state);
+		return false;
+	}
+
+	return parts_get_cg(parts_get(parts_no), state)->no;
 }
 
 static bool GoatGUIEngine_SetLoopCG(int parts_no, int cg_no, int nr_frames, int frame_time, int state)
@@ -625,44 +761,209 @@ static bool GoatGUIEngine_SetLoopCG(int parts_no, int cg_no, int nr_frames, int 
 		parts_add_cg(parts, cg);
 		cg_free(cg);
 	}
-	parts->states[state].frames = frames;
-	parts->states[state].nr_frames = nr_frames;
-	parts->states[state].frame_time = frame_time;
-	parts->states[state].elapsed = 0;
-	parts->states[state].current_frame = 0;
-	parts->states[state].texture = frames[0];
+
+	struct parts_animation *anim = parts_get_animation(parts, state);
+	anim->frames = frames; // free previous value?
+	anim->nr_frames = nr_frames;
+	anim->frame_time = frame_time;
+	anim->elapsed = 0;
+	anim->current_frame = 0;
+	anim->texture = frames[0];
 	return true;
 }
 
-static bool GoatGUIEngine_SetText(int PartsNumber, struct string *pIText, int State)
+static int extract_sjis_char(const char *src, char *dst)
 {
-	// TODO
+	if (SJIS_2BYTE(*src)) {
+		dst[0] = src[0];
+		dst[1] = src[1];
+		dst[2] = '\0';
+		return 2;
+	}
+	dst[0] = src[0];
+	dst[1] = '\0';
+	return 1;
+}
+
+static void parts_text_newline(struct parts_text *text)
+{
+	const unsigned height = text->lines[text->nr_lines-1].height;
+	text->cursor = POINT(0, text->cursor.y + height + text->line_space);
+	text->lines = xrealloc_array(text->lines, text->nr_lines, text->nr_lines+1, sizeof(struct parts_text_line));
+	text->nr_lines++;
+}
+
+static void parts_text_append(struct parts *parts, struct string *text, int state)
+{
+	struct parts_text *t = parts_get_text(parts, state);
+
+	if (!t->texture.handle) {
+		gfx_init_texture_rgba(&t->texture, config.view_width, config.view_height,
+				      (SDL_Color){ 0, 0, 0, 0 });
+	}
+
+	if (!t->nr_lines) {
+		t->lines = xcalloc(1, sizeof(struct parts_text_line));
+		t->lines[0].height = 0;
+		t->nr_lines = 1;
+	}
+
+	const char *msgp = text->text;
+	while (*msgp) {
+		char c[4];
+		int len = extract_sjis_char(msgp, c);
+		msgp += len;
+
+		if (c[0] == '\n') {
+			parts_text_newline(t);
+			continue;
+		}
+
+		t->cursor.x += gfx_render_text(&t->texture, t->cursor, c, &t->tm, t->char_space);
+
+		const unsigned old_height = t->lines[t->nr_lines-1].height;
+		const unsigned new_height = t->tm.size;
+		t->lines[t->nr_lines-1].height = max(old_height, new_height);
+	}
+}
+
+static void parts_text_clear(struct parts *parts, int state)
+{
+	struct parts_text *text = parts_get_text(parts, state);
+	free(text->lines);
+	text->lines = NULL;
+	text->nr_lines = 0;
+	gfx_delete_texture(&text->texture);
+}
+
+static bool GoatGUIEngine_SetText(int parts_no, struct string *text, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	parts_text_clear(parts, state);
+	parts_text_append(parts, text, state);
 	return true;
 }
 
-bool GoatGUIEngine_AddPartsText(int PartsNumber, struct string *pIText, int State);
+static bool GoatGUIEngine_AddPartsText(int parts_no, struct string *text, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	parts_text_append(parts, text, state);
+	return true;
+}
+
 bool GoatGUIEngine_DeletePartsTopTextLine(int PartsNumber, int State);
 
 static bool GoatGUIEngine_SetFont(int parts_no, int type, int size, int r, int g, int b, float bold_weight, int edge_r, int edge_g, int edge_b, float edge_weight, int state)
 {
-	// TODO
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	struct parts_text *text = parts_get_text(parts_get(parts_no), state);
+	text->tm.face = type;
+	text->tm.size = size;
+	text->tm.color = (SDL_Color) { r, g, b, 255 };
+	text->tm.weight = bold_weight * 1000;
+	text->tm.outline_color = (SDL_Color) { edge_r, edge_g, edge_b, 255 };
+	text->tm.outline_left = edge_weight;
+	text->tm.outline_up = edge_weight;
+	text->tm.outline_right = edge_weight;
+	text->tm.outline_down = edge_weight;
 	return true;
 }
 
-bool GoatGUIEngine_SetPartsFontType(int PartsNumber, int Type, int State);
-bool GoatGUIEngine_SetPartsFontSize(int PartsNumber, int Size, int State);
-bool GoatGUIEngine_SetPartsFontColor(int PartsNumber, int R, int G, int B, int State);
-bool GoatGUIEngine_SetPartsFontBoldWeight(int PartsNumber, float BoldWeight, int State);
-bool GoatGUIEngine_SetPartsFontEdgeColor(int PartsNumber, int R, int G, int B, int State);
-bool GoatGUIEngine_SetPartsFontEdgeWeight(int PartsNumber, float EdgeWeight, int State);
+static bool GoatGUIEngine_SetPartsFontType(int parts_no, int type, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	parts_get_text(parts_get(parts_no), state)->tm.face = type;
+	return true;
+}
+
+static bool GoatGUIEngine_SetPartsFontSize(int parts_no, int size, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	parts_get_text(parts_get(parts_no), state)->tm.size = size;
+	return true;
+}
+
+static bool GoatGUIEngine_SetPartsFontColor(int parts_no, int r, int g, int b, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	parts_get_text(parts_get(parts_no), state)->tm.color = (SDL_Color) { r, g, b, 255 };
+	return true;
+}
+
+static bool GoatGUIEngine_SetPartsFontBoldWeight(int parts_no, float bold_weight, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	parts_get_text(parts_get(parts_no), state)->tm.weight = bold_weight * 1000;
+	return true;
+}
+
+static bool GoatGUIEngine_SetPartsFontEdgeColor(int parts_no, int r, int g, int b, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	parts_get_text(parts_get(parts_no), state)->tm.outline_color = (SDL_Color) { r, g, b, 255 };
+	return true;
+}
+
+static bool GoatGUIEngine_SetPartsFontEdgeWeight(int parts_no, float edge_weight, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	struct parts_text *text = parts_get_text(parts_get(parts_no), state);
+	text->tm.outline_left = edge_weight;
+	text->tm.outline_up = edge_weight;
+	text->tm.outline_right = edge_weight;
+	text->tm.outline_down = edge_weight;
+	return true;
+}
 
 static bool GoatGUIEngine_SetTextCharSpace(int parts_no, int char_space, int state)
 {
-	// TODO
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	parts_get_text(parts_get(parts_no), state)->char_space = char_space;
 	return true;
 }
 
-bool GoatGUIEngine_SetTextLineSpace(int PartsNumber, int LineSpace, int State);
+static bool GoatGUIEngine_SetTextLineSpace(int parts_no, int line_space, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	parts_get_text(parts_get(parts_no), state)->line_space = line_space;
+	return true;
+}
+
 bool GoatGUIEngine_SetHGaugeCG(int PartsNumber, int CGNumber, int State);
 bool GoatGUIEngine_SetHGaugeRate(int PartsNumber, int Numerator, int Denominator, int State);
 bool GoatGUIEngine_SetVGaugeCG(int PartsNumber, int CGNumber, int State);
@@ -919,6 +1220,10 @@ void GoatGUIEngine_AddMotionSound(int SoundNumber, int BeginTime);
 
 static void GoatGUIEngine_BeginMotion(void)
 {
+	if (began_click)
+		return;
+
+	// FIXME: starting a motion seems to clear non-default states
 	motion_t = 0;
 	is_motion = true;
 	parts_init_all_motion();
@@ -926,6 +1231,8 @@ static void GoatGUIEngine_BeginMotion(void)
 
 static void GoatGUIEngine_EndMotion(void)
 {
+	if (began_click)
+		return;
 	motion_t = 0;
 	motion_end_t = 0;
 	is_motion = false;
@@ -954,11 +1261,24 @@ static int GoatGUIEngine_GetMotionEndTime(void)
 	return motion_end_t;
 }
 
-void GoatGUIEngine_SetPartsMagX(int PartsNumber, float MagX);
-void GoatGUIEngine_SetPartsMagY(int PartsNumber, float MagY);
-void GoatGUIEngine_SetPartsRotateX(int PartsNumber, float RotateX);
-void GoatGUIEngine_SetPartsRotateY(int PartsNumber, float RotateY);
-void GoatGUIEngine_SetPartsRotateZ(int PartsNumber, float RotateZ);
+static void GoatGUIEngine_SetPartsMagX(int parts_no, float scale_x)
+{
+	parts_set_scale_x(parts_get(parts_no), scale_x);
+}
+
+static void GoatGUIEngine_SetPartsMagY(int parts_no, float scale_y)
+{
+	parts_set_scale_y(parts_get(parts_no), scale_y);
+}
+
+void GoatGUIEngine_SetPartsRotateX(int parts_no, float rot_x);
+void GoatGUIEngine_SetPartsRotateY(int parts_no, float rot_y);
+
+static void GoatGUIEngine_SetPartsRotateZ(int parts_no, float rot_z)
+{
+	parts_set_rotation_z(parts_get(parts_no), rot_z);
+}
+
 void GoatGUIEngine_SetPartsAlphaClipperPartsNumber(int PartsNumber, int AlphaClipperPartsNumber);
 void GoatGUIEngine_SetPartsPixelDecide(int PartsNumber, bool PixelDecide);
 bool GoatGUIEngine_SetThumbnailReductionSize(int ReductionSize);
@@ -973,17 +1293,17 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(GetPartsCGNumber, GoatGUIEngine_GetPartsCGNumber),
 	    HLL_EXPORT(SetLoopCG, GoatGUIEngine_SetLoopCG),
 	    HLL_EXPORT(SetText, GoatGUIEngine_SetText),
-	    HLL_TODO_EXPORT(AddPartsText, GoatGUIEngine_AddPartsText),
+	    HLL_EXPORT(AddPartsText, GoatGUIEngine_AddPartsText),
 	    HLL_TODO_EXPORT(DeletePartsTopTextLine, GoatGUIEngine_DeletePartsTopTextLine),
 	    HLL_EXPORT(SetFont, GoatGUIEngine_SetFont),
-	    HLL_TODO_EXPORT(SetPartsFontType, GoatGUIEngine_SetPartsFontType),
-	    HLL_TODO_EXPORT(SetPartsFontSize, GoatGUIEngine_SetPartsFontSize),
-	    HLL_TODO_EXPORT(SetPartsFontColor, GoatGUIEngine_SetPartsFontColor),
-	    HLL_TODO_EXPORT(SetPartsFontBoldWeight, GoatGUIEngine_SetPartsFontBoldWeight),
-	    HLL_TODO_EXPORT(SetPartsFontEdgeColor, GoatGUIEngine_SetPartsFontEdgeColor),
-	    HLL_TODO_EXPORT(SetPartsFontEdgeWeight, GoatGUIEngine_SetPartsFontEdgeWeight),
+	    HLL_EXPORT(SetPartsFontType, GoatGUIEngine_SetPartsFontType),
+	    HLL_EXPORT(SetPartsFontSize, GoatGUIEngine_SetPartsFontSize),
+	    HLL_EXPORT(SetPartsFontColor, GoatGUIEngine_SetPartsFontColor),
+	    HLL_EXPORT(SetPartsFontBoldWeight, GoatGUIEngine_SetPartsFontBoldWeight),
+	    HLL_EXPORT(SetPartsFontEdgeColor, GoatGUIEngine_SetPartsFontEdgeColor),
+	    HLL_EXPORT(SetPartsFontEdgeWeight, GoatGUIEngine_SetPartsFontEdgeWeight),
 	    HLL_EXPORT(SetTextCharSpace, GoatGUIEngine_SetTextCharSpace),
-	    HLL_TODO_EXPORT(SetTextLineSpace, GoatGUIEngine_SetTextLineSpace),
+	    HLL_EXPORT(SetTextLineSpace, GoatGUIEngine_SetTextLineSpace),
 	    HLL_TODO_EXPORT(SetHGaugeCG, GoatGUIEngine_SetHGaugeCG),
 	    HLL_TODO_EXPORT(SetHGaugeRate, GoatGUIEngine_SetHGaugeRate),
 	    HLL_TODO_EXPORT(SetVGaugeCG, GoatGUIEngine_SetVGaugeCG),
@@ -1047,11 +1367,11 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(SetMotionTime, GoatGUIEngine_SetMotionTime),
 	    HLL_EXPORT(IsMotion, GoatGUIEngine_IsMotion),
 	    HLL_EXPORT(GetMotionEndTime, GoatGUIEngine_GetMotionEndTime),
-	    HLL_TODO_EXPORT(SetPartsMagX, GoatGUIEngine_SetPartsMagX),
-	    HLL_TODO_EXPORT(SetPartsMagY, GoatGUIEngine_SetPartsMagY),
+	    HLL_EXPORT(SetPartsMagX, GoatGUIEngine_SetPartsMagX),
+	    HLL_EXPORT(SetPartsMagY, GoatGUIEngine_SetPartsMagY),
 	    HLL_TODO_EXPORT(SetPartsRotateX, GoatGUIEngine_SetPartsRotateX),
 	    HLL_TODO_EXPORT(SetPartsRotateY, GoatGUIEngine_SetPartsRotateY),
-	    HLL_TODO_EXPORT(SetPartsRotateZ, GoatGUIEngine_SetPartsRotateZ),
+	    HLL_EXPORT(SetPartsRotateZ, GoatGUIEngine_SetPartsRotateZ),
 	    HLL_TODO_EXPORT(SetPartsAlphaClipperPartsNumber, GoatGUIEngine_SetPartsAlphaClipperPartsNumber),
 	    HLL_TODO_EXPORT(SetPartsPixelDecide, GoatGUIEngine_SetPartsPixelDecide),
 	    HLL_TODO_EXPORT(SetThumbnailReductionSize, GoatGUIEngine_SetThumbnailReductionSize),

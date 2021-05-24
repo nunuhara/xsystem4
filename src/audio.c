@@ -148,7 +148,6 @@ void audio_update(void)
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
 		if (anonymous_channels[i] >= 0) {
 			if (!wav_is_playing(anonymous_channels[i])) {
-				NOTICE("FREEING CHANNEL");
 				wav_unprepare(anonymous_channels[i]);
 				anonymous_channels[i] = -1;
 			}
