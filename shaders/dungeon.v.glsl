@@ -22,12 +22,11 @@ uniform mat4 proj_transform;
 
 in vec3 vertex_pos;
 in vec2 vertex_uv;
-in mat4 instance_transform;
 out float dist;
 out vec2 tex_coord;
 
 void main() {
-        vec4 pos = view_transform * instance_transform * local_transform * vec4(vertex_pos, 1.0);
+        vec4 pos = view_transform * local_transform * vec4(vertex_pos, 1.0);
         dist = abs(pos.z);
         gl_Position = proj_transform * pos;
         tex_coord = vertex_uv;

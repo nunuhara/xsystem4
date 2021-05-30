@@ -186,7 +186,7 @@ CELL_GETTER(DrawDungeon_GetTexDoorE, -1, cell->east_door);
 CELL_GETTER(DrawDungeon_GetTexStair, -1, cell->stairs_texture);
 CELL_GETTER(DrawDungeon_GetBattleBack, -1, cell->battle_background);
 
-#define CELL_SETTER(name, expr) \
+#define CELL_SETTER(name, expr, update_map) \
 	static void name(int surface, int x, int y, int z, int value) \
 	{ \
 		struct dungeon_context *ctx = dungeon_get_context(surface); \
@@ -194,28 +194,41 @@ CELL_GETTER(DrawDungeon_GetBattleBack, -1, cell->battle_background);
 			return; \
 		struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z); \
 		expr = value; \
-		dungeon_map_update_cell(ctx, x, y, z); \
+		if (update_map) \
+			dungeon_map_update_cell(ctx, x, y, z);	\
 	}
 
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDoorNAngle, int surface, int x, int y, int z, float angle);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDoorWAngle, int surface, int x, int y, int z, float angle);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDoorSAngle, int surface, int x, int y, int z, float angle);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDoorEAngle, int surface, int x, int y, int z, float angle);
-CELL_SETTER(DrawDungeon_SetEvWallN, cell->north_event);
-CELL_SETTER(DrawDungeon_SetEvWallW, cell->west_event);
-CELL_SETTER(DrawDungeon_SetEvWallS, cell->south_event);
-CELL_SETTER(DrawDungeon_SetEvWallE, cell->east_event);
-CELL_SETTER(DrawDungeon_SetEvFloor2, cell->floor_event2);
-CELL_SETTER(DrawDungeon_SetEvWallN2, cell->north_event2);
-CELL_SETTER(DrawDungeon_SetEvWallW2, cell->west_event2);
-CELL_SETTER(DrawDungeon_SetEvWallS2, cell->south_event2);
-CELL_SETTER(DrawDungeon_SetEvWallE2, cell->east_event2);
+CELL_SETTER(DrawDungeon_SetEvFloor, cell->floor_event, true);
+CELL_SETTER(DrawDungeon_SetEvWallN, cell->north_event, true);
+CELL_SETTER(DrawDungeon_SetEvWallW, cell->west_event, true);
+CELL_SETTER(DrawDungeon_SetEvWallS, cell->south_event, true);
+CELL_SETTER(DrawDungeon_SetEvWallE, cell->east_event, true);
+CELL_SETTER(DrawDungeon_SetEvFloor2, cell->floor_event2, false);
+CELL_SETTER(DrawDungeon_SetEvWallN2, cell->north_event2, false);
+CELL_SETTER(DrawDungeon_SetEvWallW2, cell->west_event2, false);
+CELL_SETTER(DrawDungeon_SetEvWallS2, cell->south_event2, false);
+CELL_SETTER(DrawDungeon_SetEvWallE2, cell->east_event2, false);
 //void DrawDungeon_SetEvMag(int surface, int x, int y, int z, float mag);
-CELL_SETTER(DrawDungeon_SetEnter, cell->enterable);
-CELL_SETTER(DrawDungeon_SetEnterN, cell->enterable_north);
-CELL_SETTER(DrawDungeon_SetEnterW, cell->enterable_west);
-CELL_SETTER(DrawDungeon_SetEnterS, cell->enterable_south);
-CELL_SETTER(DrawDungeon_SetEnterE, cell->enterable_east);
+CELL_SETTER(DrawDungeon_SetEvRate, cell->event_blend_rate, false);
+CELL_SETTER(DrawDungeon_SetEnter, cell->enterable, false);
+CELL_SETTER(DrawDungeon_SetEnterN, cell->enterable_north, true);
+CELL_SETTER(DrawDungeon_SetEnterW, cell->enterable_west, true);
+CELL_SETTER(DrawDungeon_SetEnterS, cell->enterable_south, true);
+CELL_SETTER(DrawDungeon_SetEnterE, cell->enterable_east, true);
+CELL_SETTER(DrawDungeon_SetTexFloor, cell->floor, true);
+CELL_SETTER(DrawDungeon_SetTexCeiling, cell->ceiling, false);
+CELL_SETTER(DrawDungeon_SetTexWallN, cell->north_wall, true);
+CELL_SETTER(DrawDungeon_SetTexWallW, cell->west_wall, true);
+CELL_SETTER(DrawDungeon_SetTexWallS, cell->south_wall, true);
+CELL_SETTER(DrawDungeon_SetTexWallE, cell->east_wall, true);
+CELL_SETTER(DrawDungeon_SetTexDoorN, cell->north_door, true);
+CELL_SETTER(DrawDungeon_SetTexDoorW, cell->west_door, true);
+CELL_SETTER(DrawDungeon_SetTexDoorS, cell->south_door, true);
+CELL_SETTER(DrawDungeon_SetTexDoorE, cell->east_door, true);
 //void DrawDungeon_SetSkyTextureSet(int surface, int set);
 
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDrawMapRadar, int surface, int flag);
@@ -311,7 +324,7 @@ HLL_LIBRARY(DrawDungeon,
 			HLL_EXPORT(SetDoorWAngle, DrawDungeon_SetDoorWAngle),
 			HLL_EXPORT(SetDoorSAngle, DrawDungeon_SetDoorSAngle),
 			HLL_EXPORT(SetDoorEAngle, DrawDungeon_SetDoorEAngle),
-			HLL_EXPORT(SetEvFloor, dungeon_set_event_floor),
+			HLL_EXPORT(SetEvFloor, DrawDungeon_SetEvFloor),
 			HLL_EXPORT(SetEvWallN, DrawDungeon_SetEvWallN),
 			HLL_EXPORT(SetEvWallW, DrawDungeon_SetEvWallW),
 			HLL_EXPORT(SetEvWallS, DrawDungeon_SetEvWallS),
@@ -322,22 +335,22 @@ HLL_LIBRARY(DrawDungeon,
 			HLL_EXPORT(SetEvWallS2, DrawDungeon_SetEvWallS2),
 			HLL_EXPORT(SetEvWallE2, DrawDungeon_SetEvWallE2),
 			HLL_TODO_EXPORT(SetEvMag, DrawDungeon_SetEvMag),
-			HLL_EXPORT(SetEvRate, dungeon_set_event_blend_rate),
+			HLL_EXPORT(SetEvRate, DrawDungeon_SetEvRate),
 			HLL_EXPORT(SetEnter, DrawDungeon_SetEnter),
 			HLL_EXPORT(SetEnterN, DrawDungeon_SetEnterN),
 			HLL_EXPORT(SetEnterW, DrawDungeon_SetEnterW),
 			HLL_EXPORT(SetEnterS, DrawDungeon_SetEnterS),
 			HLL_EXPORT(SetEnterE, DrawDungeon_SetEnterE),
-			HLL_EXPORT(SetTexFloor, dungeon_set_texture_floor),
-			HLL_EXPORT(SetTexCeiling, dungeon_set_texture_ceiling),
-			HLL_EXPORT(SetTexWallN, dungeon_set_texture_north),
-			HLL_EXPORT(SetTexWallW, dungeon_set_texture_west),
-			HLL_EXPORT(SetTexWallS, dungeon_set_texture_south),
-			HLL_EXPORT(SetTexWallE, dungeon_set_texture_east),
-			HLL_EXPORT(SetTexDoorN, dungeon_set_door_north),
-			HLL_EXPORT(SetTexDoorW, dungeon_set_door_west),
-			HLL_EXPORT(SetTexDoorS, dungeon_set_door_south),
-			HLL_EXPORT(SetTexDoorE, dungeon_set_door_east),
+			HLL_EXPORT(SetTexFloor, DrawDungeon_SetTexFloor),
+			HLL_EXPORT(SetTexCeiling, DrawDungeon_SetTexCeiling),
+			HLL_EXPORT(SetTexWallN, DrawDungeon_SetTexWallN),
+			HLL_EXPORT(SetTexWallW, DrawDungeon_SetTexWallW),
+			HLL_EXPORT(SetTexWallS, DrawDungeon_SetTexWallS),
+			HLL_EXPORT(SetTexWallE, DrawDungeon_SetTexWallE),
+			HLL_EXPORT(SetTexDoorN, DrawDungeon_SetTexDoorN),
+			HLL_EXPORT(SetTexDoorW, DrawDungeon_SetTexDoorW),
+			HLL_EXPORT(SetTexDoorS, DrawDungeon_SetTexDoorS),
+			HLL_EXPORT(SetTexDoorE, DrawDungeon_SetTexDoorE),
 			HLL_TODO_EXPORT(SetSkyTextureSet, DrawDungeon_SetSkyTextureSet),
 			HLL_EXPORT(DrawMap, dungeon_map_draw),
 			HLL_EXPORT(SetMapAllViewFlag, dungeon_map_set_all_view),

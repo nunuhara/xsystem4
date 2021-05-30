@@ -44,8 +44,21 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 
 	int nr_cells = dgn->size_x * dgn->size_y * dgn->size_z;
 	dgn->cells = xcalloc(nr_cells, sizeof(struct dgn_cell));
+	uint32_t x = 0, y = 0, z = 0;
 	for (int i = 0; i < nr_cells; i++) {
 		struct dgn_cell *cell = &dgn->cells[i];
+		cell->x = x;
+		cell->y = y;
+		cell->z = z;
+		if (++x == dgn->size_x) {
+			x = 0;
+			if (++y == dgn->size_y) {
+				y = 0;
+				z++;
+			}
+		}
+		cell->event_blend_rate = 255;
+
 		cell->floor = buffer_read_int32(&r);
 		cell->ceiling = buffer_read_int32(&r);
 		cell->north_wall = buffer_read_int32(&r);
@@ -58,19 +71,7 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 		cell->west_door = buffer_read_int32(&r);
 		cell->stairs_texture = buffer_read_int32(&r);
 		cell->stairs_orientation = buffer_read_int32(&r);
-		cell->attr12 = buffer_read_int32(&r);
-		cell->attr13 = buffer_read_int32(&r);
-		cell->attr14 = buffer_read_int32(&r);
-		cell->attr15 = buffer_read_int32(&r);
-		cell->attr16 = buffer_read_int32(&r);
-		cell->attr17 = buffer_read_int32(&r);
-		cell->attr18 = buffer_read_int32(&r);
-		cell->attr19 = buffer_read_int32(&r);
-		cell->attr20 = buffer_read_int32(&r);
-		cell->attr21 = buffer_read_int32(&r);
-		cell->attr22 = buffer_read_int32(&r);
-		cell->attr23 = buffer_read_int32(&r);
-		cell->attr24 = buffer_read_int32(&r);
+		buffer_skip(&r, 13 * 4);
 		cell->enterable = buffer_read_int32(&r);
 		cell->enterable_north = buffer_read_int32(&r);
 		cell->enterable_south = buffer_read_int32(&r);
@@ -86,7 +87,7 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 			buffer_skip(&r, 4);
 			buffer_skip(&r, strlen(buffer_strdata(&r)) + 1);
 		}
-		cell->unknown = buffer_read_int32(&r);
+		buffer_skip(&r, 4);
 		cell->battle_background = buffer_read_int32(&r);
 		if (dgn->version != DGN_VER_GALZOO)
 			continue;
@@ -105,12 +106,60 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 		cell->roof_underside_texture = buffer_read_int32(&r);
 		buffer_skip(&r, 4);
 	}
+	if (buffer_read_u8(&r) != 0 || buffer_read_int32(&r) != 1) {
+		dgn_free(dgn);
+		return NULL;
+	}
+	dgn->pvs = xcalloc(nr_cells, sizeof(struct packed_pvs));
+	for (int i = 0; i < nr_cells; i++) {
+		struct packed_pvs *pvs = &dgn->pvs[i];
+		int32_t len = buffer_read_int32(&r);
+		if (len % 8 != 4) {
+			WARNING("dgn_parse: unexpected PVS length");
+			dgn_free(dgn);
+			return NULL;
+		}
+		if (buffer_read_int32(&r) != nr_cells) {
+			WARNING("dgn_parse: bad PVS");
+			dgn_free(dgn);
+			return NULL;
+		}
+		pvs->nr_run_lengths = (len - 4) / 8;
+		pvs->run_lengths = xmalloc(pvs->nr_run_lengths * sizeof(struct pvs_run_lengths));
+		int32_t total = 0;
+		for (int j = 0; j < pvs->nr_run_lengths; j++) {
+			int32_t invisible = buffer_read_int32(&r);
+			int32_t visible = buffer_read_int32(&r);
+			pvs->run_lengths[j].invisible_cells = invisible;
+			pvs->run_lengths[j].visible_cells = visible;
+			pvs->nr_visible_cells += visible;
+			total += invisible + visible;
+		}
+		if (total != nr_cells) {
+			WARNING("dgn_parse: bad PVS");
+			dgn_free(dgn);
+			return NULL;
+		}
+	}
 	return dgn;
 }
 
 void dgn_free(struct dgn *dgn)
 {
+	int nr_cells = dgn->size_x * dgn->size_y * dgn->size_z;
+
+	for (int i = 0; i < nr_cells; i++) {
+		if (dgn->cells[i].visible_cells)
+			free(dgn->cells[i].visible_cells);
+	}
 	free(dgn->cells);
+
+	if (dgn->pvs) {
+		for (int i = 0; i < nr_cells; i++)
+			free(dgn->pvs[i].run_lengths);
+		free(dgn->pvs);
+	}
+
 	free(dgn);
 }
 
@@ -124,4 +173,47 @@ int dgn_cell_index(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z)
 struct dgn_cell *dgn_cell_at(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z)
 {
 	return &dgn->cells[dgn_cell_index(dgn, x, y, z)];
+}
+
+struct pvs_cell {
+	struct dgn_cell *cell;
+	int distance;
+};
+
+static int pvs_cell_compare(const void *a, const void *b)
+{
+	return ((struct pvs_cell *)a)->distance - ((struct pvs_cell *)b)->distance;
+}
+
+struct dgn_cell **dgn_get_visible_cells(struct dgn *dgn, int x, int y, int z, int *nr_cells_out)
+{
+	int cell_index = dgn_cell_index(dgn, x, y, z);
+	struct dgn_cell *cell = &dgn->cells[cell_index];
+	struct packed_pvs *pvs = &dgn->pvs[cell_index];
+	if (!cell->visible_cells) {
+		struct pvs_cell *pvs_cells = xmalloc(pvs->nr_visible_cells * sizeof(struct pvs_cell));
+
+		struct pvs_cell *dst = pvs_cells;
+		struct dgn_cell *src = dgn->cells;
+		for (int i = 0; i < pvs->nr_run_lengths; i++) {
+			src += pvs->run_lengths[i].invisible_cells;
+			for (int j = 0; j < pvs->run_lengths[i].visible_cells; j++) {
+				int dx = src->x - x;
+				int dy = src->y - y;
+				int dz = src->z - z;
+				*dst++ = (struct pvs_cell){
+					.cell = src++,
+					.distance = dx * dx + dy * dy + dz * dz
+				};
+			}
+		}
+		qsort(pvs_cells, pvs->nr_visible_cells, sizeof(struct pvs_cell), pvs_cell_compare);
+
+		cell->visible_cells = xmalloc(pvs->nr_visible_cells * sizeof(struct cell *));
+		for (int i = 0; i < pvs->nr_visible_cells; i++)
+			cell->visible_cells[i] = pvs_cells[i].cell;
+		free(pvs_cells);
+	}
+	*nr_cells_out = pvs->nr_visible_cells;
+	return cell->visible_cells;
 }

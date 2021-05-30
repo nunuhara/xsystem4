@@ -25,9 +25,7 @@
 struct dgn;
 struct dtx;
 struct tes;
-struct mesh;
-struct skybox;
-struct event_markers;
+struct dungeon_renderer;
 struct dungeon_map;
 
 struct camera {
@@ -54,10 +52,7 @@ struct dungeon_context {
 	struct dgn *dgn;
 	struct dtx *dtx;
 	struct tes *tes;
-	struct mesh **meshes;
-	int nr_meshes;
-	struct skybox *skybox;
-	struct event_markers *events;
+	struct dungeon_renderer *renderer;
 	GLuint depth_buffer;
 };
 
@@ -66,18 +61,6 @@ void dungeon_context_free(struct dungeon_context *ctx);
 bool dungeon_load(struct dungeon_context *ctx, int num);
 void dungeon_set_camera(int surface, float x, float y, float z, float angle, float angle_p);
 void dungeon_render(struct dungeon_context *ctx);
-void dungeon_set_event_floor(int surface, int x, int y, int z, int event);
-void dungeon_set_event_blend_rate(int surface, int x, int y, int z, int rate);
-void dungeon_set_texture_floor(int surface, int x, int y, int z, int texture);
-void dungeon_set_texture_ceiling(int surface, int x, int y, int z, int texture);
-void dungeon_set_texture_north(int surface, int x, int y, int z, int texture);
-void dungeon_set_texture_south(int surface, int x, int y, int z, int texture);
-void dungeon_set_texture_east(int surface, int x, int y, int z, int texture);
-void dungeon_set_texture_west(int surface, int x, int y, int z, int texture);
-void dungeon_set_door_north(int surface, int x, int y, int z, int texture);
-void dungeon_set_door_south(int surface, int x, int y, int z, int texture);
-void dungeon_set_door_east(int surface, int x, int y, int z, int texture);
-void dungeon_set_door_west(int surface, int x, int y, int z, int texture);
 
 struct dungeon_context *dungeon_get_context(int surface);
 void dungeon_update(void);
