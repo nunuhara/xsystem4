@@ -17,6 +17,7 @@
 #version 140
 
 uniform sampler2D tex;
+uniform float alpha_mod;
 
 in float dist;
 in vec2 tex_coord;
@@ -29,5 +30,5 @@ void main() {
         vec4 texel = texture(tex, tex_coord);
         float fog_factor = (FOG_MAX_DIST - dist) / FOG_MAX_DIST;
         fog_factor = clamp(fog_factor, 0.0, 1.0);
-        frag_color = vec4(mix(FOG_COLOR, vec3(texel), fog_factor), texel.a);
+        frag_color = vec4(mix(FOG_COLOR, vec3(texel), fog_factor), texel.a * alpha_mod);
 }

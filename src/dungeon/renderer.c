@@ -61,14 +61,6 @@ static const struct marker_info *get_marker_info(int event_type)
 	return NULL;
 }
 
-struct sprite_renderer {
-	struct shader shader;
-	GLint proj_transform;
-	GLuint alpha_mod;
-	GLuint vao;
-	GLuint pos_buffer;
-};
-
 struct geometry;
 struct material;
 
@@ -77,6 +69,7 @@ struct dungeon_renderer {
 	// Uniform variable locations
 	GLint local_transform;
 	GLint proj_transform;
+	GLuint alpha_mod;
 	// Attribute variable locations
 	GLint vertex_uv;
 
@@ -90,7 +83,6 @@ struct dungeon_renderer {
 	GLuint *event_textures;
 	int nr_event_textures;
 
-	struct sprite_renderer sprite;
 	struct skybox *skybox;
 };
 
@@ -205,29 +197,6 @@ static struct material *get_material(struct dungeon_renderer *r, int type, int i
 	return m;
 }
 
-static void init_sprite_renderer(struct sprite_renderer *sr)
-{
-	gfx_load_shader(&sr->shader, "shaders/dungeon_sprite.v.glsl", "shaders/dungeon_sprite.f.glsl");
-	sr->proj_transform = glGetUniformLocation(sr->shader.program, "proj_transform");
-	sr->alpha_mod = glGetUniformLocation(sr->shader.program, "alpha_mod");
-
-	glGenVertexArrays(1, &sr->vao);
-	glBindVertexArray(sr->vao);
-	glGenBuffers(1, &sr->pos_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, sr->pos_buffer);
-	glEnableVertexAttribArray(sr->shader.vertex);
-	glVertexAttribPointer(sr->shader.vertex, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
-static void delete_sprite_renderer(struct sprite_renderer *sr)
-{
-	glDeleteVertexArrays(1, &sr->vao);
-	glDeleteBuffers(1, &sr->pos_buffer);
-	glDeleteProgram(sr->shader.program);
-}
-
 struct dungeon_renderer *dungeon_renderer_create(struct dtx *dtx, GLuint *event_textures, int nr_event_textures)
 {
 	struct dungeon_renderer *r = xcalloc(1, sizeof(struct dungeon_renderer));
@@ -235,6 +204,7 @@ struct dungeon_renderer *dungeon_renderer_create(struct dtx *dtx, GLuint *event_
 	gfx_load_shader(&r->shader, "shaders/dungeon.v.glsl", "shaders/dungeon.f.glsl");
 	r->local_transform = glGetUniformLocation(r->shader.program, "local_transform");
 	r->proj_transform = glGetUniformLocation(r->shader.program, "proj_transform");
+	r->alpha_mod = glGetUniformLocation(r->shader.program, "alpha_mod");
 	r->vertex_uv = glGetAttribLocation(r->shader.program, "vertex_uv");
 
 	r->wall_geometry = geometry_create(r, wall_vertices, sizeof(wall_vertices));
@@ -253,7 +223,6 @@ struct dungeon_renderer *dungeon_renderer_create(struct dtx *dtx, GLuint *event_
 	r->event_textures = event_textures;
 	r->nr_event_textures = nr_event_textures;
 
-	init_sprite_renderer(&r->sprite);
 	r->skybox = skybox_create(dtx);
 
 	return r;
@@ -273,7 +242,6 @@ void dungeon_renderer_free(struct dungeon_renderer *r)
 	glDeleteTextures(r->nr_event_textures, r->event_textures);
 	free(r->event_textures);
 
-	delete_sprite_renderer(&r->sprite);
 	skybox_free(r->skybox);
 
 	free(r);
@@ -315,34 +283,21 @@ static void draw_floor_marker(struct dungeon_renderer *r, const struct marker_in
 	glDepthFunc(GL_LESS);
 }
 
-static void draw_sprite(struct dungeon_renderer *r, const struct marker_info *info, float x, float y, float z, int blend_rate, uint32_t t)
+static void draw_floating_marker(struct dungeon_renderer *r, const struct marker_info *info, float x, float y, float z, int blend_rate, uint32_t t, mat4 v)
 {
-	struct sprite_renderer *sr = &r->sprite;
-	glUseProgram(sr->shader.program);
-	glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
-	glEnable(GL_POINT_SPRITE);
-
-	glBindVertexArray(sr->vao);
-	glActiveTexture(GL_TEXTURE0);
-	glUniform1i(sr->shader.texture, 0);
-	glUniform1f(sr->alpha_mod, blend_rate / 255.0);
-	glBindBuffer(GL_ARRAY_BUFFER, sr->pos_buffer);
-
 	int frame = t / 100;   // 100ms per frame
 	int texture = info->texture_index + frame % info->texture_count;
-	glBindTexture(GL_TEXTURE_2D, r->event_textures[texture]);
-	GLfloat pos[3] = {x, y, z};
-	glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(GLfloat), pos, GL_STREAM_DRAW);
-	glDrawArrays(GL_POINTS, 0, 1);
-
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glDisable(GL_VERTEX_PROGRAM_POINT_SIZE);
-	glDisable(GL_POINT_SPRITE);
+	mat4 billboard = MAT4(
+		v[0][0], v[0][1], v[0][2], x,
+		v[1][0], v[1][1], v[1][2], y,
+		v[2][0], v[2][1], v[2][2], z,
+		0,       0,       0,       1);
+	glUniform1f(r->alpha_mod, blend_rate / 255.0);
+	draw(r, r->wall_geometry, r->event_textures[texture], billboard);
+	glUniform1f(r->alpha_mod, 1.0);
 }
 
-static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool render_opaque)
+static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool render_opaque, mat4 view_transform)
 {
 	float x =  2.0 * cell->x;
 	float y =  2.0 * cell->y;
@@ -491,7 +446,7 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 		if (info) {
 			uint32_t t = SDL_GetTicks();
 			draw_floor_marker(r, info, x, y, z, t);
-			draw_sprite(r, info, x, y, z, cell->event_blend_rate, t);
+			draw_floating_marker(r, info, x, y, z, cell->event_blend_rate, t, view_transform);
 		}
 	}
 }
@@ -501,22 +456,22 @@ void dungeon_renderer_render(struct dungeon_renderer *r, struct dgn_cell **cells
 	glUseProgram(r->shader.program);
 	glUniformMatrix4fv(r->shader.view_transform, 1, GL_FALSE, view_transform[0]);
 	glUniformMatrix4fv(r->proj_transform, 1, GL_FALSE, proj_transform[0]);
-	glUseProgram(r->sprite.shader.program);
-	glUniformMatrix4fv(r->sprite.shader.view_transform, 1, GL_FALSE, view_transform[0]);
-	glUniformMatrix4fv(r->sprite.proj_transform, 1, GL_FALSE, proj_transform[0]);
-	glUseProgram(0);
+	glUniform1f(r->alpha_mod, 1.0);
 
 	// Render opaque objects, from near to far.
 	glDisable(GL_BLEND);
 	for (int i = 0; i < nr_cells; i++)
-		draw_cell(r, cells[i], true);
+		draw_cell(r, cells[i], true, view_transform);
 
 	// Render the skybox.
 	skybox_render(r->skybox, view_transform, proj_transform);
 
+	glUseProgram(r->shader.program);
 	// Render transparent objects, from far to near.
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	for (int i = nr_cells - 1; i >= 0; i--)
-		draw_cell(r, cells[i], false);
+		draw_cell(r, cells[i], false, view_transform);
+
+	glUseProgram(0);
 }
