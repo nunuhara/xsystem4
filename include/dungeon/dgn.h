@@ -45,19 +45,7 @@ struct dgn_cell {
 	int32_t west_door;
 	int32_t stairs_texture;
 	int32_t stairs_orientation;
-	int32_t attr12;
-	int32_t attr13;
-	int32_t attr14;
-	int32_t attr15;
-	int32_t attr16;
-	int32_t attr17;
-	int32_t attr18;
-	int32_t attr19;
-	int32_t attr20;
-	int32_t attr21;
-	int32_t attr22;
-	int32_t attr23;
-	int32_t attr24;
+	// int32_t unknown[13];
 	int32_t enterable;
 	int32_t enterable_north;
 	int32_t enterable_south;
@@ -72,7 +60,7 @@ struct dgn_cell {
 	//     uint32_t i;
 	//     char *s;
 	// } pairs[6];
-	int32_t unknown;
+	// int32_t unknown;
 	int32_t battle_background;
 
 	// The below exist only in version 13
@@ -91,11 +79,25 @@ struct dgn_cell {
 	// int32_t unused2;  // always -1
 
 	// Runtime data (not stored in .dgn)
+	int x, y, z;
+	int event_blend_rate;
 	int32_t floor_event2;
 	int32_t north_event2;
 	int32_t south_event2;
 	int32_t east_event2;
 	int32_t west_event2;
+	struct dgn_cell **visible_cells;
+};
+
+struct pvs_run_lengths {
+	int32_t invisible_cells;
+	int32_t visible_cells;
+};
+
+struct packed_pvs {
+	struct pvs_run_lengths *run_lengths;
+	int nr_run_lengths;
+	int nr_visible_cells;
 };
 
 struct dgn {
@@ -105,6 +107,7 @@ struct dgn {
 	uint32_t size_z;
 	// uint32_t unknown[10];
 	struct dgn_cell *cells;
+	struct packed_pvs *pvs;
 };
 
 struct dgn *dgn_parse(uint8_t *data, size_t size);
@@ -117,5 +120,8 @@ static inline bool dgn_is_in_map(struct dgn *dgn, uint32_t x, uint32_t y, uint32
 {
 	return x < dgn->size_x && y < dgn->size_y && z < dgn->size_z;
 }
+
+// Returns a list of cells visible from (x, y, z), sorted by distance from (x, y, z).
+struct dgn_cell **dgn_get_visible_cells(struct dgn *dgn, int x, int y, int z, int *nr_cells_out);
 
 #endif /* SYSTEM4_DGN_H */
