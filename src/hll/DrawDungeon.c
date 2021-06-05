@@ -186,8 +186,8 @@ CELL_GETTER(DrawDungeon_GetTexDoorE, -1, cell->east_door);
 CELL_GETTER(DrawDungeon_GetTexStair, -1, cell->stairs_texture);
 CELL_GETTER(DrawDungeon_GetBattleBack, -1, cell->battle_background);
 
-#define CELL_SETTER(name, expr, update_map) \
-	static void name(int surface, int x, int y, int z, int value) \
+#define CELL_SETTER(name, type, expr, update_map) \
+	static void name(int surface, int x, int y, int z, type value) \
 	{ \
 		struct dungeon_context *ctx = dungeon_get_context(surface); \
 		if (!ctx || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z)) \
@@ -198,37 +198,37 @@ CELL_GETTER(DrawDungeon_GetBattleBack, -1, cell->battle_background);
 			dungeon_map_update_cell(ctx, x, y, z);	\
 	}
 
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDoorNAngle, int surface, int x, int y, int z, float angle);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDoorWAngle, int surface, int x, int y, int z, float angle);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDoorSAngle, int surface, int x, int y, int z, float angle);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDoorEAngle, int surface, int x, int y, int z, float angle);
-CELL_SETTER(DrawDungeon_SetEvFloor, cell->floor_event, true);
-CELL_SETTER(DrawDungeon_SetEvWallN, cell->north_event, true);
-CELL_SETTER(DrawDungeon_SetEvWallW, cell->west_event, true);
-CELL_SETTER(DrawDungeon_SetEvWallS, cell->south_event, true);
-CELL_SETTER(DrawDungeon_SetEvWallE, cell->east_event, true);
-CELL_SETTER(DrawDungeon_SetEvFloor2, cell->floor_event2, false);
-CELL_SETTER(DrawDungeon_SetEvWallN2, cell->north_event2, false);
-CELL_SETTER(DrawDungeon_SetEvWallW2, cell->west_event2, false);
-CELL_SETTER(DrawDungeon_SetEvWallS2, cell->south_event2, false);
-CELL_SETTER(DrawDungeon_SetEvWallE2, cell->east_event2, false);
+CELL_SETTER(DrawDungeon_SetDoorNAngle, float, cell->north_door_angle, false);
+CELL_SETTER(DrawDungeon_SetDoorWAngle, float, cell->west_door_angle, false);
+CELL_SETTER(DrawDungeon_SetDoorSAngle, float, cell->south_door_angle, false);
+CELL_SETTER(DrawDungeon_SetDoorEAngle, float, cell->east_door_angle, false);
+CELL_SETTER(DrawDungeon_SetEvFloor, int, cell->floor_event, true);
+CELL_SETTER(DrawDungeon_SetEvWallN, int, cell->north_event, true);
+CELL_SETTER(DrawDungeon_SetEvWallW, int, cell->west_event, true);
+CELL_SETTER(DrawDungeon_SetEvWallS, int, cell->south_event, true);
+CELL_SETTER(DrawDungeon_SetEvWallE, int, cell->east_event, true);
+CELL_SETTER(DrawDungeon_SetEvFloor2, int, cell->floor_event2, false);
+CELL_SETTER(DrawDungeon_SetEvWallN2, int, cell->north_event2, false);
+CELL_SETTER(DrawDungeon_SetEvWallW2, int, cell->west_event2, false);
+CELL_SETTER(DrawDungeon_SetEvWallS2, int, cell->south_event2, false);
+CELL_SETTER(DrawDungeon_SetEvWallE2, int, cell->east_event2, false);
 //void DrawDungeon_SetEvMag(int surface, int x, int y, int z, float mag);
-CELL_SETTER(DrawDungeon_SetEvRate, cell->event_blend_rate, false);
-CELL_SETTER(DrawDungeon_SetEnter, cell->enterable, false);
-CELL_SETTER(DrawDungeon_SetEnterN, cell->enterable_north, true);
-CELL_SETTER(DrawDungeon_SetEnterW, cell->enterable_west, true);
-CELL_SETTER(DrawDungeon_SetEnterS, cell->enterable_south, true);
-CELL_SETTER(DrawDungeon_SetEnterE, cell->enterable_east, true);
-CELL_SETTER(DrawDungeon_SetTexFloor, cell->floor, true);
-CELL_SETTER(DrawDungeon_SetTexCeiling, cell->ceiling, false);
-CELL_SETTER(DrawDungeon_SetTexWallN, cell->north_wall, true);
-CELL_SETTER(DrawDungeon_SetTexWallW, cell->west_wall, true);
-CELL_SETTER(DrawDungeon_SetTexWallS, cell->south_wall, true);
-CELL_SETTER(DrawDungeon_SetTexWallE, cell->east_wall, true);
-CELL_SETTER(DrawDungeon_SetTexDoorN, cell->north_door, true);
-CELL_SETTER(DrawDungeon_SetTexDoorW, cell->west_door, true);
-CELL_SETTER(DrawDungeon_SetTexDoorS, cell->south_door, true);
-CELL_SETTER(DrawDungeon_SetTexDoorE, cell->east_door, true);
+CELL_SETTER(DrawDungeon_SetEvRate, int, cell->event_blend_rate, false);
+CELL_SETTER(DrawDungeon_SetEnter, int, cell->enterable, false);
+CELL_SETTER(DrawDungeon_SetEnterN, int, cell->enterable_north, true);
+CELL_SETTER(DrawDungeon_SetEnterW, int, cell->enterable_west, true);
+CELL_SETTER(DrawDungeon_SetEnterS, int, cell->enterable_south, true);
+CELL_SETTER(DrawDungeon_SetEnterE, int, cell->enterable_east, true);
+CELL_SETTER(DrawDungeon_SetTexFloor, int, cell->floor, true);
+CELL_SETTER(DrawDungeon_SetTexCeiling, int, cell->ceiling, false);
+CELL_SETTER(DrawDungeon_SetTexWallN, int, cell->north_wall, true);
+CELL_SETTER(DrawDungeon_SetTexWallW, int, cell->west_wall, true);
+CELL_SETTER(DrawDungeon_SetTexWallS, int, cell->south_wall, true);
+CELL_SETTER(DrawDungeon_SetTexWallE, int, cell->east_wall, true);
+CELL_SETTER(DrawDungeon_SetTexDoorN, int, cell->north_door, true);
+CELL_SETTER(DrawDungeon_SetTexDoorW, int, cell->west_door, true);
+CELL_SETTER(DrawDungeon_SetTexDoorS, int, cell->south_door, true);
+CELL_SETTER(DrawDungeon_SetTexDoorE, int, cell->east_door, true);
 //void DrawDungeon_SetSkyTextureSet(int surface, int set);
 
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDrawMapRadar, int surface, int flag);

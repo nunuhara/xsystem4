@@ -81,6 +81,10 @@ struct dgn_cell {
 	// Runtime data (not stored in .dgn)
 	int x, y, z;
 	int event_blend_rate;
+	float north_door_angle;
+	float south_door_angle;
+	float east_door_angle;
+	float west_door_angle;
 	int32_t floor_event2;
 	int32_t north_event2;
 	int32_t south_event2;

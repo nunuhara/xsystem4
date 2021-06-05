@@ -74,6 +74,8 @@ struct dungeon_renderer {
 	GLint vertex_uv;
 
 	struct geometry *wall_geometry;
+	struct geometry *door_left_geometry;
+	struct geometry *door_right_geometry;
 	struct geometry *stairs_geometry;
 
 	struct material *materials;
@@ -95,6 +97,20 @@ static const struct vertex wall_vertices[] = {
 	{-1.0, -1.0, 0.0,  0.0, 1.0},
 	{ 1.0,  1.0, 0.0,  1.0, 0.0},
 	{ 1.0, -1.0, 0.0,  1.0, 1.0},
+};
+
+static const struct vertex door_left_vertices[] = {
+	{ 0.0,  1.0, 0.0,  0.0, 0.0},
+	{ 0.0, -1.0, 0.0,  0.0, 1.0},
+	{ 1.0,  1.0, 0.0,  0.5, 0.0},
+	{ 1.0, -1.0, 0.0,  0.5, 1.0},
+};
+
+static const struct vertex door_right_vertices[] = {
+	{-1.0,  1.0, 0.0,  0.5, 0.0},
+	{-1.0, -1.0, 0.0,  0.5, 1.0},
+	{ 0.0,  1.0, 0.0,  1.0, 0.0},
+	{ 0.0, -1.0, 0.0,  1.0, 1.0},
 };
 
 static const struct vertex stairs_vertices[] = {
@@ -208,6 +224,8 @@ struct dungeon_renderer *dungeon_renderer_create(struct dtx *dtx, GLuint *event_
 	r->vertex_uv = glGetAttribLocation(r->shader.program, "vertex_uv");
 
 	r->wall_geometry = geometry_create(r, wall_vertices, sizeof(wall_vertices));
+	r->door_left_geometry = geometry_create(r, door_left_vertices, sizeof(door_left_vertices));
+	r->door_right_geometry = geometry_create(r, door_right_vertices, sizeof(door_right_vertices));
 	r->stairs_geometry = geometry_create(r, stairs_vertices, sizeof(stairs_vertices));
 
 	const int nr_types = DTX_DOOR + 1;
@@ -233,6 +251,8 @@ void dungeon_renderer_free(struct dungeon_renderer *r)
 	glDeleteProgram(r->shader.program);
 
 	geometry_free(r->wall_geometry);
+	geometry_free(r->door_left_geometry);
+	geometry_free(r->door_right_geometry);
 	geometry_free(r->stairs_geometry);
 
 	for (int i = 0; i < r->nr_materials; i++)
@@ -260,6 +280,26 @@ static void draw(struct dungeon_renderer *r, struct geometry *geometry, GLuint t
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, geometry->nr_vertices);
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static void draw_door(struct dungeon_renderer *r, GLuint texture, float angle, mat4 transform, float dx, float dz)
+{
+	if (angle == 0.0) {
+		draw(r, r->wall_geometry, texture, transform);
+		return;
+	}
+	mat4 m;
+	glm_mat4_copy(transform, m);
+	m[3][0] += dx;
+	m[3][2] += dz;
+	glm_rotate_y(m, angle * (M_PI/180), m);
+	draw(r, r->door_left_geometry, texture, m);
+
+	glm_mat4_copy(transform, m);
+	m[3][0] -= dx;
+	m[3][2] -= dz;
+	glm_rotate_y(m, angle * -(M_PI/180), m);
+	draw(r, r->door_right_geometry, texture, m);
 }
 
 static void draw_floor_marker(struct dungeon_renderer *r, const struct marker_info *info, float x, float y, float z, uint32_t t)
@@ -377,7 +417,7 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 				 0,  1,  0,  y,
 				 0,  0,  1,  z-1,
 				 0,  0,  0,  1);
-			draw(r, r->wall_geometry, material->texture, m);
+			draw_door(r, material->texture, cell->north_door_angle, m, -1, 0);
 		}
 	}
 	if (cell->south_door >= 0) {
@@ -388,7 +428,7 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 				 0,  1,  0,  y,
 				 0,  0, -1,  z+1,
 				 0,  0,  0,  1);
-			draw(r, r->wall_geometry, material->texture, m);
+			draw_door(r, material->texture, cell->south_door_angle, m, 1, 0);
 		}
 	}
 	if (cell->east_door >= 0) {
@@ -399,7 +439,7 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 				 0,  1,  0,  y,
 				 1,  0,  0,  z,
 				 0,  0,  0,  1);
-			draw(r, r->wall_geometry, material->texture, m);
+			draw_door(r, material->texture, cell->east_door_angle, m, 0, -1);
 		}
 	}
 	if (cell->west_door >= 0) {
@@ -410,7 +450,7 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 				 0,  1,  0,  y,
 				-1,  0,  0,  z,
 				 0,  0,  0,  1);
-			draw(r, r->wall_geometry, material->texture, m);
+			draw_door(r, material->texture, cell->west_door_angle, m, 0, 1);
 		}
 	}
 	if (cell->stairs_texture >= 0) {
