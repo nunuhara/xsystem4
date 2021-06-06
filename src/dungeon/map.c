@@ -31,6 +31,8 @@
 #endif
 
 #define CS 12  // pixel size of a map cell
+#define LMAP_WIDTH 32
+#define LMAP_HEIGHT 32
 
 enum symbol_type {
 	SYMBOL_PLAYER_NORTH = 0,
@@ -58,7 +60,16 @@ struct dungeon_map {
 	int large_map_floor;
 	bool all_visible;
 	int *walk_data;
+	int offset_x, offset_y;
 };
+
+static Point texture_pos(struct dungeon_context *ctx, int x, int z)
+{
+	return (Point){
+		.x = (ctx->map->offset_x + x) * CS,
+		.y = (ctx->map->offset_y + ctx->dgn->size_z - z - 1) * CS
+	};
+}
 
 struct dungeon_map *dungeon_map_create(void)
 {
@@ -85,8 +96,31 @@ void dungeon_map_init(struct dungeon_context *ctx)
 	map->textures = xcalloc(dgn->size_y, sizeof(struct texture));
 	map->nr_textures = dgn->size_y;
 	map->walk_data = xcalloc(dgn->size_x * dgn->size_y * dgn->size_z, sizeof(int));
+	// Calculate the bounding box on the XZ plane so that map is drawn in the
+	// center of the texture.
+	uint32_t min_x = dgn->size_x;
+	uint32_t min_y = dgn->size_z;
+	uint32_t max_x = 0;
+	uint32_t max_y = 0;
 	for (uint32_t y = 0; y < dgn->size_y; y++) {
-		gfx_init_texture_rgba(&map->textures[y], dgn->size_x * CS, dgn->size_z * CS, (SDL_Color){0, 0, 0, 0});
+		for (uint32_t z = 0; z < dgn->size_z; z++) {
+			uint32_t map_y = ctx->dgn->size_z - z - 1;
+			for (uint32_t x = 0; x < dgn->size_x; x++) {
+				if (dgn_cell_at(ctx->dgn, x, y, z)->floor < 0)
+					continue;
+				min_x = min(min_x, x);
+				min_y = min(min_y, map_y);
+				max_x = max(max_x, x);
+				max_y = max(max_y, map_y);
+			}
+		}
+	}
+	map->offset_x = (LMAP_WIDTH - (max_x - min_x + 1)) / 2 - min_x;
+	map->offset_y = (LMAP_HEIGHT - (max_y - min_y + 1) + 1) / 2 - min_y;
+
+	// Initial draw
+	for (uint32_t y = 0; y < dgn->size_y; y++) {
+		gfx_init_texture_rgba(&map->textures[y], LMAP_WIDTH * CS, LMAP_HEIGHT * CS, (SDL_Color){182, 72, 0, 0});
 		for (uint32_t z = 0; z < dgn->size_z; z++) {
 			for (uint32_t x = 0; x < dgn->size_x; x++) {
 				dungeon_map_update_cell(ctx, x, y, z);
@@ -99,9 +133,8 @@ static void reveal_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, int d
 {
 	ctx->map->walk_data[dgn_cell_index(ctx->dgn, dgn_x, dgn_y, dgn_z)] = 1;
 	struct texture *dst = &ctx->map->textures[dgn_y];
-	int x = dgn_x * CS;
-	int y = (ctx->dgn->size_z - dgn_z - 1) * CS;
-	gfx_fill_amap(dst, x, y, CS, CS, 255);
+	Point pos = texture_pos(ctx, dgn_x, dgn_z);
+	gfx_fill_amap(dst, pos.x, pos.y, CS, CS, 255);
 }
 
 static void draw_hline(struct texture *dst, int x, int y, int w, SDL_Color col)
@@ -127,8 +160,9 @@ void dungeon_map_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, 
 {
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, dgn_x, dgn_y, dgn_z);
 	struct texture *dst = &ctx->map->textures[dgn_y];
-	int x = dgn_x * CS;
-	int y = (ctx->dgn->size_z - dgn_z - 1) * CS;
+	Point pos = texture_pos(ctx, dgn_x, dgn_z);
+	int x = pos.x;
+	int y = pos.y;
 
 	if (cell->floor >= 0)
 		gfx_fill(dst, x, y, CS, CS, 0, 0, 0);
@@ -225,8 +259,9 @@ void dungeon_map_draw(int surface, int sprite)
 
 	struct texture *src = &ctx->map->textures[level];
 
-	int x = player_x * CS - (dst->w - CS) / 2;
-	int y = (ctx->dgn->size_z - player_z - 1) * CS - (dst->h - CS) / 2;
+	Point pos = texture_pos(ctx, player_x, player_z);
+	int x = pos.x - (dst->w - CS) / 2;
+	int y = pos.y - (dst->h - CS) / 2;
 
 	gfx_copy_with_alpha_map(dst, 0, 0, src, x, y, dst->w, dst->h);
 
@@ -260,7 +295,8 @@ void dungeon_map_draw_lmap(int surface, int sprite)
 	if (ctx->map->all_visible)
 		gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 255);
 
-	draw_symbol(ctx, dst, player_x * CS + 1, (ctx->dgn->size_z - player_z - 1) * CS + 1, player_symbol(ctx));
+	Point pos = texture_pos(ctx, player_x, player_z);
+	draw_symbol(ctx, dst, pos.x + 1, pos.y + 1, player_symbol(ctx));
 }
 
 void dungeon_map_set_all_view(int surface, int flag)
