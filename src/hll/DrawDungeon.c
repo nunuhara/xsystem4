@@ -231,20 +231,20 @@ CELL_SETTER(DrawDungeon_SetTexDoorS, int, cell->south_door, true);
 CELL_SETTER(DrawDungeon_SetTexDoorE, int, cell->east_door, true);
 //void DrawDungeon_SetSkyTextureSet(int surface, int set);
 
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDrawHalfFlag, int surface, int flag);
-HLL_WARN_UNIMPLEMENTED(0, int,  DrawDungeon, GetDrawHalfFlag, int surface);
+HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, SetDrawHalfFlag, int surface, int flag);
+HLL_QUIET_UNIMPLEMENTED(0, int,  DrawDungeon, GetDrawHalfFlag, int surface);
 //void DrawDungeon_SetWalkedAll(int surface);
 //int DrawDungeon_CalcNumofFloor(int surface);
 //int DrawDungeon_CalcNumofWalk(int surface);
 //int DrawDungeon_CalcNumofWalk2(int surface);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetInterlaceMode, int surface, int flag);
-HLL_WARN_UNIMPLEMENTED(1, bool, DrawDungeon, SetDirect3DMode, int surface, int flag);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SaveDrawSettingFlag, int direct3D, int interlace, int half);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, GetDrawSettingFlag, int *direct3D, int *half);
-HLL_WARN_UNIMPLEMENTED(1, bool, DrawDungeon, IsDrawSettingFile, void);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, DeleteDrawSettingFile, void);
-HLL_WARN_UNIMPLEMENTED(1, bool, DrawDungeon, IsSSEFlag, void);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetSSEFlag, bool flag);
+HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, SetInterlaceMode, int surface, int flag);
+HLL_QUIET_UNIMPLEMENTED(1, bool, DrawDungeon, SetDirect3DMode, int surface, int flag);
+HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, SaveDrawSettingFlag, int direct3D, int interlace, int half);
+HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, GetDrawSettingFlag, int *direct3D, int *half);
+HLL_QUIET_UNIMPLEMENTED(1, bool, DrawDungeon, IsDrawSettingFile, void);
+HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, DeleteDrawSettingFile, void);
+HLL_QUIET_UNIMPLEMENTED(1, bool, DrawDungeon, IsSSEFlag, void);
+HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, SetSSEFlag, bool flag);
 bool DrawDungeon_IsPVSData(int surface)
 {
 	return false;
@@ -258,8 +258,8 @@ static int DrawDungeon_GetTexSound(int surface, int type, int num)
 	return tes_get(ctx->tes, type, num);
 }
 
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, StopTimer, void);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, RestartTimer, void);
+HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, StopTimer, void);
+HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, RestartTimer, void);
 
 HLL_LIBRARY(DrawDungeon,
 			HLL_EXPORT(Init, DrawDungeon_Init),
