@@ -58,6 +58,7 @@ struct dungeon_map {
 	int symbol_sprites[NR_SYMBOLS];
 	int small_map_floor;
 	int large_map_floor;
+	bool radar;
 	bool all_visible;
 	int *walk_data;
 	int offset_x, offset_y;
@@ -207,17 +208,17 @@ void dungeon_map_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, 
 	if (cell->east_event)
 		draw_vline(dst, x + CS - 1, y, CS, event_wall_color);
 
+	bool draw_all_symbols = ctx->map->radar || ctx->map->all_visible;
 	int symbol = -1;
 	switch (cell->floor_event) {
-	case 11: symbol = SYMBOL_TREASURE; break;
-	case 12: symbol = SYMBOL_MONSTER; break;
-	case 14:
-	case 140: symbol = SYMBOL_EVENT; break;
-	case 15: symbol = SYMBOL_HEART; break;
-	case 16: symbol = SYMBOL_CROSS; break;
-	case 17: symbol = SYMBOL_EXIT; break;
-	case 18: symbol = SYMBOL_WARP; break;
-	case 28: symbol = SYMBOL_YELLOW_STAR; break;
+	case 11: if (draw_all_symbols) symbol = SYMBOL_TREASURE; break;
+	case 12: if (draw_all_symbols) symbol = SYMBOL_MONSTER; break;
+	case 14: case 140:             symbol = SYMBOL_EVENT; break;
+	case 15:                       symbol = SYMBOL_HEART; break;
+	case 16: if (draw_all_symbols) symbol = SYMBOL_CROSS; break;
+	case 17:                       symbol = SYMBOL_EXIT; break;
+	case 18:                       symbol = SYMBOL_WARP; break;
+	case 28: if (draw_all_symbols) symbol = SYMBOL_YELLOW_STAR; break;
 	}
 	if (cell->stairs_texture >= 0)
 		symbol = SYMBOL_STAIRS_UP;
@@ -299,12 +300,35 @@ void dungeon_map_draw_lmap(int surface, int sprite)
 	draw_symbol(ctx, dst, pos.x + 1, pos.y + 1, player_symbol(ctx));
 }
 
+static void redraw_event_symbols(struct dungeon_context *ctx)
+{
+	struct dgn *dgn = ctx->dgn;
+	for (uint32_t y = 0; y < dgn->size_y; y++) {
+		for (uint32_t z = 0; z < dgn->size_z; z++) {
+			for (uint32_t x = 0; x < dgn->size_x; x++) {
+				if (dgn_cell_at(dgn, x, y, z)->floor_event)
+					dungeon_map_update_cell(ctx, x, y, z);
+			}
+		}
+	}
+}
+
+void dungeon_map_set_radar(int surface, int flag)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || ctx->map->radar == flag)
+		return;
+	ctx->map->radar = flag;
+	redraw_event_symbols(ctx);
+}
+
 void dungeon_map_set_all_view(int surface, int flag)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
+	if (!ctx || ctx->map->all_visible == flag)
 		return;
 	ctx->map->all_visible = flag;
+	redraw_event_symbols(ctx);
 }
 
 void dungeon_map_set_cg(int surface, int index, int sprite)

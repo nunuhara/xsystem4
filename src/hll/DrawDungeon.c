@@ -231,7 +231,6 @@ CELL_SETTER(DrawDungeon_SetTexDoorS, int, cell->south_door, true);
 CELL_SETTER(DrawDungeon_SetTexDoorE, int, cell->east_door, true);
 //void DrawDungeon_SetSkyTextureSet(int surface, int set);
 
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDrawMapRadar, int surface, int flag);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon, SetDrawHalfFlag, int surface, int flag);
 HLL_WARN_UNIMPLEMENTED(0, int,  DrawDungeon, GetDrawHalfFlag, int surface);
 //void DrawDungeon_SetWalkedAll(int surface);
@@ -358,7 +357,7 @@ HLL_LIBRARY(DrawDungeon,
 			HLL_EXPORT(DrawLMap, dungeon_map_draw_lmap),
 			HLL_EXPORT(SetMapCG, dungeon_map_set_cg),
 			HLL_EXPORT(SetDrawLMapFloor, dungeon_map_set_large_map_floor),
-			HLL_EXPORT(SetDrawMapRadar, DrawDungeon_SetDrawMapRadar),
+			HLL_EXPORT(SetDrawMapRadar, dungeon_map_set_radar),
 			HLL_EXPORT(SetDrawHalfFlag, DrawDungeon_SetDrawHalfFlag),
 			HLL_EXPORT(GetDrawHalfFlag, DrawDungeon_GetDrawHalfFlag),
 			HLL_EXPORT(SetWalked, dungeon_map_set_walked),

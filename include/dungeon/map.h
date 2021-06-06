@@ -28,6 +28,7 @@ void dungeon_map_update_cell(struct dungeon_context *ctx, int x, int y, int z);
 
 void dungeon_map_draw(int surface, int sprite);
 void dungeon_map_draw_lmap(int surface, int sprite);
+void dungeon_map_set_radar(int surface, int flag);
 void dungeon_map_set_all_view(int surface, int flag);
 void dungeon_map_set_cg(int surface, int index, int sprite);
 void dungeon_map_set_small_map_floor(int surface, int floor);
