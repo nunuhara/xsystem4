@@ -219,9 +219,9 @@ void dungeon_map_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, 
 	case 18: symbol = SYMBOL_WARP; break;
 	case 28: symbol = SYMBOL_YELLOW_STAR; break;
 	}
-	if (cell->stairs_orientation >= 0)
+	if (cell->stairs_texture >= 0)
 		symbol = SYMBOL_STAIRS_UP;
-	else if (dgn_y && dgn_cell_at(ctx->dgn, dgn_x, dgn_y - 1, dgn_z)->stairs_orientation >= 0)
+	else if (dgn_y && dgn_cell_at(ctx->dgn, dgn_x, dgn_y - 1, dgn_z)->stairs_texture >= 0)
 		symbol = SYMBOL_STAIRS_DOWN;
 
 	if (symbol >= 0)
@@ -339,11 +339,11 @@ void dungeon_map_set_walked(int surface, int x, int y, int z, int flag)
 	if (!ctx)
 		return;
 	reveal_cell(ctx, x, y, z);
-	if (x >= 0 && dgn_cell_at(ctx->dgn, x - 1, y, z)->floor < 0)
+	if (x > 0 && dgn_cell_at(ctx->dgn, x - 1, y, z)->floor < 0)
 		reveal_cell(ctx, x - 1, y, z);
 	if (x + 1u < ctx->dgn->size_x && dgn_cell_at(ctx->dgn, x + 1, y, z)->floor < 0)
 		reveal_cell(ctx, x + 1, y, z);
-	if (z >= 0 && dgn_cell_at(ctx->dgn, x, y, z - 1)->floor < 0)
+	if (z > 0 && dgn_cell_at(ctx->dgn, x, y, z - 1)->floor < 0)
 		reveal_cell(ctx, x, y, z - 1);
 	if (z + 1u < ctx->dgn->size_z && dgn_cell_at(ctx->dgn, x, y, z + 1)->floor < 0)
 		reveal_cell(ctx, x, y, z + 1);

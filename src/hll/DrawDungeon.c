@@ -145,11 +145,11 @@ static int DrawDungeon_IsInMap(int surface, int x, int y, int z)
 
 CELL_GETTER(DrawDungeon_IsFloor, 0, cell->floor != -1);
 //bool DrawDungeon_IsFloorFillTexture(int surface, int x, int y, int z);
-CELL_GETTER(DrawDungeon_IsStair, 0, cell->stairs_orientation != -1);
-CELL_GETTER(DrawDungeon_IsStairN, 0, cell->stairs_orientation == 0);
-CELL_GETTER(DrawDungeon_IsStairW, 0, cell->stairs_orientation == 1);
-CELL_GETTER(DrawDungeon_IsStairS, 0, cell->stairs_orientation == 2);
-CELL_GETTER(DrawDungeon_IsStairE, 0, cell->stairs_orientation == 3);
+CELL_GETTER(DrawDungeon_IsStair, 0, cell->stairs_texture != -1);
+CELL_GETTER(DrawDungeon_IsStairN, 0, cell->stairs_texture != -1 && cell->stairs_orientation == 0);
+CELL_GETTER(DrawDungeon_IsStairW, 0, cell->stairs_texture != -1 && cell->stairs_orientation == 1);
+CELL_GETTER(DrawDungeon_IsStairS, 0, cell->stairs_texture != -1 && cell->stairs_orientation == 2);
+CELL_GETTER(DrawDungeon_IsStairE, 0, cell->stairs_texture != -1 && cell->stairs_orientation == 3);
 CELL_GETTER(DrawDungeon_IsWallN, 0, cell->north_wall != -1);
 CELL_GETTER(DrawDungeon_IsWallW, 0, cell->west_wall != -1);
 CELL_GETTER(DrawDungeon_IsWallS, 0, cell->south_wall != -1);
