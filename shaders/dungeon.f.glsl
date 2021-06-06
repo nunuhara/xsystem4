@@ -23,12 +23,12 @@ in float dist;
 in vec2 tex_coord;
 out vec4 frag_color;
 
-const float FOG_MAX_DIST = 20.0;  // FIXME
+const float FOG_MAX_DIST = 12.0;
 const vec3 FOG_COLOR = vec3(0.0, 0.0, 0.0);
 
 void main() {
         vec4 texel = texture(tex, tex_coord);
         float fog_factor = (FOG_MAX_DIST - dist) / FOG_MAX_DIST;
-        fog_factor = clamp(fog_factor, 0.0, 1.0);
+        fog_factor = clamp(fog_factor, 0.3, 1.0);
         frag_color = vec4(mix(FOG_COLOR, vec3(texel), fog_factor), texel.a * alpha_mod);
 }
