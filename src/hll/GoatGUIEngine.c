@@ -15,12 +15,12 @@
  */
 
 #include <assert.h>
+#include <cglm/cglm.h>
 
 #include "system4/cg.h"
 #include "system4/hashtable.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
-#include <cglm/cglm.h>
 
 #include "asset_manager.h"
 #include "audio.h"
@@ -28,6 +28,7 @@
 #include "input.h"
 #include "queue.h"
 #include "scene.h"
+#include "vm/page.h"
 #include "xsystem4.h"
 #include "hll.h"
 
@@ -39,6 +40,9 @@ static inline float deg2rad(float deg)
 {
 	return deg * (M_PI / 180.0);
 }
+
+// Goat sprites are integrated into the scene via a single (virtual) sprite
+static struct sprite goat_sprite;
 
 // NOTE: actual value is +1
 enum parts_state_type {
@@ -127,30 +131,34 @@ struct parts_state {
 	};
 };
 
+TAILQ_HEAD(parts_list, parts);
+static struct parts_list parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
+static struct hash_table *parts_table = NULL;
+
 struct parts {
-	struct sprite sp;
+	//struct sprite sp;
 	enum parts_state_type state;
 	struct parts_state states[PARTS_NR_STATES];
 	TAILQ_ENTRY(parts) parts_list_entry;
+	struct parts_list children;
 	int no;
 	int sprite_deform;
 	bool clickable;
 	int on_cursor_sound;
 	int on_click_sound;
 	int origin_mode;
-	Rectangle rect;
-	// The actual hitbox of the sprite (accounting for origin-mode, scale, etc)
+	int parent;
 	uint8_t alpha;
+	Rectangle rect;
+	int z;
+	bool show;
+	// The actual hitbox of the sprite (accounting for origin-mode, scale, etc)
 	Rectangle pos;
+	Point offset;
 	struct { float x, y; } scale;
 	struct { float x, y, z; } rotation;
 	TAILQ_HEAD(, parts_motion) motion;
 };
-
-static void parts_render(struct sprite *sp);
-
-static struct hash_table *parts_table = NULL;
-static TAILQ_HEAD(listhead, parts) parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
 
 // true between calls to BeginClick and EndClick
 static bool began_click = false;
@@ -170,9 +178,73 @@ static int motion_t = 0;
 // the end time of the current motion
 static int motion_end_t = 0;
 
+struct parts_render_params {
+	Point offset;
+	uint8_t alpha;
+};
+
+static void parts_render_text(struct parts *parts, struct parts_render_params *params);
+static void parts_render_cg(struct parts *parts, Texture *t, struct parts_render_params *params);
+
+static void parts_render(struct parts *parts, struct parts_render_params *parent_params)
+{
+	struct parts_render_params params = *parent_params;
+	// modify params per parts values
+	params.alpha *= parts->alpha / 255.0;
+	params.offset.x += parts->rect.x;
+	params.offset.y += parts->rect.y;
+
+	// render
+	switch (parts->states[parts->state].type) {
+	case PARTS_CG:
+		parts_render_cg(parts, &parts->states[parts->state].cg.texture, &params);
+		break;
+	case PARTS_TEXT:
+		parts_render_text(parts, &params);
+		break;
+	case PARTS_ANIMATION:
+		parts_render_cg(parts, &parts->states[parts->state].anim.texture, &params);
+		break;
+	}
+
+	// render children
+	struct parts *child;
+	TAILQ_FOREACH(child, &parts->children, parts_list_entry) {
+		parts_render(child, &params);
+	}
+}
+
+static void goat_render(possibly_unused struct sprite *_)
+{
+	struct parts_render_params params = {
+		.offset = { 0, 0 },
+		.alpha = 255,
+	};
+	struct parts *parts;
+	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+		parts_render(parts, &params);
+	}
+}
+
+static inline void goat_dirty(void)
+{
+	scene_sprite_dirty(&goat_sprite);
+}
+
+static inline void parts_dirty(possibly_unused struct parts *parts)
+{
+	goat_dirty();
+}
+
 static bool GoatGUIEngine_Init(void)
 {
 	parts_table = ht_create(1024);
+	goat_sprite.z = 0;
+	goat_sprite.z2 = 2;
+	goat_sprite.has_pixel = true;
+	goat_sprite.has_alpha = true;
+	goat_sprite.render = goat_render;
+	scene_register_sprite(&goat_sprite);
 	return 1;
 }
 
@@ -194,14 +266,15 @@ static void parts_init(struct parts *parts)
 	parts->on_cursor_sound = -1;
 	parts->on_click_sound = -1;
 	parts->origin_mode = 1;
+	parts->z = 1;
+	parts->show = true;
+	parts->parent = -1;
 	parts->scale.x = 1.0;
 	parts->scale.y = 1.0;
 	parts->rotation.x = 0.0;
 	parts->rotation.y = 0.0;
 	parts->rotation.z = 0.0;
-	parts->sp.z = 0;
-	parts->sp.z2 = 2;
-	parts->sp.render = parts_render;
+	TAILQ_INIT(&parts->children);
 	TAILQ_INIT(&parts->motion);
 }
 
@@ -210,6 +283,19 @@ static struct parts *parts_alloc(void)
 	struct parts *parts = xcalloc(1, sizeof(struct parts));
 	parts_init(parts);
 	return parts;
+}
+
+static void parts_list_insert(struct parts_list *list, struct parts *parts)
+{
+	struct parts *p;
+	TAILQ_FOREACH(p, list, parts_list_entry) {
+		if (p->z >= parts->z) {
+			TAILQ_INSERT_BEFORE(p, parts, parts_list_entry);
+			return;
+		}
+	}
+	TAILQ_INSERT_TAIL(list, parts, parts_list_entry);
+	goat_dirty();
 }
 
 static struct parts *parts_get(int parts_no)
@@ -221,8 +307,20 @@ static struct parts *parts_get(int parts_no)
 	struct parts *parts = parts_alloc();
 	parts->no = parts_no;
 	slot->value = parts;
-	TAILQ_INSERT_HEAD(&parts_list, parts, parts_list_entry);
+	parts_list_insert(&parts_list, parts);
 	return parts;
+}
+
+static struct parts_list *parts_get_list(struct parts *parts)
+{
+	if (parts->parent < 0)
+		return &parts_list;
+	return &parts_get(parts->parent)->children;
+}
+
+static void parts_list_remove(struct parts_list *list, struct parts *parts)
+{
+	TAILQ_REMOVE(list, parts, parts_list_entry);
 }
 
 static void parts_state_free(struct parts_state *state)
@@ -298,15 +396,6 @@ static void parts_clear_motion(struct parts *parts)
 	}
 }
 
-static void parts_clear(struct parts *parts)
-{
-	parts_clear_motion(parts);
-	scene_unregister_sprite(&parts->sp);
-	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		parts_state_free(&parts->states[i]);
-	}
-}
-
 static void parts_release(int parts_no)
 {
 	struct ht_slot *slot = ht_put_int(parts_table, parts_no, NULL);
@@ -314,10 +403,14 @@ static void parts_release(int parts_no)
 		return;
 
 	struct parts *parts = slot->value;
-	parts_clear(parts);
+	parts_clear_motion(parts);
+	for (int i = 0; i < PARTS_NR_STATES; i++) {
+		parts_state_free(&parts->states[i]);
+	}
 	TAILQ_REMOVE(&parts_list, parts, parts_list_entry);
 	free(parts);
 	slot->value = NULL;
+	goat_dirty();
 }
 
 static void parts_release_all(void)
@@ -383,8 +476,12 @@ static Point motion_calculate_point(struct parts_motion *m, int t)
 	};
 }
 
-static void origin_mode_offset(int mode, int w, int h, int *_x, int *_y)
+static void parts_recalculate_offset(struct parts *parts)
 {
+	const int mode = parts->origin_mode;
+	const int w = parts->rect.w;
+	const int h = parts->rect.h;
+
 	int x, y;
 	switch (mode) {
 	case 1: x = 0;    y = 0;    break;
@@ -403,24 +500,16 @@ static void origin_mode_offset(int mode, int w, int h, int *_x, int *_y)
 		break;
 	}
 
-	*_x = x;
-	*_y = y;
-}
-
-static void origin_mode_translate(mat4 dst, int mode, int w, int h)
-{
-	int x, y;
-	origin_mode_offset(mode, w, h, &x, &y);
-	glm_translate(dst, (vec3) { x, y, 0 });
+	parts->offset.x = x;
+	parts->offset.y = y;
 }
 
 static void parts_recalculate_pos(struct parts *parts)
 {
-	int x, y;
-	origin_mode_offset(parts->origin_mode, parts->rect.w, parts->rect.h, &x, &y);
+	parts_recalculate_offset(parts);
 	parts->pos = (Rectangle) {
-		.x = parts->rect.x + x,
-		.y = parts->rect.y + y,
+		.x = parts->rect.x + parts->offset.x,
+		.y = parts->rect.y + parts->offset.y,
 		.w = parts->rect.w,
 		.h = parts->rect.h,
 	};
@@ -431,27 +520,27 @@ static void parts_set_pos(struct parts *parts, Point pos)
 	parts->rect.x = pos.x;
 	parts->rect.y = pos.y;
 	parts_recalculate_pos(parts);
-	scene_sprite_dirty(&parts->sp);
+	parts_dirty(parts);
 }
 
 static void parts_set_scale_x(struct parts *parts, float mag)
 {
 	parts->scale.x = mag;
 	parts_recalculate_pos(parts);
-	scene_sprite_dirty(&parts->sp);
+	parts_dirty(parts);
 }
 
 static void parts_set_scale_y(struct parts *parts, float mag)
 {
 	parts->scale.y = mag;
 	parts_recalculate_pos(parts);
-	scene_sprite_dirty(&parts->sp);
+	parts_dirty(parts);
 }
 
 static void parts_set_rotation_z(struct parts *parts, float rot)
 {
 	parts->rotation.z = rot;
-	scene_sprite_dirty(&parts->sp);
+	parts_dirty(parts);
 }
 
 static void parts_set_alpha(struct parts *parts, int alpha)
@@ -473,35 +562,41 @@ static void parts_set_alpha(struct parts *parts, int alpha)
 			break;
 		}
 	}
-	scene_sprite_dirty(&parts->sp);
+	parts_dirty(parts);
 }
 
 static void parts_set_state(struct parts *parts, enum parts_state_type state)
 {
 	if (parts->state != state) {
 		parts->state = state;
-		scene_sprite_dirty(&parts->sp);
+		parts_dirty(parts);
 	}
 }
 
-static void parts_render_text(struct parts *parts)
+static void parts_render_text(struct parts *parts, struct parts_render_params *params)
 {
-	gfx_render_texture(&parts->states[parts->state].text.texture, &parts->rect);
+	Rectangle rect = {
+		.x = params->offset.x,
+		.y = params->offset.y,
+		.w = parts->rect.w,
+		.h = parts->rect.h
+	};
+	gfx_render_texture(&parts->states[parts->state].text.texture, &rect);
 }
 
-static void parts_render_cg(struct parts *parts, Texture *t)
+static void parts_render_cg(struct parts *parts, Texture *t, struct parts_render_params *params)
 {
-	Rectangle *d = &parts->rect;
+	parts_recalculate_offset(parts);
+
 	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
-	glm_translate(mw_transform, (vec3) { d->x, d->y, 0 });
+	glm_translate(mw_transform, (vec3) { params->offset.x, params->offset.y, 0 });
 	// FIXME: need perspective for 3D rotate
 	//glm_rotate_x(mw_transform, parts->rotation.x, mw_transform);
 	//glm_rotate_y(mw_transform, parts->rotation.y, mw_transform);
 	glm_rotate_z(mw_transform, parts->rotation.z, mw_transform);
 	glm_scale(mw_transform, (vec3){ parts->scale.x, parts->scale.y, 1.0 });
-	origin_mode_translate(mw_transform, parts->origin_mode, d->w, d->h);
-	//glm_scale(mw_transform, (vec3){ d->w * parts->scale.x, d->h * parts->scale.y, 1.0 });
-	glm_scale(mw_transform, (vec3){ d->w, d->h, 1.0 });
+	glm_translate(mw_transform, (vec3){ parts->offset.x, parts->offset.y, 0 });
+	glm_scale(mw_transform, (vec3){ parts->rect.w, parts->rect.h, 1.0 });
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
 
 	struct gfx_render_job job = {
@@ -513,22 +608,6 @@ static void parts_render_cg(struct parts *parts, Texture *t)
 	};
 
 	gfx_render(&job);
-}
-
-static void parts_render(struct sprite *sp)
-{
-	struct parts *parts = (struct parts*)sp;
-	switch (parts->states[parts->state].type) {
-	case PARTS_CG:
-		parts_render_cg(parts, &parts->states[parts->state].cg.texture);
-		break;
-	case PARTS_TEXT:
-		parts_render_text(parts);
-		break;
-	case PARTS_ANIMATION:
-		parts_render_cg(parts, &parts->states[parts->state].anim.texture);
-		break;
-	}
 }
 
 static void parts_update_with_motion(struct parts *parts, struct parts_motion *motion)
@@ -624,7 +703,7 @@ static void parts_update_loop(struct parts *parts, int passed_time)
 		anim->elapsed = remainder;
 		anim->current_frame = (anim->current_frame + frame_diff) % anim->nr_frames;
 		anim->texture = anim->frames[anim->current_frame];
-		scene_sprite_dirty(&parts->sp);
+		parts_dirty(parts);
 	} else {
 		anim->elapsed = elapsed;
 	}
@@ -697,8 +776,6 @@ static void parts_add_cg(struct parts *parts, struct cg *cg)
 		WARNING("Heights of parts CGs differ: %d / %d", parts->rect.h, cg->metrics.h);
 	parts->rect.w = cg->metrics.w;
 	parts->rect.h = cg->metrics.h;
-	parts->sp.has_pixel = true;
-	parts->sp.has_alpha = cg->metrics.has_alpha;
 }
 
 static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused int sprite_deform, int state)
@@ -719,7 +796,7 @@ static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused in
 	parts_cg->no = cg_no;
 	parts_add_cg(parts, cg);
 	parts_recalculate_pos(parts);
-	scene_sprite_dirty(&parts->sp);
+	parts_dirty(parts);
 	cg_free(cg);
 	return true;
 }
@@ -1009,12 +1086,21 @@ static void GoatGUIEngine_SetPos(int parts_no, int x, int y)
  */
 static void GoatGUIEngine_SetZ(int parts_no, int z)
 {
-	scene_set_sprite_z2(&parts_get(parts_no)->sp, 0, z+1);
+	struct parts *parts = parts_get(parts_no);
+	parts->z = z;
+
+	struct parts_list *list = parts_get_list(parts);
+	parts_list_remove(list, parts);
+	parts_list_insert(list, parts);
 }
 
 static void GoatGUIEngine_SetShow(int parts_no, bool show)
 {
-	scene_set_sprite_show(&parts_get(parts_no)->sp, show);
+	struct parts *parts = parts_get(parts_no);
+	if (parts->show != show) {
+		parts->show = show;
+		parts_dirty(parts);
+	}
 }
 
 static void GoatGUIEngine_SetAlpha(int parts_no, int alpha)
@@ -1041,12 +1127,12 @@ static int GoatGUIEngine_GetPartsY(int parts_no)
 
 static int GoatGUIEngine_GetPartsZ(int parts_no)
 {
-	return parts_get(parts_no)->sp.z2 - 1;
+	return parts_get(parts_no)->z;
 }
 
 static bool GoatGUIEngine_GetPartsShow(int parts_no)
 {
-	return scene_get_sprite_show(&parts_get(parts_no)->sp);
+	return parts_get(parts_no)->show;
 }
 
 static int GoatGUIEngine_GetPartsAlpha(int parts_no)
@@ -1064,7 +1150,7 @@ static void GoatGUIEngine_SetPartsOriginPosMode(int parts_no, int origin_pos_mod
 	struct parts *parts = parts_get(parts_no);
 	parts->origin_mode = origin_pos_mode;
 	parts_recalculate_pos(parts);
-	scene_sprite_dirty(&parts->sp);
+	parts_dirty(parts);
 }
 
 static int GoatGUIEngine_GetPartsOriginPosMode(int parts_no)
@@ -1072,7 +1158,16 @@ static int GoatGUIEngine_GetPartsOriginPosMode(int parts_no)
 	return parts_get(parts_no)->origin_mode;
 }
 
-void GoatGUIEngine_SetParentPartsNumber(int PartsNumber, int ParentPartsNumber);
+static void GoatGUIEngine_SetParentPartsNumber(int parts_no, int parent_parts_no)
+{
+	struct parts *parts = parts_get(parts_no);
+	if (parts->parent == parent_parts_no)
+		return;
+
+	parts_list_remove(parts_get_list(parts), parts);
+	parts_list_insert(&parts_get(parent_parts_no)->children, parts);
+	parts->parent = parent_parts_no;
+}
 
 static bool GoatGUIEngine_SetPartsGroupNumber(int PartsNumber, int GroupNumber)
 {
@@ -1283,8 +1378,21 @@ void GoatGUIEngine_SetPartsAlphaClipperPartsNumber(int PartsNumber, int AlphaCli
 void GoatGUIEngine_SetPartsPixelDecide(int PartsNumber, bool PixelDecide);
 bool GoatGUIEngine_SetThumbnailReductionSize(int ReductionSize);
 bool GoatGUIEngine_SetThumbnailMode(bool Mode);
-bool GoatGUIEngine_Save(struct page **SaveDataBuffer);
-bool GoatGUIEngine_Load(struct page **SaveDataBuffer);
+
+static bool GoatGUIEngine_Save(struct page **buffer)
+{
+	if (*buffer) {
+		delete_page_vars(*buffer);
+		free_page(*buffer);
+	}
+	*buffer = NULL;
+	return true;
+}
+
+static bool GoatGUIEngine_Load(struct page **buffer)
+{
+	return true;
+}
 
 HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(Init, GoatGUIEngine_Init),
@@ -1336,7 +1444,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(GetPartsClickable, GoatGUIEngine_GetPartsClickable),
 	    HLL_EXPORT(SetPartsOriginPosMode, GoatGUIEngine_SetPartsOriginPosMode),
 	    HLL_EXPORT(GetPartsOriginPosMode, GoatGUIEngine_GetPartsOriginPosMode),
-	    HLL_TODO_EXPORT(SetParentPartsNumber, GoatGUIEngine_SetParentPartsNumber),
+	    HLL_EXPORT(SetParentPartsNumber, GoatGUIEngine_SetParentPartsNumber),
 	    HLL_EXPORT(SetPartsGroupNumber, GoatGUIEngine_SetPartsGroupNumber),
 	    HLL_EXPORT(SetPartsGroupDecideOnCursor, GoatGUIEngine_SetPartsGroupDecideOnCursor),
 	    HLL_EXPORT(SetPartsGroupDecideClick, GoatGUIEngine_SetPartsGroupDecideClick),
@@ -1376,6 +1484,6 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_TODO_EXPORT(SetPartsPixelDecide, GoatGUIEngine_SetPartsPixelDecide),
 	    HLL_TODO_EXPORT(SetThumbnailReductionSize, GoatGUIEngine_SetThumbnailReductionSize),
 	    HLL_TODO_EXPORT(SetThumbnailMode, GoatGUIEngine_SetThumbnailMode),
-	    HLL_TODO_EXPORT(Save, GoatGUIEngine_Save),
-	    HLL_TODO_EXPORT(Load, GoatGUIEngine_Load));
+	    HLL_EXPORT(Save, GoatGUIEngine_Save),
+	    HLL_EXPORT(Load, GoatGUIEngine_Load));
 
