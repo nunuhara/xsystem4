@@ -195,15 +195,19 @@ static void parts_render(struct parts *parts, struct parts_render_params *parent
 	params.offset.y += parts->rect.y;
 
 	// render
-	switch (parts->states[parts->state].type) {
+	struct parts_state *state = &parts->states[parts->state];
+	switch (state->type) {
 	case PARTS_CG:
-		parts_render_cg(parts, &parts->states[parts->state].cg.texture, &params);
+		if (state->cg.texture.handle)
+			parts_render_cg(parts, &parts->states[parts->state].cg.texture, &params);
 		break;
 	case PARTS_TEXT:
-		parts_render_text(parts, &params);
+		if (state->text.texture.handle)
+			parts_render_text(parts, &params);
 		break;
 	case PARTS_ANIMATION:
-		parts_render_cg(parts, &parts->states[parts->state].anim.texture, &params);
+		if (state->anim.texture.handle)
+			parts_render_cg(parts, &parts->states[parts->state].anim.texture, &params);
 		break;
 	}
 
@@ -331,6 +335,7 @@ static void parts_state_free(struct parts_state *state)
 		break;
 	case PARTS_TEXT:
 		free(state->text.lines);
+		gfx_delete_texture(&state->text.texture);
 		break;
 	case PARTS_ANIMATION:
 		for (unsigned i = 0; i < state->anim.nr_frames; i++) {
@@ -338,6 +343,7 @@ static void parts_state_free(struct parts_state *state)
 		}
 		break;
 	}
+	memset(state, 0, sizeof(struct parts_state));
 }
 
 static void parts_state_reset(struct parts_state *state, enum parts_type type)
@@ -407,7 +413,7 @@ static void parts_release(int parts_no)
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
 		parts_state_free(&parts->states[i]);
 	}
-	TAILQ_REMOVE(&parts_list, parts, parts_list_entry);
+	parts_list_remove(parts_get_list(parts), parts);
 	free(parts);
 	slot->value = NULL;
 	goat_dirty();
@@ -575,9 +581,10 @@ static void parts_set_state(struct parts *parts, enum parts_state_type state)
 
 static void parts_render_text(struct parts *parts, struct parts_render_params *params)
 {
+	parts_recalculate_offset(parts);
 	Rectangle rect = {
-		.x = params->offset.x,
-		.y = params->offset.y,
+		.x = params->offset.x + parts->offset.x,
+		.y = params->offset.y + parts->offset.y,
 		.w = parts->rect.w,
 		.h = parts->rect.h
 	};
@@ -902,6 +909,8 @@ static void parts_text_append(struct parts *parts, struct string *text, int stat
 		const unsigned new_height = t->tm.size;
 		t->lines[t->nr_lines-1].height = max(old_height, new_height);
 	}
+	parts->rect.w = t->cursor.x;
+	parts->rect.h = t->cursor.y + t->lines[t->nr_lines-1].height;
 }
 
 static void parts_text_clear(struct parts *parts, int state)
@@ -910,6 +919,8 @@ static void parts_text_clear(struct parts *parts, int state)
 	free(text->lines);
 	text->lines = NULL;
 	text->nr_lines = 0;
+	text->cursor.x = 0;
+	text->cursor.y = 0;
 	gfx_delete_texture(&text->texture);
 }
 
