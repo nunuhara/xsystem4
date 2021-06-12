@@ -24,7 +24,6 @@
 #include "gfx/gfx.h"
 #include "sact.h"
 #include "vm.h"
-#include "vm/page.h"
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
@@ -60,7 +59,6 @@ struct dungeon_map {
 	int large_map_floor;
 	bool radar;
 	bool all_visible;
-	int *walk_data;
 	int offset_x, offset_y;
 };
 
@@ -85,7 +83,6 @@ void dungeon_map_free(struct dungeon_map *map)
 	for (int i = 0; i < map->nr_textures; i++)
 		gfx_delete_texture(&map->textures[i]);
 	free(map->textures);
-	free(map->walk_data);
 	free(map);
 }
 
@@ -96,7 +93,6 @@ void dungeon_map_init(struct dungeon_context *ctx)
 
 	map->textures = xcalloc(dgn->size_y, sizeof(struct texture));
 	map->nr_textures = dgn->size_y;
-	map->walk_data = xcalloc(dgn->size_x * dgn->size_y * dgn->size_z, sizeof(int));
 	// Calculate the bounding box on the XZ plane so that map is drawn in the
 	// center of the texture.
 	uint32_t min_x = dgn->size_x;
@@ -130,11 +126,10 @@ void dungeon_map_init(struct dungeon_context *ctx)
 	}
 }
 
-static void reveal_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, int dgn_z)
+void dungeon_map_reveal(struct dungeon_context *ctx, int x, int y, int z)
 {
-	ctx->map->walk_data[dgn_cell_index(ctx->dgn, dgn_x, dgn_y, dgn_z)] = 1;
-	struct texture *dst = &ctx->map->textures[dgn_y];
-	Point pos = texture_pos(ctx, dgn_x, dgn_z);
+	struct texture *dst = &ctx->map->textures[y];
+	Point pos = texture_pos(ctx, x, z);
 	gfx_fill_amap(dst, pos.x, pos.y, CS, CS, 255);
 }
 
@@ -302,14 +297,10 @@ void dungeon_map_draw_lmap(int surface, int sprite)
 
 static void redraw_event_symbols(struct dungeon_context *ctx)
 {
-	struct dgn *dgn = ctx->dgn;
-	for (uint32_t y = 0; y < dgn->size_y; y++) {
-		for (uint32_t z = 0; z < dgn->size_z; z++) {
-			for (uint32_t x = 0; x < dgn->size_x; x++) {
-				if (dgn_cell_at(dgn, x, y, z)->floor_event)
-					dungeon_map_update_cell(ctx, x, y, z);
-			}
-		}
+	int nr_cells = dgn_nr_cells(ctx->dgn);
+	for (struct dgn_cell *c = ctx->dgn->cells; c < ctx->dgn->cells + nr_cells; c++) {
+		if (c->floor_event)
+			dungeon_map_update_cell(ctx, c->x, c->y, c->z);
 	}
 }
 
@@ -355,148 +346,4 @@ void dungeon_map_set_large_map_floor(int surface, int floor)
 	if (!ctx)
 		return;
 	ctx->map->large_map_floor = floor;
-}
-
-void dungeon_map_set_walked(int surface, int x, int y, int z, int flag)
-{
-	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
-		return;
-	reveal_cell(ctx, x, y, z);
-	if (x > 0 && dgn_cell_at(ctx->dgn, x - 1, y, z)->floor < 0)
-		reveal_cell(ctx, x - 1, y, z);
-	if (x + 1u < ctx->dgn->size_x && dgn_cell_at(ctx->dgn, x + 1, y, z)->floor < 0)
-		reveal_cell(ctx, x + 1, y, z);
-	if (z > 0 && dgn_cell_at(ctx->dgn, x, y, z - 1)->floor < 0)
-		reveal_cell(ctx, x, y, z - 1);
-	if (z + 1u < ctx->dgn->size_z && dgn_cell_at(ctx->dgn, x, y, z + 1)->floor < 0)
-		reveal_cell(ctx, x, y, z + 1);
-}
-
-int dungeon_map_calc_conquer(int surface)
-{
-	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || !ctx->dgn)
-		return 0;
-
-	int nr_cells = ctx->dgn->size_x * ctx->dgn->size_y * ctx->dgn->size_z;
-	int enterable = 0;
-	int walked = 0;
-	for (int i = 0; i < nr_cells; i++) {
-		if (!ctx->dgn->cells[i].enterable)
-			continue;
-		enterable++;
-		if (ctx->map->walk_data[i])
-			walked++;
-	}
-	return walked * 100 / enterable;
-}
-
-/*
- * WalkData serialization format (in Rance VI):
- *
- * struct WalkData {
- *     int version;  // zero
- *     int nr_maps;
- *     struct {
- *         int map_no;
- *         int size_x, size_y, size_z;
- *         int cells[size_x * size_y * size_z];
- *     } maps[nr_maps];
- * };
- */
-
-enum {
-	WALK_DATA_NOT_FOUND = -1,
-	WALK_DATA_BROKEN = -2,
-};
-
-static int find_walk_data(struct page *array, int map_no, struct dgn *dgn)
-{
-	if (!array)
-		return WALK_DATA_BROKEN;
-	if (array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->rank != 1)
-		VM_ERROR("Not a flat integer array");
-
-	int ptr = 0;
-	if (array->nr_vars < 2 || array->values[ptr++].i != 0)
-		return WALK_DATA_BROKEN;
-	int nr_maps = array->values[ptr++].i;
-
-	for (int i = 0; i < nr_maps; i++) {
-		if (array->nr_vars < ptr + 4)
-			return WALK_DATA_BROKEN;
-		int no = array->values[ptr].i;
-		uint32_t size_x = array->values[ptr + 1].i;
-		uint32_t size_y = array->values[ptr + 2].i;
-		uint32_t size_z = array->values[ptr + 3].i;
-		int nr_cells = size_x * size_y * size_z;
-		if (no == map_no) {
-			if (size_x != dgn->size_x || size_y != dgn->size_y || size_z != dgn->size_z)
-				return WALK_DATA_BROKEN;
-			if (ptr + 4 + nr_cells > array->nr_vars)
-				return WALK_DATA_BROKEN;
-			return ptr;
-		}
-		ptr += 4 + nr_cells;
-	}
-	return WALK_DATA_NOT_FOUND;
-}
-
-bool dungeon_map_load_walk_data(int surface, int map, struct page **page)
-{
-	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || !ctx->dgn)
-		return false;
-	struct page *array = *page;
-
-	int offset = find_walk_data(array, map, ctx->dgn);
-	if (offset < 0)
-		return false;
-
-	offset += 4;
-	int i = 0;
-	for (uint32_t z = 0; z < ctx->dgn->size_z; z++) {
-		for (uint32_t y = 0; y < ctx->dgn->size_y; y++) {
-			for (uint32_t x = 0; x < ctx->dgn->size_x; x++) {
-				if (array->values[offset].i)
-					reveal_cell(ctx, x, y, z);
-				ctx->map->walk_data[i++] = array->values[offset++].i;
-			}
-		}
-	}
-
-	return true;
-}
-
-bool dungeon_map_save_walk_data(int surface, int map, struct page **page)
-{
-	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || !ctx->dgn)
-		return false;
-	struct page *array = *page;
-	int nr_cells = ctx->dgn->size_x * ctx->dgn->size_y * ctx->dgn->size_z;
-
-	int offset = find_walk_data(array, map, ctx->dgn);
-	if (offset == WALK_DATA_NOT_FOUND) {
-		offset = array->nr_vars;
-		array->values[1].i += 1;
-		union vm_value dim = { .i = array->nr_vars + 4 + nr_cells };
-		*page = array = realloc_array(array, 1, &dim, AIN_ARRAY_INT, 0, false);
-	} else if (offset == WALK_DATA_BROKEN) {
-		if (array)
-			WARNING("Discarding broken walk data");
-		union vm_value dim = { .i = 2 + 4 + nr_cells };
-		*page = array = realloc_array(array, 1, &dim, AIN_ARRAY_INT, 0, false);
-		array->values[0].i = 0;
-		array->values[1].i = 1;
-		offset = 2;
-	}
-	array->values[offset++].i = map;
-	array->values[offset++].i = ctx->dgn->size_x;
-	array->values[offset++].i = ctx->dgn->size_y;
-	array->values[offset++].i = ctx->dgn->size_z;
-	for (int i = 0; i < nr_cells; i++)
-		array->values[offset++].i = ctx->map->walk_data[i];
-	return true;
 }
