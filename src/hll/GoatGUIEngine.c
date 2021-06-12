@@ -58,7 +58,7 @@ enum parts_motion_type {
 	PARTS_MOTION_CG,
 	//PARTS_MOTION_HGUAGE_RATE,
 	//PARTS_MOTION_VGUAGE_RATE,
-	//PARTS_MOTION_NUMERAL_NUMBER,
+	PARTS_MOTION_NUMERAL_NUMBER,
 	PARTS_MOTION_MAG_X,
 	PARTS_MOTION_MAG_Y,
 	PARTS_MOTION_ROTATE_X,
@@ -673,6 +673,8 @@ static bool parts_set_cg(struct parts *parts, int cg_no, int state)
 	return true;
 }
 
+static bool parts_set_number(struct parts *parts, int n, int state);
+
 static void parts_set_state(struct parts *parts, enum parts_state_type state)
 {
 	if (parts->state != state) {
@@ -730,6 +732,9 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 		break;
 	case PARTS_MOTION_CG:
 		parts_set_cg(parts, motion_calculate_i(motion, motion_t), parts->state);
+		break;
+	case PARTS_MOTION_NUMERAL_NUMBER:
+		parts_set_number(parts, motion_calculate_i(motion, motion_t), parts->state);
 		break;
 	case PARTS_MOTION_MAG_X:
 		parts_set_scale_x(parts, motion_calculate_f(motion, motion_t));
@@ -1251,13 +1256,8 @@ bool GoatGUIEngine_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, int cg_n
 	return true;
 }
 
-bool GoatGUIEngine_SetNumeralNumber(int parts_no, int n, int state)
+static bool parts_set_number(struct parts *parts, int n, int state)
 {
-	state--;
-	if (state < 0 || state > PARTS_NR_STATES)
-		return false;
-
-	struct parts *parts = parts_get(parts_no);
 	struct parts_numeral *num = parts_get_numeral(parts, state);
 	bool negative = n < 0;
 	if (negative)
@@ -1325,6 +1325,15 @@ bool GoatGUIEngine_SetNumeralNumber(int parts_no, int n, int state)
 
 	parts_dirty(parts);
 	return true;
+}
+
+bool GoatGUIEngine_SetNumeralNumber(int parts_no, int n, int state)
+{
+	state--;
+	if (state < 0 || state > PARTS_NR_STATES)
+		return false;
+
+	return parts_set_number(parts_get(parts_no), n, state);
 }
 
 bool GoatGUIEngine_SetNumeralShowComma(int parts_no, bool show_comma, int state)
@@ -1568,7 +1577,15 @@ void GoatGUIEngine_AddMotionCG(int parts_no, int begin_cg_no, int nr_cg, int beg
 
 void GoatGUIEngine_AddMotionHGaugeRate(int PartsNumber, int BeginNumerator, int BeginDenominator, int EndNumerator, int EndDenominator, int BeginTime, int EndTime);
 void GoatGUIEngine_AddMotionVGaugeRate(int PartsNumber, int BeginNumerator, int BeginDenominator, int EndNumerator, int EndDenominator, int BeginTime, int EndTime);
-void GoatGUIEngine_AddMotionNumeralNumber(int PartsNumber, int BeginNumber, int EndNumber, int BeginTime, int EndTime);
+
+void GoatGUIEngine_AddMotionNumeralNumber(int parts_no, int begin_n, int end_n, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_NUMERAL_NUMBER, begin_t, end_t);
+	motion->begin.i = begin_n;
+	motion->end.i = end_n;
+	parts_add_motion(parts, motion);
+}
 
 static void GoatGUIEngine_AddMotionMagX(int parts_no, float begin, float end, int begin_t, int end_t)
 {
@@ -1767,7 +1784,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(AddMotionCG, GoatGUIEngine_AddMotionCG),
 	    HLL_TODO_EXPORT(AddMotionHGaugeRate, GoatGUIEngine_AddMotionHGaugeRate),
 	    HLL_TODO_EXPORT(AddMotionVGaugeRate, GoatGUIEngine_AddMotionVGaugeRate),
-	    HLL_TODO_EXPORT(AddMotionNumeralNumber, GoatGUIEngine_AddMotionNumeralNumber),
+	    HLL_EXPORT(AddMotionNumeralNumber, GoatGUIEngine_AddMotionNumeralNumber),
 	    HLL_EXPORT(AddMotionMagX, GoatGUIEngine_AddMotionMagX),
 	    HLL_EXPORT(AddMotionMagY, GoatGUIEngine_AddMotionMagY),
 	    HLL_EXPORT(AddMotionRotateX, GoatGUIEngine_AddMotionRotateX),
