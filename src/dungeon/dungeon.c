@@ -50,11 +50,8 @@ struct dungeon_context *dungeon_context_create(int surface)
 	if (!sp)
 		VM_ERROR("DrawDungeon.Init: invalid surface %d", surface);
 
-	// Dungeon scene will be rendered to this texture. Unlike other textures,
-	// its (0,0) is at the bottom-left, so it needs to be flipped vertically
-	// when displayed on the screen.
+	// Dungeon scene will be rendered to this texture.
 	struct texture *texture = sprite_get_texture(sp);
-	texture->flip_y = true;
 
 	glGenRenderbuffers(1, &ctx->depth_buffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, ctx->depth_buffer);
@@ -79,10 +76,6 @@ void dungeon_context_free(struct dungeon_context *ctx)
 
 	glDeleteRenderbuffers(1, &ctx->depth_buffer);
 	dungeon_map_free(ctx->map);
-
-	struct sact_sprite *sp = sact_get_sprite(ctx->surface);
-	if (sp)
-		sprite_get_texture(sp)->flip_y = false;
 
 	free(ctx);
 }
@@ -226,6 +219,13 @@ void dungeon_render(struct dungeon_context *ctx)
 	model_view_matrix(&ctx->camera, view_transform);
 	glm_perspective(M_PI / 3.0, (float)texture->w / texture->h, 0.5, 100.0, proj_transform);
 
+	// Tweak the projection transform so that the rendering result is vertically
+	// flipped. If we render the scene normally, the resulting image will be
+	// bottom-up (the first pixel is at the bottom-left), but we want a top-down
+	// image (the first pixel is at the top-left).
+	proj_transform[1][1] *= -1;
+	glFrontFace(GL_CW);
+
 	int dgn_x = round(ctx->camera.pos[0] / 2.0);
 	int dgn_y = round(ctx->camera.pos[1] / 2.0);
 	int dgn_z = round(ctx->camera.pos[2] / -2.0);
@@ -233,6 +233,7 @@ void dungeon_render(struct dungeon_context *ctx)
 	struct dgn_cell **cells = dgn_get_visible_cells(ctx->dgn, dgn_x, dgn_y, dgn_z, &nr_cells);
 	dungeon_renderer_render(ctx->renderer, cells, nr_cells, view_transform, proj_transform);
 
+	glFrontFace(GL_CCW);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
