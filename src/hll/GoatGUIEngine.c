@@ -55,7 +55,7 @@ enum parts_state_type {
 enum parts_motion_type {
 	PARTS_MOTION_POS,
 	PARTS_MOTION_ALPHA,
-	//PARTS_MOTION_CG,
+	PARTS_MOTION_CG,
 	//PARTS_MOTION_HGUAGE_RATE,
 	//PARTS_MOTION_VGUAGE_RATE,
 	//PARTS_MOTION_NUMERAL_NUMBER,
@@ -640,6 +640,38 @@ static void parts_set_alpha(struct parts *parts, int alpha)
 	parts_dirty(parts);
 }
 
+static void parts_add_cg(struct parts *parts, struct cg *cg)
+{
+	if (parts->rect.w && parts->rect.w != cg->metrics.w)
+		WARNING("Width of parts CGs differ: %d / %d", parts->rect.w, cg->metrics.w);
+	if (parts->rect.h && parts->rect.h != cg->metrics.h)
+		WARNING("Heights of parts CGs differ: %d / %d", parts->rect.h, cg->metrics.h);
+	parts->rect.w = cg->metrics.w;
+	parts->rect.h = cg->metrics.h;
+}
+
+static bool parts_set_cg(struct parts *parts, int cg_no, int state)
+{
+	if (!cg_no) {
+		parts_state_reset(&parts->states[state], PARTS_CG);
+		parts_dirty(parts);
+		return true;
+	}
+
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+	struct parts_cg *parts_cg = parts_get_cg(parts, state);
+	gfx_delete_texture(&parts_cg->texture);
+	gfx_init_texture_with_cg(&parts_cg->texture, cg);
+	parts_cg->no = cg_no;
+	parts_add_cg(parts, cg);
+	parts_recalculate_pos(parts);
+	parts_dirty(parts);
+	cg_free(cg);
+	return true;
+}
+
 static void parts_set_state(struct parts *parts, enum parts_state_type state)
 {
 	if (parts->state != state) {
@@ -694,6 +726,9 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 		break;
 	case PARTS_MOTION_ALPHA:
 		parts_set_alpha(parts, motion_calculate_i(motion, motion_t));
+		break;
+	case PARTS_MOTION_CG:
+		parts_set_cg(parts, motion_calculate_i(motion, motion_t), parts->state);
 		break;
 	case PARTS_MOTION_MAG_X:
 		parts_set_scale_x(parts, motion_calculate_f(motion, motion_t));
@@ -844,16 +879,6 @@ static void GoatGUIEngine_Update(int passed_time, possibly_unused bool message_w
 	prev_pos = cur_pos;
 }
 
-static void parts_add_cg(struct parts *parts, struct cg *cg)
-{
-	if (parts->rect.w && parts->rect.w != cg->metrics.w)
-		WARNING("Width of parts CGs differ: %d / %d", parts->rect.w, cg->metrics.w);
-	if (parts->rect.h && parts->rect.h != cg->metrics.h)
-		WARNING("Heights of parts CGs differ: %d / %d", parts->rect.h, cg->metrics.h);
-	parts->rect.w = cg->metrics.w;
-	parts->rect.h = cg->metrics.h;
-}
-
 static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused int sprite_deform, int state)
 {
 	state--;
@@ -861,26 +886,7 @@ static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused in
 		WARNING("Invalid parts state: %d", state);
 		return false;
 	}
-
-	struct parts *parts = parts_get(parts_no);
-	if (!cg_no) {
-		parts_state_reset(&parts->states[state], PARTS_CG);
-		parts_dirty(parts);
-		return true;
-	}
-
-	struct cg *cg = asset_cg_load(cg_no);
-	if (!cg)
-		return false;
-	struct parts_cg *parts_cg = parts_get_cg(parts, state);
-	gfx_delete_texture(&parts_cg->texture);
-	gfx_init_texture_with_cg(&parts_cg->texture, cg);
-	parts_cg->no = cg_no;
-	parts_add_cg(parts, cg);
-	parts_recalculate_pos(parts);
-	parts_dirty(parts);
-	cg_free(cg);
-	return true;
+	return parts_set_cg(parts_get(parts_no), cg_no, state);
 }
 
 static int GoatGUIEngine_GetPartsCGNumber(int parts_no, int state)
@@ -1523,7 +1529,15 @@ static void GoatGUIEngine_AddMotionAlpha(int parts_no, int begin_a, int end_a, i
 	parts_add_motion(parts, motion);
 }
 
-void GoatGUIEngine_AddMotionCG(int PartsNumber, int BeginCGNumber, int NumofCG, int BeginTime, int EndTime);
+void GoatGUIEngine_AddMotionCG(int parts_no, int begin_cg_no, int nr_cg, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_CG, begin_t, end_t);
+	motion->begin.i = begin_cg_no;
+	motion->end.i = begin_cg_no + nr_cg - 1;
+	parts_add_motion(parts, motion);
+}
+
 void GoatGUIEngine_AddMotionHGaugeRate(int PartsNumber, int BeginNumerator, int BeginDenominator, int EndNumerator, int EndDenominator, int BeginTime, int EndTime);
 void GoatGUIEngine_AddMotionVGaugeRate(int PartsNumber, int BeginNumerator, int BeginDenominator, int EndNumerator, int EndDenominator, int BeginTime, int EndTime);
 void GoatGUIEngine_AddMotionNumeralNumber(int PartsNumber, int BeginNumber, int EndNumber, int BeginTime, int EndTime);
@@ -1722,7 +1736,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(GetClickPartsNumber, GoatGUIEngine_GetClickPartsNumber),
 	    HLL_EXPORT(AddMotionPos, GoatGUIEngine_AddMotionPos),
 	    HLL_EXPORT(AddMotionAlpha, GoatGUIEngine_AddMotionAlpha),
-	    HLL_TODO_EXPORT(AddMotionCG, GoatGUIEngine_AddMotionCG),
+	    HLL_EXPORT(AddMotionCG, GoatGUIEngine_AddMotionCG),
 	    HLL_TODO_EXPORT(AddMotionHGaugeRate, GoatGUIEngine_AddMotionHGaugeRate),
 	    HLL_TODO_EXPORT(AddMotionVGaugeRate, GoatGUIEngine_AddMotionVGaugeRate),
 	    HLL_TODO_EXPORT(AddMotionNumeralNumber, GoatGUIEngine_AddMotionNumeralNumber),
