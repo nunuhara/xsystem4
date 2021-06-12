@@ -28,6 +28,16 @@
 
 static struct dungeon_context *current_context = NULL;
 
+static int dungeon_init(enum draw_dungeon_version version, int surface)
+{
+	if (current_context)
+		VM_ERROR("Dungeon is already associated with surface %d", current_context->surface);
+	if (surface < 0)
+		return 0;
+	current_context = dungeon_context_create(version, surface);
+	return 1;
+}
+
 struct dungeon_context *dungeon_get_context(int surface)
 {
 	if (!current_context || surface != current_context->surface)
@@ -49,14 +59,22 @@ static struct dgn_cell *dungeon_get_cell(int surface, int x, int y, int z)
 	return dgn_cell_at(ctx->dgn, x, y, z);
 }
 
+static void DrawDungeon_ModuleFini(void)
+{
+	if (current_context) {
+		dungeon_context_free(current_context);
+		current_context = NULL;
+	}
+}
+
 static int DrawDungeon_Init(int surface)
 {
-	if (current_context)
-		VM_ERROR("Dungeon is already associated with surface %d", current_context->surface);
-	if (surface < 0)
-		return 0;
-	current_context = dungeon_context_create(surface);
-	return 1;
+	return dungeon_init(DRAW_DUNGEON_1, surface);
+}
+
+static int DrawDungeon14_Init(int surface)
+{
+	return dungeon_init(DRAW_DUNGEON_14, surface);
 }
 
 static void DrawDungeon_Release(int surface)
@@ -261,123 +279,143 @@ static int DrawDungeon_GetTexSound(int surface, int type, int num)
 HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, StopTimer, void);
 HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, RestartTimer, void);
 
+#define DRAW_DUNGEON_EXPORTS \
+	HLL_EXPORT(_ModuleFini, DrawDungeon_ModuleFini), \
+	HLL_EXPORT(Release, DrawDungeon_Release), \
+	HLL_EXPORT(SetDrawFlag, DrawDungeon_SetDrawFlag), \
+	HLL_EXPORT(BeginLoad, DrawDungeon_BeginLoad), \
+	HLL_EXPORT(IsLoading, DrawDungeon_IsLoading), \
+	HLL_EXPORT(IsSucceededLoading, DrawDungeon_IsSucceededLoading), \
+	HLL_TODO_EXPORT(GetLoadingPercent, DrawDungeon_GetLoadingPercent), \
+	HLL_TODO_EXPORT(LoadFromFile, DrawDungeon_LoadFromFile), \
+	HLL_TODO_EXPORT(LoadTexture, DrawDungeon_LoadTexture), \
+	HLL_TODO_EXPORT(LoadEventTexture, DrawDungeon_LoadEventTexture), \
+	HLL_EXPORT(GetMapX, DrawDungeon_GetMapX), \
+	HLL_EXPORT(GetMapY, DrawDungeon_GetMapY), \
+	HLL_EXPORT(GetMapZ, DrawDungeon_GetMapZ), \
+	HLL_EXPORT(SetCamera, dungeon_set_camera), \
+	HLL_EXPORT(IsInMap, DrawDungeon_IsInMap), \
+	HLL_EXPORT(IsFloor, DrawDungeon_IsFloor), \
+	HLL_TODO_EXPORT(IsFloorFillTexture, DrawDungeon_IsFloorFillTexture), \
+	HLL_EXPORT(IsStair, DrawDungeon_IsStair), \
+	HLL_EXPORT(IsStairN, DrawDungeon_IsStairN), \
+	HLL_EXPORT(IsStairW, DrawDungeon_IsStairW), \
+	HLL_EXPORT(IsStairS, DrawDungeon_IsStairS), \
+	HLL_EXPORT(IsStairE, DrawDungeon_IsStairE), \
+	HLL_EXPORT(IsWallN, DrawDungeon_IsWallN), \
+	HLL_EXPORT(IsWallW, DrawDungeon_IsWallW), \
+	HLL_EXPORT(IsWallS, DrawDungeon_IsWallS), \
+	HLL_EXPORT(IsWallE, DrawDungeon_IsWallE), \
+	HLL_EXPORT(IsDoorN, DrawDungeon_IsDoorN), \
+	HLL_EXPORT(IsDoorW, DrawDungeon_IsDoorW), \
+	HLL_EXPORT(IsDoorS, DrawDungeon_IsDoorS), \
+	HLL_EXPORT(IsDoorE, DrawDungeon_IsDoorE), \
+	HLL_EXPORT(IsEnter, DrawDungeon_IsEnter), \
+	HLL_EXPORT(IsEnterN, DrawDungeon_IsEnterN), \
+	HLL_EXPORT(IsEnterW, DrawDungeon_IsEnterW), \
+	HLL_EXPORT(IsEnterS, DrawDungeon_IsEnterS), \
+	HLL_EXPORT(IsEnterE, DrawDungeon_IsEnterE), \
+	HLL_EXPORT(GetEvFloor, DrawDungeon_GetEvFloor), \
+	HLL_EXPORT(GetEvWallN, DrawDungeon_GetEvWallN), \
+	HLL_EXPORT(GetEvWallW, DrawDungeon_GetEvWallW), \
+	HLL_EXPORT(GetEvWallS, DrawDungeon_GetEvWallS), \
+	HLL_EXPORT(GetEvWallE, DrawDungeon_GetEvWallE), \
+	HLL_EXPORT(GetEvFloor2, DrawDungeon_GetEvFloor2), \
+	HLL_EXPORT(GetEvWallN2, DrawDungeon_GetEvWallN2), \
+	HLL_EXPORT(GetEvWallW2, DrawDungeon_GetEvWallW2), \
+	HLL_EXPORT(GetEvWallS2, DrawDungeon_GetEvWallS2), \
+	HLL_EXPORT(GetEvWallE2, DrawDungeon_GetEvWallE2), \
+	HLL_EXPORT(GetTexFloor, DrawDungeon_GetTexFloor), \
+	HLL_EXPORT(GetTexCeiling, DrawDungeon_GetTexCeiling), \
+	HLL_EXPORT(GetTexWallN, DrawDungeon_GetTexWallN), \
+	HLL_EXPORT(GetTexWallW, DrawDungeon_GetTexWallW), \
+	HLL_EXPORT(GetTexWallS, DrawDungeon_GetTexWallS), \
+	HLL_EXPORT(GetTexWallE, DrawDungeon_GetTexWallE), \
+	HLL_EXPORT(GetTexDoorN, DrawDungeon_GetTexDoorN), \
+	HLL_EXPORT(GetTexDoorW, DrawDungeon_GetTexDoorW), \
+	HLL_EXPORT(GetTexDoorS, DrawDungeon_GetTexDoorS), \
+	HLL_EXPORT(GetTexDoorE, DrawDungeon_GetTexDoorE), \
+	HLL_EXPORT(GetTexStair, DrawDungeon_GetTexStair), \
+	HLL_EXPORT(GetBattleBack, DrawDungeon_GetBattleBack), \
+	HLL_EXPORT(SetDoorNAngle, DrawDungeon_SetDoorNAngle), \
+	HLL_EXPORT(SetDoorWAngle, DrawDungeon_SetDoorWAngle), \
+	HLL_EXPORT(SetDoorSAngle, DrawDungeon_SetDoorSAngle), \
+	HLL_EXPORT(SetDoorEAngle, DrawDungeon_SetDoorEAngle), \
+	HLL_EXPORT(SetEvFloor, DrawDungeon_SetEvFloor), \
+	HLL_EXPORT(SetEvWallN, DrawDungeon_SetEvWallN), \
+	HLL_EXPORT(SetEvWallW, DrawDungeon_SetEvWallW), \
+	HLL_EXPORT(SetEvWallS, DrawDungeon_SetEvWallS), \
+	HLL_EXPORT(SetEvWallE, DrawDungeon_SetEvWallE), \
+	HLL_EXPORT(SetEvFloor2, DrawDungeon_SetEvFloor2), \
+	HLL_EXPORT(SetEvWallN2, DrawDungeon_SetEvWallN2), \
+	HLL_EXPORT(SetEvWallW2, DrawDungeon_SetEvWallW2), \
+	HLL_EXPORT(SetEvWallS2, DrawDungeon_SetEvWallS2), \
+	HLL_EXPORT(SetEvWallE2, DrawDungeon_SetEvWallE2), \
+	HLL_TODO_EXPORT(SetEvMag, DrawDungeon_SetEvMag), \
+	HLL_EXPORT(SetEvRate, DrawDungeon_SetEvRate), \
+	HLL_EXPORT(SetEnter, DrawDungeon_SetEnter), \
+	HLL_EXPORT(SetEnterN, DrawDungeon_SetEnterN), \
+	HLL_EXPORT(SetEnterW, DrawDungeon_SetEnterW), \
+	HLL_EXPORT(SetEnterS, DrawDungeon_SetEnterS), \
+	HLL_EXPORT(SetEnterE, DrawDungeon_SetEnterE), \
+	HLL_EXPORT(SetTexFloor, DrawDungeon_SetTexFloor), \
+	HLL_EXPORT(SetTexCeiling, DrawDungeon_SetTexCeiling), \
+	HLL_EXPORT(SetTexWallN, DrawDungeon_SetTexWallN), \
+	HLL_EXPORT(SetTexWallW, DrawDungeon_SetTexWallW), \
+	HLL_EXPORT(SetTexWallS, DrawDungeon_SetTexWallS), \
+	HLL_EXPORT(SetTexWallE, DrawDungeon_SetTexWallE), \
+	HLL_EXPORT(SetTexDoorN, DrawDungeon_SetTexDoorN), \
+	HLL_EXPORT(SetTexDoorW, DrawDungeon_SetTexDoorW), \
+	HLL_EXPORT(SetTexDoorS, DrawDungeon_SetTexDoorS), \
+	HLL_EXPORT(SetTexDoorE, DrawDungeon_SetTexDoorE), \
+	HLL_TODO_EXPORT(SetSkyTextureSet, DrawDungeon_SetSkyTextureSet), \
+	HLL_EXPORT(DrawMap, dungeon_map_draw), \
+	HLL_EXPORT(SetMapAllViewFlag, dungeon_map_set_all_view), \
+	HLL_EXPORT(SetDrawMapFloor, dungeon_map_set_small_map_floor), \
+	HLL_EXPORT(DrawLMap, dungeon_map_draw_lmap), \
+	HLL_EXPORT(SetMapCG, dungeon_map_set_cg), \
+	HLL_EXPORT(SetDrawLMapFloor, dungeon_map_set_large_map_floor), \
+	HLL_EXPORT(SetDrawMapRadar, dungeon_map_set_radar), \
+	HLL_EXPORT(SetDrawHalfFlag, DrawDungeon_SetDrawHalfFlag), \
+	HLL_EXPORT(GetDrawHalfFlag, DrawDungeon_GetDrawHalfFlag), \
+	HLL_EXPORT(SetWalked, dungeon_set_walked), \
+	HLL_TODO_EXPORT(SetWalkedAll, DrawDungeon_SetWalkedAll), \
+	HLL_TODO_EXPORT(CalcNumofFloor, DrawDungeon_CalcNumofFloor), \
+	HLL_TODO_EXPORT(CalcNumofWalk, DrawDungeon_CalcNumofWalk), \
+	HLL_TODO_EXPORT(CalcNumofWalk2, DrawDungeon_CalcNumofWalk2), \
+	HLL_EXPORT(CalcConquer, dungeon_calc_conquer), \
+	HLL_EXPORT(SetInterlaceMode, DrawDungeon_SetInterlaceMode), \
+	HLL_EXPORT(SetDirect3DMode, DrawDungeon_SetDirect3DMode), \
+	HLL_EXPORT(SaveDrawSettingFlag, DrawDungeon_SaveDrawSettingFlag), \
+	HLL_EXPORT(GetDrawSettingFlag, DrawDungeon_GetDrawSettingFlag), \
+	HLL_EXPORT(IsDrawSettingFile, DrawDungeon_IsDrawSettingFile), \
+	HLL_EXPORT(DeleteDrawSettingFile, DrawDungeon_DeleteDrawSettingFile), \
+	HLL_EXPORT(IsSSEFlag, DrawDungeon_IsSSEFlag), \
+	HLL_EXPORT(SetSSEFlag, DrawDungeon_SetSSEFlag), \
+	HLL_EXPORT(IsPVSData, DrawDungeon_IsPVSData), \
+	HLL_EXPORT(GetTexSound, DrawDungeon_GetTexSound), \
+	HLL_EXPORT(StopTimer, DrawDungeon_StopTimer), \
+	HLL_EXPORT(RestartTimer, DrawDungeon_RestartTimer), \
+	HLL_EXPORT(LoadWalkData, dungeon_load_walk_data), \
+	HLL_EXPORT(SaveWalkData, dungeon_save_walk_data)
+
 HLL_LIBRARY(DrawDungeon,
-			HLL_EXPORT(Init, DrawDungeon_Init),
-			HLL_EXPORT(Release, DrawDungeon_Release),
-			HLL_EXPORT(SetDrawFlag, DrawDungeon_SetDrawFlag),
-			HLL_EXPORT(BeginLoad, DrawDungeon_BeginLoad),
-			HLL_EXPORT(IsLoading, DrawDungeon_IsLoading),
-			HLL_EXPORT(IsSucceededLoading, DrawDungeon_IsSucceededLoading),
-			HLL_TODO_EXPORT(GetLoadingPercent, DrawDungeon_GetLoadingPercent),
-			HLL_TODO_EXPORT(LoadFromFile, DrawDungeon_LoadFromFile),
-			HLL_TODO_EXPORT(LoadTexture, DrawDungeon_LoadTexture),
-			HLL_TODO_EXPORT(LoadEventTexture, DrawDungeon_LoadEventTexture),
-			HLL_EXPORT(GetMapX, DrawDungeon_GetMapX),
-			HLL_EXPORT(GetMapY, DrawDungeon_GetMapY),
-			HLL_EXPORT(GetMapZ, DrawDungeon_GetMapZ),
-			HLL_EXPORT(SetCamera, dungeon_set_camera),
-			HLL_EXPORT(IsInMap, DrawDungeon_IsInMap),
-			HLL_EXPORT(IsFloor, DrawDungeon_IsFloor),
-			HLL_TODO_EXPORT(IsFloorFillTexture, DrawDungeon_IsFloorFillTexture),
-			HLL_EXPORT(IsStair, DrawDungeon_IsStair),
-			HLL_EXPORT(IsStairN, DrawDungeon_IsStairN),
-			HLL_EXPORT(IsStairW, DrawDungeon_IsStairW),
-			HLL_EXPORT(IsStairS, DrawDungeon_IsStairS),
-			HLL_EXPORT(IsStairE, DrawDungeon_IsStairE),
-			HLL_EXPORT(IsWallN, DrawDungeon_IsWallN),
-			HLL_EXPORT(IsWallW, DrawDungeon_IsWallW),
-			HLL_EXPORT(IsWallS, DrawDungeon_IsWallS),
-			HLL_EXPORT(IsWallE, DrawDungeon_IsWallE),
-			HLL_EXPORT(IsDoorN, DrawDungeon_IsDoorN),
-			HLL_EXPORT(IsDoorW, DrawDungeon_IsDoorW),
-			HLL_EXPORT(IsDoorS, DrawDungeon_IsDoorS),
-			HLL_EXPORT(IsDoorE, DrawDungeon_IsDoorE),
-			HLL_EXPORT(IsEnter, DrawDungeon_IsEnter),
-			HLL_EXPORT(IsEnterN, DrawDungeon_IsEnterN),
-			HLL_EXPORT(IsEnterW, DrawDungeon_IsEnterW),
-			HLL_EXPORT(IsEnterS, DrawDungeon_IsEnterS),
-			HLL_EXPORT(IsEnterE, DrawDungeon_IsEnterE),
-			HLL_EXPORT(GetEvFloor, DrawDungeon_GetEvFloor),
-			HLL_EXPORT(GetEvWallN, DrawDungeon_GetEvWallN),
-			HLL_EXPORT(GetEvWallW, DrawDungeon_GetEvWallW),
-			HLL_EXPORT(GetEvWallS, DrawDungeon_GetEvWallS),
-			HLL_EXPORT(GetEvWallE, DrawDungeon_GetEvWallE),
-			HLL_EXPORT(GetEvFloor2, DrawDungeon_GetEvFloor2),
-			HLL_EXPORT(GetEvWallN2, DrawDungeon_GetEvWallN2),
-			HLL_EXPORT(GetEvWallW2, DrawDungeon_GetEvWallW2),
-			HLL_EXPORT(GetEvWallS2, DrawDungeon_GetEvWallS2),
-			HLL_EXPORT(GetEvWallE2, DrawDungeon_GetEvWallE2),
-			HLL_EXPORT(GetTexFloor, DrawDungeon_GetTexFloor),
-			HLL_EXPORT(GetTexCeiling, DrawDungeon_GetTexCeiling),
-			HLL_EXPORT(GetTexWallN, DrawDungeon_GetTexWallN),
-			HLL_EXPORT(GetTexWallW, DrawDungeon_GetTexWallW),
-			HLL_EXPORT(GetTexWallS, DrawDungeon_GetTexWallS),
-			HLL_EXPORT(GetTexWallE, DrawDungeon_GetTexWallE),
-			HLL_EXPORT(GetTexDoorN, DrawDungeon_GetTexDoorN),
-			HLL_EXPORT(GetTexDoorW, DrawDungeon_GetTexDoorW),
-			HLL_EXPORT(GetTexDoorS, DrawDungeon_GetTexDoorS),
-			HLL_EXPORT(GetTexDoorE, DrawDungeon_GetTexDoorE),
-			HLL_EXPORT(GetTexStair, DrawDungeon_GetTexStair),
-			HLL_EXPORT(GetBattleBack, DrawDungeon_GetBattleBack),
-			HLL_EXPORT(SetDoorNAngle, DrawDungeon_SetDoorNAngle),
-			HLL_EXPORT(SetDoorWAngle, DrawDungeon_SetDoorWAngle),
-			HLL_EXPORT(SetDoorSAngle, DrawDungeon_SetDoorSAngle),
-			HLL_EXPORT(SetDoorEAngle, DrawDungeon_SetDoorEAngle),
-			HLL_EXPORT(SetEvFloor, DrawDungeon_SetEvFloor),
-			HLL_EXPORT(SetEvWallN, DrawDungeon_SetEvWallN),
-			HLL_EXPORT(SetEvWallW, DrawDungeon_SetEvWallW),
-			HLL_EXPORT(SetEvWallS, DrawDungeon_SetEvWallS),
-			HLL_EXPORT(SetEvWallE, DrawDungeon_SetEvWallE),
-			HLL_EXPORT(SetEvFloor2, DrawDungeon_SetEvFloor2),
-			HLL_EXPORT(SetEvWallN2, DrawDungeon_SetEvWallN2),
-			HLL_EXPORT(SetEvWallW2, DrawDungeon_SetEvWallW2),
-			HLL_EXPORT(SetEvWallS2, DrawDungeon_SetEvWallS2),
-			HLL_EXPORT(SetEvWallE2, DrawDungeon_SetEvWallE2),
-			HLL_TODO_EXPORT(SetEvMag, DrawDungeon_SetEvMag),
-			HLL_EXPORT(SetEvRate, DrawDungeon_SetEvRate),
-			HLL_EXPORT(SetEnter, DrawDungeon_SetEnter),
-			HLL_EXPORT(SetEnterN, DrawDungeon_SetEnterN),
-			HLL_EXPORT(SetEnterW, DrawDungeon_SetEnterW),
-			HLL_EXPORT(SetEnterS, DrawDungeon_SetEnterS),
-			HLL_EXPORT(SetEnterE, DrawDungeon_SetEnterE),
-			HLL_EXPORT(SetTexFloor, DrawDungeon_SetTexFloor),
-			HLL_EXPORT(SetTexCeiling, DrawDungeon_SetTexCeiling),
-			HLL_EXPORT(SetTexWallN, DrawDungeon_SetTexWallN),
-			HLL_EXPORT(SetTexWallW, DrawDungeon_SetTexWallW),
-			HLL_EXPORT(SetTexWallS, DrawDungeon_SetTexWallS),
-			HLL_EXPORT(SetTexWallE, DrawDungeon_SetTexWallE),
-			HLL_EXPORT(SetTexDoorN, DrawDungeon_SetTexDoorN),
-			HLL_EXPORT(SetTexDoorW, DrawDungeon_SetTexDoorW),
-			HLL_EXPORT(SetTexDoorS, DrawDungeon_SetTexDoorS),
-			HLL_EXPORT(SetTexDoorE, DrawDungeon_SetTexDoorE),
-			HLL_TODO_EXPORT(SetSkyTextureSet, DrawDungeon_SetSkyTextureSet),
-			HLL_EXPORT(DrawMap, dungeon_map_draw),
-			HLL_EXPORT(SetMapAllViewFlag, dungeon_map_set_all_view),
-			HLL_EXPORT(SetDrawMapFloor, dungeon_map_set_small_map_floor),
-			HLL_EXPORT(DrawLMap, dungeon_map_draw_lmap),
-			HLL_EXPORT(SetMapCG, dungeon_map_set_cg),
-			HLL_EXPORT(SetDrawLMapFloor, dungeon_map_set_large_map_floor),
-			HLL_EXPORT(SetDrawMapRadar, dungeon_map_set_radar),
-			HLL_EXPORT(SetDrawHalfFlag, DrawDungeon_SetDrawHalfFlag),
-			HLL_EXPORT(GetDrawHalfFlag, DrawDungeon_GetDrawHalfFlag),
-			HLL_EXPORT(SetWalked, dungeon_set_walked),
-			HLL_TODO_EXPORT(SetWalkedAll, DrawDungeon_SetWalkedAll),
-			HLL_TODO_EXPORT(CalcNumofFloor, DrawDungeon_CalcNumofFloor),
-			HLL_TODO_EXPORT(CalcNumofWalk, DrawDungeon_CalcNumofWalk),
-			HLL_TODO_EXPORT(CalcNumofWalk2, DrawDungeon_CalcNumofWalk2),
-			HLL_EXPORT(CalcConquer, dungeon_calc_conquer),
-			HLL_EXPORT(SetInterlaceMode, DrawDungeon_SetInterlaceMode),
-			HLL_EXPORT(SetDirect3DMode, DrawDungeon_SetDirect3DMode),
-			HLL_EXPORT(SaveDrawSettingFlag, DrawDungeon_SaveDrawSettingFlag),
-			HLL_EXPORT(GetDrawSettingFlag, DrawDungeon_GetDrawSettingFlag),
-			HLL_EXPORT(IsDrawSettingFile, DrawDungeon_IsDrawSettingFile),
-			HLL_EXPORT(DeleteDrawSettingFile, DrawDungeon_DeleteDrawSettingFile),
-			HLL_EXPORT(IsSSEFlag, DrawDungeon_IsSSEFlag),
-			HLL_EXPORT(SetSSEFlag, DrawDungeon_SetSSEFlag),
-			HLL_EXPORT(IsPVSData, DrawDungeon_IsPVSData),
-			HLL_EXPORT(GetTexSound, DrawDungeon_GetTexSound),
-			HLL_EXPORT(StopTimer, DrawDungeon_StopTimer),
-			HLL_EXPORT(RestartTimer, DrawDungeon_RestartTimer),
-			HLL_EXPORT(LoadWalkData, dungeon_load_walk_data),
-			HLL_EXPORT(SaveWalkData, dungeon_save_walk_data)
-			);
+	    HLL_EXPORT(Init, DrawDungeon_Init),
+	    DRAW_DUNGEON_EXPORTS
+	    );
+
+HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetRasterAmp, int nSurface, float fAmp);
+HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetLapFilter, int surface, int type, int r, int g, int b);
+HLL_WARN_UNIMPLEMENTED(1, bool, DrawDungeon14, GetDrawMapObjectFlag, int nSurface);
+HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetDrawMapObjectFlag, int nSurface, bool bFlag);
+
+HLL_LIBRARY(DrawDungeon14,
+	    HLL_EXPORT(Init, DrawDungeon14_Init),
+	    DRAW_DUNGEON_EXPORTS,
+	    HLL_EXPORT(GetWalked, dungeon_get_walked),
+	    HLL_TODO_EXPORT(SetRasterScroll, DrawDungeon14_SetRasterScroll),
+	    HLL_EXPORT(SetRasterAmp, DrawDungeon14_SetRasterAmp),
+	    HLL_EXPORT(SetLapFilter, DrawDungeon14_SetLapFilter),
+	    HLL_EXPORT(GetDrawMapObjectFlag, DrawDungeon14_GetDrawMapObjectFlag),
+	    HLL_EXPORT(SetDrawMapObjectFlag, DrawDungeon14_SetDrawMapObjectFlag)
+	    );

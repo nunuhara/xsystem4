@@ -70,8 +70,11 @@ static Point texture_pos(struct dungeon_context *ctx, int x, int z)
 	};
 }
 
-struct dungeon_map *dungeon_map_create(void)
+struct dungeon_map *dungeon_map_create(enum draw_dungeon_version version)
 {
+	if (version == DRAW_DUNGEON_14)
+		return NULL;  // GALZOO does not use DrawDungeon's 2D map functions.
+
 	struct dungeon_map *map = xcalloc(1, sizeof(struct dungeon_map));
 	map->small_map_floor = -1;
 	map->large_map_floor = -1;
@@ -90,6 +93,8 @@ void dungeon_map_init(struct dungeon_context *ctx)
 {
 	struct dungeon_map *map = ctx->map;
 	struct dgn *dgn = ctx->dgn;
+	if (!map)
+		return;
 
 	map->textures = xcalloc(dgn->size_y, sizeof(struct texture));
 	map->nr_textures = dgn->size_y;
@@ -128,6 +133,8 @@ void dungeon_map_init(struct dungeon_context *ctx)
 
 void dungeon_map_reveal(struct dungeon_context *ctx, int x, int y, int z)
 {
+	if (!ctx->map)
+		return;
 	struct texture *dst = &ctx->map->textures[y];
 	Point pos = texture_pos(ctx, x, z);
 	gfx_fill_amap(dst, pos.x, pos.y, CS, CS, 255);
@@ -154,6 +161,8 @@ static void draw_symbol(struct dungeon_context *ctx, struct texture *dst, int x,
 
 void dungeon_map_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, int dgn_z)
 {
+	if (!ctx->map)
+		return;
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, dgn_x, dgn_y, dgn_z);
 	struct texture *dst = &ctx->map->textures[dgn_y];
 	Point pos = texture_pos(ctx, dgn_x, dgn_z);
@@ -238,7 +247,7 @@ static int player_symbol(struct dungeon_context *ctx)
 void dungeon_map_draw(int surface, int sprite)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
+	if (!ctx || !ctx->map)
 		return;
 	struct sact_sprite *sp = sact_get_sprite(sprite);
 	if (!sp)
@@ -270,7 +279,7 @@ void dungeon_map_draw(int surface, int sprite)
 void dungeon_map_draw_lmap(int surface, int sprite)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
+	if (!ctx || !ctx->map)
 		return;
 	struct sact_sprite *sp = sact_get_sprite(sprite);
 	if (!sp)
@@ -307,7 +316,7 @@ static void redraw_event_symbols(struct dungeon_context *ctx)
 void dungeon_map_set_radar(int surface, int flag)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || ctx->map->radar == flag)
+	if (!ctx || !ctx->map || ctx->map->radar == flag)
 		return;
 	ctx->map->radar = flag;
 	redraw_event_symbols(ctx);
@@ -316,7 +325,7 @@ void dungeon_map_set_radar(int surface, int flag)
 void dungeon_map_set_all_view(int surface, int flag)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || ctx->map->all_visible == flag)
+	if (!ctx || !ctx->map || ctx->map->all_visible == flag)
 		return;
 	ctx->map->all_visible = flag;
 	redraw_event_symbols(ctx);
@@ -325,7 +334,7 @@ void dungeon_map_set_all_view(int surface, int flag)
 void dungeon_map_set_cg(int surface, int index, int sprite)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
+	if (!ctx || !ctx->map)
 		return;
 	if (index < 0 || index >= NR_SYMBOLS)
 		VM_ERROR("DrawDungeon.SetMapCG: index %d is out of bounds", index);
@@ -335,7 +344,7 @@ void dungeon_map_set_cg(int surface, int index, int sprite)
 void dungeon_map_set_small_map_floor(int surface, int floor)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
+	if (!ctx || !ctx->map)
 		return;
 	ctx->map->small_map_floor = floor;
 }
@@ -343,7 +352,7 @@ void dungeon_map_set_small_map_floor(int surface, int floor)
 void dungeon_map_set_large_map_floor(int surface, int floor)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
+	if (!ctx || !ctx->map)
 		return;
 	ctx->map->large_map_floor = floor;
 }

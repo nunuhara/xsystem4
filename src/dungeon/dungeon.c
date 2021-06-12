@@ -25,6 +25,7 @@
 #include "system4/archive.h"
 #include "system4/cg.h"
 #include "system4/dlf.h"
+#include "system4/file.h"
 
 #include "dungeon/dgn.h"
 #include "dungeon/dtx.h"
@@ -43,9 +44,10 @@
 #define M_PI (3.14159265358979323846)
 #endif
 
-struct dungeon_context *dungeon_context_create(int surface)
+struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int surface)
 {
 	struct dungeon_context *ctx = xcalloc(1, sizeof(struct dungeon_context));
+	ctx->version = version;
 	ctx->surface = surface;
 	struct sact_sprite *sp = sact_get_sprite(ctx->surface);
 	if (!sp)
@@ -59,7 +61,7 @@ struct dungeon_context *dungeon_context_create(int surface)
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, texture->w, texture->h);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-	ctx->map = dungeon_map_create();
+	ctx->map = dungeon_map_create(version);
 	return ctx;
 }
 
@@ -76,7 +78,8 @@ void dungeon_context_free(struct dungeon_context *ctx)
 		dungeon_renderer_free(ctx->renderer);
 
 	glDeleteRenderbuffers(1, &ctx->depth_buffer);
-	dungeon_map_free(ctx->map);
+	if (ctx->map)
+		dungeon_map_free(ctx->map);
 
 	free(ctx);
 }
@@ -127,34 +130,65 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 	if (ctx->loaded)
 		VM_ERROR("Dungeon is already loaded");
 
-	char *path = gamedir_path("Data/DungeonData.dlf");
-	int error = ARCHIVE_SUCCESS;
-	struct archive *dlf = (struct archive *)dlf_open(path, ARCHIVE_MMAP, &error);
-	if (error == ARCHIVE_FILE_ERROR) {
-		WARNING("dlf_open(\"%s\"): %s", path, strerror(errno));
-	} else if (error == ARCHIVE_BAD_ARCHIVE_ERROR) {
-		WARNING("dlf_open(\"%s\"): invalid .dlf file", path);
-	}
-	free(path);
-	if (!dlf)
-		return false;
+	if (ctx->version == DRAW_DUNGEON_1) {
+		char *path = gamedir_path("Data/DungeonData.dlf");
+		int error = ARCHIVE_SUCCESS;
+		struct archive *dlf = (struct archive *)dlf_open(path, ARCHIVE_MMAP, &error);
+		if (error == ARCHIVE_FILE_ERROR) {
+			WARNING("dlf_open(\"%s\"): %s", path, strerror(errno));
+		} else if (error == ARCHIVE_BAD_ARCHIVE_ERROR) {
+			WARNING("dlf_open(\"%s\"): invalid .dlf file", path);
+		}
+		free(path);
+		if (!dlf)
+			return false;
 
-	struct archive_data *dgn = archive_get(dlf, num * 3);
-	if (dgn) {
-		ctx->dgn = dgn_parse(dgn->data, dgn->size);
-		archive_free_data(dgn);
+		struct archive_data *dgn = archive_get(dlf, num * 3);
+		if (dgn) {
+			ctx->dgn = dgn_parse(dgn->data, dgn->size);
+			archive_free_data(dgn);
+		}
+		struct archive_data *dtx = archive_get(dlf, num * 3 + 1);
+		if (dtx) {
+			ctx->dtx = dtx_parse(dtx->data, dtx->size);
+			archive_free_data(dtx);
+		}
+		struct archive_data *tes = archive_get(dlf, num * 3 + 2);
+		if (tes) {
+			ctx->tes = tes_parse(tes->data, tes->size);
+			archive_free_data(tes);
+		}
+		archive_free(dlf);
+	} else if (ctx->version == DRAW_DUNGEON_14) {
+		char buf[100];
+		sprintf(buf, "Data/map%02d.dgn", num);
+		char *path = gamedir_path(buf);
+
+		size_t len;
+		uint8_t *dgn = file_read(path, &len);
+		if (dgn) {
+			ctx->dgn = dgn_parse(dgn, len);
+			free(dgn);
+		}
+
+		strcpy(path + strlen(path) - 3, "dtx");
+		uint8_t *dtx = file_read(path, &len);
+		if (dtx) {
+			ctx->dtx = dtx_parse(dtx, len);
+			free(dtx);
+		}
+
+		strcpy(path + strlen(path) - 3, "tes");
+		uint8_t *tes = file_read(path, &len);
+		if (tes) {
+			ctx->tes = tes_parse(tes, len);
+			free(tes);
+		}
+		free(path);
+	} else {
+		ERROR("Invalid DrawDungeon version %d", ctx->version);
 	}
-	struct archive_data *dtx = archive_get(dlf, num * 3 + 1);
-	if (dtx) {
-		ctx->dtx = dtx_parse(dtx->data, dtx->size);
-		archive_free_data(dtx);
-	}
-	struct archive_data *tes = archive_get(dlf, num * 3 + 2);
-	if (tes) {
-		ctx->tes = tes_parse(tes->data, tes->size);
-		archive_free_data(tes);
-	}
-	archive_free(dlf);
+
 	if (!ctx->dgn || !ctx->dtx) {
 		WARNING("Cannot load dungeon %d", num);
 		return false;
@@ -165,7 +199,7 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 	if (!event_textures)
 		return false;
 
-	ctx->renderer = dungeon_renderer_create(ctx->dtx, event_textures, nr_event_textures);
+	ctx->renderer = dungeon_renderer_create(ctx->version, ctx->dtx, event_textures, nr_event_textures);
 
 	dungeon_map_init(ctx);
 
@@ -257,14 +291,24 @@ void dungeon_set_walked(int surface, int x, int y, int z, int flag)
 		return;
 	dgn_cell_at(ctx->dgn, x, y, z)->walked = 1;
 	dungeon_map_reveal(ctx, x, y, z);
-	if (x > 0)
-		neighbor_reveal(ctx, x - 1, y, z);
-	if (x + 1u < ctx->dgn->size_x)
-		neighbor_reveal(ctx, x + 1, y, z);
-	if (z > 0)
-		neighbor_reveal(ctx, x, y, z - 1);
-	if (z + 1u < ctx->dgn->size_z)
-		neighbor_reveal(ctx, x, y, z + 1);
+	if (ctx->version == DRAW_DUNGEON_1) {
+		if (x > 0)
+			neighbor_reveal(ctx, x - 1, y, z);
+		if (x + 1u < ctx->dgn->size_x)
+			neighbor_reveal(ctx, x + 1, y, z);
+		if (z > 0)
+			neighbor_reveal(ctx, x, y, z - 1);
+		if (z + 1u < ctx->dgn->size_z)
+			neighbor_reveal(ctx, x, y, z + 1);
+	}
+}
+
+int dungeon_get_walked(int surface, int x, int y, int z)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->dgn)
+		return 0;
+	return dgn_cell_at(ctx->dgn, x, y, z)->walked;
 }
 
 int dungeon_calc_conquer(int surface)
@@ -276,7 +320,7 @@ int dungeon_calc_conquer(int surface)
 }
 
 /*
- * WalkData serialization format (in Rance VI):
+ * WalkData serialization format:
  *
  * struct WalkData {
  *     int version;  // zero

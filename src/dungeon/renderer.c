@@ -22,6 +22,7 @@
 #include "system4.h"
 #include "system4/cg.h"
 
+#include "dungeon/dungeon.h"
 #include "dungeon/dgn.h"
 #include "dungeon/dtx.h"
 #include "dungeon/renderer.h"
@@ -35,31 +36,40 @@ struct marker_info {
 	int floor_marker;
 };
 
-enum rance6_floor_marker {
-	MAGIC_CIRCLE = 1,
-	RED_OCTAGRAM = 63,
+enum floor_marker {
+	// Rance VI
+	R6_MAGIC_CIRCLE = 1,
+	R6_RED_OCTAGRAM = 63,
+	// GALZOO Island
+	GZ_MAGIC_CIRCLE = 0,
 };
 
 static const struct marker_info rance6_marker_info[] = {
-	{ 11, 41,  3, MAGIC_CIRCLE},  // treasure chest
-	{ 12, 51,  7, RED_OCTAGRAM},  // enemy
-	{ 14,  8,  5, MAGIC_CIRCLE},  // green star
-	{ 15, 21, 10, MAGIC_CIRCLE},  // heart
-	{ 16, 45,  5, MAGIC_CIRCLE},  // BP cross
-	{ 17, 58,  5, MAGIC_CIRCLE},  // exit
-	{ 18, 31, 10, MAGIC_CIRCLE},  // teleporter
-	{140, 13,  5, RED_OCTAGRAM},  // red star
+	{ 11, 41,  3, R6_MAGIC_CIRCLE},  // treasure chest
+	{ 12, 51,  7, R6_RED_OCTAGRAM},  // enemy
+	{ 14,  8,  5, R6_MAGIC_CIRCLE},  // green star
+	{ 15, 21, 10, R6_MAGIC_CIRCLE},  // heart
+	{ 16, 45,  5, R6_MAGIC_CIRCLE},  // BP cross
+	{ 17, 58,  5, R6_MAGIC_CIRCLE},  // exit
+	{ 18, 31, 10, R6_MAGIC_CIRCLE},  // teleporter
+	{140, 13,  5, R6_RED_OCTAGRAM},  // red star
 	{0},
 };
 
-static const struct marker_info *get_marker_info(int event_type)
-{
-	for (const struct marker_info *info = rance6_marker_info; info->event_type; info++) {
-		if (info->event_type == event_type)
-			return info;
-	}
-	return NULL;
-}
+static const struct marker_info galzoo_marker_info[] = {
+	{11, 1, 1, GZ_MAGIC_CIRCLE},  // item
+	{12, 2, 1, GZ_MAGIC_CIRCLE},  // enemy
+	{14, 3, 1, GZ_MAGIC_CIRCLE},  // star
+	{15, 4, 1, GZ_MAGIC_CIRCLE},  // heart
+	{17, 5, 1, GZ_MAGIC_CIRCLE},  // exit
+	{18, 6, 1, GZ_MAGIC_CIRCLE},  // teleporter
+	{0},
+};
+
+static const struct marker_info *marker_tables[] = {
+	[DRAW_DUNGEON_1] = rance6_marker_info,
+	[DRAW_DUNGEON_14] = galzoo_marker_info
+};
 
 struct geometry;
 struct material;
@@ -84,9 +94,19 @@ struct dungeon_renderer {
 
 	GLuint *event_textures;
 	int nr_event_textures;
+	const struct marker_info *marker_table;
 
 	struct skybox *skybox;
 };
+
+static const struct marker_info *get_marker_info(struct dungeon_renderer *r, int event_type)
+{
+	for (const struct marker_info *info = r->marker_table; info->event_type; info++) {
+		if (info->event_type == event_type)
+			return info;
+	}
+	return NULL;
+}
 
 struct vertex {
 	GLfloat x, y, z, u, v;
@@ -213,7 +233,7 @@ static struct material *get_material(struct dungeon_renderer *r, int type, int i
 	return m;
 }
 
-struct dungeon_renderer *dungeon_renderer_create(struct dtx *dtx, GLuint *event_textures, int nr_event_textures)
+struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version version, struct dtx *dtx, GLuint *event_textures, int nr_event_textures)
 {
 	struct dungeon_renderer *r = xcalloc(1, sizeof(struct dungeon_renderer));
 
@@ -240,6 +260,7 @@ struct dungeon_renderer *dungeon_renderer_create(struct dtx *dtx, GLuint *event_
 
 	r->event_textures = event_textures;
 	r->nr_event_textures = nr_event_textures;
+	r->marker_table = marker_tables[version];
 
 	r->skybox = skybox_create(dtx);
 
@@ -482,7 +503,7 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 		}
 	}
 	if (cell->floor_event && !render_opaque) {
-		const struct marker_info *info = get_marker_info(cell->floor_event);
+		const struct marker_info *info = get_marker_info(r, cell->floor_event);
 		if (info) {
 			uint32_t t = SDL_GetTicks();
 			draw_floor_marker(r, info, x, y, z, t);
