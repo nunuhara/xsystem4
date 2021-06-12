@@ -130,6 +130,7 @@ struct parts_numeral {
 	Texture cg[12];
 	int space;
 	int show_comma;
+	int cg_no;
 };
 
 struct parts_gauge {
@@ -1199,7 +1200,21 @@ bool GoatGUIEngine_SetVGaugeRate(int parts_no, int numerator, int denominator, i
 	return true;
 }
 
-bool GoatGUIEngine_SetNumeralCG(int PartsNumber, int CGNumber, int State);
+bool GoatGUIEngine_SetNumeralCG(int parts_no, int cg_no, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
+	for (int i = 0; i < 12; i++) {
+		gfx_delete_texture(&n->cg[i]);
+	}
+	// NOTE: textures are loaded lazily since not every numeral font loaded
+	//       in this manner is complete (some lack dash or comma glyphs)
+	n->cg_no = cg_no;
+	return true;
+}
 
 bool GoatGUIEngine_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, int cg_no, int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8, int w9, int w_minus, int w_comma, int state)
 {
@@ -1267,6 +1282,19 @@ bool GoatGUIEngine_SetNumeralNumber(int parts_no, int n, int state)
 			chars[nr_chars++] = 11;
 		}
 		chars[nr_chars++] = d[i];
+	}
+
+	// load any uninitialized textures
+	for (int i = 0; i < nr_chars; i++) {
+		if (num->cg[chars[i]].handle)
+			continue;
+		struct cg *cg = asset_cg_load(num->cg_no + chars[i]);
+		if (!cg) {
+			WARNING("Failed to load numeral cg: %d", num->cg_no + chars[i]);
+			continue;
+		}
+		gfx_init_texture_with_cg(&num->cg[chars[i]], cg);
+		cg_free(cg);
 	}
 
 	// determine output dimensions
@@ -1693,7 +1721,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(SetHGaugeRate, GoatGUIEngine_SetHGaugeRate),
 	    HLL_EXPORT(SetVGaugeCG, GoatGUIEngine_SetVGaugeCG),
 	    HLL_EXPORT(SetVGaugeRate, GoatGUIEngine_SetVGaugeRate),
-	    HLL_TODO_EXPORT(SetNumeralCG, GoatGUIEngine_SetNumeralCG),
+	    HLL_EXPORT(SetNumeralCG, GoatGUIEngine_SetNumeralCG),
 	    HLL_EXPORT(SetNumeralLinkedCGNumberWidthWidthList, GoatGUIEngine_SetNumeralLinkedCGNumberWidthWidthList),
 	    HLL_EXPORT(SetNumeralNumber, GoatGUIEngine_SetNumeralNumber),
 	    HLL_EXPORT(SetNumeralShowComma, GoatGUIEngine_SetNumeralShowComma),
