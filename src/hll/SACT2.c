@@ -183,6 +183,16 @@ int sact_SP_Enum(struct page **array)
 	return count;
 }
 
+int sact_SP_GetMaxZ(void)
+{
+	int max_z = 0;
+	for (int i = 0; i < nr_sprites; i++) {
+		if (sprites[i] && max_z < sprites[i]->sp.z)
+			max_z = sprites[i]->sp.z;
+	}
+	return max_z;
+}
+
 int sact_SP_SetCG(int sp_no, int cg_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
