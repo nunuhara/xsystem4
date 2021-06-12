@@ -95,6 +95,7 @@ enum parts_type {
 	PARTS_CG,
 	PARTS_TEXT,
 	PARTS_ANIMATION,
+	PARTS_NUMERAL,
 };
 
 struct parts_cg {
@@ -122,12 +123,20 @@ struct parts_animation {
 	unsigned current_frame;
 };
 
+struct parts_numeral {
+	Texture texture;
+	Texture cg[12];
+	int space;
+	int show_comma;
+};
+
 struct parts_state {
 	enum parts_type type;
 	union {
 		struct parts_cg cg;
 		struct parts_text text;
 		struct parts_animation anim;
+		struct parts_numeral num;
 	};
 };
 
@@ -199,7 +208,7 @@ static void parts_render(struct parts *parts, struct parts_render_params *parent
 	switch (state->type) {
 	case PARTS_CG:
 		if (state->cg.texture.handle)
-			parts_render_cg(parts, &parts->states[parts->state].cg.texture, &params);
+			parts_render_cg(parts, &state->cg.texture, &params);
 		break;
 	case PARTS_TEXT:
 		if (state->text.texture.handle)
@@ -207,7 +216,13 @@ static void parts_render(struct parts *parts, struct parts_render_params *parent
 		break;
 	case PARTS_ANIMATION:
 		if (state->anim.texture.handle)
-			parts_render_cg(parts, &parts->states[parts->state].anim.texture, &params);
+			parts_render_cg(parts, &state->anim.texture, &params);
+		break;
+	case PARTS_NUMERAL:
+		if (state->num.texture.handle) {
+			NOTICE("RENDERING NUMERAL");
+			parts_render_cg(parts, &state->num.texture, &params);
+		}
 		break;
 	}
 
@@ -342,6 +357,12 @@ static void parts_state_free(struct parts_state *state)
 			gfx_delete_texture(&state->anim.frames[i]);
 		}
 		break;
+	case PARTS_NUMERAL:
+		gfx_delete_texture(&state->num.texture);
+		for (int i = 0; i < 12; i++) {
+			gfx_delete_texture(&state->num.cg[i]);
+		}
+		break;
 	}
 	memset(state, 0, sizeof(struct parts_state));
 }
@@ -377,6 +398,15 @@ static struct parts_animation *parts_get_animation(struct parts *parts, int stat
 		parts_state_reset(&parts->states[state], PARTS_ANIMATION);
 	}
 	return &parts->states[state].anim;
+}
+
+static struct parts_numeral *parts_get_numeral(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_NUMERAL) {
+		NOTICE("RESET NUMERAL (%d)", parts->states[state].type);
+		parts_state_reset(&parts->states[state], PARTS_NUMERAL);
+	}
+	return &parts->states[state].num;
 }
 
 static struct parts_motion *parts_motion_alloc(enum parts_motion_type type, int begin_time, int end_time)
@@ -565,6 +595,9 @@ static void parts_set_alpha(struct parts *parts, int alpha)
 			for (unsigned i = 0; i < s->anim.nr_frames; i++) {
 				s->anim.frames[i].alpha_mod = parts->alpha;
 			}
+			break;
+		case PARTS_NUMERAL:
+			s->num.texture.alpha_mod = parts->alpha;
 			break;
 		}
 	}
@@ -794,6 +827,12 @@ static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused in
 	}
 
 	struct parts *parts = parts_get(parts_no);
+	if (!cg_no) {
+		parts_state_reset(&parts->states[state], PARTS_CG);
+		parts_dirty(parts);
+		return true;
+	}
+
 	struct cg *cg = asset_cg_load(cg_no);
 	if (!cg)
 		return false;
@@ -1057,10 +1096,125 @@ bool GoatGUIEngine_SetHGaugeRate(int PartsNumber, int Numerator, int Denominator
 bool GoatGUIEngine_SetVGaugeCG(int PartsNumber, int CGNumber, int State);
 bool GoatGUIEngine_SetVGaugeRate(int PartsNumber, int Numerator, int Denominator, int State);
 bool GoatGUIEngine_SetNumeralCG(int PartsNumber, int CGNumber, int State);
-bool GoatGUIEngine_SetNumeralLinkedCGNumberWidthWidthList(int PartsNumber, int CGNumber, int Width0, int Width1, int Width2, int Width3, int Width4, int Width5, int Width6, int Width7, int Width8, int Width9, int WidthMinus, int WidthComma, int State);
-bool GoatGUIEngine_SetNumeralNumber(int PartsNumber, int Number, int State);
-bool GoatGUIEngine_SetNumeralShowComma(int PartsNumber, bool ShowComma, int State);
-bool GoatGUIEngine_SetNumeralSpace(int PartsNumber, int NumeralSpace, int State);
+
+bool GoatGUIEngine_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, int cg_no, int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8, int w9, int w_minus, int w_comma, int state)
+{
+	// TODO? Create a generic numeral-font object that can be shared between parts.
+	//       In the current implementation, each number stores a complete copy of
+	//       its numeral font.
+
+	state--;
+	if (state < 0 || state > PARTS_NR_STATES)
+		return false;
+
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+
+	int w[12] = { w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w_minus, w_comma };
+	Texture t = {0};
+	gfx_init_texture_with_cg(&t, cg);
+	cg_free(cg);
+
+	int x = 0;
+	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
+	for (int i = 0; i < 12; i++) {
+		gfx_delete_texture(&n->cg[i]);
+		if (w[i] <= 0)
+			continue;
+
+		gfx_init_texture_blank(&n->cg[i], w[i], t.h);
+		gfx_copy_with_alpha_map(&n->cg[i], 0, 0, &t, x, 0, w[i], t.h);
+		x += w[i];
+	}
+
+	gfx_delete_texture(&t);
+	return true;
+}
+
+bool GoatGUIEngine_SetNumeralNumber(int parts_no, int n, int state)
+{
+	state--;
+	if (state < 0 || state > PARTS_NR_STATES)
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_numeral *num = parts_get_numeral(parts, state);
+	bool negative = n < 0;
+	if (negative)
+		n *= -1;
+
+	// extract digits
+	int digits;
+	uint8_t d[32];
+	for (digits = 0; n; digits++) {
+		d[digits] = n % 10;
+		n /= 10;
+	}
+
+	// encode number as texture indices
+	int nr_chars = 0;
+	uint8_t chars[32];
+	if (negative) {
+		chars[nr_chars++] = 10;
+	}
+	for (int i = 0; i < digits; i++) {
+		if (num->show_comma && i > 0 && i % 3 == 0) {
+			chars[nr_chars++] = 11;
+		}
+		chars[nr_chars++] = d[i];
+	}
+
+	// determine output dimensions
+	int w = 0, h = 0;
+	for (int i = nr_chars-1; i >= 0; i--) {
+		if (!num->cg[chars[i]].handle)
+			continue;
+		w += num->cg[chars[i]].w;
+		h = max(h, num->cg[chars[i]].h);
+	}
+	w += (nr_chars-1) * num->space;
+
+	// copy chars to texture
+	gfx_delete_texture(&num->texture);
+	gfx_init_texture_rgba(&num->texture, w, h, (SDL_Color){0, 0, 0, 255});
+
+	int x = 0;
+	for (int i = nr_chars-1; i>= 0; i--) {
+		Texture *ch = &num->cg[chars[i]];
+		if (!ch->handle)
+			continue;
+		gfx_copy_with_alpha_map(&num->texture, x, 0, ch, 0, 0, ch->w, ch->h);
+		x += ch->w + num->space;
+	}
+
+	parts->rect.w = w;
+	parts->rect.h = h;
+
+	parts_dirty(parts);
+	return true;
+}
+
+bool GoatGUIEngine_SetNumeralShowComma(int parts_no, bool show_comma, int state)
+{
+	state--;
+	if (state < 0 || state > PARTS_NR_STATES)
+		return false;
+
+	parts_get_numeral(parts_get(parts_no), state)->show_comma = show_comma;
+	return true;
+}
+
+bool GoatGUIEngine_SetNumeralSpace(int parts_no, int space, int state)
+{
+	state--;
+	if (state < 0 || state > PARTS_NR_STATES)
+		return false;
+
+	parts_get_numeral(parts_get(parts_no), state)->space = space;
+	return true;
+}
+
 bool GoatGUIEngine_SetPartsRectangleDetectionSize(int PartsNumber, int Width, int Height, int State);
 bool GoatGUIEngine_SetPartsFlash(int PartsNumber, struct string *pIFlashFileName, int State);
 bool GoatGUIEngine_IsPartsFlashEnd(int PartsNumber, int State);
@@ -1428,10 +1582,10 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_TODO_EXPORT(SetVGaugeCG, GoatGUIEngine_SetVGaugeCG),
 	    HLL_TODO_EXPORT(SetVGaugeRate, GoatGUIEngine_SetVGaugeRate),
 	    HLL_TODO_EXPORT(SetNumeralCG, GoatGUIEngine_SetNumeralCG),
-	    HLL_TODO_EXPORT(SetNumeralLinkedCGNumberWidthWidthList, GoatGUIEngine_SetNumeralLinkedCGNumberWidthWidthList),
-	    HLL_TODO_EXPORT(SetNumeralNumber, GoatGUIEngine_SetNumeralNumber),
-	    HLL_TODO_EXPORT(SetNumeralShowComma, GoatGUIEngine_SetNumeralShowComma),
-	    HLL_TODO_EXPORT(SetNumeralSpace, GoatGUIEngine_SetNumeralSpace),
+	    HLL_EXPORT(SetNumeralLinkedCGNumberWidthWidthList, GoatGUIEngine_SetNumeralLinkedCGNumberWidthWidthList),
+	    HLL_EXPORT(SetNumeralNumber, GoatGUIEngine_SetNumeralNumber),
+	    HLL_EXPORT(SetNumeralShowComma, GoatGUIEngine_SetNumeralShowComma),
+	    HLL_EXPORT(SetNumeralSpace, GoatGUIEngine_SetNumeralSpace),
 	    HLL_TODO_EXPORT(SetPartsRectangleDetectionSize, GoatGUIEngine_SetPartsRectangleDetectionSize),
 	    HLL_TODO_EXPORT(SetPartsFlash, GoatGUIEngine_SetPartsFlash),
 	    HLL_TODO_EXPORT(IsPartsFlashEnd, GoatGUIEngine_IsPartsFlashEnd),
