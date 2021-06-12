@@ -96,6 +96,8 @@ enum parts_type {
 	PARTS_TEXT,
 	PARTS_ANIMATION,
 	PARTS_NUMERAL,
+	PARTS_HGAUGE,
+	PARTS_VGAUGE,
 };
 
 struct parts_cg {
@@ -130,6 +132,11 @@ struct parts_numeral {
 	int show_comma;
 };
 
+struct parts_gauge {
+	Texture texture;
+	Texture cg;
+};
+
 struct parts_state {
 	enum parts_type type;
 	union {
@@ -137,6 +144,7 @@ struct parts_state {
 		struct parts_text text;
 		struct parts_animation anim;
 		struct parts_numeral num;
+		struct parts_gauge gauge;
 	};
 };
 
@@ -220,9 +228,13 @@ static void parts_render(struct parts *parts, struct parts_render_params *parent
 		break;
 	case PARTS_NUMERAL:
 		if (state->num.texture.handle) {
-			NOTICE("RENDERING NUMERAL");
 			parts_render_cg(parts, &state->num.texture, &params);
 		}
+		break;
+	case PARTS_HGAUGE:
+	case PARTS_VGAUGE:
+		if (state->gauge.texture.handle)
+			parts_render_cg(parts, &state->gauge.texture, &params);
 		break;
 	}
 
@@ -363,6 +375,11 @@ static void parts_state_free(struct parts_state *state)
 			gfx_delete_texture(&state->num.cg[i]);
 		}
 		break;
+	case PARTS_HGAUGE:
+	case PARTS_VGAUGE:
+		gfx_delete_texture(&state->gauge.texture);
+		gfx_delete_texture(&state->gauge.cg);
+		break;
 	}
 	memset(state, 0, sizeof(struct parts_state));
 }
@@ -403,10 +420,25 @@ static struct parts_animation *parts_get_animation(struct parts *parts, int stat
 static struct parts_numeral *parts_get_numeral(struct parts *parts, int state)
 {
 	if (parts->states[state].type != PARTS_NUMERAL) {
-		NOTICE("RESET NUMERAL (%d)", parts->states[state].type);
 		parts_state_reset(&parts->states[state], PARTS_NUMERAL);
 	}
 	return &parts->states[state].num;
+}
+
+static struct parts_gauge *parts_get_hgauge(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_HGAUGE) {
+		parts_state_reset(&parts->states[state], PARTS_HGAUGE);
+	}
+	return &parts->states[state].gauge;
+}
+
+static struct parts_gauge *parts_get_vgauge(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_VGAUGE) {
+		parts_state_reset(&parts->states[state], PARTS_VGAUGE);
+	}
+	return &parts->states[state].gauge;
 }
 
 static struct parts_motion *parts_motion_alloc(enum parts_motion_type type, int begin_time, int end_time)
@@ -598,6 +630,10 @@ static void parts_set_alpha(struct parts *parts, int alpha)
 			break;
 		case PARTS_NUMERAL:
 			s->num.texture.alpha_mod = parts->alpha;
+			break;
+		case PARTS_HGAUGE:
+		case PARTS_VGAUGE:
+			s->gauge.texture.alpha_mod = parts->alpha;
 			break;
 		}
 	}
@@ -1091,10 +1127,72 @@ static bool GoatGUIEngine_SetTextLineSpace(int parts_no, int line_space, int sta
 	return true;
 }
 
-bool GoatGUIEngine_SetHGaugeCG(int PartsNumber, int CGNumber, int State);
-bool GoatGUIEngine_SetHGaugeRate(int PartsNumber, int Numerator, int Denominator, int State);
-bool GoatGUIEngine_SetVGaugeCG(int PartsNumber, int CGNumber, int State);
-bool GoatGUIEngine_SetVGaugeRate(int PartsNumber, int Numerator, int Denominator, int State);
+static bool set_gauge_cg(int parts_no, int cg_no, int state, bool vert)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = vert ? parts_get_vgauge(parts, state) : parts_get_hgauge(parts, state);
+	gfx_init_texture_with_cg(&g->cg, cg);
+	gfx_init_texture_with_cg(&g->texture, cg);
+	cg_free(cg);
+
+	gfx_init_texture_rgba(&g->texture, g->cg.w, g->cg.h, (SDL_Color){0,0,0,255});
+	gfx_copy_with_alpha_map(&g->texture, 0, 0, &g->cg, 0, 0, g->cg.w, g->cg.h);
+
+	parts->rect.w = g->cg.w;
+	parts->rect.h = g->cg.h;
+
+	parts_dirty(parts);
+	return true;
+}
+
+bool GoatGUIEngine_SetHGaugeCG(int parts_no, int cg_no, int state)
+{
+	return set_gauge_cg(parts_no, cg_no, state, false);
+}
+
+bool GoatGUIEngine_SetHGaugeRate(int parts_no, int numerator, int denominator, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = parts_get_hgauge(parts, state);
+	int pixels = ((float)numerator / (float)denominator) * g->cg.w;
+	gfx_copy_with_alpha_map(&g->texture, 0, 0, &g->cg, 0, 0, pixels, g->cg.h);
+	gfx_fill_amap(&g->texture, pixels, 0, g->cg.w - pixels, g->cg.h, 0);
+	parts_dirty(parts);
+	return true;
+}
+
+bool GoatGUIEngine_SetVGaugeCG(int parts_no, int cg_no, int state)
+{
+	return set_gauge_cg(parts_no, cg_no, state, true);
+}
+
+bool GoatGUIEngine_SetVGaugeRate(int parts_no, int numerator, int denominator, int state)
+{
+	state--;
+	if (state < 0 || state >= PARTS_NR_STATES)
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = parts_get_vgauge(parts, state);
+	int pixels = ((float)numerator / (float)denominator) * g->cg.h;
+	gfx_copy_with_alpha_map(&g->texture, 0, pixels, &g->cg, 0, pixels, g->cg.w, g->cg.h - pixels);
+	gfx_fill_amap(&g->texture, 0, 0, g->cg.w, pixels, 0);
+	parts_dirty(parts);
+	return true;
+}
+
 bool GoatGUIEngine_SetNumeralCG(int PartsNumber, int CGNumber, int State);
 
 bool GoatGUIEngine_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, int cg_no, int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8, int w9, int w_minus, int w_comma, int state)
@@ -1577,10 +1675,10 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(SetPartsFontEdgeWeight, GoatGUIEngine_SetPartsFontEdgeWeight),
 	    HLL_EXPORT(SetTextCharSpace, GoatGUIEngine_SetTextCharSpace),
 	    HLL_EXPORT(SetTextLineSpace, GoatGUIEngine_SetTextLineSpace),
-	    HLL_TODO_EXPORT(SetHGaugeCG, GoatGUIEngine_SetHGaugeCG),
-	    HLL_TODO_EXPORT(SetHGaugeRate, GoatGUIEngine_SetHGaugeRate),
-	    HLL_TODO_EXPORT(SetVGaugeCG, GoatGUIEngine_SetVGaugeCG),
-	    HLL_TODO_EXPORT(SetVGaugeRate, GoatGUIEngine_SetVGaugeRate),
+	    HLL_EXPORT(SetHGaugeCG, GoatGUIEngine_SetHGaugeCG),
+	    HLL_EXPORT(SetHGaugeRate, GoatGUIEngine_SetHGaugeRate),
+	    HLL_EXPORT(SetVGaugeCG, GoatGUIEngine_SetVGaugeCG),
+	    HLL_EXPORT(SetVGaugeRate, GoatGUIEngine_SetVGaugeRate),
 	    HLL_TODO_EXPORT(SetNumeralCG, GoatGUIEngine_SetNumeralCG),
 	    HLL_EXPORT(SetNumeralLinkedCGNumberWidthWidthList, GoatGUIEngine_SetNumeralLinkedCGNumberWidthWidthList),
 	    HLL_EXPORT(SetNumeralNumber, GoatGUIEngine_SetNumeralNumber),
