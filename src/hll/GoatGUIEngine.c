@@ -87,6 +87,16 @@ struct parts_motion {
 	int end_time;
 };
 
+struct sound_motion {
+	TAILQ_ENTRY(sound_motion) entry;
+	int begin_time;
+	int sound_no;
+	bool played;
+};
+
+static TAILQ_HEAD(sound_motion_list, sound_motion) sound_motion_list =
+	TAILQ_HEAD_INITIALIZER(sound_motion_list);
+
 struct parts_text_line {
 	unsigned height;
 };
@@ -782,6 +792,16 @@ static void parts_update_all_motion(void)
 			parts_update_with_motion(parts, motion);
 		}
 	}
+
+	struct sound_motion *sound;
+	TAILQ_FOREACH(sound, &sound_motion_list, entry) {
+		if (sound->begin_time > motion_t)
+			break;
+		if (sound->played)
+			continue;
+		audio_play_sound(sound->sound_no);
+		sound->played = true;
+	}
 }
 
 /*
@@ -808,6 +828,12 @@ static void parts_fini_all_motion(void)
 	struct parts *parts;
 	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
 		parts_clear_motion(parts);
+	}
+
+	while (!TAILQ_EMPTY(&sound_motion_list)) {
+		struct sound_motion *motion = TAILQ_FIRST(&sound_motion_list);
+		TAILQ_REMOVE(&sound_motion_list, motion, entry);
+		free(motion);
 	}
 }
 
@@ -1674,7 +1700,24 @@ static void GoatGUIEngine_AddMotionRotateZ(int parts_no, float begin, float end,
 }
 
 void GoatGUIEngine_AddMotionVibrationSize(int PartsNumber, int BeginWidth, int BeginHeight, int BeginTime, int EndTime);
-void GoatGUIEngine_AddMotionSound(int SoundNumber, int BeginTime);
+
+static void GoatGUIEngine_AddMotionSound(int sound_no, int begin_t)
+{
+	struct sound_motion *m = xcalloc(1, sizeof(struct sound_motion));
+	m->sound_no = sound_no;
+	m->begin_time = begin_t;
+
+	struct sound_motion *p;
+	TAILQ_FOREACH(p, &sound_motion_list, entry) {
+		if (p->begin_time > m->begin_time) {
+			TAILQ_INSERT_BEFORE(p, m, entry);
+			return;
+		}
+	}
+	TAILQ_INSERT_TAIL(&sound_motion_list, m, entry);
+	if (m->begin_time > motion_end_t)
+		motion_end_t = m->begin_time;
+}
 
 static void GoatGUIEngine_BeginMotion(void)
 {
@@ -1832,7 +1875,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(AddMotionRotateY, GoatGUIEngine_AddMotionRotateY),
 	    HLL_EXPORT(AddMotionRotateZ, GoatGUIEngine_AddMotionRotateZ),
 	    HLL_TODO_EXPORT(AddMotionVibrationSize, GoatGUIEngine_AddMotionVibrationSize),
-	    HLL_TODO_EXPORT(AddMotionSound, GoatGUIEngine_AddMotionSound),
+	    HLL_EXPORT(AddMotionSound, GoatGUIEngine_AddMotionSound),
 	    HLL_EXPORT(BeginMotion, GoatGUIEngine_BeginMotion),
 	    HLL_EXPORT(EndMotion, GoatGUIEngine_EndMotion),
 	    HLL_EXPORT(SetMotionTime, GoatGUIEngine_SetMotionTime),
