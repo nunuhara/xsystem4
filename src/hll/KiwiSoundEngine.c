@@ -99,7 +99,11 @@ int KiwiSoundEngine_Sound_GetTimeLength(int nCh)
 	return wav_get_time_length(nCh);
 }
 //int KiwiSoundEngine_Sound_GetGroupNum(int nCh);
-//int KiwiSoundEngine_Sound_GetGroupNumFromDataNum(int nNum);
+static int KiwiSoundEngine_Sound_GetGroupNumFromDataNum(int no)
+{
+	return 0;
+}
+
 //bool KiwiSoundEngine_Sound_PrepareFromFile(int nCh, struct string *szFileName);
 
 HLL_LIBRARY(KiwiSoundEngine,
@@ -136,8 +140,8 @@ HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(Sound_Fade, KiwiSoundEngine_Sound_Fade),
 	    //HLL_EXPORT(Sound_StopFade, KiwiSoundEngine_Sound_StopFade),
 	    //HLL_EXPORT(Sound_IsFade, KiwiSoundEngine_Sound_IsFade),
-	    HLL_EXPORT(Sound_GetTimeLength, KiwiSoundEngine_Sound_GetTimeLength)
+	    HLL_EXPORT(Sound_GetTimeLength, KiwiSoundEngine_Sound_GetTimeLength),
 	    //HLL_EXPORT(Sound_GetGroupNum, KiwiSoundEngine_Sound_GetGroupNum),
-	    //HLL_EXPORT(Sound_GetGroupNumFromDataNum, KiwiSoundEngine_Sound_GetGroupNumFromDataNum),
+	    HLL_EXPORT(Sound_GetGroupNumFromDataNum, KiwiSoundEngine_Sound_GetGroupNumFromDataNum)
 	    //HLL_EXPORT(Sound_PrepareFromFile, KiwiSoundEngine_Sound_PrepareFromFile)
 	);
