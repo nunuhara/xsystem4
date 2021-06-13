@@ -232,7 +232,12 @@ static void DrawGraph_FillAMapUnderBorder(int dst, int x, int y, int w, int h, i
 //void DrawGraph_FillMultiply(int dst, int x, int y, int w, int h, int r, int g, int b);
 //void DrawGraph_SaturDP_DPxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_ScreenDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
-//void DrawGraph_SpriteCopyAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int key);
+
+static void DrawGraph_SpriteCopyAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int key)
+{
+	gfx_sprite_copy_amap(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, key);
+}
+
 //void DrawGraph_BrightDestOnly(int dst, int x, int y, int w, int h, int rate);
 //void DrawGraph_CopyTextureWrap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v);
 //void DrawGraph_CopyTextureWrapAlpha(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v, int alpha);
@@ -351,7 +356,7 @@ HLL_LIBRARY(DrawGraph,
 	    //HLL_EXPORT(SaturDP_DPxSA, DrawGraph_SaturDP_DPxSA),
 	    //HLL_EXPORT(ScreenDA_DAxSA, DrawGraph_ScreenDA_DAxSA),
 	    HLL_EXPORT(AddDA_DAxSA, DrawGraph_AddDA_DAxSA),
-	    //HLL_EXPORT(SpriteCopyAMap, DrawGraph_SpriteCopyAMap),
+	    HLL_EXPORT(SpriteCopyAMap, DrawGraph_SpriteCopyAMap),
 	    HLL_EXPORT(BlendDA_DAxSA, DrawGraph_BlendDA_DAxSA),
 	    HLL_EXPORT(SubDA_DAxSA, DrawGraph_SubDA_DAxSA),
 	    //HLL_EXPORT(BrightDestOnly, DrawGraph_BrightDestOnly),

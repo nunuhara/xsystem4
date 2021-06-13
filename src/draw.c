@@ -59,6 +59,7 @@ struct copy_data {
 static struct copy_shader copy_shader;
 static struct copy_shader copy_color_reverse_shader;
 static struct copy_shader copy_key_shader;
+static struct copy_shader copy_alpha_key_shader;
 static struct copy_shader copy_use_amap_under_shader;
 static struct copy_shader copy_use_amap_border_shader;
 static struct copy_shader blend_amap_color_shader;
@@ -101,6 +102,9 @@ void gfx_draw_init(void)
 
 	// copy shader which also discards fragments matching a color key
 	load_copy_shader(&copy_key_shader, "shaders/render.v.glsl", "shaders/copy_key.f.glsl");
+
+	// copy shader which also discards fragments matching an alpha key
+	load_copy_shader(&copy_alpha_key_shader, "shaders/render.v.glsl", "shaders/copy_alpha_key.f.glsl");
 
 	// copy shader that only keeps fragments below a certain alpha threshold
 	load_copy_shader(&copy_use_amap_under_shader, "shaders/render.v.glsl", "shaders/copy_use_amap_under.f.glsl");
@@ -222,6 +226,17 @@ void gfx_copy_sprite(Texture *dst, int dx, int dy, Texture *src, int sx, int sy,
 	data.g = color.g / 255.0;
 	data.b = color.b / 255.0;
 	run_copy_shader(&copy_key_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_sprite_copy_amap(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int alpha_key)
+{
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	data.a = alpha_key / 255.0;
+	run_copy_shader(&copy_alpha_key_shader.s, dst, src, &data);
 
 	restore_blend_mode();
 }
