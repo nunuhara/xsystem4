@@ -234,7 +234,6 @@ static void main_surface_init(int w, int h)
 	main_surface.w = w;
 	main_surface.h = h;
 	main_surface.has_alpha = true;
-	main_surface.flip_y = false;
 	main_surface.alpha_mod = 255;
 	main_surface.draw_method = DRAW_METHOD_NORMAL;
 
@@ -371,10 +370,6 @@ void gfx_render_texture(struct texture *t, Rectangle *r)
 
 	t->world_transform[3][0] = r ? r->x : 0;
 	t->world_transform[3][1] = r ? r->y : 0;
-	if (t->flip_y) {
-		t->world_transform[3][1] += t->world_transform[1][1];
-		t->world_transform[1][1] *= -1;
-	}
 
 	struct gfx_render_job job = {
 		.shader = &default_shader.s,
@@ -385,10 +380,6 @@ void gfx_render_texture(struct texture *t, Rectangle *r)
 	};
 	gfx_render(&job);
 
-	if (t->flip_y) {
-		t->world_transform[1][1] *= -1;
-		t->world_transform[3][1] -= t->world_transform[1][1];
-	}
 	if (t->draw_method != DRAW_METHOD_NORMAL || t->alpha_mod != 255)
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
@@ -412,7 +403,6 @@ static void init_texture(struct texture *t, int w, int h)
 	t->h = h;
 
 	t->has_alpha = true;
-	t->flip_y = false;
 	t->alpha_mod = 255;
 	t->draw_method = DRAW_METHOD_NORMAL;
 

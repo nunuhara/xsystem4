@@ -17,11 +17,10 @@
 #ifndef SYSTEM4_DUNGEON_MAP_H
 #define SYSTEM4_DUNGEON_MAP_H
 
-struct page;
 struct dungeon_context;
 struct dungeon_map;
 
-struct dungeon_map *dungeon_map_create(void);
+struct dungeon_map *dungeon_map_create(enum draw_dungeon_version version);
 void dungeon_map_free(struct dungeon_map *map);
 void dungeon_map_init(struct dungeon_context *ctx);
 void dungeon_map_update_cell(struct dungeon_context *ctx, int x, int y, int z);
@@ -33,9 +32,6 @@ void dungeon_map_set_all_view(int surface, int flag);
 void dungeon_map_set_cg(int surface, int index, int sprite);
 void dungeon_map_set_small_map_floor(int surface, int floor);
 void dungeon_map_set_large_map_floor(int surface, int floor);
-void dungeon_map_set_walked(int surface, int x, int y, int z, int flag);
-int dungeon_map_calc_conquer(int surface);
-bool dungeon_map_load_walk_data(int surface, int map, struct page **page);
-bool dungeon_map_save_walk_data(int surface, int map, struct page **page);
+void dungeon_map_reveal(struct dungeon_context *ctx, int x, int y, int z);
 
 #endif /* SYSTEM4_DUNGEON_MAP_H */
