@@ -17,12 +17,14 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <cglm/cglm.h>
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
 #endif
 
 #include "hll.h"
+#include "vm/page.h"
 
 struct shuffle_table {
 	int id;
@@ -150,9 +152,29 @@ static int Math_RandTable(int num)
 //void Math_RandTable2Init(int num, struct page *array);
 //int Math_RandTable2(int num);
 
-int Math_Ceil(float f)
+static int Math_Ceil(float f)
 {
 	return (int)ceilf(f);
+}
+
+static bool Math_BezierCurve(struct page **x_array, struct page **y_array, int num, float t, int *result_x, int *result_y)
+{
+	vec2 *coeffs = xmalloc(num * sizeof(vec2));
+	for (int i = 0; i < num; i++) {
+		coeffs[i][0] = (*x_array)->values[i].i;
+		coeffs[i][1] = (*y_array)->values[i].i;
+	}
+
+	// De Casteljau's algorithm.
+	for (; num > 1; num--) {
+		for (int i = 0; i < num - 1; i++)
+			glm_vec2_lerp(coeffs[i], coeffs[i + 1], t, coeffs[i]);
+	}
+	*result_x = coeffs[0][0];
+	*result_y = coeffs[0][1];
+
+	free(coeffs);
+	return true;
 }
 
 HLL_LIBRARY(Math,
@@ -181,5 +203,6 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(SwapF, Math_SwapF),
 	    HLL_EXPORT(Log, logf),
 	    HLL_EXPORT(Log10, log10f),
-	    HLL_EXPORT(Ceil, Math_Ceil));
+	    HLL_EXPORT(Ceil, Math_Ceil),
+	    HLL_EXPORT(BezierCurve, Math_BezierCurve));
 
