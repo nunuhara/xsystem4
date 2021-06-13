@@ -23,6 +23,7 @@
 #include "dungeon/dgn.h"
 #include "dungeon/dungeon.h"
 #include "dungeon/map.h"
+#include "dungeon/renderer.h"
 #include "dungeon/tes.h"
 #include "hll.h"
 
@@ -406,8 +407,22 @@ HLL_LIBRARY(DrawDungeon,
 
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetRasterAmp, int nSurface, float fAmp);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetLapFilter, int surface, int type, int r, int g, int b);
-HLL_WARN_UNIMPLEMENTED(1, bool, DrawDungeon14, GetDrawMapObjectFlag, int nSurface);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetDrawMapObjectFlag, int nSurface, bool bFlag);
+
+bool DrawDungeon14_GetDrawMapObjectFlag(int surface)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->renderer)
+		return true;
+	return dungeon_renderer_event_markers_enabled(ctx->renderer);
+}
+
+void DrawDungeon14_SetDrawMapObjectFlag(int surface, bool flag)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->renderer)
+		return;
+	dungeon_renderer_enable_event_markers(ctx->renderer, flag);
+}
 
 HLL_LIBRARY(DrawDungeon14,
 	    HLL_EXPORT(Init, DrawDungeon14_Init),

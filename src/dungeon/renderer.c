@@ -96,6 +96,7 @@ struct dungeon_renderer {
 	GLuint *event_textures;
 	int nr_event_textures;
 	const struct marker_info *marker_table;
+	bool draw_event_markers;
 
 	struct skybox *skybox;
 };
@@ -276,6 +277,7 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 	r->event_textures = event_textures;
 	r->nr_event_textures = nr_event_textures;
 	r->marker_table = marker_tables[version];
+	r->draw_event_markers = true;
 
 	r->skybox = skybox_create(dtx);
 
@@ -529,7 +531,7 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 			draw(r, r->stairs_geometry, material->texture, matrices[cell->stairs_orientation]);
 		}
 	}
-	if (cell->floor_event && !render_opaque) {
+	if (r->draw_event_markers && cell->floor_event && !render_opaque) {
 		const struct marker_info *info = get_marker_info(r, cell->floor_event);
 		if (info) {
 			uint32_t t = SDL_GetTicks();
@@ -562,4 +564,14 @@ void dungeon_renderer_render(struct dungeon_renderer *r, struct dgn_cell **cells
 		draw_cell(r, cells[i], false, view_transform);
 
 	glUseProgram(0);
+}
+
+void dungeon_renderer_enable_event_markers(struct dungeon_renderer *r, bool enable)
+{
+	r->draw_event_markers = enable;
+}
+
+bool dungeon_renderer_event_markers_enabled(struct dungeon_renderer *r)
+{
+	return r->draw_event_markers;
 }
