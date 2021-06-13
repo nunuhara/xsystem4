@@ -57,12 +57,12 @@ static const struct marker_info rance6_marker_info[] = {
 };
 
 static const struct marker_info galzoo_marker_info[] = {
-	{11, 1, 1, GZ_MAGIC_CIRCLE},  // item
-	{12, 2, 1, GZ_MAGIC_CIRCLE},  // enemy
-	{14, 3, 1, GZ_MAGIC_CIRCLE},  // star
-	{15, 4, 1, GZ_MAGIC_CIRCLE},  // heart
-	{17, 5, 1, GZ_MAGIC_CIRCLE},  // exit
-	{18, 6, 1, GZ_MAGIC_CIRCLE},  // teleporter
+	{11, 1, 0, GZ_MAGIC_CIRCLE},  // item
+	{12, 2, 0, GZ_MAGIC_CIRCLE},  // enemy
+	{14, 3, 0, GZ_MAGIC_CIRCLE},  // star
+	{15, 4, 0, GZ_MAGIC_CIRCLE},  // heart
+	{17, 5, 0, GZ_MAGIC_CIRCLE},  // exit
+	{18, 6, 0, GZ_MAGIC_CIRCLE},  // teleporter
 	{0},
 };
 
@@ -87,6 +87,7 @@ struct dungeon_renderer {
 	struct geometry *door_left_geometry;
 	struct geometry *door_right_geometry;
 	struct geometry *stairs_geometry;
+	struct geometry *floating_marker_geometry;
 
 	struct material *materials;
 	int nr_materials;
@@ -160,6 +161,19 @@ static const struct vertex stairs_vertices[] = {
 	{-1, -2/3.f,  3/3.f, 0, 11/12.f},
 	{ 1, -3/3.f,  3/3.f, 1, 12/12.f},
 	{-1, -3/3.f,  3/3.f, 0, 12/12.f},
+};
+
+static const struct vertex floating_marker_vertices[] = {
+	{-0.9,  0.9, 0.0,  0.0, 0.0},
+	{-0.9, -0.9, 0.0,  0.0, 1.0},
+	{ 0.9,  0.9, 0.0,  1.0, 0.0},
+	{ 0.9, -0.9, 0.0,  1.0, 1.0},
+	{ 0.9, -0.9, 0.0,  1.0, 1.0}, // degenerate triangle
+	{ 0.9,  0.9, 0.0,  0.0, 0.0}, // degenerate triangle
+	{ 0.9,  0.9, 0.0,  0.0, 0.0},
+	{ 0.9, -0.9, 0.0,  0.0, 1.0},
+	{-0.9,  0.9, 0.0,  1.0, 0.0},
+	{-0.9, -0.9, 0.0,  1.0, 1.0},
 };
 
 struct geometry {
@@ -247,6 +261,7 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 	r->door_left_geometry = geometry_create(r, door_left_vertices, sizeof(door_left_vertices));
 	r->door_right_geometry = geometry_create(r, door_right_vertices, sizeof(door_right_vertices));
 	r->stairs_geometry = geometry_create(r, stairs_vertices, sizeof(stairs_vertices));
+	r->floating_marker_geometry = geometry_create(r, floating_marker_vertices, sizeof(floating_marker_vertices));
 
 	const int nr_types = DTX_DOOR + 1;
 	r->materials = xcalloc(nr_types * dtx->nr_columns, sizeof(struct material));
@@ -275,6 +290,7 @@ void dungeon_renderer_free(struct dungeon_renderer *r)
 	geometry_free(r->door_left_geometry);
 	geometry_free(r->door_right_geometry);
 	geometry_free(r->stairs_geometry);
+	geometry_free(r->floating_marker_geometry);
 
 	for (int i = 0; i < r->nr_materials; i++)
 		delete_material(&r->materials[i]);
@@ -344,17 +360,28 @@ static void draw_floor_marker(struct dungeon_renderer *r, const struct marker_in
 	glDepthFunc(GL_LESS);
 }
 
-static void draw_floating_marker(struct dungeon_renderer *r, const struct marker_info *info, float x, float y, float z, int blend_rate, uint32_t t, mat4 v)
+static void draw_floating_marker(struct dungeon_renderer *r, const struct marker_info *info, float x, float y, float z, int blend_rate, uint32_t t, mat4 view_mat)
 {
-	int frame = t / 100;   // 100ms per frame
-	int texture = info->texture_index + frame % info->texture_count;
-	mat4 billboard = MAT4(
-		v[0][0], v[0][1], v[0][2], x,
-		v[1][0], v[1][1], v[1][2], y,
-		v[2][0], v[2][1], v[2][2], z,
-		0,       0,       0,       1);
+	int texture = info->texture_index;
+	mat4 m = MAT4(
+		1,  0,  0,  x,
+		0,  1,  0,  y,
+		0,  0,  1,  z,
+		0,  0,  0,  1);
+	if (info->texture_count) {
+		int frame = t / 100;   // 100ms per frame
+		texture += frame % info->texture_count;
+		// Make a billboard matrix
+		mat3 r;
+		glm_mat4_pick3t(view_mat, r);
+		glm_mat4_ins3(r, m);
+	} else {
+		float angle = t / -(M_PI * 100.0);
+		glm_rotate_y(m, angle, m);
+	}
+
 	glUniform1f(r->alpha_mod, blend_rate / 255.0);
-	draw(r, r->wall_geometry, r->event_textures[texture], billboard);
+	draw(r, r->floating_marker_geometry, r->event_textures[texture], m);
 	glUniform1f(r->alpha_mod, 1.0);
 }
 
