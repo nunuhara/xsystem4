@@ -64,8 +64,7 @@ enum parts_motion_type {
 	PARTS_MOTION_ROTATE_X,
 	PARTS_MOTION_ROTATE_Y,
 	PARTS_MOTION_ROTATE_Z,
-	//PARTS_MOTION_VIBRATION_SIZE,
-	//PARTS_MOTION_SOUND,
+	PARTS_MOTION_VIBRATION_SIZE,
 	PARTS_NR_MOTION_TYPES
 };
 
@@ -486,6 +485,14 @@ static void parts_release(int parts_no)
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
 		parts_state_free(&parts->states[i]);
 	}
+
+	while (!TAILQ_EMPTY(&parts->children)) {
+		struct parts *child = TAILQ_FIRST(&parts->children);
+		child->parent = -1;
+		parts_list_remove(&parts->children, child);
+		parts_list_insert(&parts_list, child);
+	}
+
 	parts_list_remove(parts_get_list(parts), parts);
 	free(parts);
 	slot->value = NULL;
@@ -1699,7 +1706,14 @@ static void GoatGUIEngine_AddMotionRotateZ(int parts_no, float begin, float end,
 	parts_add_motion(parts, motion);
 }
 
-void GoatGUIEngine_AddMotionVibrationSize(int PartsNumber, int BeginWidth, int BeginHeight, int BeginTime, int EndTime);
+static void GoatGUIEngine_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_VIBRATION_SIZE, begin_t, end_t);
+	motion->begin.x = begin_w;
+	motion->begin.y = begin_h;
+	parts_add_motion(parts, motion);
+}
 
 static void GoatGUIEngine_AddMotionSound(int sound_no, int begin_t)
 {
@@ -1874,7 +1888,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(AddMotionRotateX, GoatGUIEngine_AddMotionRotateX),
 	    HLL_EXPORT(AddMotionRotateY, GoatGUIEngine_AddMotionRotateY),
 	    HLL_EXPORT(AddMotionRotateZ, GoatGUIEngine_AddMotionRotateZ),
-	    HLL_TODO_EXPORT(AddMotionVibrationSize, GoatGUIEngine_AddMotionVibrationSize),
+	    HLL_EXPORT(AddMotionVibrationSize, GoatGUIEngine_AddMotionVibrationSize),
 	    HLL_EXPORT(AddMotionSound, GoatGUIEngine_AddMotionSound),
 	    HLL_EXPORT(BeginMotion, GoatGUIEngine_BeginMotion),
 	    HLL_EXPORT(EndMotion, GoatGUIEngine_EndMotion),
