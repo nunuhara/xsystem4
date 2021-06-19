@@ -89,9 +89,13 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 		}
 		buffer_skip(&r, 4);
 		cell->battle_background = buffer_read_int32(&r);
-		if (dgn->version != DGN_VER_GALZOO)
+		if (dgn->version != DGN_VER_GALZOO) {
+			cell->polyobj_index = -1;
+			cell->roof_orientation = -1;
+			cell->roof_texture = -1;
+			cell->roof_underside_texture = -1;
 			continue;
-
+		}
 		cell->polyobj_index = buffer_read_int32(&r);
 		cell->polyobj_scale = buffer_read_float(&r);
 		cell->polyobj_rotation_y = buffer_read_float(&r);

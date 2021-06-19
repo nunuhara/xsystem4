@@ -86,6 +86,7 @@ struct dungeon_renderer {
 	struct geometry *wall_geometry;
 	struct geometry *door_left_geometry;
 	struct geometry *door_right_geometry;
+	struct geometry *roof_geometry;
 	struct geometry *stairs_geometry;
 	struct geometry *floating_marker_geometry;
 
@@ -133,6 +134,13 @@ static const struct vertex door_right_vertices[] = {
 	{-1.0, -1.0, 0.0,  0.5, 1.0},
 	{ 0.0,  1.0, 0.0,  1.0, 0.0},
 	{ 0.0, -1.0, 0.0,  1.0, 1.0},
+};
+
+static const struct vertex roof_vertices[] = {
+	{-1.0,  1.0, -1.0,  0.0, 0.0},
+	{-1.0, -1.0,  1.0,  0.0, 1.0},
+	{ 1.0,  1.0, -1.0,  1.0, 0.0},
+	{ 1.0, -1.0,  1.0,  1.0, 1.0},
 };
 
 static const struct vertex stairs_vertices[] = {
@@ -261,6 +269,7 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 	r->wall_geometry = geometry_create(r, wall_vertices, sizeof(wall_vertices));
 	r->door_left_geometry = geometry_create(r, door_left_vertices, sizeof(door_left_vertices));
 	r->door_right_geometry = geometry_create(r, door_right_vertices, sizeof(door_right_vertices));
+	r->roof_geometry = geometry_create(r, roof_vertices, sizeof(roof_vertices));
 	r->stairs_geometry = geometry_create(r, stairs_vertices, sizeof(stairs_vertices));
 	r->floating_marker_geometry = geometry_create(r, floating_marker_vertices, sizeof(floating_marker_vertices));
 
@@ -291,6 +300,7 @@ void dungeon_renderer_free(struct dungeon_renderer *r)
 	geometry_free(r->wall_geometry);
 	geometry_free(r->door_left_geometry);
 	geometry_free(r->door_right_geometry);
+	geometry_free(r->roof_geometry);
 	geometry_free(r->stairs_geometry);
 	geometry_free(r->floating_marker_geometry);
 
@@ -385,6 +395,18 @@ static void draw_floating_marker(struct dungeon_renderer *r, const struct marker
 	glUniform1f(r->alpha_mod, blend_rate / 255.0);
 	draw(r, r->floating_marker_geometry, r->event_textures[texture], m);
 	glUniform1f(r->alpha_mod, 1.0);
+}
+
+static void stairs_matrix(mat4 dst, float x, float y, float z, int orientation)
+{
+	vec3 pos = {x, y, z};
+	glm_translate_make(dst, pos);
+	const float cos[4] = {1, 0, -1, 0};
+	const float sin[4] = {0, 1, 0, -1};
+	dst[0][0] =  cos[orientation % 4];
+	dst[0][2] = -sin[orientation % 4];
+	dst[2][0] =  sin[orientation % 4];
+	dst[2][2] =  cos[orientation % 4];
 }
 
 static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool render_opaque, mat4 view_transform)
@@ -506,29 +528,27 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 	if (cell->stairs_texture >= 0) {
 		struct material *material = get_material(r, DTX_STAIRS, cell->stairs_texture);
 		if (material && material->opaque == render_opaque) {
-			mat4 matrices[4] = {
-				MAT4(
-					 1,  0,  0,  x,
-					 0,  1,  0,  y,
-					 0,  0,  1,  z,
-					 0,  0,  0,  1),
-				MAT4(
-					 0,  0,  1,  x,
-					 0,  1,  0,  y,
-					-1,  0,  0,  z,
-					 0,  0,  0,  1),
-				MAT4(
-					-1,  0,  0,  x,
-					 0,  1,  0,  y,
-					 0,  0, -1,  z,
-					 0,  0,  0,  1),
-				MAT4(
-					 0,  0, -1,  x,
-					 0,  1,  0,  y,
-					 1,  0,  0,  z,
-					 0,  0,  0,  1)
-			};
-			draw(r, r->stairs_geometry, material->texture, matrices[cell->stairs_orientation]);
+			mat4 m;
+			stairs_matrix(m, x, y, z, cell->stairs_orientation);
+			draw(r, r->stairs_geometry, material->texture, m);
+		}
+	}
+	if (cell->roof_texture >= 0) {
+		struct material *material = get_material(r, DTX_STAIRS, cell->roof_texture);
+		if (material && material->opaque == render_opaque) {
+			mat4 m;
+			stairs_matrix(m, x, y, z, cell->roof_orientation);
+			draw(r, r->roof_geometry, material->texture, m);
+		}
+	}
+	if (cell->roof_underside_texture >= 0) {
+		struct material *material = get_material(r, DTX_STAIRS, cell->roof_underside_texture);
+		if (material && material->opaque == render_opaque) {
+			mat4 m;
+			stairs_matrix(m, x, y, z, cell->roof_orientation);
+			glCullFace(GL_FRONT);
+			draw(r, r->roof_geometry, material->texture, m);
+			glCullFace(GL_BACK);
 		}
 	}
 	if (r->draw_event_markers && cell->floor_event && !render_opaque) {
