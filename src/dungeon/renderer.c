@@ -20,11 +20,13 @@
 #include <cglm/cglm.h>
 #include <GL/glew.h>
 #include "system4.h"
+#include "system4/buffer.h"
 #include "system4/cg.h"
 
 #include "dungeon/dungeon.h"
 #include "dungeon/dgn.h"
 #include "dungeon/dtx.h"
+#include "dungeon/polyobj.h"
 #include "dungeon/renderer.h"
 #include "dungeon/skybox.h"
 #include "gfx/gfx.h"
@@ -73,6 +75,7 @@ static const struct marker_info *marker_tables[] = {
 
 struct geometry;
 struct material;
+struct object3d;
 
 struct dungeon_renderer {
 	struct shader shader;
@@ -98,6 +101,11 @@ struct dungeon_renderer {
 	int nr_event_textures;
 	const struct marker_info *marker_table;
 	bool draw_event_markers;
+
+	int nr_polyobjs;
+	struct object3d *polyobjs;
+	int nr_polyobj_materials;
+	struct material *polyobj_materials;
 
 	struct skybox *skybox;
 };
@@ -189,12 +197,14 @@ struct geometry {
 	GLuint vao;
 	GLuint attr_buffer;
 	int nr_vertices;
+	GLenum mode;
 };
 
-static struct geometry *geometry_create(struct dungeon_renderer *r, const struct vertex *vertices, size_t size)
+static struct geometry *geometry_create(struct dungeon_renderer *r, const struct vertex *vertices, size_t size, GLenum mode)
 {
 	struct geometry *g = xcalloc(1, sizeof(struct geometry));
 	g->nr_vertices = size / sizeof(struct vertex);
+	g->mode = mode;
 
 	glGenVertexArrays(1, &g->vao);
 	glBindVertexArray(g->vao);
@@ -224,11 +234,8 @@ struct material {
 	bool opaque;
 };
 
-static void init_material(struct material *m, struct dtx *dtx, int type, int index)
+static void init_material(struct material *m, struct cg *cg)
 {
-	struct cg *cg = dtx_create_cg(dtx, type, index);
-	if (!cg)
-		return;
 	glGenTextures(1, &m->texture);
 	glBindTexture(GL_TEXTURE_2D, m->texture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
@@ -239,7 +246,6 @@ static void init_material(struct material *m, struct dtx *dtx, int type, int ind
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	m->opaque = !cg->metrics.has_alpha;
-	cg_free(cg);
 }
 
 static void delete_material(struct material *m)
@@ -256,7 +262,77 @@ static struct material *get_material(struct dungeon_renderer *r, int type, int i
 	return m;
 }
 
-struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version version, struct dtx *dtx, GLuint *event_textures, int nr_event_textures)
+struct mesh {
+	struct geometry *geometry;
+	int material;
+};
+
+struct object3d {
+	int nr_meshes;
+	struct mesh *meshes;
+};
+
+static void init_object3d(struct object3d *o3d, struct dungeon_renderer *r, const struct polyobj_object *obj)
+{
+	o3d->nr_meshes = obj->nr_materials;
+	o3d->meshes = xcalloc(obj->nr_materials, sizeof(struct mesh));
+	for (int i = 0; i < obj->nr_materials; i++)
+		o3d->meshes[i].material = obj->materials[i];
+
+	struct buffer *bufs = xcalloc(obj->nr_materials, sizeof(struct buffer));
+	for (int i = 0; i < obj->nr_parts; i++) {
+		const struct polyobj_part *part = &obj->parts[i];
+		for (int j = 0; j < part->nr_triangles; j++) {
+			const struct polyobj_triangle *triangle = &part->triangles[j];
+			for (int k = 0; k < 3; k++) {
+				const int ltor[] = {0, 2, 1};  // left->right handed system
+				const vec3 *pos = &part->vertices[triangle->index[ltor[k]]];
+				const vec2 *uv = &triangle->uv[ltor[k]];
+				buffer_write_float(&bufs[triangle->material], (*pos)[0]);  // x
+				buffer_write_float(&bufs[triangle->material], (*pos)[1]);  // y
+				buffer_write_float(&bufs[triangle->material], -(*pos)[2]); // z
+				buffer_write_float(&bufs[triangle->material], (*uv)[0]);   // u
+				buffer_write_float(&bufs[triangle->material], (*uv)[1]);   // v
+			}
+		}
+	}
+
+	for (int i = 0; i < obj->nr_materials; i++) {
+		o3d->meshes[i].geometry = geometry_create(r, (const struct vertex *)bufs[i].buf, bufs[i].index, GL_TRIANGLES);
+		free(bufs[i].buf);
+	}
+	free(bufs);
+}
+
+static void delete_object3d(struct object3d *o3d)
+{
+	for (int i = 0; i < o3d->nr_meshes; i++)
+		geometry_free(o3d->meshes[i].geometry);
+	free(o3d->meshes);
+}
+
+static void init_polyobjs(struct dungeon_renderer *r, struct polyobj *po)
+{
+	r->nr_polyobj_materials = po->nr_textures;
+	r->polyobj_materials = xcalloc(po->nr_textures, sizeof(struct material));
+	for (int i = 0; i < po->nr_textures; i++) {
+		struct cg *cg = polyobj_get_texture(po, i);
+		init_material(&r->polyobj_materials[i], cg);
+		cg_free(cg);
+	}
+
+	r->nr_polyobjs = po->nr_objects;
+	r->polyobjs = xcalloc(po->nr_objects, sizeof(struct object3d));
+	for (int i = 0; i < po->nr_objects; i++) {
+		struct polyobj_object *obj = polyobj_get_object(po, i);
+		if (!obj)
+			continue;
+		init_object3d(&r->polyobjs[i], r, obj);
+		polyobj_object_free(obj);
+	}
+}
+
+struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version version, struct dtx *dtx, GLuint *event_textures, int nr_event_textures, struct polyobj *po)
 {
 	struct dungeon_renderer *r = xcalloc(1, sizeof(struct dungeon_renderer));
 
@@ -266,18 +342,22 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 	r->alpha_mod = glGetUniformLocation(r->shader.program, "alpha_mod");
 	r->vertex_uv = glGetAttribLocation(r->shader.program, "vertex_uv");
 
-	r->wall_geometry = geometry_create(r, wall_vertices, sizeof(wall_vertices));
-	r->door_left_geometry = geometry_create(r, door_left_vertices, sizeof(door_left_vertices));
-	r->door_right_geometry = geometry_create(r, door_right_vertices, sizeof(door_right_vertices));
-	r->roof_geometry = geometry_create(r, roof_vertices, sizeof(roof_vertices));
-	r->stairs_geometry = geometry_create(r, stairs_vertices, sizeof(stairs_vertices));
-	r->floating_marker_geometry = geometry_create(r, floating_marker_vertices, sizeof(floating_marker_vertices));
+	r->wall_geometry = geometry_create(r, wall_vertices, sizeof(wall_vertices), GL_TRIANGLE_STRIP);
+	r->door_left_geometry = geometry_create(r, door_left_vertices, sizeof(door_left_vertices), GL_TRIANGLE_STRIP);
+	r->door_right_geometry = geometry_create(r, door_right_vertices, sizeof(door_right_vertices), GL_TRIANGLE_STRIP);
+	r->roof_geometry = geometry_create(r, roof_vertices, sizeof(roof_vertices), GL_TRIANGLE_STRIP);
+	r->stairs_geometry = geometry_create(r, stairs_vertices, sizeof(stairs_vertices), GL_TRIANGLE_STRIP);
+	r->floating_marker_geometry = geometry_create(r, floating_marker_vertices, sizeof(floating_marker_vertices), GL_TRIANGLE_STRIP);
 
 	const int nr_types = DTX_DOOR + 1;
 	r->materials = xcalloc(nr_types * dtx->nr_columns, sizeof(struct material));
 	for (int type = 0; type < nr_types; type++) {
 		for (int i = 0; i < dtx->nr_columns; i++) {
-			init_material(&r->materials[type * dtx->nr_columns + i], dtx, type, i);
+			struct cg *cg = dtx_create_cg(dtx, type, i);
+			if (!cg)
+				continue;
+			init_material(&r->materials[type * dtx->nr_columns + i], cg);
+			cg_free(cg);
 		}
 	}
 	r->nr_dtx_columns = dtx->nr_columns;
@@ -287,6 +367,9 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 	r->nr_event_textures = nr_event_textures;
 	r->marker_table = marker_tables[version];
 	r->draw_event_markers = true;
+
+	if (po)
+		init_polyobjs(r, po);
 
 	r->skybox = skybox_create(dtx);
 
@@ -311,6 +394,13 @@ void dungeon_renderer_free(struct dungeon_renderer *r)
 	glDeleteTextures(r->nr_event_textures, r->event_textures);
 	free(r->event_textures);
 
+	for (int i = 0; i < r->nr_polyobjs; i++)
+		delete_object3d(&r->polyobjs[i]);
+	free(r->polyobjs);
+	for (int i = 0; i < r->nr_polyobj_materials; i++)
+		delete_material(&r->polyobj_materials[i]);
+	free(r->polyobj_materials);
+
 	skybox_free(r->skybox);
 
 	free(r);
@@ -326,7 +416,7 @@ static void draw(struct dungeon_renderer *r, struct geometry *geometry, GLuint t
 	glUniform1i(r->shader.texture, 0);
 
 	glBindVertexArray(geometry->vao);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, geometry->nr_vertices);
+	glDrawArrays(geometry->mode, 0, geometry->nr_vertices);
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
@@ -395,6 +485,22 @@ static void draw_floating_marker(struct dungeon_renderer *r, const struct marker
 	glUniform1f(r->alpha_mod, blend_rate / 255.0);
 	draw(r, r->floating_marker_geometry, r->event_textures[texture], m);
 	glUniform1f(r->alpha_mod, 1.0);
+}
+
+static void draw_object3d(struct dungeon_renderer *r, struct object3d *o3d, bool render_opaque, vec3 pos, float scale, float rotation_y)
+{
+	mat4 m;
+	glm_translate_make(m, pos);
+	glm_rotate_y(m, glm_rad(rotation_y), m);
+	glm_scale_uni(m, scale);
+
+	for (int i = 0; i < o3d->nr_meshes; i++) {
+		struct mesh *mesh = &o3d->meshes[i];
+		struct material *material = &r->polyobj_materials[mesh->material];
+		if (material->opaque != render_opaque)
+			continue;
+		draw(r, mesh->geometry, material->texture, m);
+	}
 }
 
 static void stairs_matrix(mat4 dst, float x, float y, float z, int orientation)
@@ -550,6 +656,14 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 			draw(r, r->roof_geometry, material->texture, m);
 			glCullFace(GL_BACK);
 		}
+	}
+	if (cell->polyobj_index >= 0) {
+		vec3 pos = {
+			x + cell->polyobj_position_x,
+			y + cell->polyobj_position_y - 1,
+			z - cell->polyobj_position_z
+		};
+		draw_object3d(r, &r->polyobjs[cell->polyobj_index], render_opaque, pos, cell->polyobj_scale, cell->polyobj_rotation_y);
 	}
 	if (r->draw_event_markers && cell->floor_event && !render_opaque) {
 		const struct marker_info *info = get_marker_info(r, cell->floor_event);
