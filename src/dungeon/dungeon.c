@@ -31,6 +31,7 @@
 #include "dungeon/dtx.h"
 #include "dungeon/dungeon.h"
 #include "dungeon/map.h"
+#include "dungeon/polyobj.h"
 #include "dungeon/renderer.h"
 #include "dungeon/tes.h"
 #include "gfx/gfx.h"
@@ -127,6 +128,8 @@ static GLuint *load_event_textures(int *nr_textures_out)
 
 bool dungeon_load(struct dungeon_context *ctx, int num)
 {
+	struct polyobj *polyobj = NULL;
+
 	if (ctx->loaded)
 		VM_ERROR("Dungeon is already loaded");
 
@@ -185,6 +188,14 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 			free(tes);
 		}
 		free(path);
+
+		char *polyobj_path = gamedir_path("Data/PolyObj.lin");
+		polyobj = polyobj_load(polyobj_path);
+		free(polyobj_path);
+		if (!polyobj) {
+			WARNING("Cannot load Data/PolyObj.lin");
+			return false;
+		}
 	} else {
 		ERROR("Invalid DrawDungeon version %d", ctx->version);
 	}
@@ -199,7 +210,10 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 	if (!event_textures)
 		return false;
 
-	ctx->renderer = dungeon_renderer_create(ctx->version, ctx->dtx, event_textures, nr_event_textures);
+	ctx->renderer = dungeon_renderer_create(ctx->version, ctx->dtx, event_textures, nr_event_textures, polyobj);
+
+	if (polyobj)
+		polyobj_free(polyobj);
 
 	dungeon_map_init(ctx);
 
