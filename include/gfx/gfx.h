@@ -38,7 +38,6 @@ typedef struct texture {
 	mat4 world_transform;
 	int w, h;
 	bool has_alpha;
-	bool flip_y;
 	int alpha_mod;
 	enum draw_method draw_method;
 } Texture;
@@ -88,7 +87,7 @@ void gfx_init_texture_blank(struct texture *t, int w, int h);
 void gfx_init_texture_with_cg(struct texture *t, struct cg *cg);
 void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color);
 void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color);
-void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels, GLenum format);
+void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels);
 void gfx_copy_main_surface(struct texture *dst);
 void gfx_delete_texture(struct texture *t);
 GLuint gfx_set_framebuffer(GLenum target, Texture *t, int x, int y, int w, int h);
@@ -102,6 +101,7 @@ void gfx_copy(struct texture *dst, int dx, int dy, struct texture *src, int sx, 
 void gfx_copy_bright(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int rate);
 void gfx_copy_amap(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_copy_sprite(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, SDL_Color color);
+void gfx_sprite_copy_amap(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int alpha_key);
 void gfx_copy_color_reverse(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_copy_use_amap_under(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int threshold);
 void gfx_copy_use_amap_border(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int threshold);

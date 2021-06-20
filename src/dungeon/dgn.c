@@ -42,7 +42,7 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 	dgn->size_z = buffer_read_int32(&r);
 	buffer_skip(&r, 40);
 
-	int nr_cells = dgn->size_x * dgn->size_y * dgn->size_z;
+	int nr_cells = dgn_nr_cells(dgn);
 	dgn->cells = xcalloc(nr_cells, sizeof(struct dgn_cell));
 	uint32_t x = 0, y = 0, z = 0;
 	for (int i = 0; i < nr_cells; i++) {
@@ -89,9 +89,13 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 		}
 		buffer_skip(&r, 4);
 		cell->battle_background = buffer_read_int32(&r);
-		if (dgn->version != DGN_VER_GALZOO)
+		if (dgn->version != DGN_VER_GALZOO) {
+			cell->polyobj_index = -1;
+			cell->roof_orientation = -1;
+			cell->roof_texture = -1;
+			cell->roof_underside_texture = -1;
 			continue;
-
+		}
 		cell->polyobj_index = buffer_read_int32(&r);
 		cell->polyobj_scale = buffer_read_float(&r);
 		cell->polyobj_rotation_y = buffer_read_float(&r);
@@ -146,7 +150,7 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 
 void dgn_free(struct dgn *dgn)
 {
-	int nr_cells = dgn->size_x * dgn->size_y * dgn->size_z;
+	int nr_cells = dgn_nr_cells(dgn);
 
 	for (int i = 0; i < nr_cells; i++) {
 		if (dgn->cells[i].visible_cells)
@@ -173,6 +177,21 @@ int dgn_cell_index(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z)
 struct dgn_cell *dgn_cell_at(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z)
 {
 	return &dgn->cells[dgn_cell_index(dgn, x, y, z)];
+}
+
+int dgn_calc_conquer(struct dgn *dgn)
+{
+	int nr_cells = dgn_nr_cells(dgn);
+	int enterable = 0;
+	int walked = 0;
+	for (int i = 0; i < nr_cells; i++) {
+		if (!dgn->cells[i].enterable)
+			continue;
+		enterable++;
+		if (dgn->cells[i].walked)
+			walked++;
+	}
+	return walked * 100 / enterable;
 }
 
 struct pvs_cell {

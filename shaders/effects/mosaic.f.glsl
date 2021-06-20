@@ -14,8 +14,6 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#version 140
-
 uniform sampler2D tex;   // the new scene
 uniform sampler2D old;   // the old scene
 uniform vec2 resolution; // the screen resolution

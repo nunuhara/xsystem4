@@ -112,13 +112,6 @@ int scene_set_wp_color(int r, int g, int b)
 	return 1;
 }
 
-int scene_get_max_z(void)
-{
-	if (TAILQ_EMPTY(&sprite_list))
-		return 0;
-	return TAILQ_LAST(&sprite_list, listhead)->z;
-}
-
 void scene_set_sprite_z(struct sprite *sp, int z)
 {
 	sp->z = z;

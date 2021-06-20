@@ -1,4 +1,4 @@
-/* Copyright (C) 2021 kichikuou <KichikuouChrome@gmail.com>
+/* Copyright (C) 2019 Nunuhara Cabbage <nunuhara@haniwa.technology>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,14 +14,15 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-uniform mat4 view_transform;
-uniform mat4 proj_transform;
+uniform sampler2D tex;
+uniform vec4 color;
 
-in vec3 vertex_pos;
-out vec3 tex_coord;
+in vec2 tex_coord;
+out vec4 frag_color;
 
 void main() {
-        vec4 pos = proj_transform * mat4(mat3(view_transform)) * vec4(vertex_pos, 1.0);
-        gl_Position = pos.xyww;
-        tex_coord = vertex_pos;
+        vec4 texel = texture(tex, tex_coord);
+        if (texel.a == color.a)
+                discard;
+        frag_color = texel;
 }

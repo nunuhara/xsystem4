@@ -80,6 +80,7 @@ struct dgn_cell {
 
 	// Runtime data (not stored in .dgn)
 	int x, y, z;
+	int walked;
 	int event_blend_rate;
 	float north_door_angle;
 	float south_door_angle;
@@ -119,6 +120,12 @@ void dgn_free(struct dgn *dgn);
 
 int dgn_cell_index(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z);
 struct dgn_cell *dgn_cell_at(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z);
+int dgn_calc_conquer(struct dgn *dgn);
+
+static inline int dgn_nr_cells(struct dgn *dgn)
+{
+	return dgn->size_x * dgn->size_y * dgn->size_z;
+}
 
 static inline bool dgn_is_in_map(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z)
 {

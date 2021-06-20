@@ -111,7 +111,7 @@ static void render_text(struct fnl_font_face *font, struct text_style *ts, Textu
 	}
 
 	// create texture from surface
-	gfx_init_texture_with_pixels(dst, width, height, surf, GL_RGBA);
+	gfx_init_texture_with_pixels(dst, width, height, surf);
 	free(surf);
 	free(glyphs);
 }

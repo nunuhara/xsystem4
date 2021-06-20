@@ -35,7 +35,7 @@ int sact_Effect(int type, int time, int key);
 int sact_SP_GetUnuseNum(int min);
 int sact_SP_Count(void);
 int sact_SP_Enum(struct page **array);
-#define sact_SP_GetMaxZ scene_get_max_z
+int sact_SP_GetMaxZ(void);
 int sact_SP_SetCG(int sp, int cg);
 int sact_SP_SetCGFromFile(int sp, struct string *filename);
 int sact_SP_SaveCG(int sp, struct string *filename);
