@@ -14,8 +14,6 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#version 140
-
 uniform samplerCube tex;
 
 in vec3 tex_coord;

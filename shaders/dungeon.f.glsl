@@ -14,8 +14,6 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#version 140
-
 uniform sampler2D tex;
 uniform float alpha_mod;
 

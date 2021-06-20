@@ -33,6 +33,19 @@
 struct sdl_private sdl;
 
 /*
+ * Define this to target OpenGL ES 3.0.
+ */
+//#define USE_GLES
+
+static const GLchar glsl_preamble[] =
+#ifdef USE_GLES
+	"#version 300 es\n"
+	"precision highp float;\n";
+#else
+	"#version 140\n";
+#endif
+
+/*
  * Transform from the window coordinate system -> clip-space.
  *
  * Window CS:  x= 0..w, y= 0..h (+y down)
@@ -84,16 +97,17 @@ static GLuint load_shader_file(const char *path, GLenum type)
 {
 	GLint shader_compiled;
 	GLuint shader;
-	const GLchar *source;
-
-	source = read_shader_file(path);
+	const GLchar *source[2] = {
+		glsl_preamble,
+		read_shader_file(path)
+	};
 	shader = glCreateShader(type);
-	glShaderSource(shader, 1, &source, NULL);
+	glShaderSource(shader, 2, source, NULL);
 	glCompileShader(shader);
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &shader_compiled);
 	if (!shader_compiled)
 		ERROR("Failed to compile shader: %s", path);
-	free((char*)source);
+	free((char*)source[1]);
 	return shader;
 }
 
@@ -164,9 +178,15 @@ int gfx_init(void)
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0)
 		ERROR("SDL_Init failed: %s", SDL_GetError());
 
+#ifdef USE_GLES
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#else
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
 
 	sdl.format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
 	sdl.window =  SDL_CreateWindow("XSystem4",
@@ -455,7 +475,7 @@ void gfx_init_texture_blank(struct texture *t, int w, int h)
 void gfx_copy_main_surface(struct texture *dst)
 {
 	init_texture(dst, main_surface.w, main_surface.h);
-	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, main_surface.w, main_surface.h, 0);
+	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, main_surface.w, main_surface.h, 0);
 }
 
 void gfx_delete_texture(struct texture *t)

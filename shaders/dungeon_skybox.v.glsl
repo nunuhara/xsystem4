@@ -14,8 +14,6 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#version 140
-
 uniform mat4 view_transform;
 uniform mat4 proj_transform;
 
