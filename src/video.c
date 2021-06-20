@@ -428,15 +428,15 @@ static void init_texture(struct texture *t, int w, int h)
 
 }
 
-void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels, GLenum format)
+void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels)
 {
 	init_texture(t, w, h);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, format, GL_UNSIGNED_BYTE, pixels);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 }
 
 void gfx_init_texture_with_cg(struct texture *t, struct cg *cg)
 {
-	gfx_init_texture_with_pixels(t, cg->metrics.w, cg->metrics.h, cg->pixels, GL_RGBA);
+	gfx_init_texture_with_pixels(t, cg->metrics.w, cg->metrics.h, cg->pixels);
 	t->has_alpha = cg->metrics.has_alpha;
 }
 
@@ -449,7 +449,7 @@ void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color)
 		pixels[i] = c;
 	}
 
-	gfx_init_texture_with_pixels(t, w, h, pixels, GL_RGBA);
+	gfx_init_texture_with_pixels(t, w, h, pixels);
 	free(pixels);
 }
 
@@ -469,7 +469,7 @@ void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color)
 
 void gfx_init_texture_blank(struct texture *t, int w, int h)
 {
-	gfx_init_texture_with_pixels(t, w, h, NULL, GL_RGBA);
+	gfx_init_texture_with_pixels(t, w, h, NULL);
 }
 
 void gfx_copy_main_surface(struct texture *dst)
