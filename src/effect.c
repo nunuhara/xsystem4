@@ -19,6 +19,7 @@
 #include "gfx/gfx.h"
 #include "sact.h"
 #include "system4.h"
+#include "xsystem4.h"
 
 const char *effect_names[NR_EFFECTS] = {
 	[EFFECT_CROSSFADE]              = "EFFECT_CROSSFADE",
@@ -75,20 +76,64 @@ const char *effect_names[NR_EFFECTS] = {
 	[EFFECT_2ROT_ZOOM_BLEND_BLUR]   = "EFFECT_2ROT_ZOOM_BLEND_BLUR",
 };
 
-extern GLuint main_surface_fb;
+struct effect_shader {
+	Shader s;
+	GLint old;
+	GLint resolution;
+	GLint progress;
+	const char *f_path;
+};
 
-static void effect_crossfade(Texture *old, Texture *new, float progress)
+struct effect_data {
+	Texture *old;
+	Texture *new;
+	float progress;
+};
+
+static void prepare_effect_shader(struct gfx_render_job *job, void *data)
 {
-	new->alpha_mod = progress * 255;
+	struct effect_shader *s = (struct effect_shader*)job->shader;
+	struct effect_data *d = (struct effect_data*)data;
 
-	gfx_render_texture(old, NULL);
-	gfx_render_texture(new, NULL);
+	// set uniforms
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, d->old->handle);
+	glUniform1i(s->old, 1);
+
+	glUniform2f(s->resolution, config.view_width, config.view_height);
+	glUniform1f(s->progress, d->progress);
 }
 
-typedef void (*effect_callback)(Texture*,Texture*,float);
+static void load_effect_shader(struct effect_shader *s)
+{
+	gfx_load_shader(&s->s, "shaders/render.v.glsl", s->f_path);
+	s->old = glGetUniformLocation(s->s.program, "old");
+	s->resolution = glGetUniformLocation(s->s.program, "resolution");
+	s->progress = glGetUniformLocation(s->s.program, "progress");
+	s->s.prepare = prepare_effect_shader;
+}
 
-static effect_callback effects[NR_EFFECTS] = {
-	[EFFECT_CROSSFADE] = effect_crossfade
+static void render_effect_shader(struct effect_shader *shader, Texture *old, Texture *new, float progress)
+{
+	struct effect_data data = { .old = old, .new = new, .progress = progress };
+	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
+	struct gfx_render_job job = {
+		.shader = &shader->s,
+		.texture = new->handle,
+		.world_transform = new->world_transform[0],
+		.view_transform = wv_transform[0],
+		.data = &data
+	};
+	gfx_render(&job);
+}
+
+#define EFFECT_SHADER(path) { .s = { .prepare = prepare_effect_shader }, .f_path = path}
+static struct effect_shader crossfade_shader = EFFECT_SHADER("shaders/effects/crossfade.f.glsl");
+
+extern GLuint main_surface_fb;
+
+static struct effect_shader *effect_shaders[NR_EFFECTS] = {
+	[EFFECT_CROSSFADE] = &crossfade_shader,
 };
 
 int sact_Effect(int type, possibly_unused int time, possibly_unused int key)
@@ -97,9 +142,14 @@ int sact_Effect(int type, possibly_unused int time, possibly_unused int key)
 		WARNING("Invalid or unknown effect: %d", type);
 		return 0;
 	}
-	if (!effects[type]) {
+	struct effect_shader *s = effect_shaders[type];
+	if (!s) {
 		WARNING("Unimplemented effect: %s", effect_names[type]);
 		return 0;
+	}
+	// load shader lazily
+	if (!s->s.program) {
+		load_effect_shader(s);
 	}
 
 	// get old & new scene textures
@@ -108,10 +158,10 @@ int sact_Effect(int type, possibly_unused int time, possibly_unused int key)
 	scene_render();
 	gfx_copy_main_surface(&new);
 
-	effect_callback effect = effects[type];
+	//effect_callback effect = effects[type];
 	for (int i = 0; i < time; i += 16) {
 		gfx_clear();
-		effect(&old, &new, (float)i / (float)time);
+		render_effect_shader(s, &old, &new, (float)i / (float)time);
 		gfx_swap();
 		SDL_Delay(16);
 	}
@@ -135,9 +185,14 @@ int sact_TRANS_Begin(int type)
 		WARNING("Invalid or unknown effect: %d", type);
 		return 0;
 	}
-	if (!effects[type]) {
+	struct effect_shader *s = effect_shaders[type];
+	if (!s) {
 		WARNING("Unimplemented effect: %s", effect_names[type]);
 		return 0;
+	}
+	// load shader lazily
+	if (!s->s.program) {
+		load_effect_shader(s);
 	}
 
 	trans.on = true;
@@ -154,7 +209,7 @@ int sact_TRANS_Update(float rate)
 		return 0;
 	}
 	gfx_clear();
-	effects[trans.type](&trans.old, &trans.new, rate);
+	render_effect_shader(effect_shaders[trans.type], &trans.old, &trans.new, rate);
 	gfx_swap();
 	return 1;
 }
