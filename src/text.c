@@ -252,10 +252,12 @@ static void get_glyph(TTF_Font *f, Texture *dst, char *msg, SDL_Color color)
 		WARNING("Text rendering failed: %s", msg);
 		return;
 	}
-	if (s->format->format != SDL_PIXELFORMAT_BGRA32) {
-		WARNING("Wrong pixel format from SDL_ttf");
+	if (s->format->format != SDL_PIXELFORMAT_RGBA32) {
+		SDL_Surface *tmp = SDL_ConvertSurfaceFormat(s, SDL_PIXELFORMAT_RGBA32, 0);
+		SDL_FreeSurface(s);
+		s = tmp;
 	}
-	gfx_init_texture_with_pixels(dst, s->w, s->h, s->pixels, GL_BGRA);
+	gfx_init_texture_with_pixels(dst, s->w, s->h, s->pixels);
 	SDL_FreeSurface(s);
 }
 
