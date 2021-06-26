@@ -294,7 +294,7 @@ static void neighbor_reveal(struct dungeon_context *ctx, int x, int y, int z)
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z);
 	if (cell->floor < 0) {
 		cell->walked = 1;
-		dungeon_map_reveal(ctx, x, y, z);
+		dungeon_map_reveal(ctx, x, y, z, false);
 	}
 }
 
@@ -304,7 +304,7 @@ void dungeon_set_walked(int surface, int x, int y, int z, int flag)
 	if (!ctx)
 		return;
 	dgn_cell_at(ctx->dgn, x, y, z)->walked = 1;
-	dungeon_map_reveal(ctx, x, y, z);
+	dungeon_map_reveal(ctx, x, y, z, false);
 	if (ctx->version == DRAW_DUNGEON_1) {
 		if (x > 0)
 			neighbor_reveal(ctx, x - 1, y, z);
@@ -399,7 +399,7 @@ bool dungeon_load_walk_data(int surface, int map, struct page **page)
 	int nr_cells = dgn_nr_cells(ctx->dgn);
 	for (struct dgn_cell *c = ctx->dgn->cells; c < ctx->dgn->cells + nr_cells; c++) {
 		if (array->values[offset].i)
-			dungeon_map_reveal(ctx, c->x, c->y, c->z);
+			dungeon_map_reveal(ctx, c->x, c->y, c->z, true);
 		c->walked = array->values[offset++].i;
 	}
 
