@@ -636,7 +636,9 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 		if (material && material->opaque == render_opaque) {
 			mat4 m;
 			stairs_matrix(m, x, y, z, cell->stairs_orientation);
+			glDisable(GL_CULL_FACE);
 			draw(r, r->stairs_geometry, material->texture, m);
+			glEnable(GL_CULL_FACE);
 		}
 	}
 	if (cell->roof_texture >= 0) {
