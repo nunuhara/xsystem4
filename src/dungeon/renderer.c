@@ -711,3 +711,11 @@ bool dungeon_renderer_event_markers_enabled(struct dungeon_renderer *r)
 {
 	return r->draw_event_markers;
 }
+
+bool dungeon_renderer_is_floor_opaque(struct dungeon_renderer *r, struct dgn_cell *cell)
+{
+	if (cell->floor < 0)
+		return false;
+	struct material *material = get_material(r, DTX_FLOOR, cell->floor);
+	return material && material->opaque;
+}
