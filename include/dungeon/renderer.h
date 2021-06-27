@@ -30,5 +30,6 @@ void dungeon_renderer_free(struct dungeon_renderer *r);
 void dungeon_renderer_render(struct dungeon_renderer *r, struct dgn_cell **cells, int nr_cells, mat4 view_transform, mat4 proj_transform);
 void dungeon_renderer_enable_event_markers(struct dungeon_renderer *r, bool enable);
 bool dungeon_renderer_event_markers_enabled(struct dungeon_renderer *r);
+bool dungeon_renderer_is_floor_opaque(struct dungeon_renderer *r, struct dgn_cell *cell);
 
 #endif /* SYSTEM4_DUNGEON_RENDERER_H */

@@ -33,6 +33,8 @@
 #define LMAP_WIDTH 32
 #define LMAP_HEIGHT 32
 
+static const SDL_Color unenterable_cell_color = {182, 72, 0, 0};
+
 enum symbol_type {
 	SYMBOL_PLAYER_NORTH = 0,
 	SYMBOL_PLAYER_SOUTH = 1,
@@ -118,11 +120,11 @@ void dungeon_map_init(struct dungeon_context *ctx)
 		}
 	}
 	map->offset_x = (LMAP_WIDTH - (max_x - min_x + 1)) / 2 - min_x;
-	map->offset_y = (LMAP_HEIGHT - (max_y - min_y + 1) + 1) / 2 - min_y;
+	map->offset_y = (LMAP_HEIGHT - (max_y - min_y)) / 2 - min_y;
 
 	// Initial draw
 	for (uint32_t y = 0; y < dgn->size_y; y++) {
-		gfx_init_texture_rgba(&map->textures[y], LMAP_WIDTH * CS, LMAP_HEIGHT * CS, (SDL_Color){182, 72, 0, 0});
+		gfx_init_texture_rgba(&map->textures[y], LMAP_WIDTH * CS, LMAP_HEIGHT * CS, unenterable_cell_color);
 		for (uint32_t z = 0; z < dgn->size_z; z++) {
 			for (uint32_t x = 0; x < dgn->size_x; x++) {
 				dungeon_map_update_cell(ctx, x, y, z);
@@ -131,13 +133,13 @@ void dungeon_map_init(struct dungeon_context *ctx)
 	}
 }
 
-void dungeon_map_reveal(struct dungeon_context *ctx, int x, int y, int z)
+void dungeon_map_reveal(struct dungeon_context *ctx, int x, int y, int z, bool transparent)
 {
 	if (!ctx->map)
 		return;
 	struct texture *dst = &ctx->map->textures[y];
 	Point pos = texture_pos(ctx, x, z);
-	gfx_fill_amap(dst, pos.x, pos.y, CS, CS, 255);
+	gfx_fill_amap(dst, pos.x, pos.y, CS, CS, transparent ? 128 : 255);
 }
 
 static void draw_hline(struct texture *dst, int x, int y, int w, SDL_Color col)
@@ -150,11 +152,11 @@ static void draw_vline(struct texture *dst, int x, int y, int h, SDL_Color col)
 	gfx_fill(dst, x, y, 1, h, col.r, col.g, col.b);
 }
 
-static void draw_symbol(struct dungeon_context *ctx, struct texture *dst, int x, int y, int type)
+static void draw_symbol(struct dungeon_map *map, struct texture *dst, int x, int y, int type)
 {
-	struct sact_sprite *sp = sact_get_sprite(ctx->map->symbol_sprites[type]);
+	struct sact_sprite *sp = sact_get_sprite(map->symbol_sprites[type]);
 	if (!sp || sp->rect.w != CS - 2 || sp->rect.h != CS - 2)
-		VM_ERROR("Invalid map cg %d", ctx->map->symbol_sprites[type]);
+		VM_ERROR("Invalid map cg %d", map->symbol_sprites[type]);
 	struct texture *src = sprite_get_texture(sp);
 	gfx_copy(dst, x, y, src, 0, 0, src->w, src->h);
 }
@@ -172,7 +174,7 @@ void dungeon_map_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, 
 	if (cell->floor >= 0)
 		gfx_fill(dst, x, y, CS, CS, 0, 0, 0);
 	else
-		gfx_fill(dst, x, y, CS, CS, 182, 72, 0);
+		gfx_fill(dst, x, y, CS, CS, unenterable_cell_color.r, unenterable_cell_color.g, unenterable_cell_color.b);
 
 	const SDL_Color wall_colors[2] = {{255, 255, 255, 255}, {255, 0, 0, 255}};
 	if (cell->north_wall >= 0)
@@ -230,7 +232,7 @@ void dungeon_map_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, 
 		symbol = SYMBOL_STAIRS_DOWN;
 
 	if (symbol >= 0)
-		draw_symbol(ctx, dst, x + 1, y + 1, symbol);
+		draw_symbol(ctx->map, dst, x + 1, y + 1, symbol);
 }
 
 static int player_symbol(struct dungeon_context *ctx)
@@ -268,9 +270,12 @@ void dungeon_map_draw(int surface, int sprite)
 	int x = pos.x - (dst->w - CS) / 2;
 	int y = pos.y - (dst->h - CS) / 2;
 
+	// Clear the texture so that no garbage is left if copy from `src` is clipped.
+	gfx_fill_with_alpha(dst, 0, 0, dst->w, dst->h, unenterable_cell_color.r, unenterable_cell_color.g, unenterable_cell_color.b, unenterable_cell_color.a);
+
 	gfx_copy_with_alpha_map(dst, 0, 0, src, x, y, dst->w, dst->h);
 
-	draw_symbol(ctx, dst, (dst->w - CS + 2) / 2, (dst->h - CS + 2) / 2, player_symbol(ctx));
+	draw_symbol(ctx->map, dst, (dst->w - CS + 2) / 2, (dst->h - CS + 2) / 2, player_symbol(ctx));
 
 	if (ctx->map->all_visible)
 		gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 255);
@@ -300,8 +305,10 @@ void dungeon_map_draw_lmap(int surface, int sprite)
 	if (ctx->map->all_visible)
 		gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 255);
 
+	// Draw the player symbol.
 	Point pos = texture_pos(ctx, player_x, player_z);
-	draw_symbol(ctx, dst, pos.x + 1, pos.y + 1, player_symbol(ctx));
+	draw_symbol(ctx->map, dst, pos.x + 1, pos.y + 1, player_symbol(ctx));
+	gfx_fill_amap(dst, pos.x + 1, pos.y + 1, CS - 2, CS - 2, level == player_y ? 255 : 128);
 }
 
 static void redraw_event_symbols(struct dungeon_context *ctx)

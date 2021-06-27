@@ -163,7 +163,6 @@ static int DrawDungeon_IsInMap(int surface, int x, int y, int z)
 	}
 
 CELL_GETTER(DrawDungeon_IsFloor, 0, cell->floor != -1);
-//bool DrawDungeon_IsFloorFillTexture(int surface, int x, int y, int z);
 CELL_GETTER(DrawDungeon_IsStair, 0, cell->stairs_texture != -1);
 CELL_GETTER(DrawDungeon_IsStairN, 0, cell->stairs_texture != -1 && cell->stairs_orientation == 0);
 CELL_GETTER(DrawDungeon_IsStairW, 0, cell->stairs_texture != -1 && cell->stairs_orientation == 1);
@@ -204,6 +203,16 @@ CELL_GETTER(DrawDungeon_GetTexDoorS, -1, cell->south_door);
 CELL_GETTER(DrawDungeon_GetTexDoorE, -1, cell->east_door);
 CELL_GETTER(DrawDungeon_GetTexStair, -1, cell->stairs_texture);
 CELL_GETTER(DrawDungeon_GetBattleBack, -1, cell->battle_background);
+
+static bool DrawDungeon_IsFloorFillTexture(int surface, int x, int y, int z)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->renderer || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z))
+		return false;
+
+	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z);
+	return dungeon_renderer_is_floor_opaque(ctx->renderer, cell);
+}
 
 #define CELL_SETTER(name, type, expr, update_map) \
 	static void name(int surface, int x, int y, int z, type value) \
@@ -297,7 +306,7 @@ HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, RestartTimer, void);
 	HLL_EXPORT(SetCamera, dungeon_set_camera), \
 	HLL_EXPORT(IsInMap, DrawDungeon_IsInMap), \
 	HLL_EXPORT(IsFloor, DrawDungeon_IsFloor), \
-	HLL_TODO_EXPORT(IsFloorFillTexture, DrawDungeon_IsFloorFillTexture), \
+	HLL_EXPORT(IsFloorFillTexture, DrawDungeon_IsFloorFillTexture), \
 	HLL_EXPORT(IsStair, DrawDungeon_IsStair), \
 	HLL_EXPORT(IsStairN, DrawDungeon_IsStairN), \
 	HLL_EXPORT(IsStairW, DrawDungeon_IsStairW), \
