@@ -130,12 +130,14 @@ static void render_effect_shader(struct effect_shader *shader, Texture *old, Tex
 #define EFFECT_SHADER(path) { .s = { .prepare = prepare_effect_shader }, .f_path = path}
 static struct effect_shader crossfade_shader = EFFECT_SHADER("shaders/effects/crossfade.f.glsl");
 static struct effect_shader mosaic_shader = EFFECT_SHADER("shaders/effects/mosaic.f.glsl");
+static struct effect_shader blind_lr_shader = EFFECT_SHADER("shaders/effects/blind_lr.f.glsl");
 
 extern GLuint main_surface_fb;
 
 static struct effect_shader *effect_shaders[NR_EFFECTS] = {
 	[EFFECT_CROSSFADE] = &crossfade_shader,
 	[EFFECT_CROSSFADE_MOSAIC] = &mosaic_shader,
+	[EFFECT_BLIND_LR] = &blind_lr_shader,
 };
 
 int sact_Effect(int type, possibly_unused int time, possibly_unused int key)
