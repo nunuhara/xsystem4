@@ -395,7 +395,13 @@ error:
 	return false;
 }
 
+static void AnteaterADVEngine_ModuleFini(void)
+{
+	ADVSceneKeeper_Clear();
+}
+
 HLL_LIBRARY(AnteaterADVEngine,
+	    HLL_EXPORT(_ModuleFini, AnteaterADVEngine_ModuleFini),
 	    HLL_EXPORT(ADVLogList_Clear, ADVLogList_Clear),
 	    HLL_EXPORT(ADVLogList_AddText, ADVLogList_AddText),
 	    HLL_EXPORT(ADVLogList_AddNewLine, ADVLogList_AddNewLine),
