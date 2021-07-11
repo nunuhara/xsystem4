@@ -538,11 +538,19 @@ int array_find(struct page *page, int start, int end, union vm_value v, int comp
 	start = max(start, 0);
 	end = min(end, page->nr_vars);
 
-	// if no compare function given, compare integer values
+	// if no compare function given, compare integer/string values
 	if (!compare_fno) {
-		for (int i = start; i < end; i++) {
-			if (page->values[i].i == v.i)
-				return i;
+		if (array_type(page->a_type) == AIN_STRING) {
+			struct string *v_str = heap_get_string(v.i);
+			for (int i = start; i < end; i++) {
+				if (!strcmp(v_str->text, heap_get_string(page->values[i].i)->text))
+					return i;
+			}
+		} else {
+			for (int i = start; i < end; i++) {
+				if (page->values[i].i == v.i)
+					return i;
+			}
 		}
 		return -1;
 	}
