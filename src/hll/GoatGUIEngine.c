@@ -218,6 +218,9 @@ static void parts_render_cg(struct parts *parts, Texture *t, struct parts_render
 
 static void parts_render(struct parts *parts, struct parts_render_params *parent_params)
 {
+	if (!parts->show)
+		return;
+
 	if (parts->linked_to >= 0) {
 		struct parts *link_parts = parts_get(parts->linked_to);
 		if (!SDL_PointInRect(&prev_pos, &link_parts->pos))
