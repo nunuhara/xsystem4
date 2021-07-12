@@ -175,6 +175,8 @@ struct parts {
 	int on_click_sound;
 	int origin_mode;
 	int parent;
+	int linked_to;
+	int linked_from;
 	uint8_t alpha;
 	Rectangle rect;
 	int z;
@@ -210,11 +212,18 @@ struct parts_render_params {
 	uint8_t alpha;
 };
 
+static struct parts *parts_get(int parts_no);
 static void parts_render_text(struct parts *parts, struct parts_render_params *params);
 static void parts_render_cg(struct parts *parts, Texture *t, struct parts_render_params *params);
 
 static void parts_render(struct parts *parts, struct parts_render_params *parent_params)
 {
+	if (parts->linked_to >= 0) {
+		struct parts *link_parts = parts_get(parts->linked_to);
+		if (!SDL_PointInRect(&prev_pos, &link_parts->pos))
+			return;
+	}
+
 	struct parts_render_params params = *parent_params;
 	// modify params per parts values
 	params.alpha *= parts->alpha / 255.0;
@@ -310,6 +319,8 @@ static void parts_init(struct parts *parts)
 	parts->z = 1;
 	parts->show = true;
 	parts->parent = -1;
+	parts->linked_to = -1;
+	parts->linked_from = -1;
 	parts->scale.x = 1.0;
 	parts->scale.y = 1.0;
 	parts->rotation.x = 0.0;
@@ -869,11 +880,15 @@ static void parts_update_loop(struct parts *parts, int passed_time)
 
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking)
 {
-	if (!began_click || !parts->clickable)
-		return;
-
 	bool prev_in = SDL_PointInRect(&prev_pos, &parts->pos);
 	bool cur_in = SDL_PointInRect(&cur_pos, &parts->pos);
+
+	if (parts->linked_from >= 0 && cur_in != prev_in) {
+		parts_dirty(parts_get(parts->linked_from));
+	}
+
+	if (!began_click || !parts->clickable)
+		return;
 
 	if (!cur_in) {
 		parts_set_state(parts, PARTS_STATE_DEFAULT);
@@ -924,6 +939,7 @@ static void GoatGUIEngine_Update(int passed_time, possibly_unused bool message_w
 
 	prev_clicking = cur_clicking;
 	prev_pos = cur_pos;
+	goat_dirty();
 }
 
 static bool GoatGUIEngine_SetPartsCG(int parts_no, int cg_no, possibly_unused int sprite_deform, int state)
@@ -1549,7 +1565,13 @@ static void GoatGUIEngine_SetPartsGroupDecideClick(int GroupNumber, bool DecideC
 	// TODO
 }
 
-void GoatGUIEngine_SetOnCursorShowLinkPartsNumber(int PartsNumber, int LinkPartsNumber);
+static void GoatGUIEngine_SetOnCursorShowLinkPartsNumber(int parts_no, int link_parts_no)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts *link_parts = parts_get(link_parts_no);
+	parts->linked_to = link_parts_no;
+	link_parts->linked_from = parts_no;
+}
 
 static void GoatGUIEngine_SetPartsMessageWindowShowLink(int parts_no, bool message_window_show_link)
 {
@@ -1868,7 +1890,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(SetPartsGroupNumber, GoatGUIEngine_SetPartsGroupNumber),
 	    HLL_EXPORT(SetPartsGroupDecideOnCursor, GoatGUIEngine_SetPartsGroupDecideOnCursor),
 	    HLL_EXPORT(SetPartsGroupDecideClick, GoatGUIEngine_SetPartsGroupDecideClick),
-	    HLL_TODO_EXPORT(SetOnCursorShowLinkPartsNumber, GoatGUIEngine_SetOnCursorShowLinkPartsNumber),
+	    HLL_EXPORT(SetOnCursorShowLinkPartsNumber, GoatGUIEngine_SetOnCursorShowLinkPartsNumber),
 	    HLL_EXPORT(SetPartsMessageWindowShowLink, GoatGUIEngine_SetPartsMessageWindowShowLink),
 	    HLL_TODO_EXPORT(GetPartsMessageWindowShowLink, GoatGUIEngine_GetPartsMessageWindowShowLink),
 	    HLL_EXPORT(SetPartsOnCursorSoundNumber, GoatGUIEngine_SetPartsOnCursorSoundNumber),
