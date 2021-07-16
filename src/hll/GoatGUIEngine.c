@@ -799,10 +799,10 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 	}
 }
 
-static void parts_update_all_motion(void)
+static void parts_list_update_motion(struct parts_list *list)
 {
 	struct parts *parts;
-	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+	TAILQ_FOREACH(parts, list, parts_list_entry) {
 		struct parts_motion *motion;
 		TAILQ_FOREACH(motion, &parts->motion, entry) {
 			if (motion->begin_time > motion_t)
@@ -812,7 +812,13 @@ static void parts_update_all_motion(void)
 			//        at the end-state of the second motion.
 			parts_update_with_motion(parts, motion);
 		}
+		parts_list_update_motion(&parts->children);
 	}
+}
+
+static void parts_update_all_motion(void)
+{
+	parts_list_update_motion(&parts_list);
 
 	struct sound_motion *sound;
 	TAILQ_FOREACH(sound, &sound_motion_list, entry) {
@@ -829,10 +835,10 @@ static void parts_update_all_motion(void)
  * NOTE: If a motion begins at e.g. t=100 with a value of v=0, then that value
  *       becomes the initial value of v at t=0.
  */
-static void parts_init_all_motion(void)
+static void parts_list_init_all_motion(struct parts_list *list)
 {
 	struct parts *parts;
-	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+	TAILQ_FOREACH(parts, list, parts_list_entry) {
 		struct parts_motion *motion;
 		bool initialized[PARTS_NR_MOTION_TYPES] = {0};
 		TAILQ_FOREACH(motion, &parts->motion, entry) {
@@ -844,12 +850,18 @@ static void parts_init_all_motion(void)
 	}
 }
 
-static void parts_fini_all_motion(void)
+static void parts_list_fini_all_motion(struct parts_list *list)
 {
 	struct parts *parts;
-	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+	TAILQ_FOREACH(parts, list, parts_list_entry) {
 		parts_clear_motion(parts);
+		parts_list_fini_all_motion(&parts->children);
 	}
+}
+
+static void parts_fini_all_motion(void)
+{
+	parts_list_fini_all_motion(&parts_list);
 
 	while (!TAILQ_EMPTY(&sound_motion_list)) {
 		struct sound_motion *motion = TAILQ_FIRST(&sound_motion_list);
@@ -1766,7 +1778,7 @@ static void GoatGUIEngine_BeginMotion(void)
 	// FIXME: starting a motion seems to clear non-default states
 	motion_t = 0;
 	is_motion = true;
-	parts_init_all_motion();
+	parts_list_init_all_motion(&parts_list);
 }
 
 static void GoatGUIEngine_EndMotion(void)
