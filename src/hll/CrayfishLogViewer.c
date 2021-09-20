@@ -16,6 +16,7 @@
 
 #include "system4.h"
 #include "system4/string.h"
+#include "system4/utfsjis.h"
 #include "hll.h"
 
 bool is_opened = false;
@@ -42,11 +43,13 @@ HLL_WARN_UNIMPLEMENTED( , void, CrayfishLogViewer, SetWindowTitleName,
 
 static bool CrayfishLogViewer_AddText(struct string *text)
 {
-	sys_message("%s", text->text);
+	char *u = sjis2utf(text->text, 0);
+	sys_message("%s", u);
+	free(u);
 	return true;
 }
 
-HLL_WARN_UNIMPLEMENTED(true, bool, CrayfishLogViewer, ClearText);
+HLL_QUIET_UNIMPLEMENTED(true, bool, CrayfishLogViewer, ClearText);
 HLL_WARN_UNIMPLEMENTED( , void, CrayfishLogViewer, SetSaveFolderName,
 			possibly_unused struct string *save_folder_name);
 
