@@ -180,8 +180,6 @@ void asset_manager_init(void)
 		}
 	}
 
-	NOTICE("%d CG archives", ald_count[ASSET_CG]);
-
 	// open ALD archives
 	ald_init(ASSET_BGM, ald_filenames[ASSET_BGM], ald_count[ASSET_BGM]);
 	ald_init(ASSET_SOUND, ald_filenames[ASSET_SOUND], ald_count[ASSET_SOUND]);

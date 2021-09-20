@@ -22,6 +22,7 @@
 #include "vm.h"
 
 bool key_state[VK_NR_KEYCODES];
+bool joybutton_state[SDL_CONTROLLER_BUTTON_MAX];
 static enum sact_keycode sdl_keytable[] = {
 	[SDL_SCANCODE_0] = VK_0,
 	[SDL_SCANCODE_1] = VK_1,
@@ -134,6 +135,9 @@ static enum sact_keycode sdl_keytable[] = {
 bool mouse_focus = true;
 bool keyboard_focus = true;
 
+#define MAX_CONTROLLERS 4
+static SDL_GameController *controllers[MAX_CONTROLLERS];
+
 static enum sact_keycode sdl_to_sact_button(int button)
 {
 	switch (button) {
@@ -153,6 +157,39 @@ bool key_is_down(enum sact_keycode code)
 	return key_state[code];
 }
 
+bool joy_key_is_down(uint8_t code)
+{
+	// Default SACT key mapping in comments below
+	switch (code) {
+	case 1: // Left Arrow
+		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_LEFT];
+	case 2: // Right Arrow
+		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_RIGHT];
+	case 3: // Up Arrow
+		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_UP];
+	case 4: // Down Arrow
+		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_DOWN];
+	case 5: // Esc
+		return joybutton_state[SDL_CONTROLLER_BUTTON_BACK] || joybutton_state[SDL_CONTROLLER_BUTTON_START];
+	case 6: // Enter
+		return joybutton_state[SDL_CONTROLLER_BUTTON_A];
+	case 7: // Space
+		return joybutton_state[SDL_CONTROLLER_BUTTON_Y];
+	case 8: // Ctrl
+		return joybutton_state[SDL_CONTROLLER_BUTTON_B];
+	case 9: // a
+		return joybutton_state[SDL_CONTROLLER_BUTTON_LEFTSTICK];
+	case 10: // z
+		return joybutton_state[SDL_CONTROLLER_BUTTON_RIGHTSTICK];
+	case 11: // Page Up
+		return joybutton_state[SDL_CONTROLLER_BUTTON_LEFTSHOULDER];
+	case 12: // Page Down
+		return joybutton_state[SDL_CONTROLLER_BUTTON_RIGHTSHOULDER];
+	default:
+		return false;
+	}
+}
+
 void key_clear_flag(void)
 {
 	for (int i = 0; i < VK_NR_KEYCODES; i++) {
@@ -160,8 +197,16 @@ void key_clear_flag(void)
 	}
 }
 
+void joy_clear_flag(void)
+{
+	for (int i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++) {
+		joybutton_state[i] = false;
+	}
+}
+
 void mouse_get_pos(int *x, int *y)
 {
+	SDL_PumpEvents();
 	SDL_GetMouseState(x, y);
 }
 
@@ -197,6 +242,14 @@ static void mouse_event(SDL_MouseButtonEvent *e)
 	enum sact_keycode code = sdl_to_sact_button(e->button);
 	if (code)
 		key_state[code] = e->state == SDL_PRESSED;
+}
+
+static void controller_button_event(SDL_ControllerButtonEvent *e)
+{
+	if (e->state != SDL_PRESSED) {
+		NOTICE("UNPRESSED");
+	}
+	joybutton_state[e->button] = e->state == SDL_PRESSED;
 }
 
 static void(*input_handler)(const char*);
@@ -263,6 +316,14 @@ void handle_events(void)
 			break;
 		case SDL_MOUSEWHEEL:
 			wheel_dir = e.wheel.y;
+			break;
+		case SDL_CONTROLLERDEVICEADDED:
+			if (e.cdevice.which < MAX_CONTROLLERS)
+				controllers[e.cdevice.which] = SDL_GameControllerOpen(e.cdevice.which);
+			break;
+		case SDL_CONTROLLERBUTTONUP:
+		case SDL_CONTROLLERBUTTONDOWN:
+			controller_button_event(&e.cbutton);
 			break;
 		case SDL_TEXTINPUT:
 			if (input_handler)

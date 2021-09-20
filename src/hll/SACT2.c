@@ -655,12 +655,13 @@ int sact_Mouse_SetPos(int x, int y)
 
 void sact_Joypad_ClearKeyDownFlag(int n)
 {
-	// TODO
+	joy_clear_flag();
 }
 
 int sact_Joypad_IsKeyDown(int num, int key)
 {
-	return 0; // TODO
+	handle_events();
+	return joy_key_is_down(key);
 }
 
 //int SACT2_Joypad_GetNumof(void);

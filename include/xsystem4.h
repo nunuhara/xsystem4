@@ -18,6 +18,7 @@
 #define XSYSTEM4_H
 
 #include <stddef.h>
+#include <stdbool.h>
 
 struct config {
 	char *game_name;
@@ -32,6 +33,8 @@ struct config {
 
 	char *bgi_path;
 	char *wai_path;
+
+	bool joypad;
 };
 
 extern struct config config;

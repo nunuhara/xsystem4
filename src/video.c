@@ -175,7 +175,10 @@ static int gl_initialize(void)
 
 int gfx_init(void)
 {
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0)
+	uint32_t flags = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
+	if (config.joypad)
+		flags |= SDL_INIT_GAMECONTROLLER;
+	if (SDL_Init(flags) < 0)
 		ERROR("SDL_Init failed: %s", SDL_GetError());
 
 #ifdef USE_GLES

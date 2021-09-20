@@ -51,6 +51,7 @@ struct config config = {
 	.view_height = 600,
 	.mixer_nr_channels = 0,
 	.mixer_channels = NULL,
+	.joypad = false,
 };
 
 char *unix_path(const char *path)
@@ -348,9 +349,10 @@ static void usage(void)
 	puts("    -a, --audit        Audit AIN file for xsystem4 compatibility");
 	puts("        --font-mincho  Specify the path to the mincho font to use");
 	puts("        --font-gothic  Specify the path to the gothic font to use");
+	puts("    -j, --joypad       Enable joypad");
 	puts("        --nodebug      Disable debugger");
 #ifdef DEBUGGER_ENABLED
-	puts("        --debug    Start in debugger");
+	puts("        --debug        Start in debugger");
 #endif
 }
 
@@ -359,6 +361,7 @@ enum {
 	LOPT_AUDIT,
 	LOPT_FONT_MINCHO,
 	LOPT_FONT_GOTHIC,
+	LOPT_JOYPAD,
 	LOPT_NODEBUG,
 #ifdef DEBUGGER_ENABLED
 	LOPT_DEBUG,
@@ -384,13 +387,14 @@ int main(int argc, char *argv[])
 			{ "audit",       no_argument,       0, LOPT_AUDIT },
 			{ "font-mincho", required_argument, 0, LOPT_FONT_MINCHO },
 			{ "font-gothic", required_argument, 0, LOPT_FONT_GOTHIC },
+			{ "joypad",      no_argument,       0, LOPT_JOYPAD },
 			{ "nodebug",     no_argument,       0, LOPT_NODEBUG },
 #ifdef DEBUGGER_ENABLED
 			{ "debug",       no_argument,       0, LOPT_DEBUG },
 #endif
 		};
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "ha", long_options, &option_index);
+		int c = getopt_long(argc, argv, "haj", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -408,6 +412,10 @@ int main(int argc, char *argv[])
 			break;
 		case LOPT_FONT_GOTHIC:
 			font_gothic = optarg;
+			break;
+		case 'j':
+		case LOPT_JOYPAD:
+			config.joypad = true;
 			break;
 #ifdef DEBUGGER_ENABLED
 		case LOPT_NODEBUG:
