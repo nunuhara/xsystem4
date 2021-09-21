@@ -801,8 +801,18 @@ void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int 
 
 //void SACT2_Debug_Pause(void);
 //void SACT2_Debug_GetFuncStack(struct string **s, int nest);
-HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_SetBrightness, int sp_no, int brightness);
-HLL_WARN_UNIMPLEMENTED(0, int, SACT2, SP_GetBrightness, int sp_no);
+
+int SACT2_SP_SetBrightness(int sp_no, int brightness)
+{
+	if (brightness != 255)
+		WARNING("Unimplemented HLL function: SACT2.SP_SetBrightness(%d, %d)", sp_no, brightness);
+	return 1;
+}
+
+int SACT2_SP_GetBrightness(int sp_no)
+{
+	return 255;
+}
 
 #define SACT_EXPORTS \
 	    HLL_EXPORT(_ModuleFini, sact_ModuleFini), \
