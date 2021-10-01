@@ -1,5 +1,6 @@
 # sources for xsystem4
 xsystem4 = ['audio.c',
+            'audio_mixer.c',
             'asset_manager.c',
             'cJSON.c',
             'draw.c',
@@ -8,6 +9,7 @@ xsystem4 = ['audio.c',
             'fnl_render.c',
             'format.c',
             'heap.c',
+            'id_pool.c',
             'input.c',
             'page.c',
             'resume.c',
@@ -77,7 +79,8 @@ xsystem4 = ['audio.c',
             'hll/VSFile.c',
 ]
 
-xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, sdl2mixer, ffi, gl, glew, cglm, libsys4_dep]
+xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, ffi, gl, glew, cglm, sndfile, libsys4_dep]
+
 if chibi.found()
     xsystem4_deps += chibi
     xsystem4 += 'debugger.c'

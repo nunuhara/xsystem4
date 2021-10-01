@@ -14,133 +14,39 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include <SDL_mixer.h>
+#include <assert.h>
 
 #include "system4.h"
-#include "system4/archive.h"
-#include "system4/file.h"
 
 #include "asset_manager.h"
 #include "audio.h"
+#include "id_pool.h"
+#include "mixer.h"
 #include "xsystem4.h"
 
-#define AUDIO_SLOT_ALLOC_STEP 256
+/*
+ * Common audio interface for SACT2/KiwiSoundEngine.
+ * This is just a wrapper over the generic audio interface in audio_mixer.c.
+ */
 
-struct wav_slot {
-	Mix_Chunk *chunk;
-	struct archive_data *dfile;
-	int channel;
-	int no;
-	bool reverse;
-};
-
-struct bgm_slot {
-	Mix_Music *music;
-	struct archive_data *dfile;
-	int no;
-};
-
-struct {
-	struct wav_slot *slots;
-	int nr_slots;
-} wav;
-
-struct {
-	struct bgm_slot *slots;
-	int nr_slots;
-	int playing;
-} bgm;
+static struct id_pool wav;
+static struct id_pool bgm;
 
 // Anonymous channels for playing sounds in-engine. audio_update must be called
 // periodically to clean up channels that have finished playing.
 #define NR_ANONYMOUS_CHANNELS 64
 static int anonymous_channels[NR_ANONYMOUS_CHANNELS];
 
-#define BGI_MAX 100
-
-struct bgi {
-	int no;
-	int loopno;
-	int looptop;
-	int len;
-};
-
-static int bgi_nfile;
-static struct bgi bgi_data[BGI_MAX];
-
-static char *bgi_gets(char *buf, int n, FILE *fp) {
-	char *s = buf;
-	int c;
-	while (--n > 0 && (c = fgetc(fp)) != EOF) {
-		c = c >> 4 | (c & 0xf) << 4;  // decrypt
-		*s++ = c;
-		if (c == '\n')
-			break;
-	}
-	if (s == buf && c == EOF)
-		return NULL;
-	*s = '\0';
-	return buf;
-}
-
-static void bgi_read(const char *path)
-{
-	FILE *fp = fopen(path, "rb");
-	if (!fp) {
-		WARNING("Failed to open bgi file: %s", path);
-		return;
-	}
-
-	char buf[100];
-	while (bgi_nfile < BGI_MAX && bgi_gets(buf, sizeof(buf), fp)) {
-		int terminator;
-		if (sscanf(buf, " %d, %d, %d, %d, %d",
-				   &bgi_data[bgi_nfile].no,
-				   &bgi_data[bgi_nfile].loopno,
-				   &bgi_data[bgi_nfile].looptop,
-				   &bgi_data[bgi_nfile].len,
-				   &terminator) != 5
-			|| terminator != -1) {
-			continue;
-		}
-		bgi_nfile++;
-	}
-}
-
-possibly_unused static struct bgi *bgi_find(int no) {
-	for (int i = 0; i < bgi_nfile; i++) {
-		if (bgi_data[i].no == no)
-			return &bgi_data[i];
-	}
-	return NULL;
-}
-
 void audio_init(void)
 {
-	Mix_Init(MIX_INIT_MP3 | MIX_INIT_OGG);
-	if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
-		WARNING("Audio initialization failed");
-	}
-
-	wav.slots = xcalloc(16, sizeof(struct wav_slot));
-	wav.nr_slots = 16;
-
-	bgm.slots = xcalloc(16, sizeof(struct bgm_slot));
-	bgm.nr_slots = 16;
-	bgm.playing = -1;
-
-	if (config.bgi_path)
-		bgi_read(config.bgi_path);
+	id_pool_init(&wav);
+	id_pool_init(&bgm);
 
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
 		anonymous_channels[i] = -1;
 	}
-}
 
-void audio_fini(void)
-{
-	Mix_CloseAudio();
-	Mix_Quit();
+	mixer_init();
 }
 
 void audio_update(void)
@@ -174,298 +80,252 @@ bool audio_play_sound(int sound_no)
 	return false;
 }
 
-static void wav_realloc(int new_size)
+bool wav_exists(int no) { return asset_exists(ASSET_SOUND, no); }
+bool bgm_exists(int no) { return asset_exists(ASSET_BGM, no); }
+
+static int audio_prepare(struct id_pool *pool, int id, enum asset_type type, int no)
 {
-	wav.slots = xrealloc(wav.slots, new_size * sizeof(struct wav_slot));
-	for (int i = wav.nr_slots; i < new_size; i++) {
-		wav.slots[i].chunk = NULL;
-		wav.slots[i].channel = -1;
-		wav.slots[i].reverse = false;
-	}
-	wav.nr_slots = new_size;
-}
-
-static void bgm_realloc(int new_size)
-{
-	bgm.slots = xrealloc(bgm.slots, new_size * sizeof(struct bgm_slot));
-	for (int i = bgm.nr_slots; i < new_size; i++) {
-		bgm.slots[i].music = NULL;
-	}
-	bgm.nr_slots = new_size;
-}
-
-static struct wav_slot *wav_alloc_channel(int ch)
-{
-	if (ch >= wav.nr_slots)
-		wav_realloc(ch + AUDIO_SLOT_ALLOC_STEP);
-	return &wav.slots[ch];
-}
-
-static struct bgm_slot *bgm_alloc_channel(int ch)
-{
-	if (ch >= bgm.nr_slots)
-		bgm_realloc(ch + AUDIO_SLOT_ALLOC_STEP);
-	return &bgm.slots[ch];
-}
-
-int wav_get_unused_channel(void)
-{
-	for (int i = 0; i < wav.nr_slots; i++) {
-		if (!wav.slots[i].chunk)
-			return i;
-	}
-
-	int slot = wav.nr_slots;
-	wav_realloc(slot + AUDIO_SLOT_ALLOC_STEP);
-	return slot;
-}
-
-int bgm_get_unused_channel(void)
-{
-	for (int i = 0; i < bgm.nr_slots; i++) {
-		if (!bgm.slots[i].music)
-			return i;
-	}
-
-	int slot = bgm.nr_slots;
-	bgm_realloc(slot + AUDIO_SLOT_ALLOC_STEP);
-	return slot;
-}
-
-static struct wav_slot *wav_get_slot(int ch)
-{
-	if (ch < 0 || ch >= wav.nr_slots)
-		return NULL;
-	return &wav.slots[ch];
-}
-
-static struct bgm_slot *bgm_get_slot(int ch)
-{
-	if (ch < 0 || ch >= bgm.nr_slots)
-		return NULL;
-	return &bgm.slots[ch];
-}
-
-bool wav_exists(int no)
-{
-	return asset_exists(ASSET_SOUND, no);
-}
-
-bool bgm_exists(int no)
-{
-	return asset_exists(ASSET_BGM, no);
-}
-
-static bool wav_load_chunk(int no, struct wav_slot *slot)
-{
-	struct archive_data *dfile = asset_get(ASSET_SOUND, no);
-	if (!dfile) {
-		WARNING("Failed to load WAV %d", no);
-		return false;
-	}
-
-	Mix_Chunk *chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(dfile->data, dfile->size), 1);
-	if (!chunk) {
-		WARNING("WAV %d: not a valid audio file", no);
-		return false;
-	}
-
-	slot->chunk = chunk;
-	slot->dfile = dfile;
-	slot->no = no;
-	return true;
-}
-
-static bool bgm_load_music(int no, struct bgm_slot *slot)
-{
-	struct archive_data *dfile = asset_get(ASSET_BGM, no);
-	if (!dfile) {
-		WARNING("Failed to load WAV %d", no);
-		return false;
-	}
-
-	Mix_MusicType type = MUS_WAV;
-	const char *ext = file_extension(dfile->name);
-	if (!strcmp(ext, "ogg")) {
-		type = MUS_OGG;
-	}
-
-	Mix_Music *music = Mix_LoadMUSType_RW(SDL_RWFromConstMem(dfile->data, dfile->size), type, SDL_TRUE);
-	if (!music) {
-		WARNING("BGM %d: not a valid audio file", no);
-		return false;
-	}
-
-	slot->music = music;
-	slot->dfile = dfile;
-	slot->no = no;
-	return true;
-}
-
-static void wav_unload_slot(struct wav_slot *slot)
-{
-	if (slot->chunk) {
-		if (slot->channel >= 0)
-			Mix_HaltChannel(slot->channel);
-		Mix_FreeChunk(slot->chunk);
-		slot->chunk = NULL;
-		archive_free_data(slot->dfile);
-		slot->dfile = NULL;
-	}
-	slot->channel = -1;
-}
-
-static void bgm_unload_slot(struct bgm_slot *slot)
-{
-	if (slot->music) {
-		Mix_FreeMusic(slot->music);
-		slot->music = NULL;
-		archive_free_data(slot->dfile);
-		slot->dfile = NULL;
-	}
-}
-
-int wav_prepare(int ch, int no)
-{
-	if (ch < 0)
+	if (id < 0)
 		return 0;
-
-	struct wav_slot *slot = wav_alloc_channel(ch);
-	wav_unload_slot(slot);
-	return wav_load_chunk(no, slot);
+	struct channel *ch = channel_open(type, no);
+	struct channel *old = id_pool_set(pool, id, ch);
+	if (old)
+		channel_close(old);
+	return !!ch;
 }
 
-int bgm_prepare(int ch, int no)
+int wav_prepare(int id, int no) { return audio_prepare(&wav, id, ASSET_SOUND, no); }
+int bgm_prepare(int id, int no) { return audio_prepare(&bgm, id, ASSET_BGM, no); }
+
+static int audio_unprepare(struct id_pool *pool, int id)
 {
-	if (ch < 0)
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
 		return 0;
-
-	struct bgm_slot *slot = bgm_alloc_channel(ch);
-	bgm_unload_slot(slot);
-	return bgm_load_music(no, slot);
-}
-
-int wav_unprepare(int ch)
-{
-	struct wav_slot *slot = wav_get_slot(ch);
-	if (!slot)
-		return 0;
-
-	wav_unload_slot(slot);
+	channel_close(ch);
+	id_pool_release(pool, id);
 	return 1;
 }
 
-int bgm_unprepare(int ch)
+int wav_unprepare(int id) { return audio_unprepare(&wav, id); }
+int bgm_unprepare(int id) { return audio_unprepare(&bgm, id); }
+
+static int audio_play(struct id_pool *pool, int id)
 {
-	struct bgm_slot *slot = bgm_get_slot(ch);
-	if (!slot)
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch) {
+		// NOTE: SACT2 brings up error GUI here
+		WARNING("Tried to play from unprepared audio channel");
 		return 0;
-
-	bgm_unload_slot(slot);
-	return 1;
-}
-
-int wav_play(int ch)
-{
-	struct wav_slot *slot = wav_get_slot(ch);
-	if (!slot || !slot->chunk)
-		return 0;
-
-	if (slot->channel >= 0 && Mix_Paused(slot->channel)) {
-		Mix_Resume(slot->channel);
-		return 1;
 	}
-	slot->channel = Mix_PlayChannel(-1, slot->chunk, 0);
-	if (slot->channel < 0)
-		return 0;
-
-	Mix_SetReverseStereo(slot->channel, slot->reverse);
-	return 1;
+	return channel_play(ch);
 }
+int wav_play(int id) { return audio_play(&wav, id); }
+int bgm_play(int id) { return audio_play(&bgm, id); }
 
-int bgm_play(int ch)
+static int audio_stop(struct id_pool *pool, int id)
 {
-	struct bgm_slot *slot = bgm_get_slot(ch);
-	if (!slot || !slot->music)
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch) {
 		return 0;
-
-	bgm.playing = slot - bgm.slots;
-	return !Mix_PlayMusic(slot->music, -1);
-}
-
-int wav_stop(int ch)
-{
-	struct wav_slot *slot = wav_get_slot(ch);
-	if (!slot)
-		return 0;
-
-	if (slot->channel >= 0)
-		Mix_HaltChannel(slot->channel);
-	return 1;
-}
-
-int bgm_stop(int ch)
-{
-	// FIXME: what if channel isn't playing?
-	if (bgm.playing == ch) {
-		Mix_FadeOutMusic(10);
-		bgm.playing = -1;
 	}
-	return 1;
+	return channel_stop(ch);
 }
+int wav_stop(int id) { return audio_stop(&wav, id); }
+int bgm_stop(int id) { return audio_stop(&bgm, id); }
 
-bool wav_is_playing(int ch)
+static int audio_is_playing(struct id_pool *pool, int id)
 {
-	struct wav_slot *slot = wav_get_slot(ch);
-	return slot && slot->channel >= 0 && Mix_Playing(slot->channel);
+	struct channel *ch = id_pool_get(pool, id);
+	return ch && channel_is_playing(ch);
 }
+bool wav_is_playing(int id) { return audio_is_playing(&wav, id); }
+bool bgm_is_playing(int id) { return audio_is_playing(&bgm, id); }
 
-bool bgm_is_playing(int ch)
+static int audio_set_loop_count(struct id_pool *pool, int id, int count)
 {
-	return bgm.playing == ch && Mix_PlayingMusic();
-}
-
-int wav_fade(int ch, possibly_unused int time, possibly_unused int volume, bool stop)
-{
-	// TODO: fade
-	if (stop)
-		wav_stop(ch);
-	return 1;
-}
-
-int bgm_fade(int ch, possibly_unused int time, possibly_unused int volume, bool stop)
-{
-	// TODO: fade
-	if (stop)
-		bgm_stop(ch);
-	return 1;
-}
-
-int wav_reverse_LR(int ch)
-{
-	struct wav_slot *slot = wav_get_slot(ch);
-	if (!slot)
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
 		return 0;
-	slot->reverse = true;
-	if (slot->channel >= 0) {
-		Mix_SetReverseStereo(slot->channel, 1);
-	}
-	return 1;
+	return channel_set_loop_count(ch, count);
 }
+int wav_set_loop_count(int id, int count) { return audio_set_loop_count(&wav, id, count); }
+int bgm_set_loop_count(int id, int count) { return audio_set_loop_count(&bgm, id, count); }
 
-int wav_get_time_length(int ch)
+static int audio_get_loop_count(struct id_pool *pool, int id)
 {
-	struct wav_slot *slot = wav_get_slot(ch);
-	if (!slot || !slot->chunk)
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
 		return 0;
-
-	int freq = 0;
-	uint16_t fmt = 0;
-	int chans = 0;
-
-	Mix_QuerySpec(&freq, &fmt, &chans);
-
-	uint32_t points = slot->chunk->alen / ((fmt & 0xFF) / 8);
-	uint32_t frames = points / chans;
-	return (frames * 1000) / freq;
+	return channel_get_loop_count(ch);
 }
+int wav_get_loop_count(int id) { return audio_get_loop_count(&wav, id); }
+int bgm_get_loop_count(int id) { return audio_get_loop_count(&bgm, id); }
+
+static int audio_set_loop_start_pos(struct id_pool *pool, int id, int pos)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_set_loop_start_pos(ch, pos);
+}
+int wav_set_loop_start_pos(int id, int pos) { return audio_set_loop_start_pos(&wav, id, pos); }
+int bgm_set_loop_start_pos(int id, int pos) { return audio_set_loop_start_pos(&bgm, id, pos); }
+
+static int audio_set_loop_end_pos(struct id_pool *pool, int id, int pos)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_set_loop_end_pos(ch, pos);
+}
+int wav_set_loop_end_pos(int id, int pos) { return audio_set_loop_end_pos(&wav, id, pos); }
+int bgm_set_loop_end_pos(int id, int pos) { return audio_set_loop_end_pos(&bgm, id, pos); }
+
+static int audio_fade(struct id_pool *pool, int id, int time, int volume, bool stop)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_fade(ch, time, volume, stop);
+}
+int wav_fade(int id, int time, int volume, bool stop) { return audio_fade(&wav, id, time, volume, stop); }
+int bgm_fade(int id, int time, int volume, bool stop) { return audio_fade(&bgm, id, time, volume, stop); }
+
+static int audio_stop_fade(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_stop_fade(ch);
+}
+int wav_stop_fade(int id) { return audio_stop_fade(&wav, id); }
+int bgm_stop_fade(int id) { return audio_stop_fade(&bgm, id); }
+
+static bool audio_is_fading(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_is_fading(ch);
+}
+bool wav_is_fading(int id) { return audio_is_fading(&wav, id); }
+bool bgm_is_fading(int id) { return audio_is_fading(&bgm, id); }
+
+static int audio_pause(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_pause(ch);
+}
+int wav_pause(int id) { return audio_pause(&wav, id); }
+int bgm_pause(int id) { return audio_pause(&bgm, id); }
+
+static int audio_restart(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_restart(ch);
+}
+int wav_restart(int id) { return audio_restart(&wav, id); }
+int bgm_restart(int id) { return audio_restart(&bgm, id); }
+
+static bool audio_is_paused(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_is_paused(ch);
+}
+bool wav_is_paused(int id) { return audio_is_paused(&wav, id); }
+bool bgm_is_paused(int id) { return audio_is_paused(&bgm, id); }
+
+static int audio_get_pos(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_get_pos(ch);
+}
+int wav_get_pos(int id) { return audio_get_pos(&wav, id); }
+int bgm_get_pos(int id) { return audio_get_pos(&bgm, id); }
+
+static int audio_get_length(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_get_length(ch);
+}
+int wav_get_length(int id) { return audio_get_length(&wav, id); }
+int bgm_get_length(int id) { return audio_get_length(&bgm, id); }
+
+static int audio_get_sample_pos(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_get_sample_pos(ch);
+}
+int wav_get_sample_pos(int id) { return audio_get_sample_pos(&wav, id); }
+int bgm_get_sample_pos(int id) { return audio_get_sample_pos(&bgm, id); }
+
+static int audio_get_sample_length(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_get_sample_length(ch);
+}
+int wav_get_sample_length(int id) { return audio_get_sample_length(&wav, id); }
+int bgm_get_sample_length(int id) { return audio_get_sample_length(&bgm, id); }
+
+static int audio_seek(struct id_pool *pool, int id, int pos)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_seek(ch, pos);
+}
+int wav_seek(int id, int pos) { return audio_seek(&wav, id, pos); }
+int bgm_seek(int id, int pos) { return audio_seek(&bgm, id, pos); }
+
+int wav_get_unused_channel(void) { return id_pool_get_unused(&wav); }
+int bgm_get_unused_channel(void) { return id_pool_get_unused(&bgm); }
+
+static int audio_reverse_LR(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_reverse_LR(ch);
+}
+int wav_reverse_LR(int id) { return audio_reverse_LR(&wav, id); }
+int bgm_reverse_LR(int id) { return audio_reverse_LR(&bgm, id); }
+
+static int audio_get_volume(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_get_volume(ch);
+}
+int wav_get_volume(int id) { return audio_get_volume(&wav, id); }
+int bgm_get_volume(int id) { return audio_get_volume(&bgm, id); }
+
+static int audio_get_time_length(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return 0;
+	return channel_get_time_length(ch);
+}
+int wav_get_time_length(int id) { return audio_get_time_length(&wav, id); }
+int bgm_get_time_length(int id) { return audio_get_time_length(&bgm, id); }
+
+//int wav_get_group_num(int channel);
+//int bgm_get_group_num(int channel);
+//int wav_prepare_from_file(int channel, char *filename);
+//int bgm_prepare_from_file(int channel, char *filename);
