@@ -22,10 +22,10 @@ First install the dependencies (corresponding Debian package in parentheses):
 * meson (meson)
 * libffi (libffi-dev)
 * libpng (libpng-dev)
+* libsndfile (libsndfile-dev)
 * libturbojpeg (libturbojpeg0-dev)
 * libwebp (libwebp-dev)
 * SDL2 (libsdl2-dev)
-* SDL2_mixer (libsdl2-mixer-dev)
 * SDL2_ttf (libsdl2-ttf-dev)
 * zlib (zlib1g-dev)
 
