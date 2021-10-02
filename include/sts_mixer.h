@@ -341,8 +341,9 @@ void sts_mixer_mix_audio(sts_mixer_t* mixer, void* output, unsigned int samples)
     }
 
     // write to buffer
-    left = sts_mixer__clamp_sample(left);
-    right = sts_mixer__clamp_sample(right);
+    // NOTE: xsystem4 change: use mixer gain (not sure why this isn't implemented upstream...)
+    left = sts_mixer__clamp_sample(left * mixer->gain);
+    right = sts_mixer__clamp_sample(right * mixer->gain);
     switch (mixer->audio_format) {
       case STS_MIXER_SAMPLE_FORMAT_8:
         *out_8++ = (char)(left * 127.0f);

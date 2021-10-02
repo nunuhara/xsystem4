@@ -28,6 +28,8 @@
 #include "mixer.h"
 #include "xsystem4.h"
 
+#define clamp(min_value, max_value, value) min(max_value, max(min_value, value))
+
 /*
  * The actual mixer implementation is contained in this header.
  * The rest of this file implements a high level interface for managing mixer
@@ -51,6 +53,7 @@ struct channel {
 	// archive data
 	struct archive_data *dfile;
 	int no;
+	int mixer_no;
 
 	// audio file data
 	SNDFILE *file;
@@ -73,15 +76,34 @@ struct channel {
 	struct fade fade;
 };
 
+struct mixer {
+	sts_mixer_t mixer;
+	sts_mixer_stream_t stream;
+	int voice;
+	atomic_bool muted;
+	float data[CHUNK_SIZE * 2];
+	char *name;
+
+	struct mixer *parent;
+	struct mixer **children;
+	int nr_children;
+};
+
+static struct mixer *master = NULL;
+static struct mixer *mixers = NULL;
+static int nr_mixers = 0;
+
 static SDL_AudioDeviceID audio_device = 0;
-static sts_mixer_t mixer;
 
 /*
  * The SDL2 audio callback.
  */
 static void audio_callback(possibly_unused void *data, Uint8 *stream, int len)
 {
-	sts_mixer_mix_audio(&mixer, stream, len / (sizeof(float) * 2));
+	sts_mixer_mix_audio(&master->mixer, stream, len / (sizeof(float) * 2));
+	if (master->muted) {
+		memset(stream, 0, len);
+	}
 }
 
 /*
@@ -122,7 +144,6 @@ static bool cb_loop(struct channel *ch)
  * Callback to refill the stream's audio data.
  * Called from sys_mixer_mix_audio.
  */
-//static int refill_stream(sts_mixer_sample_t *sample, void *data)
 static int cb_read_frames(struct channel *ch, float *out, sf_count_t frame_count)
 {
 	sf_count_t num_read = 0;
@@ -210,7 +231,7 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 	// set gain for fade
 	if (ch->fade.fading) {
 		float gain = cb_calc_fade(&ch->fade, ch->frame);
-		mixer.voices[ch->voice].gain = gain;
+		mixers[ch->mixer_no].mixer.voices[ch->voice].gain = gain;
 		ch->volume = gain * 100.0;
 
 		if (ch->frame >= ch->fade.end_pos) {
@@ -224,6 +245,17 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 	return r;
 }
 
+static int refill_mixer(sts_mixer_sample_t *sample, void *data)
+{
+	struct mixer *mixer = data;
+	sts_mixer_mix_audio(&mixer->mixer, &mixer->data, CHUNK_SIZE);
+	if (mixer->muted) {
+		memset(mixer->data, 0, sizeof(float) * sample->length);
+	}
+
+	return STS_STREAM_CONTINUE;
+}
+
 int channel_play(struct channel *ch)
 {
 	SDL_LockAudioDevice(audio_device);
@@ -231,7 +263,7 @@ int channel_play(struct channel *ch)
 		SDL_UnlockAudioDevice(audio_device);
 		return 0;
 	}
-	ch->voice = sts_mixer_play_stream(&mixer, &ch->stream, 1.0f);
+	ch->voice = sts_mixer_play_stream(&mixers[ch->mixer_no].mixer, &ch->stream, 1.0f);
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
@@ -243,7 +275,7 @@ int channel_stop(struct channel *ch)
 		SDL_UnlockAudioDevice(audio_device);
 		return 0;
 	}
-	sts_mixer_stop_voice(&mixer, ch->voice);
+	sts_mixer_stop_voice(&mixers[ch->mixer_no].mixer, ch->voice);
 	ch->voice = -1;
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
@@ -291,7 +323,7 @@ int channel_fade(struct channel *ch, int time, int volume, bool stop)
 	ch->fade.start_pos = ch->frame;
 	ch->fade.start_volume = (float)ch->volume / 100.0;
 	ch->fade.end_pos = ch->fade.start_pos + ((time * ch->info.samplerate) / 1000);
-	ch->fade.end_volume = min(1.0, max(0.0, (float)volume / 100.0));
+	ch->fade.end_volume = clamp(0.0f, 1.0f, (float)volume / 100.0f);
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
@@ -395,7 +427,7 @@ static sf_count_t channel_vio_seek(sf_count_t offset, int whence, void *data)
 		ch->offset = ch->dfile->size + offset;
 		break;
 	}
-	ch->offset = min((sf_count_t)ch->dfile->size, max(0, ch->offset));
+	ch->offset = clamp(0, (sf_count_t)ch->dfile->size, ch->offset);
 	return ch->offset;
 }
 
@@ -459,17 +491,28 @@ struct channel *channel_open(enum asset_type type, int no)
 	ch->stream.sample.data = ch->data;
 	ch->voice = -1;
 
-	struct bgi *bgi = bgi_get(no);
-	if (bgi) {
-		ch->volume = min(100, max(0, bgi->volume));
-		ch->loop_start = min(ch->info.frames, max(0, bgi->loop_start));
-		ch->loop_end = min(ch->info.frames, max(0, bgi->loop_end));
-		ch->loop_count = max(0, bgi->loop_count);
-	} else {
+	if (type == ASSET_SOUND) {
+		struct wai *wai = wai_get(no);
 		ch->volume = 100;
 		ch->loop_start = 0;
 		ch->loop_end = ch->info.frames;
-		ch->loop_count = type == ASSET_SOUND ? 1 : 0;
+		ch->loop_count = 1;
+		ch->mixer_no = wai ? wai->channel : 1;
+	} else {
+		struct bgi *bgi = bgi_get(no);
+		if (bgi) {
+			ch->volume = clamp(0, 100, bgi->volume);
+			ch->loop_start = clamp(0, ch->info.frames, bgi->loop_start);
+			ch->loop_end = clamp(0, ch->info.frames, bgi->loop_end);
+			ch->loop_count = max(0, bgi->loop_count);
+			ch->mixer_no = clamp(0, nr_mixers, bgi->channel);
+		} else {
+			ch->volume = 100;
+			ch->loop_start = 0;
+			ch->loop_end = ch->info.frames;
+			ch->loop_count = 0;
+			ch->mixer_no = 0;
+		}
 	}
 	ch->no = no;
 
@@ -490,8 +533,81 @@ void channel_close(struct channel *ch)
 	free(ch);
 }
 
+#define SJIS_MASTER "\x83\x7d\x83\x58\x83\x5e\x81\x5b"
+#define SJIS_VOICE  "\x89\xb9\x90\xba"
+
 void mixer_init(void)
 {
+	// initialize mixer naming
+	if (!config.mixer_nr_channels) {
+		nr_mixers = 3;
+		mixers = xcalloc(nr_mixers, sizeof(struct mixer));
+		mixers[0].name = "Music";
+		mixers[1].name = "Sound";
+		mixers[2].name = "Master";
+	} else {
+		// NOTE: Older games don't have an explicit master channel.
+		//       We add an extra mixer in this case for consistency.
+		int need_master = 1;
+		if (!strcmp(config.mixer_channels[0], "Master") || !strcmp(config.mixer_channels[0], SJIS_MASTER)) {
+			need_master = 0;
+		}
+		nr_mixers = config.mixer_nr_channels + need_master;
+		mixers = xcalloc(nr_mixers, sizeof(struct mixer));
+		for (unsigned i = 0; i < config.mixer_nr_channels; i++) {
+			mixers[i].name = config.mixer_channels[i];
+		}
+		if (need_master) {
+			mixers[nr_mixers-1].name = "Master";
+			master = &mixers[nr_mixers-1];
+		} else {
+			master = &mixers[0];
+		}
+	}
+
+	// initialize mixer hierarchy
+	// NOTE: "Master" and "Voice" are special nodes; all channels following
+	//       them in the list become their children. This appears to be
+	//       hardcoded behavior in system 4.
+	struct mixer *parent = master;
+	for (int i = 0; i < nr_mixers; i++) {
+		if (&mixers[i] == master)
+			continue;
+		mixers[i].parent = parent;
+		parent->children = xrealloc_array(parent->children, parent->nr_children, parent->nr_children+1, sizeof(struct mixer*));
+		parent->children[parent->nr_children++] = &mixers[i];
+		if (!strcmp(mixers[i].name, "Voice") || !strcmp(mixers[i].name, SJIS_VOICE)) {
+			parent = &mixers[i];
+		}
+	}
+
+	// initialize mixers
+	for (int i = 0; i < nr_mixers; i++) {
+		sts_mixer_init(&mixers[i].mixer, 44100, STS_MIXER_SAMPLE_FORMAT_FLOAT);
+		int volume = i < (int)config.mixer_nr_channels ? config.mixer_volumes[i] : config.default_volume;
+		mixers[i].mixer.gain = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	}
+
+	// initialize mixer streams
+	for (int i = 0; i < nr_mixers; i++) {
+		if (&mixers[i] == master)
+			continue;
+		mixers[i].stream.userdata = &mixers[i];
+		mixers[i].stream.callback = refill_mixer;
+		mixers[i].stream.sample.frequency = 44100;
+		mixers[i].stream.sample.audio_format = STS_MIXER_SAMPLE_FORMAT_FLOAT;
+		mixers[i].stream.sample.length = CHUNK_SIZE * 2;
+		mixers[i].stream.sample.data = mixers[i].data;
+		mixers[i].voice = sts_mixer_play_stream(&mixers[i].parent->mixer, &mixers[i].stream, 1.0f);
+	}
+
+	// read audio metadata
+	if (config.bgi_path)
+		bgi_read(config.bgi_path);
+	if (config.wai_path)
+		wai_load(config.wai_path);
+
+	// initialize SDL audio
 	SDL_AudioSpec have;
 	SDL_AudioSpec want = {
 		.format = AUDIO_F32,
@@ -501,9 +617,53 @@ void mixer_init(void)
 		.callback = audio_callback,
 	};
 	audio_device = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
-	sts_mixer_init(&mixer, 44100, STS_MIXER_SAMPLE_FORMAT_FLOAT);
-	if (config.bgi_path)
-		bgi_read(config.bgi_path);
-
 	SDL_PauseAudioDevice(audio_device, 0);
+}
+
+int mixer_get_numof(void)
+{
+	return nr_mixers;
+}
+
+const char *mixer_get_name(int n)
+{
+	if (n < 0 || n >= nr_mixers)
+		return NULL;
+	return mixers[n].name;
+}
+
+int mixer_get_volume(int n, int *volume)
+{
+	if (n < 0 || n >= nr_mixers) {
+		return 0;
+	}
+	SDL_LockAudioDevice(audio_device);
+	*volume = clamp(0, 100, (int)(mixers[n].mixer.gain * 100));
+	SDL_UnlockAudioDevice(audio_device);
+	return 1;
+}
+
+int mixer_set_volume(int n, int volume)
+{
+	if (n < 0 || n >= nr_mixers)
+		return 0;
+	SDL_LockAudioDevice(audio_device);
+	mixers[n].mixer.gain = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	SDL_UnlockAudioDevice(audio_device);
+	return 1;
+}
+int mixer_get_mute(int n, int *mute)
+{
+	if (n < 0 || n >= nr_mixers)
+		return 0;
+	*mute = mixers[n].muted;
+	return 1;
+}
+
+int mixer_set_mute(int n, int mute)
+{
+	if (n < 0 || n >= nr_mixers)
+		return 0;
+	mixers[n].muted = !!mute;
+	return 1;
 }

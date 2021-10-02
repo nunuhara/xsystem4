@@ -51,6 +51,7 @@ struct config config = {
 	.view_height = 600,
 	.mixer_nr_channels = 0,
 	.mixer_channels = NULL,
+	.default_volume = 100,
 	.joypad = false,
 };
 
@@ -120,6 +121,7 @@ static void read_mixer_channels(struct ini_entry *entry)
 
 	config.mixer_nr_channels = entry->value.list_size;
 	config.mixer_channels = xcalloc(entry->value.list_size, sizeof(char*));
+	config.mixer_volumes = xcalloc(entry->value.list_size, sizeof(int));
 	for (size_t i = 0; i < entry->value.list_size; i++) {
 		if (entry->value.list[i].type == INI_NULL) {
 			WARNING("No name given for VolumeValancer[%d]", i);
@@ -127,6 +129,8 @@ static void read_mixer_channels(struct ini_entry *entry)
 		}
 		if (entry->value.list[i].type == INI_STRING) {
 			config.mixer_channels[i] = strdup(entry->value.list[i].s->text);
+			// XXX: assumes default_volume was already initialized
+			config.mixer_volumes[i] = config.default_volume;
 		} else if (entry->value.list[i].type == INI_LIST) {
 			if (entry->value.list[i].list_size != 2)
 				ERROR("ini value for 'VolumeValancer' is list of wrong size");
@@ -135,6 +139,7 @@ static void read_mixer_channels(struct ini_entry *entry)
 			if (entry->value.list[i].list[1].type != INI_INTEGER)
 				ERROR("ini value for 'VolumeValancer' level is not an integer");
 			config.mixer_channels[i] = strdup(entry->value.list[i].list[0].s->text);
+			config.mixer_volumes[i] = entry->value.list[i].list[1].i;
 		}
 	}
 }
@@ -159,6 +164,8 @@ static void read_config(const char *path)
 			config.view_height = ini_integer(&ini[i]);
 		} else if (!strcmp(ini[i].name->text, "VolumeValancer")) {
 			read_mixer_channels(&ini[i]);
+		} else if (!strcmp(ini[i].name->text, "DefaultVolumeRate")) {
+			config.default_volume = ini_integer(&ini[i]);
 		}
 		ini_free_entry(&ini[i]);
 	}

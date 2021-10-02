@@ -28,10 +28,25 @@ struct bgi {
 	int volume;
 };
 
+struct wai {
+	//int uk1;
+	//int uk2;
+	int channel;
+	//int uk3; // version 4+
+};
+
 void bgi_read(const char *path);
 struct bgi *bgi_get(int no);
+void wai_load(const char *path);
+struct wai *wai_get(int no);
 
 void mixer_init(void);
+int mixer_get_numof(void);
+const char *mixer_get_name(int n);
+int mixer_get_volume(int n, int *volume);
+int mixer_set_volume(int n, int volume);
+int mixer_get_mute(int n, int *mute);
+int mixer_set_mute(int n, int mute);
 
 struct channel;
 enum asset_type;

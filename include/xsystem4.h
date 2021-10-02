@@ -30,6 +30,8 @@ struct config {
 	int view_height;
 	size_t mixer_nr_channels;
 	char **mixer_channels;
+	int *mixer_volumes;
+	int default_volume;
 
 	char *bgi_path;
 	char *wai_path;

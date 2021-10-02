@@ -15,8 +15,11 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "system4.h"
+#include "system4/file.h"
 #include "mixer.h"
+#include "little_endian.h"
 
 #define BGI_MAX 100
 
@@ -90,4 +93,60 @@ struct bgi *bgi_get(int no)
 			return &bgi_data[i];
 	}
 	return NULL;
+}
+
+static struct wai *wai_data = NULL;
+static int nr_wai = 0;
+
+void wai_load(const char *path)
+{
+	size_t len;
+	uint8_t *file = file_read(path, &len);
+
+	if (len < 48 || file[0] != 'X' || file[1] != 'I' || file[2] != '2' || file[3] != '\0') {
+		WARNING("Not a .wai file: %s", path);
+		goto end;
+	}
+	int count = LittleEndian_getDW(file, 8) - 1;
+	if (count < 0) {
+		WARNING("Invalid .wai count: %d", count);
+		goto end;
+	}
+	int version = LittleEndian_getDW(file, 12);
+	if (version < 3 || version > 4) {
+		WARNING("Unsupported .wai version: %d", version);
+		goto end;
+	}
+
+	uint8_t *data;
+	int record_size;
+	if (version == 4) {
+		data = file + 40;
+		record_size = 4*4;
+	} else {
+		data = file + 36;
+		record_size = 3*4;
+	}
+
+	if (len - (version == 4 ? 40 : 36) < (size_t)count*record_size) {
+		WARNING(".wai file truncated");
+		goto end;
+	}
+
+	wai_data = xcalloc(count, sizeof(struct wai));
+	for (int i = 0; i < count; i++) {
+		wai_data[i].channel = LittleEndian_getDW(data, i*record_size + 8);
+	}
+	nr_wai = count;
+
+end:
+	free(file);
+}
+
+struct wai *wai_get(int no)
+{
+	no--;
+	if (no < 0 || no >= nr_wai)
+		return NULL;
+	return &wai_data[no];
 }

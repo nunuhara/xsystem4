@@ -18,55 +18,20 @@
 
 #include "system4/string.h"
 
+#include "mixer.h"
 #include "xsystem4.h"
 #include "hll.h"
 
-static int SystemService_GetMixerNumof(void)
-{
-	return config.mixer_nr_channels;
-}
-
 static int SystemService_GetMixerName(int n, struct string **name)
 {
-	if (n < 0 || (size_t)n >= config.mixer_nr_channels)
+	const char *r = mixer_get_name(n);
+	if (!r)
 		return 0;
-	*name = make_string(config.mixer_channels[n], strlen(config.mixer_channels[n]));
+	*name = make_string(r, strlen(r));
 	return 1;
-}
-
-static int SystemService_GetMixerVolume(int n, int *volume)
-{
-	if (n < 0 || (size_t)n >= config.mixer_nr_channels)
-		return 0;
-	*volume = 100;
-	return 1;
-}
-
-static int SystemService_GetMixerMute(int n, int *mute)
-{
-	if (n < 0 || (size_t)n >= config.mixer_nr_channels)
-		return 0;
-	*mute = 0;
-	return true;
 }
 
 //bool SystemService_SetMixerName(int nNum, string szName);
-
-static int SystemService_SetMixerVolume(int n, possibly_unused int volume)
-{
-	if (n < 0 || (size_t)n >= config.mixer_nr_channels)
-		return 0;
-	// TODO
-	return 1;
-}
-
-static int SystemService_SetMixerMute(int n, possibly_unused int mute)
-{
-	if (n < 0 || (size_t)n >= config.mixer_nr_channels)
-		return 0;
-	// TODO
-	return 1;
-}
 
 //int SystemService_GetGameVersion(void);
 static void SystemService_GetGameName(struct string **game_name)
@@ -163,13 +128,13 @@ static bool SystemService_GetMouseCursorConfig(int type, int *value)
 static void SystemService_RestrainScreensaver(void) { }
 
 HLL_LIBRARY(SystemService,
-	    HLL_EXPORT(GetMixerNumof, SystemService_GetMixerNumof),
+	    HLL_EXPORT(GetMixerNumof, mixer_get_numof),
 	    HLL_EXPORT(GetMixerName, SystemService_GetMixerName),
-	    HLL_EXPORT(GetMixerVolume, SystemService_GetMixerVolume),
-	    HLL_EXPORT(GetMixerMute, SystemService_GetMixerMute),
+	    HLL_EXPORT(GetMixerVolume, mixer_get_volume),
+	    HLL_EXPORT(GetMixerMute, mixer_get_mute),
 	    HLL_TODO_EXPORT(SetMixerName, SystemService_SetMixerName),
-	    HLL_EXPORT(SetMixerVolume, SystemService_SetMixerVolume),
-	    HLL_EXPORT(SetMixerMute, SystemService_SetMixerMute),
+	    HLL_EXPORT(SetMixerVolume, mixer_set_volume),
+	    HLL_EXPORT(SetMixerMute, mixer_set_mute),
 	    HLL_TODO_EXPORT(GetGameVersion, SystemService_GetGameVersion),
 	    HLL_EXPORT(GetGameName, SystemService_GetGameName),
 	    HLL_TODO_EXPORT(AddURLMenu, SystemService_AddURLMenu),
