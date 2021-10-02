@@ -80,8 +80,8 @@ bool audio_play_sound(int sound_no)
 	return false;
 }
 
-bool wav_exists(int no) { return asset_exists(ASSET_SOUND, no); }
-bool bgm_exists(int no) { return asset_exists(ASSET_BGM, no); }
+bool wav_exists(int no) { return asset_exists(ASSET_SOUND, no-1); }
+bool bgm_exists(int no) { return asset_exists(ASSET_BGM, no-1); }
 
 static int audio_prepare(struct id_pool *pool, int id, enum asset_type type, int no)
 {

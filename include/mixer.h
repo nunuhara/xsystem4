@@ -19,6 +19,18 @@
 
 #include <stdbool.h>
 
+struct bgi {
+	int no;
+	int loop_count;
+	int loop_start;
+	int loop_end;
+	int channel;
+	int volume;
+};
+
+void bgi_read(const char *path);
+struct bgi *bgi_get(int no);
+
 void mixer_init(void);
 
 struct channel;

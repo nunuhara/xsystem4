@@ -433,7 +433,7 @@ struct channel *channel_open(enum asset_type type, int no)
 	struct channel *ch = xcalloc(1, sizeof(struct channel));
 
 	// get file from archive
-	ch->dfile = asset_get(type, no);
+	ch->dfile = asset_get(type, no-1);
 	if (!ch->dfile) {
 		WARNING("Failed to load %s %d", type == ASSET_SOUND ? "WAV" : "BGM", no);
 		goto error;
@@ -457,13 +457,20 @@ struct channel *channel_open(enum asset_type type, int no)
 	ch->stream.sample.audio_format = STS_MIXER_SAMPLE_FORMAT_FLOAT;
 	ch->stream.sample.length = CHUNK_SIZE * 2;
 	ch->stream.sample.data = ch->data;
-	//refill_stream(&ch->stream.sample, ch);
 	ch->voice = -1;
 
-	ch->volume = 100;
-	ch->loop_start = 0;
-	ch->loop_end = ch->info.frames;
-	ch->loop_count = type == ASSET_SOUND ? 1 : 0;
+	struct bgi *bgi = bgi_get(no);
+	if (bgi) {
+		ch->volume = min(100, max(0, bgi->volume));
+		ch->loop_start = min(ch->info.frames, max(0, bgi->loop_start));
+		ch->loop_end = min(ch->info.frames, max(0, bgi->loop_end));
+		ch->loop_count = max(0, bgi->loop_count);
+	} else {
+		ch->volume = 100;
+		ch->loop_start = 0;
+		ch->loop_end = ch->info.frames;
+		ch->loop_count = type == ASSET_SOUND ? 1 : 0;
+	}
 	ch->no = no;
 
 	return ch;
@@ -494,8 +501,9 @@ void mixer_init(void)
 		.callback = audio_callback,
 	};
 	audio_device = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
-
 	sts_mixer_init(&mixer, 44100, STS_MIXER_SAMPLE_FORMAT_FLOAT);
+	if (config.bgi_path)
+		bgi_read(config.bgi_path);
 
 	SDL_PauseAudioDevice(audio_device, 0);
 }

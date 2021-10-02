@@ -93,10 +93,6 @@ bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *righ
 int sact_Key_ClearFlag(void);
 int sact_Key_IsDown(int keycode);
 int sact_CG_IsExist(int cg_no);
-int sact_Music_IsExist(int n);
-int sact_Music_Prepare(int ch, int n);
-int sact_Sound_IsExist(int n);
-int sact_Sound_Prepare(int ch, int n);
 void sact_System_GetDate(int *year, int *month, int *mday, int *wday);
 void sact_System_GetTime(int *hour, int *min, int *sec, int *ms);
 void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int border);

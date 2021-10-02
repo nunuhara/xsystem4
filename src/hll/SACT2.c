@@ -713,39 +713,6 @@ int sact_CG_IsExist(int cg_no)
 //void SACT2_CSV_SetInt(int line, int column, int data);
 //void SACT2_CSV_Realloc(int lines, int columns);
 
-int sact_Music_IsExist(int n)
-{
-	return bgm_exists(n - 1);
-}
-
-int sact_Music_Prepare(int ch, int n)
-{
-	return bgm_prepare(ch, n - 1);
-}
-
-int sact_Sound_IsExist(int n)
-{
-	return wav_exists(n - 1);
-}
-
-int sact_Sound_Prepare(int ch, int n)
-{
-	return wav_prepare(ch, n - 1);
-}
-
-//int SACT2_Sound_SetLoopCount(int ch, int count);
-//int SACT2_Sound_GetLoopCount(int ch);
-
-//int SACT2_Sound_StopFade(int ch);
-//int SACT2_Sound_IsFade(int ch);
-//int SACT2_Sound_GetPos(int ch);
-//int SACT2_Sound_GetLength(int ch);
-
-//int SACT2_Sound_GetVolume(int ch);
-
-//int SACT2_Sound_GetGroupNum(int ch);
-//bool SACT2_Sound_PrepareFromFile(int ch, struct string *filename);
-
 void sact_System_GetDate(int *year, int *month, int *mday, int *wday)
 {
 	time_t t = time(NULL);
@@ -892,8 +859,8 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_TODO_EXPORT(CSV_GetInt, SACT2_CSV_GetInt), \
 	    HLL_TODO_EXPORT(CSV_SetInt, SACT2_CSV_SetInt), \
 	    HLL_TODO_EXPORT(CSV_Realloc, SACT2_CSV_Realloc), \
-	    HLL_EXPORT(Music_IsExist, sact_Music_IsExist), \
-	    HLL_EXPORT(Music_Prepare, sact_Music_Prepare), \
+	    HLL_EXPORT(Music_IsExist, bgm_exists), \
+	    HLL_EXPORT(Music_Prepare, bgm_prepare), \
 	    HLL_EXPORT(Music_Unprepare, bgm_unprepare), \
 	    HLL_EXPORT(Music_Play, bgm_play), \
 	    HLL_EXPORT(Music_Stop, bgm_stop), \
@@ -913,9 +880,9 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_EXPORT(Music_GetSamplePos, bgm_get_sample_pos), \
 	    HLL_EXPORT(Music_GetSampleLength, bgm_get_sample_length), \
 	    HLL_EXPORT(Music_Seek, bgm_seek), \
-	    HLL_EXPORT(Sound_IsExist, sact_Sound_IsExist), \
+	    HLL_EXPORT(Sound_IsExist, wav_exists), \
 	    HLL_EXPORT(Sound_GetUnuseChannel, wav_get_unused_channel), \
-	    HLL_EXPORT(Sound_Prepare, sact_Sound_Prepare), \
+	    HLL_EXPORT(Sound_Prepare, wav_prepare), \
 	    HLL_EXPORT(Sound_Unprepare, wav_unprepare), \
 	    HLL_EXPORT(Sound_Play, wav_play), \
 	    HLL_EXPORT(Sound_Stop, wav_stop), \

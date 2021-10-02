@@ -1603,7 +1603,7 @@ static bool GoatGUIEngine_SetPartsOnCursorSoundNumber(int parts_no, int sound_no
 	}
 
 	struct parts *parts = parts_get(parts_no);
-	parts->on_cursor_sound = sound_no-1;
+	parts->on_cursor_sound = sound_no;
 	return true;
 }
 
@@ -1615,7 +1615,7 @@ static bool GoatGUIEngine_SetPartsClickSoundNumber(int parts_no, int sound_no)
 	}
 
 	struct parts *parts = parts_get(parts_no);
-	parts->on_click_sound = sound_no-1;
+	parts->on_click_sound = sound_no;
 	return true;
 }
 

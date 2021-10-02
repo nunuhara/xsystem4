@@ -21,25 +21,6 @@
 
 HLL_WARN_UNIMPLEMENTED( , void, KiwiSoundEngine, SetGlobalFocus, possibly_unused int nNum);
 
-int KiwiSoundEngine_Music_IsExist(int nNum)
-{
-	return bgm_exists(nNum-1);
-}
-
-int KiwiSoundEngine_Music_Prepare(int nCh, int nNum)
-{
-	return bgm_prepare(nCh, nNum-1);
-}
-
-int KiwiSoundEngine_Sound_IsExist(int nNum)
-{
-	return wav_exists(nNum-1);
-}
-int KiwiSoundEngine_Sound_Prepare(int nCh, int nNum)
-{
-	return wav_prepare(nCh, nNum-1);
-}
-
 //int KiwiSoundEngine_Sound_GetGroupNum(int nCh);
 static int KiwiSoundEngine_Sound_GetGroupNumFromDataNum(possibly_unused int no)
 {
@@ -50,8 +31,8 @@ static int KiwiSoundEngine_Sound_GetGroupNumFromDataNum(possibly_unused int no)
 
 HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(SetGlobalFocus, KiwiSoundEngine_SetGlobalFocus),
-	    HLL_EXPORT(Music_IsExist, KiwiSoundEngine_Music_IsExist),
-	    HLL_EXPORT(Music_Prepare, KiwiSoundEngine_Music_Prepare),
+	    HLL_EXPORT(Music_IsExist, bgm_exists),
+	    HLL_EXPORT(Music_Prepare, bgm_prepare),
 	    HLL_EXPORT(Music_Unprepare, bgm_unprepare),
 	    HLL_EXPORT(Music_Play, bgm_play),
 	    HLL_EXPORT(Music_Stop, bgm_stop),
@@ -73,8 +54,8 @@ HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(Music_Seek, bgm_seek),
 	    //HLL_EXPORT(Music_MillisecondsToSamples, KiwiSoundEngine_Music_MillisecondsToSamples),
 	    //HLL_EXPORT(Music_GetFormat, KiwiSoundEngine_Music_GetFormat),
-	    HLL_EXPORT(Sound_IsExist, KiwiSoundEngine_Sound_IsExist),
-	    HLL_EXPORT(Sound_Prepare, KiwiSoundEngine_Sound_Prepare),
+	    HLL_EXPORT(Sound_IsExist, wav_exists),
+	    HLL_EXPORT(Sound_Prepare, wav_prepare),
 	    HLL_EXPORT(Sound_Unprepare, wav_unprepare),
 	    HLL_EXPORT(Sound_Play, wav_play),
 	    HLL_EXPORT(Sound_Stop, wav_stop),
