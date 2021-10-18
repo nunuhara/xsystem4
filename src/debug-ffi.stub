@@ -63,8 +63,8 @@
   (int nr_vars     page-nr-vars)
 
   (int a_type      array-data-type)
-  (int struct_type array-struct-type)
-  (int rank        array-rank))
+  (int _page_struct_type array-struct-type)
+  (int _page_rank        array-rank))
 
 (define-c-union vm_value
   predicate: vm-value?

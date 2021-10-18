@@ -29,7 +29,8 @@ static const char *pagetype_strtab[] = {
 	[GLOBAL_PAGE] = "GLOBAL_PAGE",
 	[LOCAL_PAGE] = "LOCAL_PAGE",
 	[STRUCT_PAGE] = "STRUCT_PAGE",
-	[ARRAY_PAGE] = "ARRAY_PAGE"
+	[ARRAY_PAGE] = "ARRAY_PAGE",
+	[DELEGATE_PAGE] = "DELEGATE_PAGE",
 };
 
 const char *pagetype_string(enum page_type type)
@@ -168,10 +169,19 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 		return ain->structures[page->index].members[varno].type.data;
 	case ARRAY_PAGE:
 		if (struct_type)
-			*struct_type = page->struct_type;
+			*struct_type = page->array.struct_type;
 		if (array_rank)
-			*array_rank = page->rank - 1;
-		return page->rank > 1 ? page->a_type : array_type(page->a_type);
+			*array_rank = page->array.rank - 1;
+		return page->array.rank > 1 ? page->a_type : array_type(page->a_type);
+	case DELEGATE_PAGE:
+		if (varno % 2 == 0) {
+			if (struct_type && page->values[varno].i >= 0)
+				*struct_type = heap_get_page(page->values[varno].i)->index;
+			if (array_rank)
+				*array_rank = -1;
+			return AIN_STRUCT;
+		}
+		return AIN_VOID;
 	}
 	return AIN_VOID;
 }
@@ -207,8 +217,7 @@ struct page *copy_page(struct page *src)
 	if (!src)
 		return NULL;
 	struct page *dst = alloc_page(src->type, src->index, src->nr_vars);
-	dst->struct_type = src->struct_type;
-	dst->rank = src->rank;
+	dst->array = src->array;
 
 	for (int i = 0; i < src->nr_vars; i++) {
 		dst->values[i] = vm_copy(src->values[i], variable_type(src, i, NULL, NULL));
@@ -282,8 +291,8 @@ struct page *alloc_array(int rank, union vm_value *dimensions, enum ain_data_typ
 	data_type = unref_array_type(data_type);
 	enum ain_data_type type = array_type(data_type);
 	struct page *page = alloc_page(ARRAY_PAGE, data_type, dimensions->i);
-	page->struct_type = struct_type;
-	page->rank = rank;
+	page->array.struct_type = struct_type;
+	page->array.rank = rank;
 
 	for (int i = 0; i < dimensions->i; i++) {
 		if (rank == 1) {
@@ -311,7 +320,7 @@ struct page *realloc_array(struct page *src, int rank, union vm_value *dimension
 		return alloc_array(rank, dimensions, data_type, struct_type, init_structs);
 	if (src->type != ARRAY_PAGE)
 		VM_ERROR("Not an array");
-	if (src->rank != rank)
+	if (src->array.rank != rank)
 		VM_ERROR("Attempt to reallocate array with different rank");
 	if (!dimensions->i) {
 		delete_page_vars(src);
@@ -354,7 +363,7 @@ int array_numof(struct page *page, int rank)
 {
 	if (!page)
 		return 0;
-	if (rank < 1 || rank > page->rank)
+	if (rank < 1 || rank > page->array.rank)
 		return 0;
 	if (rank == 1) {
 		return page->nr_vars;
@@ -379,7 +388,7 @@ void array_copy(struct page *dst, int dst_i, struct page *src, int src_i, int n)
 		VM_ERROR("Out of bounds array access");
 	if (!array_index_ok(dst, dst_i + n - 1) || !array_index_ok(src, src_i + n - 1))
 		VM_ERROR("Out of bounds array access");
-	if (dst->rank != 1 || src->rank != 1)
+	if (dst->array.rank != 1 || src->array.rank != 1)
 		VM_ERROR("Tried to copy to/from a multi-dimensional array");
 	if (dst->a_type != src->a_type)
 		VM_ERROR("Array types do not match");
@@ -420,12 +429,12 @@ struct page *array_pushback(struct page *dst, union vm_value v, enum ain_data_ty
 	if (dst) {
 		if (dst->type != ARRAY_PAGE)
 			VM_ERROR("Not an array");
-		if (dst->rank != 1)
+		if (dst->array.rank != 1)
 			VM_ERROR("Tried pushing to a multi-dimensional array");
 
 		int index = dst->nr_vars;
 		union vm_value dims[1] = { (union vm_value) { .i = index + 1 } };
-		dst = realloc_array(dst, 1, dims, dst->a_type, dst->struct_type, false);
+		dst = realloc_array(dst, 1, dims, dst->a_type, dst->array.struct_type, false);
 		variable_set(dst, index, array_type(data_type), v);
 	} else {
 		union vm_value dims[1] = { (union vm_value) { .i = 1 } };
@@ -441,11 +450,11 @@ struct page *array_popback(struct page *dst)
 		return NULL;
 	if (dst->type != ARRAY_PAGE)
 		VM_ERROR("Not an array");
-	if (dst->rank != 1)
+	if (dst->array.rank != 1)
 		VM_ERROR("Tried popping from a multi-dimensional array");
 
 	union vm_value dims[1] = { (union vm_value) { .i = dst->nr_vars - 1 } };
-	dst = realloc_array(dst, 1, dims, dst->a_type, dst->struct_type, false);
+	dst = realloc_array(dst, 1, dims, dst->a_type, dst->array.struct_type, false);
 	return dst;
 }
 
@@ -456,7 +465,7 @@ struct page *array_erase(struct page *page, int i, bool *success)
 		return NULL;
 	if (page->type != ARRAY_PAGE)
 		VM_ERROR("Not an array");
-	if (page->rank != 1)
+	if (page->array.rank != 1)
 		VM_ERROR("Tried erasing from a multi-dimensional array");
 	if (!array_index_ok(page, i))
 		return page;
@@ -488,7 +497,7 @@ struct page *array_insert(struct page *page, int i, union vm_value v, enum ain_d
 	}
 	if (page->type != ARRAY_PAGE)
 		VM_ERROR("Not an array");
-	if (page->rank != 1)
+	if (page->array.rank != 1)
 		VM_ERROR("Tried inserting into a multi-dimensional array");
 
 	// NOTE: you cannot insert at the end of an array due to how i is clamped
@@ -575,4 +584,101 @@ void array_reverse(struct page *page)
 		page->values[start] = page->values[end];
 		page->values[end] = tmp;
 	}
+}
+
+struct page *delegate_new_from_method(int obj, int fun)
+{
+	struct page *page = alloc_page(DELEGATE_PAGE, 0, 2);
+	page->values[0].i = obj;
+	page->values[1].i = fun;
+	if (obj >= 0) {
+		heap_ref(obj);
+	}
+	return page;
+}
+
+int delegate_numof(struct page *page)
+{
+	if (page->type != DELEGATE_PAGE)
+		VM_ERROR("Not a delegate");
+	return page->nr_vars / 2;
+}
+
+struct page *delegate_plusa(struct page *dst, struct page *add)
+{
+	if (dst->type != DELEGATE_PAGE || add->type != DELEGATE_PAGE)
+		VM_ERROR("Not a delegate");
+
+	// FIXME: duplicate checking needed?
+	int new_vars = dst->nr_vars + add->nr_vars;
+	dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * new_vars);
+	for (int i = 0; i < add->nr_vars; i += 2) {
+		if (add->values[i].i >= 0) {
+			heap_ref(add->values[i].i);
+		}
+		dst->values[dst->nr_vars+i+0].i = add->values[i+0].i;
+		dst->values[dst->nr_vars+i+1].i = add->values[i+1].i;
+	}
+	dst->nr_vars = new_vars;
+	return dst;
+}
+
+struct page *delegate_minusa(struct page *dst, struct page *minus)
+{
+	if (dst->type != DELEGATE_PAGE || minus->type != DELEGATE_PAGE)
+		VM_ERROR("Not a delegate");
+
+	// set matching obj/fun pairs to -1/-1
+	int removed = 0;
+	for (int i = 0; i < minus->nr_vars; i += 2) {
+		for (int j = 0; j < dst->nr_vars; j += 2) {
+			if (minus->values[i].i == dst->values[j].i && minus->values[i+1].i == dst->values[j+1].i) {
+				if (dst->values[j].i >= 0)
+					heap_unref(dst->values[j].i);
+				dst->values[j].i = -1;
+				dst->values[j+1].i = -1;
+				removed++;
+				break;
+			}
+		}
+	}
+
+	// shift values to fill in gaps
+	for (int i = 0, p = 0; i < dst->nr_vars; i += 2) {
+		if (dst->values[i].i == -1 && dst->values[i+1].i == -1)
+			continue;
+		if (p < i) {
+			dst->values[p+0].i = dst->values[i+0].i;
+			dst->values[p+1].i = dst->values[i+1].i;
+		}
+		p += 2;
+	}
+	dst->nr_vars -= removed;
+
+	return dst;
+}
+
+struct page *delegate_clear(struct page *page)
+{
+	if (page->type != DELEGATE_PAGE)
+		VM_ERROR("Not a delegate");
+	for (int i = 0; i < page->nr_vars; i += 2) {
+		if (page->values[i].i >= 0)
+			heap_unref(page->values[i].i);
+		page->values[i].i = -1;
+		page->values[i+1].i = -1;
+	}
+	page->index = 0;
+	page->nr_vars = 0;
+	return page;
+}
+
+void delegate_get(struct page *page, int i, int *obj_out, int *fun_out)
+{
+	if (page->type != DELEGATE_PAGE)
+		VM_ERROR("Not a delegate");
+	if (i*2 >= page->nr_vars)
+		VM_ERROR("Invalid delegate index: %d", i);
+	*obj_out = page->values[i*2].i;
+	*fun_out = page->values[i*2+1].i;
 }

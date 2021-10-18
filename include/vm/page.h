@@ -29,14 +29,15 @@ enum page_type {
 	GLOBAL_PAGE,
 	LOCAL_PAGE,
 	STRUCT_PAGE,
-	ARRAY_PAGE
+	ARRAY_PAGE,
+	DELEGATE_PAGE,
 };
 
 #define NR_PAGE_TYPES (ARRAY_PAGE+1)
 
 /*
  * A page is an ordered collection of variables. Pages are used to implement
- * global and local variables, structures and arrays as follows,
+ * global and local variables, structures, arrays and delegates as follows:
  *
  * Global variables: all global variables are stored in a single global page.
  *
@@ -48,15 +49,28 @@ enum page_type {
  * Arrays: each array object is backed by a page storing its members.
  * Multi-dimensional arrays are implemented as a tree of pages (meaning the
  * whole array is NOT contiguous in memory).
+ *
+ * Delegates: each delegate object is backed by a page storing object/function
+ * pairs.
  */
 struct page {
 	enum page_type type;
+	// Value of `index`:
+	// ----------------
+	// GLOBAL_PAGE:   unused
+	// LOCAL_PAGE:    function index
+	// STRUCT_PAGE:   struct index
+	// ARRAY_PAGE:    array data type (e.g. for AIN_ARRAY_STRING, AIN_STRING)
+	// DELEGATE_PAGE: unused
 	union {
 		int index;
 		enum ain_data_type a_type;
 	};
-	int struct_type; // for array pages
-	int rank; // for array pages
+	// array-specific metadata
+	struct {
+		int struct_type;
+		int rank;
+	} array;
 	int nr_vars;
 	union vm_value values[];
 };
@@ -114,5 +128,13 @@ struct page *array_insert(struct page *page, int i, union vm_value v, enum ain_d
 void array_sort(struct page *page, int compare_fno);
 int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno);
 void array_reverse(struct page *page);
+
+// delegates
+struct page *delegate_new_from_method(int obj, int fun);
+int delegate_numof(struct page *page);
+struct page *delegate_plusa(struct page *dst, struct page *add);
+struct page *delegate_minusa(struct page *dst, struct page *minus);
+struct page *delegate_clear(struct page *page);
+void delegate_get(struct page *page, int i, int *obj_out, int *fun_out);
 
 #endif /* SYSTEM4_PAGE_H */

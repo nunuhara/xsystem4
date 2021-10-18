@@ -99,7 +99,7 @@ static void Bitarray_GetArray(int bitSet, struct page **page)
 		return;
 
 	struct page *array = *page;
-	if (!array || array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->rank != 1)
+	if (!array || array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->array.rank != 1)
 		ERROR("Not an flat integer array");
 
 	int n = (arrays[bitSet].size + 31) / 32;
@@ -117,7 +117,7 @@ static void Bitarray_SetArray(int bitSet, struct page **page)
 		return;
 
 	struct page *array = *page;
-	if (!array || array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->rank != 1)
+	if (!array || array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->array.rank != 1)
 		ERROR("Not an flat integer array");
 
 	int n = (arrays[bitSet].size + 31) / 32;

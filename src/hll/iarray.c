@@ -122,9 +122,9 @@ void iarray_write_array(struct iarray_writer *w, struct page *page)
 	assert(page->type == ARRAY_PAGE);
 
 	struct ain_type t = {
-		.data = page->rank > 1 ? page->a_type : array_type(page->a_type),
-		.struc = page->struct_type,
-		.rank = page->rank - 1
+		.data = page->array.rank > 1 ? page->a_type : array_type(page->a_type),
+		.struc = page->array.struct_type,
+		.rank = page->array.rank - 1
 	};
 
 	iarray_write(w, page->nr_vars);
@@ -230,8 +230,8 @@ struct page *iarray_read_array(struct iarray_reader *r, struct ain_type *t)
 
 	int nr_vars = iarray_read(r);
 	struct page *page = alloc_page(ARRAY_PAGE, t->data, nr_vars);
-	page->struct_type = t->struc;
-	page->rank = t->rank;
+	page->array.struct_type = t->struc;
+	page->array.rank = t->rank;
 
 	for (int i = 0; i < nr_vars; i++) {
 		page->values[i].i = iarray_read_member(r, &next_t);

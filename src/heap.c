@@ -222,6 +222,14 @@ struct string *heap_get_string(int index)
 	return heap[index].s;
 }
 
+struct page *heap_get_delegate_page(int index)
+{
+	struct page *page = heap_get_page(index);
+	if (!page || page->type != DELEGATE_PAGE)
+		VM_ERROR("Not a delegate page: %d", index);
+	return page;
+}
+
 void heap_set_page(int slot, struct page *page)
 {
 #ifdef DEBUG_HEAP

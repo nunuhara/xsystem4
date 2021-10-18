@@ -162,16 +162,16 @@ sexp sexp_page_get_a_type (sexp ctx, sexp self, sexp_sint_t n, sexp x) {
   return sexp_make_integer(ctx, ((struct page*)sexp_cpointer_value(x))->a_type);
 }
 
-sexp sexp_page_get_struct_type (sexp ctx, sexp self, sexp_sint_t n, sexp x) {
+sexp sexp_page_get__page_struct_type (sexp ctx, sexp self, sexp_sint_t n, sexp x) {
   if (! (sexp_pointerp(x) && (sexp_pointer_tag(x) == sexp_unbox_fixnum(sexp_opcode_arg1_type(self)))))
     return sexp_type_exception(ctx, self, sexp_unbox_fixnum(sexp_opcode_arg1_type(self)), x);
-  return sexp_make_integer(ctx, ((struct page*)sexp_cpointer_value(x))->struct_type);
+  return sexp_make_integer(ctx, ((struct page*)sexp_cpointer_value(x))->_page_struct_type);
 }
 
-sexp sexp_page_get_rank (sexp ctx, sexp self, sexp_sint_t n, sexp x) {
+sexp sexp_page_get__page_rank (sexp ctx, sexp self, sexp_sint_t n, sexp x) {
   if (! (sexp_pointerp(x) && (sexp_pointer_tag(x) == sexp_unbox_fixnum(sexp_opcode_arg1_type(self)))))
     return sexp_type_exception(ctx, self, sexp_unbox_fixnum(sexp_opcode_arg1_type(self)), x);
-  return sexp_make_integer(ctx, ((struct page*)sexp_cpointer_value(x))->rank);
+  return sexp_make_integer(ctx, ((struct page*)sexp_cpointer_value(x))->_page_rank);
 }
 
 
@@ -290,8 +290,8 @@ sexp sexp_init_library (sexp ctx, sexp self, sexp_sint_t n, sexp env, const char
   tmp = sexp_string_to_symbol(ctx, name);
   sexp_env_define(ctx, env, tmp, sexp_page_type_obj);
   sexp_type_slots(sexp_page_type_obj) = SEXP_NULL;
-  sexp_push(ctx, sexp_type_slots(sexp_page_type_obj), sexp_intern(ctx, "rank", -1));
-  sexp_push(ctx, sexp_type_slots(sexp_page_type_obj), sexp_intern(ctx, "struct_type", -1));
+  sexp_push(ctx, sexp_type_slots(sexp_page_type_obj), sexp_intern(ctx, "_page_rank", -1));
+  sexp_push(ctx, sexp_type_slots(sexp_page_type_obj), sexp_intern(ctx, "_page_struct_type", -1));
   sexp_push(ctx, sexp_type_slots(sexp_page_type_obj), sexp_intern(ctx, "a_type", -1));
   sexp_push(ctx, sexp_type_slots(sexp_page_type_obj), sexp_intern(ctx, "nr_vars", -1));
   sexp_push(ctx, sexp_type_slots(sexp_page_type_obj), sexp_intern(ctx, "index", -1));
@@ -301,13 +301,13 @@ sexp sexp_init_library (sexp ctx, sexp self, sexp_sint_t n, sexp env, const char
   tmp = sexp_make_type_predicate(ctx, name, sexp_page_type_obj);
   name = sexp_intern(ctx, "page?", 5);
   sexp_env_define(ctx, env, name, tmp);
-  op = sexp_define_foreign(ctx, env, "array-rank", 1, sexp_page_get_rank);
+  op = sexp_define_foreign(ctx, env, "array-rank", 1, sexp_page_get__page_rank);
   if (sexp_opcodep(op)) {
     sexp_opcode_return_type(op) = sexp_make_fixnum(SEXP_FIXNUM);
     sexp_opcode_arg1_type(op) = sexp_make_fixnum(sexp_type_tag(sexp_page_type_obj));
   }
   if (sexp_vectorp(sexp_type_getters(sexp_page_type_obj))) sexp_vector_set(sexp_type_getters(sexp_page_type_obj), SEXP_FIVE, op);
-  op = sexp_define_foreign(ctx, env, "array-struct-type", 1, sexp_page_get_struct_type);
+  op = sexp_define_foreign(ctx, env, "array-struct-type", 1, sexp_page_get__page_struct_type);
   if (sexp_opcodep(op)) {
     sexp_opcode_return_type(op) = sexp_make_fixnum(SEXP_FIXNUM);
     sexp_opcode_arg1_type(op) = sexp_make_fixnum(sexp_type_tag(sexp_page_type_obj));

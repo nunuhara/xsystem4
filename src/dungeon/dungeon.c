@@ -356,7 +356,7 @@ static int find_walk_data(struct page *array, int map_no, struct dgn *dgn)
 {
 	if (!array)
 		return WALK_DATA_BROKEN;
-	if (array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->rank != 1)
+	if (array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->array.rank != 1)
 		VM_ERROR("Not a flat integer array");
 
 	int ptr = 0;

@@ -66,8 +66,8 @@ static cJSON *resume_page_to_json(struct page *page)
 	cJSON_AddStringToObject(json, "type", page_type_strtab[page->type]);
 	cJSON_AddNumberToObject(json, "subtype", page->index);
 	if (page->type == ARRAY_PAGE) {
-		cJSON_AddNumberToObject(json, "struct-type", page->struct_type);
-		cJSON_AddNumberToObject(json, "rank", page->rank);
+		cJSON_AddNumberToObject(json, "struct-type", page->array.struct_type);
+		cJSON_AddNumberToObject(json, "rank", page->array.rank);
 	}
 
 	cJSON *values = cJSON_CreateArray();
@@ -200,8 +200,8 @@ static void load_page(int slot, cJSON *json)
 
 	// allocate page
 	struct page *page = alloc_page(page_type, subtype->valueint, cJSON_GetArraySize(values));
-	page->struct_type = struct_type;
-	page->rank = rank;
+	page->array.struct_type = struct_type;
+	page->array.rank = rank;
 
 	// init page variables
 	int i = 0;
