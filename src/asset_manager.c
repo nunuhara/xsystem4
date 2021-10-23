@@ -162,6 +162,12 @@ void asset_manager_init(void)
 				continue;
 			}
 			config.wai_path = path_join(config.game_dir, d->d_name);
+		} else if (!strcasecmp(ext, "ex")) {
+			if (config.ex_path) {
+				WARNING("Multiple ex files");
+				continue;
+			}
+			config.ex_path = path_join(config.game_dir, d->d_name);
 		} else if (!strcasecmp(ext, "afa")) {
 			const char *type = d->d_name + base_len;
 			if (!strcmp(type, "BA.afa")) {

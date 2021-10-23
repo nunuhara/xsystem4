@@ -85,8 +85,17 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 		if (!strcmp(f->name, "GetClickPartsNumber")) goto notrace;
 	}
 	//else if (!strcmp(lib->name, "DrawGraph"));
-	//else if (!strcmp(lib->name, "SACT2"));
-	//else if (!strcmp(lib->name, "SengokuRanceFont"));
+	else if (!strcmp(lib->name, "SACT2")) {
+		if (!strcmp(f->name, "Key_IsDown")) goto notrace;
+		if (!strcmp(f->name, "Mouse_GetPos")) goto notrace;
+		if (!strcmp(f->name, "SP_ExistAlpha")) goto notrace;
+		if (!strcmp(f->name, "SP_IsPtInRect")) goto notrace;
+		if (!strcmp(f->name, "SP_IsUsing")) goto notrace;
+		if (!strcmp(f->name, "SP_SetPos")) goto notrace;
+		if (!strcmp(f->name, "Timer_Get")) goto notrace;
+		if (!strcmp(f->name, "Update")) goto notrace;
+	}
+	else if (!strcmp(lib->name, "SengokuRanceFont"));
 	else goto notrace;
 
 	char *u = sjis2utf(ain->functions[call_stack[call_stack_ptr-1].fno].name, 0);
@@ -304,6 +313,7 @@ extern struct static_library lib_IbisInputEngine;
 extern struct static_library lib_InputDevice;
 extern struct static_library lib_InputString;
 extern struct static_library lib_KiwiSoundEngine;
+extern struct static_library lib_MainEXFile;
 extern struct static_library lib_MarmotModelEngine;
 extern struct static_library lib_Math;
 extern struct static_library lib_MenuMsg;
@@ -353,6 +363,7 @@ static struct static_library *static_libraries[] = {
 	&lib_InputDevice,
 	&lib_InputString,
 	&lib_KiwiSoundEngine,
+	&lib_MainEXFile,
 	&lib_MarmotModelEngine,
 	&lib_Math,
 	&lib_MenuMsg,

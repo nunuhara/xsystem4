@@ -35,6 +35,7 @@ struct config {
 
 	char *bgi_path;
 	char *wai_path;
+	char *ex_path;
 
 	bool joypad;
 };

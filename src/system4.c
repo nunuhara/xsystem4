@@ -53,6 +53,10 @@ struct config config = {
 	.mixer_channels = NULL,
 	.default_volume = 100,
 	.joypad = false,
+
+	.bgi_path = NULL,
+	.wai_path = NULL,
+	.ex_path = NULL,
 };
 
 char *unix_path(const char *path)
