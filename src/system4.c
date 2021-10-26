@@ -24,6 +24,7 @@
 #include <signal.h>
 #include <getopt.h>
 #include <limits.h>
+#include <time.h>
 
 #include "system4.h"
 #include "system4/ain.h"
@@ -102,6 +103,30 @@ char *gamedir_path(const char *path)
 char *savedir_path(const char *path)
 {
 	return resolve_path(config.save_dir, path);
+}
+
+void get_date(int *year, int *month, int *mday, int *wday)
+{
+	time_t t = time(NULL);
+	struct tm *tm = localtime(&t);
+
+	*year  = tm->tm_year;
+	*month = tm->tm_mon;
+	*mday  = tm->tm_mday;
+	*wday  = tm->tm_wday;
+}
+
+void get_time(int *hour, int *min, int *sec, int *ms)
+{
+	time_t t = time(NULL);
+	struct tm *tm = localtime(&t);
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+
+	*hour = tm->tm_hour;
+	*min  = tm->tm_min;
+	*sec  = ts.tv_sec;
+	*ms   = ts.tv_nsec / 1000000;
 }
 
 static struct string *ini_string(struct ini_entry *entry)

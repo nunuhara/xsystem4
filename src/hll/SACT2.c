@@ -713,30 +713,6 @@ int sact_CG_IsExist(int cg_no)
 //void SACT2_CSV_SetInt(int line, int column, int data);
 //void SACT2_CSV_Realloc(int lines, int columns);
 
-void sact_System_GetDate(int *year, int *month, int *mday, int *wday)
-{
-	time_t t = time(NULL);
-	struct tm *tm = localtime(&t);
-
-	*year  = tm->tm_year;
-	*month = tm->tm_mon;
-	*mday  = tm->tm_mday;
-	*wday  = tm->tm_wday;
-}
-
-void sact_System_GetTime(int *hour, int *min, int *sec, int *ms)
-{
-	time_t t = time(NULL);
-	struct tm *tm = localtime(&t);
-	struct timespec ts;
-	clock_gettime(CLOCK_REALTIME, &ts);
-
-	*hour = tm->tm_hour;
-	*min  = tm->tm_min;
-	*sec  = ts.tv_sec;
-	*ms   = ts.tv_nsec / 1000000;
-}
-
 //void SACT2_CG_RotateRGB(int dst, int dx, int dy, int w, int h, int rotate_type);
 
 void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int border)
@@ -899,8 +875,8 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_EXPORT(Sound_GetTimeLength, wav_get_time_length), \
 	    HLL_TODO_EXPORT(Sound_GetGroupNum, SACT2_Sound_GetGroupNum), \
 	    HLL_TODO_EXPORT(Sound_PrepareFromFile, SACT2_Sound_PrepareFromFile), \
-	    HLL_EXPORT(System_GetDate, sact_System_GetDate), \
-	    HLL_EXPORT(System_GetTime, sact_System_GetTime), \
+	    HLL_EXPORT(System_GetDate, get_date), \
+	    HLL_EXPORT(System_GetTime, get_time), \
 	    HLL_TODO_EXPORT(CG_RotateRGB, SACT2_CG_RotateRGB), \
 	    HLL_EXPORT(CG_BlendAMapBin, sact_CG_BlendAMapBin), \
 	    HLL_TODO_EXPORT(Debug_Pause, SACT2_Debug_Pause), \

@@ -31,6 +31,14 @@ static int SystemService_GetMixerName(int n, struct string **name)
 	return 1;
 }
 
+static bool SystemService_GetMixerDefaultVolume(int n, int *volume)
+{
+	if (n < 0 || (unsigned)n >= config.mixer_nr_channels)
+		return false;
+	*volume = config.mixer_volumes[n];
+	return true;
+}
+
 //bool SystemService_SetMixerName(int nNum, string szName);
 
 //int SystemService_GetGameVersion(void);
@@ -51,6 +59,18 @@ static bool SystemService_IsFullScreen(void)
 //bool SystemService_ChangeNormalScreen(void);
 HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, ChangeFullScreen);
 HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, InitMainWindowPosAndSize);
+
+//static bool SystemService_UpdateView(void);
+static int SystemService_GetViewWidth(void)
+{
+	return config.view_width;
+}
+
+static int SystemService_GetViewHeight(void)
+{
+	return config.view_height;
+}
+
 //bool SystemService_MoveMouseCursorPosImmediately(int nX, int nY);
 //bool SystemService_SetHideMouseCursorByGame(bool bHide);
 //bool SystemService_GetHideMouseCursorByGame(void);
@@ -125,12 +145,32 @@ static bool SystemService_GetMouseCursorConfig(int type, int *value)
 //bool SystemService_IsOpenedMutex(struct string *mutex_name);
 //void SystemService_GetGameFolderPath(struct string **folder_path);
 
+static void SystemService_GetTime(int *hour, int *min, int *sec)
+{
+	int ms;
+	get_time(hour, min, sec, &ms);
+}
+
+//static bool SystemService_IsResetOnce(void);
+//static void SystemService_OpenPlayingManual(void);
+//static bool SystemService_IsExistPlayingManual(void);
+//static bool SystemService_IsExistSystemMessage(void);
+//static bool SystemService_PopSystemMessage(int *message);
+
 static void SystemService_RestrainScreensaver(void) { }
+
+//static int SystemService_Debug_GetUseVideoMemorySize(void);
+
+static void SystemService_Rance0123456789(struct string **text)
+{
+	*text = cstr_to_string("-RANCE010ECNAR-"); // ???
+}
 
 HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(GetMixerNumof, mixer_get_numof),
 	    HLL_EXPORT(GetMixerName, SystemService_GetMixerName),
 	    HLL_EXPORT(GetMixerVolume, mixer_get_volume),
+	    HLL_EXPORT(GetMixerDefaultVolume, SystemService_GetMixerDefaultVolume),
 	    HLL_EXPORT(GetMixerMute, mixer_get_mute),
 	    HLL_TODO_EXPORT(SetMixerName, SystemService_SetMixerName),
 	    HLL_EXPORT(SetMixerVolume, mixer_set_volume),
@@ -142,6 +182,9 @@ HLL_LIBRARY(SystemService,
 	    HLL_TODO_EXPORT(ChangeNormalScreen, SystemService_ChangeNormalScreen),
 	    HLL_EXPORT(ChangeFullScreen, SystemService_ChangeFullScreen),
 	    HLL_EXPORT(InitMainWindowPosAndSize, SystemService_InitMainWindowPosAndSize),
+	    HLL_TODO_EXPORT(UpdateView, SystemService_UpdateView),
+	    HLL_EXPORT(GetViewWidth, SystemService_GetViewWidth),
+	    HLL_EXPORT(GetViewHeight, SystemService_GetViewHeight),
 	    HLL_TODO_EXPORT(MoveMouseCursorPosImmediately, SystemService_MoveMouseCursorPosImmediately),
 	    HLL_TODO_EXPORT(SetHideMouseCursorByGame, SystemService_SetHideMouseCursorByGame),
 	    HLL_TODO_EXPORT(GetHideMouseCursorByGame, SystemService_GetHideMouseCursorByGame),
@@ -154,5 +197,14 @@ HLL_LIBRARY(SystemService,
 	    HLL_TODO_EXPORT(RunProgram, SystemService_RunProgram),
 	    HLL_TODO_EXPORT(IsOpenedMutex, SystemService_IsOpenedMutex),
 	    HLL_TODO_EXPORT(GetGameFolderPath, SystemService_GetGameFolderPath),
-	    HLL_EXPORT(RestrainScreensaver, SystemService_RestrainScreensaver)
+	    HLL_EXPORT(GetDate, get_date),
+	    HLL_EXPORT(GetTime, SystemService_GetTime),
+	    HLL_TODO_EXPORT(IsResetOnce, SystemService_IsResetOnce),
+	    HLL_TODO_EXPORT(OpenPlayingManual, SystemService_OpenPlayingManual),
+	    HLL_TODO_EXPORT(IsExistPlayingManual, SystemService_IsExistPlayingManual),
+	    HLL_TODO_EXPORT(IsExistSystemMessage, SystemService_IsExistSystemMessage),
+	    HLL_TODO_EXPORT(PopSystemMessage, SystemService_PopSystemMessage),
+	    HLL_EXPORT(RestrainScreensaver, SystemService_RestrainScreensaver),
+	    HLL_TODO_EXPORT(Debug_GetUseVideoMemorySize, SystemService_Debug_GetUseVideoMemorySize),
+	    HLL_EXPORT(Rance0123456789, SystemService_Rance0123456789)
 	);

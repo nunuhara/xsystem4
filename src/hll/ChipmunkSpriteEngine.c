@@ -21,6 +21,7 @@
 #include "input.h"
 #include "sact.h"
 #include "CharSpriteManager.h"
+#include "xsystem4.h"
 #include "hll.h"
 
 static void ChipmunkSpriteEngine_ModuleFini(void)
@@ -154,8 +155,8 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(Timer_Get, vm_time),
 	    HLL_EXPORT(CG_IsExist, sact_CG_IsExist),
 	    HLL_EXPORT(CG_GetMetrics, sact_CG_GetMetrics),
-	    HLL_EXPORT(System_GetDate, sact_System_GetDate),
-	    HLL_EXPORT(System_GetTime, sact_System_GetTime),
+	    HLL_EXPORT(System_GetDate, get_date),
+	    HLL_EXPORT(System_GetTime, get_time),
 	    HLL_TODO_EXPORT(CG_RotateRGB, SACT2_CG_RotateRGB),
 	    HLL_EXPORT(CG_BlendAMapBin, sact_CG_BlendAMapBin),
 	    HLL_TODO_EXPORT(Debug_Pause, SACT2_Debug_Pause),
