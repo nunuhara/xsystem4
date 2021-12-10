@@ -242,6 +242,10 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 		}
 	}
 
+	if (r == STS_STREAM_COMPLETE) {
+		ch->voice = -1;
+	}
+
 	return r;
 }
 
