@@ -19,6 +19,7 @@
 #include "system4.h"
 #include "gfx/private.h"
 #include "input.h"
+#include "scene.h"
 #include "vm.h"
 
 bool key_state[VK_NR_KEYCODES];
@@ -286,7 +287,7 @@ void handle_events(void)
 		case SDL_WINDOWEVENT:
 			switch (e.window.event) {
 			case SDL_WINDOWEVENT_EXPOSED:
-				sdl.dirty = true;
+				scene_dirty();
 				break;
 			case SDL_WINDOWEVENT_ENTER:
 				mouse_focus = true;

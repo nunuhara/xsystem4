@@ -34,7 +34,6 @@ struct sdl_private {
 		GLuint ibo;
 	} gl;
 	int w, h;
-	bool dirty;
 	bool ms_active; /* mouse is active */
 	bool fs_on;
 };
