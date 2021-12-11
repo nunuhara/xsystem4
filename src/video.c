@@ -24,6 +24,7 @@
 
 #include "system4.h"
 #include "system4/cg.h"
+#include "system4/utfsjis.h"
 
 #include "gfx/gfx.h"
 #include "gfx/private.h"
@@ -173,6 +174,16 @@ static int gl_initialize(void)
 	return 0;
 }
 
+static void set_window_title(void)
+{
+	char title[1024] = { [1023] = 0 };
+	char *game_name = sjis2utf(config.game_name, 0);
+	snprintf(title, 1023, "%s - XSystem4", game_name);
+	free(game_name);
+
+	SDL_SetWindowTitle(sdl.window, title);
+}
+
 int gfx_init(void)
 {
 	uint32_t flags = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
@@ -200,6 +211,8 @@ int gfx_init(void)
 				       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
 	if (!sdl.window)
 		ERROR("SDL_CreateWindow failed: %s", SDL_GetError());
+
+	set_window_title();
 
 	sdl.gl.context = SDL_GL_CreateContext(sdl.window);
 	if (!sdl.gl.context)
