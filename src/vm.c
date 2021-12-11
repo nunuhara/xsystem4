@@ -669,6 +669,13 @@ void exec_strswitch(int no, struct string *str)
 		instr_ptr += instruction_width(STRSWITCH);
 }
 
+static void echo_message(int i)
+{
+	char *u = sjis2utf(ain->messages[i]->text, ain->messages[i]->size);
+	NOTICE("MSG %d: %s", i, u);
+	free(u);
+}
+
 static enum opcode execute_instruction(enum opcode opcode)
 {
 	switch (opcode) {
@@ -884,6 +891,8 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case MSG: {
+		if (config.echo)
+			echo_message(get_argument(0));
 		if (ain->msgf < 0)
 			break;
 		stack_push(get_argument(0));

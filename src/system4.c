@@ -54,6 +54,7 @@ struct config config = {
 	.mixer_channels = NULL,
 	.default_volume = 100,
 	.joypad = false,
+	.echo = false,
 
 	.bgi_path = NULL,
 	.wai_path = NULL,
@@ -381,20 +382,22 @@ static void ain_audit(FILE *f, struct ain *ain)
 static void usage(void)
 {
 	puts("Usage: xsystem4 <options> <inifile>");
-	puts("    -h, --help         Display this message and exit");
-	puts("    -a, --audit        Audit AIN file for xsystem4 compatibility");
-	puts("        --font-mincho  Specify the path to the mincho font to use");
-	puts("        --font-gothic  Specify the path to the gothic font to use");
-	puts("    -j, --joypad       Enable joypad");
-	puts("        --nodebug      Disable debugger");
+	puts("    -h, --help          Display this message and exit");
+	puts("    -a, --audit         Audit AIN file for xsystem4 compatibility");
+	puts("    -e, --echo-message  Echo in-game messages to standard output");
+	puts("        --font-mincho   Specify the path to the mincho font to use");
+	puts("        --font-gothic   Specify the path to the gothic font to use");
+	puts("    -j, --joypad        Enable joypad");
+	puts("        --nodebug       Disable debugger");
 #ifdef DEBUGGER_ENABLED
-	puts("        --debug        Start in debugger");
+	puts("        --debug         Start in debugger");
 #endif
 }
 
 enum {
 	LOPT_HELP = 256,
 	LOPT_AUDIT,
+	LOPT_ECHO_MESSAGE,
 	LOPT_FONT_MINCHO,
 	LOPT_FONT_GOTHIC,
 	LOPT_JOYPAD,
@@ -419,18 +422,19 @@ int main(int argc, char *argv[])
 
 	while (1) {
 		static struct option long_options[] = {
-			{ "help",        no_argument,       0, LOPT_HELP },
-			{ "audit",       no_argument,       0, LOPT_AUDIT },
-			{ "font-mincho", required_argument, 0, LOPT_FONT_MINCHO },
-			{ "font-gothic", required_argument, 0, LOPT_FONT_GOTHIC },
-			{ "joypad",      no_argument,       0, LOPT_JOYPAD },
-			{ "nodebug",     no_argument,       0, LOPT_NODEBUG },
+			{ "help",         no_argument,       0, LOPT_HELP },
+			{ "audit",        no_argument,       0, LOPT_AUDIT },
+			{ "echo-message", no_argument,       0, LOPT_ECHO_MESSAGE },
+			{ "font-mincho",  required_argument, 0, LOPT_FONT_MINCHO },
+			{ "font-gothic",  required_argument, 0, LOPT_FONT_GOTHIC },
+			{ "joypad",       no_argument,       0, LOPT_JOYPAD },
+			{ "nodebug",      no_argument,       0, LOPT_NODEBUG },
 #ifdef DEBUGGER_ENABLED
-			{ "debug",       no_argument,       0, LOPT_DEBUG },
+			{ "debug",        no_argument,       0, LOPT_DEBUG },
 #endif
 		};
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "haj", long_options, &option_index);
+		int c = getopt_long(argc, argv, "haej", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -442,6 +446,10 @@ int main(int argc, char *argv[])
 		case 'a':
 		case LOPT_AUDIT:
 			audit = true;
+			break;
+		case 'e':
+		case LOPT_ECHO_MESSAGE:
+			config.echo = true;
 			break;
 		case LOPT_FONT_MINCHO:
 			font_mincho = optarg;

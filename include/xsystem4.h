@@ -38,6 +38,7 @@ struct config {
 	char *ex_path;
 
 	bool joypad;
+	bool echo;
 };
 
 extern struct config config;
