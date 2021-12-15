@@ -287,7 +287,7 @@ void handle_events(void)
 		case SDL_WINDOWEVENT:
 			switch (e.window.event) {
 			case SDL_WINDOWEVENT_EXPOSED:
-				scene_dirty();
+				scene_flip();
 				break;
 			case SDL_WINDOWEVENT_ENTER:
 				mouse_focus = true;
