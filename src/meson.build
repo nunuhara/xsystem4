@@ -81,7 +81,7 @@ xsystem4 = ['audio.c',
             'hll/VSFile.c',
 ]
 
-xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, ffi, gl, glew, cglm, sndfile, libsys4_dep]
+xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, ffi, cglm, sndfile, libsys4_dep] + gl_deps
 
 if chibi.found()
     xsystem4_deps += chibi

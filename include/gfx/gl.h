@@ -17,11 +17,6 @@
 #ifndef SYSTEM4_GFX_GL_H
 #define SYSTEM4_GFX_GL_H
 
-/*
- * Define this to target OpenGL ES 3.0.
- */
-//#define USE_GLES
-
 #ifdef USE_GLES
 #include <GLES3/gl3.h>
 #else
