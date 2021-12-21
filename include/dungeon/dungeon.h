@@ -20,7 +20,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <GL/glew.h>
+#include "gfx/gl.h"
 
 struct page;
 struct dgn;

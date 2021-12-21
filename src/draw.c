@@ -16,7 +16,7 @@
 
 #include <math.h>
 #include <SDL.h>
-#include <GL/glew.h>
+#include "gfx/gl.h"
 #include <cglm/cglm.h>
 
 #include "gfx/gfx.h"

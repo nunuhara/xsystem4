@@ -18,7 +18,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <cglm/cglm.h>
-#include <GL/glew.h>
+#include "gfx/gl.h"
 #include "system4.h"
 #include "system4/buffer.h"
 #include "system4/cg.h"

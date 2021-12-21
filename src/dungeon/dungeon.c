@@ -19,7 +19,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <cglm/cglm.h>
-#include <GL/glew.h>
+#include "gfx/gl.h"
 #include "system4.h"
 #include "system4/alk.h"
 #include "system4/archive.h"

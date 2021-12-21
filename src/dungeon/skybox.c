@@ -15,7 +15,7 @@
  */
 
 #include <stdlib.h>
-#include <GL/glew.h>
+#include "gfx/gl.h"
 #include "system4.h"
 #include "system4/cg.h"
 
