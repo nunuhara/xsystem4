@@ -21,7 +21,6 @@
 #include <libgen.h>
 #include <dirent.h>
 #include <ctype.h>
-#include <signal.h>
 #include <getopt.h>
 #include <limits.h>
 #include <time.h>
@@ -328,14 +327,6 @@ static void config_init_with_ain(const char *ain_path)
 	config_init();
 }
 
-#if (!defined(_WIN32) && !defined(__WIN32__))
-#include <sys/wait.h>
-void cleanup(possibly_unused int signal)
-{
-	while (waitpid((pid_t)-1, 0, WNOHANG) > 0);
-}
-#endif
-
 static void ain_audit(FILE *f, struct ain *ain)
 {
 	link_libraries();
@@ -490,10 +481,6 @@ int main(int argc, char *argv[])
 		config_init_with_ain(argv[0]);
 	}
 	ainfile = gamedir_path(config.ain_filename);
-
-#if (!defined(_WIN32) && !defined(__WIN32__))
-	signal(SIGCHLD, cleanup);
-#endif
 
 	read_user_config();
 

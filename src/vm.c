@@ -20,7 +20,6 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
-#include <errno.h>
 #include <setjmp.h>
 #include <assert.h>
 #include <SDL.h> // for system.MsgBox
@@ -40,12 +39,6 @@
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "xsystem4.h"
-
-#if (!defined(_WIN32) && !defined(__WIN32__))
-#include <spawn.h>
-#endif
-
-extern char **environ;
 
 static inline int32_t lint_clamp(int64_t n)
 {
@@ -484,20 +477,12 @@ static void system_call(enum syscall_code code)
 		break;
 	}
 	case SYS_OPEN_WEB: {
-#if (defined(_WIN32) || defined(__WIN32__))
-		WARNING("system.OpenWeb not implemented on Windows");
+#if !SDL_VERSION_ATLEAST(2, 0, 14)
+		WARNING("SDL_OpenURL not available");
 #else
 		struct string *url = stack_peek_string(0);
-		char *browser = getenv("BROWSER");
-		if (!browser || !*browser) {
-			WARNING("$BROWSER not set, assuming Firefox");
-			browser = "firefox";
-		}
-		int err;
-		pid_t child;
-		char *argv[] = { browser, url->text, NULL };
-		if ((err = posix_spawnp(&child, browser, NULL, NULL, argv, environ))) {
-			WARNING("posix_spawn failed: %s", strerror(err));
+		if (SDL_OpenURL(url->text) < 0) {
+			WARNING("SDL_OpenURL failed: %s", SDL_GetError());
 		}
 #endif
 		heap_unref(stack_pop().i);
