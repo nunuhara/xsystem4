@@ -16,7 +16,7 @@
  */
 
 #include <SDL.h>
-#include <GL/glew.h>
+#include "gfx/gl.h"
 #include <cglm/cglm.h>
 #include <string.h>
 #include <errno.h>
@@ -32,11 +32,6 @@
 #include "xsystem4.h"
 
 struct sdl_private sdl;
-
-/*
- * Define this to target OpenGL ES 3.0.
- */
-//#define USE_GLES
 
 static const GLchar glsl_preamble[] =
 #ifdef USE_GLES
@@ -218,10 +213,12 @@ int gfx_init(void)
 	if (!sdl.gl.context)
 		ERROR("SDL_GL_CreateContext failed: %s", SDL_GetError());
 
+#ifndef USE_GLES
 	glewExperimental = GL_TRUE;
 	GLenum err = glewInit();
 	if (err != GLEW_OK && err != GLEW_ERROR_NO_GLX_DISPLAY)
 		ERROR("glewInit failed");
+#endif
 
 	SDL_GL_SetSwapInterval(0);
 	gl_initialize();

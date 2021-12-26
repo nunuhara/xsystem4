@@ -18,7 +18,7 @@
 #define SYSTEM4_DUNGEON_RENDERER_H
 
 #include <cglm/cglm.h>
-#include <GL/glew.h>
+#include "gfx/gl.h"
 
 struct dgn_cell;
 struct dtx;

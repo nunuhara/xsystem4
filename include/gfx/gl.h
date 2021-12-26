@@ -1,7 +1,4 @@
-/* gfx/private.h  SDL/OpenGL only private data
- *
- * Copyright (C) 2019 Nunuhara Cabbage <nunuhara@haniwa.technology>
- * Copyright (C) 2000- Fumihiko Murata <fmurata@p1.tcnet.ne.jp>
+/* Copyright (C) 2021 kichikuou <KichikuouChrome@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,26 +14,13 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#ifndef SYSTEM4_GFX_PRIVATE_H
-#define SYSTEM4_GFX_PRIVATE_H
+#ifndef SYSTEM4_GFX_GL_H
+#define SYSTEM4_GFX_GL_H
 
-#include <stdbool.h>
-#include <SDL.h>
-#include "gfx/gl.h"
+#ifdef USE_GLES
+#include <GLES3/gl3.h>
+#else
+#include <GL/glew.h>
+#endif
 
-struct sdl_private {
-	SDL_Window *window;
-	SDL_PixelFormat *format;
-	struct {
-		SDL_GLContext context;
-		GLuint vao;
-		GLuint vbo;
-		GLuint ibo;
-	} gl;
-	int w, h;
-	bool ms_active; /* mouse is active */
-	bool fs_on;
-};
-extern struct sdl_private sdl;
-
-#endif /* SYSTEM4_GFX_PRIVATE_H */
+#endif /* SYSTEM4_GFX_GL_H */
