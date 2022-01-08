@@ -34,8 +34,8 @@ struct sdl_private {
 		GLuint ibo;
 	} gl;
 	int w, h;
+	SDL_Rect viewport;
 	bool ms_active; /* mouse is active */
-	bool fs_on;
 };
 extern struct sdl_private sdl;
 
