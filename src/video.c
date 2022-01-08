@@ -101,8 +101,13 @@ static GLuint load_shader_file(const char *path, GLenum type)
 	glShaderSource(shader, 2, source, NULL);
 	glCompileShader(shader);
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &shader_compiled);
-	if (!shader_compiled)
-		ERROR("Failed to compile shader: %s", path);
+	if (!shader_compiled) {
+		GLint len;
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
+		char *infolog = xmalloc(len + 1);
+		glGetShaderInfoLog(shader, len, NULL, infolog);
+		ERROR("Failed to compile shader %s: %s", path, infolog);
+	}
 	free((char*)source[1]);
 	return shader;
 }
