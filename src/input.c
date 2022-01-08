@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <SDL.h>
 #include "system4.h"
+#include "gfx/gfx.h"
 #include "gfx/private.h"
 #include "input.h"
 #include "scene.h"
@@ -207,13 +208,18 @@ void joy_clear_flag(void)
 
 void mouse_get_pos(int *x, int *y)
 {
+	int wx, wy;
 	SDL_PumpEvents();
-	SDL_GetMouseState(x, y);
+	SDL_GetMouseState(&wx, &wy);
+	*x = (wx - sdl.viewport.x) * sdl.w / sdl.viewport.w;
+	*y = (wy - sdl.viewport.y) * sdl.h / sdl.viewport.h;
 }
 
 void mouse_set_pos(int x, int y)
 {
-	SDL_WarpMouseInWindow(sdl.window, x, y);
+	int wx = x * sdl.viewport.w / sdl.w + sdl.viewport.x;
+	int wy = y * sdl.viewport.h / sdl.h + sdl.viewport.y;
+	SDL_WarpMouseInWindow(sdl.window, wx, wy);
 }
 
 static int wheel_dir = 0;
@@ -300,6 +306,10 @@ void handle_events(void)
 				break;
 			case SDL_WINDOWEVENT_FOCUS_LOST:
 				keyboard_focus = false;
+				break;
+			case SDL_WINDOWEVENT_SIZE_CHANGED:
+				gfx_update_screen_scale();
+				scene_flip();
 				break;
 			}
 			break;

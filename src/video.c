@@ -203,7 +203,7 @@ int gfx_init(void)
 				       SDL_WINDOWPOS_UNDEFINED,
 				       config.view_width,
 				       config.view_height,
-				       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+				       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	if (!sdl.window)
 		ERROR("SDL_CreateWindow failed: %s", SDL_GetError());
 
@@ -223,7 +223,7 @@ int gfx_init(void)
 	SDL_GL_SetSwapInterval(0);
 	gl_initialize();
 	gfx_draw_init();
-	gfx_set_window_size(config.view_width, config.view_height);
+	gfx_set_window_logical_size(config.view_width, config.view_height);
 	atexit(gfx_fini);
 	gfx_clear();
 	return 0;
@@ -240,17 +240,6 @@ void gfx_fini(void)
 Texture *gfx_main_surface(void)
 {
 	return &main_surface;
-}
-
-void gfx_fullscreen(bool on)
-{
-	if (on && !sdl.fs_on) {
-		sdl.fs_on = true;
-		SDL_SetWindowFullscreen(sdl.window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-	} else if (!on && sdl.fs_on) {
-		sdl.fs_on = false;
-		SDL_SetWindowFullscreen(sdl.window, 0);
-	}
 }
 
 static void main_surface_init(int w, int h)
@@ -275,14 +264,45 @@ static void main_surface_init(int w, int h)
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, main_surface.handle, 0);
 }
 
-void gfx_set_window_size(int w, int h)
+void gfx_set_window_logical_size(int w, int h)
 {
 	sdl.w = w;
 	sdl.h = h;
 	world_view_transform[0][0] = 2.0 / w;
 	world_view_transform[1][1] = 2.0 / h;
-	SDL_SetWindowSize(sdl.window, w, h);
+	gfx_update_screen_scale();
 	main_surface_init(w, h);
+}
+
+void gfx_update_screen_scale(void)
+{
+	int display_w, display_h;
+	SDL_GL_GetDrawableSize(sdl.window, &display_w, &display_h);
+
+	if (display_w * sdl.h == display_h * sdl.w) {
+		// The aspect ratios are the same, just scale appropriately.
+		sdl.viewport.x = 0;
+		sdl.viewport.y = 0;
+		sdl.viewport.w = display_w;
+		sdl.viewport.h = display_h;
+		return;
+	}
+
+	double logical_aspect = (double)sdl.w / sdl.h;
+	double display_aspect = (double)display_w / display_h;
+	if (logical_aspect > display_aspect) {
+		// letterbox
+		sdl.viewport.w = display_w;
+		sdl.viewport.h = sdl.h * display_w / sdl.w;
+		sdl.viewport.x = 0;
+		sdl.viewport.y = (display_h - sdl.viewport.h) / 2;
+	} else {
+		// pillarbox (side bars)
+		sdl.viewport.w = sdl.w * display_h / sdl.h;
+		sdl.viewport.h = display_h;
+		sdl.viewport.x = (display_w - sdl.viewport.w) / 2;
+		sdl.viewport.y = 0;
+	}
 }
 
 void gfx_set_wait_vsync(bool wait)
@@ -307,6 +327,7 @@ void gfx_clear(void)
 void gfx_swap(void)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(sdl.viewport.x, sdl.viewport.y, sdl.viewport.w, sdl.viewport.h);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	static mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
@@ -326,6 +347,7 @@ void gfx_swap(void)
 
 	SDL_GL_SwapWindow(sdl.window);
 	glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);
+	glViewport(0, 0, sdl.w, sdl.h);
 }
 
 /*
