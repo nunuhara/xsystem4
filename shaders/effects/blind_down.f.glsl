@@ -24,7 +24,7 @@ out vec4 frag_color;
 
 #define NR_BANDS 14
 #define BAND_HEIGHT 15
-#define EFFECT_HEIGHT (NR_BANDS * BAND_HEIGHT)
+#define EFFECT_HEIGHT float(NR_BANDS * BAND_HEIGHT)
 
 void main() {
         // start position of effect
