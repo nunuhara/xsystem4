@@ -131,7 +131,6 @@ static bool cb_seek(struct channel *ch, uint_least32_t pos)
 static bool cb_loop(struct channel *ch)
 {
 	if (!cb_seek(ch, ch->loop_start) || ch->loop_count == 1) {
-		ch->voice = -1;
 		return false;
 	}
 	if (ch->loop_count > 1) {
