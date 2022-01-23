@@ -404,7 +404,7 @@ static struct string *get_func_stack_name(int index)
 {
 	int i = call_stack_ptr - (1 + index);
 	if (i < 0 || i >= call_stack_ptr) {
-		return cstr_to_string("Invalid stack index");
+		return string_ref(&EMPTY_STRING);
 	}
 	struct function_call *call = &call_stack[i];
 	struct ain_function *fun = &ain->functions[call->fno];
