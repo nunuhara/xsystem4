@@ -542,6 +542,28 @@ void array_sort(struct page *page, int compare_fno)
 	qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare);
 }
 
+static int current_sort_member;
+
+static int array_compare_member(const void *_a, const void *_b)
+{
+	union vm_value a_slot = *((union vm_value*)_a);
+	union vm_value b_slot = *((union vm_value*)_b);
+	struct page *a = heap_get_page(a_slot.i);
+	struct page *b = heap_get_page(b_slot.i);
+	return a->values[current_sort_member].i - b->values[current_sort_member].i;
+}
+
+void array_sort_mem(struct page *page, int member_no)
+{
+	if (!page)
+		return;
+	if (page->type != ARRAY_PAGE || array_type(page->a_type) != AIN_STRUCT)
+		VM_ERROR("A_SORT_MEM called on something other than an array of structs");
+
+	current_sort_member = member_no;
+	qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_member);
+}
+
 int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno)
 {
 	if (!page)

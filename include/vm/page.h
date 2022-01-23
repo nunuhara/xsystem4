@@ -126,6 +126,7 @@ struct page *array_popback(struct page *dst);
 struct page *array_erase(struct page *page, int i, bool *success);
 struct page *array_insert(struct page *page, int i, union vm_value v, enum ain_data_type data_type, int struct_type);
 void array_sort(struct page *page, int compare_fno);
+void array_sort_mem(struct page *page, int member_no);
 int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno);
 void array_reverse(struct page *page);
 

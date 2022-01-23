@@ -2042,6 +2042,12 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_push(i < get_argument(1) || i >= get_argument(2));
 		break;
 	}
+	case A_SORT_MEM: {
+		int mno = stack_pop().i;
+		int array = stack_pop_var()->i;
+		array_sort_mem(heap[array].page, mno);
+		break;
+	}
 	//case DG_ADD:
 	case DG_SET: {
 		int fun = stack_pop().i;
