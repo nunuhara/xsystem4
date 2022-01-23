@@ -89,6 +89,7 @@ union vm_value variable_initval(enum ain_data_type type)
 	case AIN_REF_TYPE:
 		return (union vm_value) { .i = -1 };
 	case AIN_ARRAY_TYPE:
+	case AIN_DELEGATE:
 		slot = heap_alloc_slot(VM_PAGE);
 		heap_set_page(slot, NULL);
 		return (union vm_value) { .i = slot };
@@ -202,6 +203,8 @@ void delete_page_vars(struct page *page)
 void delete_page(int slot)
 {
 	struct page *page = heap_get_page(slot);
+	if (!page)
+		return;
 	if (page->type == STRUCT_PAGE) {
 		delete_struct(page->index, slot);
 	}
@@ -599,6 +602,8 @@ struct page *delegate_new_from_method(int obj, int fun)
 
 int delegate_numof(struct page *page)
 {
+	if (!page)
+		return 0;
 	if (page->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
 	return page->nr_vars / 2;
@@ -606,6 +611,10 @@ int delegate_numof(struct page *page)
 
 struct page *delegate_plusa(struct page *dst, struct page *add)
 {
+	if (!dst)
+		return copy_page(add);
+	if (!add)
+		return dst;
 	if (dst->type != DELEGATE_PAGE || add->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
 
@@ -625,6 +634,10 @@ struct page *delegate_plusa(struct page *dst, struct page *add)
 
 struct page *delegate_minusa(struct page *dst, struct page *minus)
 {
+	if (!dst)
+		return NULL;
+	if (!minus)
+		return dst;
 	if (dst->type != DELEGATE_PAGE || minus->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
 
@@ -660,6 +673,8 @@ struct page *delegate_minusa(struct page *dst, struct page *minus)
 
 struct page *delegate_clear(struct page *page)
 {
+	if (!page)
+		return NULL;
 	if (page->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
 	for (int i = 0; i < page->nr_vars; i += 2) {

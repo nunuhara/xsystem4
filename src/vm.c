@@ -71,12 +71,6 @@ int32_t call_stack_ptr = 0;
 struct ain *ain;
 size_t instr_ptr = 0;
 
-static struct {
-	struct page *page;
-	int index;
-	int nr_functions;
-} current_delegate;
-
 // Read the opcode at ADDR.
 static int16_t get_opcode(size_t addr)
 {
@@ -299,7 +293,7 @@ static void scenario_call(int slot)
  *   - callee pushes return value on the stack
  *   - RETURN jumps to return address (saved in stack frame)
  */
-static void function_call(int fno, int return_address)
+static int _function_call(int fno, int return_address)
 {
 	struct ain_function *f = &ain->functions[fno];
 	int slot = heap_alloc_slot(VM_PAGE);
@@ -312,22 +306,32 @@ static void function_call(int fno, int return_address)
 		.page_slot = slot,
 		.struct_page = -1
 	};
-	// pop arguments, store in local page
-	for (int i = f->nr_args - 1; i >= 0; i--) {
-		heap[slot].page->values[i] = stack_pop();
-		switch (f->vars[i].type.data) {
-		case AIN_REF_TYPE:
-			heap_ref(heap[slot].page->values[i].i);
-			break;
-		default: break;
-		}
-	}
 	// initialize local variables
 	for (int i = f->nr_args; i < f->nr_vars; i++) {
 		heap[slot].page->values[i] = variable_initval(f->vars[i].type.data);
 	}
 	// jump to function start
 	instr_ptr = ain->functions[fno].address;
+
+	return slot;
+}
+
+static void function_call(int fno, int return_address)
+{
+	int slot = _function_call(fno, return_address);
+
+	// pop arguments, store in local page
+	struct ain_function *f = &ain->functions[fno];
+	for (int i = f->nr_args - 1; i >= 0; i--) {
+		heap[slot].page->values[i] = stack_pop();
+		switch (f->vars[i].type.data) {
+		case AIN_REF_TYPE:
+			heap_ref(heap[slot].page->values[i].i);
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static void method_call(int fno, int return_address)
@@ -337,6 +341,37 @@ static void method_call(int fno, int return_address)
 }
 
 static void vm_execute(void);
+
+static void delegate_call(int dg_no)
+{
+	size_t saved_ip = instr_ptr;
+
+	// stack: [arg0, ..., dg_page, dg_index]
+	int dg_page = stack_peek(1).i;
+	int dg_index = stack_peek(0).i;
+
+	int obj, fun;
+	delegate_get(heap_get_delegate_page(dg_page), dg_index, &obj, &fun);
+
+	int slot = _function_call(fun, VM_RETURN);
+
+	// copy arguments into local page
+	struct ain_function_type *dg = &ain->delegates[dg_no];
+	for (int i = 0; i < dg->nr_arguments; i++) {
+		heap[slot].page->values[i] = stack_peek((dg->nr_arguments + 1) - i);
+		switch (dg->variables[i].type.data) {
+		case AIN_REF_TYPE:
+			heap_ref(heap[slot].page->values[i].i);
+			break;
+		default:
+			break;
+		}
+	}
+
+	call_stack[call_stack_ptr-1].struct_page = obj;
+	vm_execute();
+	instr_ptr = saved_ip;
+}
 
 void vm_call(int fno, int struct_page)
 {
@@ -2008,34 +2043,44 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	//case DG_ADD:
-	//case DG_SET:
+	case DG_SET: {
+		int fun = stack_pop().i;
+		int obj = stack_pop().i;
+		int dg = stack_pop().i;
+		struct page *new_dg = delegate_new_from_method(obj, fun);
+		delete_page(dg);
+		heap_set_page(dg, new_dg);
+		break;
+	}
 	case DG_CALL: { // DG_TYPE, ADDR
+		// stack: [arg0, ..., dg_page, dg_index]
 		int dg = get_argument(0);
 		if (dg < 0 || dg >= ain->nr_delegates)
 			VM_ERROR("Invalid delegate index");
-		int obj, fun;
-		delegate_get(current_delegate.page, current_delegate.index, &obj, &fun);
-		// pop previous return value
-		if (ain->delegates[dg].return_type.data != AIN_VOID) {
-			stack_pop();
-		}
-		// call function
-		vm_call(fun, obj);
-		if (++current_delegate.index >= current_delegate.nr_functions) {
-			// clear delegate state
-			current_delegate.page = NULL;
-			current_delegate.index = 0;
-			current_delegate.nr_functions = 0;
-			// jump to addr
-			instr_ptr = get_argument(1);
-		} else {
-			// continue to next instruction
+		int dg_page = stack_peek(1).i;
+		int dg_index = stack_peek(0).i;
+		if (dg_index < delegate_numof(heap_get_page(dg_page))) {
+			int obj, fun;
+			delegate_get(heap_get_delegate_page(dg_page), dg_index, &obj, &fun);
+			// pop previous return value
+			if (ain->delegates[dg].return_type.data != AIN_VOID) {
+				stack_pop();
+			}
+			delegate_call(dg);
+			if (ain->delegates[dg].return_type.data != AIN_VOID) {
+				stack[stack_ptr-2].i++;
+			} else {
+				stack[stack_ptr-1].i++;
+			}
 			instr_ptr += 10;
+		} else {
+			instr_ptr = get_argument(1);
 		}
 		break;
 	}
 	case DG_NUMOF: {
-		stack_push(delegate_numof(heap_get_page(stack_pop().i)));
+		int dg = stack_pop().i;
+		stack_push(delegate_numof(heap_get_page(dg)));
 		break;
 	}
 	//case DG_EXIST:
@@ -2055,8 +2100,9 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int set_i = stack_pop().i;
 		int dst_i = stack_pop().i;
 		struct page *set = heap_get_delegate_page(set_i);
+		struct page *new_dg = copy_page(set);
 		delete_page(dst_i);
-		heap_set_page(dst_i, copy_page(set));
+		heap_set_page(dst_i, new_dg);
 		stack_push(set_i);
 		break;
 	}
@@ -2089,18 +2135,24 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case DG_CALLBEGIN: { // DG_TYPE
-		int dg = get_argument(0);
-		if (dg < 0 || dg >= ain->nr_delegates)
+		int dg_no = get_argument(0);
+		if (dg_no < 0 || dg_no >= ain->nr_delegates)
 			VM_ERROR("Invalid delegate index");
-		struct page *page = heap_get_page(stack_pop().i);
-		if (page->type != DELEGATE_PAGE)
-			VM_ERROR("Not a delegate");
-		current_delegate.page = page;
-		current_delegate.index = 0;
-		current_delegate.nr_functions = delegate_numof(page);
+		struct ain_function_type *dg = &ain->delegates[dg_no];
+
+		// Stack before: [dg_page, arg0, ...]
+		// Stack after:  [arg0, ..., dg_page, 0(dg_index)]
+		int dg_page = stack_peek(dg->nr_arguments).i;
+		for (int i = 0; i < dg->nr_arguments; i++) {
+			int pos = (stack_ptr - dg->nr_arguments) + i;
+			stack[pos-1] = stack[pos];
+		}
+		stack[stack_ptr-1].i = dg_page;
+		stack_push(0);
+
 		// XXX: If the delegate has a return value, we push a dummy value
 		//      so that DG_CALL can replace it
-		if (ain->delegates[dg].return_type.data != AIN_VOID) {
+		if (dg->return_type.data != AIN_VOID) {
 			stack_push(0);
 		}
 		break;

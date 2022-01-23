@@ -225,7 +225,7 @@ struct string *heap_get_string(int index)
 struct page *heap_get_delegate_page(int index)
 {
 	struct page *page = heap_get_page(index);
-	if (!page || page->type != DELEGATE_PAGE)
+	if (page && page->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate page: %d", index);
 	return page;
 }
