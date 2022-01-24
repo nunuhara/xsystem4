@@ -1748,6 +1748,10 @@ static enum opcode execute_instruction(enum opcode opcode)
 		global_set(get_argument(0), local_get(get_argument(1)), true);
 		break;
 	}
+	case SH_STRUCTREF_GT_IMM: {
+		stack_push(member_get(get_argument(0)).i > get_argument(1) ? 1 : 0);
+		break;
+	}
 	case SH_LOCAL_ASSIGN_STRUCTREF: {
 		local_set(get_argument(0), member_get(get_argument(1)).i);
 		break;
