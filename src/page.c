@@ -180,7 +180,7 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 				*struct_type = heap_get_page(page->values[varno].i)->index;
 			if (array_rank)
 				*array_rank = -1;
-			return AIN_STRUCT;
+			return AIN_REF_STRUCT;
 		}
 		return AIN_VOID;
 	}
@@ -622,6 +622,33 @@ struct page *delegate_new_from_method(int obj, int fun)
 	return page;
 }
 
+static bool delegate_contains(struct page *dst, int obj, int fun)
+{
+	for (int i = 0; i < dst->nr_vars; i += 2) {
+		if (dst->values[i].i == obj && dst->values[i+1].i == fun)
+			return true;
+	}
+	return false;
+}
+
+struct page *delegate_append(struct page *dst, int obj, int fun)
+{
+	if (!dst)
+		return delegate_new_from_method(obj, fun);
+	if (dst->type != DELEGATE_PAGE)
+		VM_ERROR("Not a delegate");
+	if (delegate_contains(dst, obj, fun))
+		return dst;
+
+	dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * (dst->nr_vars + 2));
+	dst->values[dst->nr_vars+0].i = obj;
+	dst->values[dst->nr_vars+1].i = fun;
+	dst->nr_vars += 2;
+	if (obj >= 0)
+		heap_ref(obj);
+	return dst;
+}
+
 int delegate_numof(struct page *page)
 {
 	if (!page)
@@ -633,24 +660,14 @@ int delegate_numof(struct page *page)
 
 struct page *delegate_plusa(struct page *dst, struct page *add)
 {
-	if (!dst)
-		return copy_page(add);
 	if (!add)
 		return dst;
-	if (dst->type != DELEGATE_PAGE || add->type != DELEGATE_PAGE)
+	if ((dst && dst->type != DELEGATE_PAGE) || add->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
 
-	// FIXME: duplicate checking needed?
-	int new_vars = dst->nr_vars + add->nr_vars;
-	dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * new_vars);
 	for (int i = 0; i < add->nr_vars; i += 2) {
-		if (add->values[i].i >= 0) {
-			heap_ref(add->values[i].i);
-		}
-		dst->values[dst->nr_vars+i+0].i = add->values[i+0].i;
-		dst->values[dst->nr_vars+i+1].i = add->values[i+1].i;
+		dst = delegate_append(dst, add->values[i].i, add->values[i+1].i);
 	}
-	dst->nr_vars = new_vars;
 	return dst;
 }
 

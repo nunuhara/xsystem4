@@ -2056,19 +2056,20 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case DG_SET: {
 		int fun = stack_pop().i;
 		int obj = stack_pop().i;
-		int dg = stack_pop().i;
-		struct page *new_dg = delegate_new_from_method(obj, fun);
-		delete_page(dg);
-		heap_set_page(dg, new_dg);
+		int dg_i = stack_pop().i;
+		struct page *dg = heap_get_delegate_page(dg_i);
+		heap_set_page(dg_i, delegate_append(dg, obj, fun));
 		break;
 	}
 	case DG_CALL: { // DG_TYPE, ADDR
-		// stack: [arg0, ..., dg_page, dg_index]
 		int dg = get_argument(0);
 		if (dg < 0 || dg >= ain->nr_delegates)
 			VM_ERROR("Invalid delegate index");
-		int dg_page = stack_peek(1).i;
-		int dg_index = stack_peek(0).i;
+
+		// stack: [arg0, ..., dg_page, dg_index, [return_value]]
+		int return_values = (ain->delegates[dg].return_type.data != AIN_VOID) ? 1 : 0;
+		int dg_page = stack_peek(1 + return_values).i;
+		int dg_index = stack_peek(0 + return_values).i;
 		if (dg_index < delegate_numof(heap_get_page(dg_page))) {
 			int obj, fun;
 			delegate_get(heap_get_delegate_page(dg_page), dg_index, &obj, &fun);
@@ -2084,6 +2085,19 @@ static enum opcode execute_instruction(enum opcode opcode)
 			}
 			instr_ptr += 10;
 		} else {
+			// call finished: clean up stack and jump to return address
+			union vm_value r;
+			if (return_values) {
+				r = stack_pop();
+			}
+			stack_pop(); // dg_index
+			stack_pop(); // dg_page
+			for (int i = 0; i < ain->delegates[dg].nr_variables; i++) {
+				stack_pop(); // args
+			}
+			if (return_values) {
+				stack_push(r);
+			}
 			instr_ptr = get_argument(1);
 		}
 		break;
