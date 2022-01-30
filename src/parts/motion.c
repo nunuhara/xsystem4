@@ -1,0 +1,406 @@
+/* Copyright (C) 2019 Nunuhara Cabbage <nunuhara@haniwa.technology>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <http://gnu.org/licenses/>.
+ */
+
+#include "system4.h"
+
+#include "audio.h"
+#include "xsystem4.h"
+#include "parts_internal.h"
+
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
+
+static inline float deg2rad(float deg)
+{
+	return deg * (M_PI / 180.0);
+}
+
+static TAILQ_HEAD(sound_motion_list, sound_motion) sound_motion_list =
+	TAILQ_HEAD_INITIALIZER(sound_motion_list);
+
+// true after call to BeginMotion until the motion ends or EndMotion is called
+static bool is_motion = false;
+// the elapsed time of the current motion
+static int motion_t = 0;
+// the end time of the current motion
+static int motion_end_t = 0;
+
+static struct parts_motion *parts_motion_alloc(enum parts_motion_type type, int begin_time, int end_time)
+{
+	struct parts_motion *motion = xcalloc(1, sizeof(struct parts_motion));
+	motion->type = type;
+	motion->begin_time = begin_time;
+	motion->end_time = end_time;
+	return motion;
+}
+
+static void parts_motion_free(struct parts_motion *motion)
+{
+	free(motion);
+}
+
+void parts_clear_motion(struct parts *parts)
+{
+	while (!TAILQ_EMPTY(&parts->motion)) {
+		struct parts_motion *motion = TAILQ_FIRST(&parts->motion);
+		TAILQ_REMOVE(&parts->motion, motion, entry);
+		parts_motion_free(motion);
+	}
+}
+
+void parts_add_motion(struct parts *parts, struct parts_motion *motion)
+{
+	struct parts_motion *p;
+	TAILQ_FOREACH(p, &parts->motion, entry) {
+		if (p->begin_time > motion->begin_time) {
+			TAILQ_INSERT_BEFORE(p, motion, entry);
+			return;
+		}
+	}
+	TAILQ_INSERT_TAIL(&parts->motion, motion, entry);
+	if (motion->end_time > motion_end_t)
+		motion_end_t = motion->end_time;
+	// FIXME? What happens if we add a motion while is_motion=true?
+	//        Should we call parts_update_motion here?
+}
+
+static inline float motion_progress(struct parts_motion *m, int t)
+{
+	return (float)(t - m->begin_time) / (m->end_time - m->begin_time);
+}
+
+static int motion_calculate_i(struct parts_motion *m, int t)
+{
+	if (t >= m->end_time)
+		return m->end.i;
+
+	const int delta = m->end.i - m->begin.i;
+	const float progress = motion_progress(m, t);
+	return m->begin.i + (delta * progress);
+}
+
+static float motion_calculate_f(struct parts_motion *m, int t)
+{
+	if (t >= m->end_time)
+		return m->end.f;
+
+	const float delta = m->end.f - m->begin.f;
+	const float progress = motion_progress(m, t);
+	return m->begin.f + (delta * progress);
+}
+
+static Point motion_calculate_point(struct parts_motion *m, int t)
+{
+	if (t >= m->end_time)
+		return (Point) { m->end.x, m->end.y };
+
+	const int delta_x = m->end.x - m->begin.x;
+	const int delta_y = m->end.y - m->begin.y;
+	const float progress = motion_progress(m, t);
+	return (Point) {
+		m->begin.x + (delta_x * progress),
+		m->begin.y + (delta_y * progress)
+	};
+}
+
+static void parts_update_with_motion(struct parts *parts, struct parts_motion *motion)
+{
+	switch (motion->type) {
+	case PARTS_MOTION_POS:
+		parts_set_pos(parts, motion_calculate_point(motion, motion_t));
+		break;
+	case PARTS_MOTION_ALPHA:
+		parts_set_alpha(parts, motion_calculate_i(motion, motion_t));
+		break;
+	case PARTS_MOTION_CG:
+		parts_set_cg_by_index(parts, motion_calculate_i(motion, motion_t), parts->state);
+		break;
+	case PARTS_MOTION_HGUAGE_RATE:
+		parts_set_hgauge_rate(parts, motion_calculate_f(motion, motion_t), parts->state);
+		break;
+	case PARTS_MOTION_VGUAGE_RATE:
+		parts_set_vgauge_rate(parts, motion_calculate_f(motion, motion_t), parts->state);
+		break;
+	case PARTS_MOTION_NUMERAL_NUMBER:
+		parts_set_number(parts, motion_calculate_i(motion, motion_t), parts->state);
+		break;
+	case PARTS_MOTION_MAG_X:
+		parts_set_scale_x(parts, motion_calculate_f(motion, motion_t));
+		break;
+	case PARTS_MOTION_MAG_Y:
+		parts_set_scale_y(parts, motion_calculate_f(motion, motion_t));
+		break;
+		/*
+		  case PARTS_MOTION_ROTATE_X:
+		  parts->rotation.x = motion_calculate_f(motion, motion_t);
+		  sprite_dirty(&parts->sp);
+		  break;
+		  case PARTS_MOTION_ROTATE_Y:
+		  parts->rotation.y = motion_calculate_f(motion, motion_t);
+		  sprite_dirty(&parts->sp);
+		  break;
+		*/
+	case PARTS_MOTION_ROTATE_Z:
+		parts_set_rotation_z(parts, motion_calculate_f(motion, motion_t));
+		break;
+	default:
+		WARNING("Invalid motion type: %d", motion->type);
+	}
+}
+
+static void parts_list_update_motion(struct parts_list *list)
+{
+	struct parts *parts;
+	TAILQ_FOREACH(parts, list, parts_list_entry) {
+		struct parts_motion *motion;
+		TAILQ_FOREACH(motion, &parts->motion, entry) {
+			if (motion->begin_time > motion_t)
+				break;
+			// FIXME? What if a motion begins and ends within the span of another?
+			//        This implementation will cancel the earlier motion and remain
+			//        at the end-state of the second motion.
+			parts_update_with_motion(parts, motion);
+		}
+		parts_list_update_motion(&parts->children);
+	}
+}
+
+static void parts_update_all_motion(void)
+{
+	parts_list_update_motion(&parts_list);
+
+	struct sound_motion *sound;
+	TAILQ_FOREACH(sound, &sound_motion_list, entry) {
+		if (sound->begin_time > motion_t)
+			break;
+		if (sound->played)
+			continue;
+		audio_play_sound(sound->sound_no);
+		sound->played = true;
+	}
+}
+
+/*
+ * NOTE: If a motion begins at e.g. t=100 with a value of v=0, then that value
+ *       becomes the initial value of v at t=0.
+ */
+static void parts_list_init_all_motion(struct parts_list *list)
+{
+	struct parts *parts;
+	TAILQ_FOREACH(parts, list, parts_list_entry) {
+		struct parts_motion *motion;
+		bool initialized[PARTS_NR_MOTION_TYPES] = {0};
+		TAILQ_FOREACH(motion, &parts->motion, entry) {
+			if (!initialized[motion->type]) {
+				parts_update_with_motion(parts, motion);
+				initialized[motion->type] = true;
+			}
+		}
+	}
+}
+
+static void parts_list_fini_all_motion(struct parts_list *list)
+{
+	struct parts *parts;
+	TAILQ_FOREACH(parts, list, parts_list_entry) {
+		parts_clear_motion(parts);
+		parts_list_fini_all_motion(&parts->children);
+	}
+}
+
+static void parts_fini_all_motion(void)
+{
+	parts_list_fini_all_motion(&parts_list);
+
+	while (!TAILQ_EMPTY(&sound_motion_list)) {
+		struct sound_motion *motion = TAILQ_FIRST(&sound_motion_list);
+		TAILQ_REMOVE(&sound_motion_list, motion, entry);
+		free(motion);
+	}
+}
+
+void PE_AddMotionPos(int parts_no, int begin_x, int begin_y, int end_x, int end_y, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_POS, begin_t, end_t);
+	motion->begin.x = begin_x;
+	motion->begin.y = begin_y;
+	motion->end.x = end_x;
+	motion->end.y = end_y;
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_ALPHA, begin_t, end_t);
+	motion->begin.i = begin_a;
+	motion->end.i = end_a;
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionCG(int parts_no, int begin_cg_no, int nr_cg, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_CG, begin_t, end_t);
+	motion->begin.i = begin_cg_no;
+	motion->end.i = begin_cg_no + nr_cg - 1;
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionHGaugeRate(int parts_no, int begin_numerator, int begin_denominator,
+			    int end_numerator, int end_denominator, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_HGUAGE_RATE, begin_t, end_t);
+	motion->begin.f = (float)begin_numerator / (float)begin_denominator;
+	motion->end.f = (float)end_numerator / (float)end_denominator;
+	parts_add_motion(parts, motion);
+}
+void PE_AddMotionVGaugeRate(int parts_no, int begin_numerator, int begin_denominator,
+			    int end_numerator, int end_denominator, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_VGUAGE_RATE, begin_t, end_t);
+	motion->begin.f = (float)begin_numerator / (float)begin_denominator;
+	motion->end.f = (float)end_numerator / (float)end_denominator;
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionNumeralNumber(int parts_no, int begin_n, int end_n, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_NUMERAL_NUMBER, begin_t, end_t);
+	motion->begin.i = begin_n;
+	motion->end.i = end_n;
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionMagX(int parts_no, float begin, float end, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_MAG_X, begin_t, end_t);
+	motion->begin.f = begin;
+	motion->end.f = end;
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionMagY(int parts_no, float begin, float end, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_MAG_Y, begin_t, end_t);
+	motion->begin.f = begin;
+	motion->end.f = end;
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionRotateX(int parts_no, float begin, float end, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_ROTATE_X, begin_t, end_t);
+	motion->begin.f = deg2rad(begin);
+	motion->end.f = deg2rad(end);
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionRotateY(int parts_no, float begin, float end, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_ROTATE_Y, begin_t, end_t);
+	motion->begin.f = deg2rad(begin);
+	motion->end.f = deg2rad(end);
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionRotateZ(int parts_no, float begin, float end, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_ROTATE_Z, begin_t, end_t);
+	motion->begin.f = deg2rad(begin);
+	motion->end.f = deg2rad(end);
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin_t, int end_t)
+{
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_VIBRATION_SIZE, begin_t, end_t);
+	motion->begin.x = begin_w;
+	motion->begin.y = begin_h;
+	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionSound(int sound_no, int begin_t)
+{
+	struct sound_motion *m = xcalloc(1, sizeof(struct sound_motion));
+	m->sound_no = sound_no;
+	m->begin_time = begin_t;
+
+	struct sound_motion *p;
+	TAILQ_FOREACH(p, &sound_motion_list, entry) {
+		if (p->begin_time > m->begin_time) {
+			TAILQ_INSERT_BEFORE(p, m, entry);
+			return;
+		}
+	}
+	TAILQ_INSERT_TAIL(&sound_motion_list, m, entry);
+	if (m->begin_time > motion_end_t)
+		motion_end_t = m->begin_time;
+}
+
+void PE_BeginMotion(void)
+{
+	if (parts_began_click)
+		return;
+
+	// FIXME: starting a motion seems to clear non-default states
+	motion_t = 0;
+	is_motion = true;
+	parts_list_init_all_motion(&parts_list);
+}
+
+void PE_EndMotion(void)
+{
+	if (parts_began_click)
+		return;
+	motion_t = 0;
+	motion_end_t = 0;
+	is_motion = false;
+	parts_fini_all_motion();
+}
+
+void PE_SetMotionTime(int t)
+{
+	if (!is_motion)
+		return;
+	if (motion_t == t)
+		return;
+	motion_t = t;
+	parts_update_all_motion();
+	if (t >= motion_end_t)
+		PE_EndMotion();
+}
+
+bool PE_IsMotion(void)
+{
+	return is_motion;
+}
+
+int PE_GetMotionEndTime(void)
+{
+	return motion_end_t;
+}

@@ -27,7 +27,38 @@ static int KiwiSoundEngine_Sound_GetGroupNumFromDataNum(possibly_unused int no)
 	return 0;
 }
 
-//bool KiwiSoundEngine_Sound_PrepareFromFile(int nCh, struct string *szFileName);
+//static bool KiwiSoundEngine_Sound_PrepareFromFile(int ch, struct string *filename);
+//static int KiwiSoundEngine_Sound_GetDataLength(int data_number);
+
+static int KiwiSoundEngine_GetMasterGroup(void)
+{
+	return 0;
+}
+
+static int KiwiSoundEngine_GetBGMGroup(void)
+{
+	return 0;
+}
+
+static int KiwiSoundEngine_GetSEGroup(void)
+{
+	return 0;
+}
+
+static int KiwiSoundEngine_GetVoiceGroup(void)
+{
+	return 0;
+}
+
+static int KiwiSoundEngine_GetGimicSEGroup(void)
+{
+	return 0;
+}
+
+static int KiwiSoundEngine_GetBackVoiceGroup(void)
+{
+	return 0;
+}
 
 HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(SetGlobalFocus, KiwiSoundEngine_SetGlobalFocus),
@@ -64,7 +95,14 @@ HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(Sound_StopFade, wav_stop_fade),
 	    HLL_EXPORT(Sound_IsFade, wav_is_fading),
 	    HLL_EXPORT(Sound_GetTimeLength, wav_get_time_length),
-	    //HLL_EXPORT(Sound_GetGroupNum, KiwiSoundEngine_Sound_GetGroupNum),
-	    HLL_EXPORT(Sound_GetGroupNumFromDataNum, KiwiSoundEngine_Sound_GetGroupNumFromDataNum)
-	    //HLL_EXPORT(Sound_PrepareFromFile, KiwiSoundEngine_Sound_PrepareFromFile)
+	    HLL_TODO_EXPORT(Sound_GetGroupNum, KiwiSoundEngine_Sound_GetGroupNum),
+	    HLL_EXPORT(Sound_GetGroupNumFromDataNum, KiwiSoundEngine_Sound_GetGroupNumFromDataNum),
+	    HLL_TODO_EXPORT(Sound_PrepareFromFile, KiwiSoundEngine_Sound_PrepareFromFile),
+	    HLL_TODO_EXPORT(Sound_GetDataLength, KiwiSoundEngine_Sound_GetDataLength),
+	    HLL_EXPORT(GetMasterGroup, KiwiSoundEngine_GetMasterGroup),
+	    HLL_EXPORT(GetBGMGroup, KiwiSoundEngine_GetBGMGroup),
+	    HLL_EXPORT(GetSEGroup, KiwiSoundEngine_GetSEGroup),
+	    HLL_EXPORT(GetVoiceGroup, KiwiSoundEngine_GetVoiceGroup),
+	    HLL_EXPORT(GetGimicSEGroup, KiwiSoundEngine_GetGimicSEGroup),
+	    HLL_EXPORT(GetBackVoiceGroup, KiwiSoundEngine_GetBackVoiceGroup)
 	);

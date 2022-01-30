@@ -61,6 +61,8 @@ HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, ChangeFullScreen);
 HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, InitMainWindowPosAndSize);
 
 //static bool SystemService_UpdateView(void);
+HLL_QUIET_UNIMPLEMENTED(false, bool, SystemService, UpdateView);
+
 static int SystemService_GetViewWidth(void)
 {
 	return config.view_width;
@@ -155,6 +157,7 @@ static void SystemService_GetTime(int *hour, int *min, int *sec)
 //static void SystemService_OpenPlayingManual(void);
 //static bool SystemService_IsExistPlayingManual(void);
 //static bool SystemService_IsExistSystemMessage(void);
+HLL_QUIET_UNIMPLEMENTED(false, bool, SystemService, IsExistSystemMessage);
 //static bool SystemService_PopSystemMessage(int *message);
 
 static void SystemService_RestrainScreensaver(void) { }
@@ -182,7 +185,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_TODO_EXPORT(ChangeNormalScreen, SystemService_ChangeNormalScreen),
 	    HLL_EXPORT(ChangeFullScreen, SystemService_ChangeFullScreen),
 	    HLL_EXPORT(InitMainWindowPosAndSize, SystemService_InitMainWindowPosAndSize),
-	    HLL_TODO_EXPORT(UpdateView, SystemService_UpdateView),
+	    HLL_EXPORT(UpdateView, SystemService_UpdateView),
 	    HLL_EXPORT(GetViewWidth, SystemService_GetViewWidth),
 	    HLL_EXPORT(GetViewHeight, SystemService_GetViewHeight),
 	    HLL_TODO_EXPORT(MoveMouseCursorPosImmediately, SystemService_MoveMouseCursorPosImmediately),
@@ -202,7 +205,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_TODO_EXPORT(IsResetOnce, SystemService_IsResetOnce),
 	    HLL_TODO_EXPORT(OpenPlayingManual, SystemService_OpenPlayingManual),
 	    HLL_TODO_EXPORT(IsExistPlayingManual, SystemService_IsExistPlayingManual),
-	    HLL_TODO_EXPORT(IsExistSystemMessage, SystemService_IsExistSystemMessage),
+	    HLL_EXPORT(IsExistSystemMessage, SystemService_IsExistSystemMessage),
 	    HLL_TODO_EXPORT(PopSystemMessage, SystemService_PopSystemMessage),
 	    HLL_EXPORT(RestrainScreensaver, SystemService_RestrainScreensaver),
 	    HLL_TODO_EXPORT(Debug_GetUseVideoMemorySize, SystemService_Debug_GetUseVideoMemorySize),

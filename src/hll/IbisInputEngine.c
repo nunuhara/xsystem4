@@ -15,6 +15,20 @@
  */
 
 #include "hll.h"
+#include "sact.h"
+
+//bool Mouse_HideCursorByGame(bool Hide);
+//bool Mouse_IsHideCursorByGame(void);
+//void Mouse_HideByStepMessage(void);
+//void MouseWheel_ClearCount(void);
+HLL_QUIET_UNIMPLEMENTED(, void, IbisInputEngine, MouseWheel_ClearCount);
+
+static void IbisInputEngine_MouseWheel_GetCount(int *forward, int *back)
+{
+	*forward = 0;
+	*back = 0;
+}
+//bool Key_IsDown(int KeyCode);
 
 static void IbisInputEngine_Joystick_ClearCaptureFlag(void)
 {
@@ -34,6 +48,10 @@ bool IbisInputEngine_Joystick_IsKeyDown(int DeviceNumber, int JoystickCode)
 HLL_WARN_UNIMPLEMENTED(0.0, float, IbisInputEngine, Joystick_GetAxis, int dev, int axis);
 
 HLL_LIBRARY(IbisInputEngine,
+	    HLL_EXPORT(Mouse_GetPos, sact_Mouse_GetPos),
+	    HLL_EXPORT(MouseWheel_ClearCount, IbisInputEngine_MouseWheel_ClearCount),
+	    HLL_EXPORT(MouseWheel_GetCount, IbisInputEngine_MouseWheel_GetCount),
+	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown),
 	    HLL_EXPORT(Joystick_ClearCaptureFlag, IbisInputEngine_Joystick_ClearCaptureFlag),
 	    HLL_EXPORT(Joystick_GetNumofDevice, IbisInputEngine_Joystick_GetNumofDevice),
 	    HLL_EXPORT(Joystick_IsKeyDown, IbisInputEngine_Joystick_IsKeyDown),

@@ -295,6 +295,7 @@ extern struct static_library lib_AnteaterADVEngine;
 extern struct static_library lib_BanMisc;
 extern struct static_library lib_Bitarray;
 extern struct static_library lib_ChipmunkSpriteEngine;
+extern struct static_library lib_CommonSystemData;
 extern struct static_library lib_Confirm;
 extern struct static_library lib_Confirm2;
 extern struct static_library lib_CrayfishLogViewer;
@@ -309,6 +310,7 @@ extern struct static_library lib_File;
 extern struct static_library lib_FileOperation;
 extern struct static_library lib_GoatGUIEngine;
 extern struct static_library lib_Gpx2Plus;
+extern struct static_library lib_GUIEngine;
 extern struct static_library lib_IbisInputEngine;
 extern struct static_library lib_InputDevice;
 extern struct static_library lib_InputString;
@@ -345,6 +347,7 @@ static struct static_library *static_libraries[] = {
 	&lib_BanMisc,
 	&lib_Bitarray,
 	&lib_ChipmunkSpriteEngine,
+	&lib_CommonSystemData,
 	&lib_Confirm,
 	&lib_Confirm2,
 	&lib_CrayfishLogViewer,
@@ -359,6 +362,7 @@ static struct static_library *static_libraries[] = {
 	&lib_FileOperation,
 	&lib_GoatGUIEngine,
 	&lib_Gpx2Plus,
+	&lib_GUIEngine,
 	&lib_IbisInputEngine,
 	&lib_InputDevice,
 	&lib_InputString,

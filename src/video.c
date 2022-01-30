@@ -184,8 +184,13 @@ static void set_window_title(void)
 	SDL_SetWindowTitle(sdl.window, title);
 }
 
+static bool gfx_initialized = false;
+
 int gfx_init(void)
 {
+	if (gfx_initialized)
+		return true;
+
 	uint32_t flags = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
 	if (config.joypad)
 		flags |= SDL_INIT_GAMECONTROLLER;
@@ -231,6 +236,7 @@ int gfx_init(void)
 	gfx_set_window_logical_size(config.view_width, config.view_height);
 	atexit(gfx_fini);
 	gfx_clear();
+	gfx_initialized = true;
 	return 0;
 }
 
