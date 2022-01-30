@@ -220,7 +220,8 @@ struct archive_data *asset_get(enum asset_type type, int no)
 	return archive_get(archives[type], no);
 }
 
-static struct hash_table *cg_index = NULL;
+static struct hash_table *cg_name_index = NULL;
+static struct hash_table *cg_id_index = NULL;
 
 // Convert the last sequence of digits in a string to an integer.
 static int cg_name_to_int(const char *name)
@@ -247,7 +248,7 @@ static void add_cg_to_index(struct archive_data *data, possibly_unused void *_)
 		return;
 	}
 
-	struct ht_slot *slot = ht_put_int(cg_index, logical_no, NULL);
+	struct ht_slot *slot = ht_put_int(cg_id_index, logical_no, NULL);
 	if (slot->value)
 		ERROR("Duplicate CG numbers");
 	slot->value = (void*)(uintptr_t)(data->no + 1);
@@ -263,15 +264,47 @@ void asset_cg_index_init(void)
 	if (!archives[ASSET_CG])
 		return;
 
-	cg_index = ht_create(4096);
+	cg_id_index = ht_create(4096);
 	archive_for_each(archives[ASSET_CG], add_cg_to_index, NULL);
+}
+
+static void add_cg_name_to_index(struct archive_data *data, possibly_unused void *_)
+{
+	// copy name and strip file extension
+	char *name = strdup(data->name);
+	char *dot = strrchr(name, '.');
+	if (dot)
+		*dot = '\0';
+
+	struct ht_slot *slot = ht_put(cg_name_index, name, NULL);
+	if (slot->value)
+		ERROR("Duplicate CG names");
+	slot->value = (void*)(uintptr_t)(data->no + 1);
+
+	free(name);
+}
+
+static void init_cg_name_index(void)
+{
+	if (!archives[ASSET_CG])
+		return;
+
+	cg_name_index = ht_create(4096);
+	archive_for_each(archives[ASSET_CG], add_cg_name_to_index, NULL);
+}
+
+static int cg_translate_name(const char *name)
+{
+	if (!cg_name_index)
+		init_cg_name_index();
+	return (uintptr_t)ht_get(cg_name_index, name, NULL);
 }
 
 static int cg_translate_index(int no)
 {
-	if (!cg_index)
+	if (!cg_id_index)
 		return no;
-	return (uintptr_t)ht_get_int(cg_index, no, NULL);
+	return (uintptr_t)ht_get_int(cg_id_index, no, NULL);
 }
 
 struct cg *asset_cg_load(int no)
@@ -281,6 +314,15 @@ struct cg *asset_cg_load(int no)
 	if (!(no = cg_translate_index(no)))
 		return NULL;
 	return cg_load(archives[ASSET_CG], no - 1);
+}
+
+struct cg *asset_cg_load_by_name(const char *name, int *no)
+{
+	if (!archives[ASSET_CG])
+		return NULL;
+	if (!(*no = cg_translate_name(name)))
+		return NULL;
+	return cg_load(archives[ASSET_CG], *no - 1);
 }
 
 bool asset_cg_exists(int no)
