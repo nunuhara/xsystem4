@@ -235,6 +235,11 @@ void mouse_clear_wheel(void)
 	wheel_dir = 0;
 }
 
+bool mouse_show_cursor(bool show)
+{
+	return SDL_ShowCursor(show ? SDL_ENABLE : SDL_DISABLE) >= 0;
+}
+
 static void key_event(SDL_KeyboardEvent *e, bool pressed)
 {
 	if (e->keysym.scancode >= (sizeof(sdl_keytable)/sizeof(*sdl_keytable)))

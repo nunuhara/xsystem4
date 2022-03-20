@@ -146,6 +146,7 @@ void mouse_get_pos(int *x, int *y);
 void mouse_set_pos(int x, int y);
 void mouse_get_wheel(int *forward, int *back);
 void mouse_clear_wheel(void);
+bool mouse_show_cursor(bool show);
 void register_input_handler(void(*handler)(const char*));
 void clear_input_handler(void);
 void register_editing_handler(void(*handler)(const char*, int, int));

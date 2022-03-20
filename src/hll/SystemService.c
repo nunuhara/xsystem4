@@ -18,6 +18,7 @@
 
 #include "system4/string.h"
 
+#include "input.h"
 #include "mixer.h"
 #include "xsystem4.h"
 #include "hll.h"
@@ -71,8 +72,17 @@ static int SystemService_GetViewHeight(void)
 	return config.view_height;
 }
 
-//bool SystemService_MoveMouseCursorPosImmediately(int nX, int nY);
-//bool SystemService_SetHideMouseCursorByGame(bool bHide);
+static bool SystemService_MoveMouseCursorPosImmediately(int x, int y)
+{
+	mouse_set_pos(x, y);
+	return true;
+}
+
+static bool SystemService_SetHideMouseCursorByGame(bool hide)
+{
+	return mouse_show_cursor(!hide);
+}
+
 //bool SystemService_GetHideMouseCursorByGame(void);
 //bool SystemService_SetUsePower2Texture(bool bUse);
 //bool SystemService_GetUsePower2Texture(void);
@@ -185,8 +195,8 @@ HLL_LIBRARY(SystemService,
 	    HLL_TODO_EXPORT(UpdateView, SystemService_UpdateView),
 	    HLL_EXPORT(GetViewWidth, SystemService_GetViewWidth),
 	    HLL_EXPORT(GetViewHeight, SystemService_GetViewHeight),
-	    HLL_TODO_EXPORT(MoveMouseCursorPosImmediately, SystemService_MoveMouseCursorPosImmediately),
-	    HLL_TODO_EXPORT(SetHideMouseCursorByGame, SystemService_SetHideMouseCursorByGame),
+	    HLL_EXPORT(MoveMouseCursorPosImmediately, SystemService_MoveMouseCursorPosImmediately),
+	    HLL_EXPORT(SetHideMouseCursorByGame, SystemService_SetHideMouseCursorByGame),
 	    HLL_TODO_EXPORT(GetHideMouseCursorByGame, SystemService_GetHideMouseCursorByGame),
 	    HLL_TODO_EXPORT(SetUsePower2Texture, SystemService_SetUsePower2Texture),
 	    HLL_TODO_EXPORT(GetUsePower2Texture, SystemService_GetUsePower2Texture),
