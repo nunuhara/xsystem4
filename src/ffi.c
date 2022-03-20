@@ -295,6 +295,7 @@ extern struct static_library lib_AnteaterADVEngine;
 extern struct static_library lib_BanMisc;
 extern struct static_library lib_Bitarray;
 extern struct static_library lib_ChipmunkSpriteEngine;
+extern struct static_library lib_ChrLoader;
 extern struct static_library lib_Confirm;
 extern struct static_library lib_Confirm2;
 extern struct static_library lib_CrayfishLogViewer;
@@ -347,6 +348,7 @@ static struct static_library *static_libraries[] = {
 	&lib_BanMisc,
 	&lib_Bitarray,
 	&lib_ChipmunkSpriteEngine,
+	&lib_ChrLoader,
 	&lib_Confirm,
 	&lib_Confirm2,
 	&lib_CrayfishLogViewer,
