@@ -24,11 +24,11 @@
 
 #include "system4.h"
 #include "system4/cg.h"
+#include "system4/file.h"
 #include "system4/utfsjis.h"
 
 #include "gfx/gfx.h"
 #include "gfx/private.h"
-#include "file.h"
 #include "xsystem4.h"
 
 struct sdl_private sdl;

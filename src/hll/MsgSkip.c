@@ -21,10 +21,10 @@
 
 #include "system4.h"
 #include "system4/ain.h"
+#include "system4/file.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
-#include "file.h"
 #include "vm.h"
 #include "xsystem4.h"
 

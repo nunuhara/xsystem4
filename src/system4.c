@@ -36,7 +36,6 @@
 #include "xsystem4.h"
 #include "asset_manager.h"
 #include "debugger.h"
-#include "file.h"
 #include "gfx/gfx.h"
 #include "little_endian.h"
 #include "vm.h"

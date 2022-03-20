@@ -32,7 +32,6 @@
 #include "system4/utfsjis.h"
 
 #include "debugger.h"
-#include "file.h"
 #include "little_endian.h"
 #include "savedata.h"
 #include "vm.h"
