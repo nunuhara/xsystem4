@@ -37,7 +37,15 @@
 //bool FileOperation_GetFileLastAccessTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
 //bool FileOperation_GetFileLastWriteTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
 //bool FileOperation_GetFileSize(string FileName, ref int nSize);
-//bool FileOperation_ExistFolder(string FolderName);
+
+static bool FileOperation_ExistFolder(struct string *folder_name)
+{
+	char *path = unix_path(folder_name->text);
+	bool result = is_directory(path);
+	free(path);
+	return result;
+}
+
 //bool FileOperation_CreateFolder(string FolderName);
 //bool FileOperation_DeleteFolder(string FolderName);
 
@@ -121,7 +129,7 @@ HLL_LIBRARY(FileOperation,
 	    HLL_TODO_EXPORT(GetFileLastAccessTime, FileOperation_GetFileLastAccessTime),
 	    HLL_TODO_EXPORT(GetFileLastWriteTime, FileOperation_GetFileLastWriteTime),
 	    HLL_TODO_EXPORT(GetFileSize, FileOperation_GetFileSize),
-	    HLL_TODO_EXPORT(ExistFolder, FileOperation_ExistFolder),
+	    HLL_EXPORT(ExistFolder, FileOperation_ExistFolder),
 	    HLL_TODO_EXPORT(CreateFolder, FileOperation_CreateFolder),
 	    HLL_TODO_EXPORT(DeleteFolder, FileOperation_DeleteFolder),
 	    HLL_EXPORT(GetFileList, FileOperation_GetFileList),
