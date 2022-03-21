@@ -316,6 +316,7 @@ extern struct static_library lib_KiwiSoundEngine;
 extern struct static_library lib_MainEXFile;
 extern struct static_library lib_MarmotModelEngine;
 extern struct static_library lib_Math;
+extern struct static_library lib_MapLoader;
 extern struct static_library lib_MenuMsg;
 extern struct static_library lib_MsgLogManager;
 extern struct static_library lib_MsgLogViewer;
@@ -367,6 +368,7 @@ static struct static_library *static_libraries[] = {
 	&lib_MainEXFile,
 	&lib_MarmotModelEngine,
 	&lib_Math,
+	&lib_MapLoader,
 	&lib_MenuMsg,
 	&lib_MsgLogManager,
 	&lib_MsgLogViewer,

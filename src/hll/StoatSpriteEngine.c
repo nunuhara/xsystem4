@@ -309,7 +309,7 @@ static void multisprite_update(struct multisprite *ms)
 	if (ms->cg_dirty) {
 		if (ms->cg) {
 			if (ms->type != 5)
-				sprite_set_cg(&ms->sp, ms->cg);
+				sprite_set_cg_from_asset(&ms->sp, ms->cg);
 			sprite_set_show(&ms->sp, true);
 		} else {
 			sprite_set_show(&ms->sp, false);

@@ -202,7 +202,7 @@ int sact_SP_SetCG(int sp_no, int cg_no)
 		WARNING("Failed to create sprite");
 		return 0;
 	}
-	return sprite_set_cg(sp, cg_no);
+	return sprite_set_cg_from_asset(sp, cg_no);
 }
 
 int sact_SP_SetCGFromFile(int sp_no, struct string *filename)
