@@ -44,6 +44,33 @@ HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerSEGroupNum, int
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerBGMGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED(0, int,  StoatSpriteEngine, Sound_GetGroupNumFromDataNum, int n);
 
+static int StoatSpriteEngine_SP_SetDrawMethod(int sp_no, int method)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	switch (method) {
+	case 0: return sprite_set_draw_method(sp, DRAW_METHOD_NORMAL);
+	case 1: return sprite_set_draw_method(sp, DRAW_METHOD_ADDITIVE);
+	default:
+		WARNING("unknown draw method: %d", method);
+		return 0;
+	}
+}
+
+static int StoatSpriteEngine_SP_GetDrawMethod(int sp_no)
+{
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	if (!sp) return DRAW_METHOD_NORMAL;
+	int method = sprite_get_draw_method(sp);
+	switch (method) {
+	case DRAW_METHOD_NORMAL: return 0;
+	case DRAW_METHOD_ADDITIVE: return 1;
+	default:
+		WARNING("unknown draw method: %d", method);
+		return 0;
+	}
+}
+
 struct text_metrics text_sprite_tm = {
 	.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
 	.outline_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
@@ -793,7 +820,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(SP_SetZ, sact_SP_SetZ),
 	    HLL_EXPORT(SP_SetBlendRate, sact_SP_SetBlendRate),
 	    HLL_EXPORT(SP_SetShow, sact_SP_SetShow),
-	    HLL_EXPORT(SP_SetDrawMethod, sact_SP_SetDrawMethod),
+	    HLL_EXPORT(SP_SetDrawMethod, StoatSpriteEngine_SP_SetDrawMethod),
 	    HLL_EXPORT(SP_IsUsing, sact_SP_IsUsing),
 	    HLL_EXPORT(SP_ExistAlpha, sact_SP_ExistsAlpha),
 	    HLL_EXPORT(SP_GetPosX, sact_SP_GetPosX),
@@ -803,7 +830,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(SP_GetZ, sact_SP_GetZ),
 	    HLL_EXPORT(SP_GetBlendRate, sact_SP_GetBlendRate),
 	    HLL_EXPORT(SP_GetShow, sact_SP_GetShow),
-	    HLL_EXPORT(SP_GetDrawMethod, sact_SP_GetDrawMethod),
+	    HLL_EXPORT(SP_GetDrawMethod, StoatSpriteEngine_SP_GetDrawMethod),
 	    HLL_EXPORT(SP_SetTextHome, sact_SP_SetTextHome),
 	    HLL_EXPORT(SP_SetTextLineSpace, sact_SP_SetTextLineSpace),
 	    HLL_EXPORT(SP_SetTextCharSpace, sact_SP_SetTextCharSpace),

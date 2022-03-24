@@ -27,10 +27,10 @@ struct cg;
 struct text_metrics;
 
 enum draw_method {
-	DRAW_METHOD_NORMAL = 0,
-	DRAW_METHOD_SCREEN = 1,
-	DRAW_METHOD_MULTIPLY = 2,
-	NR_DRAW_METHODS
+	DRAW_METHOD_NORMAL,
+	DRAW_METHOD_SCREEN,
+	DRAW_METHOD_MULTIPLY,
+	DRAW_METHOD_ADDITIVE,
 };
 
 typedef struct texture {

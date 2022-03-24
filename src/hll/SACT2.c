@@ -337,15 +337,29 @@ int sact_SP_SetDrawMethod(int sp_no, int method)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
-	return sprite_set_draw_method(sp, method);
-	return 1;
+	switch (method) {
+	case 0: return sprite_set_draw_method(sp, DRAW_METHOD_NORMAL);
+	case 1: return sprite_set_draw_method(sp, DRAW_METHOD_SCREEN);
+	case 2: return sprite_set_draw_method(sp, DRAW_METHOD_MULTIPLY);
+	default:
+		WARNING("unknown draw method: %d", method);
+		return 0;
+	}
 }
 
 int sact_SP_GetDrawMethod(int sp_no)
 {
 	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return DRAW_METHOD_NORMAL;
-	return sprite_get_draw_method(sp);
+	int method = sprite_get_draw_method(sp);
+	switch (method) {
+	case DRAW_METHOD_NORMAL: return 0;
+	case DRAW_METHOD_SCREEN: return 1;
+	case DRAW_METHOD_MULTIPLY: return 2;
+	default:
+		WARNING("unknown draw method: %d", method);
+		return 0;
+	}
 }
 
 int sact_SP_IsUsing(int sp_no)

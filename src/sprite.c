@@ -179,18 +179,14 @@ void sprite_set_blend_rate(struct sact_sprite *sp, int rate)
 	sprite_dirty(sp);
 }
 
-int sprite_set_draw_method(struct sact_sprite *sp, int method)
+int sprite_set_draw_method(struct sact_sprite *sp, enum draw_method method)
 {
-	if (method < 0 || method >= NR_DRAW_METHODS) {
-		WARNING("unknown draw method: %d", method);
-		return 0;
-	}
 	sprite_get_texture(sp)->draw_method = method;
 	sprite_dirty(sp);
 	return 1;
 }
 
-int sprite_get_draw_method(struct sact_sprite *sp)
+enum draw_method sprite_get_draw_method(struct sact_sprite *sp)
 {
 	return sprite_get_texture(sp)->draw_method;
 }
