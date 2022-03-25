@@ -114,7 +114,7 @@ static int File_Read(struct page **_page)
 
 	file_cursor = end - file_contents;
 
-	json_load_page(page, json);
+	json_load_page(page, json, true);
 	cJSON_Delete(json);
 	return 1;
 }

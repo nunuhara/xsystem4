@@ -92,7 +92,7 @@ static int BanMisc_LoadStruct(struct page **_page, struct string *file_name)
 		return 0;
 	}
 
-	json_load_page(page, json);
+	json_load_page(page, json, true);
 	cJSON_Delete(json);
 	return 1;
 }
