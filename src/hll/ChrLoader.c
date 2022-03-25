@@ -18,6 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "system4.h"
+#include "system4/archive.h"
 #include "system4/cg.h"
 #include "system4/file.h"
 #include "system4/hashtable.h"
@@ -25,6 +27,7 @@
 #include "system4/string.h"
 #include "little_endian.h"
 
+#include "audio.h"
 #include "sact.h"
 #include "xsystem4.h"
 
@@ -146,7 +149,35 @@ static bool ChrLoader_LoadCG(int sprite, int x, int y, int id, int type)
 	return true;
 }
 
-HLL_WARN_UNIMPLEMENTED(false, bool, ChrLoader, LoadWavFile, int nSoundChannel, int nID);
+static void chr_archive_free_data(struct archive_data *data) { /* no-op */ }
+
+static struct archive_ops chr_archive_ops = {
+	.free_data = chr_archive_free_data
+};
+
+static struct archive chr_archive = { .mmapped = false, .ops = &chr_archive_ops };
+
+static bool ChrLoader_LoadWavFile(int sound_channel, int id)
+{
+	uint8_t *data = chr_get(id);
+	if (!data)
+		return false;
+
+	size_t offset = LittleEndian_getDW(data, is_enemy(data) ? 36 : 44);
+	size_t size = LittleEndian_getDW(data, is_enemy(data) ? 40 : 48);
+
+	struct archive_data *dfile = xcalloc(1, sizeof(struct archive_data));
+	dfile->size = size;
+	dfile->data = data + offset;
+	dfile->no = id;
+	dfile->archive = &chr_archive;
+
+	if (!wav_prepare_from_archive_data(sound_channel, dfile)) {
+		WARNING("ChrLoader.LoadWavFile %d failed", id);
+		return false;
+	}
+	return true;
+}
 
 static bool ChrLoader_LoadSentence(int id, int type, struct string **msg)
 {

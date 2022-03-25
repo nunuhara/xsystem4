@@ -465,34 +465,18 @@ static SF_VIRTUAL_IO channel_vio = {
 
 struct channel *channel_open(enum asset_type type, int no)
 {
-	struct channel *ch = xcalloc(1, sizeof(struct channel));
-
 	// get file from archive
-	ch->dfile = asset_get(type, no-1);
-	if (!ch->dfile) {
+	struct archive_data *dfile = asset_get(type, no-1);
+	if (!dfile) {
 		WARNING("Failed to load %s %d", type == ASSET_SOUND ? "WAV" : "BGM", no);
-		goto error;
+		return NULL;
 	}
 
-	// open file
-	ch->file = sf_open_virtual(&channel_vio, SFM_READ, &ch->info, ch);
-	if (sf_error(ch->file) != SF_ERR_NO_ERROR) {
-		WARNING("Failed to open %s %d: %s", type == ASSET_SOUND ? "WAV" : "BGM", no, sf_strerror(ch->file));
-		goto error;
+	struct channel *ch = channel_open_archive_data(dfile);
+	if (!ch) {
+		WARNING("Failed to open %s %d", type == ASSET_SOUND ? "WAV" : "BGM", no);
+		return NULL;
 	}
-	if (ch->info.channels > 2) {
-		WARNING("Audio file has more than 2 channels: %s %d", type == ASSET_SOUND ? "WAV" : "BGM", no);
-		goto error;
-	}
-
-	// create stream
-	ch->stream.userdata = ch;
-	ch->stream.callback = refill_stream;
-	ch->stream.sample.frequency = ch->info.samplerate;
-	ch->stream.sample.audio_format = STS_MIXER_SAMPLE_FORMAT_FLOAT;
-	ch->stream.sample.length = CHUNK_SIZE * 2;
-	ch->stream.sample.data = ch->data;
-	ch->voice = -1;
 
 	if (type == ASSET_SOUND) {
 		struct wai *wai = wai_get(no);
@@ -509,21 +493,49 @@ struct channel *channel_open(enum asset_type type, int no)
 			ch->loop_end = clamp(0, ch->info.frames, bgi->loop_end);
 			ch->loop_count = max(0, bgi->loop_count);
 			ch->mixer_no = clamp(0, nr_mixers, bgi->channel);
-		} else {
-			ch->volume = 100;
-			ch->loop_start = 0;
-			ch->loop_end = ch->info.frames;
-			ch->loop_count = 0;
-			ch->mixer_no = 0;
 		}
 	}
 	ch->no = no;
 
 	return ch;
+}
+
+struct channel *channel_open_archive_data(struct archive_data *dfile)
+{
+	struct channel *ch = xcalloc(1, sizeof(struct channel));
+	ch->dfile = dfile;
+
+	// open file
+	ch->file = sf_open_virtual(&channel_vio, SFM_READ, &ch->info, ch);
+	if (sf_error(ch->file) != SF_ERR_NO_ERROR) {
+		WARNING("sf_open_virtual failed: %s", sf_strerror(ch->file));
+		goto error;
+	}
+	if (ch->info.channels > 2) {
+		WARNING("Audio file has more than 2 channels");
+		goto error;
+	}
+
+	// create stream
+	ch->stream.userdata = ch;
+	ch->stream.callback = refill_stream;
+	ch->stream.sample.frequency = ch->info.samplerate;
+	ch->stream.sample.audio_format = STS_MIXER_SAMPLE_FORMAT_FLOAT;
+	ch->stream.sample.length = CHUNK_SIZE * 2;
+	ch->stream.sample.data = ch->data;
+	ch->voice = -1;
+
+	ch->volume = 100;
+	ch->loop_start = 0;
+	ch->loop_end = ch->info.frames;
+	ch->loop_count = 0;
+	ch->mixer_no = 0;
+
+	ch->no = -1;
+	return ch;
 
 error:
-	if (ch->dfile)
-		archive_free_data(ch->dfile);
+	archive_free_data(dfile);
 	free(ch);
 	return NULL;
 }
