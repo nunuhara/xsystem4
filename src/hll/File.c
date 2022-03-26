@@ -22,10 +22,10 @@
 #include <sys/stat.h>
 
 #include "system4.h"
+#include "system4/file.h"
 #include "system4/string.h"
 
 #include "hll.h"
-#include "file.h"
 #include "savedata.h"
 #include "vm/heap.h"
 #include "vm/page.h"
@@ -33,7 +33,6 @@
 
 static FILE *current_file = NULL;
 static char *file_contents = NULL;
-static size_t file_size = 0;
 static size_t file_cursor = 0;
 
 static int File_Open(struct string *filename, int type)
@@ -72,7 +71,6 @@ static int File_Close(void)
 	if (file_contents)
 		free(file_contents);
 	file_contents = NULL;
-	file_size = 0;
 	file_cursor = 0;
 	return r;
 }
@@ -91,7 +89,7 @@ static int File_Read(struct page **_page)
 	// read file inton memory if needed
 	if (!file_contents) {
 		fseek(current_file, 0, SEEK_END);
-		file_size = ftell(current_file);
+		size_t file_size = ftell(current_file);
 		fseek(current_file, 0, SEEK_SET);
 
 		file_contents = xmalloc(file_size + 1);
@@ -116,7 +114,7 @@ static int File_Read(struct page **_page)
 
 	file_cursor = end - file_contents;
 
-	json_load_page(page, json);
+	json_load_page(page, json, true);
 	cJSON_Delete(json);
 	return 1;
 }

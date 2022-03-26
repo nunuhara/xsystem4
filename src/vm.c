@@ -32,7 +32,6 @@
 #include "system4/utfsjis.h"
 
 #include "debugger.h"
-#include "file.h"
 #include "little_endian.h"
 #include "savedata.h"
 #include "vm.h"
@@ -842,6 +841,14 @@ static enum opcode execute_instruction(enum opcode opcode)
 		page_set_var(dst, dst_var+1, src_var);
 		stack_push(src_page);
 		stack_push(src_var);
+		break;
+	}
+	case R_EQUALE: {
+		int rhs_var = stack_pop().i;
+		int rhs_page = stack_pop().i;
+		int lhs_var = stack_pop().i;
+		int lhs_page = stack_pop().i;
+		stack_push(lhs_page == rhs_page && lhs_var == rhs_var ? 1 : 0);
 		break;
 	}
 	case NEW: {
@@ -1746,6 +1753,14 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case SH_GLOBAL_ASSIGN_LOCAL: {
 		global_set(get_argument(0), local_get(get_argument(1)), true);
+		break;
+	}
+	case SH_STRUCTREF_GT_IMM: {
+		stack_push(member_get(get_argument(0)).i > get_argument(1) ? 1 : 0);
+		break;
+	}
+	case SH_STRUCT_ASSIGN_LOCALREF_ITOB: {
+		member_set(get_argument(0), !!local_get(get_argument(1)).i);
 		break;
 	}
 	case SH_LOCAL_ASSIGN_STRUCTREF: {

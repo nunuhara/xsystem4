@@ -71,20 +71,25 @@ struct texture *sprite_get_texture(struct sact_sprite *sp)
 	return &sp->texture;
 }
 
-int sprite_set_cg(struct sact_sprite *sp, int cg_no)
+void sprite_set_cg(struct sact_sprite *sp, struct cg *cg)
 {
-	struct cg *cg = asset_cg_load(cg_no);
-	if (!cg)
-		return 0;
 	gfx_delete_texture(&sp->texture);
 	gfx_init_texture_with_cg(&sp->texture, cg);
 	sp->rect.w = cg->metrics.w;
 	sp->rect.h = cg->metrics.h;
-	sp->cg_no = cg_no;
 	sp->sp.has_pixel = true;
 	sp->sp.has_alpha = cg->metrics.has_alpha;
 	sp->sp.render = sprite_render;
 	sprite_dirty(sp);
+}
+
+int sprite_set_cg_from_asset(struct sact_sprite *sp, int cg_no)
+{
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return 0;
+	sprite_set_cg(sp, cg);
+	sp->cg_no = cg_no;
 	cg_free(cg);
 	return 1;
 }
@@ -94,14 +99,7 @@ int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path)
 	struct cg *cg = cg_load_file(path);
 	if (!cg)
 		return 0;
-	gfx_delete_texture(&sp->texture);
-	gfx_init_texture_with_cg(&sp->texture, cg);
-	sp->rect.w = cg->metrics.w;
-	sp->rect.h = cg->metrics.h;
-	sp->sp.has_pixel = true;
-	sp->sp.has_alpha = cg->metrics.has_alpha;
-	sp->sp.render = sprite_render;
-	sprite_dirty(sp);
+	sprite_set_cg(sp, cg);
 	cg_free(cg);
 	return 1;
 }
@@ -181,18 +179,14 @@ void sprite_set_blend_rate(struct sact_sprite *sp, int rate)
 	sprite_dirty(sp);
 }
 
-int sprite_set_draw_method(struct sact_sprite *sp, int method)
+int sprite_set_draw_method(struct sact_sprite *sp, enum draw_method method)
 {
-	if (method < 0 || method >= NR_DRAW_METHODS) {
-		WARNING("unknown draw method: %d", method);
-		return 0;
-	}
 	sprite_get_texture(sp)->draw_method = method;
 	sprite_dirty(sp);
 	return 1;
 }
 
-int sprite_get_draw_method(struct sact_sprite *sp)
+enum draw_method sprite_get_draw_method(struct sact_sprite *sp)
 {
 	return sprite_get_texture(sp)->draw_method;
 }

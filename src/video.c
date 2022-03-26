@@ -24,11 +24,11 @@
 
 #include "system4.h"
 #include "system4/cg.h"
+#include "system4/file.h"
 #include "system4/utfsjis.h"
 
 #include "gfx/gfx.h"
 #include "gfx/private.h"
-#include "file.h"
 #include "xsystem4.h"
 
 struct sdl_private sdl;
@@ -418,6 +418,9 @@ void gfx_render_texture(struct texture *t, Rectangle *r)
 		break;
 	case DRAW_METHOD_MULTIPLY:
 		glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
+		break;
+	case DRAW_METHOD_ADDITIVE:
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
 		break;
 	default:
 		// FIXME: why doesn't this work?

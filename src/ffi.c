@@ -295,6 +295,7 @@ extern struct static_library lib_AnteaterADVEngine;
 extern struct static_library lib_BanMisc;
 extern struct static_library lib_Bitarray;
 extern struct static_library lib_ChipmunkSpriteEngine;
+extern struct static_library lib_ChrLoader;
 extern struct static_library lib_Confirm;
 extern struct static_library lib_Confirm2;
 extern struct static_library lib_CrayfishLogViewer;
@@ -316,6 +317,7 @@ extern struct static_library lib_KiwiSoundEngine;
 extern struct static_library lib_MainEXFile;
 extern struct static_library lib_MarmotModelEngine;
 extern struct static_library lib_Math;
+extern struct static_library lib_MapLoader;
 extern struct static_library lib_MenuMsg;
 extern struct static_library lib_MsgLogManager;
 extern struct static_library lib_MsgLogViewer;
@@ -327,6 +329,7 @@ extern struct static_library lib_PlayMovie;
 extern struct static_library lib_SACT2;
 extern struct static_library lib_SACTDX;
 extern struct static_library lib_SengokuRanceFont;
+extern struct static_library lib_SoundFilePlayer;
 extern struct static_library lib_StoatSpriteEngine;
 extern struct static_library lib_SystemService;
 extern struct static_library lib_SystemServiceEx;
@@ -345,6 +348,7 @@ static struct static_library *static_libraries[] = {
 	&lib_BanMisc,
 	&lib_Bitarray,
 	&lib_ChipmunkSpriteEngine,
+	&lib_ChrLoader,
 	&lib_Confirm,
 	&lib_Confirm2,
 	&lib_CrayfishLogViewer,
@@ -366,6 +370,7 @@ static struct static_library *static_libraries[] = {
 	&lib_MainEXFile,
 	&lib_MarmotModelEngine,
 	&lib_Math,
+	&lib_MapLoader,
 	&lib_MenuMsg,
 	&lib_MsgLogManager,
 	&lib_MsgLogViewer,
@@ -377,6 +382,7 @@ static struct static_library *static_libraries[] = {
 	&lib_SACT2,
 	&lib_SACTDX,
 	&lib_SengokuRanceFont,
+	&lib_SoundFilePlayer,
 	&lib_StoatSpriteEngine,
 	&lib_SystemService,
 	&lib_SystemServiceEx,
