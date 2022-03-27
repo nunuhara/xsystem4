@@ -105,6 +105,7 @@ xsystem4 = [version_h,
             'hll/SystemService.c',
             'hll/SystemServiceEx.c',
             'hll/Timer.c',
+            'hll/Toushin3Loader.c',
             'hll/VSFile.c',
 ]
 
