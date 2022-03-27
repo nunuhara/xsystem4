@@ -120,6 +120,29 @@ struct parts_gauge {
 	Texture cg;
 };
 
+enum parts_cp_op_type {
+	PARTS_CP_CG,
+	PARTS_CP_FILL_ALPHA_COLOR
+};
+
+struct parts_cp_cg {
+	int no;
+};
+
+struct parts_cp_fill_alpha_color {
+	int x, y, w, h;
+	int r, g, b, a;
+};
+
+struct parts_cp_op {
+	TAILQ_ENTRY(parts_cp_op) entry;
+	enum parts_cp_op_type type;
+	union {
+		struct parts_cp_cg cg;
+		struct parts_cp_fill_alpha_color fill_alpha_color;
+	};
+};
+
 struct parts_state {
 	enum parts_type type;
 	union {
@@ -129,6 +152,7 @@ struct parts_state {
 		struct parts_numeral num;
 		struct parts_gauge gauge;
 	};
+	TAILQ_HEAD(, parts_cp_op) construction_process;
 };
 
 TAILQ_HEAD(parts_list, parts);
@@ -185,17 +209,25 @@ void parts_set_state(struct parts *parts, enum parts_state_type state);
 void parts_release(int parts_no);
 void parts_release_all(void);
 
-// parts_render.c
+// render.c
 void parts_render_init(void);
 void parts_engine_dirty(void);
 void parts_dirty(struct parts *parts);
 
-// parts_motion.c
+// motion.c
 void parts_clear_motion(struct parts *parts);
 void parts_add_motion(struct parts *parts, struct parts_motion *motion);
 
-// parts_input.c
+// input.c
 extern Point parts_prev_pos;
 extern bool parts_began_click;
+
+// construction.c
+void parts_cp_op_free(struct parts_cp_op *op);
+
+static inline bool parts_state_valid(int state)
+{
+	return state >= 0 && state <= 2;
+}
 
 #endif /* SYSTEM4_PARTS_INTERNAL_H */

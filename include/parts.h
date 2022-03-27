@@ -81,6 +81,11 @@ bool PE_Load(struct page **buffer);
 int PE_GetFreeNumber(void);
 bool PE_IsExist(int parts_no);
 
+// construction.c
+bool PE_AddCreateCGToProcess(int parts_no, struct string *cg_name, int state);
+bool PE_AddFillAlphaColorToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int a, int state);
+bool PE_BuildPartsConstructionProcess(int parts_no, int state);
+
 // input.c
 void PE_UpdateInputState(int passed_time);
 void PE_SetClickable(int parts_no, bool clickable);

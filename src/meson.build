@@ -31,6 +31,7 @@ xsystem4 = ['audio.c',
             'dungeon/skybox.c',
             'dungeon/tes.c',
 
+            'parts/construction.c',
             'parts/input.c',
             'parts/motion.c',
             'parts/parts.c',

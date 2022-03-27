@@ -43,6 +43,7 @@ struct archive_data *asset_get(enum asset_type type, int no);
 //        then caller can just use asset_get and cg_load
 struct cg *asset_cg_load(int no);
 struct cg *asset_cg_load_by_name(const char *name, int *no);
+int asset_cg_name_to_index(const char *name);
 bool asset_cg_exists(int no);
 bool asset_cg_get_metrics(int no, struct cg_metrics *metrics);
 void asset_cg_index_init(void);

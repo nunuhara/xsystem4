@@ -293,7 +293,7 @@ static void init_cg_name_index(void)
 	archive_for_each(archives[ASSET_CG], add_cg_name_to_index, NULL);
 }
 
-static int cg_translate_name(const char *name)
+int asset_cg_name_to_index(const char *name)
 {
 	if (!cg_name_index)
 		init_cg_name_index();
@@ -320,7 +320,7 @@ struct cg *asset_cg_load_by_name(const char *name, int *no)
 {
 	if (!archives[ASSET_CG])
 		return NULL;
-	if (!(*no = cg_translate_name(name)))
+	if (!(*no = asset_cg_name_to_index(name)))
 		return NULL;
 	return cg_load(archives[ASSET_CG], *no - 1);
 }

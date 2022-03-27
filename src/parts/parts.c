@@ -47,6 +47,9 @@ static void parts_init(struct parts *parts)
 	parts->rotation.z = 0.0;
 	TAILQ_INIT(&parts->children);
 	TAILQ_INIT(&parts->motion);
+	for (int i = 0; i < PARTS_NR_STATES; i++) {
+		TAILQ_INIT(&parts->states[i].construction_process);
+	}
 }
 
 static struct parts *parts_alloc(void)
@@ -126,7 +129,13 @@ static void parts_state_free(struct parts_state *state)
 		gfx_delete_texture(&state->gauge.cg);
 		break;
 	}
+	while (!TAILQ_EMPTY(&state->construction_process)) {
+		struct parts_cp_op *op = TAILQ_FIRST(&state->construction_process);
+		TAILQ_REMOVE(&state->construction_process, op, entry);
+		parts_cp_op_free(op);
+	}
 	memset(state, 0, sizeof(struct parts_state));
+	TAILQ_INIT(&state->construction_process);
 }
 
 static struct text_metrics default_text_metrics = {
