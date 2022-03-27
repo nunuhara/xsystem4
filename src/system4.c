@@ -478,6 +478,9 @@ int main(int argc, char *argv[])
 		config_init_with_ini(argv[0]);
 	} else if (!strcasecmp(file_extension(argv[0]), "ain")) {
 		config_init_with_ain(argv[0]);
+	} else {
+		usage();
+		ERROR("Can't initialize game with argument '%s'", argv[0]);
 	}
 	ainfile = gamedir_path(config.ain_filename);
 
