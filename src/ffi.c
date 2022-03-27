@@ -303,7 +303,9 @@ extern struct static_library lib_ChrLoader;
 extern struct static_library lib_CommonSystemData;
 extern struct static_library lib_Confirm;
 extern struct static_library lib_Confirm2;
+extern struct static_library lib_Confirm3;
 extern struct static_library lib_CrayfishLogViewer;
+extern struct static_library lib_Cursor;
 extern struct static_library lib_DataFile;
 extern struct static_library lib_DrawDungeon;
 extern struct static_library lib_DrawDungeon14;
@@ -361,7 +363,9 @@ static struct static_library *static_libraries[] = {
 	&lib_CommonSystemData,
 	&lib_Confirm,
 	&lib_Confirm2,
+	&lib_Confirm3,
 	&lib_CrayfishLogViewer,
+	&lib_Cursor,
 	&lib_DataFile,
 	&lib_DrawDungeon,
 	&lib_DrawDungeon14,
