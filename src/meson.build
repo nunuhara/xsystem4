@@ -1,5 +1,11 @@
+version_h = vcs_tag(command : ['git', 'rev-parse', '--short', 'HEAD'],
+                    fallback : 'unknown version',
+                    input : 'version.h.in',
+                    output : 'version.h')
+
 # sources for xsystem4
-xsystem4 = ['audio.c',
+xsystem4 = [version_h,
+            'audio.c',
             'audio_meta.c',
             'audio_mixer.c',
             'asset_manager.c',
