@@ -48,10 +48,13 @@ int mixer_set_volume(int n, int volume);
 int mixer_get_mute(int n, int *mute);
 int mixer_set_mute(int n, int mute);
 
+struct archive_data;
 struct channel;
 enum asset_type;
 
 struct channel *channel_open(enum asset_type type, int no);
+// Takes ownership of dfile.
+struct channel *channel_open_archive_data(struct archive_data *dfile);
 void channel_close(struct channel *ch);
 int channel_play(struct channel *ch);
 int channel_stop(struct channel *ch);

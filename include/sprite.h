@@ -59,7 +59,8 @@ static inline void sprite_dirty(struct sact_sprite *sp)
 
 void sprite_free(struct sact_sprite *sp);
 struct texture *sprite_get_texture(struct sact_sprite *sp);
-int sprite_set_cg(struct sact_sprite *sp, int cg_no);
+void sprite_set_cg(struct sact_sprite *sp, struct cg *cg);
+int sprite_set_cg_from_asset(struct sact_sprite *sp, int cg_no);
 int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path);
 int sprite_save_cg(struct sact_sprite *sp, const char *path);
 void sprite_init(struct sact_sprite *sp, int w, int h, int r, int g, int b, int a);
@@ -71,8 +72,8 @@ static inline void sprite_set_z2(struct sact_sprite *sp, int z, int z2) { scene_
 int sprite_get_blend_rate(struct sact_sprite *sp);
 void sprite_set_blend_rate(struct sact_sprite *sp, int rate);
 static inline void sprite_set_show(struct sact_sprite *sp, bool show) { scene_set_sprite_show(&sp->sp, show); }
-int sprite_set_draw_method(struct sact_sprite *sp, int method);
-int sprite_get_draw_method(struct sact_sprite *sp);
+int sprite_set_draw_method(struct sact_sprite *sp, enum draw_method method);
+enum draw_method sprite_get_draw_method(struct sact_sprite *sp);
 static inline int sprite_exists_alpha(struct sact_sprite *sp) { return sp->sp.has_alpha; }
 static inline int sprite_get_pos_x(struct sact_sprite *sp) { return sp->rect.x; }
 static inline int sprite_get_pos_y(struct sact_sprite *sp) { return sp->rect.y; }

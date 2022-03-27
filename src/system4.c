@@ -36,10 +36,11 @@
 #include "xsystem4.h"
 #include "asset_manager.h"
 #include "debugger.h"
-#include "file.h"
 #include "gfx/gfx.h"
 #include "little_endian.h"
 #include "vm.h"
+
+#include "version.h"
 
 struct config config = {
 	.game_name = NULL,
@@ -374,6 +375,7 @@ static void usage(void)
 {
 	puts("Usage: xsystem4 <options> <inifile>");
 	puts("    -h, --help          Display this message and exit");
+	puts("    -v, --version       Display the version and exit");
 	puts("    -a, --audit         Audit AIN file for xsystem4 compatibility");
 	puts("    -e, --echo-message  Echo in-game messages to standard output");
 	puts("        --font-mincho   Specify the path to the mincho font to use");
@@ -387,6 +389,7 @@ static void usage(void)
 
 enum {
 	LOPT_HELP = 256,
+	LOPT_VERSION,
 	LOPT_AUDIT,
 	LOPT_ECHO_MESSAGE,
 	LOPT_FONT_MINCHO,
@@ -414,6 +417,7 @@ int main(int argc, char *argv[])
 	while (1) {
 		static struct option long_options[] = {
 			{ "help",         no_argument,       0, LOPT_HELP },
+			{ "version",      no_argument,       0, LOPT_VERSION },
 			{ "audit",        no_argument,       0, LOPT_AUDIT },
 			{ "echo-message", no_argument,       0, LOPT_ECHO_MESSAGE },
 			{ "font-mincho",  required_argument, 0, LOPT_FONT_MINCHO },
@@ -425,7 +429,7 @@ int main(int argc, char *argv[])
 #endif
 		};
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "haej", long_options, &option_index);
+		int c = getopt_long(argc, argv, "haejv", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -433,6 +437,10 @@ int main(int argc, char *argv[])
 		case 'h':
 		case LOPT_HELP:
 			usage();
+			return 0;
+		case 'v':
+		case LOPT_VERSION:
+			NOTICE("xsystem4 " XSYSTEM4_VERSION);
 			return 0;
 		case 'a':
 		case LOPT_AUDIT:
@@ -479,6 +487,9 @@ int main(int argc, char *argv[])
 		config_init_with_ini(argv[0]);
 	} else if (!strcasecmp(file_extension(argv[0]), "ain")) {
 		config_init_with_ain(argv[0]);
+	} else {
+		usage();
+		ERROR("Can't initialize game with argument '%s'", argv[0]);
 	}
 	ainfile = gamedir_path(config.ain_filename);
 

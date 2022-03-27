@@ -188,14 +188,18 @@ void get_array_dims(cJSON *json, int rank, union vm_value *dims)
 	}
 }
 
-void json_load_page(struct page *page, cJSON *vars)
+void json_load_page(struct page *page, cJSON *vars, bool call_dtors)
 {
 	int i = 0;
 	cJSON *v;
 	cJSON_ArrayForEach(v, vars) {
 		int struct_type, array_rank;
 		enum ain_data_type data_type = variable_type(page, i, &struct_type, &array_rank);
-		variable_set(page, i, data_type, json_to_vm_value(data_type, struct_type, array_rank, v));
+		union vm_value val = json_to_vm_value(data_type, struct_type, array_rank, v);
+		if (call_dtors)
+			variable_set(page, i, data_type, val);
+		else
+			page->values[i] = val;
 		i++;
 	}
 }
@@ -240,7 +244,7 @@ union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type stru
 		if (!cJSON_IsArray(json) || cJSON_GetArraySize(json) != ain->structures[struct_type].nr_members) {
 			invalid_save_data("Not an array", json);
 		} else {
-			json_load_page(heap[slot].page, json);
+			json_load_page(heap[slot].page, json, false);
 		}
 		return vm_int(slot);
 	case AIN_ARRAY_TYPE:
@@ -259,7 +263,7 @@ union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type stru
 		page = alloc_array(array_rank, dims, type, struct_type, false);
 		heap[slot].page = page;
 		free(dims);
-		json_load_page(heap[slot].page, json);
+		json_load_page(heap[slot].page, json, false);
 		return vm_int(slot);
 	case AIN_REF_TYPE:
 		return vm_int(-1);

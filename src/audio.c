@@ -329,3 +329,18 @@ int bgm_get_time_length(int id) { return audio_get_time_length(&bgm, id); }
 //int bgm_get_group_num(int channel);
 //int wav_prepare_from_file(int channel, char *filename);
 //int bgm_prepare_from_file(int channel, char *filename);
+
+static int audio_prepare_from_archive_data(struct id_pool *pool, int id, struct archive_data *dfile)
+{
+	if (id < 0)
+		return 0;
+	struct channel *ch = channel_open_archive_data(dfile);
+	struct channel *old = id_pool_set(pool, id, ch);
+	if (old)
+		channel_close(old);
+	return !!ch;
+}
+
+int wav_prepare_from_archive_data(int id, struct archive_data *dfile) {
+	return audio_prepare_from_archive_data(&wav, id, dfile);
+}
