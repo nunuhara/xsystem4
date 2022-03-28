@@ -39,7 +39,7 @@ static int nr_flags;
 
 static void msgskip_save(void)
 {
-	FILE *f = fopen(save_path, "wb");
+	FILE *f = file_open_utf8(save_path, "wb");
 	if (!f)
 		ERROR("fopen: '%s': %s", save_path, strerror(errno));
 

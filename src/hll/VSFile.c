@@ -19,6 +19,7 @@
 #include <string.h>
 #include <errno.h>
 
+#include "system4/file.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -96,7 +97,7 @@ static bool vsfile_open(struct string *filename, bool read)
 		fclose(vs_file);
 	}
 	vs_read = read;
-	vs_file = fopen(u, read ? "rb" : "wb");
+	vs_file = file_open_utf8(u, read ? "rb" : "wb");
 	if (!vs_file) {
 		WARNING("Failed to open '%s': %s", u, strerror(errno));
 	}

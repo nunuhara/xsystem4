@@ -20,6 +20,7 @@
 
 #include "system4.h"
 #include "system4/cg.h"
+#include "system4/file.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -121,7 +122,7 @@ int sprite_save_cg(struct sact_sprite *sp, const char *path)
 		},
 		.pixels = pixels
 	};
-	FILE *fp = fopen(path, "wb");
+	FILE *fp = file_open_utf8(path, "wb");
 	if (!fp) {
 		WARNING("Failed to open %s: %s", path, strerror(errno));
 		free(pixels);

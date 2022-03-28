@@ -101,7 +101,7 @@ static void add_global(struct global_save_data *data, int global, union vm_value
 int save_json(const char *filename, cJSON *json)
 {
 	char *path = savedir_path(filename);
-	FILE *f = fopen(path, "w");
+	FILE *f = file_open_utf8(path, "w");
 	if (!f) {
 		WARNING("Failed to open save file: %s: %s", filename, strerror(errno));
 		free(path);
@@ -280,7 +280,7 @@ static cJSON *read_save_file(const char *filename)
 	char *buf;
 	char *path = savedir_path(filename);
 
-	if (!(f = fopen(path, "r"))) {
+	if (!(f = file_open_utf8(path, "r"))) {
 		WARNING("Failed to open save file: %s: %s", filename, strerror(errno));
 		free(path);
 		return NULL;

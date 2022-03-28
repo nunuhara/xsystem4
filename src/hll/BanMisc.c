@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "system4/file.h"
 #include "system4/string.h"
 
 #include "hll.h"
@@ -29,7 +30,7 @@
 static int BanMisc_SaveStruct(struct page *page, struct string *file_name)
 {
 	char *path = unix_path(file_name->text);
-	FILE *fp = fopen(path, "w");
+	FILE *fp = file_open_utf8(path, "w");
 	if (!fp) {
 		WARNING("Failed to open file '%s': %s", path, strerror(errno));
 		free(path);
@@ -59,7 +60,7 @@ static int BanMisc_LoadStruct(struct page **_page, struct string *file_name)
 	}
 
 	char *path = unix_path(file_name->text);
-	FILE *fp = fopen(path, "r");
+	FILE *fp = file_open_utf8(path, "r");
 	if (!fp) {
 		WARNING("Failed to open file '%s': %s", path, strerror(errno));
 		free(path);

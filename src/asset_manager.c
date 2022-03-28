@@ -100,10 +100,10 @@ void asset_manager_init(void)
 	int ald_count[ASSET_TYPE_MAX] = {0};
 	char *afa_filenames[ASSET_TYPE_MAX] = {0};
 
-	DIR *dir;
-	struct dirent *d;
+	UDIR *dir;
+	char *d_name;
 
-	if (!(dir = opendir(config.game_dir))) {
+	if (!(dir = opendir_utf8(config.game_dir))) {
 		ERROR("Failed to open directory: %s", config.game_dir);
 	}
 
@@ -111,80 +111,84 @@ void asset_manager_init(void)
 	size_t base_len = strlen(base);
 
 	// get ALD filenames
-	while ((d = readdir(dir))) {
+	while ((d_name = readdir_utf8(dir))) {
 		// archive filename must begin with ain filename
-		if (strncmp(base, d->d_name, base_len))
-			continue;
-		const char *ext = file_extension(d->d_name);
+		if (strncmp(base, d_name, base_len))
+			goto loop_next;
+		const char *ext = file_extension(d_name);
 		if (!ext)
-			continue;
+			goto loop_next;
 		if (!strcasecmp(ext, "ald")) {
-			int dno = toupper(d->d_name[base_len+1]) - 'A';
+			int dno = toupper(d_name[base_len+1]) - 'A';
 			if (dno < 0 || dno >= ALD_FILEMAX) {
-				WARNING("Invalid ALD index: %s", d->d_name);
-				continue;
+				WARNING("Invalid ALD index: %s", d_name);
+				goto loop_next;
 			}
 
-			switch (d->d_name[base_len]) {
+			switch (d_name[base_len]) {
 			case 'b':
 			case 'B':
-				ald_filenames[ASSET_BGM][dno] = path_join(config.game_dir, d->d_name);
+				ald_filenames[ASSET_BGM][dno] = path_join(config.game_dir, d_name);
 				ald_count[ASSET_BGM] = max(ald_count[ASSET_BGM], dno+1);
 				break;
 			case 'g':
 			case 'G':
-				ald_filenames[ASSET_CG][dno] = path_join(config.game_dir, d->d_name);
+				ald_filenames[ASSET_CG][dno] = path_join(config.game_dir, d_name);
 				ald_count[ASSET_CG] = max(ald_count[ASSET_CG], dno+1);
 				break;
 			case 'w':
 			case 'W':
-				ald_filenames[ASSET_SOUND][dno] = path_join(config.game_dir, d->d_name);
+				ald_filenames[ASSET_SOUND][dno] = path_join(config.game_dir, d_name);
 				ald_count[ASSET_SOUND] = max(ald_count[ASSET_SOUND], dno+1);
 				break;
 			case 'd':
 			case 'D':
-				ald_filenames[ASSET_DATA][dno] = path_join(config.game_dir, d->d_name);
+				ald_filenames[ASSET_DATA][dno] = path_join(config.game_dir, d_name);
 				ald_count[ASSET_DATA] = max(ald_count[ASSET_DATA], dno+1);
 				break;
 			default:
-				WARNING("Unhandled ALD file: %s", d->d_name);
+				WARNING("Unhandled ALD file: %s", d_name);
 				break;
 			}
 		} else if (!strcasecmp(ext, "bgi")) {
 			if (config.bgi_path) {
 				WARNING("Multiple bgi files");
-				continue;
+				goto loop_next;
 			}
-			config.bgi_path = path_join(config.game_dir, d->d_name);
+			config.bgi_path = path_join(config.game_dir, d_name);
 		} else if (!strcasecmp(ext, "wai")) {
 			if (config.wai_path) {
 				WARNING("Multiple wai files");
-				continue;
+				goto loop_next;
 			}
-			config.wai_path = path_join(config.game_dir, d->d_name);
+			config.wai_path = path_join(config.game_dir, d_name);
 		} else if (!strcasecmp(ext, "ex")) {
 			if (config.ex_path) {
 				WARNING("Multiple ex files");
-				continue;
+				goto loop_next;
 			}
-			config.ex_path = path_join(config.game_dir, d->d_name);
+			config.ex_path = path_join(config.game_dir, d_name);
 		} else if (!strcasecmp(ext, "afa")) {
-			const char *type = d->d_name + base_len;
+			const char *type = d_name + base_len;
 			if (!strcmp(type, "BA.afa")) {
-				afa_filenames[ASSET_BGM] = path_join(config.game_dir, d->d_name);
+				afa_filenames[ASSET_BGM] = path_join(config.game_dir, d_name);
 			} else if (!strcmp(type, "WA.afa") || !strcmp(type, "Sound.afa")) {
-				afa_filenames[ASSET_SOUND] = path_join(config.game_dir, d->d_name);
+				afa_filenames[ASSET_SOUND] = path_join(config.game_dir, d_name);
 			} else if (!strcmp(type, "Voice.afa")) {
-				afa_filenames[ASSET_VOICE] = path_join(config.game_dir, d->d_name);
+				afa_filenames[ASSET_VOICE] = path_join(config.game_dir, d_name);
 			} else if (!strcmp(type, "CG.afa")) {
-				afa_filenames[ASSET_CG] = path_join(config.game_dir, d->d_name);
+				afa_filenames[ASSET_CG] = path_join(config.game_dir, d_name);
 			} else if (!strcmp(type, "Flat.afa")) {
-				afa_filenames[ASSET_FLAT] = path_join(config.game_dir, d->d_name);
+				afa_filenames[ASSET_FLAT] = path_join(config.game_dir, d_name);
 			} else if (!strcmp(type, "Pact.afa")) {
-				afa_filenames[ASSET_PACT] = path_join(config.game_dir, d->d_name);
+				afa_filenames[ASSET_PACT] = path_join(config.game_dir, d_name);
 			}
 		}
+	loop_next:
+		free(d_name);
 	}
+	closedir_utf8(dir);
+	free(base);
 
 	// open ALD archives
 	ald_init(ASSET_BGM, ald_filenames[ASSET_BGM], ald_count[ASSET_BGM]);
@@ -203,9 +207,6 @@ void asset_manager_init(void)
 	afa_init(ASSET_FLAT, afa_filenames[ASSET_FLAT]);
 	afa_init(ASSET_PACT, afa_filenames[ASSET_PACT]);
 	afa_init(ASSET_DATA, afa_filenames[ASSET_DATA]);
-
-	free(base);
-	closedir(dir);
 }
 
 bool asset_exists(enum asset_type type, int no)

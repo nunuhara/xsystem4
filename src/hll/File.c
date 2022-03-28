@@ -52,7 +52,7 @@ static int File_Open(struct string *filename, int type)
 	}
 
 	char *path = unix_path(filename->text);
-	current_file = fopen(path, mode);
+	current_file = file_open_utf8(path, mode);
 	if (!current_file) {
 		WARNING("Failed to open file '%s': %s", path, strerror(errno));
 	}
@@ -157,11 +157,11 @@ struct tagSaveDate {
 
 static int File_GetTime(struct string *filename, struct page **page)
 {
-	struct stat s;
+	ustat s;
 	char *path = unix_path(filename->text);
 	union vm_value *date = (*page)->values;
 
-	if (stat(path, &s) < 0) {
+	if (stat_utf8(path, &s) < 0) {
 		WARNING("stat failed: %s", strerror(errno));
 		free(path);
 		return 0;

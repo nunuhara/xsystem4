@@ -44,7 +44,7 @@ static char *bgi_gets(char *buf, int n, FILE *fp)
 
 void bgi_read(const char *path)
 {
-	FILE *fp = fopen(path, "rb");
+	FILE *fp = file_open_utf8(path, "rb");
 	if (!fp) {
 		WARNING("Failed to open bgi file: %s", path);
 		return;

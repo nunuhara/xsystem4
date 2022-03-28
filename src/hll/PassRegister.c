@@ -65,7 +65,7 @@ static void write_register(unsigned handle)
 {
 	struct passregister *reg = registers + handle;
 
-	FILE *f = fopen(reg->filename, "wb");
+	FILE *f = file_open_utf8(reg->filename, "wb");
 	if (!f) {
 		WARNING("Failed to open PassRegister file: %s: %s", reg->filename, strerror(errno));
 		return;

@@ -53,25 +53,28 @@ static bool get_file_list(struct string *folder_name, struct page **out, bool fo
 {
 	char *dir_name = unix_path(folder_name->text);
 
-	DIR *d = opendir(dir_name);
+	UDIR *d = opendir_utf8(dir_name);
 	if (!d) {
 		WARNING("opendir(\"%s\"): %s", dir_name, strerror(errno));
-		goto error;
+		free(dir_name);
+		return false;
 	}
 
 	struct string **names = NULL;
 	int nr_names = 0;
 
-	struct dirent *dir;
-	while ((dir = readdir(d)) != NULL) {
-		if (dir->d_name[0] == '.')
+	char *d_name;
+	while ((d_name = readdir_utf8(d)) != NULL) {
+		if (d_name[0] == '.') {
+			free(d_name);
 			continue;
+		}
 
-		char *utf8_path = path_join(dir_name, dir->d_name);
+		char *utf8_path = path_join(dir_name, d_name);
 		char *sjis_path = utf2sjis(utf8_path, 0);
 
-		struct stat s;
-		if (stat(utf8_path, &s) < 0) {
+		ustat s;
+		if (stat_utf8(utf8_path, &s) < 0) {
 			WARNING("stat(\"%s\"): %s", utf8_path, strerror(errno));
 			goto loop_next;
 		}
@@ -91,7 +94,10 @@ static bool get_file_list(struct string *folder_name, struct page **out, bool fo
 	loop_next:
 		free(utf8_path);
 		free(sjis_path);
+		free(d_name);
 	}
+	closedir_utf8(d);
+	free(dir_name);
 
 	union vm_value dim = { .i = nr_names };
 	struct page *page = alloc_array(1, &dim, AIN_ARRAY_STRING, 0, false);
@@ -105,10 +111,6 @@ static bool get_file_list(struct string *folder_name, struct page **out, bool fo
 	}
 	*out = page;
 	return true;
-error:
-	free(dir_name);
-	return false;
-
 }
 
 static bool FileOperation_GetFileList(struct string *folder_name, struct page **out)
