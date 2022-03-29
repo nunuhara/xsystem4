@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <chibi/eval.h>
 
+#include "system4/file.h"
 #include "system4/instructions.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
@@ -239,7 +240,11 @@ void dbg_init(void)
 	sexp_eval_string(dbg_ctx, "(define *prompt* (make-parameter \"dbg> \"))", -1, NULL);
 	sexp_eval_string(dbg_ctx, "(define breakpoint-count (make-parameter 0))", -1, NULL);
 	sexp_eval_string(dbg_ctx, "(define (repl-make-prompt m) (*prompt*))", -1, NULL);
-	sexp_eval_string(dbg_ctx, "(load \"./debugger.scm\")", -1, NULL);
+
+	if (file_exists("./debugger.scm"))
+		sexp_eval_string(dbg_ctx, "(load \"./debugger.scm\")", -1, NULL);
+	else
+		sexp_eval_string(dbg_ctx, "(load \"" XSYS4_DATA_DIR "/debugger.scm\")", -1, NULL);
 }
 
 void dbg_fini(void)
