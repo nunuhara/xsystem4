@@ -31,8 +31,6 @@
 #include "debugger.h"
 #include "little_endian.h"
 
-bool dbg_enabled = true;
-
 struct variable {
 	enum ain_data_type data_type;
 	int struct_type;

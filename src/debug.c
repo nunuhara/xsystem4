@@ -34,6 +34,7 @@
 #include "little_endian.h"
 #include "xsystem4.h"
 
+bool dbg_enabled = true;
 static jmp_buf dbg_continuation;
 
 enum {
