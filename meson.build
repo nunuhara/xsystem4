@@ -24,7 +24,8 @@ else
     gl_deps = [gl, glew]
 endif
 
-chibi = dependency('chibi-scheme', required : get_option('debugger'))
+chibi = dependency('chibi-scheme', required : false)
+readline = dependency('readline', required : false)
 
 flex = find_program('flex')
 bison = find_program('bison')

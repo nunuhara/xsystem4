@@ -82,7 +82,7 @@
   (int      varno       variable-varno)
   (vm_value value       variable-vm-value))
 
-(define-c void (backtrace print_stack_trace) ())
+(define-c void (backtrace dbg_print_stack_trace) ())
 
 (define-c (maybe-null page) (get-page get_page) (int))
 (define-c (maybe-null page) (frame-page frame_page) (int))

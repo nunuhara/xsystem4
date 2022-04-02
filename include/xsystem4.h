@@ -43,6 +43,13 @@ struct config {
 
 extern struct config config;
 
+// Convenience functions to avoid cumbersome memory management when passing
+// text to printf-like functions
+const char *display_sjis0(const char *sjis);
+const char *display_sjis1(const char *sjis);
+const char *display_utf0(const char *utf);
+const char *display_utf1(const char *utf);
+
 char *unix_path(const char *path);
 char *gamedir_path(const char *path);
 char *savedir_path(const char *path);

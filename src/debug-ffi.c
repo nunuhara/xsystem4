@@ -72,7 +72,7 @@ sexp sexp_get_page_stub (sexp ctx, sexp self, sexp_sint_t n, sexp arg0) {
 
 sexp sexp_backtrace_stub (sexp ctx, sexp self, sexp_sint_t n) {
   sexp res;
-  res = ((print_stack_trace()), SEXP_VOID);
+  res = ((dbg_print_stack_trace()), SEXP_VOID);
   return res;
 }
 
