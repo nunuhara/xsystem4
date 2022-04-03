@@ -61,6 +61,14 @@ void iarray_write(struct iarray_writer *w, int data)
 	w->data[w->size++] = data;
 }
 
+
+void iarray_write_at(struct iarray_writer *w, unsigned pos, int data)
+{
+	if (pos >= w->size)
+		VM_ERROR("iarray_write_at: invalid index");
+	w->data[pos] = data;
+}
+
 void iarray_write_float(struct iarray_writer *w, float data)
 {
 	union { float f; int i; } cast = { .f = data };

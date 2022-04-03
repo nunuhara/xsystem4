@@ -54,6 +54,18 @@ const char *display_sjis1(const char *sjis)
 #endif
 }
 
+const char *display_sjis2(const char *sjis)
+{
+#ifdef NATIVE_SJIS
+	return sjis;
+#else
+	static char *utf = NULL;
+	free(utf);
+	utf = sjis2utf(sjis, 0);
+	return utf;
+#endif
+}
+
 const char *display_utf0(const char *utf)
 {
 #ifdef NATIVE_SJIS
@@ -67,6 +79,18 @@ const char *display_utf0(const char *utf)
 }
 
 const char *display_utf1(const char *utf)
+{
+#ifdef NATIVE_SJIS
+	static char *sjis = NULL;
+	free(sjis);
+	sjis = utf2sjis(utf, 0);
+	return sjis;
+#else
+	return utf;
+#endif
+}
+
+const char *display_utf2(const char *utf)
 {
 #ifdef NATIVE_SJIS
 	static char *sjis = NULL;

@@ -25,6 +25,7 @@
 #include "system4/utfsjis.h"
 
 #include "hll.h"
+#include "iarray.h"
 #include "audio.h"
 #include "input.h"
 #include "queue.h"
@@ -295,14 +296,20 @@ static int StoatSpriteEngine_Init(void *imain_system, int cg_cache_size)
 	return 1;
 }
 
+static void multisprite_clear(void)
+{
+	for (int t = 0; t < NR_SP_TYPES; t++) {
+		for (int no = 0; no < sp_types[t].nr_sprites; no++) {
+			multisprite_free(sp_types[t].sprites[no]);
+			sp_types[t].sprites[no] = NULL;
+		}
+	}
+}
+
 static void StoatSpriteEngine_ModuleFini(void)
 {
 	sact_ModuleFini();
-	for (int i = 0; i < NR_SP_TYPES; i++) {
-		for (int j = 0; j < sp_types[i].nr_sprites; j++) {
-			multisprite_free(sp_types[i].sprites[j]);
-		}
-	}
+	multisprite_clear();
 }
 
 static void multisprite_update_pos(struct multisprite *ms)
@@ -707,17 +714,130 @@ HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, MultiSprite_Rebuild);
 
 static bool StoatSpriteEngine_MultiSprite_Encode(struct page **data)
 {
-	NOTICE("MultiSprite_Encode");
-	union vm_value dim = { .i = 1 };
+	struct iarray_writer out;
+	iarray_init_writer(&out, "MSP");
+
+	int nr_sprites = 0;
+	unsigned nr_sprites_pos = iarray_writer_pos(&out);
+	iarray_write(&out, 0);
+
+	for (int t = 0; t < NR_SP_TYPES; t++) {
+		if (!sp_types[t].nr_sprites)
+			continue;
+		for (int no = 0; no < sp_types[t].nr_sprites; no++) {
+			struct multisprite *sp = sp_types[t].sprites[no];
+			if (!sp)
+				continue;
+			iarray_write(&out, sp->type);
+			iarray_write(&out, sp->no);
+			iarray_write(&out, sp->z);
+			iarray_write(&out, sp->pos.x);
+			iarray_write(&out, sp->pos.y);
+			iarray_write(&out, sp->default_pos.x);
+			iarray_write(&out, sp->default_pos.y);
+			iarray_write(&out, sp->origin_mode);
+			iarray_write(&out, sp->alpha);
+			iarray_write(&out, sp->cg);
+			iarray_write(&out, sp->moving);
+			iarray_write(&out, sp->move.start.x);
+			iarray_write(&out, sp->move.start.y);
+			iarray_write(&out, sp->move.end.x);
+			iarray_write(&out, sp->move.end.y);
+			iarray_write(&out, sp->move.start_alpha);
+			iarray_write(&out, sp->move.end_alpha);
+			iarray_write(&out, sp->move.begin_wait_time);
+			iarray_write(&out, sp->move.time);
+			iarray_write_float(&out, sp->move.move_accel);
+			iarray_write(&out, sp->trans.no);
+			iarray_write(&out, sp->trans.time);
+			iarray_write(&out, sp->linked_message_frame);
+			iarray_write(&out, sp->tm.color.r);
+			iarray_write(&out, sp->tm.color.g);
+			iarray_write(&out, sp->tm.color.b);
+			iarray_write(&out, sp->tm.color.a);
+			iarray_write(&out, sp->tm.outline_color.r);
+			iarray_write(&out, sp->tm.outline_color.g);
+			iarray_write(&out, sp->tm.outline_color.b);
+			iarray_write(&out, sp->tm.outline_color.a);
+			iarray_write(&out, sp->tm.size);
+			iarray_write(&out, sp->tm.weight);
+			iarray_write(&out, sp->tm.face);
+			iarray_write(&out, sp->tm.outline_left);
+			iarray_write(&out, sp->tm.outline_up);
+			iarray_write(&out, sp->tm.outline_right);
+			iarray_write(&out, sp->tm.outline_down);
+			iarray_write(&out, sp->char_space);
+			nr_sprites++;
+		}
+	}
+	iarray_write_at(&out, nr_sprites_pos, nr_sprites);
+
 	if (*data) {
 		delete_page_vars(*data);
 		free_page(*data);
 	}
-	*data = alloc_array(1, &dim, AIN_ARRAY_INT, 0, false);
+	*data = iarray_to_page(&out);
+	iarray_free_writer(&out);
 	return true;
 }
 
-HLL_WARN_UNIMPLEMENTED(true, bool, StoatSpriteEngine, MultiSprite_Decode, struct page **data);
+static bool StoatSpriteEngine_MultiSprite_Decode(struct page **data)
+{
+	struct iarray_reader in;
+	if (!iarray_init_reader(&in, *data, "MSP")) {
+		WARNING("MultiSprite_Decode: invalid data");
+		return false;
+	}
+
+	multisprite_clear();
+
+	int nr_sprites = iarray_read(&in);
+	for (int i = 0; i < nr_sprites; i++) {
+		int type = iarray_read(&in);
+		int no = iarray_read(&in);
+		struct multisprite *sp = multisprite_get(type, no);
+		sp->z = iarray_read(&in);
+		sp->pos.x = iarray_read(&in);
+		sp->pos.y = iarray_read(&in);
+		sp->default_pos.x = iarray_read(&in);
+		sp->default_pos.y = iarray_read(&in);
+		sp->origin_mode = iarray_read(&in);
+		sp->alpha = iarray_read(&in);
+		sp->cg = iarray_read(&in);
+		sp->cg_dirty = true;
+		sp->moving = iarray_read(&in);
+		sp->move.start.x = iarray_read(&in);
+		sp->move.start.y = iarray_read(&in);
+		sp->move.end.x = iarray_read(&in);
+		sp->move.end.y = iarray_read(&in);
+		sp->move.start_alpha = iarray_read(&in);
+		sp->move.end_alpha = iarray_read(&in);
+		sp->move.begin_wait_time = iarray_read(&in);
+		sp->move.time = iarray_read(&in);
+		sp->move.move_accel = iarray_read_float(&in);
+		sp->trans.no = iarray_read(&in);
+		sp->trans.time = iarray_read(&in);
+		sp->linked_message_frame = iarray_read(&in);
+		sp->tm.color.r = iarray_read(&in);
+		sp->tm.color.g = iarray_read(&in);
+		sp->tm.color.b = iarray_read(&in);
+		sp->tm.color.a = iarray_read(&in);
+		sp->tm.outline_color.r = iarray_read(&in);
+		sp->tm.outline_color.g = iarray_read(&in);
+		sp->tm.outline_color.b = iarray_read(&in);
+		sp->tm.outline_color.a = iarray_read(&in);
+		sp->tm.size = iarray_read(&in);
+		sp->tm.weight = iarray_read(&in);
+		sp->tm.face = iarray_read(&in);
+		sp->tm.outline_left = iarray_read(&in);
+		sp->tm.outline_up = iarray_read(&in);
+		sp->tm.outline_right = iarray_read(&in);
+		sp->tm.outline_down = iarray_read(&in);
+		sp->char_space = iarray_read(&in);
+	}
+
+	return !in.error;
+}
 
 int StoatSpriteEngine_SYSTEM_IsResetOnce(void)
 {

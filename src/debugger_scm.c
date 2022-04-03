@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <chibi/eval.h>
 
+#include "system4/ain.h"
 #include "system4/file.h"
 #include "system4/instructions.h"
 #include "system4/string.h"

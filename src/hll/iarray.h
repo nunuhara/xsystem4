@@ -34,10 +34,16 @@ struct iarray_writer {
 void iarray_init_writer(struct iarray_writer *w, const char *header);
 void iarray_free_writer(struct iarray_writer *w);
 void iarray_write(struct iarray_writer *w, int data);
+void iarray_write_at(struct iarray_writer *w, unsigned pos, int data);
 void iarray_write_float(struct iarray_writer *w, float data);
 void iarray_write_string(struct iarray_writer *w, struct string *s);
 void iarray_write_struct(struct iarray_writer *w, struct page *page);
 void iarray_write_array(struct iarray_writer *w, struct page *page);
+
+static inline unsigned iarray_writer_pos(struct iarray_writer *w)
+{
+	return w->size;
+}
 
 struct page *iarray_to_page(struct iarray_writer *w);
 

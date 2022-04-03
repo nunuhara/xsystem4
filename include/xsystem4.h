@@ -47,8 +47,10 @@ extern struct config config;
 // text to printf-like functions
 const char *display_sjis0(const char *sjis);
 const char *display_sjis1(const char *sjis);
+const char *display_sjis2(const char *sjis);
 const char *display_utf0(const char *utf);
 const char *display_utf1(const char *utf);
+const char *display_utf2(const char *utf);
 
 char *unix_path(const char *path);
 char *gamedir_path(const char *path);
