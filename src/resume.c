@@ -57,6 +57,11 @@ static cJSON *value_to_json(union vm_value v)
 	return cJSON_CreateNumber(v.i);
 }
 
+static int get_number(int i, void *data)
+{
+	return ((union vm_value*)data)[i].i;
+}
+
 static cJSON *resume_page_to_json(struct page *page)
 {
 	if (!page)
@@ -70,10 +75,7 @@ static cJSON *resume_page_to_json(struct page *page)
 		cJSON_AddNumberToObject(json, "rank", page->array.rank);
 	}
 
-	cJSON *values = cJSON_CreateArray();
-	for (int i = 0; i < page->nr_vars; i++) {
-		cJSON_AddItemToArray(values, value_to_json(page->values[i]));
-	}
+	cJSON *values = cJSON_CreateIntArray_cb(page->nr_vars, get_number, page->values);
 
 	cJSON_AddItemToObject(json, "values", values);
 	return json;
@@ -213,14 +215,10 @@ static void load_page(int slot, cJSON *json)
 
 	heap[slot].page = page;
 	heap[slot].type = VM_PAGE;
-	if (slot == 46)
-		NOTICE("SLOT 46 IS PAGE");
 }
 
 static void load_string(int slot, cJSON *json)
 {
-	if (slot == 46)
-		NOTICE("SLOT 46 IS STRING");
 	const char *str = cJSON_GetStringValue(json);
 	heap[slot].s = make_string(str, strlen(str));
 	heap[slot].type = VM_STRING;
