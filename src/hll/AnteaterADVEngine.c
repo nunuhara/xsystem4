@@ -219,6 +219,7 @@ bool ADVLogList_Save(struct page **iarray)
 		free_page(*iarray);
 	}
 	*iarray = iarray_to_page(&b);
+	iarray_free_writer(&b);
 	return true;
 }
 
