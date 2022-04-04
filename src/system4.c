@@ -41,6 +41,8 @@
 
 #include "version.h"
 
+void apply_game_specific_hacks(struct ain *ain);
+
 struct config config = {
 	.game_name = NULL,
 	.ain_filename = NULL,
@@ -439,6 +441,8 @@ int main(int argc, char *argv[])
 		ain_free(ain);
 		return 0;
 	}
+
+	apply_game_specific_hacks(ain);
 
 	asset_manager_init();
 
