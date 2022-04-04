@@ -18,6 +18,7 @@
 #include <assert.h>
 #include "system4.h"
 #include "system4/string.h"
+#include "system4/utfsjis.h"
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "iarray.h"
@@ -78,7 +79,13 @@ void iarray_write_float(struct iarray_writer *w, float data)
 void iarray_write_string(struct iarray_writer *w, struct string *s)
 {
 	for (char *p = s->text; *p ;p++) {
-		iarray_write(w, *p);
+		if (SJIS_2BYTE(*p)) {
+			int c = (uint8_t)p[0] | ((uint8_t)p[1] << 8);
+			iarray_write(w, c);
+			p++;
+		} else {
+			iarray_write(w, *p);
+		}
 	}
 	iarray_write(w, 0);
 }
