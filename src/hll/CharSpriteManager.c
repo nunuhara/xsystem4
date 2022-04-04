@@ -164,7 +164,7 @@ static void charsprite_render(struct charsprite *cs)
 	extract_sjis_char(cs->ch->text, ch);
 
 	int w = cs->tm.size;
-	int h = cs->tm.size;
+	int h = cs->tm.size + cs->tm.size/2;
 	if (isascii(ch[0]))
 		w /= 2;
 
