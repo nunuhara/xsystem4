@@ -19,6 +19,7 @@
 #include "system4/utfsjis.h"
 
 #include "vm/page.h"
+#include "xsystem4.h"
 
 #include "AnteaterADVEngine.h"
 #include "iarray.h"
@@ -309,7 +310,14 @@ bool ADVSceneKeeper_AddADVScene(struct page **page)
 		return false;
 	}
 	scenes.data = xrealloc_array(scenes.data, scenes.n, scenes.n+1, sizeof(struct page*));
-	scenes.data[scenes.n++] = copy_page(*page);
+
+	// serialize
+	struct iarray_writer out;
+	iarray_init_writer(&out, "SCN");
+	iarray_write_struct(&out, *page);
+	scenes.data[scenes.n++] = iarray_to_page(&out);
+	iarray_free_writer(&out);
+
 	return true;
 }
 
@@ -323,19 +331,23 @@ bool ADVSceneKeeper_GetADVScene(int index, struct page **page)
 	if (index < 0 || (unsigned)index >= scenes.n)
 		return false;
 
+	// deserialize
+	struct iarray_reader in;
+	if (!iarray_init_reader(&in, scenes.data[index], "SCN"))
+		return false;
+
 	if (*page) {
 		delete_page_vars(*page);
 		free_page(*page);
 	}
 
-	*page = copy_page(scenes.data[index]);
-	return true;
+	*page = iarray_read_struct(&in, scene_struct_no());
+	return !in.error;
 }
 
 void ADVSceneKeeper_Clear(void)
 {
 	for (unsigned i = 0; i < scenes.n; i++) {
-		delete_page_vars(scenes.data[i]);
 		free_page(scenes.data[i]);
 	}
 	free(scenes.data);
@@ -353,11 +365,11 @@ bool ADVSceneKeeper_Save(struct page **iarray)
 	//       this implementation just serializes whatever it's given. Note
 	//       also that the structure of 画面保管_t objects differs between games.
 	struct iarray_writer w;
-	iarray_init_writer(&w, "ADS");
-	iarray_write(&w, 3); // version? Mankuchu puts 3 here
+	iarray_init_writer(&w, "SCS");
+	iarray_write(&w, 0); // version
 	iarray_write(&w, scenes.n);
 	for (unsigned i = 0; i < scenes.n; i++) {
-		iarray_write_struct(&w, scenes.data[i]);
+		iarray_write_array(&w, scenes.data[i]);
 	}
 	*iarray = iarray_to_page(&w);
 	iarray_free_writer(&w);
@@ -372,10 +384,12 @@ bool ADVSceneKeeper_Load(struct page **iarray)
 	ADVSceneKeeper_Clear();
 
 	struct iarray_reader r;
-	iarray_init_reader(&r, *iarray, "ADS");
+	iarray_init_reader(&r, *iarray, "SCS");
 
-	if (iarray_read(&r) != 3)
+	if (iarray_read(&r) != 0) {
+		WARNING("Unsupported version of ADVSceneKeeper 'SCS' data");
 		goto error;
+	}
 
 	int nr_scenes = iarray_read(&r);
 	if (nr_scenes < 0 || nr_scenes > 10000)
@@ -384,9 +398,9 @@ bool ADVSceneKeeper_Load(struct page **iarray)
 	scenes.n = 0;
 	scenes.data = xcalloc(nr_scenes, sizeof(struct page*));
 
-	int struct_type = scene_struct_no();
 	for (int i = 0; i < nr_scenes; i++) {
-		scenes.data[scenes.n++] = iarray_read_struct(&r, struct_type);
+		struct ain_type type = { .data = AIN_ARRAY_INT, .struc = 0, .rank = 0 };
+		scenes.data[scenes.n++] = iarray_read_array(&r, &type);
 		if (r.error)
 			goto error;
 	}
