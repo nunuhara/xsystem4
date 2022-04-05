@@ -320,15 +320,14 @@ static int _gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metr
 	set_font_style(sact_to_sdl_fontstyle(tm->weight));
 
 	int width;
-	char *conv = sjis2utf(msg, strlen(msg));
-	TTF_SizeUTF8(font->font, conv, &width, NULL);
+	TTF_SizeUTF8(font->font, msg, &width, NULL);
 
 	pos.y -= (TTF_FontAscent(font->font) - font->size * 0.9);
 
 	glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
 	if (tm->outline_left || tm->outline_up || tm->outline_right || tm->outline_down) {
 		Texture outline;
-		get_glyph(font->font, &outline, conv, tm->outline_color);
+		get_glyph(font->font, &outline, msg, tm->outline_color);
 		// XXX: This wont work if the outline size is larger than the stroke size
 		//      of the font itself.
 		if (tm->outline_left) {
@@ -351,12 +350,11 @@ static int _gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metr
 	}
 
 	Texture glyph;
-	get_glyph(font->font, &glyph, conv, tm->color);
+	get_glyph(font->font, &glyph, msg, tm->color);
 	render_glyph(dst, &glyph, pos);
 	gfx_delete_texture(&glyph);
 	glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
 
-	free(conv);
 	return width;
 }
 
@@ -380,7 +378,13 @@ int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm,
 	int original_x = pos.x;
 	while (*msg) {
 		int len = extract_sjis_char(msg, c);
-		_gfx_render_text(dst, pos, c, tm);
+		if (msg[0] == '^' && game_rance02_mg) {
+			_gfx_render_text(dst, pos, "\xc3\xa9", tm);
+		} else {
+			char *utf = sjis2utf(c, len);
+			_gfx_render_text(dst, pos, utf, tm);
+			free(utf);
+		}
 		pos.x += (len == 2 ? tm->size : tm->size / 2) + char_space;
 		msg += len;
 	}

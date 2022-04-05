@@ -29,6 +29,8 @@
 
 #include "hll/hll.h"
 
+bool game_rance02_mg = false;
+
 static void write_instruction0(struct buffer *out, enum opcode op)
 {
 	buffer_write_int16(out, op);
@@ -99,6 +101,8 @@ static void apply_rance02_hacks(struct ain *ain)
 	write_instruction0(&out, RETURN);
 
 	write_instruction1(&out, ENDFUNC, fno);
+
+	game_rance02_mg = true;
 }
 
 void apply_game_specific_hacks(struct ain *ain)

@@ -164,7 +164,9 @@ static void charsprite_render(struct charsprite *cs)
 	char ch[3];
 	extract_sjis_char(cs->ch->text, ch);
 
-	if (ch[0] == '}' && !strcmp(config.game_name, "Rance 02")) {
+	// XXX: this is handled here and not in gfx_render_text because of the
+	//      width calculation below
+	if (ch[0] == '}' && game_rance02_mg) {
 		ch[0] = 0x81;
 		ch[1] = 0x5c;
 		ch[2] = 0;
