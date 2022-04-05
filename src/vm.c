@@ -1985,6 +1985,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case SH_S_ASSIGN_CALLSYS19: {
 		struct string *name = get_func_stack_name(stack_pop().i);
 		heap_string_assign(stack_pop().i, name);
+		free_string(name);
 		break;
 	}
 	case SH_S_ASSIGN_STR0: {
