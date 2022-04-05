@@ -64,17 +64,22 @@ static void apply_rance02_hacks(struct ain *ain)
 	buffer_seek(&out, f->address);
 
 	// _CalculateWidth(ref string str, int nFontSize, int nWeightSize) {
-	//     if (str[0] > 255)
+	//     if (str[0] > 255 || str[0] == '}')
 	//         return nFontSize + nWeightSize;
 	//     return nFontSize / 2 + nWeightSize;
 	// }
 
-	// if (str[0] > 255)
+	// if (str[0] > 255 || str[0] == '}')
 	write_instruction1(&out, SH_LOCALREF, 0);
 	write_instruction1(&out, PUSH, 0);
 	write_instruction0(&out, C_REF);
+	write_instruction0(&out, DUP);
 	write_instruction1(&out, PUSH, 255);
 	write_instruction0(&out, GT);
+	write_instruction0(&out, SWAP);
+	write_instruction1(&out, PUSH, '}');
+	write_instruction0(&out, EQUALE);
+	write_instruction0(&out, OR);
 	int ifz_addr = out.index;
 	write_instruction1(&out, IFZ, 0);
 
