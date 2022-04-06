@@ -175,13 +175,13 @@ enum font_face gfx_get_font_face(void)
 	return font_metrics.face;
 }
 
-bool gfx_set_font_weight(enum font_weight weight)
+bool gfx_set_font_weight(int weight)
 {
 	font_metrics.weight = weight;
 	return true;
 }
 
-enum font_weight gfx_get_font_weight(void)
+int gfx_get_font_weight(void)
 {
 	return font_metrics.weight;
 }
@@ -292,17 +292,16 @@ static void render_glyph(Texture *dst, Texture *glyph, Point pos)
 
 static int sact_to_sdl_fontstyle(int style)
 {
-	switch (style) {
-	case FW_NORMAL:
-	case FW_NORMAL2:
-		return 0;
-	case FW_BOLD:
-	case FW_BOLD2:
-		return TTF_STYLE_BOLD;
-	default:
-		WARNING("Unknown fontstyle: %d", style);
-		return 0;
-	}
+	// FIXME:    0 - 550  is LIGHT
+	//         551 - 999  is BOLD
+	//               1000 is LIGHT
+	//        1001 - 1550 is MEDIUM
+	//        1551 - 1999 is HEAVY-BOLD
+	//        [THEN ALTERNATING MEDIUM/HEAVY-BOLD]
+	//
+	// SDL_ttf only has normal and bold...
+	style %= 1000;
+	return (style % 1000) < 551 ? 0 : TTF_STYLE_BOLD;
 }
 
 // NOTE: This is the SACT2 text rendering interface.

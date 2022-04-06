@@ -138,7 +138,7 @@ void gfx_copy_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx,
 void gfx_fill_with_alpha(Texture *dst, int x, int y, int w, int h, int r, int g, int b, int a);
 void gfx_copy_stretch_with_alpha_map(Texture *dst, int dx, int dy, int dw, int dh, Texture *src, int sx, int sy, int sw, int sh);
 
-enum font_weight {
+enum {
 	FW_NORMAL = 400,
 	FW_BOLD   = 700,
 	FW_NORMAL2 = 1400,
@@ -156,7 +156,7 @@ struct text_metrics {
 	SDL_Color color;
 	SDL_Color outline_color;
 	unsigned int size;
-	enum font_weight weight;
+	int weight;
 	enum font_face face;
 	int outline_left;
 	int outline_up;
@@ -179,7 +179,7 @@ bool gfx_set_font(enum font_face face, unsigned int size);
 
 bool gfx_set_font_size(unsigned int size);
 bool gfx_set_font_face(enum font_face face);
-bool gfx_set_font_weight(enum font_weight weight);
+bool gfx_set_font_weight(int weight);
 bool gfx_set_font_underline(bool on);
 bool gfx_set_font_strikeout(bool on);
 bool gfx_set_font_space(int space);
@@ -187,7 +187,7 @@ bool gfx_set_font_color(SDL_Color color);
 
 int gfx_get_font_size(void);
 enum font_face gfx_get_font_face(void);
-enum font_weight gfx_get_font_weight(void);
+int gfx_get_font_weight(void);
 bool gfx_get_font_underline(void);
 bool gfx_get_font_strikeout(void);
 int gfx_get_font_space(void);
