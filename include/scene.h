@@ -44,7 +44,6 @@ extern bool scene_is_dirty;
 void scene_register_sprite(struct sprite *sp);
 void scene_unregister_sprite(struct sprite *sp);
 void scene_render(void);
-void scene_flip(void);
 int scene_set_wp(int cg_no);
 int scene_set_wp_color(int r, int g, int b);
 void scene_set_sprite_z(struct sprite *sp, int z);

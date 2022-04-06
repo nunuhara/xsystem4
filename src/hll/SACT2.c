@@ -138,7 +138,8 @@ int sact_Update(void)
 	dungeon_update();
 	if (scene_is_dirty) {
 		scene_render();
-		scene_flip();
+		gfx_swap();
+		scene_is_dirty = false;
 	}
 	return 1;
 }

@@ -81,12 +81,6 @@ void scene_render(void)
 	}
 }
 
-void scene_flip(void)
-{
-	gfx_swap();
-	scene_is_dirty = false;
-}
-
 int scene_set_wp(int cg_no) {
 	if (!cg_no) {
 		gfx_delete_texture(&wp);

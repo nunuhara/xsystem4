@@ -298,7 +298,7 @@ void handle_events(void)
 		case SDL_WINDOWEVENT:
 			switch (e.window.event) {
 			case SDL_WINDOWEVENT_EXPOSED:
-				scene_flip();
+				gfx_swap();
 				break;
 			case SDL_WINDOWEVENT_ENTER:
 				mouse_focus = true;
@@ -314,7 +314,7 @@ void handle_events(void)
 				break;
 			case SDL_WINDOWEVENT_SIZE_CHANGED:
 				gfx_update_screen_scale();
-				scene_flip();
+				gfx_swap();
 				break;
 			}
 			break;
