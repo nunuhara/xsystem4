@@ -255,7 +255,10 @@ static void delete_heap(void)
 static void alloc_heap_slot(int slot)
 {
 	if ((size_t)slot >= heap_size) {
-		heap_grow(heap_size * 2);
+		size_t next_size = heap_size * 2;
+		while ((size_t)slot >= next_size)
+			next_size *= 2;
+		heap_grow(next_size);
 	}
 	heap_free_stack[slot] = heap_free_stack[heap_free_ptr];
 	heap_free_ptr++;
