@@ -694,6 +694,7 @@ static void StoatSpriteEngine_MultiSprite_EndAllMove(void)
 			struct multisprite *ms = sp_types[i].sprites[j];
 			if (ms && ms->moving) {
 				ms->pos = ms->move.end;
+				ms->moving = false;
 			}
 		}
 	}
