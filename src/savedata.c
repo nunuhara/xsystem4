@@ -103,7 +103,7 @@ int save_json(const char *filename, cJSON *json)
 	char *path = savedir_path(filename);
 	FILE *f = file_open_utf8(path, "w");
 	if (!f) {
-		WARNING("Failed to open save file: %s: %s", filename, strerror(errno));
+		WARNING("Failed to open save file: %s: %s", display_utf0(filename), strerror(errno));
 		free(path);
 		return 0;
 	}
@@ -117,7 +117,7 @@ int save_json(const char *filename, cJSON *json)
 		return 0;
 	}
 	if (fclose(f)) {
-		WARNING("Error writing save to file: %s: %s", filename, strerror(errno));
+		WARNING("Error writing save to file: %s: %s", display_utf0(filename), strerror(errno));
 		free(str);
 		return 0;
 	}
@@ -159,7 +159,7 @@ int save_group(const char *keyname, const char *filename, const char *group_name
 	int group;
 
 	if ((group = get_group_index(group_name)) < 0) {
-		WARNING("Unregistered global group: %s", group_name);
+		WARNING("Unregistered global group: %s", display_sjis0(group_name));
 		return 0;
 	}
 
@@ -281,7 +281,7 @@ static cJSON *read_save_file(const char *filename)
 	char *path = savedir_path(filename);
 
 	if (!(f = file_open_utf8(path, "r"))) {
-		WARNING("Failed to open save file: %s: %s", filename, strerror(errno));
+		WARNING("Failed to open save file: %s: %s", display_utf0(filename), strerror(errno));
 		free(path);
 		return NULL;
 	}
@@ -294,7 +294,7 @@ static cJSON *read_save_file(const char *filename)
 	buf = xmalloc(len+1);
 	buf[len] = '\0';
 	if (fread(buf, len, 1, f) != 1) {
-		WARNING("Failed to read save file: %s", filename);
+		WARNING("Failed to read save file: %s", display_utf0(filename));
 		free(buf);
 		return 0;
 	}
@@ -318,7 +318,7 @@ int load_globals(const char *keyname, const char *filename, const char *group_na
 
 	cJSON *key = cJSON_GetObjectItem(save, "key");
 	if (!key || strcmp(keyname, cJSON_GetStringValue(key)))
-		VM_ERROR("Attempted to load save data with wrong key: %s", keyname);
+		VM_ERROR("Attempted to load save data with wrong key: %s", display_sjis0(keyname));
 
 	if (group_name) {
 		// TODO?
@@ -373,7 +373,7 @@ int delete_save_file(const char *filename)
 		return 0;
 	}
 	if (remove(path)) {
-		WARNING("remove(\"%s\"): %s", path, strerror(errno));
+		WARNING("remove(\"%s\"): %s", display_utf0(path), strerror(errno));
 		free(path);
 		return 0;
 	}

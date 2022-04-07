@@ -105,7 +105,7 @@ static void MainEXFile_ModuleInit(void)
 {
 	// load .ex file
 	if (!config.ex_path || !(ex = ex_read_file(config.ex_path)))
-		ERROR("Failed to load .ex file: %s", config.ex_path);
+		ERROR("Failed to load .ex file: %s", display_utf0(config.ex_path));
 
 	// assign IDs to each ex_value
 	int id = 1;

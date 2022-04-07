@@ -55,7 +55,7 @@ static bool get_file_list(struct string *folder_name, struct page **out, bool fo
 
 	UDIR *d = opendir_utf8(dir_name);
 	if (!d) {
-		WARNING("opendir(\"%s\"): %s", dir_name, strerror(errno));
+		WARNING("opendir(\"%s\"): %s", display_utf0(dir_name), strerror(errno));
 		free(dir_name);
 		return false;
 	}
@@ -75,7 +75,7 @@ static bool get_file_list(struct string *folder_name, struct page **out, bool fo
 
 		ustat s;
 		if (stat_utf8(utf8_path, &s) < 0) {
-			WARNING("stat(\"%s\"): %s", utf8_path, strerror(errno));
+			WARNING("stat(\"%s\"): %s", display_utf0(utf8_path), strerror(errno));
 			goto loop_next;
 		}
 		if (folders) {

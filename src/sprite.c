@@ -124,7 +124,7 @@ int sprite_save_cg(struct sact_sprite *sp, const char *path)
 	};
 	FILE *fp = file_open_utf8(path, "wb");
 	if (!fp) {
-		WARNING("Failed to open %s: %s", path, strerror(errno));
+		WARNING("Failed to open %s: %s", display_utf0(path), strerror(errno));
 		free(pixels);
 		return 0;
 	}

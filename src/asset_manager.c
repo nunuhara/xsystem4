@@ -104,7 +104,7 @@ void asset_manager_init(void)
 	char *d_name;
 
 	if (!(dir = opendir_utf8(config.game_dir))) {
-		ERROR("Failed to open directory: %s", config.game_dir);
+		ERROR("Failed to open directory: %s", display_utf0(config.game_dir));
 	}
 
 	char *base = get_base_name(config.ain_filename);
@@ -121,7 +121,7 @@ void asset_manager_init(void)
 		if (!strcasecmp(ext, "ald")) {
 			int dno = toupper(d_name[base_len+1]) - 'A';
 			if (dno < 0 || dno >= ALD_FILEMAX) {
-				WARNING("Invalid ALD index: %s", d_name);
+				WARNING("Invalid ALD index: %s", display_utf0(d_name));
 				goto loop_next;
 			}
 
@@ -147,7 +147,7 @@ void asset_manager_init(void)
 				ald_count[ASSET_DATA] = max(ald_count[ASSET_DATA], dno+1);
 				break;
 			default:
-				WARNING("Unhandled ALD file: %s", d_name);
+				WARNING("Unhandled ALD file: %s", display_utf0(d_name));
 				break;
 			}
 		} else if (!strcasecmp(ext, "bgi")) {
@@ -245,7 +245,7 @@ static void add_cg_to_index(struct archive_data *data, possibly_unused void *_)
 {
 	int logical_no = cg_name_to_int(data->name);
 	if (logical_no < 0) {
-		WARNING("Can't determine logical index for CG: %s", data->name);
+		WARNING("Can't determine logical index for CG: %s", display_sjis0(data->name));
 		return;
 	}
 

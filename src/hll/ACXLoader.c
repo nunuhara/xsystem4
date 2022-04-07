@@ -50,9 +50,9 @@ static bool ACXLoader_Load(struct string *filename)
 	}
 
 	if (error == ACX_ERROR_FILE) {
-		WARNING("acx_load(\"%s\"): %s", path, strerror(errno));
+		WARNING("acx_load(\"%s\"): %s", display_utf0(path), strerror(errno));
 	} else if (error == ACX_ERROR_INVALID) {
-		WARNING("acx_load(\"%s\"): invalid .acx file");
+		WARNING("acx_load(\"%s\"): invalid .acx file", display_utf0(path));
 	}
 	free(path);
 	return !!acx;

@@ -32,7 +32,7 @@ static int BanMisc_SaveStruct(struct page *page, struct string *file_name)
 	char *path = unix_path(file_name->text);
 	FILE *fp = file_open_utf8(path, "w");
 	if (!fp) {
-		WARNING("Failed to open file '%s': %s", path, strerror(errno));
+		WARNING("Failed to open file '%s': %s", display_utf0(path), strerror(errno));
 		free(path);
 		return 0;
 	}
@@ -62,7 +62,7 @@ static int BanMisc_LoadStruct(struct page **_page, struct string *file_name)
 	char *path = unix_path(file_name->text);
 	FILE *fp = file_open_utf8(path, "r");
 	if (!fp) {
-		WARNING("Failed to open file '%s': %s", path, strerror(errno));
+		WARNING("Failed to open file '%s': %s", display_utf0(path), strerror(errno));
 		free(path);
 		return 0;
 	}

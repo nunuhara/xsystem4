@@ -103,7 +103,7 @@ bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*
 	free(name);
 
 	if (fno < 0) {
-		DBG_ERROR("No function with name '%s'", _name);
+		DBG_ERROR("No function with name '%s'", display_sjis0(_name));
 		return false;
 	}
 
@@ -113,11 +113,11 @@ bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*
 	breakpoints[nr_breakpoints].cb = cb;
 	breakpoints[nr_breakpoints].data = data;
 	breakpoints[nr_breakpoints].message = xmalloc(512);
-	snprintf(breakpoints[nr_breakpoints].message, 511, "Hit breakpoint at function '%s' (0x%08x)", _name, f->address);
+	snprintf(breakpoints[nr_breakpoints].message, 511, "Hit breakpoint at function '%s' (0x%08x)", display_sjis0(_name), f->address);
 	LittleEndian_putW(ain->code, f->address, BREAKPOINT + nr_breakpoints);
 	nr_breakpoints++;
 
-	NOTICE("Set breakpoint at function '%s' (0x%08x)", _name, f->address);
+	NOTICE("Set breakpoint at function '%s' (0x%08x)", display_sjis0(_name), f->address);
 	return true;
 }
 
@@ -171,9 +171,7 @@ void dbg_print_stack_trace(void)
 {
 	for (int i = call_stack_ptr - 1, j = 0; i >= 0; i--, j++) {
 		struct ain_function *f = &ain->functions[call_stack[i].fno];
-		char *u = sjis2utf(f->name, strlen(f->name));
 		uint32_t addr = (i == call_stack_ptr - 1) ? instr_ptr : call_stack[i+1].call_address;
-		NOTICE("#%d 0x%08x in %s", j, addr, u);
-		free(u);
+		NOTICE("#%d 0x%08x in %s", j, addr, display_sjis0(f->name));
 	}
 }

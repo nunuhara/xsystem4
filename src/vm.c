@@ -256,7 +256,7 @@ static int alloc_scenario_page(const char *fname)
 	struct ain_function *f;
 
 	if ((fno = get_function_by_name(fname)) < 0)
-		VM_ERROR("Invalid scenario function: %s", fname);
+		VM_ERROR("Invalid scenario function: %s", display_sjis0(fname));
 	f = &ain->functions[fno];
 
 	slot = heap_alloc_slot(VM_PAGE);
@@ -444,30 +444,25 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_OUTPUT: {// system.Output(string szText)
 		struct string *str = stack_peek_string(0);
-		char *utf = sjis2utf(str->text, str->size);
-		sys_message("%s", utf);
-		free(utf);
+		sys_message("%s", display_sjis0(str->text));
 		// XXX: caller S_POPs
 		break;
 	}
 	case SYS_MSGBOX: {
 		struct string *str = stack_peek_string(0);
-		char *utf = sjis2utf(str->text, str->size);
-		SDL_ShowSimpleMessageBox(0, "xsystem4", utf, NULL);
-		free(utf);
+		SDL_ShowSimpleMessageBox(0, "xsystem4", display_sjis0(str->text), NULL);
 		// XXX: caller S_POPs
 		break;
 	}
 	case SYS_MSGBOX_OK_CANCEL: {
 		int result = 0;
 		struct string *str = stack_peek_string(0);
-		char *utf = sjis2utf(str->text, str->size);
 
 		const SDL_MessageBoxData mbox = {
 			SDL_MESSAGEBOX_INFORMATION,
 			NULL,
 			"xsystem4",
-			utf,
+			display_sjis0(str->text),
 			SDL_arraysize(buttons),
 			buttons,
 			NULL
@@ -475,8 +470,6 @@ static void system_call(enum syscall_code code)
 		if (SDL_ShowMessageBox(&mbox, &result)) {
 			WARNING("Error displaying message box");
 		}
-		// ...
-		free(utf);
 		heap_unref(stack_pop().i);
 		stack_push(result);
 		break;
@@ -542,9 +535,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_ERROR: {// system.Error(string szText)
 		struct string *str = stack_peek_string(0);
-		char *utf = sjis2utf(str->text, str->size);
-		sys_warning("*GAME ERROR*: %s\n", utf);
-		free(utf);
+		sys_warning("*GAME ERROR*: %s\n", display_sjis0(str->text));
 		// XXX: caller S_POPs
 		break;
 	}
@@ -961,11 +952,10 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int file = stack_pop().i; // filename
 		int expr = stack_pop().i; // expression
 		if (!stack_pop().i) {
-			char *filename = sjis2utf(heap_get_string(file)->text, heap[file].s->size);
-			char *value = sjis2utf(heap_get_string(expr)->text, heap[expr].s->size);
-			sys_message("Assertion failed at %s:%d: %s\n", filename, line, value);
-			free(filename);
-			free(value);
+			sys_message("Assertion failed at %s:%d: %s\n",
+					display_sjis0(heap_get_string(file)->text),
+					line,
+					display_sjis0(heap_get_string(expr)->text));
 			vm_exit(1);
 		}
 		heap_unref(file);
@@ -2347,19 +2337,13 @@ static void describe_page(struct page *page)
 		sys_message("GLOBAL_PAGE\n");
 		break;
 	case LOCAL_PAGE:
-		u = sjis2utf(ain->functions[page->index].name, 0);
-		sys_message("LOCAL_PAGE: %s\n", u);
-		free(u);
+		sys_message("LOCAL_PAGE: %s\n", display_sjis0(ain->functions[page->index].name));
 		break;
 	case STRUCT_PAGE:
-		u = sjis2utf(ain->structures[page->index].name, 0);
-		sys_message("STRUCT_PAGE: %s\n", u);
-		free(u);
+		sys_message("STRUCT_PAGE: %s\n", display_sjis0(ain->structures[page->index].name));
 		break;
 	case ARRAY_PAGE:
-		u = sjis2utf(ain_strtype(ain, page->a_type, page->array.struct_type), 0);
-		sys_message("ARRAY_PAGE: %s\n", u);
-		free(u);
+		sys_message("ARRAY_PAGE: %s\n", display_sjis0(ain_strtype(ain, page->a_type, page->array.struct_type)));
 		break;
 	case DELEGATE_PAGE:
 		// TODO: list function names
@@ -2377,9 +2361,7 @@ static void describe_slot(size_t slot)
 		break;
 	case VM_STRING:
 		if (heap[slot].s) {
-			char *u = sjis2utf(heap[slot].s->text, heap[slot].s->size);
-			sys_message("STRING: %s\n", u);
-			free(u);
+			sys_message("STRING: %s\n", display_sjis0(heap[slot].s->text));
 		} else {
 			sys_message("STRING: NULL\n");
 		}

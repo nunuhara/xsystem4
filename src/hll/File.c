@@ -54,7 +54,7 @@ static int File_Open(struct string *filename, int type)
 	char *path = unix_path(filename->text);
 	current_file = file_open_utf8(path, mode);
 	if (!current_file) {
-		WARNING("Failed to open file '%s': %s", path, strerror(errno));
+		WARNING("Failed to open file '%s': %s", display_utf0(path), strerror(errno));
 	}
 
 	free(path);

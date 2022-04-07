@@ -18,8 +18,10 @@
 #include <stdlib.h>
 #include "system4.h"
 #include "system4/file.h"
+
 #include "mixer.h"
 #include "little_endian.h"
+#include "xsystem4.h"
 
 #define BGI_MAX 100
 
@@ -46,7 +48,7 @@ void bgi_read(const char *path)
 {
 	FILE *fp = file_open_utf8(path, "rb");
 	if (!fp) {
-		WARNING("Failed to open bgi file: %s", path);
+		WARNING("Failed to open bgi file: %s", display_utf0(path));
 		return;
 	}
 
@@ -104,7 +106,7 @@ void wai_load(const char *path)
 	uint8_t *file = file_read(path, &len);
 
 	if (len < 48 || file[0] != 'X' || file[1] != 'I' || file[2] != '2' || file[3] != '\0') {
-		WARNING("Not a .wai file: %s", path);
+		WARNING("Not a .wai file: %s", display_utf0(path));
 		goto end;
 	}
 	int count = LittleEndian_getDW(file, 8) - 1;

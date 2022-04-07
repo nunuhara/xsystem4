@@ -67,18 +67,18 @@ static void write_register(unsigned handle)
 
 	FILE *f = file_open_utf8(reg->filename, "wb");
 	if (!f) {
-		WARNING("Failed to open PassRegister file: %s: %s", reg->filename, strerror(errno));
+		WARNING("Failed to open PassRegister file: %s: %s", display_utf0(reg->filename), strerror(errno));
 		return;
 	}
 
 	cJSON *json = register_to_json(handle);
 	char *str = cJSON_Print(json);
 	if (fwrite(str, strlen(str), 1, f) != 1) {
-		WARNING("Failed to write PassRegister file: %s: %s", reg->filename, strerror(errno));
+		WARNING("Failed to write PassRegister file: %s: %s", display_utf0(reg->filename), strerror(errno));
 		goto end;
 	}
 	if (fclose(f)) {
-		WARNING("Error writing to save file: %s: %s", reg->filename, strerror(errno));
+		WARNING("Error writing to save file: %s: %s", display_utf0(reg->filename), strerror(errno));
 		goto end;
 	}
 end:

@@ -15,15 +15,17 @@
  */
 
 #include <stdio.h>
-#include "hll.h"
+
+#include "system4.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
+#include "hll.h"
+#include "xsystem4.h"
+
 static void OutputLog_Output(int handle, struct string *s)
 {
-	char *u = sjis2utf(s->text, s->size);
-	printf("%s", u);
-	free(u);
+	sys_message("%s", display_sjis0(s->text));
 }
 
 HLL_WARN_UNIMPLEMENTED(0, int,  OutputLog, Create, struct string *name);

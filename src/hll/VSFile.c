@@ -25,6 +25,7 @@
 
 #include "little_endian.h"
 #include "hll.h"
+#include "xsystem4.h"
 
 static bool vs_read = false;
 static FILE *vs_file = NULL;
@@ -99,7 +100,7 @@ static bool vsfile_open(struct string *filename, bool read)
 	vs_read = read;
 	vs_file = file_open_utf8(u, read ? "rb" : "wb");
 	if (!vs_file) {
-		WARNING("Failed to open '%s': %s", u, strerror(errno));
+		WARNING("Failed to open '%s': %s", display_utf0(u), strerror(errno));
 	}
 	free(u);
 	return !!vs_file;

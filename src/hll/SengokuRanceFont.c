@@ -297,7 +297,7 @@ static void SengokuRanceFont_ModuleInit(void)
 	char path[PATH_MAX];
 
 	if (!(dir = opendir_utf8(config.game_dir))) {
-		ERROR("Failed to open directory: %s", config.game_dir);
+		ERROR("Failed to open directory: %s", display_utf0(config.game_dir));
 	}
 
 	while ((d_name = readdir_utf8(dir))) {
@@ -310,7 +310,7 @@ static void SengokuRanceFont_ModuleInit(void)
 		snprintf(path, PATH_MAX, "%s/%s", config.game_dir, d_name);
 		fontlib = fnl_open(path);
 		if (!(fontlib = fnl_open(path)))
-			ERROR("Error opening font library '%s'", path);
+			ERROR("Error opening font library '%s'", display_utf0(path));
 		if (fontlib->nr_fonts < 1)
 			ERROR("Font library doesn't contain any fonts");
 		break;

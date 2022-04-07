@@ -239,9 +239,7 @@ void gfx_set_font_name(const char *name)
 	} else if (!strcmp(name, gothic_name)) {
 		font_metrics.face = FONT_GOTHIC;
 	} else {
-		char *u = sjis2utf(name, 0);
-		WARNING("Unhandled font name: \"%s\"", u);
-		free(u);
+		WARNING("Unhandled font name: \"%s\"", display_sjis0(name));
 	}
 }
 
@@ -249,7 +247,7 @@ static void get_glyph(TTF_Font *f, Texture *dst, char *msg, SDL_Color color)
 {
 	SDL_Surface *s = TTF_RenderUTF8_Blended(f, msg, color);
 	if (!s) {
-		WARNING("Text rendering failed: %s", msg);
+		WARNING("Text rendering failed: %s", display_utf0(msg));
 		return;
 	}
 	if (s->format->format != SDL_PIXELFORMAT_RGBA32) {

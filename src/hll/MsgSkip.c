@@ -41,7 +41,7 @@ static void msgskip_save(void)
 {
 	FILE *f = file_open_utf8(save_path, "wb");
 	if (!f)
-		ERROR("fopen: '%s': %s", save_path, strerror(errno));
+		ERROR("fopen: '%s': %s", display_utf0(save_path), strerror(errno));
 
 	fwrite(flags, nr_flags, 1, f);
 	fclose(f);
@@ -66,7 +66,7 @@ static int MsgSkip_Init(struct string *name)
 		data_size = ain->nr_messages;
 	}
 	if (data_size != (size_t)ain->nr_messages) {
-		WARNING("Incorrect file size for MsgSkip file '%s'", save_path);
+		WARNING("Incorrect file size for MsgSkip file '%s'", display_utf0(save_path));
 		if (data_size < (size_t)ain->nr_messages) {
 			data = xrealloc_array(data, data_size, ain->nr_messages, 1);
 		}

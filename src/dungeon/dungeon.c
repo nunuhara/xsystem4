@@ -91,9 +91,9 @@ static GLuint *load_event_textures(int *nr_textures_out)
 	int error = ARCHIVE_SUCCESS;
 	struct alk_archive *alk = alk_open(path, ARCHIVE_MMAP, &error);
 	if (error == ARCHIVE_FILE_ERROR) {
-		WARNING("alk_open(\"%s\"): %s", path, strerror(errno));
+		WARNING("alk_open(\"%s\"): %s", display_utf0(path), strerror(errno));
 	} else if (error == ARCHIVE_BAD_ARCHIVE_ERROR) {
-		WARNING("alk_open(\"%s\"): invalid .alk file", path);
+		WARNING("alk_open(\"%s\"): invalid .alk file", display_utf0(path));
 	}
 	free(path);
 	if (!alk)
@@ -138,9 +138,9 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 		int error = ARCHIVE_SUCCESS;
 		struct archive *dlf = (struct archive *)dlf_open(path, ARCHIVE_MMAP, &error);
 		if (error == ARCHIVE_FILE_ERROR) {
-			WARNING("dlf_open(\"%s\"): %s", path, strerror(errno));
+			WARNING("dlf_open(\"%s\"): %s", display_utf0(path), strerror(errno));
 		} else if (error == ARCHIVE_BAD_ARCHIVE_ERROR) {
-			WARNING("dlf_open(\"%s\"): invalid .dlf file", path);
+			WARNING("dlf_open(\"%s\"): invalid .dlf file", display_utf0(path));
 		}
 		free(path);
 		if (!dlf)

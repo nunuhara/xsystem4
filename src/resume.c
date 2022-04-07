@@ -344,7 +344,7 @@ void vm_load_image(const char *key, const char *path)
 {
 	cJSON *save = read_image(key, path);
 	if (!save) {
-		VM_ERROR("Failed to read VM image: '%s'", path);
+		VM_ERROR("Failed to read VM image: '%s'", display_sjis0(path));
 	}
 	cJSON *ip = type_check(cJSON_Number, cJSON_GetObjectItem(save, "ip"));
 	load_heap(type_check(cJSON_Array, cJSON_GetObjectItem(save, "heap")));

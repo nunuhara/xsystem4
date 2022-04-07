@@ -420,7 +420,7 @@ static void Gpx2Plus_SetFontName(struct string *name)
 	else if (!strcmp(u, "ＭＳ 明朝"))
 		gfx_set_font_face(FONT_MINCHO);
 	else
-		WARNING("Unknown font name '%s'", u);
+		WARNING("Unknown font name '%s'", display_utf0(u));
 	free(u);
 }
 
