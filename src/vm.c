@@ -681,9 +681,7 @@ void exec_strswitch(int no, struct string *str)
 
 static void echo_message(int i)
 {
-	char *u = sjis2utf(ain->messages[i]->text, ain->messages[i]->size);
-	NOTICE("MSG %d: %s", i, u);
-	free(u);
+	NOTICE("MSG %d: %s", i, display_sjis0(ain->messages[i]->text));
 }
 
 static enum opcode execute_instruction(enum opcode opcode)
