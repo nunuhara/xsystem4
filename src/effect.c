@@ -150,48 +150,12 @@ static struct effect_shader *effect_shaders[NR_EFFECTS] = {
 	[EFFECT_BLUR_CROSSFADE] = &blur_crossfade_shader,
 };
 
-int sact_Effect(int type, possibly_unused int time, possibly_unused int key)
-{
-	if (type <= 0 || type >= NR_EFFECTS) {
-		WARNING("Invalid or unknown effect: %d", type);
-		return 0;
-	}
-	struct effect_shader *s = effect_shaders[type];
-	if (!s) {
-		WARNING("Unimplemented effect: %s", effect_names[type]);
-		return 0;
-	}
-	// load shader lazily
-	if (!s->s.program) {
-		load_effect_shader(s);
-	}
-
-	// get old & new scene textures
-	Texture old, new;
-	gfx_copy_main_surface(&old);
-	scene_render();
-	gfx_copy_main_surface(&new);
-
-	//effect_callback effect = effects[type];
-	for (int i = 0; i < time; i += 16) {
-		gfx_clear();
-		render_effect_shader(s, &old, &new, (float)i / (float)time);
-		gfx_swap();
-		SDL_Delay(16);
-	}
-
-	gfx_delete_texture(&old);
-	gfx_delete_texture(&new);
-
-	return 1;
-}
-
 static struct {
 	bool on;
 	int type;
 	Texture old;
 	Texture new;
-} trans = {0};
+} effect = {0};
 
 int sact_TRANS_Begin(int type)
 {
@@ -209,29 +173,43 @@ int sact_TRANS_Begin(int type)
 		load_effect_shader(s);
 	}
 
-	trans.on = true;
-	trans.type = type;
-	gfx_copy_main_surface(&trans.old);
+	effect.on = true;
+	effect.type = type;
+	gfx_copy_main_surface(&effect.old);
 	scene_render();
-	gfx_copy_main_surface(&trans.new);
+	gfx_copy_main_surface(&effect.new);
 	return 1;
 }
 
 int sact_TRANS_Update(float rate)
 {
-	if (!trans.on) {
+	if (!effect.on) {
 		return 0;
 	}
 	gfx_clear();
-	render_effect_shader(effect_shaders[trans.type], &trans.old, &trans.new, rate);
+	render_effect_shader(effect_shaders[effect.type], &effect.old, &effect.new, rate);
 	gfx_swap();
 	return 1;
 }
 
 int sact_TRANS_End(void)
 {
-	trans.on = false;
-	gfx_delete_texture(&trans.old);
-	gfx_delete_texture(&trans.new);
+	effect.on = false;
+	gfx_delete_texture(&effect.old);
+	gfx_delete_texture(&effect.new);
+	return 1;
+}
+
+int sact_Effect(int type, possibly_unused int time, possibly_unused int key)
+{
+	if (!sact_TRANS_Begin(type))
+		return 0;
+
+	for (int i = 0; i < time; i+= 16) {
+		sact_TRANS_Update((float)i / (float)time);
+		SDL_Delay(16);
+	}
+
+	sact_TRANS_End();
 	return 1;
 }
