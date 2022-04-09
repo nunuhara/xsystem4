@@ -271,8 +271,17 @@ static void DrawGraph_CopyRotateYUseAMap(int write, int dst, int src, int sx, in
 //void DrawGraph_CopyRotateYFixR(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
 //void DrawGraph_CopyRotateYFixLUseAMap(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
 //void DrawGraph_CopyRotateYFixRUseAMap(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
-//void DrawGraph_CopyRotateX(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
-//void DrawGraph_CopyRotateXUseAMap(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+
+static void DrawGraph_CopyRotateX(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag)
+{
+	gfx_copy_rotate_x(DTEX(write), STEX(dst), STEX(src), sx, sy, w, h, rot, mag);
+}
+
+static void DrawGraph_CopyRotateXUseAMap(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag)
+{
+	gfx_copy_rotate_x_use_amap(DTEX(write), STEX(dst), STEX(src), sx, sy, w, h, rot, mag);
+}
+
 //void DrawGraph_CopyRotateXFixU(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
 //void DrawGraph_CopyRotateXFixD(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
 //void DrawGraph_CopyRotateXFixUUseAMap(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
@@ -397,8 +406,8 @@ HLL_LIBRARY(DrawGraph,
 	    //HLL_EXPORT(CopyRotateYFixR, DrawGraph_CopyRotateYFixR),
 	    //HLL_EXPORT(CopyRotateYFixLUseAMap, DrawGraph_CopyRotateYFixLUseAMap),
 	    //HLL_EXPORT(CopyRotateYFixRUseAMap, DrawGraph_CopyRotateYFixRUseAMap),
-	    //HLL_EXPORT(CopyRotateX, DrawGraph_CopyRotateX),
-	    //HLL_EXPORT(CopyRotateXUseAMap, DrawGraph_CopyRotateXUseAMap),
+	    HLL_EXPORT(CopyRotateX, DrawGraph_CopyRotateX),
+	    HLL_EXPORT(CopyRotateXUseAMap, DrawGraph_CopyRotateXUseAMap),
 	    //HLL_EXPORT(CopyRotateXFixU, DrawGraph_CopyRotateXFixU),
 	    //HLL_EXPORT(CopyRotateXFixD, DrawGraph_CopyRotateXFixD),
 	    //HLL_EXPORT(CopyRotateXFixUUseAMap, DrawGraph_CopyRotateXFixUUseAMap),

@@ -565,6 +565,45 @@ void gfx_copy_rotate_y_use_amap(Texture *dst, Texture *front, Texture *back, int
 	copy_rotate_y(dst, front, back, sx, sy, w, h, rot, mag, &hitbox_shader.s);
 }
 
+static void copy_rotate_x(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag, Shader *shader)
+{
+	Texture *src = front;
+	float flip_y = 1.0;
+	rot = 360.0 - rot;
+	if (rot > 90.0 && rot <= 270.0) {
+		src = back;
+		flip_y = -1.0;
+	}
+
+
+	gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 0);
+
+	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
+	glm_rotate_x(mw_transform, rot * (M_PI/180.0), mw_transform);
+	glm_scale(mw_transform, (vec3){ src->w * mag, src->h * mag * flip_y, 0 });
+	glm_translate(mw_transform, (vec3){ -0.5, -0.5, 0});
+
+	mat4 proj_transform;
+	float fov = 22.5 * (M_PI / 180.0);
+	// calculate the camera distance such that the height at the pivot is unchanged
+	float cam_off = ((float)dst->h * 0.5) / tanf(fov * 0.5);
+	glm_perspective(fov, (float)dst->w / dst->h, 0.1, cam_off + w * mag, proj_transform);
+	glm_translate(proj_transform, (vec3){ 0, 0, -cam_off });
+
+	struct copy_data data = ROTATE_DATA(dst, sx, sy, w, h);
+	run_draw_shader(shader, dst, src, mw_transform, proj_transform, &data);
+}
+
+void gfx_copy_rotate_x(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag)
+{
+	copy_rotate_x(dst, front, back, sx, sy, w, h, rot, mag, &hitbox_noblend_shader.s);
+}
+
+void gfx_copy_rotate_x_use_amap(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag)
+{
+	copy_rotate_x(dst, front, back, sx, sy, w, h, rot, mag, &hitbox_shader.s);
+}
+
 void gfx_copy_reverse_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
 	mat4 mw_transform = MAT4(
