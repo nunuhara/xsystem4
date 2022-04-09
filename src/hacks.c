@@ -23,12 +23,14 @@
 #include "system4/buffer.h"
 #include "system4/instructions.h"
 #include "system4/string.h"
+#include "system4/utfsjis.h"
 
 #include "gfx/gfx.h"
 #include "xsystem4.h"
 
 #include "hll/hll.h"
 
+bool game_daibanchou_en = false;
 bool game_rance02_mg = false;
 
 static void write_instruction0(struct buffer *out, enum opcode op)
@@ -105,9 +107,25 @@ static void apply_rance02_hacks(struct ain *ain)
 	game_rance02_mg = true;
 }
 
+// Daibanchou (English fan translation)
+// ------------------------------------
+// Gpx2Plus.CopyStretchReduceAMap behaves differently in order to work around
+// text rendering issues caused by how the game calculates text width in
+// StructRegionalSelect::DrawMenuItem.
+static void apply_daibanchou_hacks(struct ain *ain)
+{
+	if (ain->nr_strings > 2 && !strcmp(ain->strings[2]->text, "Seijou Academy")) {
+		game_daibanchou_en = true;
+	}
+}
+
 void apply_game_specific_hacks(struct ain *ain)
 {
-	if (!strcmp(config.game_name, "Rance 02")) {
+	char *game_name = sjis2utf(config.game_name, 0);
+	if (!strcmp(game_name, "大番長")) {
+		apply_daibanchou_hacks(ain);
+	} else if (!strcmp(game_name, "Rance 02")) {
 		apply_rance02_hacks(ain);
 	}
+	free(game_name);
 }
