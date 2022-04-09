@@ -102,7 +102,7 @@ HLL_WARN_UNIMPLEMENTED( , void, BanMisc, Init, void *imainsystem);
 
 static void BanMisc_FadePlay(int ch, int num, int time, int volume, int loop)
 {
-	bgm_prepare(ch, num - 1);
+	bgm_prepare(ch, num);
 	bgm_play(ch);
 	// TODO: fading
 }
@@ -126,7 +126,7 @@ HLL_WARN_UNIMPLEMENTED(0, int, BanMisc, IsFade, int ch);
 
 static int BanMisc_SoundLoad(int ch, int num)
 {
-	return wav_prepare(ch, num - 1);
+	return wav_prepare(ch, num);
 }
 
 static void BanMisc_SoundPlay(int ch, int loop)
