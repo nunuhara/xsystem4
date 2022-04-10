@@ -1000,7 +1000,11 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case MOD: {
-		stack[stack_ptr-2].i %= stack[stack_ptr-1].i;
+		if (!stack[stack_ptr-1].i) {
+			stack[stack_ptr-2].i = 0;
+		} else {
+			stack[stack_ptr-2].i %= stack[stack_ptr-1].i;
+		}
 		stack_ptr--;
 		break;
 	}
