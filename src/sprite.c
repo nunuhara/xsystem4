@@ -84,6 +84,34 @@ void sprite_set_cg(struct sact_sprite *sp, struct cg *cg)
 	sprite_dirty(sp);
 }
 
+// XXX: Only used in English Rance VI
+void sprite_set_cg_2x(struct sact_sprite *sp, struct cg *cg)
+{
+	// load CG at 1x
+	Texture tmp;
+	gfx_init_texture_with_cg(&tmp, cg);
+
+	SDL_Color c = { 0, 0, 0, 255 };
+	int w = cg->metrics.w*2;
+	int h = cg->metrics.h*2;
+
+	// upscale into sprite texture
+	gfx_delete_texture(&sp->texture);
+	if (cg->metrics.has_alpha) {
+		gfx_init_texture_rgba(&sp->texture, w, h, c);
+	} else {
+		gfx_init_texture_rgb(&sp->texture, w, h, c);
+	}
+	gfx_copy_stretch_with_alpha_map(&sp->texture, 0, 0, w, h, &tmp, 0, 0, cg->metrics.w, cg->metrics.h);
+
+	sp->rect.w = w;
+	sp->rect.h = h;
+	sp->sp.has_pixel = true;
+	sp->sp.has_alpha = cg->metrics.has_alpha;
+	sp->sp.render = sprite_render;
+	sprite_dirty(sp);
+}
+
 int sprite_set_cg_from_asset(struct sact_sprite *sp, int cg_no)
 {
 	struct cg *cg = asset_cg_load(cg_no);
@@ -93,6 +121,18 @@ int sprite_set_cg_from_asset(struct sact_sprite *sp, int cg_no)
 	sp->cg_no = cg_no;
 	cg_free(cg);
 	return 1;
+}
+
+int sprite_set_cg_2x_from_asset(struct sact_sprite *sp, int cg_no)
+{
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return 0;
+	sprite_set_cg_2x(sp, cg);
+	sp->cg_no = cg_no;
+	cg_free(cg);
+	return 1;
+
 }
 
 int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path)

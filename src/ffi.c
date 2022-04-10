@@ -312,7 +312,9 @@ extern struct static_library lib_IbisInputEngine;
 extern struct static_library lib_InputDevice;
 extern struct static_library lib_InputString;
 extern struct static_library lib_KiwiSoundEngine;
+extern struct static_library lib_LoadCG;
 extern struct static_library lib_MainEXFile;
+extern struct static_library lib_MainSurface;
 extern struct static_library lib_MarmotModelEngine;
 extern struct static_library lib_Math;
 extern struct static_library lib_MapLoader;
@@ -329,6 +331,7 @@ extern struct static_library lib_SACTDX;
 extern struct static_library lib_SengokuRanceFont;
 extern struct static_library lib_SoundFilePlayer;
 extern struct static_library lib_StoatSpriteEngine;
+extern struct static_library lib_StretchHelper;
 extern struct static_library lib_SystemService;
 extern struct static_library lib_SystemServiceEx;
 extern struct static_library lib_Timer;
@@ -367,7 +370,9 @@ static struct static_library *static_libraries[] = {
 	&lib_InputDevice,
 	&lib_InputString,
 	&lib_KiwiSoundEngine,
+	&lib_LoadCG,
 	&lib_MainEXFile,
+	&lib_MainSurface,
 	&lib_MarmotModelEngine,
 	&lib_Math,
 	&lib_MapLoader,
@@ -384,6 +389,7 @@ static struct static_library *static_libraries[] = {
 	&lib_SengokuRanceFont,
 	&lib_SoundFilePlayer,
 	&lib_StoatSpriteEngine,
+	&lib_StretchHelper,
 	&lib_SystemService,
 	&lib_SystemServiceEx,
 	&lib_Timer,

@@ -37,6 +37,7 @@ int sact_SP_Count(void);
 int sact_SP_Enum(struct page **array);
 int sact_SP_GetMaxZ(void);
 int sact_SP_SetCG(int sp, int cg);
+int sact_SP_SetCG2X(int sp_no, int cg_no);
 int sact_SP_SetCGFromFile(int sp, struct string *filename);
 int sact_SP_SaveCG(int sp, struct string *filename);
 int sact_SP_Create(int sp, int width, int height, int r, int g, int b, int a);

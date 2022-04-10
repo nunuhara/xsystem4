@@ -215,6 +215,18 @@ int sact_SP_SetCG(int sp_no, int cg_no)
 	return sprite_set_cg_from_asset(sp, cg_no);
 }
 
+int sact_SP_SetCG2X(int sp_no, int cg_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp)
+		sact_SP_Create(sp_no, 1, 1, 0, 0, 0, 255);
+	if (!(sp = sact_get_sprite(sp_no))) {
+		WARNING("Failed to create sprite");
+		return 0;
+	}
+	return sprite_set_cg_2x_from_asset(sp, cg_no);
+}
+
 int sact_SP_SetCGFromFile(int sp_no, struct string *filename)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
