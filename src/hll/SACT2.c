@@ -115,7 +115,16 @@ void sact_ModuleFini(void)
 
 //int SACT2_Error(struct string *err);
 HLL_WARN_UNIMPLEMENTED(0, int, SACT2, WP_GetSP, int sp);
-//int SACT2_WP_SetSP(int sp);
+
+int sact_WP_SetSP(int sp_no)
+{
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	if (!sp)
+		return 0;
+	if (!sp->texture.handle)
+		return 0;
+	return scene_set_wp_texture(&sp->texture);
+}
 
 int sact_GetScreenWidth(void)
 {
@@ -763,7 +772,7 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_EXPORT(SetWP, sact_SetWP), \
 	    HLL_EXPORT(SetWP_Color, sact_SetWP_Color), \
 	    HLL_EXPORT(WP_GetSP, SACT2_WP_GetSP), \
-	    HLL_TODO_EXPORT(WP_SetSP, SACT2_WP_SetSP), \
+	    HLL_EXPORT(WP_SetSP, sact_WP_SetSP), \
 	    HLL_EXPORT(GetScreenWidth, sact_GetScreenWidth), \
 	    HLL_EXPORT(GetScreenHeight, sact_GetScreenHeight), \
 	    HLL_EXPORT(GetMainSurfaceNumber, sact_GetMainSurfaceNumber), \

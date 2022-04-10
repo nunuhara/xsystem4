@@ -106,6 +106,16 @@ int scene_set_wp_color(int r, int g, int b)
 	return 1;
 }
 
+int scene_set_wp_texture(Texture *tex)
+{
+	gfx_delete_texture(&wp);
+	gfx_init_texture_rgb(&wp, tex->w, tex->h, (SDL_Color){ 0, 0, 0, 255 });
+	gfx_copy(&wp, 0, 0, tex, 0, 0, tex->w, tex->h);
+
+	scene_dirty();
+	return 1;
+}
+
 void scene_set_sprite_z(struct sprite *sp, int z)
 {
 	sp->z = z;
