@@ -332,7 +332,7 @@ bool asset_cg_exists(int no)
 		return false;
 	if (!(no = cg_translate_index(no)))
 		return false;
-	return true;
+	return archive_exists(archives[ASSET_CG], no - 1);
 }
 
 bool asset_cg_get_metrics(int no, struct cg_metrics *metrics)
