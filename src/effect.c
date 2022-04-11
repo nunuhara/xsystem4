@@ -166,7 +166,8 @@ int sact_TRANS_Begin(int type)
 	struct effect_shader *s = effect_shaders[type];
 	if (!s) {
 		WARNING("Unimplemented effect: %s", effect_names[type]);
-		return 0;
+		type = EFFECT_BLUR_CROSSFADE;
+		s = effect_shaders[type];
 	}
 	// load shader lazily
 	if (!s->s.program) {
