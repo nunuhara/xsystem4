@@ -110,6 +110,7 @@ void sprite_set_cg_2x(struct sact_sprite *sp, struct cg *cg)
 	sp->sp.has_alpha = cg->metrics.has_alpha;
 	sp->sp.render = sprite_render;
 	sprite_dirty(sp);
+	gfx_delete_texture(&tmp);
 }
 
 int sprite_set_cg_from_asset(struct sact_sprite *sp, int cg_no)
