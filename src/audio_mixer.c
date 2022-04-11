@@ -264,7 +264,7 @@ int channel_play(struct channel *ch)
 	SDL_LockAudioDevice(audio_device);
 	if (ch->voice >= 0) {
 		SDL_UnlockAudioDevice(audio_device);
-		return 0;
+		return 1;
 	}
 	ch->voice = sts_mixer_play_stream(&mixers[ch->mixer_no].mixer, &ch->stream, 1.0f);
 	SDL_UnlockAudioDevice(audio_device);
@@ -276,7 +276,7 @@ int channel_stop(struct channel *ch)
 	SDL_LockAudioDevice(audio_device);
 	if (ch->voice < 0) {
 		SDL_UnlockAudioDevice(audio_device);
-		return 0;
+		return 1;
 	}
 	sts_mixer_stop_voice(&mixers[ch->mixer_no].mixer, ch->voice);
 	ch->voice = -1;
