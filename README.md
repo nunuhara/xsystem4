@@ -4,11 +4,11 @@ xsystem4
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
 operating systems.
 
-NOTE: This is a work in progress. I am focusing primarily on the Japanese
-      version of Sengoku Rance (and by extension, the English fan translation)
-      which is currently more or less playable. Some other games from the same
-      era may also work, but I have not done any significant testing on them so
-      breakage is likely.
+Compatiblity
+------------
+
+See the [game compatibility table](game_compatibility.md) for a list of games
+that can be played on xsystem4.
 
 Building
 --------
