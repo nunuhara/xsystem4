@@ -76,6 +76,13 @@ static int ini_integer(struct ini_entry *entry)
 	return entry->value.i;
 }
 
+static int ini_boolean(struct ini_entry *entry)
+{
+	if (entry->value.type != INI_BOOLEAN)
+		ERROR("ini value for '%s' is not a boolean", entry->name->text);
+	return entry->value.i;
+}
+
 static void read_mixer_channels(struct ini_entry *entry)
 {
 	if (entry->value.type != INI_LIST)
@@ -128,6 +135,8 @@ static void read_config(const char *path)
 			read_mixer_channels(&ini[i]);
 		} else if (!strcmp(ini[i].name->text, "DefaultVolumeRate")) {
 			config.default_volume = ini_integer(&ini[i]);
+		} else if (!strcmp(ini[i].name->text, "UseJoypad")) {
+			config.joypad = ini_boolean(&ini[i]);
 		}
 		ini_free_entry(&ini[i]);
 	}
@@ -345,6 +354,7 @@ int main(int argc, char *argv[])
 
 	char *font_mincho = NULL;
 	char *font_gothic = NULL;
+	char *joypad = NULL;
 
 	while (1) {
 		static struct option long_options[] = {
@@ -354,7 +364,7 @@ int main(int argc, char *argv[])
 			{ "echo-message", no_argument,       0, LOPT_ECHO_MESSAGE },
 			{ "font-mincho",  required_argument, 0, LOPT_FONT_MINCHO },
 			{ "font-gothic",  required_argument, 0, LOPT_FONT_GOTHIC },
-			{ "joypad",       no_argument,       0, LOPT_JOYPAD },
+			{ "joypad",       optional_argument, 0, LOPT_JOYPAD },
 #ifdef DEBUGGER_ENABLED
 			{ "nodebug",      no_argument,       0, LOPT_NODEBUG },
 			{ "debug",        no_argument,       0, LOPT_DEBUG },
@@ -362,7 +372,7 @@ int main(int argc, char *argv[])
 			{ 0 }
 		};
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "haejv", long_options, &option_index);
+		int c = getopt_long(argc, argv, "haej::v", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -391,7 +401,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'j':
 		case LOPT_JOYPAD:
-			config.joypad = true;
+			joypad = optarg ? optarg : "on";
 			break;
 #ifdef DEBUGGER_ENABLED
 		case LOPT_NODEBUG:
@@ -431,6 +441,14 @@ int main(int argc, char *argv[])
 		font_paths[FONT_MINCHO] = font_mincho;
 	if (font_gothic)
 		font_paths[FONT_GOTHIC] = font_gothic;
+	if (joypad) {
+		if (!strcmp(joypad, "on"))
+			config.joypad = true;
+		else if (!strcmp(joypad, "off"))
+			config.joypad = false;
+		else
+			WARNING("Invalid value for 'joypad' option (must be 'on' or 'off')");
+	}
 
 	if (!(ain = ain_open(ainfile, &err))) {
 		ERROR("%s", ain_strerror(err));
