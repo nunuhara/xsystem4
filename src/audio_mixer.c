@@ -236,6 +236,7 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 		if (ch->frame >= ch->fade.end_pos) {
 			ch->fade.fading = false;
 			if (ch->fade.stop) {
+				cb_seek(ch, 0);
 				r = STS_STREAM_COMPLETE;
 			}
 		}
@@ -266,6 +267,7 @@ int channel_play(struct channel *ch)
 		SDL_UnlockAudioDevice(audio_device);
 		return 1;
 	}
+	memset(ch->data, 0, sizeof(ch->data));
 	ch->voice = sts_mixer_play_stream(&mixers[ch->mixer_no].mixer, &ch->stream, 1.0f);
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
@@ -278,6 +280,7 @@ int channel_stop(struct channel *ch)
 		SDL_UnlockAudioDevice(audio_device);
 		return 1;
 	}
+	cb_seek(ch, 0);
 	sts_mixer_stop_voice(&mixers[ch->mixer_no].mixer, ch->voice);
 	ch->voice = -1;
 	SDL_UnlockAudioDevice(audio_device);
