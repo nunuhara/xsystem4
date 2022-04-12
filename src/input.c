@@ -15,6 +15,7 @@
  */
 
 #include <stdbool.h>
+#include <time.h>
 #include <SDL.h>
 #include "system4.h"
 #include "gfx/gfx.h"
@@ -24,7 +25,6 @@
 #include "vm.h"
 
 bool key_state[VK_NR_KEYCODES];
-bool joybutton_state[SDL_CONTROLLER_BUTTON_MAX];
 static enum sact_keycode sdl_keytable[] = {
 	[SDL_SCANCODE_0] = VK_0,
 	[SDL_SCANCODE_1] = VK_1,
@@ -159,50 +159,10 @@ bool key_is_down(enum sact_keycode code)
 	return key_state[code];
 }
 
-bool joy_key_is_down(uint8_t code)
-{
-	// Default SACT key mapping in comments below
-	switch (code) {
-	case 1: // Left Arrow
-		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_LEFT];
-	case 2: // Right Arrow
-		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_RIGHT];
-	case 3: // Up Arrow
-		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_UP];
-	case 4: // Down Arrow
-		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_DOWN];
-	case 5: // Esc
-		return joybutton_state[SDL_CONTROLLER_BUTTON_BACK] || joybutton_state[SDL_CONTROLLER_BUTTON_START];
-	case 6: // Enter
-		return joybutton_state[SDL_CONTROLLER_BUTTON_A];
-	case 7: // Space
-		return joybutton_state[SDL_CONTROLLER_BUTTON_Y];
-	case 8: // Ctrl
-		return joybutton_state[SDL_CONTROLLER_BUTTON_B];
-	case 9: // a
-		return joybutton_state[SDL_CONTROLLER_BUTTON_LEFTSTICK];
-	case 10: // z
-		return joybutton_state[SDL_CONTROLLER_BUTTON_RIGHTSTICK];
-	case 11: // Page Up
-		return joybutton_state[SDL_CONTROLLER_BUTTON_LEFTSHOULDER];
-	case 12: // Page Down
-		return joybutton_state[SDL_CONTROLLER_BUTTON_RIGHTSHOULDER];
-	default:
-		return false;
-	}
-}
-
 void key_clear_flag(void)
 {
 	for (int i = 0; i < VK_NR_KEYCODES; i++) {
 		key_state[i] = false;
-	}
-}
-
-void joy_clear_flag(void)
-{
-	for (int i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++) {
-		joybutton_state[i] = false;
 	}
 }
 
@@ -256,11 +216,166 @@ static void mouse_event(SDL_MouseButtonEvent *e)
 		key_state[code] = e->state == SDL_PRESSED;
 }
 
+#define JOYAXIS_DEADZONE 13500
+
+enum joyaxis_axis {
+	JOYAXIS_X,
+	JOYAXIS_Y
+};
+
+enum joyaxis_direction {
+	JOYAXIS_DIR_LEFT_UP    = -1,
+	JOYAXIS_DIR_NONE       =  0,
+	JOYAXIS_DIR_RIGHT_DOWN =  1
+};
+
+enum joyaxis_state {
+	// A: Initial state
+	// - when joy_clear_flag is called, goes on long cooldown
+	//   and then enters JOYAXIS_STATE_B
+	JOYAXIS_STATE_A,
+	// B: Held state
+	// - when joy_clear_flag is called, goes on short cooldown
+	//   state remains JOYAXIS_STATE_B until direction changes
+	JOYAXIS_STATE_B,
+};
+
+struct joyaxis {
+	enum joyaxis_state state;
+	unsigned long cooldown_expire_time;
+	enum joyaxis_direction real_direction;
+	enum joyaxis_direction logical_direction;
+};
+
+struct joyaxis joyaxis_state[2] = { 0 };
+
+bool joybutton_state[SDL_CONTROLLER_BUTTON_MAX];
+
+static unsigned long joy_time(void)
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return ((unsigned long)ts.tv_sec * 1000) + ((unsigned long)ts.tv_nsec / 1000000);
+}
+
+static bool joy_check_axis(struct joyaxis *axis, enum joyaxis_direction direction)
+{
+	if (axis->logical_direction == direction)
+		return true;
+	if (!axis->cooldown_expire_time)
+		return false;
+	// on cooldown: check if cooldown expired
+	if (joy_time() >= axis->cooldown_expire_time) {
+		axis->state = JOYAXIS_STATE_B;
+		axis->cooldown_expire_time = 0;
+		axis->logical_direction = axis->real_direction;
+	}
+	return axis->logical_direction == direction;
+}
+
+bool joy_key_is_down(uint8_t code)
+{
+	// Default SACT key mapping in comments below
+	switch (code) {
+	case 1: // Left Arrow
+		return joy_check_axis(&joyaxis_state[JOYAXIS_X], JOYAXIS_DIR_LEFT_UP);
+	case 2: // Right Arrow
+		return joy_check_axis(&joyaxis_state[JOYAXIS_X], JOYAXIS_DIR_RIGHT_DOWN);
+	case 3: // Up Arrow
+		return joy_check_axis(&joyaxis_state[JOYAXIS_Y], JOYAXIS_DIR_LEFT_UP);
+	case 4: // Down Arrow
+		return joy_check_axis(&joyaxis_state[JOYAXIS_Y], JOYAXIS_DIR_RIGHT_DOWN);
+	case 5: // Esc
+		return joybutton_state[SDL_CONTROLLER_BUTTON_A];
+	case 6: // Enter
+		return joybutton_state[SDL_CONTROLLER_BUTTON_B];
+	case 7: // Space
+		return joybutton_state[SDL_CONTROLLER_BUTTON_X];
+	case 8: // Ctrl
+		return joybutton_state[SDL_CONTROLLER_BUTTON_Y];
+	case 9: // a
+		return joybutton_state[SDL_CONTROLLER_BUTTON_LEFTSHOULDER];
+	case 10: // z
+		return joybutton_state[SDL_CONTROLLER_BUTTON_RIGHTSHOULDER];
+	case 11: // Page Up
+		return joybutton_state[SDL_CONTROLLER_BUTTON_BACK];
+	case 12: // Page Down
+		return joybutton_state[SDL_CONTROLLER_BUTTON_START];
+	case 13:
+		return joybutton_state[SDL_CONTROLLER_BUTTON_GUIDE];
+	case 14:
+		return joybutton_state[SDL_CONTROLLER_BUTTON_LEFTSTICK];
+	case 15:
+		return joybutton_state[SDL_CONTROLLER_BUTTON_RIGHTSTICK];
+	case 16:
+		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_LEFT];
+	case 17:
+		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_RIGHT];
+	case 18:
+		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_UP];
+	case 19:
+		return joybutton_state[SDL_CONTROLLER_BUTTON_DPAD_DOWN];
+	default:
+		return false;
+	}
+}
+
+static void joyaxis_clear_flag(struct joyaxis *joy)
+{
+	// put axis on cooldown
+	if (joy->logical_direction) {
+		joy->logical_direction = 0;
+		if (joy->state == JOYAXIS_STATE_A) {
+			joy->cooldown_expire_time = joy_time() + 300;
+		} else {
+			joy->cooldown_expire_time = joy_time() + 50;
+		}
+	}
+}
+
+void joy_clear_flag(void)
+{
+	for (int i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++) {
+		joybutton_state[i] = false;
+	}
+	joyaxis_clear_flag(&joyaxis_state[JOYAXIS_X]);
+	joyaxis_clear_flag(&joyaxis_state[JOYAXIS_Y]);
+}
+
+static void joyaxis_update(enum joyaxis_axis axis, int value)
+{
+	// determine direction
+	int direction = 0;
+	if (value < -JOYAXIS_DEADZONE)
+		direction = -1;
+	else if (value > JOYAXIS_DEADZONE)
+		direction = 1;
+
+	// reset axis state if direction changed
+	if (direction != joyaxis_state[axis].real_direction) {
+		joyaxis_state[axis].state = JOYAXIS_STATE_A;
+		joyaxis_state[axis].cooldown_expire_time = 0;
+		joyaxis_state[axis].real_direction = direction;
+		joyaxis_state[axis].logical_direction = direction;
+	}
+}
+
+static void controller_axis_event(SDL_ControllerAxisEvent *e)
+{
+	switch (e->axis) {
+	case SDL_CONTROLLER_AXIS_LEFTX:
+		joyaxis_update(JOYAXIS_X, e->value);
+		break;
+	case SDL_CONTROLLER_AXIS_LEFTY:
+		joyaxis_update(JOYAXIS_Y, e->value);
+		break;
+	default:
+		break;
+	}
+}
+
 static void controller_button_event(SDL_ControllerButtonEvent *e)
 {
-	if (e->state != SDL_PRESSED) {
-		NOTICE("UNPRESSED");
-	}
 	joybutton_state[e->button] = e->state == SDL_PRESSED;
 }
 
@@ -336,6 +451,9 @@ void handle_events(void)
 		case SDL_CONTROLLERDEVICEADDED:
 			if (e.cdevice.which < MAX_CONTROLLERS)
 				controllers[e.cdevice.which] = SDL_GameControllerOpen(e.cdevice.which);
+			break;
+		case SDL_CONTROLLERAXISMOTION:
+			controller_axis_event(&e.caxis);
 			break;
 		case SDL_CONTROLLERBUTTONUP:
 		case SDL_CONTROLLERBUTTONDOWN:
