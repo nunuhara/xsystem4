@@ -92,6 +92,7 @@ union vm_value stack_pop(void);
 union vm_value global_get(int varno);
 void global_set(int varno, union vm_value val, bool call_dtors);
 struct page *local_page(void);
+struct page *get_struct_page(int frame_no);
 
 int vm_string_ref(struct string *s);
 int vm_copy_page(struct page *page);

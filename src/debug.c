@@ -35,6 +35,7 @@
 #include "xsystem4.h"
 
 bool dbg_enabled = true;
+unsigned dbg_current_frame = 0;
 static jmp_buf dbg_continuation;
 
 enum {
@@ -54,6 +55,7 @@ void dbg_quit(void)
 
 void dbg_start(void(*fun)(void*), void *data)
 {
+	dbg_current_frame = 0;
 	switch (setjmp(dbg_continuation)) {
 	case 0:
 		break;
@@ -167,11 +169,153 @@ enum opcode dbg_handle_breakpoint(unsigned bp_no)
 	return breakpoints[bp_no].restore_op;
 }
 
+void dbg_print_frame(unsigned no)
+{
+	if (no >= call_stack_ptr) {
+		DBG_ERROR("Invalid frame number: %d", no);
+		return;
+	}
+	unsigned cs_no = call_stack_ptr - (1 + no);
+	struct ain_function *f = &ain->functions[call_stack[cs_no].fno];
+	uint32_t addr = no ? call_stack[cs_no+1].call_address : instr_ptr;
+	NOTICE("%c #%d 0x%08x in %s", no == dbg_current_frame ? '*' : ' ',
+			no, addr, display_sjis0(f->name));
+}
+
 void dbg_print_stack_trace(void)
 {
-	for (int i = call_stack_ptr - 1, j = 0; i >= 0; i--, j++) {
-		struct ain_function *f = &ain->functions[call_stack[i].fno];
-		uint32_t addr = (i == call_stack_ptr - 1) ? instr_ptr : call_stack[i+1].call_address;
-		NOTICE("#%d 0x%08x in %s", j, addr, display_sjis0(f->name));
+	for (int i = 0; i < call_stack_ptr; i++) {
+		dbg_print_frame(i);
 	}
+}
+
+struct ain_variable *dbg_get_member(const char *name, union vm_value *val_out)
+{
+	struct page *page = get_struct_page(dbg_current_frame);
+	if (!page)
+		return NULL;
+	assert(page->type == STRUCT_PAGE);
+	assert(page->index >= 0 && page->index < ain->nr_structures);
+	struct ain_struct *s = &ain->structures[page->index];
+	assert(page->nr_vars == s->nr_members);
+	for (int i = 0; i < s->nr_members; i++) {
+		if (!strcmp(s->members[i].name, name)) {
+			*val_out = page->values[i];
+			return &s->members[i];
+		}
+	}
+	return NULL;
+}
+
+struct ain_variable *dbg_get_local(const char *name, union vm_value *val_out)
+{
+	struct page *page = local_page();
+	struct ain_function *f = &ain->functions[page->index];
+	for (int i = 0; i < f->nr_vars; i++) {
+		if (!strcmp(f->vars[i].name, name)) {
+			*val_out = page->values[i];
+			return &f->vars[i];
+		}
+	}
+	return NULL;
+}
+
+struct ain_variable *dbg_get_global(const char *name, union vm_value *val_out)
+{
+	for (int i = 0; i < ain->nr_globals; i++) {
+		if (!strcmp(ain->globals[i].name, name)) {
+			*val_out = global_get(i);
+			return &ain->globals[i];
+		}
+	}
+	return NULL;
+}
+
+struct ain_variable *dbg_get_variable(const char *name, union vm_value *val_out)
+{
+	struct ain_variable *var;
+	if (!strncmp(name, "this.", 5) && (var = dbg_get_member(name+5, val_out)))
+		return var;
+	if ((var = dbg_get_local(name, val_out)))
+		return var;
+	if ((var = dbg_get_global(name, val_out)))
+		return var;
+	return NULL;
+}
+
+struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, int recursive)
+{
+	switch (type->data) {
+	case AIN_INT:
+		return integer_to_string(value.i);
+	case AIN_FLOAT:
+		return float_to_string(value.f, 6);
+		break;
+	case AIN_STRING: {
+		struct string *out = cstr_to_string("\"");
+		string_append(&out, heap_get_string(value.i));
+		string_push_back(&out, '"');
+		return out;
+	}
+	case AIN_STRUCT:
+	case AIN_REF_STRUCT: {
+		struct page *page = heap_get_page(value.i);
+		if (page->nr_vars == 0) {
+			return cstr_to_string("{}");
+		}
+		if (!recursive) {
+			return cstr_to_string("{ <...> }");
+		}
+		struct string *out = cstr_to_string("{ ");
+		for (int i = 0; i < page->nr_vars; i++) {
+			struct ain_variable *m = &ain->structures[type->struc].members[i];
+			if (i) {
+				string_append_cstr(&out, "; ", 2);
+			}
+			string_append_cstr(&out, m->name, strlen(m->name));
+			string_append_cstr(&out, " = ", 3);
+			struct string *tmp = dbg_value_to_string(&m->type, page->values[i], recursive-1);
+			string_append(&out, tmp);
+			free_string(tmp);
+		}
+		string_append_cstr(&out, " }", 2);
+		return out;
+	}
+	case AIN_ARRAY_TYPE:
+	case AIN_REF_ARRAY_TYPE: {
+		struct page *page = heap_get_page(value.i);
+		if (!page || page->nr_vars == 0) {
+			return cstr_to_string("[]");
+		}
+		// get member type
+		struct ain_type t;
+		t.data = variable_type(page, 0, &t.struc, &t.rank);
+		t.array_type = NULL;
+		if (!recursive) {
+			switch (t.data) {
+			case AIN_STRUCT:
+			case AIN_REF_STRUCT:
+			case AIN_ARRAY_TYPE:
+			case AIN_REF_ARRAY_TYPE:
+				return cstr_to_string("[ <...> ]");
+			default:
+				break;
+			}
+		}
+		struct string *out = cstr_to_string("[ ");
+		for (int i = 0; i < page->nr_vars; i++) {
+			if (i) {
+				string_append_cstr(&out, "; ", 2);
+			}
+			struct string *tmp = dbg_value_to_string(&t, page->values[i], recursive-1);
+			string_append(&out, tmp);
+			free_string(tmp);
+		}
+		string_append_cstr(&out, " ]", 2);
+		return out;
+	}
+	default:
+		return cstr_to_string("<unsupported-data-type>");
+	}
+	return string_ref(&EMPTY_STRING);
 }

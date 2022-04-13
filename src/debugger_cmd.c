@@ -65,95 +65,29 @@ static void dbg_cmd_continue(unsigned nr_args, char **args)
 	dbg_continue();
 }
 
-static struct string *value_to_string(struct ain_type *type, union vm_value value, int recursive)
+static void dbg_cmd_frame(unsigned nr_args, char **args)
 {
-	switch (type->data) {
-	case AIN_INT:
-		return integer_to_string(value.i);
-	case AIN_FLOAT:
-		return float_to_string(value.f, 6);
-		break;
-	case AIN_STRING: {
-		struct string *out = cstr_to_string("\"");
-		string_append(&out, heap_get_string(value.i));
-		string_push_back(&out, '"');
-		return out;
+	int frame_no = atoi(args[0]);
+	if (frame_no < 0 || frame_no >= call_stack_ptr) {
+		DBG_ERROR("Invalid frame number: %d", frame_no);
+		return;
 	}
-	case AIN_STRUCT:
-	case AIN_REF_STRUCT: {
-		struct page *page = heap_get_page(value.i);
-		if (page->nr_vars == 0) {
-			return cstr_to_string("{}");
-		}
-		if (!recursive) {
-			return cstr_to_string("{ <...> }");
-		}
-		struct string *out = cstr_to_string("{ ");
-		for (int i = 0; i < page->nr_vars; i++) {
-			struct ain_variable *m = &ain->structures[type->struc].members[i];
-			if (i) {
-				string_append_cstr(&out, "; ", 2);
-			}
-			string_append_cstr(&out, m->name, strlen(m->name));
-			string_append_cstr(&out, " = ", 3);
-			struct string *tmp = value_to_string(&m->type, page->values[i], recursive-1);
-			string_append(&out, tmp);
-			free_string(tmp);
-		}
-		string_append_cstr(&out, " }", 2);
-		return out;
-	}
-	case AIN_ARRAY_TYPE:
-	case AIN_REF_ARRAY_TYPE: {
-		struct page *page = heap_get_page(value.i);
-		if (!page || page->nr_vars == 0) {
-			return cstr_to_string("[]");
-		}
-		// get member type
-		struct ain_type t;
-		t.data = variable_type(page, 0, &t.struc, &t.rank);
-		t.array_type = NULL;
-		if (!recursive) {
-			switch (t.data) {
-			case AIN_STRUCT:
-			case AIN_REF_STRUCT:
-			case AIN_ARRAY_TYPE:
-			case AIN_REF_ARRAY_TYPE:
-				return cstr_to_string("[ <...> ]");
-			default:
-				break;
-			}
-		}
-		struct string *out = cstr_to_string("[ ");
-		for (int i = 0; i < page->nr_vars; i++) {
-			if (i) {
-				string_append_cstr(&out, "; ", 2);
-			}
-			struct string *tmp = value_to_string(&t, page->values[i], recursive-1);
-			string_append(&out, tmp);
-			free_string(tmp);
-		}
-		string_append_cstr(&out, " ]", 2);
-		return out;
-	}
-	default:
-		return cstr_to_string("<unsupported-data-type>");
-	}
-	return string_ref(&EMPTY_STRING);
+	dbg_current_frame = frame_no;
+	dbg_print_frame(frame_no);
 }
 
 static void dbg_cmd_locals(unsigned nr_args, char **args)
 {
-	unsigned frame_no = nr_args > 0 ? atoi(args[0]) : 0;
+	int frame_no = nr_args > 0 ? atoi(args[0]) : dbg_current_frame;
 	if (frame_no < 0 || frame_no >= call_stack_ptr) {
-		DBG_ERROR("Invalid frame number: %u", frame_no);
+		DBG_ERROR("Invalid frame number: %d", frame_no);
 		return;
 	}
 
 	struct page *page = heap_get_page(call_stack[call_stack_ptr - (frame_no+1)].page_slot);
 	struct ain_function *f = &ain->functions[page->index];
 	for (int i = 0; i < f->nr_vars; i++) {
-		struct string *value = value_to_string(&f->vars[i].type, page->values[i], 1);
+		struct string *value = dbg_value_to_string(&f->vars[i].type, page->values[i], 1);
 		printf("[%d] %s: %s\n", i, display_sjis0(f->vars[i].name), display_sjis1(value->text));
 		free_string(value);
 	}
@@ -165,7 +99,7 @@ static void log_handler(struct breakpoint *bp)
 	struct page *locals = local_page();
 	printf("%s(", display_sjis0(f->name));
 	for (int i = 0; i < f->nr_args; i++) {
-		struct string *value = value_to_string(&f->vars[i].type, locals->values[i], 1);
+		struct string *value = dbg_value_to_string(&f->vars[i].type, locals->values[i], 1);
 		printf(i > 0 ? ", %s" : "%s", display_sjis0(value->text));
 		free_string(value);
 	}
@@ -182,23 +116,30 @@ static void dbg_cmd_log(unsigned nr_args, char **args)
 	dbg_set_function_breakpoint(args[0], log_handler, &ain->functions[fno]);
 }
 
-struct ain_variable *dbg_get_variable(const char *name, union vm_value *val_out)
+static void dbg_cmd_members(unsigned nr_args, char **args)
 {
-	struct page *page = local_page();
-	struct ain_function *f = &ain->functions[page->index];
-	for (int i = 0; i < f->nr_vars; i++) {
-		if (!strcmp(f->vars[i].name, name)) {
-			*val_out = page->values[i];
-			return &f->vars[i];
-		}
+	int frame_no = nr_args > 0 ? atoi(args[0]) : dbg_current_frame;
+	if (frame_no < 0 || frame_no >= call_stack_ptr) {
+		DBG_ERROR("Invalid frame number: %d", frame_no);
+		return;
 	}
-	for (int i = 0; i < ain->nr_globals; i++) {
-		if (!strcmp(ain->globals[i].name, name)) {
-			*val_out = global_get(i);
-			return &ain->globals[i];
-		}
+
+	struct page *page = get_struct_page(frame_no);
+	if (!page) {
+		DBG_ERROR("Frame #%d is not a method", frame_no);
+		return;
 	}
-	return NULL;
+
+	assert(page->type == STRUCT_PAGE);
+	assert(page->index >= 0 && page->index < ain->nr_structures);
+	struct ain_struct *s = &ain->structures[page->index];
+	assert(page->nr_vars == s->nr_members);
+
+	for (int i = 0; i < s->nr_members; i++) {
+		struct string *value = dbg_value_to_string(&s->members[i].type, page->values[i], 1);
+		printf("[%d] %s: %s\n", i, display_sjis0(s->members[i].name), display_sjis1(value->text));
+		free_string(value);
+	}
 }
 
 static void dbg_cmd_print(unsigned nr_args, char **args)
@@ -206,7 +147,7 @@ static void dbg_cmd_print(unsigned nr_args, char **args)
 	union vm_value value;
 	struct ain_variable *var = dbg_get_variable(args[0], &value);
 	if (var) {
-		struct string *v = value_to_string(&var->type, value, 1);
+		struct string *v = dbg_value_to_string(&var->type, value, 1);
 		printf("%s\n", display_sjis0(v->text));
 		free_string(v);
 		return;
@@ -232,8 +173,10 @@ static struct dbg_cmd dbg_commands[] = {
 	{ "backtrace",  "bt",  "- Display stack trace",                  0, 0, dbg_cmd_backtrace },
 	{ "breakpoint", "bp",  "<function-or-address> - Set breakpoint", 1, 1, dbg_cmd_breakpoint },
 	{ "continue",   "c",   "- Resume execution",                     0, 0, dbg_cmd_continue },
+	{ "frame",      "f",   "<frame-number> - Set the current frame", 1, 1, dbg_cmd_frame },
 	{ "locals",     "l",   "[frame-number] - Print local variables", 0, 1, dbg_cmd_locals },
 	{ "log",        NULL,  "<function-name> - Log function calls",   1, 1, dbg_cmd_log },
+	{ "members",    "m",   "[frame-number] - Print struct members",  0, 1, dbg_cmd_members },
 	{ "print",      "p",   "<variable-name> - Print a variable",     1, 1, dbg_cmd_print },
 	{ "quit",       "q",   "- Quit xsystem4",                        0, 0, dbg_cmd_quit },
 #ifdef HAVE_SCHEME

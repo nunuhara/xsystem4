@@ -161,6 +161,14 @@ static struct page *struct_page(void)
 	return heap[struct_page_slot()].page;
 }
 
+struct page *get_struct_page(int frame_no)
+{
+	if (frame_no < 0 || frame_no >= call_stack_ptr)
+		return NULL;
+	int slot = call_stack[call_stack_ptr - (frame_no + 1)].struct_page;
+	return slot < 0 ? NULL : heap[slot].page;
+}
+
 static union vm_value member_get(int varno)
 {
 	return struct_page()->values[varno];
