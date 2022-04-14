@@ -40,7 +40,10 @@ static bool SystemService_GetMixerDefaultVolume(int n, int *volume)
 	return true;
 }
 
-//bool SystemService_SetMixerName(int nNum, string szName);
+static bool SystemService_SetMixerName(int n, struct string *name)
+{
+	return mixer_set_name(n, name->text);
+}
 
 //int SystemService_GetGameVersion(void);
 static void SystemService_GetGameName(struct string **game_name)
@@ -185,7 +188,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(GetMixerVolume, mixer_get_volume),
 	    HLL_EXPORT(GetMixerDefaultVolume, SystemService_GetMixerDefaultVolume),
 	    HLL_EXPORT(GetMixerMute, mixer_get_mute),
-	    HLL_TODO_EXPORT(SetMixerName, SystemService_SetMixerName),
+	    HLL_EXPORT(SetMixerName, SystemService_SetMixerName),
 	    HLL_EXPORT(SetMixerVolume, mixer_set_volume),
 	    HLL_EXPORT(SetMixerMute, mixer_set_mute),
 	    HLL_TODO_EXPORT(GetGameVersion, SystemService_GetGameVersion),

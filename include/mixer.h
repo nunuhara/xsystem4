@@ -43,6 +43,7 @@ struct wai *wai_get(int no);
 void mixer_init(void);
 int mixer_get_numof(void);
 const char *mixer_get_name(int n);
+int mixer_set_name(int n, const char *name);
 int mixer_get_volume(int n, int *volume);
 int mixer_set_volume(int n, int volume);
 int mixer_get_mute(int n, int *mute);

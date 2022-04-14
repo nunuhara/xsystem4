@@ -560,9 +560,9 @@ void mixer_init(void)
 	if (!config.mixer_nr_channels) {
 		nr_mixers = 3;
 		mixers = xcalloc(nr_mixers, sizeof(struct mixer));
-		mixers[0].name = "Music";
-		mixers[1].name = "Sound";
-		mixers[2].name = "Master";
+		mixers[0].name = strdup("Music");
+		mixers[1].name = strdup("Sound");
+		mixers[2].name = strdup("Master");
 	} else {
 		// NOTE: Older games don't have an explicit master channel.
 		//       We add an extra mixer in this case for consistency.
@@ -573,10 +573,10 @@ void mixer_init(void)
 		nr_mixers = config.mixer_nr_channels + need_master;
 		mixers = xcalloc(nr_mixers, sizeof(struct mixer));
 		for (unsigned i = 0; i < config.mixer_nr_channels; i++) {
-			mixers[i].name = config.mixer_channels[i];
+			mixers[i].name = strdup(config.mixer_channels[i]);
 		}
 		if (need_master) {
-			mixers[nr_mixers-1].name = "Master";
+			mixers[nr_mixers-1].name = strdup("Master");
 			master = &mixers[nr_mixers-1];
 		} else {
 			master = &mixers[0];
@@ -648,6 +648,15 @@ const char *mixer_get_name(int n)
 	if (n < 0 || n >= nr_mixers)
 		return NULL;
 	return mixers[n].name;
+}
+
+int mixer_set_name(int n, const char *name)
+{
+	if (n < 0 || n >= nr_mixers)
+		return 0;
+	free(mixers[n].name);
+	mixers[n].name = strdup(name);
+	return 1;
 }
 
 int mixer_get_volume(int n, int *volume)
