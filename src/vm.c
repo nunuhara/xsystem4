@@ -2239,7 +2239,7 @@ static void vm_free(void)
 	exit_libraries();
 	// flush call stack
 	for (int i = call_stack_ptr - 1; i >= 0; i--) {
-		heap_unref(call_stack[i].page_slot);
+		exit_unref(call_stack[i].page_slot);
 	}
 	// free globals
 	exit_unref(0);
