@@ -2201,7 +2201,8 @@ static enum opcode execute_instruction(enum opcode opcode)
 	default:
 #ifdef DEBUGGER_ENABLED
 		if ((opcode & OPTYPE_MASK) == BREAKPOINT) {
-			return execute_instruction(dbg_handle_breakpoint(opcode & ~OPTYPE_MASK));
+			dbg_handle_breakpoint();
+			return execute_instruction(opcode & ~OPTYPE_MASK);
 		}
 #endif
 		VM_ERROR("Illegal opcode: 0x%04x", opcode);

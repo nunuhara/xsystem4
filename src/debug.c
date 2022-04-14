@@ -23,6 +23,8 @@
 #include <ctype.h>
 #include <assert.h>
 
+#include "system4/dasm.h"
+#include "system4/hashtable.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -95,8 +97,27 @@ void dbg_fini(void)
 #endif
 }
 
-static struct breakpoint *breakpoints = NULL;
-static unsigned nr_breakpoints = 0;
+static struct hash_table *bp_table = NULL;
+
+static void add_breakpoint(uint32_t addr, struct breakpoint *bp)
+{
+	if (!bp_table)
+		bp_table = ht_create(64);
+
+	struct ht_slot *slot = ht_put_int(bp_table, addr, NULL);
+	if (slot->value) {
+		WARNING("Overwriting breakpoint at %0x%08x", addr);
+		free(slot->value);
+	}
+	slot->value = bp;
+}
+
+static struct breakpoint *get_breakpoint(uint32_t addr)
+{
+	if (!bp_table)
+		return NULL;
+	return ht_get_int(bp_table, addr, NULL);
+}
 
 bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*), void *data)
 {
@@ -110,16 +131,17 @@ bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*
 	}
 
 	struct ain_function *f = &ain->functions[fno];
-	breakpoints = xrealloc_array(breakpoints, nr_breakpoints, nr_breakpoints+1, sizeof(struct breakpoint));
-	breakpoints[nr_breakpoints].restore_op = LittleEndian_getW(ain->code, f->address);
-	breakpoints[nr_breakpoints].cb = cb;
-	breakpoints[nr_breakpoints].data = data;
-	breakpoints[nr_breakpoints].message = xmalloc(512);
-	snprintf(breakpoints[nr_breakpoints].message, 511, "Hit breakpoint at function '%s' (0x%08x)", display_sjis0(_name), f->address);
-	LittleEndian_putW(ain->code, f->address, BREAKPOINT + nr_breakpoints);
-	nr_breakpoints++;
+	struct breakpoint *bp = xcalloc(1, sizeof(struct breakpoint));
+	bp->restore_op = LittleEndian_getW(ain->code, f->address);
+	bp->cb = cb;
+	bp->data = data;
+	bp->message = xmalloc(512);
+	snprintf(bp->message, 511, "Hit breakpoint at function '%s' (0x%08x)",
+			display_sjis0(_name), f->address);
+	LittleEndian_putW(ain->code, f->address, BREAKPOINT | bp->restore_op);
+	add_breakpoint(f->address, bp);
 
-	NOTICE("Set breakpoint at function '%s' (0x%08x)", display_sjis0(_name), f->address);
+	printf("Set breakpoint at function '%s' (0x%08x)\n", display_sjis0(_name), f->address);
 	return true;
 }
 
@@ -138,35 +160,38 @@ bool dbg_set_address_breakpoint(uint32_t address, void(*cb)(struct breakpoint*),
 		return false;
 	}
 
-	breakpoints = xrealloc_array(breakpoints, nr_breakpoints, nr_breakpoints+1, sizeof(struct breakpoint));
-	breakpoints[nr_breakpoints].restore_op = op;
-	breakpoints[nr_breakpoints].cb = cb;
-	breakpoints[nr_breakpoints].data = data;
-	breakpoints[nr_breakpoints].message = xmalloc(512);
-	snprintf(breakpoints[nr_breakpoints].message, 511, "Hit breakpoint at 0x%08x", address);
-	LittleEndian_putW(ain->code, address, BREAKPOINT + nr_breakpoints);
-	nr_breakpoints++;
+	struct breakpoint *bp = xcalloc(1, sizeof(struct breakpoint));
+	bp->restore_op = op;
+	bp->cb = cb;
+	bp->data = data;
+	bp->message = xmalloc(512);
+	snprintf(bp->message, 511, "Hit breakpoint at 0x%08x", address);
+	LittleEndian_putW(ain->code, address, BREAKPOINT | bp->restore_op);
+	add_breakpoint(address, bp);
 
-	NOTICE("Set breakpoint at 0x%08x", address);
+	printf("Set breakpoint at 0x%08x\n", address);
 	return true;
 }
 
 static void _dbg_handle_breakpoint(void *data)
 {
-	unsigned bp_no = *((unsigned*)data);
-	if (breakpoints[bp_no].cb) {
-		breakpoints[bp_no].cb(&breakpoints[bp_no]);
+	struct breakpoint *bp = data;
+	if (bp->cb) {
+		bp->cb(bp);
 	} else {
-		NOTICE("%s", breakpoints[bp_no].message);
+		printf("%s\n", bp->message);
 		dbg_cmd_repl();
 	}
 }
 
-enum opcode dbg_handle_breakpoint(unsigned bp_no)
+void dbg_handle_breakpoint(void)
 {
-	assert(bp_no < nr_breakpoints);
-	dbg_start(_dbg_handle_breakpoint, &bp_no);
-	return breakpoints[bp_no].restore_op;
+	struct breakpoint *bp = get_breakpoint(instr_ptr);
+	if (!bp) {
+		WARNING("Unregistered breakpoint");
+		return;
+	}
+	dbg_start(_dbg_handle_breakpoint, bp);
 }
 
 void dbg_print_frame(unsigned no)
@@ -178,7 +203,7 @@ void dbg_print_frame(unsigned no)
 	unsigned cs_no = call_stack_ptr - (1 + no);
 	struct ain_function *f = &ain->functions[call_stack[cs_no].fno];
 	uint32_t addr = no ? call_stack[cs_no+1].call_address : instr_ptr;
-	NOTICE("%c #%d 0x%08x in %s", no == dbg_current_frame ? '*' : ' ',
+	printf("%c #%d 0x%08x in %s\n", no == dbg_current_frame ? '*' : ' ',
 			no, addr, display_sjis0(f->name));
 }
 
@@ -318,4 +343,234 @@ struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, 
 		return cstr_to_string("<unsupported-data-type>");
 	}
 	return string_ref(&EMPTY_STRING);
+}
+
+// the maximum number of instructions preceeding the instruction pointer to be displayed
+#define DASM_REWIND 16
+// the number of instructions following the instruction pointer to be displayed
+#define DASM_FWD 8
+
+// Rewind to DASM_REWIND instructions before the current instruction pointer.
+static bool dbg_init_dasm(struct dasm *dasm)
+{
+	unsigned addr_i = 0;
+	size_t addr[DASM_REWIND] = {0};
+	int fno = call_stack[call_stack_ptr-1].fno;
+
+	dasm_init(dasm, ain);
+	dasm_jump(dasm, ain->functions[fno].address - 6);
+
+	for (; dasm_addr(dasm) < instr_ptr && !dasm_eof(dasm); dasm_next(dasm)) {
+		addr[addr_i++ % DASM_REWIND] = dasm_addr(dasm);
+	}
+
+	if (dasm_addr(dasm) != instr_ptr) {
+		goto error;
+	}
+
+	addr_i = (addr_i+1) % DASM_REWIND;
+	if (addr[addr_i]) {
+		dasm_jump(dasm, addr[addr_i]);
+	} else if (addr[0]) {
+		dasm_jump(dasm, addr[0]);
+	}
+
+	return true;
+error:
+	DBG_ERROR("Couldn't locate instruction pointer from current function");
+	return false;
+}
+
+static void dbg_print_string(const char *str)
+{
+	// TODO: escape
+	printf("\"%s\"", display_sjis0(str));
+}
+
+static void dbg_print_identifier(const char *str)
+{
+	if (strchr(str, ' '))
+		dbg_print_string(str);
+	else
+		printf("%s", display_sjis0(str));
+}
+
+static void dbg_print_function_name(struct ain_function *fun)
+{
+	int i = ain_get_function_index(ain, fun);
+	char *name = fun->name;
+	char buf[512];
+	if (i > 0) {
+		snprintf(buf, 512, "%s#%d", fun->name, i);
+		name = buf;
+	}
+	dbg_print_identifier(name);
+}
+
+static void dbg_print_local(struct dasm *dasm, int32_t n)
+{
+	int fno = dasm_function(dasm);
+	if (fno < 0 || fno >= ain->nr_functions) {
+		printf("%d", n);
+		return;
+	}
+
+	struct ain_function *f = &ain->functions[fno];
+	if (n < 0 || n >= f->nr_vars) {
+		printf("<invalid local variable number: %d>", n);
+		return;
+	}
+
+	int dup_no = 0;
+	for (int i = 0; i < f->nr_vars; i++) {
+		if (i == n)
+			break;
+		if (!strcmp(f->vars[i].name, f->vars[n].name))
+			dup_no++;
+	}
+
+	char *name;
+	char buf[512];
+	if (dup_no) {
+		snprintf(buf, 512, "%s#%d", f->vars[n].name, dup_no);
+		name = buf;
+	} else {
+		name = f->vars[n].name;
+	}
+
+	dbg_print_identifier(name);
+}
+
+static void dbg_print_arg(struct dasm *dasm, int n)
+{
+	int32_t value = dasm_arg(dasm, n);
+	switch (dasm_arg_type(dasm, n)) {
+	case T_INT:
+	case T_SWITCH:
+		printf("%d", value);
+		break;
+	case T_FLOAT: {
+		union { int32_t i; float f; } cast = { .i = value };
+		printf("%f", cast.f);
+		break;
+	}
+	case T_ADDR:
+		printf("0x%08x", value);
+		break;
+	case T_FUNC:
+		if (value < 0 || value >= ain->nr_functions)
+			printf("<invalid function number: %d>", value);
+		else
+			dbg_print_function_name(&ain->functions[value]);
+		break;
+	case T_DLG:
+		if (value < 0 || value >= ain->nr_delegates)
+			printf("<invalid delegate number: %d>", value);
+		else
+			dbg_print_identifier(ain->delegates[value].name);
+		break;
+	case T_STRING:
+		if (value < 0 || value >= ain->nr_strings)
+			printf("<invalid string number: %d>", value);
+		else
+			dbg_print_string(ain->strings[value]->text);
+		break;
+	case T_MSG:
+		if (value < 0 || value >= ain->nr_messages)
+			printf("<invalid message number: %d>", value);
+		else
+			printf("%d ; %s", value, display_sjis0(ain->messages[value]->text));
+		break;
+	case T_LOCAL:
+		dbg_print_local(dasm, value);
+		break;
+	case T_GLOBAL:
+		if (value < 0 || value >= ain->nr_globals)
+			printf("<invalid global number: %d>", value);
+		else
+			dbg_print_identifier(ain->globals[value].name);
+		break;
+	case T_STRUCT:
+		if (value < 0 || value >= ain->nr_structures)
+			printf("<invalid struct number: %d>", value);
+		else
+			dbg_print_identifier(ain->structures[value].name);
+		break;
+	case T_SYSCALL:
+		if (value < 0 || value >= NR_SYSCALLS || !syscalls[value].name)
+			printf("<invalid syscall number: %d>", value);
+		else
+			printf("%s", syscalls[value].name);
+		break;
+	case T_HLL:
+		if (value < 0 || value >= ain->nr_libraries)
+			printf("<invalid library number: %d>", value);
+		else
+			dbg_print_identifier(ain->libraries[value].name);
+		break;
+	case T_HLLFUNC:
+		printf("%d", value);
+		break;
+	case T_FILE:
+		if (!ain->nr_filenames)
+			printf("%d", value);
+		else if (value < 0 || value >= ain->nr_filenames)
+			printf("<invalid file number: %d>", value);
+		else
+			dbg_print_identifier(ain->filenames[value]);
+		break;
+	default:
+		printf("<invalid arg type: %d>", dasm_arg_type(dasm, n));
+		break;
+	}
+}
+
+static void dbg_print_instruction(struct dasm *dasm)
+{
+	char c = dasm_addr(dasm) == instr_ptr ? '*' : ' ';
+	printf("%c 0x%08x: %s", c, (unsigned)dasm_addr(dasm), dasm_instruction(dasm)->name);
+	for (int i = 0; i < dasm_nr_args(dasm); i++) {
+		putchar(' ');
+		dbg_print_arg(dasm, i);
+	}
+	putchar('\n');
+}
+
+void dbg_print_dasm(void)
+{
+	struct dasm dasm;
+	if (!dbg_init_dasm(&dasm))
+		return;
+
+	for (; dasm_addr(&dasm) < instr_ptr && !dasm_eof(&dasm); dasm_next(&dasm)) {
+		dbg_print_instruction(&dasm);
+	}
+
+	for (int i = 0; i < DASM_FWD && !dasm_eof(&dasm); dasm_next(&dasm), i++) {
+		dbg_print_instruction(&dasm);
+	}
+}
+
+#define STACK_MAX 16
+
+void dbg_print_stack(void)
+{
+	int i = 0;
+	if (stack_ptr > STACK_MAX)
+		i = stack_ptr - STACK_MAX;
+
+	for (; i < stack_ptr; i++) {
+		printf(" [%d]: 0x%08x\n", i, stack[i].i);
+	}
+}
+
+void dbg_print_vm_state(void)
+{
+	puts(" Disassembly");
+	puts(" -----------");
+	dbg_print_dasm();
+	puts("");
+	puts(" Stack");
+	puts(" -----");
+	dbg_print_stack();
 }

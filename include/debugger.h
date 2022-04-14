@@ -19,6 +19,7 @@
 #ifdef DEBUGGER_ENABLED
 
 #include <stdbool.h>
+#include <stdint.h>
 #include "system4/instructions.h"
 #include "vm.h"
 #include "xsystem4.h"
@@ -46,11 +47,14 @@ void dbg_continue(void);
 void dbg_quit(void);
 void dbg_start(void(*fun)(void*), void *data);
 void dbg_cmd_repl(void);
-enum opcode dbg_handle_breakpoint(unsigned bp_no);
+void dbg_handle_breakpoint(void);
 bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*), void *data);
 bool dbg_set_address_breakpoint(uint32_t address, void(*cb)(struct breakpoint*), void *data);
 void dbg_print_frame(unsigned no);
 void dbg_print_stack_trace(void);
+void dbg_print_dasm(void);
+void dbg_print_stack(void);
+void dbg_print_vm_state(void);
 struct ain_variable *dbg_get_member(const char *name, union vm_value *val_out);
 struct ain_variable *dbg_get_local(const char *name, union vm_value *val_out);
 struct ain_variable *dbg_get_global(const char *name, union vm_value *val_out);

@@ -52,7 +52,7 @@ static void dbg_cmd_backtrace(unsigned nr_args, char **args)
 
 static void dbg_cmd_breakpoint(unsigned nr_args, char **args)
 {
-	int addr = atoi(args[0]);
+	int addr = strtol(args[0], NULL, 0);
 	if (addr > 0) {
 		dbg_set_address_breakpoint(addr, NULL, NULL);
 	} else {
@@ -168,6 +168,11 @@ static void dbg_cmd_scheme(unsigned nr_args, char **args)
 }
 #endif
 
+static void dbg_cmd_vm_state(unsigned nr_args, char **args)
+{
+	dbg_print_vm_state();
+}
+
 static struct dbg_cmd dbg_commands[] = {
 	{ "help",       "h",   "[command-name] - Display this message",  0, 1, dbg_cmd_help },
 	{ "backtrace",  "bt",  "- Display stack trace",                  0, 0, dbg_cmd_backtrace },
@@ -182,19 +187,20 @@ static struct dbg_cmd dbg_commands[] = {
 #ifdef HAVE_SCHEME
 	{ "scheme",     "scm", "- Drop into Scheme REPL",                0, 0, dbg_cmd_scheme },
 #endif
+	{ "vm-state",   "vm",  "- Display current VM state",             0, 0, dbg_cmd_vm_state },
 };
 
 static void dbg_cmd_help(unsigned nr_args, char **args)
 {
-	NOTICE("Available Commands");
-	NOTICE("------------------");
+	puts("Available Commands");
+	puts("------------------");
 	for (unsigned i = 0; i < sizeof(dbg_commands)/sizeof(*dbg_commands); i++) {
 		struct dbg_cmd *cmd = &dbg_commands[i];
 		if (!nr_args || !strcmp(args[0], cmd->fullname) || !strcmp(args[0], cmd->shortname)) {
 			if (cmd->shortname)
-				NOTICE("%s (%s) %s", cmd->fullname, cmd->shortname, cmd->description);
+				printf("%s (%s) %s\n", cmd->fullname, cmd->shortname, cmd->description);
 			else
-				NOTICE("%s %s", cmd->fullname, cmd->description);
+				printf("%s %s\n", cmd->fullname, cmd->description);
 		}
 	}
 }
@@ -267,7 +273,7 @@ static char **cmd_parse(char *line, unsigned *nr_words)
 
 void dbg_cmd_repl(void)
 {
-	NOTICE("Entering the debugger REPL. Type 'help' for a list of commands.");
+	puts("Entering the debugger REPL. Type 'help' for a list of commands.");
 	while (1) {
 		char *line = cmd_gets();
 		if (!line)
@@ -280,12 +286,12 @@ void dbg_cmd_repl(void)
 
 		struct dbg_cmd *cmd = dbg_get_command(words[0]);
 		if (!cmd) {
-			NOTICE("Invalid command: %s (type 'help' for a list of commands)", words[0]);
+			printf("Invalid command: %s (type 'help' for a list of commands)\n", words[0]);
 			continue;
 		}
 
 		if ((nr_words-1) < cmd->min_args || (nr_words-1) > cmd->max_args) {
-			NOTICE("Wrong number of arguments to '%s' command", cmd->fullname);
+			printf("Wrong number of arguments to '%s' command\n", cmd->fullname);
 			continue;
 		}
 
