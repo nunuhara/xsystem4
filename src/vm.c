@@ -108,6 +108,14 @@ struct page *local_page(void)
 	return heap[local_page_slot()].page;
 }
 
+struct page *get_local_page(int frame_no)
+{
+	if (frame_no < 0 || frame_no >= call_stack_ptr)
+		return NULL;
+	int slot = call_stack[call_stack_ptr - (frame_no + 1)].page_slot;
+	return slot < 1 ? NULL : heap[slot].page;
+}
+
 static union vm_value local_get(int varno)
 {
 	return local_page()->values[varno];
@@ -166,7 +174,7 @@ struct page *get_struct_page(int frame_no)
 	if (frame_no < 0 || frame_no >= call_stack_ptr)
 		return NULL;
 	int slot = call_stack[call_stack_ptr - (frame_no + 1)].struct_page;
-	return slot < 0 ? NULL : heap[slot].page;
+	return slot < 1 ? NULL : heap[slot].page;
 }
 
 static union vm_value member_get(int varno)

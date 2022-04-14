@@ -21,8 +21,11 @@
 #include <string.h>
 #include <setjmp.h>
 #include <ctype.h>
+#include <limits.h>
 #include <assert.h>
 
+#include "system4.h"
+#include "system4/file.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -271,30 +274,63 @@ static char **cmd_parse(char *line, unsigned *nr_words)
 	return words;
 }
 
+static void execute_line(char *line)
+{
+	unsigned nr_words;
+	char **words = cmd_parse(line, &nr_words);
+	if (!nr_words)
+		return;
+
+	struct dbg_cmd *cmd = dbg_get_command(words[0]);
+	if (!cmd) {
+		printf("Invalid command: %s (type 'help' for a list of commands)\n", words[0]);
+		return;
+	}
+
+	if ((nr_words-1) < cmd->min_args || (nr_words-1) > cmd->max_args) {
+		printf("Wrong number of arguments to '%s' command\n", cmd->fullname);
+		return;
+	}
+
+	cmd->run(nr_words-1, words+1);
+}
+
 void dbg_cmd_repl(void)
 {
 	puts("Entering the debugger REPL. Type 'help' for a list of commands.");
 	while (1) {
 		char *line = cmd_gets();
-		if (!line)
-			continue;
-
-		unsigned nr_words;
-		char **words = cmd_parse(line, &nr_words);
-		if (!nr_words)
-			continue;
-
-		struct dbg_cmd *cmd = dbg_get_command(words[0]);
-		if (!cmd) {
-			printf("Invalid command: %s (type 'help' for a list of commands)\n", words[0]);
-			continue;
-		}
-
-		if ((nr_words-1) < cmd->min_args || (nr_words-1) > cmd->max_args) {
-			printf("Wrong number of arguments to '%s' command\n", cmd->fullname);
-			continue;
-		}
-
-		cmd->run(nr_words-1, words+1);
+		if (line)
+			execute_line(line);
 	}
+}
+
+static void execute_config(void *_f)
+{
+	FILE *f = _f;
+	char line[1024];
+	while (fgets(line, 1024, f)) {
+		execute_line(line);
+	}
+}
+
+static void read_config(const char *path)
+{
+	FILE *f = file_open_utf8(path, "rb");
+	if (!f)
+		return;
+	dbg_start(execute_config, f);
+	fclose(f);
+}
+
+void dbg_cmd_init(void)
+{
+	char *path = xmalloc(PATH_MAX);
+	snprintf(path, PATH_MAX, "%s/.xsys4-debugrc", config.home_dir);
+	read_config(path);
+	free(path);
+
+	path = gamedir_path(".xsys4-debugrc");
+	read_config(path);
+	free(path);
 }

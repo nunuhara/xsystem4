@@ -85,6 +85,7 @@ void dbg_repl(void)
 
 void dbg_init(void)
 {
+	dbg_cmd_init();
 #ifdef HAVE_SCHEME
 	dbg_scm_init();
 #endif
@@ -137,11 +138,11 @@ bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*
 	bp->data = data;
 	bp->message = xmalloc(512);
 	snprintf(bp->message, 511, "Hit breakpoint at function '%s' (0x%08x)",
-			display_sjis0(_name), f->address);
+			display_utf0(_name), f->address);
 	LittleEndian_putW(ain->code, f->address, BREAKPOINT | bp->restore_op);
 	add_breakpoint(f->address, bp);
 
-	printf("Set breakpoint at function '%s' (0x%08x)\n", display_sjis0(_name), f->address);
+	printf("Set breakpoint at function '%s' (0x%08x)\n", display_utf0(_name), f->address);
 	return true;
 }
 
@@ -234,7 +235,11 @@ struct ain_variable *dbg_get_member(const char *name, union vm_value *val_out)
 
 struct ain_variable *dbg_get_local(const char *name, union vm_value *val_out)
 {
-	struct page *page = local_page();
+	struct page *page = get_local_page(dbg_current_frame);
+	if (!page)
+		return NULL;
+	assert(page->type == LOCAL_PAGE);
+	assert(page->index >= 0 && page->index < ain->nr_functions);
 	struct ain_function *f = &ain->functions[page->index];
 	for (int i = 0; i < f->nr_vars; i++) {
 		if (!strcmp(f->vars[i].name, name)) {

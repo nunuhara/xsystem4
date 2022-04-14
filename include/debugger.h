@@ -46,6 +46,7 @@ void dbg_repl(void);
 void dbg_continue(void);
 void dbg_quit(void);
 void dbg_start(void(*fun)(void*), void *data);
+void dbg_cmd_init(void);
 void dbg_cmd_repl(void);
 void dbg_handle_breakpoint(void);
 bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*), void *data);
