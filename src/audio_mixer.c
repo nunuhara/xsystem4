@@ -44,7 +44,8 @@ struct fade {
 	atomic_bool fading;
 	bool stop;
 	uint_least32_t start_pos;
-	uint_least32_t end_pos;
+	uint_least32_t frames;
+	uint_least32_t elapsed;
 	float start_volume;
 	float end_volume;
 };
@@ -67,8 +68,8 @@ struct channel {
 
 	// main thread read-only
 	atomic_uint_least32_t frame;
-	atomic_uint volume;
 
+	atomic_uint volume;
 	atomic_bool swapped;
 	uint_least32_t loop_start;
 	uint_least32_t loop_end;
@@ -143,19 +144,19 @@ static bool cb_loop(struct channel *ch)
  * Callback to refill the stream's audio data.
  * Called from sys_mixer_mix_audio.
  */
-static int cb_read_frames(struct channel *ch, float *out, sf_count_t frame_count)
+static int cb_read_frames(struct channel *ch, float *out, sf_count_t frame_count, uint_least32_t *num_read)
 {
-	sf_count_t num_read = 0;
+	*num_read = 0;
 
 	// handle case where chunk crosses loop point (seamless)
 	// NOTE: it's assumed that the length of the loop is greater than the chunk length
 	if (ch->frame + frame_count >= ch->loop_end) {
 		// read frames up to loop_end
-		num_read = sf_readf_float(ch->file, out, ch->loop_end - ch->frame);
+		*num_read = sf_readf_float(ch->file, out, ch->loop_end - ch->frame);
 		// adjust parameters for later
-		ch->frame += num_read;
-		out += num_read;
-		frame_count -= num_read;
+		ch->frame += *num_read;
+		out += *num_read;
+		frame_count -= *num_read;
 		// seek to loop_start
 		if (!cb_loop(ch))
 			return STS_STREAM_COMPLETE;
@@ -167,10 +168,10 @@ static int cb_read_frames(struct channel *ch, float *out, sf_count_t frame_count
 
 	// read remaining data
 	sf_count_t n = sf_readf_float(ch->file, out, frame_count);
-	num_read += n;
+	*num_read += n;
 	ch->frame += n;
-	out += num_read;
-	frame_count -= num_read;
+	out += *num_read;
+	frame_count -= *num_read;
 
 	// XXX: This *shouldn't* be necessary, but sometimes libsndfile seems to stop reading
 	//      just before the end of file (i.e. ch->frame + frame_count is < ch->info.frames,
@@ -179,7 +180,7 @@ static int cb_read_frames(struct channel *ch, float *out, sf_count_t frame_count
 	if (frame_count > 0) {
 		if (!cb_loop(ch))
 			return STS_STREAM_COMPLETE;
-		num_read += sf_readf_float(ch->file, out, frame_count);
+		*num_read += sf_readf_float(ch->file, out, frame_count);
 	}
 
 	return STS_STREAM_CONTINUE;
@@ -188,13 +189,12 @@ static int cb_read_frames(struct channel *ch, float *out, sf_count_t frame_count
 /*
  * Calculate the gain for a fade at a given sample.
  */
-static float cb_calc_fade(struct fade *fade, uint_least32_t sample)
+static float cb_calc_fade(struct fade *fade)
 {
-	if (sample >= fade->end_pos) {
+	if (fade->elapsed >= fade->frames)
 		return fade->stop ? 0.0 : fade->end_volume;
-	}
 
-	float progress = (float)(sample - fade->start_pos) / (float)(fade->end_pos - fade->start_pos);
+	float progress = (float)fade->elapsed / (float)fade->frames;
 	float delta_v = fade->end_volume - fade->start_volume;
 	float gain = fade->start_volume + delta_v * progress;
 	if (gain < 0.0) return 0.0;
@@ -205,10 +205,11 @@ static float cb_calc_fade(struct fade *fade, uint_least32_t sample)
 static int refill_stream(sts_mixer_sample_t *sample, void *data)
 {
 	struct channel *ch = data;
+	uint_least32_t frames_read;
 	memset(ch->data, 0, sizeof(float) * sample->length);
 
 	// read audio data from file
-	int r = cb_read_frames(ch, ch->data, CHUNK_SIZE);
+	int r = cb_read_frames(ch, ch->data, CHUNK_SIZE, &frames_read);
 
 	// convert mono to stereo
 	if (ch->info.channels == 1) {
@@ -229,17 +230,21 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 
 	// set gain for fade
 	if (ch->fade.fading) {
-		float gain = cb_calc_fade(&ch->fade, ch->frame);
+		float gain = cb_calc_fade(&ch->fade);
 		mixers[ch->mixer_no].mixer.voices[ch->voice].gain = gain;
 		ch->volume = gain * 100.0;
 
-		if (ch->frame >= ch->fade.end_pos) {
+		ch->fade.elapsed += frames_read;
+		if (ch->fade.elapsed >= ch->fade.frames) {
 			ch->fade.fading = false;
 			if (ch->fade.stop) {
 				cb_seek(ch, 0);
 				r = STS_STREAM_COMPLETE;
 			}
 		}
+	} else {
+		float gain = ch->volume / 100.0;
+		mixers[ch->mixer_no].mixer.voices[ch->voice].gain = gain;
 	}
 
 	if (r == STS_STREAM_COMPLETE) {
@@ -323,13 +328,30 @@ int channel_set_loop_end_pos(struct channel *ch, int pos)
 
 int channel_fade(struct channel *ch, int time, int volume, bool stop)
 {
+	if (!time && stop)
+		return channel_stop(ch);
+
 	SDL_LockAudioDevice(audio_device);
-	ch->fade.fading = true;
-	ch->fade.stop = stop;
-	ch->fade.start_pos = ch->frame;
-	ch->fade.start_volume = (float)ch->volume / 100.0;
-	ch->fade.end_pos = ch->fade.start_pos + ((time * ch->info.samplerate) / 1000);
-	ch->fade.end_volume = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	if (!time) {
+		// XXX: Fade with time=0 is used to set volume. This needs to
+		//      take effect immediately, not via the audio callback
+		//      because the stream isn't necessarily playing yet.
+		//      E.g. the below call sequence should fade from 0 -> 33:
+		//
+		//          SACT2.Music_Fade(ch, 0, 0, 0);
+		//          SACT2.Music_Fade(ch, 33, 4000, 0);
+		//          SACT2.Music_Play(ch);
+		ch->fade.fading = false;
+		ch->volume = max(0, min(100, volume));
+	} else {
+		ch->fade.fading = true;
+		ch->fade.stop = stop;
+		ch->fade.start_pos = ch->frame;
+		ch->fade.start_volume = (float)ch->volume / 100.0;
+		ch->fade.frames = (time * ch->info.samplerate) / 1000;
+		ch->fade.elapsed = 0;
+		ch->fade.end_volume = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	}
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
@@ -339,7 +361,7 @@ int channel_stop_fade(struct channel *ch)
 	SDL_LockAudioDevice(audio_device);
 	// XXX: we need to set the volume to end_volume and potentially stop the
 	//      stream here; better to let the callback do it
-	ch->fade.end_pos = ch->frame;
+	ch->fade.elapsed = ch->fade.frames;
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
