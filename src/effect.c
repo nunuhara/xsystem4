@@ -134,6 +134,7 @@ static struct effect_shader crossfade_up_down_shader = EFFECT_SHADER("shaders/ef
 static struct effect_shader mosaic_shader = EFFECT_SHADER("shaders/effects/mosaic.f.glsl");
 static struct effect_shader blind_down_shader = EFFECT_SHADER("shaders/effects/blind_down.f.glsl");
 static struct effect_shader blind_lr_shader = EFFECT_SHADER("shaders/effects/blind_lr.f.glsl");
+static struct effect_shader linear_blur_shader = EFFECT_SHADER("shaders/effects/linear_blur.f.glsl");
 static struct effect_shader zigzag_crossfade_shader = EFFECT_SHADER("shaders/effects/zigzag_crossfade.f.glsl");
 static struct effect_shader blur_crossfade_shader = EFFECT_SHADER("shaders/effects/blur_crossfade.f.glsl");
 
@@ -146,6 +147,7 @@ static struct effect_shader *effect_shaders[NR_EFFECTS] = {
 	[EFFECT_CROSSFADE_MOSAIC] = &mosaic_shader,
 	[EFFECT_BLIND_DOWN] = &blind_down_shader,
 	[EFFECT_BLIND_LR] = &blind_lr_shader,
+	[EFFECT_LINEAR_BLUR] = &linear_blur_shader,
 	[EFFECT_ZIGZAG_CROSSFADE] = &zigzag_crossfade_shader,
 	[EFFECT_BLUR_CROSSFADE] = &blur_crossfade_shader,
 };
