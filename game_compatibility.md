@@ -14,17 +14,35 @@ issues, please let me know or open a pull request to update this table.
 
 |                 Game                                    |   Status    | Notes |
 | ------------------------------------------------------- | ----------- | ----- |
-| DALK外伝                                                | Unknown     |       |
-| ままにょにょ                                            | Unknown     |       |
+| DALK外伝                                                | Unsupported |       |
+| ままにょにょ                                            | Unsupported |       |
 | 大番長 -Big Bang Age-                                   | Supported   |       |
 | Daibanchou -Big Bang Age- (EN)                          | Supported   |       |
 | 魔女の贖罪                                              | Unknown     |       |
 | Rance VI -ゼス崩壊-                                     | Supported   |       |
 | Rance VI -Collapse of Zeth- (EN)                        | Supported   |       |
 | ウルトラ魔法少女まなな Vol.1～Vol.5                     | Unknown     |       |
-| ALICEの館7                                              | Unknown     |       |
+| 鈴宮刑務娼館                                            | Unknown     | From ALICEの館7 |
+| しまいま                                                | Unknown     | From ALICEの館7 |
+| DUNGEONS & DOLLS                                        | Unsupported | From ALICEの館7 |
+| こすぷれれもん                                          | Unknown     | From ALICEの館7 |
+| エルメイフラワー                                        | Unknown     | From ALICEの館7 |
+| CGは17年ゼミ                                            | Unknown     | From ALICEの館7 |
+| でーぴーえすVer_N                                       | Unknown     | From ALICEの館7 |
+| 大番長外伝                                              | Unknown     | From ALICEの館7 |
+| ZERO                                                    | Unknown     | From ALICEの館7 |
+| ぷろGRX                                                 | Unknown     | From ALICEの館7 |
+| Girls                                                   | Unknown     | From ALICEの館7 |
+| 神武 -カムナガラ-                                       | Unknown     | From ALICEの館7 |
+| オニむス                                                | Unknown     | From ALICEの館7 |
+| 透色                                                    | Unknown     | From ALICEの館7 |
+| DEBUT                                                   | Unknown     | From ALICEの館7 |
+| ランス6その後                                           | Unknown     | From ALICEの館7 |
+| ほいっぷハニー                                          | Unknown     | From ALICEの館7 |
+| Text Jam Session                                        | Unknown     | From ALICEの館7 |
+| 没ロゴの哀しみ                                          | Unknown     | From ALICEの館7 |
+| スタッフコーナー                                        | Unknown     | From ALICEの館7 |
 | ぱすてるチャイムContinue                                | Unsupported |       |
-| 神武－カムナガラ－                                      | Unknown     |       |
 | GALZOOアイランド                                        | Supported   |       |
 | ぱすちゃC＋＋                                           | Unknown     |       |
 | よくばりサボテン                                        | Supported   |       |
