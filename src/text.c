@@ -264,7 +264,7 @@ static void render_glyph(Texture *dst, Texture *glyph, Point pos)
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, pos.x, pos.y, glyph->w, glyph->h);
 
 	GLfloat mw_transform[16] = {
-		[0]  = glyph->w,
+		[0]  = glyph->w * config.text_x_scale,
 		[5]  = glyph->h,
 		[10] = 1,
 		[15] = 1
@@ -382,7 +382,8 @@ int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm,
 			_gfx_render_text(dst, pos, utf, tm);
 			free(utf);
 		}
-		pos.x += (len == 2 ? tm->size : tm->size / 2) + char_space;
+		int advance = (len == 2 ? tm->size : tm->size / 2) + char_space;
+		pos.x += advance * config.text_x_scale;
 		msg += len;
 	}
 	return pos.x - original_x;
@@ -404,7 +405,8 @@ static void gfx_draw_text(Texture *dst, int x, int y, char *text)
 		free(conv);
 
 		// move next pos
-		pos.x += (len == 2 ? font->size : font->size / 2) + font_metrics.space;
+		int advance = (len == 2 ? font->size : font->size / 2) + font_metrics.space;
+		pos.x += advance * config.text_x_scale;
 		text += len;
 	}
 }

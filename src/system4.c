@@ -23,6 +23,7 @@
 #include <ctype.h>
 #include <getopt.h>
 #include <time.h>
+#include <math.h>
 
 #include "system4.h"
 #include "system4/ain.h"
@@ -56,6 +57,8 @@ struct config config = {
 	.default_volume = 100,
 	.joypad = false,
 	.echo = false,
+	.text_x_scale = 1.0,
+	.manual_text_x_scale = false,
 
 	.bgi_path = NULL,
 	.wai_path = NULL,
@@ -155,6 +158,15 @@ static void read_user_config_file(const char *path)
 			font_paths[FONT_MINCHO] = xstrdup(ini_string(&ini[i])->text);
 		} else if (!strcmp(ini[i].name->text, "font-gothic")) {
 			font_paths[FONT_GOTHIC] = xstrdup(ini_string(&ini[i])->text);
+		} else if (!strcmp(ini[i].name->text, "font-x-scale")) {
+			float f = strtof(ini_string(&ini[i])->text, NULL);
+			if (fabsf(f) < 0.01) {
+				WARNING("Invalid value for font-x-scale in config: \"%s\"",
+						ini_string(&ini[i])->text);
+			} else {
+				config.manual_text_x_scale = true;
+				config.text_x_scale = f;
+			}
 		}
 		ini_free_entry(&ini[i]);
 	}
@@ -321,6 +333,7 @@ static void usage(void)
 	puts("    -e, --echo-message  Echo in-game messages to standard output");
 	puts("        --font-mincho   Specify the path to the mincho font to use");
 	puts("        --font-gothic   Specify the path to the gothic font to use");
+	puts("        --font-x-scale  Specify the x scale for text rendering (1.0 = default scale)");
 	puts("    -j, --joypad        Enable joypad");
 #ifdef DEBUGGER_ENABLED
 	puts("        --nodebug       Disable debugger");
@@ -335,6 +348,7 @@ enum {
 	LOPT_ECHO_MESSAGE,
 	LOPT_FONT_MINCHO,
 	LOPT_FONT_GOTHIC,
+	LOPT_FONT_X_SCALE,
 	LOPT_JOYPAD,
 #ifdef DEBUGGER_ENABLED
 	LOPT_NODEBUG,
@@ -364,6 +378,7 @@ int main(int argc, char *argv[])
 			{ "echo-message", no_argument,       0, LOPT_ECHO_MESSAGE },
 			{ "font-mincho",  required_argument, 0, LOPT_FONT_MINCHO },
 			{ "font-gothic",  required_argument, 0, LOPT_FONT_GOTHIC },
+			{ "font-x-scale", required_argument, 0, LOPT_FONT_X_SCALE },
 			{ "joypad",       optional_argument, 0, LOPT_JOYPAD },
 #ifdef DEBUGGER_ENABLED
 			{ "nodebug",      no_argument,       0, LOPT_NODEBUG },
@@ -398,6 +413,15 @@ int main(int argc, char *argv[])
 			break;
 		case LOPT_FONT_GOTHIC:
 			font_gothic = optarg;
+			break;
+		case LOPT_FONT_X_SCALE:
+			config.manual_text_x_scale = true;
+			config.text_x_scale = strtof(optarg, NULL);
+			if (fabsf(config.text_x_scale) < 0.01) {
+				WARNING("Invalid value for --font-x-scale option: \"%s\"", optarg);
+				config.manual_text_x_scale = false;
+				config.text_x_scale = 1.0;
+			}
 			break;
 		case 'j':
 		case LOPT_JOYPAD:

@@ -39,6 +39,8 @@ struct config {
 
 	bool joypad;
 	bool echo;
+	float text_x_scale;
+	bool manual_text_x_scale;
 };
 
 extern struct config config;
