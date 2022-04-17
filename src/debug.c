@@ -277,10 +277,12 @@ struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, 
 {
 	switch (type->data) {
 	case AIN_INT:
+	case AIN_LONG_INT:
 		return integer_to_string(value.i);
 	case AIN_FLOAT:
 		return float_to_string(value.f, 6);
-		break;
+	case AIN_BOOL:
+		return cstr_to_string(value.i ? "true" : "false");
 	case AIN_STRING: {
 		struct string *out = cstr_to_string("\"");
 		string_append(&out, heap_get_string(value.i));
@@ -289,6 +291,8 @@ struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, 
 	}
 	case AIN_STRUCT:
 	case AIN_REF_STRUCT: {
+		if (value.i < 0)
+			return cstr_to_string("NULL");
 		struct page *page = heap_get_page(value.i);
 		if (page->nr_vars == 0) {
 			return cstr_to_string("{}");
@@ -313,6 +317,8 @@ struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, 
 	}
 	case AIN_ARRAY_TYPE:
 	case AIN_REF_ARRAY_TYPE: {
+		if (value.i < 0)
+			return cstr_to_string("[]");
 		struct page *page = heap_get_page(value.i);
 		if (!page || page->nr_vars == 0) {
 			return cstr_to_string("[]");
