@@ -67,5 +67,6 @@ void get_time(int *hour, int *min, int *sec, int *ms);
 
 extern bool game_daibanchou_en;
 extern bool game_rance02_mg;
+extern bool game_rance6_mg;
 
 #endif /* XSYSTEM4_H */

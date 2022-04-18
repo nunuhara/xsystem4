@@ -33,6 +33,7 @@
 
 bool game_daibanchou_en = false;
 bool game_rance02_mg = false;
+bool game_rance6_mg = false;
 
 static void write_instruction0(struct buffer *out, enum opcode op)
 {
@@ -50,6 +51,9 @@ static void write_instruction1(struct buffer *out, enum opcode op, int32_t arg)
 // Uses a custom proportional font implementation which makes assumptions
 // about the font. We replace the _CalculateWidth function with a font-generic
 // implementation.
+//
+// '^' character is mapped to 'é' (Rosé)
+// '}' character is mapped to double-width dash
 static void apply_rance02_hacks(struct ain *ain)
 {
 	int fno = ain_get_function(ain, "_CalculateWidth");
@@ -120,6 +124,16 @@ static void apply_rance02_hacks(struct ain *ain)
 	game_rance02_mg = true;
 }
 
+// Rance VI (MangaGamer version)
+// -----------------------------
+// 'ﾉ' character is mapped to 'é' (Rosé)
+static void apply_rance6_hacks(struct ain *ain)
+{
+	if (ain_get_function(ain, "GetTextWidth") < 0)
+		return;
+	game_rance6_mg = true;
+}
+
 // Daibanchou (English fan translation)
 // ------------------------------------
 // Gpx2Plus.CopyStretchReduceAMap behaves differently in order to work around
@@ -139,6 +153,8 @@ void apply_game_specific_hacks(struct ain *ain)
 		apply_daibanchou_hacks(ain);
 	} else if (!strcmp(game_name, "Rance 02")) {
 		apply_rance02_hacks(ain);
+	} else if (!strcmp(game_name, "Rance6")) {
+		apply_rance6_hacks(ain);
 	}
 	free(game_name);
 }

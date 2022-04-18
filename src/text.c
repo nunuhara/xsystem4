@@ -376,7 +376,9 @@ int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm,
 	while (*msg) {
 		int len = extract_sjis_char(msg, c);
 		if (msg[0] == '^' && game_rance02_mg) {
-			_gfx_render_text(dst, pos, "\xc3\xa9", tm);
+			_gfx_render_text(dst, pos, "\xc3\xa9", tm); // é
+		} else if (msg[0] == '\xc9' && game_rance6_mg) { // half-width katakana 'no' (ﾉ)
+			_gfx_render_text(dst, pos, "\xc3\xa9", tm); // é
 		} else {
 			char *utf = sjis2utf(c, len);
 			_gfx_render_text(dst, pos, utf, tm);
