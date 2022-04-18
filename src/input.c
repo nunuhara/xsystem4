@@ -153,7 +153,6 @@ static enum sact_keycode sdl_to_sact_button(int button)
 bool key_is_down(enum sact_keycode code)
 {
 	if (code < 0 || code >= VK_NR_KEYCODES) {
-		WARNING("key_is_down: invalid keycode (%d)", code);
 		return false;
 	}
 	return key_state[code];
