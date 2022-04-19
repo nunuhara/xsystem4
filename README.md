@@ -19,6 +19,7 @@ First install the dependencies (corresponding Debian package in parentheses):
 * bison (bison)
 * cglm (libcglm-dev) [optional, fetched by meson if not available]
 * flex (flex)
+* glew (libglew-dev)
 * meson (meson)
 * libffi (libffi-dev)
 * libpng (libpng-dev)
