@@ -24,6 +24,7 @@
 #include <getopt.h>
 #include <time.h>
 #include <math.h>
+#include <limits.h>
 
 #include "system4.h"
 #include "system4/ain.h"
