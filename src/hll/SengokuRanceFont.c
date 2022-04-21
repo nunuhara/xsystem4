@@ -143,7 +143,7 @@ static float SengokuRanceFont_GetTextWidth(struct string *str)
 
 static void SengokuRanceFont_SP_ClearState(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp)
 		return;
 	sp->text.home.x = 0;

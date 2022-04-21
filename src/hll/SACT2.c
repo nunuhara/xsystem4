@@ -68,8 +68,10 @@ static void realloc_sprite_table(int n)
 // NOTE: Used externally by DrawGraph, SengokuRanceFont and dungeon.c
 struct sact_sprite *sact_get_sprite(int sp)
 {
-	if (sp < -1)
+	if (sp < -1) {
+		WARNING("Invalid sprite number: %d", sp);
 		return NULL;
+	}
 	if (sp >= nr_sprites)
 		realloc_sprite_table(sp+256);
 	if (!sprites[sp]) {
@@ -206,36 +208,21 @@ int sact_SP_GetMaxZ(void)
 int sact_SP_SetCG(int sp_no, int cg_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	if (!sp)
-		sact_SP_Create(sp_no, 1, 1, 0, 0, 0, 255);
-	if (!(sp = sact_get_sprite(sp_no))) {
-		WARNING("Failed to create sprite");
-		return 0;
-	}
+	if (!sp) return 0;
 	return sprite_set_cg_from_asset(sp, cg_no);
 }
 
 int sact_SP_SetCG2X(int sp_no, int cg_no)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	if (!sp)
-		sact_SP_Create(sp_no, 1, 1, 0, 0, 0, 255);
-	if (!(sp = sact_get_sprite(sp_no))) {
-		WARNING("Failed to create sprite");
-		return 0;
-	}
+	if (!sp) return 0;
 	return sprite_set_cg_2x_from_asset(sp, cg_no);
 }
 
 int sact_SP_SetCGFromFile(int sp_no, struct string *filename)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	if (!sp)
-		sact_SP_Create(sp_no, 1, 1, 0, 0, 0, 255);
-	if (!(sp = sact_get_sprite(sp_no))) {
-		WARNING("Failed to create sprite");
-		return 0;
-	}
+	if (!sp) return 0;
 	char *path = gamedir_path(filename->text);
 	int r = sprite_set_cg_from_file(sp, path);
 	free(path);
@@ -244,9 +231,8 @@ int sact_SP_SetCGFromFile(int sp_no, struct string *filename)
 
 int sact_SP_SaveCG(int sp_no, struct string *filename)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	if (!sp)
-		return 0;
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	if (!sp) return 0;
 	char *path = gamedir_path(filename->text);
 	int r = sprite_save_cg(sp, path);
 	free(path);
@@ -255,36 +241,27 @@ int sact_SP_SaveCG(int sp_no, struct string *filename)
 
 struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a)
 {
-	struct sact_sprite *sp;
-	if (sp_no < 0)
-		VM_ERROR("Invalid sprite number: %d", sp_no);
-	if (sp_no >= nr_sprites) {
-		realloc_sprite_table(sp_no+256);
-	}
-	if (!(sp = sact_get_sprite(sp_no)))
-		sp = sact_alloc_sprite(sp_no);
-
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return NULL;
 	sprite_init(sp, width, height, r, g, b, a);
 	return sp;
 }
 
 int sact_SP_Create(int sp_no, int width, int height, int r, int g, int b, int a)
 {
-	sact_create_sprite(sp_no, width, height, r, g, b, a);
-	return 1;
+	return !!sact_create_sprite(sp_no, width, height, r, g, b, a);
 }
 
 int sact_SP_CreatePixelOnly(int sp_no, int width, int height)
 {
-	sact_create_sprite(sp_no, width, height, 0, 0, 0, -1);
-	return 1;
+	return !!sact_create_sprite(sp_no, width, height, 0, 0, 0, -1);
 }
 
 //int SACT2_SP_CreateCustom(int sp);
 
 int sact_SP_Delete(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	sact_free_sprite(sp);
 	return 1;
@@ -303,7 +280,7 @@ int sact_SP_DeleteAll(void)
 int sact_SP_SetPos(int sp_no, int x, int y)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	if (!sp) return 1;
+	if (!sp) return 0;
 	sprite_set_pos(sp, x, y);
 	return 1;
 }
@@ -334,7 +311,7 @@ int sact_SP_SetZ(int sp_no, int z)
 
 int sact_SP_GetBlendRate(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	return sprite_get_blend_rate(sp);
 }
@@ -449,7 +426,7 @@ int sact_SP_SetTextHome(int sp_no, int x, int y)
 int sact_SP_SetTextLineSpace(int sp_no, int px)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	if (!sp) return 1;
+	if (!sp) return 0;
 	sprite_set_text_line_space(sp, px);
 	return 1;
 }
@@ -457,13 +434,15 @@ int sact_SP_SetTextLineSpace(int sp_no, int px)
 int sact_SP_SetTextCharSpace(int sp_no, int px)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	if (!sp) return 1;
+	if (!sp) return 0;
 	sprite_set_text_char_space(sp, px);
 	return 1;
 }
 
 int sact_SP_SetTextPos(int sp_no, int x, int y)
 {
+	// XXX: In AliceSoft's implementation, this function succeeds even with
+	//      a negative sp_no...
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
 	sprite_set_text_pos(sp, x, y);
@@ -497,6 +476,8 @@ static void init_text_metrics(struct text_metrics *tm, union vm_value *_tm)
 
 int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_metrics *tm)
 {
+	// XXX: In AliceSoft's implementation, this function succeeds even with
+	//      a negative sp_no...
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
 	sprite_text_draw(sp, text, tm);
@@ -513,7 +494,7 @@ int sact_SP_TextDraw(int sp_no, struct string *text, struct page *_tm)
 
 int sact_SP_TextClear(int sp_no)
 {
-	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 1; // always returns 1
 	sprite_text_clear(sp);
 	return 1;
@@ -539,17 +520,21 @@ int sact_SP_TextNewLine(int sp_no, int size)
 
 int sact_SP_TextCopy(int dno, int sno)
 {
-	struct sact_sprite *dsp = sact_get_sprite(dno);
-	struct sact_sprite *ssp = sact_get_sprite(sno);
-	if (!ssp)
-		return 0;
+	// XXX: the dest sprite gets allocated even if this function returns
+	//      0 because the source sprite doesn't exist
+	struct sact_sprite *dsp = sact_try_get_sprite(dno);
 	if (!dsp) {
-		sact_SP_Create(dno, 1, 1, 0, 0, 0, 0);
-		if (!(dsp = sact_get_sprite(dno))) {
-			WARNING("Failed to create sprite");
+		// FIXME? SP_GetWidth/SP_GetHeight return 0 in this case
+		dsp = sact_create_sprite(dno, 1, 1, 0, 0, 0, 0);
+		if (!dsp) {
+			WARNING("Failed to create sprite: %d", dno);
 			return 0;
 		}
 	}
+
+	struct sact_sprite *ssp = sact_try_get_sprite(sno);
+	if (!ssp)
+		return 0;
 
 	sprite_text_copy(dsp, ssp);
 	return 1;
