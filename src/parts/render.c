@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <limits.h>
 #include <assert.h>
 #include <cglm/cglm.h>
 
@@ -147,7 +148,7 @@ void parts_dirty(possibly_unused struct parts *parts)
 void parts_render_init(void)
 {
 	goat_sprite.z = 0;
-	goat_sprite.z2 = 2;
+	goat_sprite.z2 = INT_MAX;
 	goat_sprite.has_pixel = true;
 	goat_sprite.has_alpha = true;
 	goat_sprite.render = parts_engine_render;

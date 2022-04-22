@@ -41,6 +41,7 @@ static struct sact_sprite *sact_alloc_sprite(int sp)
 {
 	sprites[sp] = xcalloc(1, sizeof(struct sact_sprite));
 	sprites[sp]->no = sp;
+	sprites[sp]->sp.z2 = sp;
 	sprite_dirty(sprites[sp]);
 	return sprites[sp];
 }
