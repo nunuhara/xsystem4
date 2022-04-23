@@ -116,15 +116,15 @@ static void render_text(struct fnl_font_face *font, struct text_style *ts, Textu
 	free(glyphs);
 }
 
-static void draw_text(Texture *dst, Texture *glyph, int x, int y, float scale)
+static void draw_text(Texture *dst, Texture *glyph, int x, int y, float scale_x, float scale_y)
 {
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, x, y, glyph->w, glyph->h);
 
 	mat4 mw_transform = MAT4(
-	     glyph->w * scale, 0,                0, 0,
-	     0,                glyph->h * scale, 0, 0,
-	     0,                0,                1, 0,
-	     0,                0,                0, 1);
+	     glyph->w * scale_x, 0,                  0, 0,
+	     0,                  glyph->h * scale_y, 0, 0,
+	     0,                  0,                  1, 0,
+	     0,                  0,                  0, 1);
 	mat4 wv_transform = WV_TRANSFORM(glyph->w, glyph->h);
 	struct gfx_render_job job = {
 		.texture = glyph->handle,
@@ -143,11 +143,26 @@ int fnl_draw_text(struct fnl *fnl, struct text_style *ts, Texture *dst, int x, i
 	struct fnl_font_face *font = &fnl->fonts[ts->font_type].faces[ts->font_size->face];
 	render_text(font, ts, &rendered, text);
 
-	//glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-	draw_text(dst, &rendered, x, y, 1.0 / ts->font_size->denominator);
-	//glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+	glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
+	float scale_y = 1.0 / ts->font_size->denominator;
+	float scale_x = scale_y * ts->scale_x;
+	draw_text(dst, &rendered, x, y, scale_x, scale_y);
+	glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
 
-	int w = rendered.w / (float)ts->font_size->denominator;
+	int w = rendered.w * scale_x;
 	gfx_delete_texture(&rendered);
 	return w;
+}
+
+float fnl_size_text(struct fnl *fnl, struct text_style *ts, char *text)
+{
+	struct fnl_font_face *font = &fnl->fonts[ts->font_type].faces[ts->font_size->face];
+	int width = 0;
+	int len = sjis_count_char(text);
+	for (int i = 0; i < len; i++) {
+		width += fnl_get_glyph(font, sjis_code(text))->real_width;
+		text = sjis_skip_char(text);
+	}
+
+	return ((float)width / (float)ts->font_size->denominator) * ts->scale_x;
 }

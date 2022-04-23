@@ -225,5 +225,6 @@ struct text_style {
 struct fnl;
 struct fnl_font_face;
 int fnl_draw_text(struct fnl *fnl, struct text_style *ts, Texture *dst, int x, int y, char *text);
+float fnl_size_text(struct fnl *fnl, struct text_style *ts, char *text);
 
 #endif /* SYSTEM4_SDL_CORE_H */
