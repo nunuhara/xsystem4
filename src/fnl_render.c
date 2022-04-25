@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
+#include <math.h>
 #include "gfx/gfx.h"
 #include "gfx/types.h"
 #include "system4.h"
@@ -21,110 +23,16 @@
 #include "system4/utfsjis.h"
 #include "gfx/gfx.h"
 
-static void set_pixel(uint8_t *p, int w, int h, int x, int y, SDL_Color c)
+static void draw_glyph(Texture *dst, float x, int y, Texture *glyph, float scale_x, float scale_y)
 {
-	if (x >= w || y >= h)
-		return;
-	p[y*w*4 + x*4 + 0] = c.r;
-	p[y*w*4 + x*4 + 1] = c.g;
-	p[y*w*4 + x*4 + 2] = c.b;
-	p[y*w*4 + x*4 + 3] = 255;
-}
-
-static void render_outline(struct text_style *ts, uint8_t *surf, uint8_t *data, unsigned long data_size, int x, int w, int h)
-{
-	const int span = w * 4;
-	const int glyph_w = (data_size*8) / h;
-	const int size = ts->font_size->denominator * ts->edge_width;
-
-
-	uint32_t p = 0;
-	for (int row = h - 1; row >= 0; row--) {
-		uint8_t *pos = surf + row*span + x*4;
-		for (int col = 0; col < glyph_w; col++, p++, pos += 4) {
-			bool on = data[p/8] & (1 << (7 - p % 8));
-			if (!on)
-				continue;
-			int start_x = x + col - size;
-			int start_y = row - size;
-			for (int ol_row = 0; ol_row < size*2; ol_row++) {
-				for (int ol_col = 0; ol_col < size*2; ol_col++) {
-					set_pixel(surf, w, h, start_x + ol_col, start_y + ol_row, ts->edge_color);
-				}
-			}
-		}
-	}
-}
-
-// TODO: cache glyph textures, render directly to dst texture
-static void render_glyph(struct fnl_font_face *font, struct text_style *ts, uint8_t *surf, struct fnl_glyph *glyph, int x, int w, int h)
-{
-	unsigned long data_size;
-	uint8_t *data = fnl_glyph_data(font->font->fnl, glyph, &data_size);
-
-	const int span = w * 4;
-	const int glyph_w = (data_size*8) / h;
-
-	if (ts->edge_width)
-		render_outline(ts, surf, data, data_size, x, w, h);
-
-	uint32_t p = 0;
-	for (int row = h - 1; row >= 0; row--) {
-		uint8_t *pos = surf + row*span + x*4;
-		for (int col = 0; col < glyph_w; col++, p++) {
-			bool on = data[p/8] & (1 << (7 - p % 8));
-			if (on) {
-				set_pixel(surf, w, h, x+col, row, ts->color);
-			}
-			pos += 4;
-		}
-	}
-
-	free(data);
-}
-
-static void render_text(struct fnl_font_face *font, struct text_style *ts, Texture *dst, char *text)
-{
-	// create array of fnl_glyph
-	const int height = font->height;
-	int len = sjis_count_char(text);
-	struct fnl_glyph **glyphs = xcalloc(len, sizeof(struct fnl_glyph*));
-	for (int i = 0; i < len; i++) {
-		glyphs[i] = fnl_get_glyph(font, sjis_code(text));
-		text = sjis_skip_char(text);
-	}
-
-	// calculate width/height of text surface
-	int width = 0;
-	for (int i = 0; i < len; i++) {
-		width += glyphs[i]->real_width;
-	}
-
-	// allocate memory for surface
-	uint8_t *surf = xcalloc(4, width * height);
-
-	// render glyphs to surface
-	int x = 0;
-	for (int i = 0; i < len; i++) {
-		render_glyph(font, ts, surf, glyphs[i], x, width, height);
-		x += glyphs[i]->real_width;
-	}
-
-	// create texture from surface
-	gfx_init_texture_with_pixels(dst, width, height, surf);
-	free(surf);
-	free(glyphs);
-}
-
-static void draw_text(Texture *dst, Texture *glyph, int x, int y, float scale_x, float scale_y)
-{
-	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, x, y, glyph->w, glyph->h);
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, roundf(x), y, glyph->w, glyph->h);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	mat4 mw_transform = MAT4(
-	     glyph->w * scale_x, 0,                  0, 0,
-	     0,                  glyph->h * scale_y, 0, 0,
-	     0,                  0,                  1, 0,
-	     0,                  0,                  0, 1);
+			glyph->w * scale_x, 0,                  0, 0,
+			0,                  glyph->h * scale_y, 0, 0,
+			0,                  0,                  1, 0,
+			0,                  0,                  0, 1);
 	mat4 wv_transform = WV_TRANSFORM(glyph->w, glyph->h);
 	struct gfx_render_job job = {
 		.texture = glyph->handle,
@@ -134,29 +42,84 @@ static void draw_text(Texture *dst, Texture *glyph, int x, int y, float scale_x,
 	};
 	gfx_render(&job);
 
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 }
 
-int fnl_draw_text(struct fnl *fnl, struct text_style *ts, Texture *dst, int x, int y, char *text)
+struct fnl_glyph_texture {
+	Texture t;
+	SDL_Color c;
+};
+
+enum glyph_texture_type {
+	FONT_TEXTURE = 0,
+	EDGE_TEXTURE = 1
+};
+
+static Texture *get_glyph_texture(struct fnl_rendered_glyph *glyph, SDL_Color *c,
+		enum glyph_texture_type type)
 {
-	Texture rendered;
-	struct fnl_font_face *font = &fnl->fonts[ts->font_type].faces[ts->font_size->face];
-	render_text(font, ts, &rendered, text);
+	if (!glyph->data) {
+		glyph->data = xcalloc(2, sizeof(struct fnl_glyph_texture));
+	}
 
-	glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
-	float scale_y = 1.0 / ts->font_size->denominator;
-	float scale_x = scale_y * ts->scale_x;
-	draw_text(dst, &rendered, x, y, scale_x, scale_y);
-	glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+	struct fnl_glyph_texture *g = glyph->data;
+	g += type;
 
-	int w = rendered.w * scale_x;
-	gfx_delete_texture(&rendered);
-	return w;
+	if (!g->t.handle) {
+		gfx_init_texture_amap(&g->t, glyph->width, glyph->height, glyph->pixels, *c);
+		g->c = *c;
+		return &g->t;
+	}
+
+	if (g->c.r != c->r || g->c.g != c->g || g->c.b != c->b) {
+		gfx_fill(&g->t, 0, 0, g->t.w, g->t.h, c->r, c->g, c->b);
+		g->c = *c;
+	}
+	return &g->t;
+}
+
+static void draw_glyph_outline(Texture *dst, float x, int y, Texture *glyph, struct text_style *ts)
+{
+	float edge_width = roundf(ts->edge_width);
+	draw_glyph(dst, x-edge_width, y, glyph, ts->scale_x, 1.0);
+	draw_glyph(dst, x+edge_width, y, glyph, ts->scale_x, 1.0);
+	draw_glyph(dst, x, y-edge_width, glyph, ts->scale_x, 1.0);
+	draw_glyph(dst, x, y+edge_width, glyph, ts->scale_x, 1.0);
+}
+
+float fnl_draw_text(struct fnl *fnl, struct text_style *ts, Texture *dst, float x, int y, char *text)
+{
+	int len = sjis_count_char(text);
+	struct fnl_rendered_glyph **glyphs = xmalloc(len * sizeof(struct fnl_rendered_glyph*));
+	for (int i = 0; i < len; i++) {
+		glyphs[i] = fnl_render_glyph(ts->font_size, sjis_code(text));
+		text = sjis_skip_char(text);
+	}
+
+	float original_x = x;
+	if (ts->edge_width > 0.5) {
+		for (int i = 0; i < len; i++) {
+			Texture *t = get_glyph_texture(glyphs[i], &ts->edge_color, EDGE_TEXTURE);
+			draw_glyph_outline(dst, x, y, t, ts);
+			x += glyphs[i]->advance * ts->scale_x;
+		}
+	}
+
+	x = original_x;
+	for (int i = 0; i < len; i++) {
+		Texture *t = get_glyph_texture(glyphs[i], &ts->color, FONT_TEXTURE);
+		draw_glyph(dst, x, y, t, ts->scale_x, 1.0);
+		x += glyphs[i]->advance * ts->scale_x;
+	}
+
+	free(glyphs);
+	return x - original_x;
 }
 
 float fnl_size_text(struct fnl *fnl, struct text_style *ts, char *text)
 {
-	struct fnl_font_face *font = &fnl->fonts[ts->font_type].faces[ts->font_size->face];
+	struct fnl_font_face *font = ts->font_size->face;
 	int width = 0;
 	int len = sjis_count_char(text);
 	for (int i = 0; i < len; i++) {
@@ -165,4 +128,17 @@ float fnl_size_text(struct fnl *fnl, struct text_style *ts, char *text)
 	}
 
 	return ((float)width / (float)ts->font_size->denominator) * ts->scale_x;
+}
+
+void free_textures(void *data)
+{
+	struct fnl_glyph_texture *textures = data;
+	gfx_delete_texture(&textures[FONT_TEXTURE].t);
+	gfx_delete_texture(&textures[EDGE_TEXTURE].t);
+	free(textures);
+}
+
+void fnl_renderer_free(struct fnl *fnl)
+{
+	fnl_free(fnl, free_textures);
 }

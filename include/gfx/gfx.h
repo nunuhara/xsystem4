@@ -25,6 +25,7 @@
 
 struct cg;
 struct text_metrics;
+enum cg_type;
 
 enum draw_method {
 	DRAW_METHOD_NORMAL,
@@ -88,12 +89,14 @@ void gfx_init_texture_with_cg(struct texture *t, struct cg *cg);
 void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color);
 void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color);
 void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels);
+void gfx_init_texture_amap(struct texture *t, int w, int h, uint8_t *amap, SDL_Color color);
 void gfx_copy_main_surface(struct texture *dst);
 void gfx_delete_texture(struct texture *t);
 GLuint gfx_set_framebuffer(GLenum target, Texture *t, int x, int y, int w, int h);
 void gfx_reset_framebuffer(GLenum target, GLuint fbo);
 SDL_Color gfx_get_pixel(Texture *t, int x, int y);
 void *gfx_get_pixels(Texture *t);
+int gfx_save_texture(Texture *t, const char *path, enum cg_type);
 
 // drawing
 void gfx_draw_init(void);
@@ -224,7 +227,8 @@ struct text_style {
 
 struct fnl;
 struct fnl_font_face;
-int fnl_draw_text(struct fnl *fnl, struct text_style *ts, Texture *dst, int x, int y, char *text);
+float fnl_draw_text(struct fnl *fnl, struct text_style *ts, Texture *dst, float x, int y, char *text);
 float fnl_size_text(struct fnl *fnl, struct text_style *ts, char *text);
+void fnl_renderer_free(struct fnl *fnl);
 
 #endif /* SYSTEM4_SDL_CORE_H */

@@ -148,31 +148,7 @@ int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path)
 
 int sprite_save_cg(struct sact_sprite *sp, const char *path)
 {
-	void *pixels = gfx_get_pixels(sprite_get_texture(sp));
-
-	struct cg cg = {
-		.type = ALCG_UNKNOWN,
-		.metrics = {
-			.w = sp->rect.w,
-			.h = sp->rect.h,
-			.bpp = 24,
-			.has_pixel = sp->sp.has_pixel,
-			.has_alpha = sp->sp.has_alpha,
-			.pixel_pitch = sp->rect.w * 3,
-			.alpha_pitch = 1
-		},
-		.pixels = pixels
-	};
-	FILE *fp = file_open_utf8(path, "wb");
-	if (!fp) {
-		WARNING("Failed to open %s: %s", display_utf0(path), strerror(errno));
-		free(pixels);
-		return 0;
-	}
-	int r = cg_write(&cg, ALCG_QNT, fp);
-	fclose(fp);
-	free(pixels);
-	return r;
+	return gfx_save_texture(sprite_get_texture(sp), path, ALCG_QNT);
 }
 
 /*
@@ -336,4 +312,67 @@ void sprite_get_pixel_value(struct sact_sprite *sp, int x, int y, int *r, int *g
 	*r = c.r;
 	*g = c.g;
 	*b = c.b;
+}
+
+static void print_color(SDL_Color *c)
+{
+	printf("(%d,%d,%d,%d)", c->r, c->g, c->b, c->a);
+}
+
+static void print_rectangle(Rectangle *r)
+{
+	printf("{x=%d,y=%d,w=%d,h=%d}", r->x, r->y, r->w, r->h);
+}
+
+static void print_point(Point *p)
+{
+	printf("{x=%d,y=%d}", p->x, p->y);
+}
+
+static void print_texture(struct texture *t, int indent)
+{
+	puts("{");
+	for (int i = 0; i < indent+1; i++) putchar('\t');
+	printf("initialized = %s,\n", t->handle ? "true" : "false");
+	for (int i = 0; i < indent+1; i++) putchar('\t');
+	printf("size = (%d,%d),\n", t->w, t->h);
+	for (int i = 0; i < indent+1; i++) putchar('\t');
+	printf("has_alpha = %s,\n", t->has_alpha ? "true" : "false");
+	for (int i = 0; i < indent+1; i++) putchar('\t');
+	printf("alpha_mod = %d,\n", t->alpha_mod);
+	for (int i = 0; i < indent+1; i++) putchar('\t');
+	switch (t->draw_method) {
+	case DRAW_METHOD_NORMAL:   printf("draw_method = normal\n"); break;
+	case DRAW_METHOD_SCREEN:   printf("draw_method = screen\n"); break;
+	case DRAW_METHOD_MULTIPLY: printf("draw_method = multiply\n"); break;
+	case DRAW_METHOD_ADDITIVE: printf("draw_method = additive\n"); break;
+	default:                   printf("draw_method = unknown\n"); break;
+	}
+	for (int i = 0; i < indent; i++) putchar('\t');
+	putchar('}');
+}
+
+void print_sprite(struct sact_sprite *sp)
+{
+	printf("sprite %d = {\n", sp->no);
+	printf("\tsp = {\n");
+	printf("\t\tz = (%d,%d),\n", sp->sp.z, sp->sp.z2);
+	printf("\t\thas_pixel = %s,\n", sp->sp.has_pixel ? "true" : "false");
+	printf("\t\thas_alpha = %s,\n", sp->sp.has_alpha ? "true" : "false");
+	printf("\t\thidden = %s,\n", sp->sp.hidden ? "true" : "false");
+	printf("\t\tin_scene = %s,\n", sp->sp.in_scene ? "true" : "false");
+	printf("\t},\n");
+	printf("\ttexture = "); print_texture(&sp->texture, 1); printf(",\n");
+	printf("\tcolor = "); print_color(&sp->color); printf(",\n");
+	printf("\trect = "); print_rectangle(&sp->rect); printf(",\n");
+	printf("\ttext = {\n");
+	//printf("\t\tstring = \"%s\",\n", display_sjis0(sp->text.str->text));
+	printf("\t\ttexture = "); print_texture(&sp->text.texture, 2); printf(",\n");
+	printf("\t\thome = "); print_point(&sp->text.home); printf(",\n");
+	printf("\t\tpos = "); print_point(&sp->text.pos); printf(",\n");
+	printf("\t\tchar_space = %d,\n", sp->text.char_space);
+	printf("\t\tline_space = %d,\n", sp->text.line_space);
+	printf("\t},\n");
+	printf("\tcg_no = %d\n", sp->cg_no);
+	printf("}\n");
 }

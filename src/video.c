@@ -516,6 +516,18 @@ void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color)
 	free(pixels);
 }
 
+void gfx_init_texture_amap(struct texture *t, int w, int h, uint8_t *amap, SDL_Color color)
+{
+	uint32_t *pixels = xmalloc(sizeof(uint32_t) * w * h);
+	for (int i = 0; i < w*h; i++) {
+		uint32_t c = SDL_MapRGBA(sdl.format, color.r, color.g, color.b, amap[i]);
+		pixels[i] = c;
+	}
+
+	gfx_init_texture_with_pixels(t, w, h, pixels);
+	free(pixels);
+}
+
 void gfx_init_texture_blank(struct texture *t, int w, int h)
 {
 	gfx_init_texture_with_pixels(t, w, h, NULL);
@@ -578,4 +590,32 @@ void *gfx_get_pixels(Texture *t)
 	glReadPixels(0, 0, t->w, t->h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 	gfx_reset_framebuffer(GL_READ_FRAMEBUFFER, fbo);
 	return pixels;
+}
+
+int gfx_save_texture(Texture *t, const char *path, enum cg_type format)
+{
+	void *pixels = gfx_get_pixels(t);
+	struct cg cg = {
+		.type = ALCG_UNKNOWN,
+		.metrics = {
+			.w = t->w,
+			.h = t->h,
+			.bpp = 24,
+			.has_pixel = true,
+			.has_alpha = t->has_alpha,
+			.pixel_pitch = t->w * 3,
+			.alpha_pitch = 1
+		},
+		.pixels = pixels
+	};
+	FILE *fp = file_open_utf8(path, "wb");
+	if (!fp) {
+		WARNING("Failed to open %s: %s", display_utf0(path), strerror(errno));
+		free(pixels);
+		return 0;
+	}
+	int r = cg_write(&cg, format, fp);
+	fclose(fp);
+	free(pixels);
+	return r;
 }

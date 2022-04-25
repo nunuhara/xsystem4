@@ -104,4 +104,6 @@ bool sprite_is_point_in_rect(struct sact_sprite *sp, int x, int y);
 int sprite_get_amap_value(struct sact_sprite *sp, int x, int y);
 void sprite_get_pixel_value(struct sact_sprite *sp, int x, int y, int *r, int *g, int *b);
 
+void print_sprite(struct sact_sprite *sp);
+
 #endif /* SYSTEM4_SPRITE_H */

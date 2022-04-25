@@ -384,8 +384,6 @@ static void SengokuRanceFont_SP_TextDrawClassic(int sp_no, struct string *text)
 	struct sr_text_properties *p = get_sp_properties(sp_no);
 	int y = p->y - p->ts.size * 0.1875;
 	p->x += sp_text_draw(sp, &p->ts, text, p->x, y);
-
-	WARNING("\"%s\"", text->text);
 }
 
 HLL_WARN_UNIMPLEMENTED( , void, SengokuRanceFont, SP_TextDrawPreload, int sp_no, struct string *text);
@@ -537,7 +535,7 @@ static void SengokuRanceFont_ModuleInit(void)
 
 static void SengokuRanceFont_ModuleFini(void)
 {
-	fnl_free(fontlib);
+	fnl_renderer_free(fontlib);
 }
 
 HLL_LIBRARY(SengokuRanceFont,
