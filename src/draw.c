@@ -69,6 +69,7 @@ static struct copy_shader fill_amap_over_border_shader;
 static struct copy_shader fill_amap_under_border_shader;
 static struct copy_shader hitbox_shader;
 static struct copy_shader hitbox_noblend_shader;
+static struct copy_shader dilate_shader;
 
 static void prepare_copy_shader(struct gfx_render_job *job, void *data)
 {
@@ -132,6 +133,9 @@ void gfx_draw_init(void)
 
 	// hitbox shader which ignores alpha component of texture (a=1)
 	load_copy_shader(&hitbox_noblend_shader, "shaders/render.v.glsl", "shaders/hitbox_noblend.f.glsl");
+
+	// shader that dilates every pixel (for bold/outline text rendering)
+	load_copy_shader(&dilate_shader, "shaders/render.v.glsl", "shaders/dilate.f.glsl");
 }
 
 static void run_draw_shader(Shader *s, Texture *dst, Texture *src, mat4 mw_transform, mat4 wv_transform, struct copy_data *data)
@@ -764,6 +768,28 @@ void gfx_copy_stretch_with_alpha_map(Texture *dst, int dx, int dy, int dw, int d
 
 	struct copy_data data = STRETCH_DATA(dx, dy, dw, dh, sx, sy, sw, sh);
 	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
+// XXX: Not an actual DrawGraph function; used for rendering text
+void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width)
+{
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	struct copy_data data = STRETCH_DATA(
+			roundf(dx), dy, glyph->w * scale_x, glyph->h,
+			0,          0,  glyph->w,           glyph->h);
+	data.r = color.r / 255.0;
+	data.g = color.g / 255.0;
+	data.b = color.b / 255.0;
+
+	if (bold_width < 0.01) {
+		run_copy_shader(&blend_amap_color_shader.s, dst, glyph, &data);
+	} else {
+		data.threshold = bold_width;
+		run_copy_shader(&dilate_shader.s, dst, glyph, &data);
+	}
 
 	restore_blend_mode();
 }

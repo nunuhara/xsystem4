@@ -142,6 +142,7 @@ void gfx_copy_amap_height_blur(Texture *dst, int dx, int dy, Texture *src, int s
 void gfx_copy_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_fill_with_alpha(Texture *dst, int x, int y, int w, int h, int r, int g, int b, int a);
 void gfx_copy_stretch_with_alpha_map(Texture *dst, int dx, int dy, int dw, int dh, Texture *src, int sx, int sy, int sw, int sh);
+void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width);
 
 enum {
 	FW_NORMAL = 400,
@@ -211,6 +212,8 @@ struct fnl_font_inst {
 	int outline_size;
 };
 
+struct fnl_render_size;
+
 struct text_style {
 	unsigned font_type;
 	float size;
@@ -222,13 +225,14 @@ struct text_style {
 	float space_scale_x;
 	float font_spacing;
 
-	struct fnl_font_size *font_size;
+	struct fnl_render_size *font_size;
 };
 
-struct fnl;
-struct fnl_font_face;
-float fnl_draw_text(struct fnl *fnl, struct text_style *ts, Texture *dst, float x, int y, char *text);
-float fnl_size_text(struct fnl *fnl, struct text_style *ts, char *text);
-void fnl_renderer_free(struct fnl *fnl);
+void fnl_renderer_init(const char *path);
+void fnl_renderer_fini(void);
+float fnl_draw_text(struct text_style *ts, Texture *dst, float x, int y, char *text);
+float fnl_size_text(struct text_style *ts, char *text);
+float fnl_get_actual_font_size(int font_type, float size);
+float fnl_get_actual_font_size_round_down(int font_type, float size);
 
 #endif /* SYSTEM4_SDL_CORE_H */
