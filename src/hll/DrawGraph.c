@@ -209,7 +209,12 @@ static void DrawGraph_SetFontName(struct string *text)
 //void DrawGraph_BlendSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
 //void DrawGraph_BlendAddSatur(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_BlendAMapSrcOnly(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
-//void DrawGraph_BlendAMapColorAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b, int a);
+
+void DrawGraph_BlendAMapColorAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b, int a)
+{
+	gfx_blend_amap_color_alpha(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, r, g, b, a);
+}
+
 //void DrawGraph_BlendAMapBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int rate);
 //void DrawGraph_BlendAMapAlphaSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
 //void DrawGraph_BlendUseAMapColor(int dst, int dx, int dy, int alpha, int ax, int ay, int w, int h, int r, int g, int b, int rate);
@@ -346,7 +351,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(BlendAMap, DrawGraph_BlendAMap),
 	    //HLL_EXPORT(BlendAMapSrcOnly, DrawGraph_BlendAMapSrcOnly),
 	    HLL_EXPORT(BlendAMapColor, DrawGraph_BlendAMapColor),
-	    //HLL_EXPORT(BlendAMapColorAlpha, DrawGraph_BlendAMapColorAlpha),
+	    HLL_EXPORT(BlendAMapColorAlpha, DrawGraph_BlendAMapColorAlpha),
 	    HLL_EXPORT(BlendAMapAlpha, DrawGraph_BlendAMapAlpha),
 	    //HLL_EXPORT(BlendAMapBright, DrawGraph_BlendAMapBright),
 	    //HLL_EXPORT(BlendAMapAlphaSrcBright, DrawGraph_BlendAMapAlphaSrcBright),

@@ -330,6 +330,7 @@ void gfx_blend_amap_color(Texture *dst, int dx, int dy, Texture *src, int sx, in
 	data.r = r / 255.0;
 	data.g = g / 255.0;
 	data.b = b / 255.0;
+	data.a = 1.0;
 	run_copy_shader(&blend_amap_color_shader.s, dst, src, &data);
 
 	restore_blend_mode();
@@ -342,6 +343,20 @@ void gfx_blend_amap_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, in
 	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
 	data.threshold = a / 255.0;
 	run_copy_shader(&blend_amap_alpha_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_blend_amap_color_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int r, int g, int b, int a)
+{
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	data.r = r / 255.0;
+	data.g = g / 255.0;
+	data.b = b / 255.0;
+	data.a = a / 255.0;
+	run_copy_shader(&blend_amap_color_shader.s, dst, src, &data);
 
 	restore_blend_mode();
 }

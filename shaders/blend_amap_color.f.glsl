@@ -22,5 +22,5 @@ out vec4 frag_color;
 
 void main() {
         vec4 texel = texture(tex, tex_coord);
-        frag_color = vec4(color.rgb, texel.a);
+        frag_color = vec4(color.rgb, texel.a * color.a);
 }
