@@ -286,17 +286,13 @@ static void SengokuRanceFont_SP_SetTextMetricsClassic(int sp_no, struct page *pa
 	ts->color.b       = page->values[2].i;
 	ts->color.a       = 255;
 	ts->size          = page->values[3].i;
-	//ts->weight        = page->values[4].i;
-	//ts->face          = page->values[5].i;
+	// XXX: weight seems to be ignored (page->values[4].i)
+	ts->font_type     = page->values[5].i;
 	ts->edge_width    = max(page->values[6].i, max(page->values[7].i, max(page->values[8].i, page->values[9].i)));
 	ts->edge_color.r  = page->values[10].i;
 	ts->edge_color.g  = page->values[11].i;
 	ts->edge_color.b  = page->values[12].i;
 	ts->edge_color.a  = 255;
-	ts->bold_width    = 0; // FIXME: use weight?
-	ts->scale_x       = 1;
-	ts->space_scale_x = 1;
-	ts->font_spacing  = 1;
 	ts->font_size     = NULL;
 }
 
@@ -357,7 +353,8 @@ static void SengokuRanceFont_SP_TextDrawClassic(int sp_no, struct string *text)
 	}
 
 	struct sr_text_properties *p = get_sp_properties(sp_no);
-	int y = p->y - p->ts.size * 0.1875;
+	//int y = p->y - p->ts.size * 0.1875;
+	int y = p->y;
 	p->x += sp_text_draw(sp, &p->ts, text, p->x, y);
 }
 
