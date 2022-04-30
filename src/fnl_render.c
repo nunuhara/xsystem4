@@ -276,26 +276,31 @@ float fnl_draw_text(struct text_style *ts, Texture *dst, float x, int y, char *t
 	}
 
 	int len = sjis_count_char(text);
+	uint16_t *chars = xmalloc(len * sizeof(uint16_t));
 	struct fnl_render_glyph **glyphs = xmalloc(len * sizeof(struct fnl_render_glyph*));
 	for (int i = 0; i < len; i++) {
-		glyphs[i] = fnl_render_glyph(ts->font_size, sjis_code(text));
+		chars[i] = sjis_code(text);
+		glyphs[i] = fnl_render_glyph(ts->font_size, chars[i]);
 		text = sjis_skip_char(text);
 	}
 
 	float original_x = x;
 	if (ts->edge_width > 0.1) {
 		for (int i = 0; i < len; i++) {
-			gfx_draw_glyph(dst, x, y, &glyphs[i]->texture, ts->edge_color, ts->scale_x, ts->edge_width);
-			x += glyphs[i]->advance * ts->scale_x + ts->font_spacing;
+			float scale_x = chars[i] == ' ' ? ts->space_scale_x : ts->scale_x;
+			gfx_draw_glyph(dst, x, y, &glyphs[i]->texture, ts->edge_color, scale_x, ts->edge_width);
+			x += glyphs[i]->advance * scale_x + ts->font_spacing;
 		}
 	}
 
 	x = original_x;
 	for (int i = 0; i < len; i++) {
-		gfx_draw_glyph(dst, x, y, &glyphs[i]->texture, ts->color, ts->scale_x, ts->bold_width);
-		x += glyphs[i]->advance * ts->scale_x + ts->font_spacing;
+		float scale_x = chars[i] == ' ' ? ts->space_scale_x : ts->scale_x;
+		gfx_draw_glyph(dst, x, y, &glyphs[i]->texture, ts->color, scale_x, ts->bold_width);
+		x += glyphs[i]->advance * scale_x + ts->font_spacing;
 	}
 
+	free(chars);
 	free(glyphs);
 	return x - original_x;
 }
