@@ -798,6 +798,7 @@ void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color co
 	data.r = color.r / 255.0;
 	data.g = color.g / 255.0;
 	data.b = color.b / 255.0;
+	data.a = 1.0;
 
 	if (bold_width < 0.01) {
 		run_copy_shader(&blend_amap_color_shader.s, dst, glyph, &data);
