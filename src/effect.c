@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
 #include <math.h>
 #include <SDL.h>
 #include "effect.h"
@@ -204,14 +205,25 @@ static void effect_zoom_rl(float rate)
 	gfx_copy_stretch(dst, 0, 0, x_pos, dst->h, &effect.old, 0, 0, effect.old.w, effect.old.h);
 }
 
+static void effect_oscillate(float rate)
+{
+	Texture *dst = gfx_main_surface();
+	int delta_x = (rand() % (dst->w / 10) - (dst->w / 20)) * (1.0f - rate);
+	int delta_y = (rand() % (dst->h / 10) - (dst->h / 20)) * (1.0f - rate);;
+
+	gfx_copy(dst, 0, 0, &effect.old, 0, 0, dst->w, dst->h);
+	gfx_copy(dst, delta_x, delta_y, &effect.new, 0, 0, dst->w, dst->h);
+}
+
 typedef void (*effect_fun)(float rate);
 static effect_fun effect_functions[NR_EFFECTS] = {
-	[EFFECT_FADEOUT]  = effect_fadeout,
-	[EFFECT_FADEIN]   = effect_fadein,
-	[EFFECT_WHITEOUT] = effect_whiteout,
-	[EFFECT_WHITEIN]  = effect_whitein,
-	[EFFECT_ZOOM_LR]  = effect_zoom_lr,
-	[EFFECT_ZOOM_RL]  = effect_zoom_rl,
+	[EFFECT_FADEOUT]   = effect_fadeout,
+	[EFFECT_FADEIN]    = effect_fadein,
+	[EFFECT_WHITEOUT]  = effect_whiteout,
+	[EFFECT_WHITEIN]   = effect_whitein,
+	[EFFECT_OSCILLATE] = effect_oscillate,
+	[EFFECT_ZOOM_LR]   = effect_zoom_lr,
+	[EFFECT_ZOOM_RL]   = effect_zoom_rl,
 };
 
 int sact_TRANS_Begin(int type)

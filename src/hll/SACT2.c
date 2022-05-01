@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
 #include <math.h>
 #include <time.h>
 
@@ -158,7 +159,26 @@ int sact_Update(void)
 
 HLL_WARN_UNIMPLEMENTED(1, int, SACT2, EffectSetMask, int cg);
 //int SACT2_EffectSetMaskSP(int sp);
-HLL_WARN_UNIMPLEMENTED( , void, SACT2, QuakeScreen, int amp_x, int amp_y, int time, int key);
+
+void sact_QuakeScreen(int amp_x, int amp_y, int time, int key)
+{
+	Texture tex;
+	scene_render();
+	gfx_copy_main_surface(&tex);
+
+	Texture *dst = gfx_main_surface();
+
+	for (int i = 0; i < time; i+= 16) {
+		float rate = 1.0f - ((float)i / (float)time);
+		int delta_x = (rand() % amp_x - amp_x/2) * rate;
+		int delta_y = (rand() % amp_y - amp_y/2) * rate;
+		gfx_clear();
+		gfx_copy(dst, delta_x, delta_y, &tex, 0, 0, dst->w, dst->h);
+		gfx_swap();
+		SDL_Delay(16);
+	}
+}
+
 //void SACT2_QUAKE_SET_CROSS(int amp_x, int amp_y);
 //void SACT2_QUAKE_SET_ROTATION(int amp, int cycle);
 
@@ -778,7 +798,7 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_EXPORT(Effect, sact_Effect), \
 	    HLL_EXPORT(EffectSetMask, SACT2_EffectSetMask), \
 	    HLL_TODO_EXPORT(EffectSetMaskSP, SACT2_EffectSetMaskSP), \
-	    HLL_EXPORT(QuakeScreen, SACT2_QuakeScreen), \
+	    HLL_EXPORT(QuakeScreen, sact_QuakeScreen), \
 	    HLL_TODO_EXPORT(QUAKE_SET_CROSS, SACT2_QUAKE_SET_CROSS), \
 	    HLL_TODO_EXPORT(QUAKE_SET_ROTATION, SACT2_QUAKE_SET_ROTATION), \
 	    HLL_EXPORT(SP_GetUnuseNum, sact_SP_GetUnuseNum), \
