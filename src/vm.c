@@ -2267,7 +2267,7 @@ int vm_execute_ain(struct ain *program)
 	call_stack_ptr = 0;
 
 	heap_init();
-	link_libraries();
+	init_libraries();
 
 	// Initialize globals
 	heap[0].ref = 1;

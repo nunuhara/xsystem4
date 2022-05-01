@@ -24,6 +24,7 @@
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "xsystem4.h"
 
 #define HLL_MAX_ARGS 64
 
@@ -57,6 +58,7 @@ bool library_function_exists(int libno, int fno)
 static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 		      struct hll_function *fun, union vm_value *r, void *_args)
 {
+	/*
 	// list of traced libraries
 	if (!strcmp(lib->name, "StoatSpriteEngine") || !strcmp(lib->name, "ChipmunkSpriteEngine")) {
 		// list of excluded functions
@@ -86,16 +88,22 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 	}
 	//else if (!strcmp(lib->name, "DrawGraph"));
 	else if (!strcmp(lib->name, "SACT2")) {
+		if (strncmp(f->name, "SP_", 3)) goto notrace;
 		if (!strcmp(f->name, "Key_IsDown")) goto notrace;
 		if (!strcmp(f->name, "Mouse_GetPos")) goto notrace;
 		if (!strcmp(f->name, "SP_ExistAlpha")) goto notrace;
 		if (!strcmp(f->name, "SP_IsPtInRect")) goto notrace;
+		if (!strcmp(f->name, "SP_IsPtIn")) goto notrace;
 		if (!strcmp(f->name, "SP_IsUsing")) goto notrace;
+		if (!strcmp(f->name, "SP_SetShow")) goto notrace;
 		if (!strcmp(f->name, "SP_SetPos")) goto notrace;
 		if (!strcmp(f->name, "Timer_Get")) goto notrace;
 		if (!strcmp(f->name, "Update")) goto notrace;
 	}
-	else if (!strcmp(lib->name, "SengokuRanceFont"));
+	else*/ if (!strcmp(lib->name, "SengokuRanceFont")) {
+		if (!strcmp(f->name, "SP_SetReduceDescender")) goto notrace;
+		if (!strcmp(f->name, "SP_ClearState")) goto notrace;
+	}
 	else goto notrace;
 
 	sys_message("(%s) ", display_sjis0(ain->functions[call_stack[call_stack_ptr-1].fno].name));
@@ -457,16 +465,32 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 			ERROR("Too many arguments to library function: %s", ainlib->functions[i].name);
 	}
 
+	return dst;
+}
+
+static void library_run(struct static_library *lib, const char *name)
+{
 	for (int i = 0; lib->functions[i].name; i++) {
-		if (!strcmp(lib->functions[i].name, "_ModuleInit")) {
+		if (!strcmp(lib->functions[i].name, name)) {
 			((void(*)(void))lib->functions[i].fun)();
 			break;
 		}
 	}
-	return dst;
 }
 
-void link_libraries(void)
+static void library_run_all(const char *name)
+{
+	for (int i = 0; i < ain->nr_libraries; i++) {
+		for (int j = 0; static_libraries[j]; j++) {
+			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
+				library_run(static_libraries[j], name);
+				break;
+			}
+		}
+	}
+}
+
+static void link_libraries(void)
 {
 	if (libraries)
 		return;
@@ -485,24 +509,13 @@ void link_libraries(void)
 	}
 }
 
-void library_fini(struct static_library *lib)
+void init_libraries(void)
 {
-	for (int i = 0; lib->functions[i].name; i++) {
-		if (!strcmp(lib->functions[i].name, "_ModuleFini")) {
-			((void(*)(void))lib->functions[i].fun)();
-			break;
-		}
-	}
+	link_libraries();
+	library_run_all("_ModuleInit");
 }
 
 void exit_libraries(void)
 {
-	for (int i = 0; i < ain->nr_libraries; i++) {
-		for (int j = 0; static_libraries[j]; j++) {
-			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
-				library_fini(static_libraries[j]);
-				break;
-			}
-		}
-	}
+	library_run_all("_ModuleFini");
 }

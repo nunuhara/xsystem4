@@ -284,7 +284,7 @@ static void config_init_with_ain(const char *ain_path)
 
 static void ain_audit(FILE *f, struct ain *ain)
 {
-	link_libraries();
+	init_libraries();
 
 	for (size_t addr = 0; addr < ain->code_size;) {
 		uint16_t opcode = LittleEndian_getW(ain->code, addr);

@@ -24,6 +24,7 @@
 #include "system4/fnl.h"
 #include "system4/hashtable.h"
 #include "system4/string.h"
+#include "system4/utfsjis.h"
 
 #include "gfx/gfx.h"
 #include "vm/page.h"
@@ -37,6 +38,7 @@ struct sr_text_properties {
 	float home_x;
 	int home_y;
 	int line_space;
+	int last_char;
 	struct text_style ts;
 };
 
@@ -46,6 +48,7 @@ static struct sr_text_properties default_text_properties = {
 	.home_x = 0.0,
 	.home_y = 0,
 	.line_space = 0,
+	.last_char = -1,
 	.ts = {
 		.font_type = 0,
 		.size = 16.0,
@@ -318,16 +321,23 @@ static void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *page)
 	ts->font_size          = NULL;
 }
 
-static float sp_text_draw(struct sact_sprite *sp, struct text_style *ts, struct string *text, float x, int y)
+static float sp_text_draw(struct sact_sprite *sp, struct sr_text_properties *tp, struct string *text, float x, int y)
 {
-	if (ts->size < 8) {
-		ts->size = 8;
+	if (tp->ts.size < 8) {
+		tp->ts.size = 8;
 	}
 
 	struct texture *tex = sprite_get_texture(sp);
 
+	// save last char code
+	int last_char = -1;
+	for (char *p = text->text; *p; p = sjis_skip_char(p)) {
+		last_char = sjis_code(p);
+	}
+	tp->last_char = last_char;
+
 	sprite_dirty(sp);
-	return x + fnl_draw_text(ts, tex, x, y, text->text);
+	return x + fnl_draw_text(&tp->ts, tex, x, y, text->text);
 }
 
 static void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
@@ -339,7 +349,7 @@ static void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
 	}
 
 	struct sr_text_properties *p = get_sp_properties(sp_no);
-	p->x += sp_text_draw(sp, &p->ts, text, p->x, p->y);
+	p->x += sp_text_draw(sp, p, text, p->x, p->y);
 }
 
 // As far as I can tell, this just renders the text slightly higher than
@@ -355,7 +365,7 @@ static void SengokuRanceFont_SP_TextDrawClassic(int sp_no, struct string *text)
 	struct sr_text_properties *p = get_sp_properties(sp_no);
 	//int y = p->y - p->ts.size * 0.1875;
 	int y = p->y;
-	p->x += sp_text_draw(sp, &p->ts, text, p->x, y);
+	p->x += sp_text_draw(sp, p, text, p->x, y);
 }
 
 HLL_WARN_UNIMPLEMENTED( , void, SengokuRanceFont, SP_TextDrawPreload, int sp_no, struct string *text);
@@ -460,9 +470,20 @@ static float SengokuRanceFont_GetActualFontSizeRoundDown(int font_type, float fo
 	return fnl_get_actual_font_size_round_down(font_type, font_size);
 }
 
-//static int SengokuRanceFont_SP_GetTextLastCharCode(int spriteNumber);
-//static void SengokuRanceFont_SP_SetTextLastCharCode(int spriteNumber, int lastChar);
-//static int SengokuRanceFont_SP_GetReduceDescender(int spriteNumber);
+static int SengokuRanceFont_SP_GetTextLastCharCode(int sp_no)
+{
+	return get_sp_properties(sp_no)->last_char;
+}
+
+static void SengokuRanceFont_SP_SetTextLastCharCode(int sp_no, int last_char)
+{
+	get_sp_properties(sp_no)->last_char = last_char;
+}
+
+static int SengokuRanceFont_SP_GetReduceDescender(int sp_no)
+{
+	return 0;
+}
 
 static void SengokuRanceFont_SP_SetReduceDescender(int sp_no, int reduce_descender)
 {
@@ -564,8 +585,8 @@ HLL_LIBRARY(SengokuRanceFont,
 	    HLL_EXPORT(SP_GetSpaceScaleX, SengokuRanceFont_SP_GetSpaceScaleX),
 	    HLL_EXPORT(GetActualFontSize, SengokuRanceFont_GetActualFontSize),
 	    HLL_EXPORT(GetActualFontSizeRoundDown, SengokuRanceFont_GetActualFontSizeRoundDown),
-	    //HLL_EXPORT(SP_GetTextLastCharCode, SengokuRanceFont_SP_GetTextLastCharCode),
-	    //HLL_EXPORT(SP_SetTextLastCharCode, SengokuRanceFont_SP_SetTextLastCharCode),
-	    //HLL_EXPORT(SP_GetReduceDescender, SengokuRanceFont_SP_GetReduceDescender),
+	    HLL_EXPORT(SP_GetTextLastCharCode, SengokuRanceFont_SP_GetTextLastCharCode),
+	    HLL_EXPORT(SP_SetTextLastCharCode, SengokuRanceFont_SP_SetTextLastCharCode),
+	    HLL_EXPORT(SP_GetReduceDescender, SengokuRanceFont_SP_GetReduceDescender),
 	    HLL_EXPORT(SP_SetReduceDescender, SengokuRanceFont_SP_SetReduceDescender)
 	);
