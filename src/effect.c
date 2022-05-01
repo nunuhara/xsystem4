@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <math.h>
 #include <SDL.h>
 #include "effect.h"
 #include "gfx/gfx.h"
@@ -65,7 +66,7 @@ const char *effect_names[NR_EFFECTS] = {
 	[EFFECT_VERTICAL_BAR_BLUR_HD]   = "EFFECT_VERTICAL_BAR_BLUR_HD",
 	[EFFECT_AMAP_CROSSFADE2]        = "EFFECT_AMAP_CROSSFADE2",
 	[EFFECT_ZOOM_LR]                = "EFFECT_ZOOM_LR",
-	[EFFECT_ZOOR_RL]                = "EFFECT_ZOOR_RL",
+	[EFFECT_ZOOM_RL]                = "EFFECT_ZOOM_RL",
 	[EFFECT_CROSSFADE_LR]           = "EFFECT_CROSSFADE_LR",
 	[EFFECT_CROSSFADE_RL]           = "EFFECT_CROSSFADE_RL",
 	[EFFECT_PIXEL_EXPLOSION]        = "EFFECT_PIXEL_EXPLOSION",
@@ -161,21 +162,49 @@ static struct {
 	Texture new;
 } effect = {0};
 
+static void effect_zoom_lr(float rate)
+{
+	Texture *dst = gfx_main_surface();
+	unsigned x_pos = roundf(dst->w * rate);
+	gfx_copy_stretch(dst, x_pos, 0, dst->w-x_pos, dst->h, &effect.old, 0, 0, effect.old.w, effect.old.h);
+	gfx_copy_stretch(dst, 0, 0, x_pos, dst->h, &effect.new, 0, 0, effect.new.w, effect.new.h);
+}
+
+static void effect_zoom_rl(float rate)
+{
+	Texture *dst = gfx_main_surface();
+	unsigned x_pos = dst->w - roundf(dst->w * rate);
+	gfx_copy_stretch(dst, x_pos, 0, dst->w-x_pos, dst->h, &effect.new, 0, 0, effect.new.w, effect.new.h);
+	gfx_copy_stretch(dst, 0, 0, x_pos, dst->h, &effect.old, 0, 0, effect.old.w, effect.old.h);
+}
+
+typedef void (*effect_fun)(float rate);
+static effect_fun effect_functions[NR_EFFECTS] = {
+	[EFFECT_ZOOM_LR] = effect_zoom_lr,
+	[EFFECT_ZOOM_RL] = effect_zoom_rl,
+};
+
 int sact_TRANS_Begin(int type)
 {
 	if (type <= 0 || type >= NR_EFFECTS) {
 		WARNING("Invalid or unknown effect: %d", type);
 		return 0;
 	}
-	struct effect_shader *s = effect_shaders[type];
-	if (!s) {
-		WARNING("Unimplemented effect: %s", effect_names[type]);
-		type = EFFECT_BLUR_CROSSFADE;
-		s = effect_shaders[type];
+
+	if (effect_functions[type]) {
+		// nothing to do
 	}
-	// load shader lazily
-	if (!s->s.program) {
-		load_effect_shader(s);
+	else {
+		struct effect_shader *s = effect_shaders[type];
+		if (!s) {
+			WARNING("Unimplemented effect: %s", effect_names[type]);
+			type = EFFECT_BLUR_CROSSFADE;
+			s = effect_shaders[type];
+		}
+		// load shader lazily
+		if (!s->s.program) {
+			load_effect_shader(s);
+		}
 	}
 
 	effect.on = true;
@@ -192,7 +221,11 @@ int sact_TRANS_Update(float rate)
 		return 0;
 	}
 	gfx_clear();
-	render_effect_shader(effect_shaders[effect.type], &effect.old, &effect.new, rate);
+	if (effect_functions[effect.type]) {
+		effect_functions[effect.type](rate);
+	} else {
+		render_effect_shader(effect_shaders[effect.type], &effect.old, &effect.new, rate);
+	}
 	gfx_swap();
 	return 1;
 }

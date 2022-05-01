@@ -61,7 +61,7 @@ enum effect {
 	EFFECT_VERTICAL_BAR_BLUR_HD   = 41,
 	EFFECT_AMAP_CROSSFADE2        = 42,
 	EFFECT_ZOOM_LR                = 43,
-	EFFECT_ZOOR_RL                = 44,
+	EFFECT_ZOOM_RL                = 44,
 	EFFECT_CROSSFADE_LR           = 45,
 	EFFECT_CROSSFADE_RL           = 46,
 	EFFECT_PIXEL_EXPLOSION        = 47,
