@@ -162,6 +162,32 @@ static struct {
 	Texture new;
 } effect = {0};
 
+static void effect_fadeout(float rate)
+{
+	gfx_copy_bright(gfx_main_surface(), 0, 0, &effect.old, 0, 0,
+			effect.old.w, effect.old.h, (1.0f - rate) * 255);
+}
+
+static void effect_fadein(float rate)
+{
+	gfx_copy_bright(gfx_main_surface(), 0, 0, &effect.new, 0, 0,
+			effect.new.w, effect.new.h, rate * 255);
+}
+
+static void effect_whiteout(float rate)
+{
+	Texture *dst = gfx_main_surface();
+	gfx_fill(dst, 0, 0, dst->w, dst->h, 255, 255, 255);
+	gfx_blend(dst, 0, 0, &effect.old, 0, 0, dst->w, dst->h, (1.0f - rate) * 255);
+}
+
+static void effect_whitein(float rate)
+{
+	Texture *dst = gfx_main_surface();
+	gfx_fill(dst, 0, 0, dst->w, dst->h, 255, 255, 255);
+	gfx_blend(dst, 0, 0, &effect.new, 0, 0, dst->w, dst->h, rate * 255);
+}
+
 static void effect_zoom_lr(float rate)
 {
 	Texture *dst = gfx_main_surface();
@@ -180,8 +206,12 @@ static void effect_zoom_rl(float rate)
 
 typedef void (*effect_fun)(float rate);
 static effect_fun effect_functions[NR_EFFECTS] = {
-	[EFFECT_ZOOM_LR] = effect_zoom_lr,
-	[EFFECT_ZOOM_RL] = effect_zoom_rl,
+	[EFFECT_FADEOUT]  = effect_fadeout,
+	[EFFECT_FADEIN]   = effect_fadein,
+	[EFFECT_WHITEOUT] = effect_whiteout,
+	[EFFECT_WHITEIN]  = effect_whitein,
+	[EFFECT_ZOOM_LR]  = effect_zoom_lr,
+	[EFFECT_ZOOM_RL]  = effect_zoom_rl,
 };
 
 int sact_TRANS_Begin(int type)
