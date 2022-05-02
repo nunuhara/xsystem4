@@ -312,7 +312,10 @@ static float _fnl_size_char(struct fnl_render_size *size, uint16_t code)
 		return 0.0;
 	if (!size->bitmap->face->glyphs[index].data_pos)
 		return 0.0;
-	return (float)size->bitmap->face->glyphs[index].real_width / (float)size->denominator;
+	float r = (float)size->bitmap->face->glyphs[index].real_width / (float)size->denominator;
+	if (code == '\t')
+		r *= 2.88;
+	return r;
 }
 
 float fnl_size_char(struct text_style *ts, uint16_t code)
