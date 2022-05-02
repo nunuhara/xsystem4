@@ -139,6 +139,7 @@ static struct effect_shader blind_lr_shader = EFFECT_SHADER("shaders/effects/bli
 static struct effect_shader linear_blur_shader = EFFECT_SHADER("shaders/effects/linear_blur.f.glsl");
 static struct effect_shader zigzag_crossfade_shader = EFFECT_SHADER("shaders/effects/zigzag_crossfade.f.glsl");
 static struct effect_shader turn_page_shader = EFFECT_SHADER("shaders/effects/turn_page.f.glsl");
+static struct effect_shader blur_fadeout_shader = EFFECT_SHADER("shaders/effects/blur_fadeout.f.glsl");
 static struct effect_shader blur_crossfade_shader = EFFECT_SHADER("shaders/effects/blur_crossfade.f.glsl");
 
 extern GLuint main_surface_fb;
@@ -153,6 +154,7 @@ static struct effect_shader *effect_shaders[NR_EFFECTS] = {
 	[EFFECT_LINEAR_BLUR] = &linear_blur_shader,
 	[EFFECT_ZIGZAG_CROSSFADE] = &zigzag_crossfade_shader,
 	[EFFECT_TURN_PAGE] = &turn_page_shader,
+	[EFFECT_BLUR_FADEOUT] = &blur_fadeout_shader,
 	[EFFECT_BLUR_CROSSFADE] = &blur_crossfade_shader,
 };
 
