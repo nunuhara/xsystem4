@@ -360,6 +360,16 @@ void gfx_blend_src_bright(Texture *dst, int dx, int dy, Texture *src, int sx, in
 	restore_blend_mode();
 }
 
+void gfx_blend_add_satur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
 void gfx_blend_amap_color_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int r, int g, int b, int a)
 {
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

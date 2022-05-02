@@ -114,6 +114,7 @@ void gfx_blend(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w
 void gfx_blend_amap(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_blend_amap_color(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int r, int g, int b);
 void gfx_blend_amap_alpha(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h, int a);
+void gfx_blend_add_satur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_blend_src_bright(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int a, int rate);
 void gfx_blend_amap_color_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int r, int g, int b, int a);
 void gfx_fill(struct texture *dst, int x, int y, int w, int h, int r, int g, int b);
