@@ -206,7 +206,11 @@ static void DrawGraph_SetFontName(struct string *text)
 	gfx_set_font_name(text->text);
 }
 
-//void DrawGraph_BlendSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
+void DrawGraph_BlendSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate)
+{
+	gfx_blend_src_bright(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha, rate);
+}
+
 //void DrawGraph_BlendAddSatur(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_BlendAMapSrcOnly(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 
@@ -346,7 +350,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(CopyAMapMax, DrawGraph_CopyAMapMax),
 	    HLL_EXPORT(CopyAMapMin, DrawGraph_CopyAMapMin),
 	    HLL_EXPORT(Blend, DrawGraph_Blend),
-	    //HLL_EXPORT(BlendSrcBright, DrawGraph_BlendSrcBright),
+	    HLL_EXPORT(BlendSrcBright, DrawGraph_BlendSrcBright),
 	    //HLL_EXPORT(BlendAddSatur, DrawGraph_BlendAddSatur),
 	    HLL_EXPORT(BlendAMap, DrawGraph_BlendAMap),
 	    //HLL_EXPORT(BlendAMapSrcOnly, DrawGraph_BlendAMapSrcOnly),

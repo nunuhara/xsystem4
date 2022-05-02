@@ -347,6 +347,19 @@ void gfx_blend_amap_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, in
 	restore_blend_mode();
 }
 
+void gfx_blend_src_bright(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int a, int rate)
+{
+	GLfloat f_rate = rate / 255.0;
+	f_rate *= (a / 255.0);
+	glBlendFuncSeparate(GL_CONSTANT_COLOR, GL_ONE_MINUS_CONSTANT_ALPHA, GL_ZERO, GL_ONE);
+	glBlendColor(f_rate, f_rate, f_rate, a / 255.0);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
 void gfx_blend_amap_color_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int r, int g, int b, int a)
 {
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
