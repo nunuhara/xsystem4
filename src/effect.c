@@ -215,15 +215,30 @@ static void effect_oscillate(float rate)
 	gfx_copy(dst, delta_x, delta_y, &effect.new, 0, 0, dst->w, dst->h);
 }
 
+static void effect_zoom_in_crossfade(float rate)
+{
+	Texture *dst = gfx_main_surface();
+	float scale = 1.0f + powf(rate, 4.0f) * 16.0f;
+	int w = roundf(dst->w * scale);
+	int h = roundf(dst->h * scale);
+	int x = -((w - dst->w)/2);
+	int y = -((h - dst->h)/2);
+	int a = (1.0f - rate) * 255;
+
+	gfx_copy(dst, 0, 0, &effect.new, 0, 0, dst->w, dst->h);
+	gfx_copy_stretch_blend(dst, x, y, w, h, &effect.old, 0, 0, dst->w, dst->h, a);
+}
+
 typedef void (*effect_fun)(float rate);
 static effect_fun effect_functions[NR_EFFECTS] = {
-	[EFFECT_FADEOUT]   = effect_fadeout,
-	[EFFECT_FADEIN]    = effect_fadein,
-	[EFFECT_WHITEOUT]  = effect_whiteout,
-	[EFFECT_WHITEIN]   = effect_whitein,
-	[EFFECT_OSCILLATE] = effect_oscillate,
-	[EFFECT_ZOOM_LR]   = effect_zoom_lr,
-	[EFFECT_ZOOM_RL]   = effect_zoom_rl,
+	[EFFECT_FADEOUT]           = effect_fadeout,
+	[EFFECT_FADEIN]            = effect_fadein,
+	[EFFECT_WHITEOUT]          = effect_whiteout,
+	[EFFECT_WHITEIN]           = effect_whitein,
+	[EFFECT_OSCILLATE]         = effect_oscillate,
+	[EFFECT_ZOOM_LR]           = effect_zoom_lr,
+	[EFFECT_ZOOM_RL]           = effect_zoom_rl,
+	[EFFECT_ZOOM_IN_CROSSFADE] = effect_zoom_in_crossfade,
 };
 
 int sact_TRANS_Begin(int type)
