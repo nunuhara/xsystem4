@@ -86,9 +86,24 @@ static void DrawGraph_Blend(int dst, int dx, int dy, int src, int sx, int sy, in
 	gfx_blend(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha);
 }
 
+static void DrawGraph_BlendSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate)
+{
+	gfx_blend_src_bright(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha, rate);
+}
+
+static void DrawGraph_BlendAddSatur(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_blend_add_satur(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
+
 static void DrawGraph_BlendAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
 	gfx_blend_amap(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
+
+static void DrawGraph_BlendAMapSrcOnly(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_blend_amap_src_only(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
 static void DrawGraph_BlendAMapColor(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b)
@@ -96,10 +111,22 @@ static void DrawGraph_BlendAMapColor(int dst, int dx, int dy, int src, int sx, i
 	gfx_blend_amap_color(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, r, g, b);
 }
 
+static void DrawGraph_BlendAMapColorAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b, int a)
+{
+	gfx_blend_amap_color_alpha(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, r, g, b, a);
+}
+
 static void DrawGraph_BlendAMapAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
 {
 	gfx_blend_amap_alpha(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha);
 }
+
+//void DrawGraph_BlendAMapBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int rate);
+//void DrawGraph_BlendAMapAlphaSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
+//void DrawGraph_BlendUseAMapColor(int dst, int dx, int dy, int alpha, int ax, int ay, int w, int h, int r, int g, int b, int rate);
+//void DrawGraph_BlendScreen(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+//void DrawGraph_BlendMultiply(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+//void DrawGraph_BlendScreenAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha);
 
 static void DrawGraph_Fill(int dst, int x, int y, int w, int h, int r, int g, int b)
 {
@@ -116,9 +143,30 @@ static void DrawGraph_FillAMap(int dst, int x, int y, int w, int h, int alpha)
 	gfx_fill_amap(DTEX(dst), x, y, w, h, alpha);
 }
 
+static void DrawGraph_FillAMapOverBorder(int dst, int x, int y, int w, int h, int alpha, int border)
+{
+	gfx_fill_amap_over_border(DTEX(dst), x, y, w, h, alpha, border);
+}
+
+static void DrawGraph_FillAMapUnderBorder(int dst, int x, int y, int w, int h, int alpha, int border)
+{
+	gfx_fill_amap_under_border(DTEX(dst), x, y, w, h, alpha, border);
+}
+
+//void DrawGraph_FillAMapGradationUD(int dst, int x, int y, int w, int h, int up_a, int down_a);
+//void DrawGraph_FillScreen(int dst, int x, int y, int w, int h, int r, int g, int b);
+//void DrawGraph_FillMultiply(int dst, int x, int y, int w, int h, int r, int g, int b);
+//void DrawGraph_SaturDP_DPxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+//void DrawGraph_ScreenDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+
 static void DrawGraph_AddDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
 	gfx_add_da_daxsa(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
+
+static void DrawGraph_SpriteCopyAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int key)
+{
+	gfx_sprite_copy_amap(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, key);
 }
 
 static void DrawGraph_BlendDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
@@ -131,15 +179,32 @@ static void DrawGraph_SubDA_DAxSA(int dst, int dx, int dy, int src, int sx, int 
 	gfx_sub_da_daxsa(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
+//void DrawGraph_BrightDestOnly(int dst, int x, int y, int w, int h, int rate);
+//void DrawGraph_CopyTextureWrap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v);
+//void DrawGraph_CopyTextureWrapAlpha(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v, int alpha);
+
 static void DrawGraph_CopyStretch(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
 {
 	gfx_copy_stretch(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh);
+}
+
+static void DrawGraph_CopyStretchBlend(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int alpha)
+{
+	gfx_copy_stretch_blend(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh, alpha);
+}
+
+static void DrawGraph_CopyStretchBlendAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
+{
+	gfx_copy_stretch_blend_amap(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh);
 }
 
 static void DrawGraph_CopyStretchAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
 {
 	gfx_copy_stretch_amap(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh);
 }
+
+//void DrawGraph_CopyStretchInterp(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
+//void DrawGraph_CopyStretchAMapInterp(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
 
 static void DrawGraph_DrawTextToPMap(int dst, int x, int y, struct string *s)
 {
@@ -150,6 +215,13 @@ static void DrawGraph_DrawTextToAMap(int dst, int x, int y, struct string *s)
 {
 	gfx_draw_text_to_amap(DTEX(dst), x, y, s->text);
 }
+
+static void DrawGraph_SetFontName(struct string *text)
+{
+	gfx_set_font_name(text->text);
+}
+
+HLL_WARN_UNIMPLEMENTED(string_ref(&EMPTY_STRING), struct string*, DrawGraph, GetFontName, void);
 
 static void DrawGraph_SetFontColor(int r, int g, int b)
 {
@@ -179,95 +251,6 @@ static void DrawGraph_CopyRotZoomUseAMap(int dst, int src, int sx, int sy, int w
 	gfx_copy_rot_zoom_use_amap(DTEX(dst), STEX(src), sx, sy, w, h, rotate, mag);
 }
 
-static void DrawGraph_CopyReverseLR(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
-{
-	gfx_copy_reverse_LR(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
-}
-
-static void DrawGraph_CopyReverseAMapLR(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
-{
-	gfx_copy_reverse_amap_LR(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
-}
-
-static bool DrawGraph_GetAlphaColor(int surface, int x, int y, int *a)
-{
-	struct sact_sprite *sp = sact_get_sprite(surface);
-	// NOTE: System40.exe errors here
-	if (!sp)
-		VM_ERROR("Invalid sprite index: %d", surface);
-	if (x < 0 || x >= sp->rect.w || y < 0 || y >= sp->rect.h)
-		return false;
-	*a = sact_SP_GetAMapValue(surface, x, y);
-	return true;
-}
-
-static void DrawGraph_SetFontName(struct string *text)
-{
-	gfx_set_font_name(text->text);
-}
-
-void DrawGraph_BlendSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate)
-{
-	gfx_blend_src_bright(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha, rate);
-}
-
-void DrawGraph_BlendAddSatur(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
-{
-	gfx_blend_add_satur(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
-}
-
-//void DrawGraph_BlendAMapSrcOnly(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
-
-void DrawGraph_BlendAMapColorAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b, int a)
-{
-	gfx_blend_amap_color_alpha(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, r, g, b, a);
-}
-
-//void DrawGraph_BlendAMapBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int rate);
-//void DrawGraph_BlendAMapAlphaSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
-//void DrawGraph_BlendUseAMapColor(int dst, int dx, int dy, int alpha, int ax, int ay, int w, int h, int r, int g, int b, int rate);
-//void DrawGraph_BlendScreen(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
-//void DrawGraph_BlendMultiply(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
-//void DrawGraph_BlendScreenAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha);
-
-static void DrawGraph_FillAMapOverBorder(int dst, int x, int y, int w, int h, int alpha, int border)
-{
-	gfx_fill_amap_over_border(DTEX(dst), x, y, w, h, alpha, border);
-}
-
-static void DrawGraph_FillAMapUnderBorder(int dst, int x, int y, int w, int h, int alpha, int border)
-{
-	gfx_fill_amap_under_border(DTEX(dst), x, y, w, h, alpha, border);
-}
-
-//void DrawGraph_FillAMapGradationUD(int dst, int x, int y, int w, int h, int up_a, int down_a);
-//void DrawGraph_FillScreen(int dst, int x, int y, int w, int h, int r, int g, int b);
-//void DrawGraph_FillMultiply(int dst, int x, int y, int w, int h, int r, int g, int b);
-//void DrawGraph_SaturDP_DPxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
-//void DrawGraph_ScreenDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
-
-static void DrawGraph_SpriteCopyAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int key)
-{
-	gfx_sprite_copy_amap(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, key);
-}
-
-//void DrawGraph_BrightDestOnly(int dst, int x, int y, int w, int h, int rate);
-//void DrawGraph_CopyTextureWrap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v);
-//void DrawGraph_CopyTextureWrapAlpha(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v, int alpha);
-
-static void DrawGraph_CopyStretchBlend(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int alpha)
-{
-	gfx_copy_stretch_blend(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh, alpha);
-}
-
-static void DrawGraph_CopyStretchBlendAMap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh)
-{
-	gfx_copy_stretch_blend_amap(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh);
-}
-
-//void DrawGraph_CopyStretchInterp(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
-//void DrawGraph_CopyStretchAMapInterp(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh);
-HLL_WARN_UNIMPLEMENTED(string_ref(&EMPTY_STRING), struct string*, DrawGraph, GetFontName, void);
 //void DrawGraph_CopyRotZoom2Bilinear(int dst, float cx, float cy, int src, float scx, float scy, float rot, float mag);
 
 static void DrawGraph_CopyRotateY(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag)
@@ -299,7 +282,19 @@ static void DrawGraph_CopyRotateXUseAMap(int write, int dst, int src, int sx, in
 //void DrawGraph_CopyRotateXFixD(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
 //void DrawGraph_CopyRotateXFixUUseAMap(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
 //void DrawGraph_CopyRotateXFixDUseAMap(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag);
+
+static void DrawGraph_CopyReverseLR(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_reverse_LR(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
+
 //void DrawGraph_CopyReverseUD(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+
+static void DrawGraph_CopyReverseAMapLR(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_reverse_amap_LR(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
+
 //void DrawGraph_CopyReverseAMapUD(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 
 static void DrawGraph_CopyWidthBlur(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int blur)
@@ -323,9 +318,24 @@ static void DrawGraph_CopyAMapHeightBlur(int dst, int dx, int dy, int src, int s
 }
 
 HLL_WARN_UNIMPLEMENTED( , void, DrawGraph, DrawLine, int dst, int x0, int y0, int x1, int y1, int r, int g, int b);
+
 //void DrawGraph_DrawLineToAMap(int dst, int x0, int y0, int x1, int y1, int alpha);
+
+static bool DrawGraph_GetAlphaColor(int surface, int x, int y, int *a)
+{
+	struct sact_sprite *sp = sact_get_sprite(surface);
+	// NOTE: System40.exe errors here
+	if (!sp)
+		VM_ERROR("Invalid sprite index: %d", surface);
+	if (x < 0 || x >= sp->rect.w || y < 0 || y >= sp->rect.h)
+		return false;
+	*a = sact_SP_GetAMapValue(surface, x, y);
+	return true;
+}
+
 //void DrawGraph_DrawPolygon(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2);
 //void DrawGraph_DrawColorPolygon(int dst, int tex, float x0, float y0, float z0, int r0, int g0, int b0, int a0, float x1, float y1, float z1, int r1, int g1, int b1, int a1, float x2, float y2, float z2, int r2, int g2, int b2, int a2);
+
 static void DrawGraph_CopyWithAlphaMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
 	gfx_copy_with_alpha_map(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
@@ -357,7 +367,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(BlendSrcBright, DrawGraph_BlendSrcBright),
 	    HLL_EXPORT(BlendAddSatur, DrawGraph_BlendAddSatur),
 	    HLL_EXPORT(BlendAMap, DrawGraph_BlendAMap),
-	    //HLL_EXPORT(BlendAMapSrcOnly, DrawGraph_BlendAMapSrcOnly),
+	    HLL_EXPORT(BlendAMapSrcOnly, DrawGraph_BlendAMapSrcOnly),
 	    HLL_EXPORT(BlendAMapColor, DrawGraph_BlendAMapColor),
 	    HLL_EXPORT(BlendAMapColorAlpha, DrawGraph_BlendAMapColorAlpha),
 	    HLL_EXPORT(BlendAMapAlpha, DrawGraph_BlendAMapAlpha),
