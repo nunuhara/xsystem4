@@ -121,7 +121,11 @@ static void DrawGraph_BlendAMapAlpha(int dst, int dx, int dy, int src, int sx, i
 	gfx_blend_amap_alpha(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha);
 }
 
-//void DrawGraph_BlendAMapBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int rate);
+static void DrawGraph_BlendAMapBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int rate)
+{
+	gfx_blend_amap_bright(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, rate);
+}
+
 //void DrawGraph_BlendAMapAlphaSrcBright(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha, int rate);
 //void DrawGraph_BlendUseAMapColor(int dst, int dx, int dy, int alpha, int ax, int ay, int w, int h, int r, int g, int b, int rate);
 //void DrawGraph_BlendScreen(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
@@ -371,7 +375,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(BlendAMapColor, DrawGraph_BlendAMapColor),
 	    HLL_EXPORT(BlendAMapColorAlpha, DrawGraph_BlendAMapColorAlpha),
 	    HLL_EXPORT(BlendAMapAlpha, DrawGraph_BlendAMapAlpha),
-	    //HLL_EXPORT(BlendAMapBright, DrawGraph_BlendAMapBright),
+	    HLL_EXPORT(BlendAMapBright, DrawGraph_BlendAMapBright),
 	    //HLL_EXPORT(BlendAMapAlphaSrcBright, DrawGraph_BlendAMapAlphaSrcBright),
 	    //HLL_EXPORT(BlendUseAMapColor, DrawGraph_BlendUseAMapColor),
 	    //HLL_EXPORT(BlendScreen, DrawGraph_BlendScreen),
