@@ -444,6 +444,17 @@ void gfx_blend_use_amap_color(Texture *dst, int dx, int dy, Texture *src, int sx
 
 }
 
+void gfx_blend_screen(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+
+}
+
 void gfx_fill(Texture *dst, int x, int y, int w, int h, int r, int g, int b)
 {
 	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE);
