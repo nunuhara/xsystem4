@@ -146,7 +146,10 @@ static void DrawGraph_BlendMultiply(int dst, int dx, int dy, int src, int sx, in
 	gfx_blend_multiply(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
-//void DrawGraph_BlendScreenAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha);
+static void DrawGraph_BlendScreenAlpha(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int alpha)
+{
+	gfx_blend_screen_alpha(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, alpha);
+}
 
 static void DrawGraph_Fill(int dst, int x, int y, int w, int h, int r, int g, int b)
 {
@@ -396,7 +399,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(BlendUseAMapColor, DrawGraph_BlendUseAMapColor),
 	    HLL_EXPORT(BlendScreen, DrawGraph_BlendScreen),
 	    HLL_EXPORT(BlendMultiply, DrawGraph_BlendMultiply),
-	    //HLL_EXPORT(BlendScreenAlpha, DrawGraph_BlendScreenAlpha),
+	    HLL_EXPORT(BlendScreenAlpha, DrawGraph_BlendScreenAlpha),
 	    HLL_EXPORT(Fill, DrawGraph_Fill),
 	    HLL_EXPORT(FillAlphaColor, DrawGraph_FillAlphaColor),
 	    HLL_EXPORT(FillAMap, DrawGraph_FillAMap),

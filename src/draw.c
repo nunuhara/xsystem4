@@ -464,6 +464,20 @@ void gfx_blend_multiply(Texture *dst, int dx, int dy, Texture *src, int sx, int 
 	restore_blend_mode();
 }
 
+void gfx_blend_screen_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int a)
+{
+	glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	data.r = a / 255.0;
+	data.g = a / 255.0;
+	data.b = a / 255.0;
+	data.a = 1.0;
+	run_copy_shader(&blend_amap_alpha_bright_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
 void gfx_fill(Texture *dst, int x, int y, int w, int h, int r, int g, int b)
 {
 	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE);

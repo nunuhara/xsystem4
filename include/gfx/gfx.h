@@ -123,6 +123,7 @@ void gfx_blend_amap_alpha_src_bright(Texture *dst, int dx, int dy, Texture *src,
 void gfx_blend_use_amap_color(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int r, int g, int b, int rate);
 void gfx_blend_screen(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_blend_multiply(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
+void gfx_blend_screen_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int a);
 void gfx_fill(struct texture *dst, int x, int y, int w, int h, int r, int g, int b);
 void gfx_fill_alpha_color(struct texture *dst, int x, int y, int w, int h, int r, int g, int b, int a);
 void gfx_fill_amap(struct texture *dst, int x, int y, int w, int h, int a);
