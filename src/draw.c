@@ -63,8 +63,7 @@ static struct copy_shader copy_alpha_key_shader;
 static struct copy_shader copy_use_amap_under_shader;
 static struct copy_shader copy_use_amap_border_shader;
 static struct copy_shader blend_amap_color_shader;
-static struct copy_shader blend_amap_alpha_shader;
-static struct copy_shader blend_amap_bright_shader;
+static struct copy_shader blend_amap_alpha_bright_shader;
 static struct copy_shader fill_shader;
 static struct copy_shader fill_amap_over_border_shader;
 static struct copy_shader fill_amap_under_border_shader;
@@ -117,11 +116,8 @@ void gfx_draw_init(void)
 	// copy shader that sets source RGB to a constant
 	load_copy_shader(&blend_amap_color_shader, "shaders/render.v.glsl", "shaders/blend_amap_color.f.glsl");
 
-	// copy shader that multiples the source alpha by a constant
-	load_copy_shader(&blend_amap_alpha_shader, "shaders/render.v.glsl", "shaders/blend_amap_alpha.f.glsl");
-
-	// copy shader that multiples the source color by a constant
-	load_copy_shader(&blend_amap_bright_shader, "shaders/render.v.glsl", "shaders/blend_amap_bright.f.glsl");
+	// copy shader that multiples the source color and alpha by a constant
+	load_copy_shader(&blend_amap_alpha_bright_shader, "shaders/render.v.glsl", "shaders/blend_amap_alpha_bright.f.glsl");
 
 	// basic fill shader
 	load_copy_shader(&fill_shader, "shaders/render.v.glsl", "shaders/fill.f.glsl");
@@ -392,8 +388,11 @@ void gfx_blend_amap_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, in
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
-	data.threshold = a / 255.0;
-	run_copy_shader(&blend_amap_alpha_shader.s, dst, src, &data);
+	data.r = 1.0;
+	data.g = 1.0;
+	data.b = 1.0;
+	data.a = a / 255.0;
+	run_copy_shader(&blend_amap_alpha_bright_shader.s, dst, src, &data);
 
 	restore_blend_mode();
 }
@@ -403,8 +402,25 @@ void gfx_blend_amap_bright(Texture *dst, int dx, int dy, Texture *src, int sx, i
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
-	data.threshold = rate / 255.0;
-	run_copy_shader(&blend_amap_bright_shader.s, dst, src, &data);
+	data.r = rate / 255.0;
+	data.g = rate / 255.0;
+	data.b = rate / 255.0;
+	data.a = 1.0;
+	run_copy_shader(&blend_amap_alpha_bright_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_blend_amap_alpha_src_bright(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int alpha, int rate)
+{
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	data.r = rate / 255.0;
+	data.g = rate / 255.0;
+	data.b = rate / 255.0;
+	data.a = alpha / 255.0;
+	run_copy_shader(&blend_amap_alpha_bright_shader.s, dst, src, &data);
 
 	restore_blend_mode();
 }

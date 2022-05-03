@@ -15,12 +15,11 @@
  */
 
 uniform sampler2D tex;
-uniform float threshold;
+uniform vec4 color;
 
 in vec2 tex_coord;
 out vec4 frag_color;
 
 void main() {
-        vec4 texel = texture(tex, tex_coord);
-	frag_color = vec4(texel.rgb * threshold, texel.a);
+	frag_color = texture(tex, tex_coord) * color;
 }
