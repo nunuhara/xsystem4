@@ -127,6 +127,9 @@ void gfx_blend_screen_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, 
 void gfx_fill(struct texture *dst, int x, int y, int w, int h, int r, int g, int b);
 void gfx_fill_alpha_color(struct texture *dst, int x, int y, int w, int h, int r, int g, int b, int a);
 void gfx_fill_amap(struct texture *dst, int x, int y, int w, int h, int a);
+void gfx_fill_amap_over_border(Texture *dst, int x, int y, int w, int h, int alpha, int border);
+void gfx_fill_amap_under_border(Texture *dst, int x, int y, int w, int h, int alpha, int border);
+void gfx_fill_amap_gradation_ud(Texture *dst, int x, int y, int w, int h, int up_a, int down_a);
 void gfx_add_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_blend_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_sub_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
@@ -139,8 +142,6 @@ void gfx_copy_rot_zoom_amap(Texture *dst, Texture *src, int sx, int sy, int w, i
 void gfx_copy_rot_zoom_use_amap(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag);
 void gfx_copy_reverse_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
-void gfx_fill_amap_over_border(Texture *dst, int x, int y, int w, int h, int alpha, int border);
-void gfx_fill_amap_under_border(Texture *dst, int x, int y, int w, int h, int alpha, int border);
 void gfx_copy_rotate_y(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag);
 void gfx_copy_rotate_y_use_amap(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag);
 void gfx_copy_rotate_x(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag);

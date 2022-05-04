@@ -34,6 +34,7 @@ struct copy_shader {
 	// optional
 	GLint color;
 	GLint threshold;
+	GLint threshold2;
 };
 
 struct copy_data {
@@ -43,6 +44,7 @@ struct copy_data {
 	// optional
 	float r, g, b, a;
 	float threshold;
+	float threshold2;
 };
 
 #define ROTATE_DATA(dst, _sx, _sy, _w, _h)		\
@@ -68,6 +70,7 @@ static struct copy_shader blend_use_amap_color_shader;
 static struct copy_shader fill_shader;
 static struct copy_shader fill_amap_over_border_shader;
 static struct copy_shader fill_amap_under_border_shader;
+static struct copy_shader fill_amap_gradation_ud_shader;
 static struct copy_shader hitbox_shader;
 static struct copy_shader hitbox_noblend_shader;
 static struct copy_shader dilate_shader;
@@ -81,6 +84,7 @@ static void prepare_copy_shader(struct gfx_render_job *job, void *data)
 
 	glUniform4f(s->color, d->r, d->g, d->b, d->a);
 	glUniform1f(s->threshold, d->threshold);
+	glUniform1f(s->threshold2, d->threshold2);
 }
 
 static void load_copy_shader(struct copy_shader *s, const char *v_path, const char *f_path)
@@ -90,6 +94,7 @@ static void load_copy_shader(struct copy_shader *s, const char *v_path, const ch
 	s->top_right = glGetUniformLocation(s->s.program, "top_right");
 	s->color = glGetUniformLocation(s->s.program, "color");
 	s->threshold = glGetUniformLocation(s->s.program, "threshold");
+	s->threshold2 = glGetUniformLocation(s->s.program, "threshold2");
 	s->s.prepare = prepare_copy_shader;
 }
 
@@ -130,6 +135,9 @@ void gfx_draw_init(void)
 
 	// fill shader that only fills fragments below a certain alpha threshold
 	load_copy_shader(&fill_amap_under_border_shader, "shaders/render.v.glsl", "shaders/fill_amap_under_border.f.glsl");
+
+	// fill shader that fills the alpha map with a gradient
+	load_copy_shader(&fill_amap_gradation_ud_shader, "shaders/render.v.glsl", "shaders/fill_amap_gradation_ud.f.glsl");
 
 	// shader that discards texels that fail a hitbox test
 	load_copy_shader(&hitbox_shader, "shaders/render.v.glsl", "shaders/hitbox.f.glsl");
@@ -537,6 +545,18 @@ void gfx_fill_amap_under_border(Texture *dst, int x, int y, int w, int h, int al
 	data.a = alpha / 255.0;
 	data.threshold = border / 255.0;
 	run_fill_shader(&fill_amap_under_border_shader.s, dst, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_fill_amap_gradation_ud(Texture *dst, int x, int y, int w, int h, int up_a, int down_a)
+{
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(x, y, 0, 0, w, h);
+	data.threshold = up_a / 255.0;
+	data.threshold2 = down_a / 255.0;
+	run_fill_shader(&fill_amap_gradation_ud_shader.s, dst, &data);
 
 	restore_blend_mode();
 }
