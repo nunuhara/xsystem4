@@ -137,6 +137,7 @@ void gfx_screen_da_daxsa(Texture *dst, int dx, int dy, Texture *src, int sx, int
 void gfx_add_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_blend_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_sub_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
+void gfx_bright_dest_only(Texture *dst, int x, int y, int w, int h, int rate);
 void gfx_copy_stretch(struct texture *dst, int dx, int dy, int dw, int dh, struct texture *src, int sx, int sy, int sw, int sh);
 void gfx_copy_stretch_amap(struct texture *dst, int dx, int dy, int dw, int dh, struct texture *src, int sx, int sy, int sw, int sh);
 void gfx_copy_stretch_blend(struct texture *dst, int dx, int dy, int dw, int dh, struct texture *src, int sx, int sy, int sw, int sh, int a);

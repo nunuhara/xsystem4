@@ -221,7 +221,11 @@ static void DrawGraph_SubDA_DAxSA(int dst, int dx, int dy, int src, int sx, int 
 	gfx_sub_da_daxsa(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
-//void DrawGraph_BrightDestOnly(int dst, int x, int y, int w, int h, int rate);
+static void DrawGraph_BrightDestOnly(int dst, int x, int y, int w, int h, int rate)
+{
+	gfx_bright_dest_only(DTEX(dst), x, y, w, h, rate);
+}
+
 //void DrawGraph_CopyTextureWrap(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v);
 //void DrawGraph_CopyTextureWrapAlpha(int dst, int dx, int dy, int dw, int dh, int src, int sx, int sy, int sw, int sh, int u, int v, int alpha);
 
@@ -433,7 +437,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(SpriteCopyAMap, DrawGraph_SpriteCopyAMap),
 	    HLL_EXPORT(BlendDA_DAxSA, DrawGraph_BlendDA_DAxSA),
 	    HLL_EXPORT(SubDA_DAxSA, DrawGraph_SubDA_DAxSA),
-	    //HLL_EXPORT(BrightDestOnly, DrawGraph_BrightDestOnly),
+	    HLL_EXPORT(BrightDestOnly, DrawGraph_BrightDestOnly),
 	    //HLL_EXPORT(CopyTextureWrap, DrawGraph_CopyTextureWrap),
 	    //HLL_EXPORT(CopyTextureWrapAlpha, DrawGraph_CopyTextureWrapAlpha),
 	    HLL_EXPORT(CopyStretch, DrawGraph_CopyStretch),
