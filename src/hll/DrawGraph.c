@@ -196,7 +196,10 @@ static void DrawGraph_SaturDP_DPxSA(int dst, int dx, int dy, int src, int sx, in
 	gfx_satur_dp_dpxsa(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
-//void DrawGraph_ScreenDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+static void DrawGraph_ScreenDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_screen_da_daxsa(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
 
 static void DrawGraph_AddDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
@@ -425,7 +428,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(FillScreen, DrawGraph_FillScreen),
 	    HLL_EXPORT(FillMultiply, DrawGraph_FillMultiply),
 	    HLL_EXPORT(SaturDP_DPxSA, DrawGraph_SaturDP_DPxSA),
-	    //HLL_EXPORT(ScreenDA_DAxSA, DrawGraph_ScreenDA_DAxSA),
+	    HLL_EXPORT(ScreenDA_DAxSA, DrawGraph_ScreenDA_DAxSA),
 	    HLL_EXPORT(AddDA_DAxSA, DrawGraph_AddDA_DAxSA),
 	    HLL_EXPORT(SpriteCopyAMap, DrawGraph_SpriteCopyAMap),
 	    HLL_EXPORT(BlendDA_DAxSA, DrawGraph_BlendDA_DAxSA),
