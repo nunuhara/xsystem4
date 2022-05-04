@@ -181,7 +181,11 @@ static void DrawGraph_FillAMapGradationUD(int dst, int x, int y, int w, int h, i
 	gfx_fill_amap_gradation_ud(DTEX(dst), x, y, w, h, up_a, down_a);
 }
 
-//void DrawGraph_FillScreen(int dst, int x, int y, int w, int h, int r, int g, int b);
+static void DrawGraph_FillScreen(int dst, int x, int y, int w, int h, int r, int g, int b)
+{
+	gfx_fill_screen(DTEX(dst), x, y, w, h, r, g, b);
+}
+
 //void DrawGraph_FillMultiply(int dst, int x, int y, int w, int h, int r, int g, int b);
 //void DrawGraph_SaturDP_DPxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 //void DrawGraph_ScreenDA_DAxSA(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
@@ -410,7 +414,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(FillAMapOverBorder, DrawGraph_FillAMapOverBorder),
 	    HLL_EXPORT(FillAMapUnderBorder, DrawGraph_FillAMapUnderBorder),
 	    HLL_EXPORT(FillAMapGradationUD, DrawGraph_FillAMapGradationUD),
-	    //HLL_EXPORT(FillScreen, DrawGraph_FillScreen),
+	    HLL_EXPORT(FillScreen, DrawGraph_FillScreen),
 	    //HLL_EXPORT(FillMultiply, DrawGraph_FillMultiply),
 	    //HLL_EXPORT(SaturDP_DPxSA, DrawGraph_SaturDP_DPxSA),
 	    //HLL_EXPORT(ScreenDA_DAxSA, DrawGraph_ScreenDA_DAxSA),
