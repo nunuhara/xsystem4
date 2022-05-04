@@ -73,6 +73,7 @@ static struct copy_shader fill_amap_under_border_shader;
 static struct copy_shader fill_amap_gradation_ud_shader;
 static struct copy_shader hitbox_shader;
 static struct copy_shader hitbox_noblend_shader;
+static struct copy_shader amap_saturate_shader;
 static struct copy_shader dilate_shader;
 
 static void prepare_copy_shader(struct gfx_render_job *job, void *data)
@@ -144,6 +145,9 @@ void gfx_draw_init(void)
 
 	// hitbox shader which ignores alpha component of texture (a=1)
 	load_copy_shader(&hitbox_noblend_shader, "shaders/render.v.glsl", "shaders/hitbox_noblend.f.glsl");
+
+	// shader that sets the color to black or white depending on alpha value
+	load_copy_shader(&amap_saturate_shader, "shaders/render.v.glsl", "shaders/amap_saturate.f.glsl");
 
 	// shader that dilates every pixel (for bold/outline text rendering)
 	load_copy_shader(&dilate_shader, "shaders/render.v.glsl", "shaders/dilate.f.glsl");
@@ -585,6 +589,16 @@ void gfx_fill_multiply(Texture *dst, int x, int y, int w, int h, int r, int g, i
 	data.b = b / 255.0;
 	data.a = 1.0;
 	run_copy_shader(&fill_shader.s, dst, NULL, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_satur_dp_dpxsa(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&amap_saturate_shader.s, dst, src, &data);
 
 	restore_blend_mode();
 }
