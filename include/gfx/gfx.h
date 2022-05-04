@@ -131,6 +131,7 @@ void gfx_fill_amap_over_border(Texture *dst, int x, int y, int w, int h, int alp
 void gfx_fill_amap_under_border(Texture *dst, int x, int y, int w, int h, int alpha, int border);
 void gfx_fill_amap_gradation_ud(Texture *dst, int x, int y, int w, int h, int up_a, int down_a);
 void gfx_fill_screen(Texture *dst, int x, int y, int w, int h, int r, int g, int b);
+void gfx_fill_multiply(Texture *dst, int x, int y, int w, int h, int r, int g, int b);
 void gfx_add_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_blend_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);
 void gfx_sub_da_daxsa(struct texture *dst, int dx, int dy, struct texture *src, int sx, int sy, int w, int h);

@@ -575,6 +575,20 @@ void gfx_fill_screen(Texture *dst, int x, int y, int w, int h, int r, int g, int
 	restore_blend_mode();
 }
 
+void gfx_fill_multiply(Texture *dst, int x, int y, int w, int h, int r, int g, int b)
+{
+	glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(x, y, 0, 0, w, h);
+	data.r = r / 255.0;
+	data.g = g / 255.0;
+	data.b = b / 255.0;
+	data.a = 1.0;
+	run_copy_shader(&fill_shader.s, dst, NULL, &data);
+
+	restore_blend_mode();
+}
+
 void gfx_add_da_daxsa(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
 	// color = dst_color
