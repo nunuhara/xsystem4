@@ -43,7 +43,6 @@ HLL_WARN_UNIMPLEMENTED(0, int,  StoatSpriteEngine, SP_GetBrightness, int sp_no);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerMasterGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerSEGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerBGMGroupNum, int n);
-HLL_WARN_UNIMPLEMENTED(0, int,  StoatSpriteEngine, Sound_GetGroupNumFromDataNum, int n);
 
 static int StoatSpriteEngine_SP_SetDrawMethod(int sp_no, int method)
 {
@@ -1053,7 +1052,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(Sound_GetVolume, wav_get_volume),
 	    HLL_EXPORT(Sound_GetTimeLength, wav_get_time_length),
 	    HLL_TODO_EXPORT(Sound_GetGroupNum, wav_get_group_num),
-	    HLL_EXPORT(Sound_GetGroupNumFromDataNum, StoatSpriteEngine_Sound_GetGroupNumFromDataNum),
+	    HLL_EXPORT(Sound_GetGroupNumFromDataNum, wav_get_group_num_from_data_num),
 	    HLL_TODO_EXPORT(Sound_PrepareFromFile, wav_prepare_from_file),
 	    HLL_EXPORT(System_GetDate, get_date),
 	    HLL_EXPORT(System_GetTime, get_time),

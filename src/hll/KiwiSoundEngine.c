@@ -22,11 +22,6 @@
 HLL_WARN_UNIMPLEMENTED( , void, KiwiSoundEngine, SetGlobalFocus, possibly_unused int nNum);
 
 //int KiwiSoundEngine_Sound_GetGroupNum(int nCh);
-static int KiwiSoundEngine_Sound_GetGroupNumFromDataNum(possibly_unused int no)
-{
-	return 0;
-}
-
 //static bool KiwiSoundEngine_Sound_PrepareFromFile(int ch, struct string *filename);
 //static int KiwiSoundEngine_Sound_GetDataLength(int data_number);
 
@@ -96,7 +91,7 @@ HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(Sound_IsFade, wav_is_fading),
 	    HLL_EXPORT(Sound_GetTimeLength, wav_get_time_length),
 	    HLL_TODO_EXPORT(Sound_GetGroupNum, KiwiSoundEngine_Sound_GetGroupNum),
-	    HLL_EXPORT(Sound_GetGroupNumFromDataNum, KiwiSoundEngine_Sound_GetGroupNumFromDataNum),
+	    HLL_EXPORT(Sound_GetGroupNumFromDataNum, wav_get_group_num_from_data_num),
 	    HLL_TODO_EXPORT(Sound_PrepareFromFile, KiwiSoundEngine_Sound_PrepareFromFile),
 	    HLL_TODO_EXPORT(Sound_GetDataLength, KiwiSoundEngine_Sound_GetDataLength),
 	    HLL_EXPORT(GetMasterGroup, KiwiSoundEngine_GetMasterGroup),

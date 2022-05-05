@@ -905,15 +905,15 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_EXPORT(Sound_Play, wav_play), \
 	    HLL_EXPORT(Sound_Stop, wav_stop), \
 	    HLL_EXPORT(Sound_IsPlay, wav_is_playing), \
-	    HLL_TODO_EXPORT(Sound_SetLoopCount, wav_set_loop_count), \
-	    HLL_TODO_EXPORT(Sound_GetLoopCount, wav_get_loop_count), \
+	    HLL_EXPORT(Sound_SetLoopCount, wav_set_loop_count), \
+	    HLL_EXPORT(Sound_GetLoopCount, wav_get_loop_count), \
 	    HLL_EXPORT(Sound_Fade, wav_fade), \
-	    HLL_TODO_EXPORT(Sound_StopFade, wav_stop_fade), \
-	    HLL_TODO_EXPORT(Sound_IsFade, wav_is_fade), \
-	    HLL_TODO_EXPORT(Sound_GetPos, wav_get_pos), \
-	    HLL_TODO_EXPORT(Sound_GetLength, wav_get_length), \
+	    HLL_EXPORT(Sound_StopFade, wav_stop_fade), \
+	    HLL_EXPORT(Sound_IsFade, wav_is_fading), \
+	    HLL_EXPORT(Sound_GetPos, wav_get_pos), \
+	    HLL_EXPORT(Sound_GetLength, wav_get_length), \
 	    HLL_EXPORT(Sound_ReverseLR, wav_reverse_LR), \
-	    HLL_TODO_EXPORT(Sound_GetVolume, wav_get_volume), \
+	    HLL_EXPORT(Sound_GetVolume, wav_get_volume), \
 	    HLL_EXPORT(Sound_GetTimeLength, wav_get_time_length), \
 	    HLL_TODO_EXPORT(Sound_GetGroupNum, SACT2_Sound_GetGroupNum), \
 	    HLL_TODO_EXPORT(Sound_PrepareFromFile, SACT2_Sound_PrepareFromFile), \
