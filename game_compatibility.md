@@ -49,7 +49,7 @@ issues, please let me know or open a pull request to update this table.
 | 妻しぼり                                                | Unknown     |       |
 | 戦国ランス                                              | Supported   |       |
 | Sengoku Rance (EN FanTL)                                | Supported   |       |
-| Sengoku Rance (MangaGamer)                              | Unsupported |       |
+| Sengoku Rance (MangaGamer)                              | Supported   |       |
 | だぶる先生らいふっ                                      | Unknown     |       |
 | お嬢様をいいなりにするゲーム                            | Unknown     |       |
 | 超昂閃忍ハルカ                                          | Unknown     |       |
