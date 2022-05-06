@@ -1002,7 +1002,8 @@ void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color co
 	fill_data.threshold = 0.001;
 	run_copy_shader(&fill_amap_under_border_shader.s, dst, dst, &fill_data);
 
-	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
 
 	struct copy_data data = STRETCH_DATA(
 			dx, dy, glyph->w * scale_x, glyph->h,
