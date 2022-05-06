@@ -298,7 +298,6 @@ static int sact_to_sdl_fontstyle(int style)
 	//        [THEN ALTERNATING MEDIUM/HEAVY-BOLD]
 	//
 	// SDL_ttf only has normal and bold...
-	style %= 1000;
 	return (style % 1000) < 551 ? 0 : TTF_STYLE_BOLD;
 }
 
@@ -321,36 +320,16 @@ static int _gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metr
 
 	pos.y -= (TTF_FontAscent(font->font) - font->size * 0.9);
 
-	glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
-	if (tm->outline_left || tm->outline_up || tm->outline_right || tm->outline_down) {
-		Texture outline;
-		get_glyph(font->font, &outline, msg, tm->outline_color);
-		// XXX: This wont work if the outline size is larger than the stroke size
-		//      of the font itself.
-		if (tm->outline_left) {
-			Point p = { pos.x - tm->outline_left, pos.y };
-			render_glyph(dst, &outline, p);
-		}
-		if (tm->outline_up) {
-			Point p = { pos.x, pos.y - tm->outline_up };
-			render_glyph(dst, &outline, p);
-		}
-		if (tm->outline_right) {
-			Point p = { pos.x + tm->outline_right, pos.y };
-			render_glyph(dst, &outline, p);
-		}
-		if (tm->outline_down) {
-			Point p = { pos.x, pos.y + tm->outline_down };
-			render_glyph(dst, &outline, p);
-		}
-		gfx_delete_texture(&outline);
-	}
-
 	Texture glyph;
 	get_glyph(font->font, &glyph, msg, tm->color);
-	render_glyph(dst, &glyph, pos);
+	if (tm->outline_left || tm->outline_up || tm->outline_right || tm->outline_down) {
+		int outline = max(tm->outline_left, tm->outline_right);
+		outline = max(outline, tm->outline_up);
+		outline = max(outline, tm->outline_down);
+		gfx_draw_glyph(dst, pos.x, pos.y, &glyph, tm->outline_color, config.text_x_scale, outline);
+	}
+	gfx_draw_glyph(dst, pos.x, pos.y, &glyph, tm->color, config.text_x_scale, 0.0);
 	gfx_delete_texture(&glyph);
-	glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
 
 	return width;
 }
