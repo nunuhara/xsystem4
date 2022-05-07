@@ -23,6 +23,11 @@
 
 #include <stdint.h>
 
+// no need to decode on byte-addressable, little-endian arch
+#if defined(__i386__) || defined(__x86_64__)
+#define LittleEndian_getDW(b, i) (*((int32_t*)((uint8_t*)(b)+(i))))
+#define LittleEndian_getW(b, i)  (*((int16_t*)((uint8_t*)(b)+(i))))
+#else
 static inline int32_t LittleEndian_getDW(const uint8_t *b, int i)
 {
 	int c0, c1, c2, c3;
@@ -36,6 +41,15 @@ static inline int32_t LittleEndian_getDW(const uint8_t *b, int i)
 	return d0 + (d1 << 16);
 }
 
+static inline int16_t LittleEndian_getW(const uint8_t *b, int i)
+{
+	int c0, c1;
+	c0 = *(b + i + 0);
+	c1 = *(b + i + 1);
+	return c0 + (c1 << 8);
+}
+#endif /* defined(__i386__) || defined(__x86_64__) */
+
 static inline int32_t LittleEndian_get3B(const uint8_t *b, int i)
 {
 	int c0, c1, c2;
@@ -43,14 +57,6 @@ static inline int32_t LittleEndian_get3B(const uint8_t *b, int i)
 	c1 = *(b + i + 1);
 	c2 = *(b + i + 2);
 	return c0 + (c1 << 8) + (c2 << 16);
-}
-
-static inline int16_t LittleEndian_getW(const uint8_t *b, int i)
-{
-	int c0, c1;
-	c0 = *(b + i + 0);
-	c1 = *(b + i + 1);
-	return c0 + (c1 << 8);
 }
 
 static inline void LittleEndian_putDW(uint8_t *dst, int i, uint32_t dword)
