@@ -208,9 +208,9 @@ static union vm_value *stack_pop_var(void)
 {
 	int32_t page_index = stack_pop().i;
 	int32_t heap_index = stack_pop().i;
-	if (!heap_index_valid(heap_index))
+	if (unlikely(!heap_index_valid(heap_index)))
 		VM_ERROR("Out of bounds heap index: %d/%d", heap_index, page_index);
-	if (!heap[heap_index].page || page_index >= heap[heap_index].page->nr_vars)
+	if (unlikely(!heap[heap_index].page || page_index >= heap[heap_index].page->nr_vars))
 		VM_ERROR("Out of bounds page index: %d/%d", heap_index, page_index);
 	return &heap[heap_index].page->values[page_index];
 }
@@ -2224,7 +2224,7 @@ static void vm_execute(void)
 		uint16_t opcode;
 		if (instr_ptr == VM_RETURN)
 			return;
-		if (instr_ptr >= ain->code_size) {
+		if (unlikely(instr_ptr >= ain->code_size)) {
 			VM_ERROR("Illegal instruction pointer: 0x%08lX", instr_ptr);
 		}
 		opcode = get_opcode(instr_ptr);

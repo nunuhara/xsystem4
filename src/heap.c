@@ -121,7 +121,7 @@ void heap_ref(int32_t slot)
 
 void heap_unref(int slot)
 {
-	if (heap[slot].ref <= 0) {
+	if (unlikely(heap[slot].ref <= 0)) {
 #ifdef DEBUG_HEAP
 		VM_ERROR("double free of slot %d (%s)\nOriginally allocated at %X\nOriginally freed at %X",
 			 slot, vm_ptrtype_string(heap[slot].type), heap[slot].alloc_addr, heap[slot].free_addr);
@@ -210,14 +210,14 @@ bool string_index_valid(int index)
 
 struct page *heap_get_page(int index)
 {
-	if (!page_index_valid(index))
+	if (unlikely(!page_index_valid(index)))
 		VM_ERROR("Invalid page index: %d", index);
 	return heap[index].page;
 }
 
 struct string *heap_get_string(int index)
 {
-	if (!string_index_valid(index))
+	if (unlikely(!string_index_valid(index)))
 		VM_ERROR("Invalid string index: %d", index);
 	return heap[index].s;
 }
@@ -225,7 +225,7 @@ struct string *heap_get_string(int index)
 struct page *heap_get_delegate_page(int index)
 {
 	struct page *page = heap_get_page(index);
-	if (page && page->type != DELEGATE_PAGE)
+	if (unlikely(page && page->type != DELEGATE_PAGE))
 		VM_ERROR("Not a delegate page: %d", index);
 	return page;
 }
@@ -233,7 +233,7 @@ struct page *heap_get_delegate_page(int index)
 void heap_set_page(int slot, struct page *page)
 {
 #ifdef DEBUG_HEAP
-	if (!page_index_valid(slot))
+	if (unlikely(!page_index_valid(slot)))
 		VM_ERROR("Invalid page index: %d", index);
 #endif
 	heap[slot].page = page;
@@ -242,7 +242,7 @@ void heap_set_page(int slot, struct page *page)
 void heap_string_assign(int slot, struct string *string)
 {
 #ifdef DEBUG_HEAP
-	if (!string_index_valid(slot))
+	if (unlikely(!string_index_valid(slot)))
 		VM_ERROR("Tried to assign string to non-string slot");
 #endif
 	if (heap[slot].s) {
@@ -253,20 +253,20 @@ void heap_string_assign(int slot, struct string *string)
 
 void heap_struct_assign(int lval, int rval)
 {
-	if (lval == -1)
+	if (unlikely(lval == -1))
 		VM_ERROR("Assignment to null-pointer");
 	if (lval == rval)
 		return;
 #ifdef DEBUG_HEAP
-	if (!page_index_valid(lval))
+	if (unlikely(!page_index_valid(lval)))
 		VM_ERROR("Invalid page index: %d", lval);
-	if (!page_index_valid(rval))
+	if (unlikely(!page_index_valid(rval)))
 		VM_ERROR("Invalid page index: %d", rval);
-	if (heap[lval].page && heap[lval].page->type != STRUCT_PAGE)
+	if (unlikely(heap[lval].page && heap[lval].page->type != STRUCT_PAGE))
 		VM_ERROR("SR_ASSIGN to non-struct page");
-	if (heap[rval].page && heap[rval].page->type != STRUCT_PAGE)
+	if (unlikely(heap[rval].page && heap[rval].page->type != STRUCT_PAGE))
 		VM_ERROR("SR_ASSIGN from non-struct page");
-	if (heap[lval].page && heap[rval].page && heap[lval].page->index != heap[rval].page->index)
+	if (unlikely(heap[lval].page && heap[rval].page && heap[lval].page->index != heap[rval].page->index))
 		VM_ERROR("SR_ASSIGN with different struct types");
 #endif
 	if (heap[lval].page) {
