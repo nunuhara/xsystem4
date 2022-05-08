@@ -193,13 +193,16 @@ int sprite_get_blend_rate(struct sact_sprite *sp)
 
 void sprite_set_blend_rate(struct sact_sprite *sp, int rate)
 {
-	sprite_get_texture(sp)->alpha_mod = max(0, min(255, rate));
+	rate = max(0, min(255, rate));
+	sprite_get_texture(sp)->alpha_mod = rate;
+	sp->text.texture.alpha_mod = rate;
 	sprite_dirty(sp);
 }
 
 int sprite_set_draw_method(struct sact_sprite *sp, enum draw_method method)
 {
 	sprite_get_texture(sp)->draw_method = method;
+	sp->text.texture.draw_method = method;
 	sprite_dirty(sp);
 	return 1;
 }
@@ -243,6 +246,9 @@ void sprite_text_draw(struct sact_sprite *sp, struct string *text, struct text_m
 			c = tm->color;
 		c.a = 0;
 		gfx_init_texture_rgba(&sp->text.texture, sp->rect.w, sp->rect.h, c);
+		Texture *sp_t = sprite_get_texture(sp);
+		sp->text.texture.alpha_mod = sp_t->alpha_mod;
+		sp->text.texture.draw_method = sp_t->draw_method;
 	}
 
 	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos, text->text, tm, sp->text.char_space);
