@@ -261,7 +261,7 @@ static struct fnl_render_glyph *fnl_render_glyph(struct fnl_render_size *size, u
 		}
 		pixels[i] = acc[i] / (size->denominator * size->denominator);
 	}
-	gfx_init_texture_amap(&rendered->texture, width, height, pixels, (SDL_Color){0,0,0,0});
+	gfx_init_texture_rmap(&rendered->texture, width, height, pixels);
 	size->glyphs[index] = rendered;
 
 	free(pixels);

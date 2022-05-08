@@ -15,33 +15,12 @@
  */
 
 uniform sampler2D tex;
-uniform float threshold;
 uniform vec4 color;
 
 in vec2 tex_coord;
 out vec4 frag_color;
 
 void main() {
-	// the fractional part of threshold becomes a weight value for the
-	// edge pixels
-	int size = int(floor(threshold));
-	int cutoff = size + 1;
-	float edge_weight = fract(threshold);
-	vec2 tex_size = textureSize(tex, 0).xy;
-
-	float a_out = 0;
-
-	for (int x = -cutoff; x <= cutoff; x++) {
-		for (int y = -cutoff; y <= cutoff; y++) {
-			float d = distance(vec2(x, y), vec2(0, 0));
-			if (d > threshold)
-				continue;
-			float a = texture(tex, tex_coord + vec2(x, y) / tex_size).r;
-			if (d > size)
-				a *= edge_weight;
-			a_out += a;
-		}
-	}
-
-	frag_color = vec4(color.rgb, min(a_out, 1.0));
+        vec4 texel = texture(tex, tex_coord);
+        frag_color = vec4(color.rgb, texel.r * color.a);
 }

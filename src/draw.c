@@ -74,6 +74,7 @@ static struct copy_shader fill_amap_gradation_ud_shader;
 static struct copy_shader hitbox_shader;
 static struct copy_shader hitbox_noblend_shader;
 static struct copy_shader amap_saturate_shader;
+static struct copy_shader blend_rmap_color_shader;
 static struct copy_shader dilate_shader;
 
 static void prepare_copy_shader(struct gfx_render_job *job, void *data)
@@ -148,6 +149,9 @@ void gfx_draw_init(void)
 
 	// shader that sets the color to black or white depending on alpha value
 	load_copy_shader(&amap_saturate_shader, "shaders/render.v.glsl", "shaders/amap_saturate.f.glsl");
+
+	// shader that sets source RGB to a constant, using source red channel as alpha
+	load_copy_shader(&blend_rmap_color_shader, "shaders/render.v.glsl", "shaders/blend_rmap_color.f.glsl");
 
 	// shader that dilates every pixel (for bold/outline text rendering)
 	load_copy_shader(&dilate_shader, "shaders/render.v.glsl", "shaders/dilate.f.glsl");
@@ -1014,11 +1018,39 @@ void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color co
 	data.a = 1.0;
 
 	if (bold_width < 0.01) {
-		run_copy_shader(&blend_amap_color_shader.s, dst, glyph, &data);
+		run_copy_shader(&blend_rmap_color_shader.s, dst, glyph, &data);
 	} else {
 		data.threshold = bold_width;
 		run_copy_shader(&dilate_shader.s, dst, glyph, &data);
 	}
 
+	restore_blend_mode();
+}
+
+void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x)
+{
+	struct copy_data data = STRETCH_DATA(
+			dx, dy, glyph->w * scale_x, glyph->h,
+			0,  0,  glyph->w,           glyph->h);
+	data.r = color.r / 255.0;
+	data.g = color.g / 255.0;
+	data.b = color.b / 255.0;
+	data.a = 1.0;
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+	run_copy_shader(&blend_rmap_color_shader.s, dst, glyph, &data);
+	restore_blend_mode();
+}
+
+void gfx_draw_glyph_to_amap(Texture *dst, float dx, int dy, Texture *glyph, float scale_x)
+{
+	struct copy_data data = STRETCH_DATA(
+			dx, dy, glyph->w * scale_x, glyph->h,
+			0,  0,  glyph->w,           glyph->h);
+	data.r = 1.0;
+	data.g = 1.0;
+	data.b = 1.0;
+	data.a = 1.0;
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+	run_copy_shader(&blend_rmap_color_shader.s, dst, glyph, &data);
 	restore_blend_mode();
 }

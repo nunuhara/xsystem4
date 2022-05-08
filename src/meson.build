@@ -104,7 +104,7 @@ xsystem4 = [version_h,
             'hll/VSFile.c',
 ]
 
-xsystem4_deps = [libm, zlib, sdl2, sdl2ttf, ffi, cglm, sndfile, libsys4_dep] + gl_deps
+xsystem4_deps = [libm, zlib, sdl2, ft2, ffi, cglm, sndfile, libsys4_dep] + gl_deps
 
 if get_option('debugger').allowed()
     add_project_arguments('-DDEBUGGER_ENABLED', language : 'c')

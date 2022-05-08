@@ -90,6 +90,7 @@ void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color);
 void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color);
 void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels);
 void gfx_init_texture_amap(struct texture *t, int w, int h, uint8_t *amap, SDL_Color color);
+void gfx_init_texture_rmap(struct texture *t, int w, int h, uint8_t *rmap);
 void gfx_copy_main_surface(struct texture *dst);
 void gfx_delete_texture(struct texture *t);
 GLuint gfx_set_framebuffer(GLenum target, Texture *t, int x, int y, int w, int h);
@@ -159,6 +160,8 @@ void gfx_copy_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx,
 void gfx_fill_with_alpha(Texture *dst, int x, int y, int w, int h, int r, int g, int b, int a);
 void gfx_copy_stretch_with_alpha_map(Texture *dst, int dx, int dy, int dw, int dh, Texture *src, int sx, int sy, int sw, int sh);
 void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width);
+void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x);
+void gfx_draw_glyph_to_amap(Texture *dst, float dx, int dy, Texture *glyph, float scale_x);
 
 enum {
 	FW_NORMAL = 400,

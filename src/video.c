@@ -528,6 +528,12 @@ void gfx_init_texture_amap(struct texture *t, int w, int h, uint8_t *amap, SDL_C
 	free(pixels);
 }
 
+void gfx_init_texture_rmap(struct texture *t, int w, int h, uint8_t *rmap)
+{
+	init_texture(t, w, h);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, rmap);
+}
+
 void gfx_init_texture_blank(struct texture *t, int w, int h)
 {
 	gfx_init_texture_with_pixels(t, w, h, NULL);
