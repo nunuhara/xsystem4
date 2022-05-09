@@ -19,6 +19,7 @@ First install the dependencies (corresponding Debian package in parentheses):
 * bison (bison)
 * cglm (libcglm-dev) [optional, fetched by meson if not available]
 * flex (flex)
+* freetype (libfreetype-dev)
 * glew (libglew-dev)
 * meson (meson)
 * libffi (libffi-dev)
@@ -27,7 +28,6 @@ First install the dependencies (corresponding Debian package in parentheses):
 * libturbojpeg (libturbojpeg0-dev)
 * libwebp (libwebp-dev)
 * SDL2 (libsdl2-dev)
-* SDL2_ttf (libsdl2-ttf-dev)
 * zlib (zlib1g-dev)
 
 Then fetch the git submodules,
