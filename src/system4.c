@@ -168,6 +168,9 @@ static void read_user_config_file(const char *path)
 				config.manual_text_x_scale = true;
 				config.text_x_scale = f;
 			}
+		} else if (!strcmp(ini[i].name->text, "save-folder")) {
+			free(config.save_dir);
+			config.save_dir = xstrdup(ini_string(&ini[i])->text);
 		}
 		ini_free_entry(&ini[i]);
 	}
@@ -336,6 +339,7 @@ static void usage(void)
 	puts("        --font-gothic   Specify the path to the gothic font to use");
 	puts("        --font-x-scale  Specify the x scale for text rendering (1.0 = default scale)");
 	puts("    -j, --joypad        Enable joypad");
+	puts("        --save-folder   Override save folder location");
 #ifdef DEBUGGER_ENABLED
 	puts("        --nodebug       Disable debugger");
 	puts("        --debug         Start in debugger");
@@ -351,6 +355,7 @@ enum {
 	LOPT_FONT_GOTHIC,
 	LOPT_FONT_X_SCALE,
 	LOPT_JOYPAD,
+	LOPT_SAVE_FOLDER,
 #ifdef DEBUGGER_ENABLED
 	LOPT_NODEBUG,
 	LOPT_DEBUG,
@@ -370,6 +375,7 @@ int main(int argc, char *argv[])
 	char *font_mincho = NULL;
 	char *font_gothic = NULL;
 	char *joypad = NULL;
+	char *savedir = NULL;
 
 	while (1) {
 		static struct option long_options[] = {
@@ -381,6 +387,7 @@ int main(int argc, char *argv[])
 			{ "font-gothic",  required_argument, 0, LOPT_FONT_GOTHIC },
 			{ "font-x-scale", required_argument, 0, LOPT_FONT_X_SCALE },
 			{ "joypad",       optional_argument, 0, LOPT_JOYPAD },
+			{ "save-folder",  required_argument, 0, LOPT_SAVE_FOLDER },
 #ifdef DEBUGGER_ENABLED
 			{ "nodebug",      no_argument,       0, LOPT_NODEBUG },
 			{ "debug",        no_argument,       0, LOPT_DEBUG },
@@ -428,6 +435,9 @@ int main(int argc, char *argv[])
 		case LOPT_JOYPAD:
 			joypad = optarg ? optarg : "on";
 			break;
+		case LOPT_SAVE_FOLDER:
+			savedir = optarg;
+			break;
 #ifdef DEBUGGER_ENABLED
 		case LOPT_NODEBUG:
 			dbg_enabled = false;
@@ -473,6 +483,9 @@ int main(int argc, char *argv[])
 			config.joypad = false;
 		else
 			WARNING("Invalid value for 'joypad' option (must be 'on' or 'off')");
+	} if (savedir) {
+		free(config.save_dir);
+		config.save_dir = strdup(savedir);
 	}
 
 	if (!(ain = ain_open(ainfile, &err))) {
