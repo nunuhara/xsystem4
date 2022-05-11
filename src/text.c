@@ -53,8 +53,7 @@ enum font_weight {
 #define NR_FONT_WEIGHTS (WEIGHT_HEAVY+1)
 
 struct glyph {
-	float off_x;
-	float off_y;
+	Rectangle rect;
 	Texture t[NR_FONT_WEIGHTS];
 };
 
@@ -133,15 +132,22 @@ static struct font_size *get_font_size(enum font_face type, unsigned size)
 	return fs;
 }
 
+// NOTE: we create glyph textures slightly larger than necessary so that outlines
+//       aren't cut off at the texture boundary.
+// FIXME: the outline rendering code should be fixed so this isn't necessary.
+#define GLYPH_BORDER_SIZE 4
+
 // Convert a glyph rendered by FreeType to a block-sized texture.
 // Block size is size x 1.5*size (full-width) or size/2 x 1.5*size (half-width)
-static void init_glyph_texture(Texture *dst, FT_Bitmap *glyph, int bitmap_top, int size, bool half_width)
+static Rectangle init_glyph_texture(Texture *dst, FT_Bitmap *glyph, int bitmap_top, int size, bool half_width)
 {
 	// calculate block size and offsets
-	int width = half_width ? size/2 : size;
-	int height = size + size/2;
-	int off_x = max(0, (width - (int)glyph->width) / 2);
-	int off_y = max(0, size - bitmap_top);
+	int block_width = (half_width ? size/2 : size);
+	int block_height = size + size/2;
+	int width = block_width + GLYPH_BORDER_SIZE*2;
+	int height = block_height + GLYPH_BORDER_SIZE*2;
+	int off_x = max(0, (block_width - (int)glyph->width) / 2) + GLYPH_BORDER_SIZE;
+	int off_y = max(0, size - bitmap_top) + GLYPH_BORDER_SIZE;
 	uint8_t *bitmap = xcalloc(1, width * height);
 
 	// Expand the glyph bitmap to block size
@@ -155,6 +161,13 @@ static void init_glyph_texture(Texture *dst, FT_Bitmap *glyph, int bitmap_top, i
 	// create texture from block-size bitmap
 	gfx_init_texture_rmap(dst, width, height, bitmap);
 	free(bitmap);
+
+	return (Rectangle) {
+		.x = GLYPH_BORDER_SIZE,
+		.y = GLYPH_BORDER_SIZE,
+		.w = block_width,
+		.h = block_height
+	};
 }
 
 static struct glyph *get_glyph(struct font_size *font_size, uint32_t code, bool half_width, enum font_weight weight)
@@ -184,7 +197,8 @@ static struct glyph *get_glyph(struct font_size *font_size, uint32_t code, bool 
 	// create texture from bitmap
 	FT_Bitmap *bitmap = &font->glyph->bitmap;
 	if (bitmap->pixel_mode == FT_PIXEL_MODE_GRAY) {
-		init_glyph_texture(t, bitmap, font->glyph->bitmap_top, font_size->size, half_width);
+		glyph->rect = init_glyph_texture(t, bitmap, font->glyph->bitmap_top,
+				font_size->size, half_width);
 	} else if (bitmap->pixel_mode == FT_PIXEL_MODE_MONO) {
 		FT_Bitmap tmp;
 		FT_Bitmap_New(&tmp);
@@ -198,15 +212,14 @@ static struct glyph *get_glyph(struct font_size *font_size, uint32_t code, bool 
 			if (tmp.buffer[i])
 				tmp.buffer[i] = 255;
 		}
-		init_glyph_texture(t, &tmp, font->glyph->bitmap_top, font_size->size, half_width);
+		glyph->rect = init_glyph_texture(t, &tmp, font->glyph->bitmap_top,
+				font_size->size, half_width);
 		FT_Bitmap_Done(ft_lib, &tmp);
 	} else {
 		WARNING("Font returned glyph with unsupported pixel mode");
 		return NULL;
 	}
 
-	glyph->off_x = 0;
-	glyph->off_y = (float)(font_size->size * 0.85) - font_size->size;
 	return glyph;
 }
 
@@ -230,7 +243,7 @@ struct text_render_metrics {
 int _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 {
 	float pos_x = tm->pos.x;
-	float pos_y = tm->pos.y;
+	int pos_y = tm->pos.y - roundf(tm->size * 0.15f);
 	struct font_size *font_size = get_font_size(tm->type, tm->size);
 	if (FT_Set_Pixel_Sizes(font_size->font->font, 0, font_size->size)) {
 		WARNING("Failed setting font size to %d", font_size->size);
@@ -255,14 +268,14 @@ int _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 
 		// render glyph
 		Texture *t = &glyph->t[tm->weight];
-		float x_pos = pos_x + glyph->off_x;
-		int y_pos = roundf(pos_y + glyph->off_y);
 		if (tm->mode == RENDER_BLENDED) {
-			gfx_draw_glyph(dst, x_pos, y_pos, t, tm->color, config.text_x_scale, tm->edge_width);
+			float x = pos_x - glyph->rect.x;
+			int y = pos_y - glyph->rect.y;
+			gfx_draw_glyph(dst, x, y, t, tm->color, config.text_x_scale, tm->edge_width);
 		} else if (tm->mode == RENDER_PMAP) {
-			gfx_draw_glyph_to_pmap(dst, x_pos, y_pos, t, tm->color, config.text_x_scale);
+			gfx_draw_glyph_to_pmap(dst, pos_x, pos_y, t, glyph->rect, tm->color, config.text_x_scale);
 		} else if (tm->mode == RENDER_AMAP) {
-			gfx_draw_glyph_to_amap(dst, x_pos, y_pos, t, config.text_x_scale);
+			gfx_draw_glyph_to_amap(dst, pos_x, pos_y, t, glyph->rect, config.text_x_scale);
 		}
 
 		// advance

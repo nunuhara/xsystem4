@@ -1027,11 +1027,11 @@ void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color co
 	restore_blend_mode();
 }
 
-void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x)
+void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, Rectangle glyph_pos, SDL_Color color, float scale_x)
 {
 	struct copy_data data = STRETCH_DATA(
-			dx, dy, glyph->w * scale_x, glyph->h,
-			0,  0,  glyph->w,           glyph->h);
+			dx,          dy,          glyph_pos.w * scale_x, glyph_pos.h,
+			glyph_pos.x, glyph_pos.y, glyph_pos.w,           glyph_pos.h);
 	data.r = color.r / 255.0;
 	data.g = color.g / 255.0;
 	data.b = color.b / 255.0;
@@ -1041,11 +1041,11 @@ void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, SDL_
 	restore_blend_mode();
 }
 
-void gfx_draw_glyph_to_amap(Texture *dst, float dx, int dy, Texture *glyph, float scale_x)
+void gfx_draw_glyph_to_amap(Texture *dst, float dx, int dy, Texture *glyph, Rectangle glyph_pos, float scale_x)
 {
 	struct copy_data data = STRETCH_DATA(
-			dx, dy, glyph->w * scale_x, glyph->h,
-			0,  0,  glyph->w,           glyph->h);
+			dx,          dy,          glyph_pos.w * scale_x, glyph_pos.h,
+			glyph_pos.x, glyph_pos.y, glyph_pos.w,           glyph_pos.h);
 	data.r = 1.0;
 	data.g = 1.0;
 	data.b = 1.0;
