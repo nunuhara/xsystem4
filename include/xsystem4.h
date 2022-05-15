@@ -36,6 +36,8 @@ struct config {
 	char *bgi_path;
 	char *wai_path;
 	char *ex_path;
+	char *fnl_path;
+	char *font_paths[2];
 
 	bool joypad;
 	bool echo;
@@ -68,5 +70,6 @@ void get_time(int *hour, int *min, int *sec, int *ms);
 extern bool game_daibanchou_en;
 extern bool game_rance02_mg;
 extern bool game_rance6_mg;
+extern bool game_rance7_mg;
 
 #endif /* XSYSTEM4_H */

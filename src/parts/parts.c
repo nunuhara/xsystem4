@@ -138,16 +138,21 @@ static void parts_state_free(struct parts_state *state)
 	TAILQ_INIT(&state->construction_process);
 }
 
-static struct text_metrics default_text_metrics = {
-	.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
-	.outline_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
-	.size = 16,
-	.weight = FW_NORMAL,
+static struct text_style default_text_style = {
 	.face = FONT_GOTHIC,
-	.outline_left = 0,
-	.outline_up = 0,
-	.outline_right = 0,
-	.outline_down = 0,
+	.size = 16.0f,
+	.bold_width = 0.0f,
+	.weight = FW_NORMAL,
+	.edge_left = 0.0f,
+	.edge_up = 0.0f,
+	.edge_right = 0.0f,
+	.edge_down = 0.0f,
+	.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
+	.edge_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
+	.scale_x = 1.0f,
+	.space_scale_x = 1.0f,
+	.font_spacing = 0.0f,
+	.font_size = NULL
 };
 
 static void parts_state_reset(struct parts_state *state, enum parts_type type)
@@ -155,7 +160,7 @@ static void parts_state_reset(struct parts_state *state, enum parts_type type)
 	parts_state_free(state);
 	state->type = type;
 	if (type == PARTS_TEXT) {
-		state->text.tm = default_text_metrics;
+		state->text.ts = default_text_style;
 	}
 }
 

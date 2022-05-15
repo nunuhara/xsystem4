@@ -22,6 +22,7 @@
 #include "system4/utfsjis.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "gfx/font.h"
 #include "sprite.h"
 #include "xsystem4.h"
 #include "CharSpriteManager.h"
@@ -37,7 +38,7 @@ struct charsprite {
 	// NOTE: even though we only render a single character, we need to store an
 	//       arbitrary string because CharSprite_GetChar returns it.
 	struct string *ch;
-	struct text_metrics tm;
+	struct text_style ts;
 	// NOTE: this is needed because we have to hide all sprites after loading
 	//       regardless of their original visibility. When Rebuild is called,
 	//       this value is used to correctly set the visibility.
@@ -172,14 +173,14 @@ static void charsprite_render(struct charsprite *cs)
 		ch[2] = 0;
 	}
 
-	int w = cs->tm.size;
-	int h = cs->tm.size + cs->tm.size/2;
+	int w = cs->ts.size;
+	int h = cs->ts.size + cs->ts.size/2;
 	if (isascii(ch[0]))
 		w /= 2;
 
 	sprite_init(&cs->sp, w, h, 0, 0, 0, 0);
 	sprite_get_texture(&cs->sp); // XXX: force initialization of texture
-	gfx_render_text(&cs->sp.texture, (Point) { .x=0, .y = 0 }, ch, &cs->tm, 0);
+	gfx_render_text(&cs->sp.texture, 0.0f, 0, ch, &cs->ts);
 	sprite_dirty(&cs->sp);
 
 }
@@ -237,19 +238,19 @@ bool CharSpriteManager_Save(struct page **iarray)
 		struct charsprite *s = chars.sprites[i];
 		iarray_write(&w, 1); // ???
 		iarray_write_string(&w, s->ch);
-		iarray_write(&w, s->tm.face);
-		iarray_write(&w, s->tm.size);
-		iarray_write(&w, s->tm.color.r);
-		iarray_write(&w, s->tm.color.g);
-		iarray_write(&w, s->tm.color.b);
-		iarray_write(&w, s->tm.color.a);
-		//iarray_write_float(&w, s->tm.weight);
+		iarray_write(&w, s->ts.face);
+		iarray_write(&w, s->ts.size);
+		iarray_write(&w, s->ts.color.r);
+		iarray_write(&w, s->ts.color.g);
+		iarray_write(&w, s->ts.color.b);
+		iarray_write(&w, s->ts.color.a);
+		//iarray_write_float(&w, s->ts.weight);
 		iarray_write_float(&w, 1.0);
-		iarray_write_float(&w, s->tm.outline_left);
-		iarray_write(&w, s->tm.outline_color.r);
-		iarray_write(&w, s->tm.outline_color.g);
-		iarray_write(&w, s->tm.outline_color.b);
-		iarray_write(&w, s->tm.outline_color.a);
+		iarray_write_float(&w, s->ts.edge_left);
+		iarray_write(&w, s->ts.edge_color.r);
+		iarray_write(&w, s->ts.edge_color.g);
+		iarray_write(&w, s->ts.edge_color.b);
+		iarray_write(&w, s->ts.edge_color.a);
 		iarray_write(&w, sprite_get_pos_x(&s->sp));
 		iarray_write(&w, sprite_get_pos_y(&s->sp));
 		iarray_write(&w, sprite_get_z(&s->sp));
@@ -299,21 +300,23 @@ bool CharSpriteManager_Load(struct page **data)
 		struct charsprite *cs = xcalloc(1, sizeof(struct charsprite));
 		iarray_read(&r); // ???
 		cs->ch = iarray_read_string(&r);
-		cs->tm.face = iarray_read(&r);
-		cs->tm.size = iarray_read(&r);
-		cs->tm.color.r = iarray_read(&r);
-		cs->tm.color.g = iarray_read(&r);
-		cs->tm.color.b = iarray_read(&r);
-		cs->tm.color.a = iarray_read(&r);
-		cs->tm.weight = FW_NORMAL; iarray_read_float(&r); // FIXME
-		cs->tm.outline_left = iarray_read_float(&r);
-		cs->tm.outline_up = cs->tm.outline_left;
-		cs->tm.outline_right = cs->tm.outline_left;
-		cs->tm.outline_down = cs->tm.outline_left;
-		cs->tm.outline_color.r = iarray_read(&r);
-		cs->tm.outline_color.g = iarray_read(&r);
-		cs->tm.outline_color.b = iarray_read(&r);
-		cs->tm.outline_color.a = iarray_read(&r);
+		cs->ts.face = iarray_read(&r);
+		cs->ts.size = iarray_read(&r);
+		cs->ts.color.r = iarray_read(&r);
+		cs->ts.color.g = iarray_read(&r);
+		cs->ts.color.b = iarray_read(&r);
+		cs->ts.color.a = iarray_read(&r);
+		cs->ts.weight = FW_NORMAL; iarray_read_float(&r); // FIXME
+		text_style_set_edge_width(&cs->ts, iarray_read_float(&r));
+		cs->ts.edge_color.r = iarray_read(&r);
+		cs->ts.edge_color.g = iarray_read(&r);
+		cs->ts.edge_color.b = iarray_read(&r);
+		cs->ts.edge_color.a = iarray_read(&r);
+		cs->ts.bold_width = 0.0f;
+		cs->ts.scale_x = 1.0f;
+		cs->ts.space_scale_x = 1.0f;
+		cs->ts.font_spacing = 0.0f;
+		cs->ts.font_size = NULL;
 
 		// sprite data
 		int x = iarray_read(&r);
@@ -373,27 +376,24 @@ static void CASColor_to_SDL_Color(SDL_Color *color, int page_no)
 	color->a = page->values[3].i;
 }
 
-static void CASCharSpriteProperty_to_text_metrics(struct text_metrics *tm, struct page *page)
+static void CASCharSpriteProperty_to_text_style(struct text_style *ts, struct page *page)
 {
 	assert(page);
 	assert(page->nr_vars == 6);
 
-	tm->face = page->values[0].i;
-	tm->size = page->values[1].i;
-	CASColor_to_SDL_Color(&tm->color, page->values[2].i);
-	//tm->weight = page->values[3].f;
-	tm->weight = FW_NORMAL;
-	tm->outline_left = page->values[4].f;
-	tm->outline_up = tm->outline_left;
-	tm->outline_right = tm->outline_left;
-	tm->outline_down = tm->outline_left;
-	CASColor_to_SDL_Color(&tm->outline_color, page->values[5].i);
+	ts->face = page->values[0].i;
+	ts->size = page->values[1].i;
+	CASColor_to_SDL_Color(&ts->color, page->values[2].i);
+	//ts->weight = page->values[3].f;
+	ts->weight = FW_NORMAL;
+	text_style_set_edge_width(ts, page->values[4].f);
+	CASColor_to_SDL_Color(&ts->edge_color, page->values[5].i);
 }
 
 void CharSprite_SetChar(int handle, struct string **s, struct page **property)
 {
 	struct charsprite *sp = charsprite_get(handle);
-	CASCharSpriteProperty_to_text_metrics(&sp->tm, *property);
+	CASCharSpriteProperty_to_text_style(&sp->ts, *property);
 
 	if (charsprite_allocated(sp)) {
 		sprite_free(&sp->sp);

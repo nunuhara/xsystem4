@@ -68,10 +68,10 @@ static void parts_text_append(struct parts *parts, struct string *text, int stat
 			continue;
 		}
 
-		t->cursor.x += gfx_render_text(&t->texture, t->cursor, c, &t->tm, t->char_space);
+		t->cursor.x += gfx_render_text(&t->texture, t->cursor.x, t->cursor.y, c, &t->ts);
 
 		const unsigned old_height = t->lines[t->nr_lines-1].height;
-		const unsigned new_height = t->tm.size;
+		const unsigned new_height = t->ts.size;
 		t->lines[t->nr_lines-1].height = max(old_height, new_height);
 	}
 	parts->rect.w = t->cursor.x;
@@ -121,15 +121,12 @@ bool PE_SetFont(int parts_no, int type, int size, int r, int g, int b, float bol
 		return false;
 
 	struct parts_text *text = parts_get_text(parts_get(parts_no), state);
-	text->tm.face = type;
-	text->tm.size = size;
-	text->tm.color = (SDL_Color) { r, g, b, 255 };
-	text->tm.weight = bold_weight * 1000;
-	text->tm.outline_color = (SDL_Color) { edge_r, edge_g, edge_b, 255 };
-	text->tm.outline_left = edge_weight;
-	text->tm.outline_up = edge_weight;
-	text->tm.outline_right = edge_weight;
-	text->tm.outline_down = edge_weight;
+	text->ts.face = type;
+	text->ts.size = size;
+	text->ts.color = (SDL_Color) { r, g, b, 255 };
+	text->ts.weight = bold_weight * 1000;
+	text->ts.edge_color = (SDL_Color) { edge_r, edge_g, edge_b, 255 };
+	text_style_set_edge_width(&text->ts, edge_weight);
 	return true;
 }
 
@@ -139,7 +136,7 @@ bool PE_SetPartsFontType(int parts_no, int type, int state)
 	if (state < 0 || state >= PARTS_NR_STATES)
 		return false;
 
-	parts_get_text(parts_get(parts_no), state)->tm.face = type;
+	parts_get_text(parts_get(parts_no), state)->ts.face = type;
 	return true;
 }
 
@@ -149,7 +146,7 @@ bool PE_SetPartsFontSize(int parts_no, int size, int state)
 	if (state < 0 || state >= PARTS_NR_STATES)
 		return false;
 
-	parts_get_text(parts_get(parts_no), state)->tm.size = size;
+	parts_get_text(parts_get(parts_no), state)->ts.size = size;
 	return true;
 }
 
@@ -159,7 +156,7 @@ bool PE_SetPartsFontColor(int parts_no, int r, int g, int b, int state)
 	if (state < 0 || state >= PARTS_NR_STATES)
 		return false;
 
-	parts_get_text(parts_get(parts_no), state)->tm.color = (SDL_Color) { r, g, b, 255 };
+	parts_get_text(parts_get(parts_no), state)->ts.color = (SDL_Color) { r, g, b, 255 };
 	return true;
 }
 
@@ -169,7 +166,7 @@ bool PE_SetPartsFontBoldWeight(int parts_no, float bold_weight, int state)
 	if (state < 0 || state >= PARTS_NR_STATES)
 		return false;
 
-	parts_get_text(parts_get(parts_no), state)->tm.weight = bold_weight * 1000;
+	parts_get_text(parts_get(parts_no), state)->ts.weight = bold_weight * 1000;
 	return true;
 }
 
@@ -179,7 +176,7 @@ bool PE_SetPartsFontEdgeColor(int parts_no, int r, int g, int b, int state)
 	if (state < 0 || state >= PARTS_NR_STATES)
 		return false;
 
-	parts_get_text(parts_get(parts_no), state)->tm.outline_color = (SDL_Color) { r, g, b, 255 };
+	parts_get_text(parts_get(parts_no), state)->ts.edge_color = (SDL_Color) { r, g, b, 255 };
 	return true;
 }
 
@@ -190,10 +187,7 @@ bool PE_SetPartsFontEdgeWeight(int parts_no, float edge_weight, int state)
 		return false;
 
 	struct parts_text *text = parts_get_text(parts_get(parts_no), state);
-	text->tm.outline_left = edge_weight;
-	text->tm.outline_up = edge_weight;
-	text->tm.outline_right = edge_weight;
-	text->tm.outline_down = edge_weight;
+	text_style_set_edge_width(&text->ts, edge_weight);
 	return true;
 }
 
@@ -203,7 +197,7 @@ bool PE_SetTextCharSpace(int parts_no, int char_space, int state)
 	if (state < 0 || state >= PARTS_NR_STATES)
 		return false;
 
-	parts_get_text(parts_get(parts_no), state)->char_space = char_space;
+	parts_get_text(parts_get(parts_no), state)->ts.font_spacing = char_space;
 	return true;
 }
 

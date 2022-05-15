@@ -18,6 +18,7 @@
 
 #include "hll.h"
 #include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "sact.h"
 
 static int size = 20;

@@ -14,18 +14,14 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include <assert.h>
-#include <ft2build.h>
-#include FT_FREETYPE_H
-#include FT_BITMAP_H
-
 #include "system4.h"
+#include "system4/fnl.h"
 #include "system4/hashtable.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
 #include "gfx/gfx.h"
-#include "gfx/types.h"
+#include "gfx/font.h"
 #include "xsystem4.h"
 
 /*
@@ -41,43 +37,13 @@
  *       styles and two different rendering modes (pixel map and alpha map)
  */
 
-#define MAX_FONT_SIZE 128
 #define DEFAULT_FONT_GOTHIC "fonts/VL-Gothic-Regular.ttf"
 #define DEFAULT_FONT_MINCHO "fonts/HanaMinA.ttf"
 
-enum font_weight {
-	WEIGHT_NORMAL,
-	WEIGHT_BOLD,
-	WEIGHT_HEAVY
-};
-#define NR_FONT_WEIGHTS (WEIGHT_HEAVY+1)
+#define MAX_FONTS 32
+static struct font *fonts[MAX_FONTS] = {0};
 
-struct glyph {
-	Rectangle rect;
-	Texture t[NR_FONT_WEIGHTS];
-};
-
-struct font_size {
-	unsigned size;
-	struct font *font;
-	struct hash_table *glyph_table;
-};
-
-struct font {
-	FT_Face font;
-	unsigned nr_sizes;
-	struct font_size *sizes;
-};
-
-static FT_Library ft_lib;
-static struct font fonts[2];
-
-const char *font_paths[] = {
-	[FONT_GOTHIC] = XSYS4_DATA_DIR "/" DEFAULT_FONT_GOTHIC,
-	[FONT_MINCHO] = XSYS4_DATA_DIR "/" DEFAULT_FONT_MINCHO
-};
-
-static bool _load_font(enum font_face type)
+static struct font *load_font(enum font_face type)
 {
 	static const char *local_font_paths[] = {
 		[FONT_GOTHIC] = DEFAULT_FONT_GOTHIC,
@@ -88,139 +54,144 @@ static bool _load_font(enum font_face type)
 		[FONT_MINCHO] = XSYS4_DATA_DIR "/" DEFAULT_FONT_MINCHO
 	};
 
-	if (!FT_New_Face(ft_lib, font_paths[type], 0, &fonts[type].font))
-		return true;
-	if (!FT_New_Face(ft_lib, default_font_paths[type], 0, &fonts[type].font))
-		return true;
-	return !FT_New_Face(ft_lib, local_font_paths[type], 0, &fonts[type].font);
-}
-
-static void load_font(enum font_face type)
-{
-	const char *typestr = type == FONT_GOTHIC ? "gothic" : "mincho";
-	if (!_load_font(type)) {
-		ERROR("Failed to load %s font", typestr);
-	}
-	if (!fonts[type].font->charmap) {
-		ERROR("No unicode charmap for %s font", typestr);
-	}
+	struct font *font;
+	// user specified font
+	if (config.font_paths[type] && (font = ft_font_load(config.font_paths[type])))
+		return font;
+	// installed default font
+	if ((font = ft_font_load(default_font_paths[type])))
+		return font;
+	// local default font
+	if ((font = ft_font_load(local_font_paths[type])))
+		return font;
+	ERROR("Failed to load %s font", type == FONT_GOTHIC ? "gothic" : "mincho");
 }
 
 void gfx_font_init(void)
 {
-	if (FT_Init_FreeType(&ft_lib)) {
-		ERROR("Failed to initialize FreeType");
-	}
-	load_font(FONT_GOTHIC);
-	load_font(FONT_MINCHO);
-}
-
-static struct font_size *get_font_size(enum font_face type, unsigned size)
-{
-	struct font *font = &fonts[type];
-	for (int i = 0; i < font->nr_sizes; i++) {
-		if (font->sizes[i].size == size) {
-			return &font->sizes[i];
+	if (config.fnl_path) {
+		struct fnl *fnl = fnl_open(config.fnl_path);
+		if (!fnl)
+			ERROR("Failed to load .fnl font library '%s'", config.fnl_path);
+		if (!fnl->nr_fonts)
+			ERROR("No fonts in .fnl font library '%s'", config.fnl_path);
+		for (unsigned i = 0; i < fnl->nr_fonts && i < MAX_FONTS; i++) {
+			fonts[i] = fnl_font_load(fnl, i);
 		}
+	} else {
+		ft_font_init();
+		fonts[FONT_GOTHIC] = load_font(FONT_GOTHIC);
+		fonts[FONT_MINCHO] = load_font(FONT_MINCHO);
 	}
-
-	font->sizes = xrealloc_array(font->sizes, font->nr_sizes, font->nr_sizes+1, sizeof(struct font_size));
-	struct font_size *fs = &font->sizes[font->nr_sizes++];
-	fs->size = size;
-	fs->font = font;
-	fs->glyph_table = ht_create(4096);
-	return fs;
 }
 
-// NOTE: we create glyph textures slightly larger than necessary so that outlines
-//       aren't cut off at the texture boundary.
-// FIXME: the outline rendering code should be fixed so this isn't necessary.
-#define GLYPH_BORDER_SIZE 4
-
-// Convert a glyph rendered by FreeType to a block-sized texture.
-// Block size is size x 1.5*size (full-width) or size/2 x 1.5*size (half-width)
-static Rectangle init_glyph_texture(Texture *dst, FT_Bitmap *glyph, int bitmap_top, int size, bool half_width)
+static unsigned get_face(unsigned face)
 {
-	// calculate block size and offsets
-	int block_width = (half_width ? size/2 : size);
-	int block_height = size + size/2;
-	int width = block_width + GLYPH_BORDER_SIZE*2;
-	int height = block_height + GLYPH_BORDER_SIZE*2;
-	int off_x = max(0, (block_width - (int)glyph->width) / 2) + GLYPH_BORDER_SIZE;
-	int off_y = max(0, size - bitmap_top) + GLYPH_BORDER_SIZE;
-	uint8_t *bitmap = xcalloc(1, width * height);
-
-	// Expand the glyph bitmap to block size
-	for (int row = 0; row < glyph->rows && row + off_y < height; row++) {
-		for (int col = 0; col < glyph->width && col + off_x < width; col++) {
-			uint8_t p = glyph->buffer[row*glyph->width + col];
-			bitmap[(row+off_y)*width + (col+off_x)] = p;
+	if (game_rance7_mg) {
+		unsigned i = face - 256;
+		if (i >= MAX_FONTS || !fonts[i]) {
+			// XXX: Really not sure why this is how it works...
+			i = face == 1 ? 2 : 1;
 		}
+		face = i;
+	} else if (config.fnl_path) {
+		// TODO: check what actual games do here...
+		//       In Rance01Font.fnl:
+		//         fonts[0] is proportional sans/gothic
+		//         fonts[1] is monospace sans/gothic
+		//         fonts[2] is proportional serif/mincho
+		face += 1;
 	}
-
-	// create texture from block-size bitmap
-	gfx_init_texture_rmap(dst, width, height, bitmap);
-	free(bitmap);
-
-	return (Rectangle) {
-		.x = GLYPH_BORDER_SIZE,
-		.y = GLYPH_BORDER_SIZE,
-		.w = block_width,
-		.h = block_height
-	};
+	if (face >= MAX_FONTS || !fonts[face])
+		face = 0;
+	return face;
 }
 
-static struct glyph *get_glyph(struct font_size *font_size, uint32_t code, bool half_width, enum font_weight weight)
+static struct font *get_font(unsigned face)
 {
-	struct ht_slot *slot = ht_put_int(font_size->glyph_table, code, NULL);
+	return fonts[get_face(face)];
+}
+
+static struct font_size *font_get_size(unsigned face, float size)
+{
+	struct font *font = get_font(face);
+	return font->get_size(font, size);
+}
+
+static struct font_size *text_style_font_size(struct text_style *ts)
+{
+	if (ts->font_size)
+		return ts->font_size;
+	return ts->font_size = font_get_size(ts->face, ts->size);
+}
+
+static struct glyph *font_get_glyph(struct font_size *size, uint32_t code, enum font_weight weight)
+{
+	if (!size->glyph_table)
+		size->glyph_table = ht_create(4096);
+	// return cached glyph if available
+	struct ht_slot *slot = ht_put_int(size->glyph_table, code, NULL);
 	if (slot->value && ((struct glyph*)slot->value)->t[weight].handle)
 		return slot->value;
-
-	if (!slot->value) {
+	// alloc if necessary
+	if (!slot->value)
 		slot->value = xcalloc(1, sizeof(struct glyph));
-	}
-	struct glyph *glyph = slot->value;
-	Texture *t = &glyph->t[weight];
-
-	// render bitmap
-	FT_Face font = font_size->font->font;
-	if (FT_Load_Char(font, code, FT_LOAD_RENDER)) {
-		WARNING("Failed to load glyph for codepoint 0x%x", code);
+	// render glyph
+	if (!size->font->get_glyph(size, slot->value, code, weight))
 		return NULL;
-	}
-	if (weight != WEIGHT_NORMAL) {
-		int bold_weight = weight == WEIGHT_HEAVY ? 128 : 64;
-		FT_GlyphSlot_Own_Bitmap(font->glyph);
-		FT_Bitmap_Embolden(ft_lib, &font->glyph->bitmap, bold_weight, 0);
-	}
+	return slot->value;
+}
 
-	// create texture from bitmap
-	FT_Bitmap *bitmap = &font->glyph->bitmap;
-	if (bitmap->pixel_mode == FT_PIXEL_MODE_GRAY) {
-		glyph->rect = init_glyph_texture(t, bitmap, font->glyph->bitmap_top,
-				font_size->size, half_width);
-	} else if (bitmap->pixel_mode == FT_PIXEL_MODE_MONO) {
-		FT_Bitmap tmp;
-		FT_Bitmap_New(&tmp);
-		if (FT_Bitmap_Convert(ft_lib, &font->glyph->bitmap, &tmp, 1)) {
-			WARNING("Failed to convert monochrome glyph to grayscale");
-			FT_Bitmap_Done(ft_lib, &tmp);
-			return NULL;
-		}
-		// round non-zero values up to 255 because FreeType doesn't
-		for (int i = 0; i < tmp.rows * tmp.width; i++) {
-			if (tmp.buffer[i])
-				tmp.buffer[i] = 255;
-		}
-		glyph->rect = init_glyph_texture(t, &tmp, font->glyph->bitmap_top,
-				font_size->size, half_width);
-		FT_Bitmap_Done(ft_lib, &tmp);
-	} else {
-		WARNING("Font returned glyph with unsupported pixel mode");
-		return NULL;
-	}
+static float font_size_char(struct font_size *size, uint32_t code)
+{
+	return size->font->size_char(size, code);
+}
 
-	return glyph;
+static uint32_t char_to_code(const char *ch, enum charmap charmap)
+{
+	if (charmap == CHARMAP_SJIS)
+		return sjis_code(ch);
+	int c;
+	sjis_char2unicode(ch, &c);
+	if (c == '^' && game_rance02_mg)
+		return 0xE9; // é
+	// half-width katakana 'no' (ﾉ)
+	if (c == 0xFF89 && game_rance6_mg)
+		return 0xE9; // é
+	return c;
+}
+
+static float font_size_text(struct font_size *size, const char *text)
+{
+	float x = 0.0f;
+	while (*text) {
+		x += font_size_char(size, char_to_code(text, size->font->charmap));
+		text = sjis_skip_char(text);
+	}
+	return x;
+}
+
+float gfx_size_char(struct text_style *ts, const char *ch)
+{
+	struct font_size *size = text_style_font_size(ts);
+	return font_size_char(size, char_to_code(ch, size->font->charmap));
+}
+
+float gfx_size_text(struct text_style *ts, const char *text)
+{
+	return font_size_text(text_style_font_size(ts), text);
+}
+
+float gfx_get_actual_font_size(unsigned face, float size)
+{
+	struct font *font = get_font(face);
+	return font->get_actual_size(font, size);
+}
+
+float gfx_get_actual_font_size_round_down(unsigned face, float size)
+{
+	struct font *font = get_font(face);
+	return font->get_actual_size_round_down(font, size);
 }
 
 enum text_render_mode {
@@ -230,41 +201,31 @@ enum text_render_mode {
 };
 
 struct text_render_metrics {
-	Point pos;
-	enum font_face type;
-	int size;
+	float x;
+	int y;
 	SDL_Color color;
-	int char_space;
 	enum font_weight weight;
 	float edge_width;
+	float scale_x;
+	float space_scale_x;
+	float font_spacing;
 	enum text_render_mode mode;
+	struct font_size *font_size;
 };
 
-int _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
+static int render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 {
-	float pos_x = tm->pos.x;
-	int pos_y = tm->pos.y - roundf(tm->size * 0.15f);
-	struct font_size *font_size = get_font_size(tm->type, tm->size);
-	if (FT_Set_Pixel_Sizes(font_size->font->font, 0, font_size->size)) {
-		WARNING("Failed setting font size to %d", font_size->size);
-	}
+	float pos_x = tm->x;
+	int pos_y = tm->y + tm->font_size->y_offset;
 
 	while (*msg) {
-		// extract char code from msg
-		int c;
-		int char_w = SJIS_2BYTE(*msg) ? 2 : 1;
-		msg = sjis_char2unicode(msg, &c);
-		if (c == '^' && game_rance02_mg) {
-			c = 0xE9; // é
-		} else if (c == 0xFF89 && game_rance6_mg) { // half-width katakana 'no' (ﾉ)
-			c = 0xE9; // é
-		}
-
-		// get glyph for char code
-		struct glyph *glyph = get_glyph(font_size, c, char_w == 1, tm->weight);
-		if (!glyph) {
+		// get glyph for character
+		float scale_x = *msg == ' ' ? tm->space_scale_x : tm->scale_x;
+		uint32_t code = char_to_code(msg, tm->font_size->font->charmap);
+		msg += SJIS_2BYTE(*msg) ? 2 : 1;
+		struct glyph *glyph = font_get_glyph(tm->font_size, code, tm->weight);
+		if (!glyph)
 			continue;
-		}
 
 		// render glyph
 		Texture *t = &glyph->t[tm->weight];
@@ -279,61 +240,72 @@ int _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 		}
 
 		// advance
-		int advance = (char_w == 2 ? tm->size : tm->size / 2) + tm->char_space;
-		pos_x += advance * config.text_x_scale;
+		pos_x += glyph->advance * scale_x * config.text_x_scale + tm->font_spacing;
 	}
-	return roundf(pos_x - tm->pos.x);
+	return roundf(pos_x - tm->x);
 }
 
 static enum font_weight int_to_font_weight(int weight)
 {
 	// 0 -> 550 = LIGHT
 	if (weight <= 550)
-		return WEIGHT_NORMAL;
+		return FONT_WEIGHT_NORMAL;
 	// 551 -> 999 = BOLD
 	if (weight <= 999)
-		return WEIGHT_BOLD;
+		return FONT_WEIGHT_BOLD;
 	// 1000 = LIGHT
 	if (weight == 1000)
-		return WEIGHT_NORMAL;
+		return FONT_WEIGHT_NORMAL;
 	// x001 -> x550 = MEDIUM
 	// x551 -> x999 = HEAVY-BOLD
 	// NOTE: we don't distinguish between MEDIUM and BOLD (they are nearly identical)
-	return (weight % 1000) < 551 ? WEIGHT_BOLD : WEIGHT_HEAVY;
+	return (weight % 1000) < 551 ? FONT_WEIGHT_BOLD : FONT_WEIGHT_HEAVY;
 }
 
-int gfx_render_text(Texture *dst, Point pos, char *msg, struct text_metrics *tm, int char_space)
+int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *ts)
 {
-	enum font_weight weight = int_to_font_weight(tm->weight);
-	enum font_face type = tm->face > 1 ? FONT_GOTHIC : tm->face;
-	int outline = max(tm->outline_left, tm->outline_right);
-	outline = max(outline, tm->outline_up);
-	outline = max(outline, tm->outline_down);
-	if (outline) {
+	enum font_weight weight = int_to_font_weight(ts->weight);
+	struct font_size *font_size = text_style_font_size(ts);
+	float edge_width = text_style_edge_width(ts);
+	if (edge_width > 0.01f) {
 		struct text_render_metrics metrics = {
-			.pos = pos,
-			.type = type,
-			.size = tm->size,
-			.color = tm->outline_color,
-			.char_space = char_space,
+			.x = x,
+			.y = y,
+			.color = ts->edge_color,
 			.weight = weight,
-			.edge_width = outline,
+			.edge_width = edge_width,
+			.scale_x = ts->scale_x,
+			.space_scale_x = ts->space_scale_x,
+			.font_spacing = ts->font_spacing,
 			.mode = RENDER_BLENDED,
+			.font_size = font_size,
 		};
-		_gfx_render_text(dst, msg, &metrics);
+		render_text(dst, msg, &metrics);
 	}
 	struct text_render_metrics metrics = {
-		.pos = pos,
-		.type = type,
-		.size = tm->size,
-		.color = tm->color,
-		.char_space = char_space,
+		.x = x,
+		.y = y,
+		.color = ts->color,
 		.weight = weight,
-		.edge_width = 0.0,
+		.edge_width = ts->bold_width,
+		.scale_x = ts->scale_x,
+		.space_scale_x = ts->space_scale_x,
+		.font_spacing = ts->font_spacing,
 		.mode = RENDER_BLENDED,
+		.font_size = font_size,
 	};
-	return _gfx_render_text(dst, msg, &metrics);
+	return render_text(dst, msg, &metrics);
 }
+
+struct font_metrics {
+	int size;
+	enum font_face face;
+	int weight;
+	bool underline;
+	bool strikeout;
+	int space;
+	SDL_Color color;
+};
 
 // current font state
 static struct font_metrics font_metrics = {
@@ -353,18 +325,21 @@ static struct font_metrics font_metrics = {
 
 static void gfx_draw_text(Texture *dst, int x, int y, char *text, enum text_render_mode mode)
 {
+	struct font_size *font_size = font_get_size(font_metrics.face, font_metrics.size);
 	struct text_render_metrics metrics = {
-		.pos = { x, y },
-		.type = font_metrics.face > 1 ? FONT_GOTHIC : font_metrics.face,
-		.size = font_metrics.size,
+		.x = x,
+		.y = y,
 		.color = font_metrics.color,
-		.char_space = font_metrics.space,
 		.weight = int_to_font_weight(font_metrics.weight),
-		.edge_width = 0.0,
+		.edge_width = 0.0f,
+		.scale_x = 1.0f,
+		.space_scale_x = 1.0f,
+		.font_spacing = font_metrics.space,
 		.mode = mode,
+		.font_size = font_size,
 	};
 	// TODO: underline and strikethrough
-	_gfx_render_text(dst, text, &metrics);
+	render_text(dst, text, &metrics);
 }
 
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text)

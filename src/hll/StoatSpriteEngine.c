@@ -30,6 +30,7 @@
 #include "input.h"
 #include "queue.h"
 #include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "sact.h"
 #include "vm/page.h"
 #include "xsystem4.h"
@@ -73,16 +74,21 @@ static int StoatSpriteEngine_SP_GetDrawMethod(int sp_no)
 	}
 }
 
-struct text_metrics text_sprite_tm = {
-	.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
-	.outline_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
-	.size = 16,
-	.weight = FW_NORMAL,
+struct text_style text_sprite_ts = {
 	.face = FONT_GOTHIC,
-	.outline_left = 0,
-	.outline_up = 0,
-	.outline_right = 0,
-	.outline_down = 0
+	.size = 16.0f,
+	.bold_width = 0.0f,
+	.weight = FW_NORMAL,
+	.edge_left = 0.0f,
+	.edge_up = 0.0f,
+	.edge_right = 0.0f,
+	.edge_down = 0.0f,
+	.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
+	.edge_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
+	.scale_x = 1.0,
+	.space_scale_x = 1.0,
+	.font_spacing = 0.0,
+	.font_size = NULL,
 };
 
 static int extract_sjis_char(char *src, char *dst)
@@ -105,8 +111,8 @@ bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 
 	char s[3];
 	extract_sjis_char(text->text, s);
-	int w = text_sprite_tm.size;
-	int h = text_sprite_tm.size;
+	int w = text_sprite_ts.size;
+	int h = text_sprite_ts.size;
 	// XXX: System40.exe lies about the height of half-width characters.
 	//      E.g. a size 64 letter "H" is reported as 32 pixels tall.
 	//      Probably doesn't matter...?
@@ -114,24 +120,24 @@ bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 		w /= 2;
 	struct sact_sprite *sp = sact_create_sprite(sp_no, w, h, 0, 0, 0, 0);
 	sprite_get_texture(sp); // XXX: force initialization of texture
-	gfx_render_text(&sp->texture, (Point) { .x=0, .y=0 }, s, &text_sprite_tm, 0);
+	gfx_render_text(&sp->texture, 0.0f, 0, s, &text_sprite_ts);
 	sprite_dirty(sp);
 	return true;
 }
 
 void StoatSpriteEngine_SP_SetTextSpriteType(int type)
 {
-	text_sprite_tm.face = type;
+	text_sprite_ts.face = type;
 }
 
 void StoatSpriteEngine_SP_SetTextSpriteSize(int size)
 {
-	text_sprite_tm.size = size;
+	text_sprite_ts.size = size;
 }
 
 void StoatSpriteEngine_SP_SetTextSpriteColor(int r, int g, int b)
 {
-	text_sprite_tm.color = (SDL_Color) { .r = r, .g = g, .b = b, .a = 255 };
+	text_sprite_ts.color = (SDL_Color) { .r = r, .g = g, .b = b, .a = 255 };
 }
 
 void StoatSpriteEngine_SP_SetTextSpriteBoldWeight(float weight)
@@ -141,16 +147,15 @@ void StoatSpriteEngine_SP_SetTextSpriteBoldWeight(float weight)
 
 void StoatSpriteEngine_SP_SetTextSpriteEdgeWeight(float weight)
 {
-	text_sprite_tm.outline_left = weight;
-	text_sprite_tm.outline_up = weight;
-	text_sprite_tm.outline_right = weight;
-	text_sprite_tm.outline_down = weight;
-	//NOTICE("StoatSpriteEngine.SP_SetTextSpriteEdgeWeight(%f)", weight);
+	text_sprite_ts.edge_left = weight;
+	text_sprite_ts.edge_up = weight;
+	text_sprite_ts.edge_right = weight;
+	text_sprite_ts.edge_down = weight;
 }
 
 void StoatSpriteEngine_SP_SetTextSpriteEdgeColor(int r, int g, int b)
 {
-	text_sprite_tm.outline_color = (SDL_Color) { .r = r, .g = g, .b = b, .a = 255 };
+	text_sprite_ts.edge_color = (SDL_Color) { .r = r, .g = g, .b = b, .a = 255 };
 }
 
 bool StoatSpriteEngine_SP_SetDashTextSprite(int sp_no, int width, int height)
@@ -204,8 +209,7 @@ struct multisprite {
 	} trans;
 	bool linked_message_frame;
 	struct sact_sprite sp;
-	struct text_metrics tm;
-	int char_space;
+	struct text_style ts;
 };
 
 struct sp_table {
@@ -231,18 +235,23 @@ static struct multisprite *multisprite_alloc(int type, int n)
 		ms->sp.rect.y = 300;
 		ms->linked_message_frame = true;
 	} else if (type == 5) {
-		ms->tm = (struct text_metrics) {
-			.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
-			.outline_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
-			.size = 16,
-			.weight = FW_NORMAL,
+		ms->ts = (struct text_style) {
 			.face = FONT_GOTHIC,
-			.outline_left = 0,
-			.outline_up = 0,
-			.outline_right = 0,
-			.outline_down = 0
+			.size = 16.0f,
+			.bold_width = 0.0f,
+			.weight = FW_NORMAL,
+			.edge_left = 0.0f,
+			.edge_up = 0.0f,
+			.edge_right = 0.0f,
+			.edge_down = 0.0f,
+			.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
+			.edge_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
 		};
 	}
+	ms->ts.scale_x = 1.0f;
+	ms->ts.space_scale_x = 1.0f;
+	ms->ts.font_spacing = 0.0f;
+	ms->ts.font_size = NULL;
 	sprite_dirty(&ms->sp);
 	return ms;
 }
@@ -440,11 +449,11 @@ static bool StoatSpriteEngine_MultiSprite_SetText(int type, int n, struct string
 	struct multisprite *ms = multisprite_get(type, n);
 	if (!ms) return false;
 
-	int w = text->size * (ms->tm.size/2);
-	int h = ms->tm.size;
+	int w = text->size * (ms->ts.size/2);
+	int h = ms->ts.size;
 	sprite_init(&ms->sp, w, h, 0, 0, 0, 0);
 	sprite_get_texture(&ms->sp); // XXX: force initialization of texture
-	gfx_render_text(&ms->sp.texture, (Point) { .x=0, .y=0 }, text->text, &ms->tm, ms->char_space);
+	gfx_render_text(&ms->sp.texture, 0.0f, 0, text->text, &ms->ts);
 	sprite_dirty(&ms->sp);
 
 	ms->cg = 1;
@@ -458,7 +467,7 @@ static bool StoatSpriteEngine_MultiSprite_SetCharSpace(int type, int n, int char
 		return true;
 	struct multisprite *ms = multisprite_get(type, n);
 	if (!ms) return false;
-	ms->char_space = char_space;
+	ms->ts.font_spacing = char_space;
 	return true;
 }
 
@@ -468,7 +477,7 @@ static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetType(int type, i
 		return true;
 	struct multisprite *ms = multisprite_get(type, n);
 	if (!ms) return false;
-	ms->tm.face = font_type;
+	ms->ts.face = font_type;
 	return true;
 }
 
@@ -478,7 +487,7 @@ static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetSize(int type, i
 		return true;
 	struct multisprite *ms = multisprite_get(type, n);
 	if (!ms) return false;
-	ms->tm.size = size;
+	ms->ts.size = size;
 	return true;
 }
 
@@ -488,9 +497,9 @@ static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetColor(int type, 
 		return true;
 	struct multisprite *ms = multisprite_get(type, n);
 	if (!ms) return false;
-	ms->tm.color.r = r;
-	ms->tm.color.g = g;
-	ms->tm.color.b = b;
+	ms->ts.color.r = r;
+	ms->ts.color.g = g;
+	ms->ts.color.b = b;
 	return true;
 }
 
@@ -500,7 +509,7 @@ static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetBoldWeight(int t
 		return true;
 	struct multisprite *ms = multisprite_get(type, n);
 	if (!ms) return false;
-	ms->tm.weight = weight * 1000; // FIXME: use float value internally
+	ms->ts.weight = weight * 1000; // FIXME: use float value internally
 	return true;
 }
 
@@ -510,10 +519,7 @@ static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeWeight(int t
 		return true;
 	struct multisprite *ms = multisprite_get(type, n);
 	if (!ms) return false;
-	ms->tm.outline_left = weight;
-	ms->tm.outline_up = weight;
-	ms->tm.outline_right = weight;
-	ms->tm.outline_down = weight;
+	text_style_set_edge_width(&ms->ts, weight);
 	return true;
 }
 
@@ -523,9 +529,9 @@ static bool StoatSpriteEngine_MultiSprite_CharSpriteProperty_SetEdgeColor(int ty
 		return true;
 	struct multisprite *ms = multisprite_get(type, n);
 	if (!ms) return false;
-	ms->tm.outline_color.r = r;
-	ms->tm.outline_color.g = g;
-	ms->tm.outline_color.b = b;
+	ms->ts.edge_color.r = r;
+	ms->ts.edge_color.g = g;
+	ms->ts.edge_color.b = b;
 	return true;
 }
 
@@ -753,22 +759,22 @@ static bool StoatSpriteEngine_MultiSprite_Encode(struct page **data)
 			iarray_write(&out, sp->trans.no);
 			iarray_write(&out, sp->trans.time);
 			iarray_write(&out, sp->linked_message_frame);
-			iarray_write(&out, sp->tm.color.r);
-			iarray_write(&out, sp->tm.color.g);
-			iarray_write(&out, sp->tm.color.b);
-			iarray_write(&out, sp->tm.color.a);
-			iarray_write(&out, sp->tm.outline_color.r);
-			iarray_write(&out, sp->tm.outline_color.g);
-			iarray_write(&out, sp->tm.outline_color.b);
-			iarray_write(&out, sp->tm.outline_color.a);
-			iarray_write(&out, sp->tm.size);
-			iarray_write(&out, sp->tm.weight);
-			iarray_write(&out, sp->tm.face);
-			iarray_write(&out, sp->tm.outline_left);
-			iarray_write(&out, sp->tm.outline_up);
-			iarray_write(&out, sp->tm.outline_right);
-			iarray_write(&out, sp->tm.outline_down);
-			iarray_write(&out, sp->char_space);
+			iarray_write(&out, sp->ts.color.r);
+			iarray_write(&out, sp->ts.color.g);
+			iarray_write(&out, sp->ts.color.b);
+			iarray_write(&out, sp->ts.color.a);
+			iarray_write(&out, sp->ts.edge_color.r);
+			iarray_write(&out, sp->ts.edge_color.g);
+			iarray_write(&out, sp->ts.edge_color.b);
+			iarray_write(&out, sp->ts.edge_color.a);
+			iarray_write(&out, sp->ts.size);
+			iarray_write(&out, sp->ts.weight);
+			iarray_write(&out, sp->ts.face);
+			iarray_write(&out, sp->ts.edge_left);
+			iarray_write(&out, sp->ts.edge_up);
+			iarray_write(&out, sp->ts.edge_right);
+			iarray_write(&out, sp->ts.edge_down);
+			iarray_write(&out, sp->ts.font_spacing);
 			nr_sprites++;
 		}
 	}
@@ -820,22 +826,22 @@ static bool StoatSpriteEngine_MultiSprite_Decode(struct page **data)
 		sp->trans.no = iarray_read(&in);
 		sp->trans.time = iarray_read(&in);
 		sp->linked_message_frame = iarray_read(&in);
-		sp->tm.color.r = iarray_read(&in);
-		sp->tm.color.g = iarray_read(&in);
-		sp->tm.color.b = iarray_read(&in);
-		sp->tm.color.a = iarray_read(&in);
-		sp->tm.outline_color.r = iarray_read(&in);
-		sp->tm.outline_color.g = iarray_read(&in);
-		sp->tm.outline_color.b = iarray_read(&in);
-		sp->tm.outline_color.a = iarray_read(&in);
-		sp->tm.size = iarray_read(&in);
-		sp->tm.weight = iarray_read(&in);
-		sp->tm.face = iarray_read(&in);
-		sp->tm.outline_left = iarray_read(&in);
-		sp->tm.outline_up = iarray_read(&in);
-		sp->tm.outline_right = iarray_read(&in);
-		sp->tm.outline_down = iarray_read(&in);
-		sp->char_space = iarray_read(&in);
+		sp->ts.color.r = iarray_read(&in);
+		sp->ts.color.g = iarray_read(&in);
+		sp->ts.color.b = iarray_read(&in);
+		sp->ts.color.a = iarray_read(&in);
+		sp->ts.edge_color.r = iarray_read(&in);
+		sp->ts.edge_color.g = iarray_read(&in);
+		sp->ts.edge_color.b = iarray_read(&in);
+		sp->ts.edge_color.a = iarray_read(&in);
+		sp->ts.size = iarray_read(&in);
+		sp->ts.weight = iarray_read(&in);
+		sp->ts.face = iarray_read(&in);
+		sp->ts.edge_left = iarray_read(&in);
+		sp->ts.edge_up = iarray_read(&in);
+		sp->ts.edge_right = iarray_read(&in);
+		sp->ts.edge_down = iarray_read(&in);
+		sp->ts.font_spacing = iarray_read(&in);
 	}
 
 	return !in.error;

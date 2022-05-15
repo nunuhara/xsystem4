@@ -27,6 +27,7 @@
 #include "system4/utfsjis.h"
 
 #include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "vm/page.h"
 #include "sact.h"
 #include "hll.h"
@@ -50,11 +51,14 @@ static struct sr_text_properties default_text_properties = {
 	.line_space = 0,
 	.last_char = -1,
 	.ts = {
-		.font_type = 0,
+		.face = 0,
 		.size = 16.0,
 		.bold_width = 0.0,
 		.color = { 255, 255, 255, 255 },
-		.edge_width = 0.0,
+		.edge_left = 0.0,
+		.edge_up = 0.0,
+		.edge_right = 0.0,
+		.edge_down = 0.0,
 		.edge_color = { 0, 0, 0, 255 },
 		.scale_x = 1.0,
 		.space_scale_x = 1.0,
@@ -98,7 +102,7 @@ static void free_sp_properties(int sp_no)
 
 static void SengokuRanceFont_SetFontType(int type)
 {
-	current_text_properties.ts.font_type = type;
+	current_text_properties.ts.face = type;
 	current_text_properties.ts.font_size = NULL;
 }
 
@@ -125,12 +129,12 @@ static void SengokuRanceFont_SetEdgeColor(int r, int g, int b)
 
 static void SengokuRanceFont_SetEdgeWidth(float w)
 {
-	current_text_properties.ts.edge_width = w;
+	text_style_set_edge_width(&current_text_properties.ts, w);
 }
 
 static float SengokuRanceFont_GetTextWidth(struct string *str)
 {
-	return fnl_size_text(&current_text_properties.ts, str->text);
+	return gfx_size_text(&current_text_properties.ts, str->text);
 }
 
 //static float SengokuRanceFont_GetCharacterWidth(int charCode);
@@ -283,15 +287,17 @@ static void SengokuRanceFont_SP_TextNewLine(int sp_no, float font_size)
 static void SengokuRanceFont_SP_SetTextMetricsClassic(int sp_no, struct page *page)
 {
 	struct text_style *ts = &get_sp_properties(sp_no)->ts;
-	ts->font_type     = 256;
 	ts->color.r       = page->values[0].i;
 	ts->color.g       = page->values[1].i;
 	ts->color.b       = page->values[2].i;
 	ts->color.a       = 255;
 	ts->size          = page->values[3].i;
 	// XXX: weight seems to be ignored (page->values[4].i)
-	ts->font_type     = page->values[5].i;
-	ts->edge_width    = max(page->values[6].i, max(page->values[7].i, max(page->values[8].i, page->values[9].i)));
+	ts->face          = page->values[5].i;
+	ts->edge_left     = page->values[6].i;
+	ts->edge_up       = page->values[7].i;
+	ts->edge_right    = page->values[8].i;
+	ts->edge_down     = page->values[9].i;
 	ts->edge_color.r  = page->values[10].i;
 	ts->edge_color.g  = page->values[11].i;
 	ts->edge_color.b  = page->values[12].i;
@@ -302,7 +308,7 @@ static void SengokuRanceFont_SP_SetTextMetricsClassic(int sp_no, struct page *pa
 static void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *page)
 {
 	struct text_style *ts = &get_sp_properties(sp_no)->ts;
-	ts->font_type          = page->values[0].i;
+	ts->face               = page->values[0].i;
 	ts->size               = page->values[1].f;
 	ts->bold_width         = page->values[2].f < 0 ? 0 : page->values[2].f;
 	ts->color.r            = page->values[3].i & 0xFF;
@@ -310,7 +316,7 @@ static void SengokuRanceFont_SP_SetTextStyle(int sp_no, struct page *page)
 	ts->color.g            = page->values[4].i & 0xFF;
 	ts->color.b            = page->values[5].i & 0xFF;
 	ts->color.a            = 255;
-	ts->edge_width         = page->values[6].f < 0.0 ? 0.0 : page->values[6].f;
+	text_style_set_edge_width(ts, page->values[6].f < 0.0f ? 0.0f : page->values[6].f);
 	ts->edge_color.r       = page->values[7].i & 0xFF;
 	ts->edge_color.g       = page->values[8].i & 0xFF;
 	ts->edge_color.b       = page->values[9].i & 0xFF;
@@ -337,7 +343,7 @@ static float sp_text_draw(struct sact_sprite *sp, struct sr_text_properties *tp,
 	tp->last_char = last_char;
 
 	sprite_dirty(sp);
-	return x + fnl_draw_text(&tp->ts, tex, x, y, text->text);
+	return x + gfx_render_text(tex, x ,y, text->text, &tp->ts);
 }
 
 static void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
@@ -380,7 +386,7 @@ static void SengokuRanceFont_SP_SetFontSize(int sp_no, float font_size)
 static void SengokuRanceFont_SP_SetFontType(int sp_no, int type)
 {
 	struct text_style *ts = &get_sp_properties(sp_no)->ts;
-	ts->font_type = type;
+	ts->face = type;
 	ts->font_size = NULL;
 }
 
@@ -401,7 +407,7 @@ static void SengokuRanceFont_SP_SetEdgeColor(int sp_no, int r, int g, int b)
 
 static void SengokuRanceFont_SP_SetEdgeWidth(int sp_no, float edge_width)
 {
-	get_sp_properties(sp_no)->ts.edge_width = edge_width;
+	text_style_set_edge_width(&get_sp_properties(sp_no)->ts, edge_width);
 }
 
 static void SengokuRanceFont_SP_SetScaleX(int sp_no, float scale_x)
@@ -421,7 +427,7 @@ static float SengokuRanceFont_SP_GetFontSize(int sp_no)
 
 static int SengokuRanceFont_SP_GetFontType(int sp_no)
 {
-	return get_sp_properties(sp_no)->ts.font_type + 256;
+	return get_sp_properties(sp_no)->ts.face;
 }
 
 static void SengokuRanceFont_SP_GetFontColor(int sp_no, int *r, int *g, int *b)
@@ -447,7 +453,7 @@ static void SengokuRanceFont_SP_GetEdgeColor(int sp_no, int *r, int *g, int *b)
 
 static float SengokuRanceFont_SP_GetEdgeWidth(int sp_no)
 {
-	return get_sp_properties(sp_no)->ts.edge_width;
+	return text_style_edge_width(&get_sp_properties(sp_no)->ts);
 }
 
 static float SengokuRanceFont_SP_GetScaleX(int sp_no)
@@ -460,14 +466,14 @@ static float SengokuRanceFont_SP_GetSpaceScaleX(int sp_no)
 	return get_sp_properties(sp_no)->ts.space_scale_x;
 }
 
-static float SengokuRanceFont_GetActualFontSize(int font_type, float font_size)
+static float SengokuRanceFont_GetActualFontSize(int face, float font_size)
 {
-	return fnl_get_actual_font_size(font_type, font_size);
+	return gfx_get_actual_font_size(face, font_size);
 }
 
-static float SengokuRanceFont_GetActualFontSizeRoundDown(int font_type, float font_size)
+static float SengokuRanceFont_GetActualFontSizeRoundDown(int face, float font_size)
 {
-	return fnl_get_actual_font_size_round_down(font_type, font_size);
+	return gfx_get_actual_font_size_round_down(face, font_size);
 }
 
 static int SengokuRanceFont_SP_GetTextLastCharCode(int sp_no)
@@ -493,41 +499,11 @@ static void SengokuRanceFont_SP_SetReduceDescender(int sp_no, int reduce_descend
 
 static void SengokuRanceFont_ModuleInit(void)
 {
-	UDIR *dir;
-	char *d_name;
-	char path[PATH_MAX];
-
-	if (!(dir = opendir_utf8(config.game_dir))) {
-		ERROR("Failed to open directory: %s", display_utf0(config.game_dir));
-	}
-
-	while ((d_name = readdir_utf8(dir))) {
-		size_t name_len = strlen(d_name);
-		if (name_len > 4 && strcasecmp(d_name+name_len-4, ".fnl")) {
-			free(d_name);
-			continue;
-		}
-
-		snprintf(path, PATH_MAX, "%s/%s", config.game_dir, d_name);
-		free(d_name);
-
-		fnl_renderer_init(path);
-		break;
-	}
-
-	closedir_utf8(dir);
-
 	current_text_properties = default_text_properties;
-}
-
-static void SengokuRanceFont_ModuleFini(void)
-{
-	fnl_renderer_fini();
 }
 
 HLL_LIBRARY(SengokuRanceFont,
 	    HLL_EXPORT(_ModuleInit, SengokuRanceFont_ModuleInit),
-	    HLL_EXPORT(_ModuleFini, SengokuRanceFont_ModuleFini),
 	    //HLL_EXPORT(AlphaComposite, SengokuRanceFont_AlphaComposite),
 	    HLL_EXPORT(SetFontType, SengokuRanceFont_SetFontType),
 	    HLL_EXPORT(SetFontSize, SengokuRanceFont_SetFontSize),

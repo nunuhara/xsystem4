@@ -29,6 +29,7 @@
 #include "input.h"
 #include "queue.h"
 #include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "sact.h"
 #include "scene.h"
 #include "vm/page.h"
@@ -470,46 +471,51 @@ int sact_SP_SetTextPos(int sp_no, int x, int y)
 	return 1;
 }
 
-static void init_text_metrics(struct text_metrics *tm, union vm_value *_tm)
+static void sact_text_metrics_to_text_style(struct text_style *ts, union vm_value *_tm)
 {
-	*tm = (struct text_metrics) {
+	*ts = (struct text_style) {
 		.color = {
 			.r = _tm[0].i,
 			.g = _tm[1].i,
 			.b = _tm[2].i,
 			.a = 255
 		},
-		.outline_color = {
+		.edge_color = {
 			.r = _tm[10].i,
 			.g = _tm[11].i,
 			.b = _tm[12].i,
 			.a = 255
 		},
-		.size          = _tm[3].i,
-		.weight        = _tm[4].i,
-		.face          = _tm[5].i,
-		.outline_left  = _tm[6].i,
-		.outline_up    = _tm[7].i,
-		.outline_right = _tm[8].i,
-		.outline_down  = _tm[9].i,
+		.size       = _tm[3].i,
+		.weight     = _tm[4].i,
+		.face       = _tm[5].i,
+		.edge_left  = _tm[6].i,
+		.edge_up    = _tm[7].i,
+		.edge_right = _tm[8].i,
+		.edge_down  = _tm[9].i,
+		.bold_width = 0.0f,
+		.scale_x = 1.0f,
+		.space_scale_x = 1.0f,
+		.font_spacing = 0.0f,
+		.font_size = NULL
 	};
 }
 
-int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_metrics *tm)
+int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_style *ts)
 {
 	// XXX: In AliceSoft's implementation, this function succeeds even with
 	//      a negative sp_no...
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
-	sprite_text_draw(sp, text, tm);
+	sprite_text_draw(sp, text, ts);
 	return 1;
 }
 
 int sact_SP_TextDraw(int sp_no, struct string *text, struct page *_tm)
 {
-	struct text_metrics tm;
-	init_text_metrics(&tm, _tm->values);
-	_sact_SP_TextDraw(sp_no, text, &tm);
+	struct text_style ts;
+	sact_text_metrics_to_text_style(&ts, _tm->values);
+	_sact_SP_TextDraw(sp_no, text, &ts);
 	return 1;
 }
 

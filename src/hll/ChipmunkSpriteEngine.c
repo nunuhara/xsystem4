@@ -18,6 +18,7 @@
 #include "system4/utfsjis.h"
 
 #include "asset_manager.h"
+#include "gfx/font.h"
 #include "input.h"
 #include "sact.h"
 #include "CharSpriteManager.h"
@@ -66,7 +67,7 @@ static bool ChipmunkSpriteEngine_SP_GetFontWidth(struct string *text, int *width
 		return true;
 	}
 
-	*width = SJIS_2BYTE(text->text[0]) ? text_sprite_tm.size : text_sprite_tm.size / 2;
+	*width = SJIS_2BYTE(text->text[0]) ? text_sprite_ts.size : text_sprite_ts.size / 2;
 	return true;
 }
 

@@ -38,6 +38,7 @@
 #include "asset_manager.h"
 #include "debugger.h"
 #include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "little_endian.h"
 #include "vm.h"
 
@@ -64,6 +65,8 @@ struct config config = {
 	.bgi_path = NULL,
 	.wai_path = NULL,
 	.ex_path = NULL,
+	.fnl_path = NULL,
+	.font_paths = { NULL, NULL },
 };
 
 static struct string *ini_string(struct ini_entry *entry)
@@ -156,9 +159,11 @@ static void read_user_config_file(const char *path)
 
 	for (int i = 0; i < ini_size; i++) {
 		if (!strcmp(ini[i].name->text, "font-mincho")) {
-			font_paths[FONT_MINCHO] = xstrdup(ini_string(&ini[i])->text);
+			config.font_paths[FONT_MINCHO] = xstrdup(ini_string(&ini[i])->text);
 		} else if (!strcmp(ini[i].name->text, "font-gothic")) {
-			font_paths[FONT_GOTHIC] = xstrdup(ini_string(&ini[i])->text);
+			config.font_paths[FONT_GOTHIC] = xstrdup(ini_string(&ini[i])->text);
+		} else if (!strcmp(ini[i].name->text, "font-fnl")) {
+			config.fnl_path = xstrdup(ini_string(&ini[i])->text);
 		} else if (!strcmp(ini[i].name->text, "font-x-scale")) {
 			float f = strtof(ini_string(&ini[i])->text, NULL);
 			if (fabsf(f) < 0.01) {
@@ -337,6 +342,7 @@ static void usage(void)
 	puts("    -e, --echo-message  Echo in-game messages to standard output");
 	puts("        --font-mincho   Specify the path to the mincho font to use");
 	puts("        --font-gothic   Specify the path to the gothic font to use");
+	puts("        --font-fnl      Specify the path to a .fnl font library to use");
 	puts("        --font-x-scale  Specify the x scale for text rendering (1.0 = default scale)");
 	puts("    -j, --joypad        Enable joypad");
 	puts("        --save-folder   Override save folder location");
@@ -353,6 +359,7 @@ enum {
 	LOPT_ECHO_MESSAGE,
 	LOPT_FONT_MINCHO,
 	LOPT_FONT_GOTHIC,
+	LOPT_FONT_FNL,
 	LOPT_FONT_X_SCALE,
 	LOPT_JOYPAD,
 	LOPT_SAVE_FOLDER,
@@ -374,6 +381,7 @@ int main(int argc, char *argv[])
 
 	char *font_mincho = NULL;
 	char *font_gothic = NULL;
+	char *font_fnl = NULL;
 	char *joypad = NULL;
 	char *savedir = NULL;
 
@@ -385,6 +393,7 @@ int main(int argc, char *argv[])
 			{ "echo-message", no_argument,       0, LOPT_ECHO_MESSAGE },
 			{ "font-mincho",  required_argument, 0, LOPT_FONT_MINCHO },
 			{ "font-gothic",  required_argument, 0, LOPT_FONT_GOTHIC },
+			{ "font-fnl",     required_argument, 0, LOPT_FONT_FNL },
 			{ "font-x-scale", required_argument, 0, LOPT_FONT_X_SCALE },
 			{ "joypad",       optional_argument, 0, LOPT_JOYPAD },
 			{ "save-folder",  required_argument, 0, LOPT_SAVE_FOLDER },
@@ -421,6 +430,9 @@ int main(int argc, char *argv[])
 			break;
 		case LOPT_FONT_GOTHIC:
 			font_gothic = optarg;
+			break;
+		case LOPT_FONT_FNL:
+			font_fnl = optarg;
 			break;
 		case LOPT_FONT_X_SCALE:
 			config.manual_text_x_scale = true;
@@ -473,9 +485,11 @@ int main(int argc, char *argv[])
 	// NOTE: some command line options are handled here so that they
 	//       will override settings from .xsys4rc files
 	if (font_mincho)
-		font_paths[FONT_MINCHO] = font_mincho;
+		config.font_paths[FONT_MINCHO] = font_mincho;
 	if (font_gothic)
-		font_paths[FONT_GOTHIC] = font_gothic;
+		config.font_paths[FONT_GOTHIC] = font_gothic;
+	if (font_fnl)
+		config.fnl_path = font_fnl;
 	if (joypad) {
 		if (!strcmp(joypad, "on"))
 			config.joypad = true;

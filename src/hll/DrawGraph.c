@@ -16,7 +16,8 @@
 
 #include "hll.h"
 #include "sact.h"
-#include "gfx/types.h"
+#include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "system4/string.h"
 
 // Get texture for source sprite

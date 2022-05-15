@@ -34,6 +34,7 @@
 bool game_daibanchou_en = false;
 bool game_rance02_mg = false;
 bool game_rance6_mg = false;
+bool game_rance7_mg = false;
 
 static void write_instruction0(struct buffer *out, enum opcode op)
 {
@@ -134,6 +135,13 @@ static void apply_rance6_hacks(struct ain *ain)
 	game_rance6_mg = true;
 }
 
+static void apply_rance7_hacks(struct ain *ain)
+{
+	if (ain_get_library(ain, "SengokuRanceFont") < 0)
+		return;
+	game_rance7_mg = true;
+}
+
 // Daibanchou (English fan translation)
 // ------------------------------------
 // Gpx2Plus.CopyStretchReduceAMap behaves differently in order to work around
@@ -155,6 +163,8 @@ void apply_game_specific_hacks(struct ain *ain)
 		apply_rance02_hacks(ain);
 	} else if (!strcmp(game_name, "Rance6")) {
 		apply_rance6_hacks(ain);
+	} else if (!strcmp(game_name, "Sengoku Rance")) {
+		apply_rance7_hacks(ain);
 	}
 	free(game_name);
 }

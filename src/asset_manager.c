@@ -33,6 +33,7 @@
 
 #include "xsystem4.h"
 #include "asset_manager.h"
+#include "gfx/font.h"
 
 enum archive_type {
 	AR_TYPE_ALD,
@@ -183,6 +184,9 @@ void asset_manager_init(void)
 			} else if (!strcmp(type, "Pact.afa")) {
 				afa_filenames[ASSET_PACT] = path_join(config.game_dir, d_name);
 			}
+		} else if (!strcasecmp(ext, "fnl")) {
+			if (!config.fnl_path)
+				config.fnl_path = path_join(config.game_dir, d_name);
 		}
 	loop_next:
 		free(d_name);

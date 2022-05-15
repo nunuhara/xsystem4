@@ -65,7 +65,7 @@ int sact_SP_SetTextHome(int sp_no, int x, int y);
 int sact_SP_SetTextLineSpace(int sp_no, int px);
 int sact_SP_SetTextCharSpace(int sp_no, int px);
 int sact_SP_SetTextPos(int sp_no, int x, int y);
-int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_metrics *tm);
+int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_style *tm);
 int sact_SP_TextDraw(int sp_no, struct string *text, struct page *tm);
 int sact_SP_TextClear(int sp_no);
 int sact_SP_TextHome(int sp_no, int size);
@@ -101,7 +101,7 @@ int sact_TRANS_Begin(int type);
 int sact_TRANS_Update(float rate);
 int sact_TRANS_End(void);
 
-extern struct text_metrics text_sprite_tm;
+extern struct text_style text_sprite_ts;
 bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text);
 void StoatSpriteEngine_SP_SetTextSpriteType(int type);
 void StoatSpriteEngine_SP_SetTextSpriteSize(int size);

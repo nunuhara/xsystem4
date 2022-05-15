@@ -18,6 +18,7 @@
 #define SYSTEM4_PARTS_INTERNAL_H
 
 #include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "queue.h"
 
 // NOTE: actual value is +1
@@ -91,10 +92,9 @@ struct parts_text {
 	Texture texture;
 	unsigned nr_lines;
 	struct parts_text_line *lines;
-	unsigned char_space;
 	unsigned line_space;
 	Point cursor;
-	struct text_metrics tm;
+	struct text_style ts;
 };
 
 struct parts_animation {

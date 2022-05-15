@@ -26,6 +26,7 @@
 #include "audio.h"
 #include "effect.h"
 #include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "input.h"
 #include "vm.h"
 #include "xsystem4.h"
@@ -487,15 +488,29 @@ static void Gpx2Plus_MsgDraw(int surface, int x, int y)
 	if (!dst)
 		return;
 
-	struct text_metrics tm = { .size = 16, .weight = FW_NORMAL };
-	int char_space = 0;
+	struct text_style ts = {
+		.face = FONT_GOTHIC,
+		.size = 16.0f,
+		.bold_width = 0.0f,
+		.weight = FW_NORMAL,
+		.edge_left = 0.0f,
+		.edge_up = 0.0f,
+		.edge_right = 0.0f,
+		.edge_down = 0.0f,
+		.color = {0,0,0,0},
+		.edge_color = {0,0,0,0},
+		.scale_x = 1.0,
+		.space_scale_x = 1.0f,
+		.font_spacing = 0.0f,
+		.font_size = NULL
+	};
 	int line_space = 0;
 	int old_size = 16;
 	enum font_face old_face = FONT_GOTHIC;
 
 	Point pos = POINT(x, y);
 	char *s = msgbuf.text;
-	int line_height = calculate_line_height(tm.size, s);
+	int line_height = calculate_line_height(ts.size, s);
 	while (*s) {
 		int skiplen = 0, a1, a2, a3;
 		if (*s != '<') {
@@ -506,40 +521,40 @@ static void Gpx2Plus_MsgDraw(int surface, int x, int y)
 			} else {
 				skiplen = strlen(s);
 			}
-			pos.y += line_height - tm.size;  // bottom align
-			pos.x += gfx_render_text(dst, pos, s, &tm, char_space);
-			pos.y -= line_height - tm.size;
+			pos.y += line_height - ts.size;  // bottom align
+			pos.x += gfx_render_text(dst, pos.x, pos.y, s, &ts);
+			pos.y -= line_height - ts.size;
 			if (lb)
 				*lb = '<';
 		} else if (sscanf(s, "<F%d>%n", &a1, &skiplen) == 1) {
-			old_face = tm.face;
-			tm.face = a1;
+			old_face = ts.face;
+			ts.face = a1;
 		} else if (!strncmp(s, "</F>", 4)) {
 			skiplen = 4;
-			tm.face = old_face;
+			ts.face = old_face;
 		} else if (sscanf(s, "<S%d>%n", &a1, &skiplen) == 1) {
-			old_size = tm.size;
-			tm.size = a1;
+			old_size = ts.size;
+			ts.size = a1;
 		} else if (!strncmp(s, "</S>", 4)) {
 			skiplen = 4;
-			tm.size = old_size;
+			ts.size = old_size;
 		} else if (sscanf(s, "<C%d,%d,%d>%n", &a1, &a2, &a3, &skiplen) == 3) {
-			tm.color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
+			ts.color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
 		} else if (sscanf(s, "<KC%d,%d,%d>%n", &a1, &a2, &a3, &skiplen) == 3) {
-			tm.outline_color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
+			ts.edge_color = (SDL_Color) { .r = a1, .g = a2, .b = a3, .a = 255 };
 		} else if (!strncmp(s, "<K>", 3)) {
 			skiplen = 3;
-			tm.outline_right = tm.outline_down = 2;
+			ts.edge_right = ts.edge_down = 2;
 		} else if (!strncmp(s, "</K>", 4)) {
 			skiplen = 4;
-			tm.outline_right = tm.outline_down = 0;
+			ts.edge_right = ts.edge_down = 0;
 		} else if (!strncmp(s, "<R>", 3)) {
 			skiplen = 3;
 			pos.x = x;
 			pos.y += line_height + line_space;
-			line_height = calculate_line_height(tm.size, s + skiplen);
+			line_height = calculate_line_height(ts.size, s + skiplen);
 		} else if (sscanf(s, "<SPW%d>%n", &a1, &skiplen) == 1) {
-			char_space = a1;
+			ts.font_spacing = a1;
 		} else if (sscanf(s, "<SPH%d>%n", &a1, &skiplen) == 1) {
 			line_space = a1;
 		} else {

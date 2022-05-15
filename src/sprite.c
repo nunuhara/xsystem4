@@ -28,6 +28,7 @@
 #include "audio.h"
 #include "input.h"
 #include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "sprite.h"
 #include "vm.h"
 #include "vm/page.h"
@@ -236,14 +237,14 @@ void sprite_set_text_pos(struct sact_sprite *sp, int x, int y)
 	sprite_dirty(sp);
 }
 
-void sprite_text_draw(struct sact_sprite *sp, struct string *text, struct text_metrics *tm)
+void sprite_text_draw(struct sact_sprite *sp, struct string *text, struct text_style *ts)
 {
 	if (!sp->text.texture.handle) {
 		SDL_Color c;
-		if (tm->outline_left || tm->outline_right || tm->outline_up || tm->outline_down)
-			c = tm->outline_color;
+		if (text_style_has_edge(ts))
+			c = ts->edge_color;
 		else
-			c = tm->color;
+			c = ts->color;
 		c.a = 0;
 		gfx_init_texture_rgba(&sp->text.texture, sp->rect.w, sp->rect.h, c);
 		Texture *sp_t = sprite_get_texture(sp);
@@ -251,7 +252,8 @@ void sprite_text_draw(struct sact_sprite *sp, struct string *text, struct text_m
 		sp->text.texture.draw_method = sp_t->draw_method;
 	}
 
-	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos, text->text, tm, sp->text.char_space);
+	ts->font_spacing = sp->text.char_space;
+	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos.x, sp->text.pos.y, text->text, ts);
 	sprite_dirty(sp);
 }
 
