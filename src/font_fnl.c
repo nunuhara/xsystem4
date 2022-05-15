@@ -126,6 +126,8 @@ static struct fnl_bitmap_glyph *fnl_get_bitmap_glyph(struct fnl_bitmap_size *bit
 	return out;
 }
 
+#define GLYPH_BORDER_SIZE 4
+
 static bool fnl_font_get_glyph(struct font_size *_size, struct glyph *glyph, uint32_t code, enum font_weight weight)
 {
 	struct fnl_font_size *size = (struct fnl_font_size*)_size;
@@ -136,17 +138,20 @@ static bool fnl_font_get_glyph(struct font_size *_size, struct glyph *glyph, uin
 		return false;
 
 	struct fnl_bitmap_glyph *fullsize = fnl_get_bitmap_glyph(size->bitmap_size, index);
-	// advance?
-	const unsigned width = fullsize->width / size->denominator;
-	const unsigned height = fullsize->height / size->denominator;
+	const unsigned block_width = fullsize->width / size->denominator;
+	const unsigned block_height = fullsize->height / size->denominator;
+	const unsigned width = block_width + GLYPH_BORDER_SIZE*2;
+	const unsigned height = block_height + GLYPH_BORDER_SIZE*2;
+	const unsigned off_x = GLYPH_BORDER_SIZE;
+	const unsigned off_y = GLYPH_BORDER_SIZE;
 
 	// Sample each pixel in size->denominator`-sized blocks and compute the average.
 	// TODO: no need to sample every pixel; 4 should be fine?
-	uint8_t *pixels = xmalloc(width * height);
-	unsigned *acc = xcalloc(width * height, sizeof(unsigned));
-	for (unsigned i = 0; i < width * height; i++) {
-		unsigned dst_row = i / width;
-		unsigned dst_col = i % width;
+	uint8_t *pixels = xcalloc(1, width * height);
+	unsigned *acc = xcalloc(block_width * block_height, sizeof(unsigned));
+	for (unsigned i = 0; i < block_width * block_height; i++) {
+		unsigned dst_row = i / block_width;
+		unsigned dst_col = i % block_width;
 		for (unsigned r = 0; r < size->denominator; r++) {
 			unsigned src_row = dst_row * size->denominator + r;
 			for (unsigned c = 0; c < size->denominator; c++) {
@@ -154,14 +159,15 @@ static bool fnl_font_get_glyph(struct font_size *_size, struct glyph *glyph, uin
 				acc[i] += fullsize->pixels[src_row*fullsize->width + src_col];
 			}
 		}
-		pixels[i] = acc[i] / (size->denominator * size->denominator);
+		uint8_t p = acc[i] / (size->denominator * size->denominator);
+		pixels[(dst_row+off_y)*width + (dst_col+off_x)] = p;
 	}
 
 	gfx_init_texture_rmap(&glyph->t[weight], width, height, pixels);
-	glyph->rect.x = 0;
-	glyph->rect.y = 0;
-	glyph->rect.w = width;
-	glyph->rect.h = height;
+	glyph->rect.x = off_x;
+	glyph->rect.y = off_y;
+	glyph->rect.w = block_width;
+	glyph->rect.h = block_height;
 	glyph->advance = fullsize->advance / (float)size->denominator;
 
 	free(pixels);
