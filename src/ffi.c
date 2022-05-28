@@ -303,7 +303,9 @@ extern struct static_library lib_ChrLoader;
 extern struct static_library lib_CommonSystemData;
 extern struct static_library lib_Confirm;
 extern struct static_library lib_Confirm2;
+extern struct static_library lib_Confirm3;
 extern struct static_library lib_CrayfishLogViewer;
+extern struct static_library lib_Cursor;
 extern struct static_library lib_DataFile;
 extern struct static_library lib_DrawDungeon;
 extern struct static_library lib_DrawDungeon14;
@@ -312,6 +314,7 @@ extern struct static_library lib_DrawMovie2;
 extern struct static_library lib_DrawPluginManager;
 extern struct static_library lib_DrawSimpleText;
 extern struct static_library lib_File;
+extern struct static_library lib_File2;
 extern struct static_library lib_FileOperation;
 extern struct static_library lib_GoatGUIEngine;
 extern struct static_library lib_Gpx2Plus;
@@ -327,6 +330,7 @@ extern struct static_library lib_MarmotModelEngine;
 extern struct static_library lib_Math;
 extern struct static_library lib_MapLoader;
 extern struct static_library lib_MenuMsg;
+extern struct static_library lib_MonsterInfo;
 extern struct static_library lib_MsgLogManager;
 extern struct static_library lib_MsgLogViewer;
 extern struct static_library lib_MsgSkip;
@@ -343,6 +347,7 @@ extern struct static_library lib_StretchHelper;
 extern struct static_library lib_SystemService;
 extern struct static_library lib_SystemServiceEx;
 extern struct static_library lib_Timer;
+extern struct static_library lib_Toushin3Loader;
 extern struct static_library lib_VSFile;
 
 static struct static_library *static_libraries[] = {
@@ -361,7 +366,9 @@ static struct static_library *static_libraries[] = {
 	&lib_CommonSystemData,
 	&lib_Confirm,
 	&lib_Confirm2,
+	&lib_Confirm3,
 	&lib_CrayfishLogViewer,
+	&lib_Cursor,
 	&lib_DataFile,
 	&lib_DrawDungeon,
 	&lib_DrawDungeon14,
@@ -370,6 +377,7 @@ static struct static_library *static_libraries[] = {
 	&lib_DrawPluginManager,
 	&lib_DrawSimpleText,
 	&lib_File,
+	&lib_File2,
 	&lib_FileOperation,
 	&lib_GoatGUIEngine,
 	&lib_Gpx2Plus,
@@ -385,6 +393,7 @@ static struct static_library *static_libraries[] = {
 	&lib_Math,
 	&lib_MapLoader,
 	&lib_MenuMsg,
+	&lib_MonsterInfo,
 	&lib_MsgLogManager,
 	&lib_MsgLogViewer,
 	&lib_MsgSkip,
@@ -401,6 +410,7 @@ static struct static_library *static_libraries[] = {
 	&lib_SystemService,
 	&lib_SystemServiceEx,
 	&lib_Timer,
+	&lib_Toushin3Loader,
 	&lib_VSFile,
 	NULL
 };

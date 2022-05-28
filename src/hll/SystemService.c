@@ -89,7 +89,7 @@ static bool SystemService_SetHideMouseCursorByGame(bool hide)
 }
 
 //bool SystemService_GetHideMouseCursorByGame(void);
-//bool SystemService_SetUsePower2Texture(bool bUse);
+HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, SetUsePower2Texture, bool use);
 //bool SystemService_GetUsePower2Texture(void);
 
 // XXX: 5 settings in Haru Urare, may be different in other games
@@ -204,7 +204,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(MoveMouseCursorPosImmediately, SystemService_MoveMouseCursorPosImmediately),
 	    HLL_EXPORT(SetHideMouseCursorByGame, SystemService_SetHideMouseCursorByGame),
 	    HLL_TODO_EXPORT(GetHideMouseCursorByGame, SystemService_GetHideMouseCursorByGame),
-	    HLL_TODO_EXPORT(SetUsePower2Texture, SystemService_SetUsePower2Texture),
+	    HLL_EXPORT(SetUsePower2Texture, SystemService_SetUsePower2Texture),
 	    HLL_TODO_EXPORT(GetUsePower2Texture, SystemService_GetUsePower2Texture),
 	    HLL_EXPORT(SetWindowSetting, SystemService_SetWindowSetting),
 	    HLL_EXPORT(GetWindowSetting, SystemService_GetWindowSetting),

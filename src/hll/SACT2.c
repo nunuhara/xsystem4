@@ -38,6 +38,8 @@
 
 static struct sact_sprite **sprites = NULL;
 static int nr_sprites = 0;
+static int view_mode;
+static bool use_power2_texture;
 
 static struct sact_sprite *sact_alloc_sprite(int sp)
 {
@@ -937,7 +939,6 @@ int SACT2_SP_GetBrightness(int sp_no)
 HLL_WARN_UNIMPLEMENTED( , void, SACTDX, SetVolumeMixerMasterGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED( , void, SACTDX, SetVolumeMixerSEGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED( , void, SACTDX, SetVolumeMixerBGMGroupNum, int n);
-HLL_WARN_UNIMPLEMENTED(0, int,  SACTDX, Sound_GetGroupNumFromDataNum, int n);
 //static int SACTDX_SP_CreateCopy(int nSP, int nSrcSp);
 //static bool SACTDX_Joypad_GetAnalogStickStatus(int nNum, int nType, ref float pfDegree, ref float pfPower);
 //static bool SACTDX_Joypad_GetDigitalStickStatus(int nNum, int nType, ref bool pbLeft, ref bool pbRight, ref bool pbUp, ref bool pbDown);
@@ -946,16 +947,33 @@ HLL_WARN_UNIMPLEMENTED(0, int,  SACTDX, Sound_GetGroupNumFromDataNum, int n);
 //static int SACTDX_Music_AnalyzeSampleData(ref array@float l, ref array@float r, ref array@int src, int chns, int bps);
 //static void SACTDX_Key_ClearFlagNoCtrl(void);
 //static void SACTDX_Key_ClearFlagOne(int nKeyCode);
-//static bool SACTDX_VIEW_SetMode(int nMode);
-//static int SACTDX_VIEW_GetMode(void);
-//static bool SACTDX_DX_GetUsePower2Texture(void);
-//static void SACTDX_DX_SetUsePower2Texture(bool bUse);
+
+static bool SACTDX_VIEW_SetMode(int mode)
+{
+	view_mode = mode;
+	return true;
+}
+
+static int SACTDX_VIEW_GetMode(void)
+{
+	return view_mode;
+}
+
+static bool SACTDX_DX_GetUsePower2Texture(void)
+{
+	return use_power2_texture;
+}
+
+static void SACTDX_DX_SetUsePower2Texture(bool use)
+{
+	use_power2_texture = use;
+}
 
 #define SACTDX_EXPORTS \
 	HLL_EXPORT(SetVolumeMixerMasterGroupNum, SACTDX_SetVolumeMixerMasterGroupNum), \
 	HLL_EXPORT(SetVolumeMixerSEGroupNum, SACTDX_SetVolumeMixerSEGroupNum), \
 	HLL_EXPORT(SetVolumeMixerBGMGroupNum, SACTDX_SetVolumeMixerBGMGroupNum), \
-	HLL_EXPORT(Sound_GetGroupNumFromDataNum, SACTDX_Sound_GetGroupNumFromDataNum), \
+	HLL_EXPORT(Sound_GetGroupNumFromDataNum, wav_get_group_num_from_data_num), \
 	HLL_TODO_EXPORT(SP_CreateCopy, SACTDX_SP_CreateCopy),	\
 	HLL_TODO_EXPORT(Joypad_GetAnalogStickStatus, SACTDX_Joypad_GetAnalogStickStatus), \
 	HLL_TODO_EXPORT(GetDigitalStickStatus, SACTDX_GetDigitalStickStatus), \
@@ -967,10 +985,10 @@ HLL_WARN_UNIMPLEMENTED(0, int,  SACTDX, Sound_GetGroupNumFromDataNum, int n);
 	HLL_EXPORT(TRANS_Begin, sact_TRANS_Begin),	    \
 	HLL_EXPORT(TRANS_Update, sact_TRANS_Update),	    \
 	HLL_EXPORT(TRANS_End, sact_TRANS_End),	\
-	HLL_TODO_EXPORT(VIEW_SetMode, SACTDX_VIEW_SetMode),	\
-	HLL_TODO_EXPORT(VIEW_GetMode, SACTDX_VIEW_GetMode),	\
-	HLL_TODO_EXPORT(DX_GetUsePower2Texture, SACTDX_DX_GetUsePower2Texture),	\
-	HLL_TODO_EXPORT(DX_SetUsePower2Texture, SACTDX_DX_SetUsePower2Texture)
+	HLL_EXPORT(VIEW_SetMode, SACTDX_VIEW_SetMode),	\
+	HLL_EXPORT(VIEW_GetMode, SACTDX_VIEW_GetMode),	\
+	HLL_EXPORT(DX_GetUsePower2Texture, SACTDX_DX_GetUsePower2Texture),	\
+	HLL_EXPORT(DX_SetUsePower2Texture, SACTDX_DX_SetUsePower2Texture)
 
 HLL_LIBRARY(SACT2, SACT_EXPORTS);
 HLL_LIBRARY(SACTDX, SACT_EXPORTS, SACTDX_EXPORTS);
