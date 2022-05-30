@@ -22,6 +22,7 @@
 
 #include "asset_manager.h"
 #include "gfx/gfx.h"
+#include "plugin.h"
 #include "queue.h"
 #include "scene.h"
 
@@ -62,6 +63,15 @@ void scene_unregister_sprite(struct sprite *sp)
 	TAILQ_REMOVE(&sprite_list, sp, entry);
 	sp->in_scene = false;
 	scene_dirty();
+}
+
+void scene_update(void)
+{
+	struct sprite *sp;
+	TAILQ_FOREACH(sp, &sprite_list, entry) {
+		if (sp->plugin)
+			sp->plugin->update(sp->plugin);
+	}
 }
 
 void scene_render(void)

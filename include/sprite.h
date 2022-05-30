@@ -104,6 +104,7 @@ bool sprite_is_point_in(struct sact_sprite *sp, int x, int y);
 bool sprite_is_point_in_rect(struct sact_sprite *sp, int x, int y);
 int sprite_get_amap_value(struct sact_sprite *sp, int x, int y);
 void sprite_get_pixel_value(struct sact_sprite *sp, int x, int y, int *r, int *g, int *b);
+void sprite_bind_plugin(struct sact_sprite *sp, struct draw_plugin *plugin);
 
 void print_sprite(struct sact_sprite *sp);
 

@@ -29,6 +29,7 @@
 #include "input.h"
 #include "gfx/gfx.h"
 #include "gfx/font.h"
+#include "plugin.h"
 #include "sprite.h"
 #include "vm.h"
 #include "vm/page.h"
@@ -322,6 +323,11 @@ void sprite_get_pixel_value(struct sact_sprite *sp, int x, int y, int *r, int *g
 	*b = c.b;
 }
 
+void sprite_bind_plugin(struct sact_sprite *sp, struct draw_plugin *plugin)
+{
+	sp->sp.plugin = plugin;
+}
+
 static void print_color(SDL_Color *c)
 {
 	printf("(%d,%d,%d,%d)", c->r, c->g, c->b, c->a);
@@ -369,6 +375,7 @@ void print_sprite(struct sact_sprite *sp)
 	printf("\t\thas_alpha = %s,\n", sp->sp.has_alpha ? "true" : "false");
 	printf("\t\thidden = %s,\n", sp->sp.hidden ? "true" : "false");
 	printf("\t\tin_scene = %s,\n", sp->sp.in_scene ? "true" : "false");
+	printf("\t\tplugin = %s,\n", sp->sp.plugin ? sp->sp.plugin->name : "NULL");
 	printf("\t},\n");
 	printf("\ttexture = "); print_texture(&sp->texture, 1); printf(",\n");
 	printf("\tcolor = "); print_color(&sp->color); printf(",\n");

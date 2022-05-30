@@ -39,12 +39,15 @@ struct sprite {
 	bool in_scene;
 	// The rendering function.
 	void (*render)(struct sprite*);
+	// (optional) Draw plugin bound to this sprite.
+	struct draw_plugin *plugin;
 };
 
 extern bool scene_is_dirty;
 
 void scene_register_sprite(struct sprite *sp);
 void scene_unregister_sprite(struct sprite *sp);
+void scene_update(void);
 void scene_render(void);
 int scene_set_wp(int cg_no);
 int scene_set_wp_color(int r, int g, int b);

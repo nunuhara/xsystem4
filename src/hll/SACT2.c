@@ -151,7 +151,7 @@ int sact_GetMainSurfaceNumber(void)
 int sact_Update(void)
 {
 	handle_events();
-	dungeon_update();
+	scene_update();
 	if (scene_is_dirty) {
 		scene_render();
 		gfx_swap();
