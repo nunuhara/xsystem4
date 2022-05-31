@@ -46,12 +46,6 @@ struct dungeon_context *dungeon_get_context(int surface)
 	return current_context;
 }
 
-void dungeon_update(void)
-{
-	if (current_context && current_context->loaded && current_context->draw_enabled)
-		dungeon_render(current_context);
-}
-
 static struct dgn_cell *dungeon_get_cell(int surface, int x, int y, int z)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
