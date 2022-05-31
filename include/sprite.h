@@ -30,7 +30,7 @@ struct text_style;
 
 struct sact_sprite {
 	struct sprite sp;
-	TAILQ_ENTRY(sact_sprite) entry;
+	LIST_ENTRY(sact_sprite) entry;
 	// The sprite's texture (CG or solid color). Initialized lazily.
 	struct texture texture;
 	// If no CG is attached to the sprite, the solid color to fill with.
@@ -51,6 +51,8 @@ struct sact_sprite {
 	int no;
 	// The CG number attached to the sprite.
 	int cg_no;
+	// (optional) Draw plugin bound to this sprite.
+	struct draw_plugin *plugin;
 };
 
 static inline void sprite_dirty(struct sact_sprite *sp)
@@ -105,6 +107,7 @@ bool sprite_is_point_in_rect(struct sact_sprite *sp, int x, int y);
 int sprite_get_amap_value(struct sact_sprite *sp, int x, int y);
 void sprite_get_pixel_value(struct sact_sprite *sp, int x, int y, int *r, int *g, int *b);
 void sprite_bind_plugin(struct sact_sprite *sp, struct draw_plugin *plugin);
+void sprite_call_plugins(void);
 
 void print_sprite(struct sact_sprite *sp);
 

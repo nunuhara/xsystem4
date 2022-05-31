@@ -37,14 +37,16 @@
 
 bool sact_dirty = true;
 
-TAILQ_HEAD(listhead, sact_sprite) sprite_list =
-	TAILQ_HEAD_INITIALIZER(sprite_list);
+LIST_HEAD(listhead, sact_sprite) sprites_with_plugins =
+	LIST_HEAD_INITIALIZER(sprites_with_plugins);
 
 void sprite_free(struct sact_sprite *sp)
 {
 	scene_unregister_sprite(&sp->sp);
 	gfx_delete_texture(&sp->texture);
 	gfx_delete_texture(&sp->text.texture);
+	if (sp->plugin)
+		LIST_REMOVE(sp, entry);
 	memset(sp, 0, sizeof(struct sact_sprite));
 }
 
@@ -325,7 +327,19 @@ void sprite_get_pixel_value(struct sact_sprite *sp, int x, int y, int *r, int *g
 
 void sprite_bind_plugin(struct sact_sprite *sp, struct draw_plugin *plugin)
 {
-	sp->sp.plugin = plugin;
+	if (!sp->plugin && plugin)
+		LIST_INSERT_HEAD(&sprites_with_plugins, sp, entry);
+	else if (sp->plugin && !plugin)
+		LIST_REMOVE(sp, entry);
+	sp->plugin = plugin;
+}
+
+void sprite_call_plugins(void)
+{
+	struct sact_sprite *sp;
+	LIST_FOREACH(sp, &sprites_with_plugins, entry) {
+		sp->plugin->update(sp->plugin);
+	}
 }
 
 static void print_color(SDL_Color *c)
@@ -375,7 +389,6 @@ void print_sprite(struct sact_sprite *sp)
 	printf("\t\thas_alpha = %s,\n", sp->sp.has_alpha ? "true" : "false");
 	printf("\t\thidden = %s,\n", sp->sp.hidden ? "true" : "false");
 	printf("\t\tin_scene = %s,\n", sp->sp.in_scene ? "true" : "false");
-	printf("\t\tplugin = %s,\n", sp->sp.plugin ? sp->sp.plugin->name : "NULL");
 	printf("\t},\n");
 	printf("\ttexture = "); print_texture(&sp->texture, 1); printf(",\n");
 	printf("\tcolor = "); print_color(&sp->color); printf(",\n");
@@ -387,6 +400,7 @@ void print_sprite(struct sact_sprite *sp)
 	printf("\t\tpos = "); print_point(&sp->text.pos); printf(",\n");
 	printf("\t\tchar_space = %d,\n", sp->text.char_space);
 	printf("\t\tline_space = %d,\n", sp->text.line_space);
+	printf("\t\tplugin = %s,\n", sp->plugin ? sp->plugin->name : "NULL");
 	printf("\t},\n");
 	printf("\tcg_no = %d\n", sp->cg_no);
 	printf("}\n");
