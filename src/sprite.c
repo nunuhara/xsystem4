@@ -338,7 +338,7 @@ void sprite_call_plugins(void)
 {
 	struct sact_sprite *sp;
 	LIST_FOREACH(sp, &sprites_with_plugins, entry) {
-		sp->plugin->update(sp->plugin);
+		sp->plugin->update(sp);
 	}
 }
 

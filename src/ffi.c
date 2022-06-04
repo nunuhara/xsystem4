@@ -338,6 +338,7 @@ extern struct static_library lib_OutputLog;
 extern struct static_library lib_PassRegister;
 extern struct static_library lib_PlayDemo;
 extern struct static_library lib_PlayMovie;
+extern struct static_library lib_ReignEngine;
 extern struct static_library lib_SACT2;
 extern struct static_library lib_SACTDX;
 extern struct static_library lib_SengokuRanceFont;
@@ -401,6 +402,7 @@ static struct static_library *static_libraries[] = {
 	&lib_PassRegister,
 	&lib_PlayDemo,
 	&lib_PlayMovie,
+	&lib_ReignEngine,
 	&lib_SACT2,
 	&lib_SACTDX,
 	&lib_SengokuRanceFont,

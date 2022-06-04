@@ -14,14 +14,16 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#ifndef SYSTEM4_PLUGIN_H
-#define SYSTEM4_PLUGIN_H
+uniform mat4 local_transform;
+uniform mat4 view_transform;
+uniform mat4 proj_transform;
 
-struct sact_sprite;
+in vec3 vertex_pos;
+in vec3 vertex_normal;
+in vec2 vertex_uv;
+out vec2 tex_coord;
 
-struct draw_plugin {
-	const char *name;
-	void (*update)(struct sact_sprite *);
-};
-
-#endif /* SYSTEM4_PLUGIN_H */
+void main() {
+        gl_Position = proj_transform * view_transform * local_transform * vec4(vertex_pos, 1.0);
+        tex_coord = vertex_uv;
+}
