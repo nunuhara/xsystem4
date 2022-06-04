@@ -14,14 +14,12 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#ifndef SYSTEM4_PLUGIN_H
-#define SYSTEM4_PLUGIN_H
+uniform sampler2D tex;
 
-struct sact_sprite;
+in vec2 tex_coord;
+out vec4 frag_color;
 
-struct draw_plugin {
-	const char *name;
-	void (*update)(struct sact_sprite *);
-};
-
-#endif /* SYSTEM4_PLUGIN_H */
+void main() {
+        // TODO: Implement lighting.
+        frag_color = texture(tex, tex_coord);
+}

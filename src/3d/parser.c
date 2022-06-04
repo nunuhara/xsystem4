@@ -1,0 +1,286 @@
+/* Copyright (C) 2022 kichikuou <KichikuouChrome@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <http://gnu.org/licenses/>.
+ */
+
+#include <stdlib.h>
+#include <string.h>
+#include <cglm/cglm.h>
+
+#include "system4.h"
+#include "system4/buffer.h"
+
+#include "3d_internal.h"
+
+#define METERS_PER_INCH 0.0254
+
+static char *read_cstring(struct buffer *r)
+{
+	char *s = strdup(buffer_strdata(r));
+	buffer_skip(r, strlen(s) + 1);
+	return s;
+}
+
+static void read_position(struct buffer *r, vec3 v)
+{
+	// left->right handed system
+	v[0] = buffer_read_float(r) * METERS_PER_INCH;
+	v[1] = buffer_read_float(r) * METERS_PER_INCH;
+	v[2] = -buffer_read_float(r) * METERS_PER_INCH;
+}
+
+static void read_direction(struct buffer *r, vec3 v)
+{
+	// left->right handed system
+	v[0] = buffer_read_float(r);
+	v[1] = buffer_read_float(r);
+	v[2] = -buffer_read_float(r);
+}
+
+static void read_quaternion(struct buffer *r, versor q)
+{
+	// left->right handed system
+	float w = buffer_read_float(r);
+	float x = -buffer_read_float(r);
+	float y = -buffer_read_float(r);
+	float z = buffer_read_float(r);
+	glm_quat_init(q, x, y, z, w);
+}
+
+static void parse_material(struct buffer *r, struct pol_material *m)
+{
+	m->name = read_cstring(r);
+
+	int nr_textures = buffer_read_int32(r);
+	for (int i = 0; i < nr_textures; i++) {
+		char *filename = read_cstring(r);
+		int type = buffer_read_int32(r);
+		if ((unsigned)type < MAX_TEXTURE_TYPE) {
+			m->textures[type] = filename;
+		} else {
+			WARNING("invalid texture type %d", type);
+			free(filename);
+		}
+	}
+}
+
+static void destroy_material(struct pol_material *m)
+{
+	free(m->name);
+	for (int i = 0; i < MAX_TEXTURE_TYPE; i++)
+		free(m->textures[i]);
+}
+
+static void parse_material_group(struct buffer *r, struct pol_material_group *mg)
+{
+	parse_material(r, &mg->m);
+
+	mg->nr_children = buffer_read_int32(r);
+	if (mg->nr_children > 0) {
+		mg->children = xcalloc(mg->nr_children, sizeof(struct pol_material));
+		for (uint32_t i = 0; i < mg->nr_children; i++) {
+			parse_material(r, &mg->children[i]);
+		}
+	}
+}
+
+static void destroy_material_group(struct pol_material_group *mg)
+{
+	destroy_material(&mg->m);
+	if (mg->children) {
+		for (uint32_t i = 0; i < mg->nr_children; i++)
+			destroy_material(&mg->children[i]);
+		free(mg->children);
+	}
+}
+
+static void parse_vertex(struct buffer *r, int pol_version, struct pol_vertex *v)
+{
+	read_position(r, v->pos);
+	v->nr_weights = pol_version == 1 ? buffer_read_int32(r) : buffer_read_u16(r);
+	if (v->nr_weights) {
+		v->weights = xcalloc(v->nr_weights, sizeof(struct pol_bone_weight));
+		for (uint32_t i = 0; i < v->nr_weights; i++) {
+			v->weights[i].bone = pol_version == 1 ? buffer_read_int32(r) : buffer_read_u16(r);
+			v->weights[i].weight = buffer_read_float(r);
+		}
+	}
+}
+
+static void destroy_vertex(struct pol_vertex *v)
+{
+	if (v->weights)
+		free(v->weights);
+}
+
+static void parse_triangle(struct buffer *r, int unknowns_length, struct pol_triangle *t)
+{
+	t->vert_index[0] = buffer_read_int32(r);
+	t->vert_index[1] = buffer_read_int32(r);
+	t->vert_index[2] = buffer_read_int32(r);
+	t->uv_index[0] = buffer_read_int32(r);
+	t->uv_index[1] = buffer_read_int32(r);
+	t->uv_index[2] = buffer_read_int32(r);
+
+	buffer_skip(r, unknowns_length);
+
+	read_direction(r, t->normals[0]);
+	read_direction(r, t->normals[1]);
+	read_direction(r, t->normals[2]);
+	t->material = buffer_read_int32(r);
+}
+
+static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
+{
+	int type = buffer_read_int32(r);
+	if (type != 0) {
+		if (type != -1)
+			WARNING("unknown mesh type: %d", type);
+		return NULL;
+	}
+	struct pol_mesh *mesh = xcalloc(1, sizeof(struct pol_mesh));
+	mesh->name = read_cstring(r);
+	mesh->material = buffer_read_int32(r);
+
+	mesh->nr_vertices = buffer_read_int32(r);
+	mesh->vertices = xcalloc(mesh->nr_vertices, sizeof(struct pol_vertex));
+	for (uint32_t i = 0; i < mesh->nr_vertices; i++) {
+		parse_vertex(r, pol_version, &mesh->vertices[i]);
+	}
+
+	mesh->nr_uvs = buffer_read_int32(r);
+	mesh->uvs = xcalloc(mesh->nr_uvs, sizeof(vec2));
+	for (uint32_t i = 0; i < mesh->nr_uvs; i++) {
+		mesh->uvs[i][0] = buffer_read_float(r);
+		mesh->uvs[i][1] = buffer_read_float(r);
+	}
+
+	int triangle_unknowns_length = 12;
+
+	int nr_unknown_f64s = buffer_read_int32(r);
+	if (nr_unknown_f64s) {
+		buffer_skip(r, nr_unknown_f64s * 8);
+		triangle_unknowns_length += 12;
+	}
+
+	if (pol_version == 1) {
+		int nr_unknown_vecs = buffer_read_int32(r);
+		buffer_skip(r, nr_unknown_vecs * 12);
+	} else {
+		int nr_unknown_ints = buffer_read_int32(r);
+		buffer_skip(r, nr_unknown_ints * 4);
+		int nr_unknown_bytes = buffer_read_int32(r);
+		if (nr_unknown_bytes) {
+			buffer_skip(r, nr_unknown_bytes);
+			triangle_unknowns_length += 12;
+		}
+	}
+
+	mesh->nr_triangles = buffer_read_int32(r);
+	mesh->triangles = xcalloc(mesh->nr_triangles, sizeof(struct pol_triangle));
+	for (uint32_t i = 0; i < mesh->nr_triangles; i++) {
+		parse_triangle(r, triangle_unknowns_length, &mesh->triangles[i]);
+	}
+
+	if (pol_version == 1) {
+		if (buffer_read_int32(r) != 1)
+			WARNING("unexpected mesh footer");
+		if (buffer_read_int32(r) != 0)
+			WARNING("unexpected mesh footer");
+	}
+
+	return mesh;
+}
+
+static void free_mesh(struct pol_mesh *mesh)
+{
+	if (!mesh)
+		return;
+	free(mesh->name);
+	for (uint32_t i = 0; i < mesh->nr_vertices; i++)
+		destroy_vertex(&mesh->vertices[i]);
+	free(mesh->vertices);
+	free(mesh->uvs);
+	free(mesh->triangles);
+	free(mesh);
+}
+
+static void parse_bone(struct buffer *r, struct pol_bone *bone)
+{
+	bone->name = read_cstring(r);
+	bone->id = buffer_read_int32(r);
+	bone->parent = buffer_read_int32(r);
+	read_position(r, bone->pos);
+	read_quaternion(r, bone->rotq);
+}
+
+static void destroy_bone(struct pol_bone *bone)
+{
+	free(bone->name);
+}
+
+struct pol *pol_parse(uint8_t *data, size_t size)
+{
+	struct buffer r;
+	buffer_init(&r, data, size);
+	if (memcmp(buffer_strdata(&r), "POL\0", 4))
+		return NULL;
+	buffer_skip(&r, 4);
+
+	struct pol *pol = xcalloc(1, sizeof(struct pol));
+	pol->version = buffer_read_int32(&r);
+	if (pol->version != 1 && pol->version != 2) {
+		WARNING("unknown POL version: %d", pol->version);
+		free(pol);
+		return NULL;
+	}
+	pol->nr_materials = buffer_read_int32(&r);
+	pol->materials = xcalloc(pol->nr_materials, sizeof(struct pol_material_group));
+	for (uint32_t i = 0; i < pol->nr_materials; i++) {
+		parse_material_group(&r, &pol->materials[i]);
+	}
+
+	pol->nr_meshes = buffer_read_int32(&r);
+	pol->meshes = xcalloc(pol->nr_meshes, sizeof(struct pol_mesh *));
+	for (uint32_t i = 0; i < pol->nr_meshes; i++) {
+		pol->meshes[i] = parse_mesh(&r, pol->version);
+	}
+
+	pol->nr_bones = buffer_read_int32(&r);
+	if (pol->nr_bones) {
+		pol->bones = xcalloc(pol->nr_bones, sizeof(struct pol_bone));
+		for (uint32_t i = 0; i < pol->nr_bones; i++) {
+			parse_bone(&r, &pol->bones[i]);
+		}
+	}
+
+	if (buffer_remaining(&r) != 0) {
+		WARNING("extra data at end");
+	}
+	return pol;
+}
+
+void pol_free(struct pol *pol)
+{
+	for (uint32_t i = 0; i < pol->nr_materials; i++)
+		destroy_material_group(&pol->materials[i]);
+	free(pol->materials);
+	for (uint32_t i = 0; i < pol->nr_meshes; i++)
+		free_mesh(pol->meshes[i]);
+	free(pol->meshes);
+	for (uint32_t i = 0; i < pol->nr_bones; i++)
+		destroy_bone(&pol->bones[i]);
+	free(pol->bones);
+	free(pol);
+}

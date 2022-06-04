@@ -45,7 +45,7 @@
 #define M_PI (3.14159265358979323846)
 #endif
 
-static void dungeon_render(struct draw_plugin *plugin);
+static void dungeon_render(struct sact_sprite *sp);
 
 struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int surface)
 {
@@ -257,12 +257,11 @@ static void model_view_matrix(struct camera *camera, mat4 out)
 	glm_lookat(eye, camera->pos, up, out);
 }
 
-static void dungeon_render(struct draw_plugin *plugin)
+static void dungeon_render(struct sact_sprite *sp)
 {
-	struct dungeon_context *ctx = (struct dungeon_context *)plugin;
+	struct dungeon_context *ctx = (struct dungeon_context *)sp->plugin;
 	if (!ctx->loaded || !ctx->draw_enabled)
 		return;
-	struct sact_sprite *sp = sact_get_sprite(ctx->surface);
 	sprite_dirty(sp);
 	struct texture *texture = sprite_get_texture(sp);
 
