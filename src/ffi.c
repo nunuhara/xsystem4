@@ -316,6 +316,7 @@ extern struct static_library lib_DrawSimpleText;
 extern struct static_library lib_File;
 extern struct static_library lib_File2;
 extern struct static_library lib_FileOperation;
+extern struct static_library lib_FillAngle;
 extern struct static_library lib_GoatGUIEngine;
 extern struct static_library lib_Gpx2Plus;
 extern struct static_library lib_GUIEngine;
@@ -380,6 +381,7 @@ static struct static_library *static_libraries[] = {
 	&lib_File,
 	&lib_File2,
 	&lib_FileOperation,
+	&lib_FillAngle,
 	&lib_GoatGUIEngine,
 	&lib_Gpx2Plus,
 	&lib_GUIEngine,
