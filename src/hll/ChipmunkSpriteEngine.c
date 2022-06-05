@@ -32,7 +32,6 @@ static void ChipmunkSpriteEngine_ModuleFini(void)
 
 static int ChipmunkSpriteEngine_Init(void *imain_system, int cg_cache_size)
 {
-	asset_cg_index_init();
 	return sact_Init(imain_system, cg_cache_size);
 }
 

@@ -124,7 +124,7 @@ void PE_SetOnCursorShowLinkPartsNumber(int parts_no, int link_parts_no)
 
 bool PE_SetPartsOnCursorSoundNumber(int parts_no, int sound_no)
 {
-	if (!asset_exists(ASSET_SOUND, sound_no-1)) {
+	if (!asset_exists(ASSET_SOUND, sound_no)) {
 		WARNING("Invalid sound number: %d", sound_no);
 		return false;
 	}
@@ -136,7 +136,7 @@ bool PE_SetPartsOnCursorSoundNumber(int parts_no, int sound_no)
 
 bool PE_SetPartsClickSoundNumber(int parts_no, int sound_no)
 {
-	if (!asset_exists(ASSET_SOUND, sound_no-1)) {
+	if (!asset_exists(ASSET_SOUND, sound_no)) {
 		WARNING("Invalid sound number: %d", sound_no);
 		return false;
 	}

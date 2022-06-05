@@ -749,7 +749,7 @@ int sact_Key_IsDown(int keycode)
 
 int sact_CG_IsExist(int cg_no)
 {
-	return asset_cg_exists(cg_no);
+	return asset_exists(ASSET_CG, cg_no);
 }
 
 //int  SACT2_CSV_Load(struct string *filename);

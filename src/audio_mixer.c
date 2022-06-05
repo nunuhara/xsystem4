@@ -491,7 +491,7 @@ static SF_VIRTUAL_IO channel_vio = {
 struct channel *channel_open(enum asset_type type, int no)
 {
 	// get file from archive
-	struct archive_data *dfile = asset_get(type, no-1);
+	struct archive_data *dfile = asset_get(type, no);
 	if (!dfile) {
 		WARNING("Failed to load %s %d", type == ASSET_SOUND ? "WAV" : "BGM", no);
 		return NULL;

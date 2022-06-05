@@ -43,7 +43,7 @@ static bool parts_add_cp_op(int parts_no, struct parts_cp_op *op, int state)
 
 bool PE_AddCreateCGToProcess(int parts_no, struct string *cg_name, int state)
 {
-	int cg_no = asset_cg_name_to_index(cg_name->text);
+	int cg_no = asset_name_to_index(ASSET_CG, cg_name->text);
 	if (!cg_no) {
 		WARNING("Invalid CG name: %s", cg_name);
 		return false;

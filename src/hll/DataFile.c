@@ -251,7 +251,7 @@ possibly_unused static void gdat_dump_as_json(struct gdat *dat, FILE *fp)
 
 static int DataFile_Open(int link)
 {
-	struct archive_data *dfile = asset_get(ASSET_DATA, link - 1);
+	struct archive_data *dfile = asset_get(ASSET_DATA, link);
 	if (!dfile) {
 		WARNING("Failed to load data file %d", link);
 		return 0;

@@ -215,136 +215,66 @@ void asset_manager_init(void)
 
 bool asset_exists(enum asset_type type, int no)
 {
-	return archives[type] && archive_exists(archives[type], no);
+	return archives[type] && archive_exists(archives[type], no-1);
 }
 
 struct archive_data *asset_get(enum asset_type type, int no)
 {
 	if (!archives[type])
 		return NULL;
-	return archive_get(archives[type], no);
+	return archive_get(archives[type], no-1);
 }
 
-static struct hash_table *cg_name_index = NULL;
-static struct hash_table *cg_id_index = NULL;
-
-// Convert the last sequence of digits in a string to an integer.
-static int cg_name_to_int(const char *name)
+struct archive_data *asset_get_by_name(enum asset_type type, const char *name)
 {
-	size_t len = strlen(name);
-	int i;
-	for (i = len - 1; i >= 0 && !isdigit(name[i]); i--);
-	if (i < 0)
-		return -1;
-	assert(isdigit(name[i]));
-	for (; i > 0 && isdigit(name[i-1]); i--);
-	assert(isdigit(name[i]));
-
-	if (!(i = atoi(name+i)))
-		return -1;
-	return i;
+	if (!archives[type])
+		return NULL;
+	return archive_get_by_name(archives[type], name);
 }
 
-static void add_cg_to_index(struct archive_data *data, possibly_unused void *_)
+int asset_name_to_index(enum asset_type type, const char *name)
 {
-	int logical_no = cg_name_to_int(data->name);
-	if (logical_no < 0) {
-		WARNING("Can't determine logical index for CG: %s", display_sjis0(data->name));
-		return;
-	}
-
-	struct ht_slot *slot = ht_put_int(cg_id_index, logical_no, NULL);
-	if (slot->value)
-		ERROR("Duplicate CG numbers");
-	slot->value = (void*)(uintptr_t)(data->no + 1);
-}
-
-/*
- * NOTE: Starting in Shaman's Sanctuary, .afa files are used for CGs but the
- *       library APIs still use integers rather than names to reference them.
- *       Thus it is necessary to parse file names and create an index.
- */
-void asset_cg_index_init(void)
-{
-	if (!archives[ASSET_CG])
-		return;
-
-	cg_id_index = ht_create(4096);
-	archive_for_each(archives[ASSET_CG], add_cg_to_index, NULL);
-}
-
-static void add_cg_name_to_index(struct archive_data *data, possibly_unused void *_)
-{
-	// copy name and strip file extension
-	char *name = strdup(data->name);
-	char *dot = strrchr(name, '.');
-	if (dot)
-		*dot = '\0';
-
-	struct ht_slot *slot = ht_put(cg_name_index, name, NULL);
-	if (slot->value)
-		ERROR("Duplicate CG names");
-	slot->value = (void*)(uintptr_t)(data->no + 1);
-
-	free(name);
-}
-
-static void init_cg_name_index(void)
-{
-	if (!archives[ASSET_CG])
-		return;
-
-	cg_name_index = ht_create(4096);
-	archive_for_each(archives[ASSET_CG], add_cg_name_to_index, NULL);
-}
-
-int asset_cg_name_to_index(const char *name)
-{
-	if (!cg_name_index)
-		init_cg_name_index();
-	return (uintptr_t)ht_get(cg_name_index, name, NULL);
-}
-
-static int cg_translate_index(int no)
-{
-	if (!cg_id_index)
-		return no;
-	return (uintptr_t)ht_get_int(cg_id_index, no, NULL);
+	if (!archives[type])
+		return 0;
+	// FIXME: should have archive_get_descriptor_by_name function to avoid loading data
+	struct archive_data *data = archive_get_by_name(archives[type], name);
+	if (!data)
+		return 0;
+	int index = data->no + 1;
+	archive_free_data(data);
+	return index;
 }
 
 struct cg *asset_cg_load(int no)
 {
-	if (!archives[ASSET_CG])
+	struct archive_data *data = asset_get(ASSET_CG, no);
+	if (!data)
 		return NULL;
-	if (!(no = cg_translate_index(no)))
-		return NULL;
-	return cg_load(archives[ASSET_CG], no - 1);
+
+	struct cg *cg = cg_load_data(data);
+	archive_free_data(data);
+	return cg;
 }
 
 struct cg *asset_cg_load_by_name(const char *name, int *no)
 {
-	if (!archives[ASSET_CG])
+	struct archive_data *data = asset_get_by_name(ASSET_CG, name);
+	if (!data)
 		return NULL;
-	if (!(*no = asset_cg_name_to_index(name)))
-		return NULL;
-	return cg_load(archives[ASSET_CG], *no - 1);
-}
 
-bool asset_cg_exists(int no)
-{
-	if (!archives[ASSET_CG])
-		return false;
-	if (!(no = cg_translate_index(no)))
-		return false;
-	return archive_exists(archives[ASSET_CG], no - 1);
+	struct cg *cg = cg_load_data(data);
+	*no = data->no + 1;
+	archive_free_data(data);
+	return cg;
 }
 
 bool asset_cg_get_metrics(int no, struct cg_metrics *metrics)
 {
-	if (!archives[ASSET_CG])
+	struct archive_data *data = asset_get(ASSET_CG, no);
+	if (!data)
 		return false;
-	if (!(no = cg_translate_index(no)))
-		return NULL;
-	return cg_get_metrics(archives[ASSET_CG], no - 1, metrics);
-}
 
+	bool r = cg_get_metrics_data(data, metrics);
+	archive_free_data(data);
+	return r;
+}
