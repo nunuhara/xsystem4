@@ -29,13 +29,15 @@ void PE_UpdateParts(int passed_time, bool is_skip, bool message_window_show);
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, int sprite_deform, int state);
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, int sprite_deform, int state);
 int PE_GetPartsCGNumber(int parts_no, int state);
-bool PE_SetLoopCG(int parts_no, int cg_no, int nr_frames, int frame_time, int state);
-bool PE_SetHGaugeCG(int parts_no, int cg_no, int state);
+bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_time, int state);
+bool PE_SetHGaugeCG(int parts_no, struct string *cg_name, int state);
+bool PE_SetHGaugeCG_by_index(int parts_no, int cg_no, int state);
 bool PE_SetHGaugeRate(int parts_no, int numerator, int denominator, int state);
-bool PE_SetVGaugeCG(int parts_no, int cg_no, int state);
+bool PE_SetVGaugeCG(int parts_no, struct string *cg_name, int state);
+bool PE_SetVGaugeCG_by_index(int parts_no, int cg_no, int state);
 bool PE_SetVGaugeRate(int parts_no, int numerator, int denominator, int state);
-bool PE_SetNumeralCG(int parts_no, int cg_no, int state);
-bool PE_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, int cg_no, int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8, int w9, int w_minus, int w_comma, int state);
+bool PE_SetNumeralCG_by_index(int parts_no, int cg_no, int state);
+bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no, int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8, int w9, int w_minus, int w_comma, int state);
 bool PE_SetNumeralNumber(int parts_no, int n, int state);
 bool PE_SetNumeralShowComma(int parts_no, bool show_comma, int state);
 bool PE_SetNumeralSpace(int parts_no, int space, int state);
@@ -103,7 +105,7 @@ int PE_GetClickPartsNumber(void);
 // motion.c
 void PE_AddMotionPos(int parts_no, int begin_x, int begin_y, int end_x, int end_y, int begin_t, int end_t);
 void PE_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int end_t);
-void PE_AddMotionCG(int parts_no, int begin_cg_no, int nr_cg, int begin_t, int end_t);
+void PE_AddMotionCG_by_index(int parts_no, int begin_cg_no, int nr_cg, int begin_t, int end_t);
 void PE_AddMotionHGaugeRate(int parts_no, int begin_numerator, int begin_denominator,
 			    int end_numerator, int end_denominator, int begin_t, int end_t);
 void PE_AddMotionVGaugeRate(int parts_no, int begin_numerator, int begin_denominator,

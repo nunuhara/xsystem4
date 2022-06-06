@@ -14,25 +14,59 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <assert.h>
+
+#include "system4/cg.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
 #include "asset_manager.h"
 #include "gfx/font.h"
+#include "vm/page.h"
 #include "input.h"
 #include "sact.h"
 #include "CharSpriteManager.h"
 #include "xsystem4.h"
 #include "hll.h"
 
+static void ChipmunkSpriteEngine_PreLink(void);
+
 static void ChipmunkSpriteEngine_ModuleFini(void)
 {
 	sact_ModuleFini();
 }
 
-static int ChipmunkSpriteEngine_Init(void *imain_system, int cg_cache_size)
+static int ChipmunkSpriteEngine_Init(void *imain_system)
 {
-	return sact_Init(imain_system, cg_cache_size);
+	return sact_Init(imain_system, 16);
+}
+
+static int ChipmunkSpriteEngine_SP_SetCG(int sp_no, struct string *cg_name)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_set_cg_by_name(sp, cg_name->text);
+}
+
+static int ChipmunkSpriteEngine_CG_IsExist(struct string *cg_name)
+{
+	return asset_exists_by_name(ASSET_CG, cg_name->text, NULL);
+}
+
+static int ChipmunkSpriteEngine_CG_GetMetrics(struct string *cg_name, struct page **page)
+{
+	union vm_value *cgm = (*page)->values;
+	struct cg_metrics metrics;
+	if (!asset_cg_get_metrics_by_name(cg_name->text, &metrics))
+		return 0;
+	cgm[0].i = metrics.w;
+	cgm[1].i = metrics.h;
+	cgm[2].i = metrics.bpp;
+	cgm[3].i = metrics.has_pixel;
+	cgm[4].i = metrics.has_alpha;
+	cgm[5].i = metrics.pixel_pitch;
+	cgm[6].i = metrics.alpha_pitch;
+	return 1;
 }
 
 HLL_WARN_UNIMPLEMENTED(0, int,  ChipmunkSpriteEngine, SP_SetBrightness, int sp_no, int brightness);
@@ -72,9 +106,18 @@ static bool ChipmunkSpriteEngine_SP_GetFontWidth(struct string *text, int *width
 
 //static bool ChipmunkSpriteEngine_SP_SetAlphaClipperSpriteNumber(int sp_no, int ac_sp_no);
 //static int ChipmunkSpriteEngine_SP_GetAlphaClipperSpriteNumber(int sp_no);
-//static int CG_GetFormat(int cg_no);
+//static int CG_GetFormat_by_index(int cg_no);
+//static int CG_GetFormat(struct string *cg_name);
+
+//static bool ChipmunkSpriteEngine_SP_Suspend(int sp_no);
+//static bool ChipmunkSpriteEngine_SP_Resume(int sp_no);
+//static bool ChipmunkSpriteEngine_SP_IsSuspend(int sp_no);
+//static bool ChipmunkSpriteEngine_Debug_GetVideoMemoryInfo(int *max_size, int *use_size, int *use_max_size);
+//static void ChipmunkSpriteEngine_CombineTexture(void);
+//static void ChipmunkSpriteEngine_ReleaseCombinedTexture(void);
 
 HLL_LIBRARY(ChipmunkSpriteEngine,
+	    HLL_EXPORT(_PreLink, ChipmunkSpriteEngine_PreLink),
 	    HLL_EXPORT(_ModuleFini, ChipmunkSpriteEngine_ModuleFini),
 	    HLL_EXPORT(Init, ChipmunkSpriteEngine_Init),
 	    HLL_TODO_EXPORT(Error, SACT2_Error),
@@ -84,7 +127,7 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SP_GetUnuseNum, sact_SP_GetUnuseNum),
 	    HLL_EXPORT(SP_Count, sact_SP_Count),
 	    HLL_EXPORT(SP_Enum, sact_SP_Enum),
-	    HLL_EXPORT(SP_SetCG, sact_SP_SetCG),
+	    HLL_EXPORT(SP_SetCG, ChipmunkSpriteEngine_SP_SetCG),
 	    HLL_TODO_EXPORT(SP_SetCutCG, ChipmunkSpriteEngine_SP_SetCutCG),
 	    HLL_EXPORT(SP_SetCGFromFile, sact_SP_SetCGFromFile),
 	    HLL_EXPORT(SP_SaveCG, sact_SP_SaveCG),
@@ -155,8 +198,9 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown),
 	    HLL_EXPORT(KEY_GetState, key_is_down),
 	    HLL_EXPORT(Timer_Get, vm_time),
-	    HLL_EXPORT(CG_IsExist, sact_CG_IsExist),
-	    HLL_EXPORT(CG_GetMetrics, sact_CG_GetMetrics),
+	    HLL_EXPORT(CG_IsExist, ChipmunkSpriteEngine_CG_IsExist),
+	    HLL_EXPORT(CG_GetMetrics, ChipmunkSpriteEngine_CG_GetMetrics),
+	    HLL_TODO_EXPORT(CG_GetFormat, ChipmunkSpriteEngine_CG_GetFormat),
 	    HLL_EXPORT(System_GetDate, get_date),
 	    HLL_EXPORT(System_GetTime, get_time),
 	    HLL_TODO_EXPORT(CG_RotateRGB, SACT2_CG_RotateRGB),
@@ -210,5 +254,48 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_TODO_EXPORT(Debug_GetCurrentAllocatedMemorySize, StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize),
 	    HLL_TODO_EXPORT(Debug_GetMaxAllocatedMemorySize, StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize),
 	    HLL_TODO_EXPORT(Debug_GetFillRate, StoatSpriteEngine_Debug_GetFillRate),
-	    HLL_TODO_EXPORT(MUSIC_ReloadParam, StoatSpriteEngine_MUSIC_ReloadParam));
+	    HLL_TODO_EXPORT(MUSIC_ReloadParam, StoatSpriteEngine_MUSIC_ReloadParam),
+	    HLL_TODO_EXPORT(SP_Suspend, ChipmunkSpriteEngine_SP_Suspend),
+	    HLL_TODO_EXPORT(SP_Resume, ChipmunkSpriteEngine_SP_Resume),
+	    HLL_TODO_EXPORT(SP_IsSuspend, ChipmunkSpriteEngine_SP_IsSuspend),
+	    HLL_TODO_EXPORT(Debug_GetVideoMemoryInfo, ChipmunkSpriteEngine_Debug_GetVideoMemoryInfo),
+	    HLL_TODO_EXPORT(CombineTexture, ChipmunkSpriteEngine_CombineTexture),
+	    HLL_TODO_EXPORT(ReleaseCombinedTexture, ChipmunkSpriteEngine_ReleaseCombinedTexture));
 
+static struct ain_hll_function *get_fun(int libno, const char *name)
+{
+	int fno = ain_get_library_function(ain, libno, name);
+	return fno >= 0 ? &ain->libraries[libno].functions[fno] : NULL;
+}
+
+// Daiteikoku and Shaman's Sanctuary have different interface than later versions
+static void ChipmunkSpriteEngine_PreLink(void)
+{
+	struct ain_hll_function *fun;
+	int libno = ain_get_library(ain, "ChipmunkSpriteEngine");
+	assert(libno >= 0);
+
+	fun = get_fun(libno, "Init");
+	if (fun && fun->nr_arguments == 2) {
+		static_library_replace(&lib_ChipmunkSpriteEngine, "Init", sact_Init);
+	}
+
+	fun = get_fun(libno, "SP_SetCG");
+	if (fun && fun->arguments[1].type.data == AIN_INT) {
+		static_library_replace(&lib_ChipmunkSpriteEngine, "SP_SetCG", sact_SP_SetCG);
+	}
+
+	// TODO: SP_SetCutCG
+
+	fun = get_fun(libno, "CG_IsExist");
+	if (fun && fun->arguments[0].type.data == AIN_INT) {
+		static_library_replace(&lib_ChipmunkSpriteEngine, "CG_IsExist", sact_CG_IsExist);
+	}
+
+	fun = get_fun(libno, "CG_GetMetrics");
+	if (fun && fun->arguments[0].type.data == AIN_INT) {
+		static_library_replace(&lib_ChipmunkSpriteEngine, "CG_GetMetrics", sact_CG_GetMetrics);
+	}
+
+	// TODO: CG_GetFormat
+}

@@ -137,7 +137,16 @@ int sprite_set_cg_2x_from_asset(struct sact_sprite *sp, int cg_no)
 	sp->cg_no = cg_no;
 	cg_free(cg);
 	return 1;
+}
 
+int sprite_set_cg_by_name(struct sact_sprite *sp, const char *name)
+{
+	struct cg *cg = asset_cg_load_by_name(name, &sp->cg_no);
+	if (!cg)
+		return 0;
+	sprite_set_cg(sp, cg);
+	cg_free(cg);
+	return 1;
 }
 
 int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path)

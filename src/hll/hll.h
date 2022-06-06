@@ -24,6 +24,8 @@
 #include "vm.h"
 #include "system4.h"
 
+void static_library_replace(struct static_library *lib, const char *name, void *fun);
+
 #define HLL_WARN_UNIMPLEMENTED(rval, rtype, libname, fname, ...)	\
 	static rtype libname ## _ ## fname(__VA_ARGS__) {		\
 		WARNING("Unimplemented HLL function: " #libname "." #fname); \

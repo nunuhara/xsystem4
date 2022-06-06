@@ -253,7 +253,7 @@ void PE_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int en
 	parts_add_motion(parts, motion);
 }
 
-void PE_AddMotionCG(int parts_no, int begin_cg_no, int nr_cg, int begin_t, int end_t)
+void PE_AddMotionCG_by_index(int parts_no, int begin_cg_no, int nr_cg, int begin_t, int end_t)
 {
 	struct parts *parts = parts_get(parts_no);
 	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_CG, begin_t, end_t);
@@ -343,6 +343,8 @@ void PE_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin
 	motion->begin.y = begin_h;
 	parts_add_motion(parts, motion);
 }
+
+void PE_AddWholeMotionVibrationSize(int begin_width, int begin_height, int begin_time, int end_time);
 
 void PE_AddMotionSound(int sound_no, int begin_t)
 {

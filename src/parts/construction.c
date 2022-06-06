@@ -48,6 +48,10 @@ static bool parts_add_cp_op(int parts_no, struct parts_cp_op *op, int state)
 	return true;
 }
 
+bool PE_ClearPartsConstructionProcess(int parts_no, int state);
+bool PE_AddCreateToPartsConstructionProcess(int parts_no, int w, int h, int state);
+bool PE_AddCreatePixelOnlyToPartsConstructionProcess(int parts_no, int w, int h, int state);
+
 bool PE_AddCreateCGToProcess(int parts_no, struct string *cg_name, int state)
 {
 	if (!asset_exists_by_name(ASSET_CG, cg_name->text, NULL)) {
@@ -62,6 +66,8 @@ bool PE_AddCreateCGToProcess(int parts_no, struct string *cg_name, int state)
 	return parts_add_cp_op(parts_no, op, state);
 }
 
+bool PE_AddFillToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int state);
+
 bool PE_AddFillAlphaColorToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int a, int state)
 {
 	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
@@ -73,6 +79,11 @@ bool PE_AddFillAlphaColorToPartsConstructionProcess(int parts_no, int x, int y, 
 
 	return parts_add_cp_op(parts_no, op, state);
 }
+
+bool PE_AddFillAMapToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int a, int state);
+bool PE_AddFillWithAlphaToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int a, int state);
+bool PE_AddFillGradationHorizonToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int top_r, int top_g, int top_b, int bot_r, int bot_g, int bot_b, int state);
+bool PE_AddDrawRectToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int state);
 
 static void build_cg(struct parts *parts, struct parts_cp_cg *op, int state)
 {
@@ -105,3 +116,5 @@ bool PE_BuildPartsConstructionProcess(int parts_no, int state)
 	}
 	return true;
 }
+
+bool PE_AddDrawTextToPartsConstructionProcess(int parts_no, int x, int y, struct string *text, int type, int size, int r, int g, int b, float bold_weight, int edge_r, int edge_g, int edge_b, float edge_weight, int char_space, int line_space, int state);

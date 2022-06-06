@@ -66,6 +66,7 @@ void sprite_set_cg(struct sact_sprite *sp, struct cg *cg);
 void sprite_set_cg_2x(struct sact_sprite *sp, struct cg *cg);
 int sprite_set_cg_from_asset(struct sact_sprite *sp, int cg_no);
 int sprite_set_cg_2x_from_asset(struct sact_sprite *sp, int cg_no);
+int sprite_set_cg_by_name(struct sact_sprite *sp, const char *name);
 int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path);
 int sprite_save_cg(struct sact_sprite *sp, const char *path);
 void sprite_init(struct sact_sprite *sp, int w, int h, int r, int g, int b, int a);

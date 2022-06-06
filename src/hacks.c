@@ -169,6 +169,8 @@ void apply_game_specific_hacks(struct ain *ain)
 		apply_rance7_hacks(ain);
 	} else if (!strcmp(game_name, "しゃーまんず・さんくちゅあり　巫女の聖域")) {
 		id_indexed_afa = true;
+	} else if (!strcmp(game_name, "大帝国")) {
+		id_indexed_afa = true;
 	}
 	free(game_name);
 }

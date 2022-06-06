@@ -577,7 +577,7 @@ int PE_GetPartsCGNumber(int parts_no, int state)
 	return parts_get_cg(parts_get(parts_no), state)->no;
 }
 
-bool PE_SetLoopCG(int parts_no, int cg_no, int nr_frames, int frame_time, int state)
+bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_time, int state)
 {
 	state--;
 	if (state < 0 || state > 2) {
@@ -614,21 +614,16 @@ bool PE_SetLoopCG(int parts_no, int cg_no, int nr_frames, int frame_time, int st
 	return true;
 }
 
-static bool set_gauge_cg(int parts_no, int cg_no, int state, bool vert)
+static bool set_gauge_cg(int parts_no, struct cg *cg, int state, bool vert)
 {
 	state--;
 	if (state < 0 || state >= PARTS_NR_STATES)
-		return false;
-
-	struct cg *cg = asset_cg_load(cg_no);
-	if (!cg)
 		return false;
 
 	struct parts *parts = parts_get(parts_no);
 	struct parts_gauge *g = vert ? parts_get_vgauge(parts, state) : parts_get_hgauge(parts, state);
 	gfx_init_texture_with_cg(&g->cg, cg);
 	gfx_init_texture_with_cg(&g->texture, cg);
-	cg_free(cg);
 
 	gfx_init_texture_rgba(&g->texture, g->cg.w, g->cg.h, (SDL_Color){0,0,0,255});
 	gfx_copy_with_alpha_map(&g->texture, 0, 0, &g->cg, 0, 0, g->cg.w, g->cg.h);
@@ -640,9 +635,24 @@ static bool set_gauge_cg(int parts_no, int cg_no, int state, bool vert)
 	return true;
 }
 
-bool PE_SetHGaugeCG(int parts_no, int cg_no, int state)
+bool PE_SetHGaugeCG(int parts_no, struct string *cg_name, int state)
 {
-	return set_gauge_cg(parts_no, cg_no, state, false);
+	struct cg *cg = asset_cg_load_by_name(cg_name->text, NULL);
+	if (!cg)
+		return false;
+	bool r = set_gauge_cg(parts_no, cg, state, false);
+	cg_free(cg);
+	return r;
+}
+
+bool PE_SetHGaugeCG_by_index(int parts_no, int cg_no, int state)
+{
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+	bool r = set_gauge_cg(parts_no, cg, state, false);
+	cg_free(cg);
+	return r;
 }
 
 bool PE_SetHGaugeRate(int parts_no, int numerator, int denominator, int state)
@@ -655,11 +665,25 @@ bool PE_SetHGaugeRate(int parts_no, int numerator, int denominator, int state)
 	return true;
 }
 
-bool PE_SetVGaugeCG(int parts_no, int cg_no, int state)
+bool PE_SetVGaugeCG(int parts_no, struct string *cg_name, int state)
 {
-	return set_gauge_cg(parts_no, cg_no, state, true);
+	struct cg *cg = asset_cg_load_by_name(cg_name->text, NULL);
+	if (!cg)
+		return false;
+	bool r = set_gauge_cg(parts_no, cg, state, true);
+	cg_free(cg);
+	return r;
 }
 
+bool PE_SetVGaugeCG_by_index(int parts_no, int cg_no, int state)
+{
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+	bool r = set_gauge_cg(parts_no, cg, state, true);
+	cg_free(cg);
+	return r;
+}
 
 bool PE_SetVGaugeRate(int parts_no, int numerator, int denominator, int state)
 {
@@ -671,7 +695,7 @@ bool PE_SetVGaugeRate(int parts_no, int numerator, int denominator, int state)
 	return true;
 }
 
-bool PE_SetNumeralCG(int parts_no, int cg_no, int state)
+bool PE_SetNumeralCG_by_index(int parts_no, int cg_no, int state)
 {
 	state--;
 	if (state < 0 || state >= PARTS_NR_STATES)
@@ -687,7 +711,7 @@ bool PE_SetNumeralCG(int parts_no, int cg_no, int state)
 	return true;
 }
 
-bool PE_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, int cg_no, int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8, int w9, int w_minus, int w_comma, int state)
+bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no, int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8, int w9, int w_minus, int w_comma, int state)
 {
 	// TODO? Create a generic numeral-font object that can be shared between parts.
 	//       In the current implementation, each number stores a complete copy of
@@ -810,6 +834,8 @@ void PE_SetAlpha(int parts_no, int alpha)
 }
 
 void PE_SetPartsDrawFilter(int PartsNumber, int DrawFilter);
+void PE_SetAddColor(int PartsNumber, int nR, int nG, int nB);
+void PE_SetMultiplyColor(int PartsNumber, int nR, int nG, int nB);
 
 int PE_GetPartsX(int parts_no)
 {
@@ -847,6 +873,9 @@ int PE_GetPartsAlpha(int parts_no)
 {
 	return parts_get(parts_no)->alpha;
 }
+
+void PE_GetAddColor(int PartsNumber, int *nR, int *nG, int *nB);
+void PE_GetMultiplyColor(int PartsNumber, int *nR, int *nG, int *nB);
 
 void PE_SetPartsOriginPosMode(int parts_no, int origin_pos_mode)
 {
@@ -940,3 +969,8 @@ bool PE_IsExist(int parts_no)
 	return !!ht_get_int(parts_table, parts_no, NULL);
 }
 
+bool PE_SetPartsFlashAndStop(int PartsNumber, struct string *pIFlashFileName, int State);
+bool PE_StopPartsFlash(int PartsNumber, int State);
+bool PE_StartPartsFlash(int PartsNumber, int State);
+bool PE_GoFramePartsFlash(int PartsNumber, int FrameNumber, int State);
+int PE_GetPartsFlashEndFrame(int PartsNumber, int State);

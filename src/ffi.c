@@ -527,6 +527,7 @@ static void link_libraries(void)
 
 void init_libraries(void)
 {
+	library_run_all("_PreLink");
 	link_libraries();
 	library_run_all("_ModuleInit");
 }
@@ -534,4 +535,15 @@ void init_libraries(void)
 void exit_libraries(void)
 {
 	library_run_all("_ModuleFini");
+}
+
+void static_library_replace(struct static_library *lib, const char *name, void *fun)
+{
+	for (int i = 0; lib->functions[i].name; i++) {
+		if (!strcmp(lib->functions[i].name, name)) {
+			lib->functions[i].fun = fun;
+			return;
+		}
+	}
+	ERROR("No library function '%s.%s'", lib->name, name);
 }
