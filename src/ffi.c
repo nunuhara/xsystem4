@@ -298,6 +298,7 @@ extern struct static_library lib_AliceLogo5;
 extern struct static_library lib_AnteaterADVEngine;
 extern struct static_library lib_BanMisc;
 extern struct static_library lib_Bitarray;
+extern struct static_library lib_CGManager;
 extern struct static_library lib_ChipmunkSpriteEngine;
 extern struct static_library lib_ChrLoader;
 extern struct static_library lib_CommonSystemData;
@@ -363,6 +364,7 @@ static struct static_library *static_libraries[] = {
 	&lib_AnteaterADVEngine,
 	&lib_BanMisc,
 	&lib_Bitarray,
+	&lib_CGManager,
 	&lib_ChipmunkSpriteEngine,
 	&lib_ChrLoader,
 	&lib_CommonSystemData,

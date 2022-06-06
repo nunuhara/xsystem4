@@ -29,6 +29,7 @@
 #include "system4/cg.h"
 #include "system4/file.h"
 #include "system4/hashtable.h"
+#include "system4/string.h"
 #include "system4/utfsjis.h"
 
 #include "xsystem4.h"
@@ -55,18 +56,274 @@ const char *asset_strtype(enum asset_type type)
 	return "Invalid";
 }
 
-static struct archive *archives[ASSET_TYPE_MAX] = {0};
+#define MAX_ARCHIVES 8
+
+struct asset_manager {
+	bool (*load_archive)(struct asset_manager *manager, const char *name);
+	bool (*exists_by_id)(struct asset_manager *manager, int id);
+	bool (*exists_by_name)(struct asset_manager *manager, const char *name, int *id_out);
+	struct archive_data *(*get_by_id)(struct asset_manager *manager, int id);
+	struct archive_data *(*get_by_name)(struct asset_manager *manager, const char *name, int *id_out);
+};
+
+// XXX: also used for AFAv1 in Daiteikoku, Shaman's Sanctuary
+struct asset_manager_ald {
+	struct asset_manager manager;
+	struct archive *archive;
+};
+
+struct asset_manager_afa {
+	struct asset_manager manager;
+	struct afa_archive *archives[MAX_ARCHIVES];
+	struct hash_table *index;
+};
+
+static struct asset_manager *assets[ASSET_TYPE_MAX] = {0};
+
+bool asset_manager_load_archive(enum asset_type type, const char *archive_name)
+{
+	if (!assets[type])
+		return false;
+	if (!assets[type]->load_archive)
+		ERROR("load_archive not supported on this archive type");
+	return assets[type]->load_archive(assets[type], archive_name);
+}
+
+bool asset_exists(enum asset_type type, int id)
+{
+	if (!assets[type])
+		return false;
+	return assets[type]->exists_by_id(assets[type], id);
+}
+
+bool asset_exists_by_name(enum asset_type type, const char *name, int *id_out)
+{
+	if (!assets[type])
+		return false;
+	if (!assets[type]->exists_by_name)
+		ERROR("exists_by_name not supported on this archive type");
+	return assets[type]->exists_by_name(assets[type], name, id_out);
+}
+
+struct archive_data *asset_get(enum asset_type type, int id)
+{
+	if (!assets[type])
+		return NULL;
+	return assets[type]->get_by_id(assets[type], id);
+}
+
+struct archive_data *asset_get_by_name(enum asset_type type, const char *name, int *id_out)
+{
+	if (!assets[type])
+		return NULL;
+	if (!assets[type]->get_by_name)
+		ERROR("get_by_name not supported on this archive type");
+	return assets[type]->get_by_name(assets[type], name, id_out);
+}
+
+struct cg *asset_cg_load(int id)
+{
+	struct archive_data *data = asset_get(ASSET_CG, id);
+	if (!data)
+		return NULL;
+	struct cg *cg = cg_load_data(data);
+	archive_free_data(data);
+	return cg;
+}
+
+struct cg *asset_cg_load_by_name(const char *name, int *id_out)
+{
+	struct archive_data *data = asset_get_by_name(ASSET_CG, name, id_out);
+	if (!data)
+		return NULL;
+	struct cg *cg = cg_load_data(data);
+	archive_free_data(data);
+	return cg;
+}
+
+bool asset_cg_get_metrics(int id, struct cg_metrics *metrics)
+{
+	struct archive_data *data = asset_get(ASSET_CG, id);
+	if (!data)
+		return false;
+	bool r = cg_get_metrics_data(data, metrics);
+	archive_free_data(data);
+	return r;
+}
+
+bool asset_cg_get_metrics_by_name(const char *name, struct cg_metrics *metrics)
+{
+	struct archive_data *data = asset_get_by_name(ASSET_CG, name, NULL);
+	if (!data)
+		return false;
+	bool r = cg_get_metrics_data(data, metrics);
+	archive_free_data(data);
+	return r;
+}
+
+static bool ald_exists_by_id(struct asset_manager *_manager, int id)
+{
+	struct asset_manager_ald *manager = (struct asset_manager_ald*)_manager;
+	return archive_exists(manager->archive, id - 1);
+}
+
+static struct archive_data *ald_get_by_id(struct asset_manager *_manager, int id)
+{
+	struct asset_manager_ald *manager = (struct asset_manager_ald*)_manager;
+	return archive_get(manager->archive, id - 1);
+}
+
+static bool afa_load_archive(struct asset_manager *_manager, const char *name)
+{
+	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
+	if (manager->archives[MAX_ARCHIVES-1])
+		ERROR("Archive limit exceeded");
+
+	char path[PATH_MAX];
+	snprintf(path, PATH_MAX, "%s.afa", name);
+
+	int error;
+	struct afa_archive *ar = afa_open(path, ARCHIVE_MMAP, &error);
+	if (!ar) {
+		snprintf(path, PATH_MAX, "%s.AFA", name);
+		ar = afa_open(path, ARCHIVE_MMAP, &error);
+		if (!ar) {
+			WARNING("Failed to open archive: %s", display_utf0(path));
+			return false;
+		}
+	}
+
+	for (int i = MAX_ARCHIVES - 1; i > 0; i++) {
+		manager->archives[i] = manager->archives[i-1];
+	}
+	manager->archives[0] = ar;
+
+	// index needs to be rebuilt
+	if (manager->index) {
+		ht_free(manager->index);
+		manager->index = NULL;
+	}
+	return true;
+}
+
+static bool _afa_get_by_id(struct asset_manager *_manager, int id, struct afa_archive **ar_out, int *no_out)
+{
+	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
+	uint32_t no = id - 1;
+	for (int i = 0; i < MAX_ARCHIVES && manager->archives[i]; i++) {
+		if (no < manager->archives[i]->nr_files) {
+			*ar_out = manager->archives[i];
+			*no_out = no;
+			return true;
+		}
+		no -= manager->archives[i]->nr_files;
+	}
+	return false;
+}
+
+static bool afa_exists_by_id(struct asset_manager *manager, int id)
+{
+	int no;
+	struct afa_archive *ar;
+	return _afa_get_by_id(manager, id, &ar, &no);
+}
+
+static struct archive_data *afa_get_by_id(struct asset_manager *manager, int id)
+{
+	int no;
+	struct afa_archive *ar;
+	if (!_afa_get_by_id(manager, id, &ar, &no))
+		return NULL;
+	// XXX: we don't use archive_get here because it will return the wrong thing
+	//      for AFAv1 archives when not using integer indices
+	return afa_entry_to_descriptor(ar, &ar->files[no]);
+}
+
+static void afa_index_archive(struct hash_table *index, struct afa_archive *ar, unsigned base)
+{
+	for (unsigned i = 0; i < ar->nr_files; i++) {
+		// normalize case and remove file extension from file name
+		char *name = strdup(ar->files[i].name->text);
+		char *dot = strrchr(name, '.');
+		if (dot)
+			*dot = '\0';
+		sjis_toupper(name);
+		// add file to index
+		ht_put(index, name, (void*)((uintptr_t)base + i + 1));
+		free(name);
+	}
+}
+
+static bool _afa_get_by_name(struct asset_manager *_manager, const char *_name,
+		struct afa_archive **ar_out, int *no_out, int *id_out)
+{
+	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
+	// initialize index lazily
+	if (!manager->index) {
+		manager->index = ht_create(4096);
+		unsigned base = 0;
+		for (unsigned i = 0; i < MAX_ARCHIVES && manager->archives[i]; i++) {
+			afa_index_archive(manager->index, manager->archives[i], base);
+			base += manager->archives[i]->nr_files;
+		}
+	}
+
+	// normalize name and get id from index
+	char *name = strdup(_name);
+	sjis_toupper(name);
+	uintptr_t id = (uintptr_t)ht_get(manager->index, name, NULL);
+	free(name);
+
+	if (!id)
+		return false;
+
+	if (id_out)
+		*id_out = id;
+	return _afa_get_by_id(_manager, id, ar_out, no_out);
+}
+
+static bool afa_exists_by_name(struct asset_manager *manager, const char *name, int *id_out)
+{
+	int no;
+	struct afa_archive *ar;
+	return _afa_get_by_name(manager, name, &ar, &no, id_out);
+}
+
+static struct archive_data *afa_get_by_name(struct asset_manager *manager, const char *name, int *id_out)
+{
+	int no;
+	struct afa_archive *ar;
+	if (!_afa_get_by_name(manager, name, &ar, &no, id_out))
+		return NULL;
+	return archive_get(&ar->ar, no);
+}
+
+static void _ald_init(enum asset_type type, struct archive *ar)
+{
+	struct asset_manager_ald *manager = xcalloc(1, sizeof(struct asset_manager_ald));
+	manager->manager.exists_by_id = ald_exists_by_id;
+	manager->manager.get_by_id = ald_get_by_id;
+	manager->manager.load_archive = NULL;
+	manager->manager.exists_by_name = NULL;
+	manager->manager.get_by_name = NULL;
+	manager->archive = ar;
+	assets[type] = &manager->manager;
+}
 
 static void ald_init(enum asset_type type, char **files, int count)
 {
 	if (count < 1)
 		return;
-	if (archives[type])
+	if (assets[type])
 		WARNING("Multiple asset archives for type %s", asset_strtype(type));
-	int error = ARCHIVE_SUCCESS;
-	archives[type] = ald_open(files, count, ARCHIVE_MMAP, &error);
-	if (error)
+
+	int error;
+	struct archive *ar = ald_open(files, count, ARCHIVE_MMAP, &error);
+	if (!ar)
 		ERROR("Failed to open ALD file: %s", archive_strerror(error));
+
+	_ald_init(type, ar);
+
 	for (int i = 0; i < count; i++) {
 		free(files[i]);
 	}
@@ -76,13 +333,27 @@ static void afa_init(enum asset_type type, char *file)
 {
 	if (!file)
 		return;
-	if (archives[type])
+	if (assets[type])
 		WARNING("Multiple asset archives for type %s", asset_strtype(type));
-	int error = ARCHIVE_SUCCESS;
-	archives[type] = (struct archive*)afa_open(file, ARCHIVE_MMAP, &error);
-	if (error != ARCHIVE_SUCCESS) {
+
+	int error;
+	struct afa_archive *ar = afa_open(file, ARCHIVE_MMAP, &error);
+	if (!ar)
 		ERROR("Failed to open AFA file: %s", archive_strerror(error));
+
+	if (id_indexed_afa) {
+		_ald_init(type, &ar->ar);
+	} else {
+		struct asset_manager_afa *manager = xcalloc(1, sizeof(struct asset_manager_afa));
+		manager->manager.load_archive = afa_load_archive;
+		manager->manager.exists_by_id = afa_exists_by_id;
+		manager->manager.exists_by_name = afa_exists_by_name;
+		manager->manager.get_by_id = afa_get_by_id;
+		manager->manager.get_by_name = afa_get_by_name;
+		manager->archives[0] = ar;
+		assets[type] = &manager->manager;
 	}
+
 	free(file);
 }
 
@@ -211,70 +482,4 @@ void asset_manager_init(void)
 	afa_init(ASSET_FLAT, afa_filenames[ASSET_FLAT]);
 	afa_init(ASSET_PACT, afa_filenames[ASSET_PACT]);
 	afa_init(ASSET_DATA, afa_filenames[ASSET_DATA]);
-}
-
-bool asset_exists(enum asset_type type, int no)
-{
-	return archives[type] && archive_exists(archives[type], no-1);
-}
-
-struct archive_data *asset_get(enum asset_type type, int no)
-{
-	if (!archives[type])
-		return NULL;
-	return archive_get(archives[type], no-1);
-}
-
-struct archive_data *asset_get_by_name(enum asset_type type, const char *name)
-{
-	if (!archives[type])
-		return NULL;
-	return archive_get_by_name(archives[type], name);
-}
-
-int asset_name_to_index(enum asset_type type, const char *name)
-{
-	if (!archives[type])
-		return 0;
-	// FIXME: should have archive_get_descriptor_by_name function to avoid loading data
-	struct archive_data *data = archive_get_by_name(archives[type], name);
-	if (!data)
-		return 0;
-	int index = data->no + 1;
-	archive_free_data(data);
-	return index;
-}
-
-struct cg *asset_cg_load(int no)
-{
-	struct archive_data *data = asset_get(ASSET_CG, no);
-	if (!data)
-		return NULL;
-
-	struct cg *cg = cg_load_data(data);
-	archive_free_data(data);
-	return cg;
-}
-
-struct cg *asset_cg_load_by_name(const char *name, int *no)
-{
-	struct archive_data *data = asset_get_by_name(ASSET_CG, name);
-	if (!data)
-		return NULL;
-
-	struct cg *cg = cg_load_data(data);
-	*no = data->no + 1;
-	archive_free_data(data);
-	return cg;
-}
-
-bool asset_cg_get_metrics(int no, struct cg_metrics *metrics)
-{
-	struct archive_data *data = asset_get(ASSET_CG, no);
-	if (!data)
-		return false;
-
-	bool r = cg_get_metrics_data(data, metrics);
-	archive_free_data(data);
-	return r;
 }

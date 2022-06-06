@@ -126,7 +126,7 @@ enum parts_cp_op_type {
 };
 
 struct parts_cp_cg {
-	int no;
+	struct string *name;
 };
 
 struct parts_cp_fill_alpha_color {
@@ -202,6 +202,7 @@ void parts_set_rotation_z(struct parts *parts, float rot);
 void parts_set_alpha(struct parts *parts, int alpha);
 void parts_set_cg_dims(struct parts *parts, struct cg *cg);
 bool parts_set_cg_by_index(struct parts *parts, int cg_no, int state);
+bool parts_set_cg_by_name(struct parts *parts, struct string *cg_name, int state);
 void parts_set_hgauge_rate(struct parts *parts, float rate, int state);
 void parts_set_vgauge_rate(struct parts *parts, float rate, int state);
 bool parts_set_number(struct parts *parts, int n, int state);
