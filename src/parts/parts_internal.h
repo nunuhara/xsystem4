@@ -21,6 +21,8 @@
 #include "gfx/font.h"
 #include "queue.h"
 
+struct string;
+
 // NOTE: actual value is +1
 enum parts_state_type {
 	PARTS_STATE_DEFAULT = 0,
@@ -81,6 +83,7 @@ enum parts_type {
 	PARTS_NUMERAL,
 	PARTS_HGAUGE,
 	PARTS_VGAUGE,
+	PARTS_CONSTRUCTION_PROCESS,
 };
 
 struct parts_cg {
@@ -126,7 +129,7 @@ enum parts_cp_op_type {
 };
 
 struct parts_cp_cg {
-	struct string *name;
+	int no;
 };
 
 struct parts_cp_fill_alpha_color {
@@ -143,6 +146,11 @@ struct parts_cp_op {
 	};
 };
 
+struct parts_construction_process {
+	Texture texture;
+	TAILQ_HEAD(, parts_cp_op) ops;
+};
+
 struct parts_state {
 	enum parts_type type;
 	union {
@@ -151,8 +159,8 @@ struct parts_state {
 		struct parts_animation anim;
 		struct parts_numeral num;
 		struct parts_gauge gauge;
+		struct parts_construction_process cproc;
 	};
-	TAILQ_HEAD(, parts_cp_op) construction_process;
 };
 
 TAILQ_HEAD(parts_list, parts);
@@ -193,6 +201,7 @@ struct parts_animation *parts_get_animation(struct parts *parts, int state);
 struct parts_numeral *parts_get_numeral(struct parts *parts, int state);
 struct parts_gauge *parts_get_hgauge(struct parts *parts, int state);
 struct parts_gauge *parts_get_vgauge(struct parts *parts, int state);
+struct parts_construction_process *parts_get_construction_process(struct parts *parts, int state);
 void parts_recalculate_offset(struct parts *parts);
 void parts_recalculate_pos(struct parts *parts);
 void parts_set_pos(struct parts *parts, Point pos);

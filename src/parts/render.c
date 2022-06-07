@@ -114,6 +114,10 @@ static void parts_render(struct parts *parts, struct parts_render_params *parent
 		if (state->gauge.texture.handle)
 			parts_render_cg(parts, &state->gauge.texture, &params);
 		break;
+	case PARTS_CONSTRUCTION_PROCESS:
+		if (state->cproc.texture.handle)
+			parts_render_cg(parts, &state->cproc.texture, &params);
+		break;
 	}
 
 	// render children

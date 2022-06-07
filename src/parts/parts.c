@@ -47,9 +47,6 @@ static void parts_init(struct parts *parts)
 	parts->rotation.z = 0.0;
 	TAILQ_INIT(&parts->children);
 	TAILQ_INIT(&parts->motion);
-	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		TAILQ_INIT(&parts->states[i].construction_process);
-	}
 }
 
 static struct parts *parts_alloc(void)
@@ -128,14 +125,16 @@ static void parts_state_free(struct parts_state *state)
 		gfx_delete_texture(&state->gauge.texture);
 		gfx_delete_texture(&state->gauge.cg);
 		break;
-	}
-	while (!TAILQ_EMPTY(&state->construction_process)) {
-		struct parts_cp_op *op = TAILQ_FIRST(&state->construction_process);
-		TAILQ_REMOVE(&state->construction_process, op, entry);
-		parts_cp_op_free(op);
+	case PARTS_CONSTRUCTION_PROCESS:
+		gfx_delete_texture(&state->cproc.texture);
+		while (!TAILQ_EMPTY(&state->cproc.ops)) {
+			struct parts_cp_op *op = TAILQ_FIRST(&state->cproc.ops);
+			TAILQ_REMOVE(&state->cproc.ops, op, entry);
+			parts_cp_op_free(op);
+		}
+		break;
 	}
 	memset(state, 0, sizeof(struct parts_state));
-	TAILQ_INIT(&state->construction_process);
 }
 
 static struct text_style default_text_style = {
@@ -161,6 +160,8 @@ static void parts_state_reset(struct parts_state *state, enum parts_type type)
 	state->type = type;
 	if (type == PARTS_TEXT) {
 		state->text.ts = default_text_style;
+	} else if (type == PARTS_CONSTRUCTION_PROCESS) {
+		TAILQ_INIT(&state->cproc.ops);
 	}
 }
 
@@ -210,6 +211,14 @@ struct parts_gauge *parts_get_vgauge(struct parts *parts, int state)
 		parts_state_reset(&parts->states[state], PARTS_VGAUGE);
 	}
 	return &parts->states[state].gauge;
+}
+
+struct parts_construction_process *parts_get_construction_process(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_CONSTRUCTION_PROCESS) {
+		parts_state_reset(&parts->states[state], PARTS_CONSTRUCTION_PROCESS);
+	}
+	return &parts->states[state].cproc;
 }
 
 void parts_recalculate_offset(struct parts *parts)
@@ -302,6 +311,9 @@ void parts_set_alpha(struct parts *parts, int alpha)
 		case PARTS_HGAUGE:
 		case PARTS_VGAUGE:
 			s->gauge.texture.alpha_mod = parts->alpha;
+			break;
+		case PARTS_CONSTRUCTION_PROCESS:
+			s->cproc.texture.alpha_mod = parts->alpha;
 			break;
 		}
 	}
