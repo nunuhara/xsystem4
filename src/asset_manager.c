@@ -236,7 +236,10 @@ static struct archive_data *afa_get_by_id(struct asset_manager *manager, int id)
 		return NULL;
 	// XXX: we don't use archive_get here because it will return the wrong thing
 	//      for AFAv1 archives when not using integer indices
-	return afa_entry_to_descriptor(ar, &ar->files[no]);
+	struct archive_data *data = afa_entry_to_descriptor(ar, &ar->files[no]);
+	if (data)
+		archive_load_file(data);
+	return data;
 }
 
 static void afa_index_archive(struct hash_table *index, struct afa_archive *ar, unsigned base)
