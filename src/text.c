@@ -67,8 +67,12 @@ static struct font *load_font(enum font_face type)
 	ERROR("Failed to load %s font", type == FONT_GOTHIC ? "gothic" : "mincho");
 }
 
+static bool font_initialized = false;
+
 void gfx_font_init(void)
 {
+	if (font_initialized)
+		return;
 	if (config.fnl_path) {
 		struct fnl *fnl = fnl_open(config.fnl_path);
 		if (!fnl)
@@ -83,6 +87,7 @@ void gfx_font_init(void)
 		fonts[FONT_GOTHIC] = load_font(FONT_GOTHIC);
 		fonts[FONT_MINCHO] = load_font(FONT_MINCHO);
 	}
+	font_initialized = true;
 }
 
 static unsigned get_face(unsigned face)

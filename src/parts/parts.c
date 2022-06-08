@@ -47,6 +47,7 @@ static void parts_init(struct parts *parts)
 	parts->rotation.z = 0.0;
 	TAILQ_INIT(&parts->children);
 	TAILQ_INIT(&parts->motion);
+	gfx_font_init();
 }
 
 static struct parts *parts_alloc(void)
@@ -103,11 +104,11 @@ static void parts_state_free(struct parts_state *state)
 {
 	switch (state->type) {
 	case PARTS_CG:
-		gfx_delete_texture(&state->cg.texture);
+		gfx_delete_texture(&state->common.texture);
 		break;
 	case PARTS_TEXT:
+		gfx_delete_texture(&state->common.texture);
 		free(state->text.lines);
-		gfx_delete_texture(&state->text.texture);
 		break;
 	case PARTS_ANIMATION:
 		for (unsigned i = 0; i < state->anim.nr_frames; i++) {
@@ -115,18 +116,18 @@ static void parts_state_free(struct parts_state *state)
 		}
 		break;
 	case PARTS_NUMERAL:
-		gfx_delete_texture(&state->num.texture);
+		gfx_delete_texture(&state->common.texture);
 		for (int i = 0; i < 12; i++) {
 			gfx_delete_texture(&state->num.cg[i]);
 		}
 		break;
 	case PARTS_HGAUGE:
 	case PARTS_VGAUGE:
-		gfx_delete_texture(&state->gauge.texture);
+		gfx_delete_texture(&state->common.texture);
 		gfx_delete_texture(&state->gauge.cg);
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
-		gfx_delete_texture(&state->cproc.texture);
+		gfx_delete_texture(&state->common.texture);
 		while (!TAILQ_EMPTY(&state->cproc.ops)) {
 			struct parts_cp_op *op = TAILQ_FIRST(&state->cproc.ops);
 			TAILQ_REMOVE(&state->cproc.ops, op, entry);
@@ -293,28 +294,11 @@ void parts_set_alpha(struct parts *parts, int alpha)
 	parts->alpha = max(0, min(255, alpha));
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
 		struct parts_state *s = &parts->states[i];
-		switch (s->type) {
-		case PARTS_CG:
-			s->cg.texture.alpha_mod = parts->alpha;
-			break;
-		case PARTS_TEXT:
-			s->text.texture.alpha_mod = parts->alpha;
-			break;
-		case PARTS_ANIMATION:
+		s->common.texture.alpha_mod = parts->alpha;
+		if (s->type == PARTS_ANIMATION) {
 			for (unsigned i = 0; i < s->anim.nr_frames; i++) {
 				s->anim.frames[i].alpha_mod = parts->alpha;
 			}
-			break;
-		case PARTS_NUMERAL:
-			s->num.texture.alpha_mod = parts->alpha;
-			break;
-		case PARTS_HGAUGE:
-		case PARTS_VGAUGE:
-			s->gauge.texture.alpha_mod = parts->alpha;
-			break;
-		case PARTS_CONSTRUCTION_PROCESS:
-			s->cproc.texture.alpha_mod = parts->alpha;
-			break;
 		}
 	}
 	parts_dirty(parts);
@@ -335,8 +319,9 @@ static bool parts_set_cg(struct parts *parts, struct cg *cg, int cg_no, int stat
 	if (!cg)
 		return false;
 	struct parts_cg *parts_cg = parts_get_cg(parts, state);
-	gfx_delete_texture(&parts_cg->texture);
-	gfx_init_texture_with_cg(&parts_cg->texture, cg);
+	gfx_delete_texture(&parts_cg->common.texture);
+	gfx_init_texture_with_cg(&parts_cg->common.texture, cg);
+	parts_cg->common.surface_area = (Rectangle) { 0, 0, cg->metrics.w, cg->metrics.h };;
 	parts_cg->no = cg_no;
 	parts_set_cg_dims(parts, cg);
 	parts_recalculate_pos(parts);
@@ -370,26 +355,26 @@ bool parts_set_cg_by_name(struct parts *parts, struct string *cg_name, int state
 void parts_set_hgauge_rate(struct parts *parts, float rate, int state)
 {
 	struct parts_gauge *g = parts_get_hgauge(parts, state);
-	if (!g->texture.handle) {
+	if (!g->common.texture.handle) {
 		WARNING("HGauge texture uninitialized");
 		return;
 	}
 	int pixels = rate * g->cg.w;
-	gfx_copy_with_alpha_map(&g->texture, 0, 0, &g->cg, 0, 0, pixels, g->cg.h);
-	gfx_fill_amap(&g->texture, pixels, 0, g->cg.w - pixels, g->cg.h, 0);
+	gfx_copy_with_alpha_map(&g->common.texture, 0, 0, &g->cg, 0, 0, pixels, g->cg.h);
+	gfx_fill_amap(&g->common.texture, pixels, 0, g->cg.w - pixels, g->cg.h, 0);
 	parts_dirty(parts);
 }
 
 void parts_set_vgauge_rate(struct parts *parts, float rate, int state)
 {
 	struct parts_gauge *g = parts_get_vgauge(parts, state);
-	if (!g->texture.handle) {
+	if (!g->common.texture.handle) {
 		WARNING("VGauge texture uninitialized");
 		return;
 	}
 	int pixels = rate * g->cg.h;
-	gfx_copy_with_alpha_map(&g->texture, 0, pixels, &g->cg, 0, pixels, g->cg.w, g->cg.h - pixels);
-	gfx_fill_amap(&g->texture, 0, 0, g->cg.w, pixels, 0);
+	gfx_copy_with_alpha_map(&g->common.texture, 0, pixels, &g->cg, 0, pixels, g->cg.w, g->cg.h - pixels);
+	gfx_fill_amap(&g->common.texture, 0, 0, g->cg.w, pixels, 0);
 	parts_dirty(parts);
 }
 
@@ -445,15 +430,16 @@ bool parts_set_number(struct parts *parts, int n, int state)
 	w += (nr_chars-1) * num->space;
 
 	// copy chars to texture
-	gfx_delete_texture(&num->texture);
-	gfx_init_texture_rgba(&num->texture, w, h, (SDL_Color){0, 0, 0, 255});
+	gfx_delete_texture(&num->common.texture);
+	gfx_init_texture_rgba(&num->common.texture, w, h, (SDL_Color){0, 0, 0, 255});
+	num->common.surface_area = (Rectangle) { 0, 0, w, h };
 
 	int x = 0;
 	for (int i = nr_chars-1; i>= 0; i--) {
 		Texture *ch = &num->cg[chars[i]];
 		if (!ch->handle)
 			continue;
-		gfx_copy_with_alpha_map(&num->texture, x, 0, ch, 0, 0, ch->w, ch->h);
+		gfx_copy_with_alpha_map(&num->common.texture, x, 0, ch, 0, 0, ch->w, ch->h);
 		x += ch->w + num->space;
 	}
 
@@ -472,6 +458,17 @@ void parts_set_state(struct parts *parts, enum parts_state_type state)
 	}
 }
 
+void parts_set_surface_area(struct parts_common *common, int x, int y, int w, int h)
+{
+	if (!w && !h) {
+		x = 0;
+		y = 0;
+		w = common->texture.w;
+		h = common->texture.h;
+	}
+	common->surface_area = (Rectangle) { x, y, w, h };
+}
+
 static void parts_update_loop(struct parts *parts, int passed_time)
 {
 	if (parts->states[parts->state].type != PARTS_ANIMATION)
@@ -488,7 +485,7 @@ static void parts_update_loop(struct parts *parts, int passed_time)
 	if (frame_diff > 0) {
 		anim->elapsed = remainder;
 		anim->current_frame = (anim->current_frame + frame_diff) % anim->nr_frames;
-		anim->texture = anim->frames[anim->current_frame];
+		anim->common.texture = anim->frames[anim->current_frame];
 		parts_dirty(parts);
 	} else {
 		anim->elapsed = elapsed;
@@ -560,8 +557,7 @@ void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, possibly_unus
 
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int sprite_deform, int state)
 {
-	state--;
-	if (state < 0 || state > 2) {
+	if (!parts_state_valid(--state)) {
 		WARNING("Invalid parts state: %d", state);
 		return false;
 	}
@@ -570,18 +566,28 @@ bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int spr
 
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, possibly_unused int sprite_deform, int state)
 {
-	state--;
-	if (state < 0 || state > 2) {
+	if (!parts_state_valid(--state)) {
 		WARNING("Invalid parts state: %d", state);
 		return false;
 	}
 	return parts_set_cg_by_index(parts_get(parts_no), cg_no, state);
 }
 
+bool PE_SetPartsCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
+{
+	if (!parts_state_valid(--state)) {
+		WARNING("Invalid parts state: %d", state);
+		return false;
+	}
+
+	struct parts_cg *cg = parts_get_cg(parts_get(parts_no), state);
+	parts_set_surface_area(&cg->common, x, y, w, h);
+	return true;
+}
+
 int PE_GetPartsCGNumber(int parts_no, int state)
 {
-	state--;
-	if (state < 0 || state > 2) {
+	if (!parts_state_valid(--state)) {
 		WARNING("Invalid parts state: %d", state);
 		return false;
 	}
@@ -591,8 +597,7 @@ int PE_GetPartsCGNumber(int parts_no, int state)
 
 bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_time, int state)
 {
-	state--;
-	if (state < 0 || state > 2) {
+	if (!parts_state_valid(--state)) {
 		WARNING("Invalid parts state: %d", state);
 		return false;
 	}
@@ -622,7 +627,20 @@ bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_tim
 	anim->frame_time = frame_time;
 	anim->elapsed = 0;
 	anim->current_frame = 0;
-	anim->texture = frames[0];
+	anim->common.texture = frames[0];
+	anim->common.surface_area = parts->rect;
+	return true;
+}
+
+bool PE_SetLoopCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
+{
+	if (!parts_state_valid(--state)) {
+		WARNING("Invalid parts state: %d", state);
+		return false;
+	}
+
+	struct parts_animation *anim = parts_get_animation(parts_get(parts_no), state);
+	parts_set_surface_area(&anim->common, x, y, w, h);
 	return true;
 }
 
@@ -635,10 +653,11 @@ static bool set_gauge_cg(int parts_no, struct cg *cg, int state, bool vert)
 	struct parts *parts = parts_get(parts_no);
 	struct parts_gauge *g = vert ? parts_get_vgauge(parts, state) : parts_get_hgauge(parts, state);
 	gfx_init_texture_with_cg(&g->cg, cg);
-	gfx_init_texture_with_cg(&g->texture, cg);
+	gfx_init_texture_with_cg(&g->common.texture, cg);
 
-	gfx_init_texture_rgba(&g->texture, g->cg.w, g->cg.h, (SDL_Color){0,0,0,255});
-	gfx_copy_with_alpha_map(&g->texture, 0, 0, &g->cg, 0, 0, g->cg.w, g->cg.h);
+	gfx_init_texture_rgba(&g->common.texture, g->cg.w, g->cg.h, (SDL_Color){0,0,0,255});
+	gfx_copy_with_alpha_map(&g->common.texture, 0, 0, &g->cg, 0, 0, g->cg.w, g->cg.h);
+	g->common.surface_area = (Rectangle) { 0, 0, g->cg.w, g->cg.h };
 
 	parts->rect.w = g->cg.w;
 	parts->rect.h = g->cg.h;
@@ -677,6 +696,16 @@ bool PE_SetHGaugeRate(int parts_no, int numerator, int denominator, int state)
 	return true;
 }
 
+bool PE_SetHGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts_gauge *g = parts_get_hgauge(parts_get(parts_no), state);
+	parts_set_surface_area(&g->common, x, y, w, h);
+	return true;
+}
+
 bool PE_SetVGaugeCG(int parts_no, struct string *cg_name, int state)
 {
 	struct cg *cg = asset_cg_load_by_name(cg_name->text, NULL);
@@ -704,6 +733,16 @@ bool PE_SetVGaugeRate(int parts_no, int numerator, int denominator, int state)
 		return false;
 
 	parts_set_vgauge_rate(parts_get(parts_no), (float)numerator/(float)denominator, state);
+	return true;
+}
+
+bool PE_SetVGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts_gauge *g = parts_get_vgauge(parts_get(parts_no), state);
+	parts_set_surface_area(&g->common, x, y, w, h);
 	return true;
 }
 
@@ -784,6 +823,16 @@ bool PE_SetNumeralSpace(int parts_no, int space, int state)
 		return false;
 
 	parts_get_numeral(parts_get(parts_no), state)->space = space;
+	return true;
+}
+
+bool PE_SetNumeralSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
+	parts_set_surface_area(&n->common, x, y, w, h);
 	return true;
 }
 

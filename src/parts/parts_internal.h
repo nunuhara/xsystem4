@@ -86,13 +86,18 @@ enum parts_type {
 	PARTS_CONSTRUCTION_PROCESS,
 };
 
-struct parts_cg {
+struct parts_common {
 	Texture texture;
+	Rectangle surface_area;
+};
+
+struct parts_cg {
+	struct parts_common common;
 	int no;
 };
 
 struct parts_text {
-	Texture texture;
+	struct parts_common common;
 	unsigned nr_lines;
 	struct parts_text_line *lines;
 	unsigned line_space;
@@ -101,7 +106,7 @@ struct parts_text {
 };
 
 struct parts_animation {
-	Texture texture;
+	struct parts_common common;
 	unsigned cg_no;
 	unsigned nr_frames;
 	Texture *frames;
@@ -111,7 +116,7 @@ struct parts_animation {
 };
 
 struct parts_numeral {
-	Texture texture;
+	struct parts_common common;
 	Texture cg[12];
 	int space;
 	int show_comma;
@@ -119,7 +124,7 @@ struct parts_numeral {
 };
 
 struct parts_gauge {
-	Texture texture;
+	struct parts_common common;
 	Texture cg;
 };
 
@@ -147,13 +152,14 @@ struct parts_cp_op {
 };
 
 struct parts_construction_process {
-	Texture texture;
+	struct parts_common common;
 	TAILQ_HEAD(, parts_cp_op) ops;
 };
 
 struct parts_state {
 	enum parts_type type;
 	union {
+		struct parts_common common;
 		struct parts_cg cg;
 		struct parts_text text;
 		struct parts_animation anim;
@@ -218,6 +224,7 @@ bool parts_set_number(struct parts *parts, int n, int state);
 void parts_set_state(struct parts *parts, enum parts_state_type state);
 void parts_release(int parts_no);
 void parts_release_all(void);
+void parts_set_surface_area(struct parts_common *common, int x, int y, int w, int h);
 
 // render.c
 void parts_render_init(void);

@@ -34,6 +34,13 @@ struct parts_render_params {
 	uint8_t alpha;
 };
 
+static struct {
+	struct shader shader;
+	GLint alpha_mod;
+	GLint bot_left;
+	GLint top_right;
+} parts_shader;
+
 static void parts_render_text(struct parts *parts, struct parts_render_params *params)
 {
 	parts_recalculate_offset(parts);
@@ -43,10 +50,11 @@ static void parts_render_text(struct parts *parts, struct parts_render_params *p
 		.w = parts->rect.w,
 		.h = parts->rect.h
 	};
-	gfx_render_texture(&parts->states[parts->state].text.texture, &rect);
+	gfx_render_texture(&parts->states[parts->state].common.texture, &rect);
 }
 
-static void parts_render_cg(struct parts *parts, Texture *t, struct parts_render_params *params)
+static void parts_render_cg(struct parts *parts, struct parts_common *common,
+		struct parts_render_params *params)
 {
 	parts_recalculate_offset(parts);
 
@@ -62,14 +70,20 @@ static void parts_render_cg(struct parts *parts, Texture *t, struct parts_render
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
 
 	struct gfx_render_job job = {
-		.shader = NULL, // default shader
-		.texture = t->handle,
+		.shader = &parts_shader.shader,
+		.texture = common->texture.handle,
 		.world_transform = mw_transform[0],
 		.view_transform = wv_transform[0],
-		.data = t,
+		.data = &common->texture,
 	};
 
-	gfx_render(&job);
+	const Rectangle *r = &common->surface_area;
+
+	gfx_prepare_job(&job);
+	glUniform1f(parts_shader.alpha_mod, common->texture.alpha_mod / 255.0);
+	glUniform2f(parts_shader.bot_left, r->x, r->y);
+	glUniform2f(parts_shader.top_right, r->x + r->w, r->y + r->h);
+	gfx_run_job(&job);
 }
 
 static void parts_render(struct parts *parts, struct parts_render_params *parent_params)
@@ -91,33 +105,20 @@ static void parts_render(struct parts *parts, struct parts_render_params *parent
 
 	// render
 	struct parts_state *state = &parts->states[parts->state];
-	switch (state->type) {
-	case PARTS_CG:
-		if (state->cg.texture.handle)
-			parts_render_cg(parts, &state->cg.texture, &params);
-		break;
-	case PARTS_TEXT:
-		if (state->text.texture.handle)
+	if (state->common.texture.handle) {
+		switch (state->type) {
+		case PARTS_CG:
+		case PARTS_ANIMATION:
+		case PARTS_NUMERAL:
+		case PARTS_HGAUGE:
+		case PARTS_VGAUGE:
+		case PARTS_CONSTRUCTION_PROCESS:
+			parts_render_cg(parts, &state->common, &params);
+			break;
+		case PARTS_TEXT:
 			parts_render_text(parts, &params);
-		break;
-	case PARTS_ANIMATION:
-		if (state->anim.texture.handle)
-			parts_render_cg(parts, &state->anim.texture, &params);
-		break;
-	case PARTS_NUMERAL:
-		if (state->num.texture.handle) {
-			parts_render_cg(parts, &state->num.texture, &params);
+			break;
 		}
-		break;
-	case PARTS_HGAUGE:
-	case PARTS_VGAUGE:
-		if (state->gauge.texture.handle)
-			parts_render_cg(parts, &state->gauge.texture, &params);
-		break;
-	case PARTS_CONSTRUCTION_PROCESS:
-		if (state->cproc.texture.handle)
-			parts_render_cg(parts, &state->cproc.texture, &params);
-		break;
 	}
 
 	// render children
@@ -157,4 +158,9 @@ void parts_render_init(void)
 	goat_sprite.has_alpha = true;
 	goat_sprite.render = parts_engine_render;
 	scene_register_sprite(&goat_sprite);
+
+	gfx_load_shader(&parts_shader.shader, "shaders/render.v.glsl", "shaders/parts.f.glsl");
+	parts_shader.alpha_mod = glGetUniformLocation(parts_shader.shader.program, "alpha_mod");
+	parts_shader.bot_left = glGetUniformLocation(parts_shader.shader.program, "bot_left");
+	parts_shader.top_right = glGetUniformLocation(parts_shader.shader.program, "top_right");
 }

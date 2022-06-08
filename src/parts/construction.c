@@ -102,8 +102,8 @@ static void build_cg(struct parts *parts, struct parts_construction_process *cpr
 {
 	struct cg *cg = asset_cg_load(op->no);
 	assert(cg);
-	gfx_delete_texture(&cproc->texture);
-	gfx_init_texture_with_cg(&cproc->texture, cg);
+	gfx_delete_texture(&cproc->common.texture);
+	gfx_init_texture_with_cg(&cproc->common.texture, cg);
 	parts_set_cg_dims(parts, cg);
 	parts_recalculate_pos(parts);
 	cg_free(cg);
@@ -112,7 +112,7 @@ static void build_cg(struct parts *parts, struct parts_construction_process *cpr
 static void build_fill_alpha_color(struct parts_construction_process *cproc,
 		struct parts_cp_fill_alpha_color *op)
 {
-	gfx_fill_alpha_color(&cproc->texture, op->x, op->y, op->w, op->h, op->r, op->g, op->b, op->a);
+	gfx_fill_alpha_color(&cproc->common.texture, op->x, op->y, op->w, op->h, op->r, op->g, op->b, op->a);
 }
 
 bool PE_BuildPartsConstructionProcess(int parts_no, int state)
@@ -139,4 +139,13 @@ bool PE_BuildPartsConstructionProcess(int parts_no, int state)
 
 bool PE_AddDrawTextToPartsConstructionProcess(int parts_no, int x, int y, struct string *text, int type, int size, int r, int g, int b, float bold_weight, int edge_r, int edge_g, int edge_b, float edge_weight, int char_space, int line_space, int state);
 bool PE_AddCopyTextToPartsConstructionProcess(int parts_no, int x, int y, struct string *text, int type, int size, int r, int g, int b, float bold_weight, int edge_r, int edge_g, int edge_b, float edge_weight, int char_space, int line_space, int state);
-bool PE_SetPartsConstructionSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
+
+bool PE_SetPartsConstructionSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts_construction_process *cproc = get_cproc(parts_no, state);
+	parts_set_surface_area(&cproc->common, x, y, w, h);
+	return true;
+}
