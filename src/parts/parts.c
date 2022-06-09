@@ -32,6 +32,7 @@ static struct hash_table *parts_table = NULL;
 static void parts_init(struct parts *parts)
 {
 	memset(parts, 0, sizeof(struct parts));
+	parts->delegate_index = -1;
 	parts->on_cursor_sound = -1;
 	parts->on_click_sound = -1;
 	parts->origin_mode = 1;
@@ -47,7 +48,6 @@ static void parts_init(struct parts *parts)
 	parts->rotation.z = 0.0;
 	TAILQ_INIT(&parts->children);
 	TAILQ_INIT(&parts->motion);
-	gfx_font_init();
 }
 
 static struct parts *parts_alloc(void)
@@ -68,6 +68,14 @@ static void parts_list_insert(struct parts_list *list, struct parts *parts)
 	}
 	TAILQ_INSERT_TAIL(list, parts, parts_list_entry);
 	parts_engine_dirty();
+}
+
+struct parts *parts_try_get(int parts_no)
+{
+	struct ht_slot *slot = ht_put_int(parts_table, parts_no, NULL);
+	if (slot->value)
+		return slot->value;
+	return NULL;
 }
 
 struct parts *parts_get(int parts_no)
@@ -537,6 +545,7 @@ bool PE_Init(void)
 {
 	parts_table = ht_create(1024);
 	parts_render_init();
+	gfx_font_init();
 	return true;
 }
 
@@ -553,6 +562,17 @@ void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, possibly_unus
 	audio_update();
 	parts_update_animation(passed_time);
 	parts_engine_dirty();
+}
+
+void PE_SetDelegateIndex(int parts_no, int delegate_index)
+{
+	parts_get(parts_no)->delegate_index = delegate_index;
+}
+
+int PE_GetDelegateIndex(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	return parts ? parts->delegate_index : -1;
 }
 
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int sprite_deform, int state)

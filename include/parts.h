@@ -26,6 +26,8 @@ struct string;
 bool PE_Init(void);
 void PE_Update(int passed_time, bool message_window_show);
 void PE_UpdateParts(int passed_time, bool is_skip, bool message_window_show);
+void PE_SetDelegateIndex(int parts_no, int delegate_index);
+int PE_GetDelegateIndex(int parts_no);
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, int sprite_deform, int state);
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, int sprite_deform, int state);
 bool PE_SetPartsCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state);

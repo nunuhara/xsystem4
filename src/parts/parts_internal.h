@@ -178,6 +178,7 @@ struct parts {
 	TAILQ_ENTRY(parts) parts_list_entry;
 	struct parts_list children;
 	int no;
+	int delegate_index;
 	int sprite_deform;
 	bool clickable;
 	int on_cursor_sound;
@@ -200,6 +201,7 @@ struct parts {
 
 // parts.c
 extern struct parts_list parts_list;
+struct parts *parts_try_get(int parts_no);
 struct parts *parts_get(int parts_no);
 struct parts_cg *parts_get_cg(struct parts *parts, int state);
 struct parts_text *parts_get_text(struct parts *parts, int state);
