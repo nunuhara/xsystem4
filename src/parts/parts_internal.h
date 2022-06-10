@@ -129,8 +129,17 @@ struct parts_gauge {
 };
 
 enum parts_cp_op_type {
+	PARTS_CP_CREATE,
+	PARTS_CP_CREATE_PIXEL_ONLY,
 	PARTS_CP_CG,
-	PARTS_CP_FILL_ALPHA_COLOR
+	PARTS_CP_FILL_ALPHA_COLOR,
+	PARTS_CP_DRAW_TEXT,
+	PARTS_CP_COPY_TEXT,
+};
+
+struct parts_cp_create {
+	int w;
+	int h;
 };
 
 struct parts_cp_cg {
@@ -142,12 +151,21 @@ struct parts_cp_fill_alpha_color {
 	int r, g, b, a;
 };
 
+struct parts_cp_text {
+	struct string *text;
+	int x, y;
+	int line_space;
+	struct text_style style;
+};
+
 struct parts_cp_op {
 	TAILQ_ENTRY(parts_cp_op) entry;
 	enum parts_cp_op_type type;
 	union {
+		struct parts_cp_create create;
 		struct parts_cp_cg cg;
 		struct parts_cp_fill_alpha_color fill_alpha_color;
+		struct parts_cp_text text;
 	};
 };
 

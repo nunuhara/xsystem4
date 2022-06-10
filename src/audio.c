@@ -39,6 +39,10 @@ static int anonymous_channels[NR_ANONYMOUS_CHANNELS];
 
 void audio_init(void)
 {
+	static bool audio_initialized = false;
+	if (audio_initialized)
+		return;
+
 	id_pool_init(&wav);
 	id_pool_init(&bgm);
 
@@ -47,6 +51,7 @@ void audio_init(void)
 	}
 
 	mixer_init();
+	audio_initialized = true;
 }
 
 void audio_update(void)

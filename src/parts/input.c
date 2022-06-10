@@ -168,4 +168,11 @@ int PE_GetClickPartsNumber(void)
 	return clicked_parts;
 }
 
+bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
 
+	// TODO
+	return false;
+}
