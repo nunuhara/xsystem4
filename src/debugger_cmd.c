@@ -33,6 +33,7 @@
 #include "vm/heap.h"
 #include "vm/page.h"
 
+#include "scene.h"
 #include "debugger.h"
 #include "little_endian.h"
 #include "xsystem4.h"
@@ -164,6 +165,11 @@ static void dbg_cmd_quit(unsigned nr_args, char **args)
 	dbg_quit();
 }
 
+static void dbg_cmd_scene(unsigned nr_args, char **args)
+{
+	scene_print();
+}
+
 #ifdef HAVE_SCHEME
 static void dbg_cmd_scheme(unsigned nr_args, char **args)
 {
@@ -187,6 +193,7 @@ static struct dbg_cmd dbg_commands[] = {
 	{ "members",    "m",   "[frame-number] - Print struct members",  0, 1, dbg_cmd_members },
 	{ "print",      "p",   "<variable-name> - Print a variable",     1, 1, dbg_cmd_print },
 	{ "quit",       "q",   "- Quit xsystem4",                        0, 0, dbg_cmd_quit },
+	{ "scene",      NULL,  "- Display scene graph",                  0, 0, dbg_cmd_scene },
 #ifdef HAVE_SCHEME
 	{ "scheme",     "scm", "- Drop into Scheme REPL",                0, 0, dbg_cmd_scheme },
 #endif

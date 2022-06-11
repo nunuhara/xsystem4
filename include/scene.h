@@ -39,6 +39,8 @@ struct sprite {
 	bool in_scene;
 	// The rendering function.
 	void (*render)(struct sprite*);
+	// Debug printing function
+	void (*debug_print)(struct sprite*);
 };
 
 extern bool scene_is_dirty;
@@ -51,6 +53,8 @@ int scene_set_wp_color(int r, int g, int b);
 int scene_set_wp_texture(struct texture *tex);
 void scene_set_sprite_z(struct sprite *sp, int z);
 void scene_set_sprite_z2(struct sprite *sp, int z, int z2);
+
+void scene_print(void);
 
 static inline void scene_sprite_dirty(struct sprite *sp)
 {

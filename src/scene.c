@@ -16,6 +16,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include "system4.h"
 #include "system4/cg.h"
@@ -24,6 +25,7 @@
 #include "gfx/gfx.h"
 #include "queue.h"
 #include "scene.h"
+#include "xsystem4.h"
 
 bool scene_is_dirty = true;
 
@@ -132,5 +134,33 @@ void scene_set_sprite_z2(struct sprite *sp, int z, int z2)
 	if (sp->in_scene) {
 		scene_unregister_sprite(sp);
 		scene_register_sprite(sp);
+	}
+}
+
+void scene_print_sprite(struct sprite *sp, int indent)
+{
+	printf("{\n");
+	indent++;
+	indent_printf(indent, "z = (%d,%d),\n", sp->z, sp->z2);
+	indent_printf(indent, "has_pixel = %s,\n", sp->has_pixel ? "true" : "false");
+	indent_printf(indent, "has_alpha = %s,\n", sp->has_alpha ? "true" : "false");
+	indent_printf(indent, "hidden = %s,\n", sp->hidden ? "true" : "false");
+	indent_printf(indent, "in_scene = %s,\n", sp->in_scene ? "true" : "false");
+	indent--;
+	printf("}");
+
+}
+
+void scene_print(void)
+{
+	struct sprite *p;
+	TAILQ_FOREACH(p, &sprite_list, entry) {
+		if (p->debug_print) {
+			p->debug_print(p);
+		} else {
+			printf("unknown_scene_entity ");
+			scene_print_sprite(p, 0);
+			putchar('\n');
+		}
 	}
 }

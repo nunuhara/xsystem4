@@ -446,3 +446,24 @@ void gfx_set_font_name(const char *name)
 		WARNING("Unhandled font name: \"%s\"", display_sjis0(name));
 	}
 }
+
+void gfx_print_text_style(struct text_style *style, int indent)
+{
+	printf("{\n");
+	indent++;
+
+	indent_printf(indent, "face = %u,\n", style->face);
+	indent_printf(indent, "size = %f,\n", style->size);
+	indent_printf(indent, "bold_width = %f,\n", style->bold_width);
+	indent_printf(indent, "weight = %u,\n", style->weight);
+	indent_printf(indent, "edge_weight = {l=%f,u=%f,r=%f,d=%f},\n",
+			style->edge_left, style->edge_up, style->edge_right, style->edge_down);
+	indent_printf(indent, "color = "); gfx_print_color(&style->color); printf(",\n");
+	indent_printf(indent, "edge_color = "); gfx_print_color(&style->edge_color); printf(",\n");
+	indent_printf(indent, "scale_x = %f,\n", style->scale_x);
+	indent_printf(indent, "space_scale_x = %f,\n", style->space_scale_x);
+	indent_printf(indent, "font_spacing = %f,\n", style->font_spacing);
+
+	indent--;
+	indent_printf(indent, "}");
+}

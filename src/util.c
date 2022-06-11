@@ -14,7 +14,9 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdarg.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
@@ -169,4 +171,15 @@ void get_time(int *hour, int *min, int *sec, int *ms)
 	*min  = tm->tm_min;
 	*sec  = tm->tm_sec;
 	*ms   = ts.tv_nsec / 1000000;
+}
+
+void indent_printf(int indent, const char *fmt, ...)
+{
+	for (int i = 0; i < indent; i++)
+		putchar('\t');
+
+	va_list ap;
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
 }

@@ -129,10 +129,10 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 	case PARTS_MOTION_CG:
 		parts_set_cg_by_index(parts, motion_calculate_i(motion, motion_t), parts->state);
 		break;
-	case PARTS_MOTION_HGUAGE_RATE:
+	case PARTS_MOTION_HGAUGE_RATE:
 		parts_set_hgauge_rate(parts, motion_calculate_f(motion, motion_t), parts->state);
 		break;
-	case PARTS_MOTION_VGUAGE_RATE:
+	case PARTS_MOTION_VGAUGE_RATE:
 		parts_set_vgauge_rate(parts, motion_calculate_f(motion, motion_t), parts->state);
 		break;
 	case PARTS_MOTION_NUMERAL_NUMBER:
@@ -266,7 +266,7 @@ void PE_AddMotionHGaugeRate(int parts_no, int begin_numerator, int begin_denomin
 			    int end_numerator, int end_denominator, int begin_t, int end_t)
 {
 	struct parts *parts = parts_get(parts_no);
-	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_HGUAGE_RATE, begin_t, end_t);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_HGAUGE_RATE, begin_t, end_t);
 	motion->begin.f = (float)begin_numerator / (float)begin_denominator;
 	motion->end.f = (float)end_numerator / (float)end_denominator;
 	parts_add_motion(parts, motion);
@@ -275,7 +275,7 @@ void PE_AddMotionVGaugeRate(int parts_no, int begin_numerator, int begin_denomin
 			    int end_numerator, int end_denominator, int begin_t, int end_t)
 {
 	struct parts *parts = parts_get(parts_no);
-	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_VGUAGE_RATE, begin_t, end_t);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_VGAUGE_RATE, begin_t, end_t);
 	motion->begin.f = (float)begin_numerator / (float)begin_denominator;
 	motion->end.f = (float)end_numerator / (float)end_denominator;
 	parts_add_motion(parts, motion);

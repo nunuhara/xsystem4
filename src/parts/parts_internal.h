@@ -35,16 +35,16 @@ enum parts_motion_type {
 	PARTS_MOTION_POS,
 	PARTS_MOTION_ALPHA,
 	PARTS_MOTION_CG,
-	PARTS_MOTION_HGUAGE_RATE,
-	PARTS_MOTION_VGUAGE_RATE,
+	PARTS_MOTION_HGAUGE_RATE,
+	PARTS_MOTION_VGAUGE_RATE,
 	PARTS_MOTION_NUMERAL_NUMBER,
 	PARTS_MOTION_MAG_X,
 	PARTS_MOTION_MAG_Y,
 	PARTS_MOTION_ROTATE_X,
 	PARTS_MOTION_ROTATE_Y,
 	PARTS_MOTION_ROTATE_Z,
-	PARTS_MOTION_VIBRATION_SIZE,
-	PARTS_NR_MOTION_TYPES
+	PARTS_MOTION_VIBRATION_SIZE
+#define PARTS_NR_MOTION_TYPES (PARTS_MOTION_VIBRATION_SIZE+1)
 };
 
 union parts_motion_param {
@@ -135,6 +135,7 @@ enum parts_cp_op_type {
 	PARTS_CP_FILL_ALPHA_COLOR,
 	PARTS_CP_DRAW_TEXT,
 	PARTS_CP_COPY_TEXT,
+#define PARTS_NR_CP_TYPES (PARTS_CP_COPY_TEXT+1)
 };
 
 struct parts_cp_create {
@@ -245,6 +246,8 @@ void parts_set_state(struct parts *parts, enum parts_state_type state);
 void parts_release(int parts_no);
 void parts_release_all(void);
 void parts_set_surface_area(struct parts_common *common, int x, int y, int w, int h);
+void parts_print(struct parts *parts);
+void parts_engine_print(void);
 
 // render.c
 void parts_render_init(void);

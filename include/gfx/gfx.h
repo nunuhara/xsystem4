@@ -163,4 +163,10 @@ void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color co
 void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, Rectangle glyph_pos, SDL_Color color, float scale_x);
 void gfx_draw_glyph_to_amap(Texture *dst, float dx, int dy, Texture *glyph, Rectangle glyph_pos, float scale_x);
 
+// debug printing
+void gfx_print_color(SDL_Color *c);
+void gfx_print_rectangle(Rectangle *r);
+void gfx_print_point(Point *p);
+void gfx_print_texture(struct texture *t, int indent);
+
 #endif /* SYSTEM4_SDL_CORE_H */

@@ -110,6 +110,6 @@ void sprite_get_pixel_value(struct sact_sprite *sp, int x, int y, int *r, int *g
 void sprite_bind_plugin(struct sact_sprite *sp, struct draw_plugin *plugin);
 void sprite_call_plugins(void);
 
-void print_sprite(struct sact_sprite *sp);
+void sprite_print(struct sact_sprite *sp);
 
 #endif /* SYSTEM4_SPRITE_H */
