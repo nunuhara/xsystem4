@@ -23,6 +23,12 @@
 
 #include "plugin.h"
 
+enum RE_motion_state {
+	RE_MOTION_STATE_STOP = 0,
+	RE_MOTION_STATE_NOLOOP = 1,
+	RE_MOTION_STATE_LOOP = 2,
+};
+
 struct RE_options {
 	int anti_aliasing;
 	int wait_vsync;
@@ -71,14 +77,22 @@ struct RE_plugin {
 struct RE_instance {
 	struct RE_plugin *plugin;
 	struct model *model;
+	struct motion *motion;
+	struct motion *next_motion;
+
 	int type;
 	vec3 pos;
 	float pitch, roll, yaw;  // in degrees
 	vec3 vec;
 	vec3 scale;
 	bool draw;
+	float fps;
+	bool motion_blend;
+	float motion_blend_rate;
+
 	bool local_transform_needs_update;
 	mat4 local_transform;
+	mat4 *bone_transforms;  // model->nr_bones elements
 };
 
 struct RE_plugin *RE_plugin_new(void);
@@ -90,6 +104,16 @@ int RE_create_instance(struct RE_plugin *plugin);
 bool RE_release_instance(struct RE_plugin *plugin, int instance);
 
 bool RE_instance_load(struct RE_instance *instance, const char *name);
+bool RE_instance_load_motion(struct RE_instance *instance, const char *name);
+bool RE_instance_load_next_motion(struct RE_instance *instance, const char *name);
+bool RE_instance_free_next_motion(struct RE_instance *instance);
+
+int RE_motion_get_state(struct motion *motion);
+bool RE_motion_set_state(struct motion *motion, int state);
+float RE_motion_get_frame(struct motion *motion);
+bool RE_motion_set_frame(struct motion *motion, float frame);
+bool RE_motion_set_frame_range(struct motion *motion, float begin, float end);
+bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float end);
 
 void RE_render(struct sact_sprite *sp);
 void RE_debug_print(struct RE_plugin *p);

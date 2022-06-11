@@ -42,6 +42,18 @@ static struct RE_instance *get_instance(unsigned plugin, unsigned instance)
 	return instance < RE_MAX_INSTANCES ? rp->instances[instance] : NULL;
 }
 
+static struct motion *get_motion(unsigned plugin, unsigned instance)
+{
+	struct RE_instance *inst = get_instance(plugin, instance);
+	return inst ? inst->motion : NULL;
+}
+
+static struct motion *get_next_motion(unsigned plugin, unsigned instance)
+{
+	struct RE_instance *inst = get_instance(plugin, instance);
+	return inst ? inst->next_motion : NULL;
+}
+
 static int ReignEngine_CreatePlugin(void)
 {
 	for (int i = 0; i < RE_MAX_PLUGINS; i++) {
@@ -239,25 +251,110 @@ static bool ReignEngine_GetInstanceDraw(int plugin, int instance)
 //bool ReignEngine_GetInstanceDrawBump(int plugin, int instance);
 //int ReignEngine_GetInstanceDrawType(int plugin, int instance);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceDrawType, int plugin, int instance, int draw_type);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, LoadInstanceMotion, int plugin, int instance, struct string *name);
-HLL_WARN_UNIMPLEMENTED(0, int, ReignEngine, GetInstanceMotionState, int plugin, int instance);
-HLL_WARN_UNIMPLEMENTED(0.0, float, ReignEngine, GetInstanceMotionFrame, int plugin, int instance);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceMotionState, int plugin, int instance, int state);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceMotionFrame, int plugin, int instance, float frame);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceMotionFrameRange, int plugin, int instance, float begin_frame, float end_frame);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceMotionLoopFrameRange, int plugin, int instance, float begin_frame, float end_frame);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, LoadInstanceNextMotion, int plugin, int instance, struct string *name);
-//bool ReignEngine_SetInstanceNextMotionState(int plugin, int instance, int nState);
-//bool ReignEngine_SetInstanceNextMotionFrame(int plugin, int instance, float fFrame);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceNextMotionFrameRange, int plugin, int instance, float begin_frame, float end_frame);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceNextMotionLoopFrameRange, int plugin, int instance, float begin_frame, float end_frame);
-//bool ReignEngine_SetInstanceMotionBlendRate(int plugin, int instance, float fRate);
-//bool ReignEngine_SetInstanceMotionBlend(int plugin, int instance, bool bMotionBlend);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, IsInstanceMotionBlend, int plugin, int instance);
+
+bool ReignEngine_LoadInstanceMotion(int plugin, int instance, struct string *name)
+{
+	return RE_instance_load_motion(get_instance(plugin, instance), name->text);
+}
+
+static int ReignEngine_GetInstanceMotionState(int plugin, int instance)
+{
+	return RE_motion_get_state(get_motion(plugin, instance));
+}
+
+static float ReignEngine_GetInstanceMotionFrame(int plugin, int instance)
+{
+	return RE_motion_get_frame(get_motion(plugin, instance));
+}
+
+static bool ReignEngine_SetInstanceMotionState(int plugin, int instance, int state)
+{
+	return RE_motion_set_state(get_motion(plugin, instance), state);
+}
+
+static bool ReignEngine_SetInstanceMotionFrame(int plugin, int instance, float frame)
+{
+	return RE_motion_set_frame(get_motion(plugin, instance), frame);
+}
+
+static bool ReignEngine_SetInstanceMotionFrameRange(int plugin, int instance, float begin_frame, float end_frame)
+{
+	return RE_motion_set_frame_range(get_motion(plugin, instance), begin_frame, end_frame);
+}
+
+static bool ReignEngine_SetInstanceMotionLoopFrameRange(int plugin, int instance, float begin_frame, float end_frame)
+{
+	return RE_motion_set_loop_frame_range(get_motion(plugin, instance), begin_frame, end_frame);
+}
+
+static bool ReignEngine_LoadInstanceNextMotion(int plugin, int instance, struct string *name)
+{
+	return RE_instance_load_next_motion(get_instance(plugin, instance), name->text);
+}
+
+static bool ReignEngine_SetInstanceNextMotionState(int plugin, int instance, int state)
+{
+	return RE_motion_set_state(get_next_motion(plugin, instance), state);
+}
+
+static bool ReignEngine_SetInstanceNextMotionFrame(int plugin, int instance, float frame)
+{
+	return RE_motion_set_frame(get_next_motion(plugin, instance), frame);
+}
+
+static bool ReignEngine_SetInstanceNextMotionFrameRange(int plugin, int instance, float begin_frame, float end_frame)
+{
+	return RE_motion_set_frame_range(get_next_motion(plugin, instance), begin_frame, end_frame);
+}
+
+static bool ReignEngine_SetInstanceNextMotionLoopFrameRange(int plugin, int instance, float begin_frame, float end_frame)
+{
+	return RE_motion_set_loop_frame_range(get_next_motion(plugin, instance), begin_frame, end_frame);
+}
+
+static bool ReignEngine_SetInstanceMotionBlendRate(int plugin, int instance, float rate)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->motion_blend_rate = rate;
+	return true;
+}
+
+static bool ReignEngine_SetInstanceMotionBlend(int plugin, int instance, bool motion_blend)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->motion_blend = motion_blend;
+	return true;
+}
+
+static bool ReignEngine_IsInstanceMotionBlend(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	return ri ? ri->motion_blend : false;
+}
+
 //bool ReignEngine_GetInstanceMotionBlendPutTime(int plugin, int instance);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceMotionBlendPutTime, int plugin, int instance, bool flag);
-//bool ReignEngine_SwapInstanceMotion(int plugin, int instance);
-//bool ReignEngine_FreeInstanceNextMotion(int plugin, int instance);
+
+static bool ReignEngine_SwapInstanceMotion(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	struct motion *tmp = ri->motion;
+	ri->motion = ri->next_motion;
+	ri->next_motion = tmp;
+	return true;
+}
+
+static bool ReignEngine_FreeInstanceNextMotion(int plugin, int instance)
+{
+	return RE_instance_free_next_motion(get_instance(plugin, instance));
+}
+
 //int ReignEngine_GetInstanceNumofMaterial(int plugin, int instance);
 //bool ReignEngine_GetInstanceMaterialName(int plugin, int instance, int num, struct string **pIName);
 //float ReignEngine_GetInstanceMaterialParam(int plugin, int instance, int nMaterial, int type);
@@ -281,8 +378,22 @@ HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceColumnAngle, int plu
 //bool ReignEngine_SetInstanceDrawColumn(int plugin, int instance, bool bDraw);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceTarget, int plugin, int instance, int index, int target);
 //int ReignEngine_GetInstanceTarget(int plugin, int instance, int index);
-//float ReignEngine_GetInstanceFPS(int plugin, int instance);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceFPS, int plugin, int instance, float fps);
+
+static float ReignEngine_GetInstanceFPS(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	return ri ? ri->fps : 0.0;
+}
+
+static bool ReignEngine_SetInstanceFPS(int plugin, int instance, float fps)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->fps = fps;
+	return true;
+}
+
 HLL_WARN_UNIMPLEMENTED(0, int, ReignEngine, GetInstanceBoneIndex, int plugin, int instance, struct string *name);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, TransInstanceLocalPosToWorldPosByBone, int plugin, int instance, int bone, float offset_x, float offset_y, float offset_z, float *x, float *y, float *z);
 //int ReignEngine_GetInstanceNumofPolygon(int plugin, int instance);
@@ -304,7 +415,7 @@ HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, GetEffectFrameRange, int plugin
 //float ReignEngine_GetEffectObjectMoveCurve(int plugin, int instance, int nObject);
 //void ReignEngine_GetEffectObjectFrame(int plugin, int instance, int nObject, int *pnBeginFrame, int *pnEndFrame);
 //int ReignEngine_GetEffectObjectStopFrame(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectNumofObject(int plugin, int instance);
+HLL_WARN_UNIMPLEMENTED(0, int, ReignEngine, GetEffectNumofObject, int plugin, int instance);
 //void ReignEngine_GetEffectObjectName(int plugin, int instance, int nObject, struct string **pIName);
 //int ReignEngine_GetEffectNumofObjectPos(int plugin, int instance, int nObject);
 //int ReignEngine_GetEffectNumofObjectPosUnit(int plugin, int instance, int nObject, int nPos);
@@ -417,8 +528,8 @@ HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, GetEffectFrameRange, int plugin
 //float ReignEngine_GetEffectObjectOffsetY(int plugin, int instance, int nObject);
 //bool ReignEngine_SetEffectObjectOffsetX(int plugin, int instance, int nObject, float fOffsetX);
 //bool ReignEngine_SetEffectObjectOffsetY(int plugin, int instance, int nObject, float fOffsetY);
-//bool ReignEngine_GetCameraQuakeEffectFlag(int plugin, int instance);
-//bool ReignEngine_SetCameraQuakeEffectFlag(int plugin, int instance, bool flag);
+HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, GetCameraQuakeEffectFlag, int plugin, int instance);
+HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetCameraQuakeEffectFlag, int plugin, int instance, bool flag);
 
 bool ReignEngine_SetCameraPos(int plugin, float x, float y, float z)
 {
@@ -928,17 +1039,17 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_EXPORT(SetInstanceMotionFrameRange, ReignEngine_SetInstanceMotionFrameRange),
 	    HLL_EXPORT(SetInstanceMotionLoopFrameRange, ReignEngine_SetInstanceMotionLoopFrameRange),
 	    HLL_EXPORT(LoadInstanceNextMotion, ReignEngine_LoadInstanceNextMotion),
-	    HLL_TODO_EXPORT(SetInstanceNextMotionState, ReignEngine_SetInstanceNextMotionState),
-	    HLL_TODO_EXPORT(SetInstanceNextMotionFrame, ReignEngine_SetInstanceNextMotionFrame),
+	    HLL_EXPORT(SetInstanceNextMotionState, ReignEngine_SetInstanceNextMotionState),
+	    HLL_EXPORT(SetInstanceNextMotionFrame, ReignEngine_SetInstanceNextMotionFrame),
 	    HLL_EXPORT(SetInstanceNextMotionFrameRange, ReignEngine_SetInstanceNextMotionFrameRange),
 	    HLL_EXPORT(SetInstanceNextMotionLoopFrameRange, ReignEngine_SetInstanceNextMotionLoopFrameRange),
-	    HLL_TODO_EXPORT(SetInstanceMotionBlendRate, ReignEngine_SetInstanceMotionBlendRate),
-	    HLL_TODO_EXPORT(SetInstanceMotionBlend, ReignEngine_SetInstanceMotionBlend),
+	    HLL_EXPORT(SetInstanceMotionBlendRate, ReignEngine_SetInstanceMotionBlendRate),
+	    HLL_EXPORT(SetInstanceMotionBlend, ReignEngine_SetInstanceMotionBlend),
 	    HLL_EXPORT(IsInstanceMotionBlend, ReignEngine_IsInstanceMotionBlend),
 	    HLL_TODO_EXPORT(GetInstanceMotionBlendPutTime, ReignEngine_GetInstanceMotionBlendPutTime),
 	    HLL_EXPORT(SetInstanceMotionBlendPutTime, ReignEngine_SetInstanceMotionBlendPutTime),
-	    HLL_TODO_EXPORT(SwapInstanceMotion, ReignEngine_SwapInstanceMotion),
-	    HLL_TODO_EXPORT(FreeInstanceNextMotion, ReignEngine_FreeInstanceNextMotion),
+	    HLL_EXPORT(SwapInstanceMotion, ReignEngine_SwapInstanceMotion),
+	    HLL_EXPORT(FreeInstanceNextMotion, ReignEngine_FreeInstanceNextMotion),
 	    HLL_TODO_EXPORT(GetInstanceNumofMaterial, ReignEngine_GetInstanceNumofMaterial),
 	    HLL_TODO_EXPORT(GetInstanceMaterialName, ReignEngine_GetInstanceMaterialName),
 	    HLL_TODO_EXPORT(GetInstanceMaterialParam, ReignEngine_GetInstanceMaterialParam),
@@ -962,7 +1073,7 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_TODO_EXPORT(SetInstanceDrawColumn, ReignEngine_SetInstanceDrawColumn),
 	    HLL_EXPORT(SetInstanceTarget, ReignEngine_SetInstanceTarget),
 	    HLL_TODO_EXPORT(GetInstanceTarget, ReignEngine_GetInstanceTarget),
-	    HLL_TODO_EXPORT(GetInstanceFPS, ReignEngine_GetInstanceFPS),
+	    HLL_EXPORT(GetInstanceFPS, ReignEngine_GetInstanceFPS),
 	    HLL_EXPORT(SetInstanceFPS, ReignEngine_SetInstanceFPS),
 	    HLL_EXPORT(GetInstanceBoneIndex, ReignEngine_GetInstanceBoneIndex),
 	    HLL_EXPORT(TransInstanceLocalPosToWorldPosByBone, ReignEngine_TransInstanceLocalPosToWorldPosByBone),
@@ -985,7 +1096,7 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_TODO_EXPORT(GetEffectObjectMoveCurve, ReignEngine_GetEffectObjectMoveCurve),
 	    HLL_TODO_EXPORT(GetEffectObjectFrame, ReignEngine_GetEffectObjectFrame),
 	    HLL_TODO_EXPORT(GetEffectObjectStopFrame, ReignEngine_GetEffectObjectStopFrame),
-	    HLL_TODO_EXPORT(GetEffectNumofObject, ReignEngine_GetEffectNumofObject),
+	    HLL_EXPORT(GetEffectNumofObject, ReignEngine_GetEffectNumofObject),
 	    HLL_TODO_EXPORT(GetEffectObjectName, ReignEngine_GetEffectObjectName),
 	    HLL_TODO_EXPORT(GetEffectNumofObjectPos, ReignEngine_GetEffectNumofObjectPos),
 	    HLL_TODO_EXPORT(GetEffectNumofObjectPosUnit, ReignEngine_GetEffectNumofObjectPosUnit),
@@ -1098,8 +1209,8 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_TODO_EXPORT(GetEffectObjectOffsetY, ReignEngine_GetEffectObjectOffsetY),
 	    HLL_TODO_EXPORT(SetEffectObjectOffsetX, ReignEngine_SetEffectObjectOffsetX),
 	    HLL_TODO_EXPORT(SetEffectObjectOffsetY, ReignEngine_SetEffectObjectOffsetY),
-	    HLL_TODO_EXPORT(GetCameraQuakeEffectFlag, ReignEngine_GetCameraQuakeEffectFlag),
-	    HLL_TODO_EXPORT(SetCameraQuakeEffectFlag, ReignEngine_SetCameraQuakeEffectFlag),
+	    HLL_EXPORT(GetCameraQuakeEffectFlag, ReignEngine_GetCameraQuakeEffectFlag),
+	    HLL_EXPORT(SetCameraQuakeEffectFlag, ReignEngine_SetCameraQuakeEffectFlag),
 	    HLL_EXPORT(SetCameraPos, ReignEngine_SetCameraPos),
 	    HLL_EXPORT(SetCameraAngle, ReignEngine_SetCameraAngle),
 	    HLL_EXPORT(SetCameraAngleP, ReignEngine_SetCameraAngleP),

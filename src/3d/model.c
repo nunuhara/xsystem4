@@ -21,14 +21,19 @@
 #include "system4.h"
 #include "system4/aar.h"
 #include "system4/cg.h"
+#include "system4/hashtable.h"
 
 #include "3d_internal.h"
 #include "reign.h"
+
+#define NR_WEIGHTS 4
 
 struct vertex {
 	GLfloat pos[3];
 	GLfloat normal[3];
 	GLfloat uv[2];
+	GLint bone_id[NR_WEIGHTS];
+	GLfloat bone_weight[NR_WEIGHTS];
 };
 
 static bool init_material(struct material *material, const struct pol_material *m, struct archive *aar, const char *path)
@@ -75,6 +80,25 @@ static void destroy_material(struct material *material)
 		glDeleteTextures(1, &material->color_map);
 }
 
+static int cmp_by_bone_weight(const void *lhs, const void *rhs)
+{
+	float l = ((struct pol_bone_weight *)lhs)->weight;
+	float r = ((struct pol_bone_weight *)rhs)->weight;
+	return (l < r) - (l > r);  // descending order.
+}
+
+static void sort_and_normalize_bone_weights(struct pol_vertex *v)
+{
+	qsort(v->weights, v->nr_weights, sizeof(struct pol_bone_weight), cmp_by_bone_weight);
+	float total = 0.0;
+	for (uint32_t i = 0; i < v->nr_weights && i < NR_WEIGHTS; i++) {
+		total += v->weights[i].weight;
+	}
+	for (uint32_t i = 0; i < v->nr_weights && i < NR_WEIGHTS; i++) {
+		v->weights[i].weight /= total;
+	}
+}
+
 static void add_mesh(struct model *model, struct pol_mesh *m, int material_index, int material, struct RE_renderer *r)
 {
 	struct vertex *buf = xmalloc(m->nr_triangles * 3 * sizeof(struct vertex));
@@ -84,9 +108,23 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 		if (material_index >= 0 && t->material != (uint32_t)material_index)
 			continue;
 		for (int j = 0; j < 3; j++) {
-			glm_vec3_copy(m->vertices[t->vert_index[j]].pos, buf[v].pos);
+			struct pol_vertex *vert = &m->vertices[t->vert_index[j]];
+			glm_vec3_copy(vert->pos, buf[v].pos);
 			glm_vec3_copy(t->normals[j], buf[v].normal);
 			glm_vec2_copy(m->uvs[t->uv_index[j]], buf[v].uv);
+			sort_and_normalize_bone_weights(vert);
+			for (uint32_t k = 0; k < NR_WEIGHTS; k++) {
+				if (model->bone_map && k < vert->nr_weights) {
+					struct bone *bone = ht_get_int(model->bone_map, vert->weights[k].bone, NULL);
+					if (!bone)
+						WARNING("%s: invalid bone id in vertex data", model->path);
+					buf[v].bone_id[k] = bone ? bone->index : -1;
+					buf[v].bone_weight[k] = vert->weights[k].weight;
+				} else {
+					buf[v].bone_id[k] = -1;
+					buf[v].bone_weight[k] = 0.0;
+				}
+			}
 			v++;
 		}
 	}
@@ -107,9 +145,13 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 	glEnableVertexAttribArray(r->shader.vertex);
 	glVertexAttribPointer(r->shader.vertex, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)0);
 	glEnableVertexAttribArray(r->vertex_normal);
-	glVertexAttribPointer(r->vertex_normal, 3, GL_FLOAT, GL_TRUE, sizeof(struct vertex), (const void *)offsetof(struct vertex, normal));
+	glVertexAttribPointer(r->vertex_normal, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)offsetof(struct vertex, normal));
 	glEnableVertexAttribArray(r->vertex_uv);
 	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)offsetof(struct vertex, uv));
+	glEnableVertexAttribArray(r->vertex_bone_index);
+	glVertexAttribIPointer(r->vertex_bone_index, NR_WEIGHTS, GL_INT, sizeof(struct vertex), (const void *)offsetof(struct vertex, bone_id));
+	glEnableVertexAttribArray(r->vertex_bone_weight);
+	glVertexAttribPointer(r->vertex_bone_weight, NR_WEIGHTS, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)offsetof(struct vertex, bone_weight));
 	glBufferData(GL_ARRAY_BUFFER, mesh->nr_vertices * sizeof(struct vertex), buf, GL_STATIC_DRAW);
 
 	glBindVertexArray(0);
@@ -122,6 +164,39 @@ static void destroy_mesh(struct mesh *mesh)
 {
 	glDeleteVertexArrays(1, &mesh->vao);
 	glDeleteBuffers(1, &mesh->attr_buffer);
+}
+
+static struct bone *add_bone(struct model *model, struct pol *pol, struct pol_bone *pol_bone)
+{
+	struct bone *bone = ht_get_int(model->bone_map, pol_bone->id, NULL);
+	if (bone)
+		return bone;  // already added.
+
+	struct bone *parent = NULL;
+	if (pol_bone->parent >= 0) {
+		// Parent bone must appear before its children in model->bones.
+		struct pol_bone *pol_parent = pol_find_bone(pol, pol_bone->parent);
+		if (!pol_parent)
+			ERROR("Parent bone of \"%s\" is not found", pol_bone->name);
+		parent = add_bone(model, pol, pol_parent);
+	}
+
+	bone = &model->bones[model->nr_bones];
+	ht_put_int(model->bone_map, pol_bone->id, bone);
+	bone->name = strdup(pol_bone->name);
+	bone->index = model->nr_bones;
+	bone->parent = parent ? parent->index : -1;
+
+	glm_quat_mat4(pol_bone->rotq, bone->inverse_bind_matrix);
+	glm_translate(bone->inverse_bind_matrix, pol_bone->pos);
+
+	model->nr_bones++;
+	return bone;
+}
+
+static void destroy_bone(struct bone *bone)
+{
+	free(bone->name);
 }
 
 struct model *model_load(struct archive *aar, const char *path, struct RE_renderer *r)
@@ -148,9 +223,23 @@ struct model *model_load(struct archive *aar, const char *path, struct RE_render
 		free(polname);
 		return NULL;
 	}
+	free(polname);
 
 	struct model *model = xcalloc(1, sizeof(struct model));
-	model->name = polname;
+	model->path = strdup(path);
+
+	// Bones
+	if (pol->nr_bones > 0) {
+		if (pol->nr_bones > MAX_BONES)
+			ERROR("%s: Too many bones (%u)", model->path, pol->nr_bones);
+		model->bone_map = ht_create(pol->nr_bones * 3 / 2);
+		model->bones = xcalloc(pol->nr_bones, sizeof(struct bone));
+		for (uint32_t i = 0; i < pol->nr_bones; i++) {
+			add_bone(model, pol, &pol->bones[i]);
+		}
+		if (model->nr_bones != (int)pol->nr_bones)
+			ERROR("%s: Broken bone data", model->path);
+	}
 
 	// Materials
 	int *material_offsets = xmalloc(pol->nr_materials * sizeof(int));
@@ -204,6 +293,64 @@ void model_free(struct model *model)
 		destroy_material(&model->materials[i]);
 	free(model->materials);
 
-	free(model->name);
+	for (int i = 0; i < model->nr_bones; i++)
+		destroy_bone(&model->bones[i]);
+	free(model->bones);
+	if (model->bone_map)
+		ht_free_int(model->bone_map);
+
+	free(model->path);
 	free(model);
+}
+
+static int cmp_motions_by_bone_id(const void *lhs, const void *rhs)
+{
+	return (*(struct mot_bone **)lhs)->id - (*(struct mot_bone **)rhs)->id;
+}
+
+struct motion *motion_load(const char *name, struct model *model, struct archive *aar)
+{
+	char *motname = xmalloc(strlen(model->path) + strlen(name) + 6);
+	sprintf(motname, "%s\\%s.MOT", model->path, name);
+
+	struct archive_data *dfile = archive_get_by_name(aar, motname);
+	if (!dfile) {
+		WARNING("%s: not found", motname);
+		free(motname);
+		return NULL;
+	}
+
+	struct mot *mot = mot_parse(dfile->data, dfile->size);
+	archive_free_data(dfile);
+	if (!mot) {
+		WARNING("%s: parse error", motname);
+		free(motname);
+		return NULL;
+	}
+	free(motname);
+
+	if (model->nr_bones != (int)mot->nr_bones)
+		ERROR("%s: wrong number of bones. Expected %d but got %d", name, model->nr_bones, mot->nr_bones);
+
+	// Reorder mot->motions so that motion for model->bones[i] can be
+	// accessed by mot->motions[i].
+	for (uint32_t i = 0; i < mot->nr_bones; i++) {
+		struct bone *bone = ht_get_int(model->bone_map, mot->motions[i]->id, NULL);
+		if (!bone)
+			ERROR("%s: invalid bone id %d", name, mot->motions[i]->id);
+		mot->motions[i]->id = bone->index;
+	}
+	qsort(mot->motions, mot->nr_bones, sizeof(struct mot_bone *), cmp_motions_by_bone_id);
+
+	struct motion *motion = xcalloc(1, sizeof(struct motion));
+	motion->mot = mot;
+	motion->name = strdup(name);
+	return motion;
+}
+
+void motion_free(struct motion *motion)
+{
+	mot_free(motion->mot);
+	free(motion->name);
+	free(motion);
 }
