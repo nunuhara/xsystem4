@@ -170,6 +170,8 @@ bool RE_instance_load_motion(struct RE_instance *instance, const char *name)
 {
 	if (!instance || !instance->model)
 		return false;
+	if (instance->motion)
+		motion_free(instance->motion);
 	instance->motion = motion_load(name, instance->model, instance->plugin->aar);
 	return !!instance->motion;
 }
@@ -178,6 +180,8 @@ bool RE_instance_load_next_motion(struct RE_instance *instance, const char *name
 {
 	if (!instance || !instance->model)
 		return false;
+	if (instance->next_motion)
+		motion_free(instance->next_motion);
 	instance->next_motion = motion_load(name, instance->model, instance->plugin->aar);
 	return !!instance->next_motion;
 }
