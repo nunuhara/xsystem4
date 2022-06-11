@@ -83,6 +83,7 @@ struct RE_plugin *RE_plugin_new(void)
 	struct RE_plugin *plugin = xcalloc(1, sizeof(struct RE_plugin));
 	plugin->plugin.name = "ReignEngine";
 	plugin->plugin.update = RE_render;
+	plugin->plugin.debug_print = RE_debug_print;
 	plugin->aar = aar;
 	return plugin;
 }
@@ -247,9 +248,11 @@ static void print_motion(const char *name, struct motion *m, int indent)
 	              name, m->name, state, m->current_frame);
 }
 
-void RE_debug_print(struct RE_plugin *p)
+void RE_debug_print(struct sact_sprite *sp, int indent)
 {
-	int indent = 0;
+	struct RE_plugin *p = (struct RE_plugin *)sp->plugin;
+
+	indent_printf(indent, "name = \"%s\",\n", p->plugin.name);
 	indent_printf(indent, "camera = {x=%f, y=%f, z=%f, pitch=%f, roll=%f, yaw=%f},\n",
 	              p->camera.pos[0], p->camera.pos[1], p->camera.pos[2],
 	              p->camera.pitch, p->camera.roll, p->camera.yaw);

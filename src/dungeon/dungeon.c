@@ -52,6 +52,7 @@ struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version
 	struct dungeon_context *ctx = xcalloc(1, sizeof(struct dungeon_context));
 	ctx->plugin.name = "DrawDungeon";
 	ctx->plugin.update = dungeon_render;
+	ctx->plugin.debug_print = NULL;
 	ctx->version = version;
 	ctx->surface = surface;
 	struct sact_sprite *sp = sact_get_sprite(ctx->surface);

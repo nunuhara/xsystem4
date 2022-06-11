@@ -116,6 +116,6 @@ bool RE_motion_set_frame_range(struct motion *motion, float begin, float end);
 bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float end);
 
 void RE_render(struct sact_sprite *sp);
-void RE_debug_print(struct RE_plugin *p);
+void RE_debug_print(struct sact_sprite *sp, int indent);
 
 #endif /* SYSTEM4_REIGN_H */
