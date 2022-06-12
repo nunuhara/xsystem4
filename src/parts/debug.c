@@ -142,12 +142,15 @@ static void parts_print_state(struct parts_state *state, int indent)
 	printf("{\n");
 	indent++;
 
+	struct parts_common *com = &state->common;
+
 	indent_printf(indent, "texture = ");
 	gfx_print_texture(&state->common.texture, indent);
 	printf(",\n");
-	indent_printf(indent, "surface_area = ");
-	gfx_print_rectangle(&state->common.surface_area);
-	printf(",\n");
+	indent_printf(indent, "dims = {w=%d,h=%d},\n", state->common.w, state->common.h);
+	indent_printf(indent, "origin_offset = "); gfx_print_point(&com->origin_offset); printf(",\n");
+	indent_printf(indent, "hitbox = "); gfx_print_rectangle(&com->hitbox); printf(",\n");
+	indent_printf(indent, "surface_area = "); gfx_print_rectangle(&com->surface_area); printf(",\n");
 	switch (state->type) {
 	case PARTS_CG:
 		parts_cg_print(&state->cg, indent);
@@ -271,11 +274,9 @@ static void _parts_print(struct parts *parts, int indent)
 	indent_printf(indent, "linked_to = %d,\n", parts->linked_to);
 	indent_printf(indent, "linked_from = %d,\n", parts->linked_from);
 	indent_printf(indent, "alpha = %u,\n", (unsigned)parts->alpha);
-	indent_printf(indent, "rect = "); gfx_print_rectangle(&parts->rect); printf(",\n");
+	indent_printf(indent, "pos = "); gfx_print_point(&parts->pos); printf(",\n");
 	indent_printf(indent, "z = %d,\n", parts->z);
 	indent_printf(indent, "show = %s,\n", parts->show ? "true" : "false");
-	indent_printf(indent, "pos = "); gfx_print_rectangle(&parts->pos); printf(",\n");
-	indent_printf(indent, "offset = "); gfx_print_point(&parts->offset); printf(",\n");
 	indent_printf(indent, "scale = {x=%f,y=%f},\n", parts->scale.x, parts->scale.y);
 	indent_printf(indent, "rotation = {x=%f,y=%f,z=%f},\n",
 			parts->rotation.x, parts->rotation.y, parts->rotation.z);

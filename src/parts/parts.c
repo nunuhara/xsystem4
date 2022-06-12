@@ -230,64 +230,78 @@ struct parts_construction_process *parts_get_construction_process(struct parts *
 	return &parts->states[state].cproc;
 }
 
-void parts_recalculate_offset(struct parts *parts)
+static Point calculate_offset(int mode, int w, int h)
 {
-	const int mode = parts->origin_mode;
-	const int w = parts->rect.w;
-	const int h = parts->rect.h;
-
-	int x, y;
 	switch (mode) {
-	case 1: x = 0;    y = 0;    break;
-	case 2: x = -w/2; y = 0;    break;
-	case 3: x = -w;   y = -h/2; break;
-	case 4: x = 0;    y = -h/2; break;
-	case 5: x = -w/2; y = -h/2; break;
-	case 6: x = -w;   y = -h/2; break;
-	case 7: x = 0;    y = -h;   break;
-	case 8: x = -w/2; y = -h;   break;
-	case 9: x = -w;   y = -h;   break;
-	default:
-		// why...
-		x = mode;
-		y = (3*h)/4;
-		break;
+	case 1:  return (Point) {    0, 0    };
+	case 2:  return (Point) { -w/2, 0    };
+	case 3:  return (Point) {   -w, -h/2 };
+	case 4:  return (Point) {    0, -h/2 };
+	case 5:  return (Point) { -w/2, -h/2 };
+	case 6:  return (Point) {   -w, -h/2 };
+	case 7:  return (Point) {    0, -h   };
+	case 8:  return (Point) { -w/2, -h   };
+	case 9:  return (Point) {   -w, -h   };
+	default: return (Point) { mode, (3*h)/4 }; // why...
 	}
-
-	parts->offset.x = x;
-	parts->offset.y = y;
 }
 
-void parts_recalculate_pos(struct parts *parts)
+/*
+ * Should be called when:
+ *   - position (parts->pos) changes
+ *   - width or height changes
+ *   - origin mode changes
+ */
+static void parts_common_recalculate_hitbox(struct parts *parts, struct parts_common *common)
 {
-	parts_recalculate_offset(parts);
-	parts->pos = (Rectangle) {
-		.x = parts->rect.x + parts->offset.x,
-		.y = parts->rect.y + parts->offset.y,
-		.w = parts->rect.w,
-		.h = parts->rect.h,
+	common->origin_offset = calculate_offset(parts->origin_mode, common->w, common->h);
+	common->hitbox = (Rectangle) {
+		.x = parts->pos.x + common->origin_offset.x,
+		.y = parts->pos.y + common->origin_offset.y,
+		.w = common->w,
+		.h = common->h,
 	};
+}
+
+static void parts_recalculate_hitbox(struct parts *parts)
+{
+	for (int i = 0; i < PARTS_NR_STATES; i++) {
+		parts_common_recalculate_hitbox(parts, &parts->states[i].common);
+	}
 }
 
 void parts_set_pos(struct parts *parts, Point pos)
 {
-	parts->rect.x = pos.x;
-	parts->rect.y = pos.y;
-	parts_recalculate_pos(parts);
+	parts->pos.x = pos.x;
+	parts->pos.y = pos.y;
+	parts_recalculate_hitbox(parts);
 	parts_dirty(parts);
+}
+
+void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h)
+{
+	common->w = w;
+	common->h = h;
+	parts_common_recalculate_hitbox(parts, common);
+}
+
+void parts_set_origin_mode(struct parts *parts, int origin_mode)
+{
+	parts->origin_mode = origin_mode;
+	parts_recalculate_hitbox(parts);
 }
 
 void parts_set_scale_x(struct parts *parts, float mag)
 {
 	parts->scale.x = mag;
-	parts_recalculate_pos(parts);
+	parts_recalculate_hitbox(parts);
 	parts_dirty(parts);
 }
 
 void parts_set_scale_y(struct parts *parts, float mag)
 {
 	parts->scale.y = mag;
-	parts_recalculate_pos(parts);
+	parts_recalculate_hitbox(parts);
 	parts_dirty(parts);
 }
 
@@ -312,16 +326,6 @@ void parts_set_alpha(struct parts *parts, int alpha)
 	parts_dirty(parts);
 }
 
-void parts_set_cg_dims(struct parts *parts, struct cg *cg)
-{
-	if (parts->rect.w && parts->rect.w != cg->metrics.w)
-		WARNING("Width of parts CGs differ: %d / %d", parts->rect.w, cg->metrics.w);
-	if (parts->rect.h && parts->rect.h != cg->metrics.h)
-		WARNING("Heights of parts CGs differ: %d / %d", parts->rect.h, cg->metrics.h);
-	parts->rect.w = cg->metrics.w;
-	parts->rect.h = cg->metrics.h;
-}
-
 static bool parts_set_cg(struct parts *parts, struct cg *cg, int cg_no, int state)
 {
 	if (!cg)
@@ -329,9 +333,8 @@ static bool parts_set_cg(struct parts *parts, struct cg *cg, int cg_no, int stat
 	struct parts_cg *parts_cg = parts_get_cg(parts, state);
 	gfx_delete_texture(&parts_cg->common.texture);
 	gfx_init_texture_with_cg(&parts_cg->common.texture, cg);
+	parts_set_dims(parts, &parts_cg->common, cg->metrics.w, cg->metrics.h);
 	parts_cg->no = cg_no;
-	parts_set_cg_dims(parts, cg);
-	parts_recalculate_pos(parts);
 	parts_dirty(parts);
 	cg_free(cg);
 	return true;
@@ -449,8 +452,7 @@ bool parts_set_number(struct parts *parts, int n, int state)
 		x += ch->w + num->space;
 	}
 
-	parts->rect.w = w;
-	parts->rect.h = h;
+	parts_set_dims(parts, &num->common, w, h);
 
 	parts_dirty(parts);
 	return true;
@@ -620,6 +622,7 @@ bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_tim
 		WARNING("Invalid frame count: %d", nr_frames);
 	}
 
+	int w = 0, h = 0;
 	struct parts *parts = parts_get(parts_no);
 	Texture *frames = xcalloc(nr_frames, sizeof(Texture));
 	for (int i = 0; i < nr_frames; i++) {
@@ -632,11 +635,13 @@ bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_tim
 			return false;
 		}
 		gfx_init_texture_with_cg(&frames[i], cg);
-		parts_set_cg_dims(parts, cg);
+		w = max(w, cg->metrics.w);
+		h = max(h, cg->metrics.h);
 		cg_free(cg);
 	}
 
 	struct parts_animation *anim = parts_get_animation(parts, state);
+	parts_set_dims(parts, &anim->common, w, h);
 	anim->frames = frames; // free previous value?
 	anim->nr_frames = nr_frames;
 	anim->frame_time = frame_time;
@@ -672,8 +677,7 @@ static bool set_gauge_cg(int parts_no, struct cg *cg, int state, bool vert)
 	gfx_init_texture_rgba(&g->common.texture, g->cg.w, g->cg.h, (SDL_Color){0,0,0,255});
 	gfx_copy_with_alpha_map(&g->common.texture, 0, 0, &g->cg, 0, 0, g->cg.w, g->cg.h);
 
-	parts->rect.w = g->cg.w;
-	parts->rect.h = g->cg.h;
+	parts_set_dims(parts, &g->common, g->cg.w, g->cg.h);
 
 	parts_dirty(parts);
 	return true;
@@ -913,24 +917,22 @@ void PE_SetMultiplyColor(int PartsNumber, int nR, int nG, int nB);
 
 int PE_GetPartsX(int parts_no)
 {
-	return parts_get(parts_no)->rect.x;
+	return parts_get(parts_no)->pos.x;
 }
 
 int PE_GetPartsY(int parts_no)
 {
-	return parts_get(parts_no)->rect.y;
+	return parts_get(parts_no)->pos.y;
 }
 
 int PE_GetPartsWidth(int parts_no, possibly_unused int state)
 {
-	// FIXME: use state
-	return parts_get(parts_no)->rect.w;
+	return parts_get_width(parts_get(parts_no));
 }
 
 int PE_GetPartsHeight(int parts_no, possibly_unused int state)
 {
-	// FIXME: use state
-	return parts_get(parts_no)->rect.h;
+	return parts_get_height(parts_get(parts_no));
 }
 
 int PE_GetPartsZ(int parts_no)
@@ -954,8 +956,7 @@ void PE_GetMultiplyColor(int PartsNumber, int *nR, int *nG, int *nB);
 void PE_SetPartsOriginPosMode(int parts_no, int origin_pos_mode)
 {
 	struct parts *parts = parts_get(parts_no);
-	parts->origin_mode = origin_pos_mode;
-	parts_recalculate_pos(parts);
+	parts_set_origin_mode(parts, origin_pos_mode);
 	parts_dirty(parts);
 }
 

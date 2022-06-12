@@ -41,14 +41,14 @@ static struct {
 	GLint top_right;
 } parts_shader;
 
-static void parts_render_text(struct parts *parts, struct parts_render_params *params)
+static void parts_render_text(struct parts *parts, struct parts_common *common,
+		struct parts_render_params *params)
 {
-	parts_recalculate_offset(parts);
 	Rectangle rect = {
-		.x = params->offset.x + parts->offset.x,
-		.y = params->offset.y + parts->offset.y,
-		.w = parts->rect.w,
-		.h = parts->rect.h
+		.x = params->offset.x + common->origin_offset.x,
+		.y = params->offset.y + common->origin_offset.y,
+		.w = common->w,
+		.h = common->h
 	};
 	gfx_render_texture(&parts->states[parts->state].common.texture, &rect);
 }
@@ -56,8 +56,6 @@ static void parts_render_text(struct parts *parts, struct parts_render_params *p
 static void parts_render_cg(struct parts *parts, struct parts_common *common,
 		struct parts_render_params *params)
 {
-	parts_recalculate_offset(parts);
-
 	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
 	glm_translate(mw_transform, (vec3) { params->offset.x, params->offset.y, 0 });
 	// FIXME: need perspective for 3D rotate
@@ -65,8 +63,8 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common,
 	//glm_rotate_y(mw_transform, parts->rotation.y, mw_transform);
 	glm_rotate_z(mw_transform, parts->rotation.z, mw_transform);
 	glm_scale(mw_transform, (vec3){ parts->scale.x, parts->scale.y, 1.0 });
-	glm_translate(mw_transform, (vec3){ parts->offset.x, parts->offset.y, 0 });
-	glm_scale(mw_transform, (vec3){ parts->rect.w, parts->rect.h, 1.0 });
+	glm_translate(mw_transform, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
+	glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
 
 	struct gfx_render_job job = {
@@ -96,15 +94,16 @@ static void _parts_render(struct parts *parts, struct parts_render_params *paren
 
 	if (parts->linked_to >= 0) {
 		struct parts *link_parts = parts_get(parts->linked_to);
-		if (!SDL_PointInRect(&parts_prev_pos, &link_parts->pos))
+		struct parts_state *link_state = &link_parts->states[link_parts->state];
+		if (!SDL_PointInRect(&parts_prev_pos, &link_state->common.hitbox))
 			return;
 	}
 
 	struct parts_render_params params = *parent_params;
 	// modify params per parts values
 	params.alpha *= parts->alpha / 255.0;
-	params.offset.x += parts->rect.x;
-	params.offset.y += parts->rect.y;
+	params.offset.x += parts->pos.x;
+	params.offset.y += parts->pos.y;
 
 	// render
 	struct parts_state *state = &parts->states[parts->state];
@@ -119,7 +118,7 @@ static void _parts_render(struct parts *parts, struct parts_render_params *paren
 			parts_render_cg(parts, &state->common, &params);
 			break;
 		case PARTS_TEXT:
-			parts_render_text(parts, &params);
+			parts_render_text(parts, &state->common, &params);
 			break;
 		}
 	}

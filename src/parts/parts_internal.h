@@ -88,6 +88,9 @@ enum parts_type {
 
 struct parts_common {
 	Texture texture;
+	int w, h;
+	Point origin_offset;
+	Rectangle hitbox;
 	Rectangle surface_area;
 };
 
@@ -207,12 +210,9 @@ struct parts {
 	int linked_to;
 	int linked_from;
 	uint8_t alpha;
-	Rectangle rect;
 	int z;
 	bool show;
-	// The actual hitbox of the sprite (accounting for origin-mode, scale, etc)
-	Rectangle pos;
-	Point offset;
+	Point pos;
 	struct { float x, y; } scale;
 	struct { float x, y, z; } rotation;
 	TAILQ_HEAD(, parts_motion) motion;
@@ -229,14 +229,12 @@ struct parts_numeral *parts_get_numeral(struct parts *parts, int state);
 struct parts_gauge *parts_get_hgauge(struct parts *parts, int state);
 struct parts_gauge *parts_get_vgauge(struct parts *parts, int state);
 struct parts_construction_process *parts_get_construction_process(struct parts *parts, int state);
-void parts_recalculate_offset(struct parts *parts);
-void parts_recalculate_pos(struct parts *parts);
 void parts_set_pos(struct parts *parts, Point pos);
+void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h);
 void parts_set_scale_x(struct parts *parts, float mag);
 void parts_set_scale_y(struct parts *parts, float mag);
 void parts_set_rotation_z(struct parts *parts, float rot);
 void parts_set_alpha(struct parts *parts, int alpha);
-void parts_set_cg_dims(struct parts *parts, struct cg *cg);
 bool parts_set_cg_by_index(struct parts *parts, int cg_no, int state);
 bool parts_set_cg_by_name(struct parts *parts, struct string *cg_name, int state);
 void parts_set_hgauge_rate(struct parts *parts, float rate, int state);
@@ -272,6 +270,16 @@ void parts_engine_print(void);
 static inline bool parts_state_valid(int state)
 {
 	return state >= 0 && state <= 2;
+}
+
+static inline int parts_get_width(struct parts *parts)
+{
+	return parts->states[parts->state].common.w;
+}
+
+static inline int parts_get_height(struct parts *parts)
+{
+	return parts->states[parts->state].common.h;
 }
 
 #endif /* SYSTEM4_PARTS_INTERNAL_H */

@@ -201,9 +201,7 @@ static void build_create(struct parts *parts, struct parts_construction_process 
 {
 	gfx_delete_texture(&cproc->common.texture);
 	gfx_init_texture_rgba(&cproc->common.texture, op->w, op->h, (SDL_Color){0,0,0,0});
-	parts->rect.w = op->w;
-	parts->rect.h = op->h;
-	parts_recalculate_pos(parts);
+	parts_set_dims(parts, &cproc->common, op->w, op->h);
 }
 
 static void build_create_pixel_only(struct parts *parts, struct parts_construction_process *cproc,
@@ -211,9 +209,7 @@ static void build_create_pixel_only(struct parts *parts, struct parts_constructi
 {
 	gfx_delete_texture(&cproc->common.texture);
 	gfx_init_texture_rgb(&cproc->common.texture, op->w, op->h, (SDL_Color){0,0,0,255});
-	parts->rect.w = op->w;
-	parts->rect.h = op->h;
-	parts_recalculate_pos(parts);
+	parts_set_dims(parts, &cproc->common, op->w, op->h);
 }
 
 static void build_cg(struct parts *parts, struct parts_construction_process *cproc, struct parts_cp_cg *op)
@@ -222,8 +218,7 @@ static void build_cg(struct parts *parts, struct parts_construction_process *cpr
 	assert(cg);
 	gfx_delete_texture(&cproc->common.texture);
 	gfx_init_texture_with_cg(&cproc->common.texture, cg);
-	parts_set_cg_dims(parts, cg);
-	parts_recalculate_pos(parts);
+	parts_set_dims(parts, &cproc->common, cg->metrics.w, cg->metrics.h);
 	cg_free(cg);
 }
 
@@ -274,7 +269,6 @@ bool PE_BuildPartsConstructionProcess(int parts_no, int state)
 			break;
 		}
 	}
-	parts_recalculate_pos(parts);
 	parts_dirty(parts);
 	return true;
 }

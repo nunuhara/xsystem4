@@ -36,8 +36,9 @@ static int click_down_parts = 0;
 
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking)
 {
-	bool prev_in = SDL_PointInRect(&parts_prev_pos, &parts->pos);
-	bool cur_in = SDL_PointInRect(&cur_pos, &parts->pos);
+	Rectangle *hitbox = &parts->states[parts->state].common.hitbox;
+	bool prev_in = SDL_PointInRect(&parts_prev_pos, hitbox);
+	bool cur_in = SDL_PointInRect(&cur_pos, hitbox);
 
 	if (parts->linked_from >= 0 && cur_in != prev_in) {
 		parts_dirty(parts_get(parts->linked_from));

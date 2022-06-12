@@ -74,8 +74,7 @@ static void parts_text_append(struct parts *parts, struct string *text, int stat
 		const unsigned new_height = t->ts.size;
 		t->lines[t->nr_lines-1].height = max(old_height, new_height);
 	}
-	parts->rect.w = t->cursor.x;
-	parts->rect.h = t->cursor.y + t->lines[t->nr_lines-1].height;
+	parts_set_dims(parts, &t->common, t->cursor.x, t->cursor.y + t->lines[t->nr_lines-1].height);
 }
 
 static void parts_text_clear(struct parts *parts, int state)
