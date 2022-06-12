@@ -22,6 +22,7 @@ struct sact_sprite;
 struct draw_plugin {
 	const char *name;
 	void (*update)(struct sact_sprite *);
+	void (*debug_print)(struct sact_sprite *, int indent);
 };
 
 #endif /* SYSTEM4_PLUGIN_H */

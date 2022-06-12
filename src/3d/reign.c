@@ -35,14 +35,34 @@ static struct RE_instance *create_instance(struct RE_plugin *plugin)
 	instance->scale[0] = 1.0;
 	instance->scale[1] = 1.0;
 	instance->scale[2] = 1.0;
+	instance->fps = 30.0;
 	glm_mat4_identity(instance->local_transform);
 	return instance;
 }
 
+static void unload_instance(struct RE_instance *instance)
+{
+	if (instance->motion) {
+		motion_free(instance->motion);
+		instance->motion = NULL;
+	}
+	if (instance->next_motion) {
+		motion_free(instance->next_motion);
+		instance->next_motion = NULL;
+	}
+	if (instance->model) {
+		model_free(instance->model);
+		instance->model = NULL;
+	}
+	if (instance->bone_transforms) {
+		free(instance->bone_transforms);
+		instance->bone_transforms = NULL;
+	}
+}
+
 static void free_instance(struct RE_instance *instance)
 {
-	if (instance->model)
-		model_free(instance->model);
+	unload_instance(instance);
 	free(instance);
 }
 
@@ -63,6 +83,7 @@ struct RE_plugin *RE_plugin_new(void)
 	struct RE_plugin *plugin = xcalloc(1, sizeof(struct RE_plugin));
 	plugin->plugin.name = "ReignEngine";
 	plugin->plugin.update = RE_render;
+	plugin->plugin.debug_print = RE_debug_print;
 	plugin->aar = aar;
 	return plugin;
 }
@@ -138,29 +159,130 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 {
 	if (!instance)
 		return false;
-	if (instance->model)
-		model_free(instance->model);
+	unload_instance(instance);
 	instance->model = model_load(instance->plugin->aar, name, instance->plugin->renderer);
+	if (instance->model && instance->model->nr_bones > 0)
+		instance->bone_transforms = xcalloc(instance->model->nr_bones, sizeof(mat4));
 	return !!instance->model;
 }
 
-void RE_debug_print(struct RE_plugin *p)
+bool RE_instance_load_motion(struct RE_instance *instance, const char *name)
 {
-	printf("camera = { x: %f, y: %f, z: %f, pitch: %f, roll: %f, yaw: %f }",
-	       p->camera.pos[0], p->camera.pos[1], p->camera.pos[2],
-	       p->camera.pitch, p->camera.roll, p->camera.yaw);
+	if (!instance || !instance->model)
+		return false;
+	if (instance->motion)
+		motion_free(instance->motion);
+	instance->motion = motion_load(name, instance->model, instance->plugin->aar);
+	return !!instance->motion;
+}
+
+bool RE_instance_load_next_motion(struct RE_instance *instance, const char *name)
+{
+	if (!instance || !instance->model)
+		return false;
+	if (instance->next_motion)
+		motion_free(instance->next_motion);
+	instance->next_motion = motion_load(name, instance->model, instance->plugin->aar);
+	return !!instance->next_motion;
+}
+
+bool RE_instance_free_next_motion(struct RE_instance *instance)
+{
+	if (!instance || !instance->next_motion)
+		return false;
+	motion_free(instance->next_motion);
+	instance->next_motion = NULL;
+	return true;
+}
+
+int RE_motion_get_state(struct motion *motion)
+{
+	return motion ? motion->state : RE_MOTION_STATE_STOP;
+}
+
+bool RE_motion_set_state(struct motion *motion, int state)
+{
+	if (!motion)
+		return false;
+	motion->state = state;
+	return true;
+}
+
+float RE_motion_get_frame(struct motion *motion)
+{
+	return motion ? motion->current_frame : 0.0;
+}
+
+bool RE_motion_set_frame(struct motion *motion, float frame)
+{
+	if (!motion)
+		return false;
+	motion->current_frame = frame;
+	return true;
+}
+
+bool RE_motion_set_frame_range(struct motion *motion, float begin, float end)
+{
+	if (!motion)
+		return false;
+	motion->frame_begin = begin;
+	motion->frame_end = end;
+	return true;
+}
+
+bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float end)
+{
+	if (!motion)
+		return false;
+	motion->loop_frame_begin = begin;
+	motion->loop_frame_end = end;
+	return true;
+}
+
+static void print_motion(const char *name, struct motion *m, int indent)
+{
+	const char *state;
+	switch (m->state) {
+	case RE_MOTION_STATE_STOP: state = "STOP"; break;
+	case RE_MOTION_STATE_NOLOOP: state = "NOLOOP"; break;
+	case RE_MOTION_STATE_LOOP: state = "LOOP"; break;
+	default: state = "?"; break;
+	}
+	indent_printf(indent, "%s = {name=\"%s\", state=%s, frame=%f},\n",
+	              name, m->name, state, m->current_frame);
+}
+
+void RE_debug_print(struct sact_sprite *sp, int indent)
+{
+	struct RE_plugin *p = (struct RE_plugin *)sp->plugin;
+
+	indent_printf(indent, "name = \"%s\",\n", p->plugin.name);
+	indent_printf(indent, "camera = {x=%f, y=%f, z=%f, pitch=%f, roll=%f, yaw=%f},\n",
+	              p->camera.pos[0], p->camera.pos[1], p->camera.pos[2],
+	              p->camera.pitch, p->camera.roll, p->camera.yaw);
 
 	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
 		struct RE_instance *inst = p->instances[i];
 		if (!inst || !inst->model)
 			continue;
-		printf("[%d] = {", i);
-		printf("  name: \"%s\",", inst->model->name);
-		printf("  type: %d,", inst->type);
-		printf("  draw: %d,", inst->draw);
-		printf("  pos: { x: %f, y: %f, z: %f },", inst->pos[0], inst->pos[1], inst->pos[2]);
-		printf("  vec: { x: %f, y: %f, z: %f },", inst->vec[0], inst->vec[1], inst->vec[2]);
-		printf("  scale: { x: %f, y: %f, z: %f },", inst->scale[0], inst->scale[1], inst->scale[2]);
-		printf("}");
+		indent_printf(indent, "instance[%d] = {\n", i);
+		indent++;
+
+		indent_printf(indent, "path = \"%s\",\n", inst->model->path);
+		indent_printf(indent, "type = %d,\n", inst->type);
+		indent_printf(indent, "draw = %d,\n", inst->draw);
+		indent_printf(indent, "pos = {x=%f, y=%f, z=%f},\n", inst->pos[0], inst->pos[1], inst->pos[2]);
+		indent_printf(indent, "vec = {x=%f, y=%f, z=%f},\n", inst->vec[0], inst->vec[1], inst->vec[2]);
+		indent_printf(indent, "scale = {x=%f, y=%f, z=%f},\n", inst->scale[0], inst->scale[1], inst->scale[2]);
+		if (inst->motion)
+			print_motion("motion", inst->motion, indent);
+		if (inst->next_motion)
+			print_motion("next_motion", inst->next_motion, indent);
+		indent_printf(indent, "fps = %f,\n", inst->fps);
+		if (inst->motion_blend)
+			indent_printf(indent, "motion_blend_rate = %f,\n", inst->motion_blend_rate);
+
+		indent--;
+		indent_printf(indent, "},\n");
 	}
 }

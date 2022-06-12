@@ -416,7 +416,15 @@ void sprite_print(struct sact_sprite *sp)
 	indent_printf(indent, "pos = "); gfx_print_point(&sp->text.pos); printf(",\n");
 	indent_printf(indent, "char_space = %d,\n", sp->text.char_space);
 	indent_printf(indent, "line_space = %d,\n", sp->text.line_space);
-	indent_printf(indent, "plugin = %s,\n", sp->plugin ? sp->plugin->name : "NULL");
+	if (sp->plugin) {
+		if (sp->plugin->debug_print) {
+			indent_printf(indent, "plugin = {\n");
+			sp->plugin->debug_print(sp, indent + 1);
+			indent_printf(indent, "},\n");
+		} else {
+			indent_printf(indent, "plugin = %s,\n", sp->plugin->name);
+		}
+	}
 	indent--;
 	indent_printf(indent, "},\n");
 

@@ -24,12 +24,17 @@
 #include "gfx/gl.h"
 #include "gfx/gfx.h"
 
+#define MAX_BONES 211  // Maximum in TT3
+
 struct model {
-	char *name;
+	char *path;
 	int nr_meshes;
 	struct mesh *meshes;
 	int nr_materials;
 	struct material *materials;
+	int nr_bones;
+	struct bone *bones;
+	struct hash_table *bone_map;  // bone id in POL/MOT -> struct bone *
 };
 
 struct mesh {
@@ -44,6 +49,22 @@ struct material {
 	bool opaque;
 };
 
+struct bone {
+	char *name;
+	int index;   // index on model->bones
+	int parent;  // index on model->bones, or -1
+	mat4 inverse_bind_matrix;
+};
+
+struct motion {
+	struct mot *mot;
+	char *name;
+	int state;
+	float current_frame;
+	float frame_begin, frame_end;
+	float loop_frame_begin, loop_frame_end;
+};
+
 struct RE_renderer {
 	struct shader shader;
 	GLuint depth_buffer;
@@ -51,16 +72,26 @@ struct RE_renderer {
 	// Uniform variable locations
 	GLint local_transform;
 	GLint proj_transform;
+	GLint has_bones;
+	GLint bone_matrices;
 
 	// Attribute variable locations
 	GLint vertex_normal;
 	GLint vertex_uv;
+	GLint vertex_bone_index;
+	GLint vertex_bone_weight;
+
+	mat4 bone_transforms[MAX_BONES];
+	uint32_t last_frame_timestamp;
 };
 
 // model.c
 
 struct model *model_load(struct archive *aar, const char *path, struct RE_renderer *renderer);
 void model_free(struct model *model);
+
+struct motion *motion_load(const char *name, struct model *model, struct archive *aar);
+void motion_free(struct motion *motion);
 
 // renderer.c
 
@@ -132,7 +163,29 @@ struct pol_bone {
 	versor rotq;
 };
 
+struct mot {
+	uint32_t nr_frames;
+	uint32_t nr_bones;
+	struct mot_bone *motions[];
+};
+
+struct mot_frame {
+	vec3 pos;
+	versor rotq;
+};
+
+struct mot_bone {
+	char *name;
+	uint32_t id;
+	uint32_t parent;
+	struct mot_frame frames[];
+};
+
 struct pol *pol_parse(uint8_t *data, size_t size);
 void pol_free(struct pol *pol);
+struct pol_bone *pol_find_bone(struct pol *pol, uint32_t id);
+
+struct mot *mot_parse(uint8_t *data, size_t size);
+void mot_free(struct mot *mot);
 
 #endif /* SYSTEM4_3D_3D_INTERNAL_H */

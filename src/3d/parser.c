@@ -56,6 +56,7 @@ static void read_quaternion(struct buffer *r, versor q)
 	float y = -buffer_read_float(r);
 	float z = buffer_read_float(r);
 	glm_quat_init(q, x, y, z, w);
+	glm_quat_normalize(q);
 }
 
 static void parse_material(struct buffer *r, struct pol_material *m)
@@ -283,4 +284,58 @@ void pol_free(struct pol *pol)
 		destroy_bone(&pol->bones[i]);
 	free(pol->bones);
 	free(pol);
+}
+
+struct pol_bone *pol_find_bone(struct pol *pol, uint32_t id)
+{
+	for (uint32_t i = 0; i < pol->nr_bones; i++) {
+		if (pol->bones[i].id == id)
+			return &pol->bones[i];
+	}
+	return NULL;
+}
+
+struct mot *mot_parse(uint8_t *data, size_t size)
+{
+	struct buffer r;
+	buffer_init(&r, data, size);
+	if (memcmp(buffer_strdata(&r), "MOT\0", 4))
+		return NULL;
+	buffer_skip(&r, 4);
+	uint32_t version = buffer_read_int32(&r);
+	if (version != 0) {
+		WARNING("unknown MOT version: %d", version);
+		return NULL;
+	}
+	uint32_t nr_frames = buffer_read_int32(&r);
+	uint32_t nr_bones = buffer_read_int32(&r);
+
+	struct mot *mot = xcalloc(1, sizeof(struct mot) + nr_bones * sizeof(struct mot_bone *));
+	mot->nr_frames = nr_frames;
+	mot->nr_bones = nr_bones;
+	for (uint32_t i = 0; i < nr_bones; i++) {
+		struct mot_bone *m = xcalloc(1, sizeof(struct mot_bone) + sizeof(struct mot_frame) * nr_frames);
+		m->name = read_cstring(&r);
+		m->id = buffer_read_int32(&r);
+		m->parent = buffer_read_int32(&r);
+		for (uint32_t j = 0; j < nr_frames; j++) {
+			read_position(&r, m->frames[j].pos);
+			read_quaternion(&r, m->frames[j].rotq);
+			buffer_skip(&r, 16);  // another quaternion?
+		}
+		mot->motions[i] = m;
+	}
+	if (buffer_remaining(&r) != 0) {
+		WARNING("extra data at end");
+	}
+	return mot;
+}
+
+void mot_free(struct mot *mot)
+{
+	for (uint32_t i = 0; i < mot->nr_bones; i++) {
+		free(mot->motions[i]->name);
+		free(mot->motions[i]);
+	}
+	free(mot);
 }
