@@ -77,12 +77,15 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common,
 		.data = &common->texture,
 	};
 
-	const Rectangle *r = &common->surface_area;
+	Rectangle r = common->surface_area;
+	if (!r.w && !r.h) {
+		r = (Rectangle) { 0, 0, common->texture.w, common->texture.h };
+	}
 
 	gfx_prepare_job(&job);
 	glUniform1f(parts_shader.alpha_mod, common->texture.alpha_mod / 255.0);
-	glUniform2f(parts_shader.bot_left, r->x, r->y);
-	glUniform2f(parts_shader.top_right, r->x + r->w, r->y + r->h);
+	glUniform2f(parts_shader.bot_left, r.x, r.y);
+	glUniform2f(parts_shader.top_right, r.x + r.w, r.y + r.h);
 	gfx_run_job(&job);
 }
 

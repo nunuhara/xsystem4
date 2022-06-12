@@ -329,7 +329,6 @@ static bool parts_set_cg(struct parts *parts, struct cg *cg, int cg_no, int stat
 	struct parts_cg *parts_cg = parts_get_cg(parts, state);
 	gfx_delete_texture(&parts_cg->common.texture);
 	gfx_init_texture_with_cg(&parts_cg->common.texture, cg);
-	parts_cg->common.surface_area = (Rectangle) { 0, 0, cg->metrics.w, cg->metrics.h };;
 	parts_cg->no = cg_no;
 	parts_set_cg_dims(parts, cg);
 	parts_recalculate_pos(parts);
@@ -440,7 +439,6 @@ bool parts_set_number(struct parts *parts, int n, int state)
 	// copy chars to texture
 	gfx_delete_texture(&num->common.texture);
 	gfx_init_texture_rgba(&num->common.texture, w, h, (SDL_Color){0, 0, 0, 255});
-	num->common.surface_area = (Rectangle) { 0, 0, w, h };
 
 	int x = 0;
 	for (int i = nr_chars-1; i>= 0; i--) {
@@ -468,12 +466,6 @@ void parts_set_state(struct parts *parts, enum parts_state_type state)
 
 void parts_set_surface_area(struct parts_common *common, int x, int y, int w, int h)
 {
-	if (!w && !h) {
-		x = 0;
-		y = 0;
-		w = common->texture.w;
-		h = common->texture.h;
-	}
 	common->surface_area = (Rectangle) { x, y, w, h };
 }
 
@@ -651,7 +643,6 @@ bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_tim
 	anim->elapsed = 0;
 	anim->current_frame = 0;
 	anim->common.texture = frames[0];
-	anim->common.surface_area = parts->rect;
 	return true;
 }
 
@@ -680,7 +671,6 @@ static bool set_gauge_cg(int parts_no, struct cg *cg, int state, bool vert)
 
 	gfx_init_texture_rgba(&g->common.texture, g->cg.w, g->cg.h, (SDL_Color){0,0,0,255});
 	gfx_copy_with_alpha_map(&g->common.texture, 0, 0, &g->cg, 0, 0, g->cg.w, g->cg.h);
-	g->common.surface_area = (Rectangle) { 0, 0, g->cg.w, g->cg.h };
 
 	parts->rect.w = g->cg.w;
 	parts->rect.h = g->cg.h;
