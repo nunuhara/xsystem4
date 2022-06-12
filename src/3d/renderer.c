@@ -31,6 +31,7 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	gfx_load_shader(&r->shader, "shaders/reign.v.glsl", "shaders/reign.f.glsl");
 	r->local_transform = glGetUniformLocation(r->shader.program, "local_transform");
 	r->proj_transform = glGetUniformLocation(r->shader.program, "proj_transform");
+	r->alpha_mod = glGetUniformLocation(r->shader.program, "alpha_mod");
 	r->has_bones = glGetUniformLocation(r->shader.program, "has_bones");
 	r->bone_matrices = glGetUniformLocation(r->shader.program, "bone_matrices");
 	r->vertex_normal = glGetAttribLocation(r->shader.program, "vertex_normal");
@@ -164,6 +165,7 @@ static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat
 	glUniformMatrix4fv(r->shader.view_transform, 1, GL_FALSE, view_transform[0]);
 	glUniformMatrix4fv(r->proj_transform, 1, GL_FALSE, proj_transform[0]);
 	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, inst->local_transform[0]);
+	glUniform1f(r->alpha_mod, inst->alpha);
 
 	if (inst->model->nr_bones > 0) {
 		glUniform1i(r->has_bones, GL_TRUE);
@@ -223,6 +225,9 @@ void RE_render(struct sact_sprite *sp)
 	// winding order.
 	plugin->proj_transform[1][1] *= -1;
 	glFrontFace(GL_CW);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
 		if (plugin->instances[i])

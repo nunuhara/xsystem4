@@ -35,6 +35,7 @@ static struct RE_instance *create_instance(struct RE_plugin *plugin)
 	instance->scale[0] = 1.0;
 	instance->scale[1] = 1.0;
 	instance->scale[2] = 1.0;
+	instance->alpha = 1.0;
 	instance->fps = 30.0;
 	glm_mat4_identity(instance->local_transform);
 	return instance;

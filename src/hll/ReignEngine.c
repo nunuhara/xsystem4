@@ -219,7 +219,16 @@ HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceDiffuse, int plugin,
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceGlobeDiffuse, int plugin, int instance, float r, float g, float b);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceAmbient, int plugin, int instance, float r, float g, float b);
 //bool ReignEngine_SetInstanceSpecular(int plugin, int instance, float fSpecular);
-//bool ReignEngine_SetInstanceAlpha(int plugin, int instance, float fAlpha);
+
+static bool ReignEngine_SetInstanceAlpha(int plugin, int instance, float alpha)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->alpha = alpha;
+	return true;
+}
+
 //bool ReignEngine_SetInstanceAttenuationNear(int plugin, int instance, float fNear);
 //bool ReignEngine_SetInstanceAttenuationFar(int plugin, int instance, float fFar);
 
@@ -1016,7 +1025,7 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_EXPORT(SetInstanceGlobeDiffuse, ReignEngine_SetInstanceGlobeDiffuse),
 	    HLL_EXPORT(SetInstanceAmbient, ReignEngine_SetInstanceAmbient),
 	    HLL_TODO_EXPORT(SetInstanceSpecular, ReignEngine_SetInstanceSpecular),
-	    HLL_TODO_EXPORT(SetInstanceAlpha, ReignEngine_SetInstanceAlpha),
+	    HLL_EXPORT(SetInstanceAlpha, ReignEngine_SetInstanceAlpha),
 	    HLL_TODO_EXPORT(SetInstanceAttenuationNear, ReignEngine_SetInstanceAttenuationNear),
 	    HLL_TODO_EXPORT(SetInstanceAttenuationFar, ReignEngine_SetInstanceAttenuationFar),
 	    HLL_EXPORT(SetInstanceDraw, ReignEngine_SetInstanceDraw),
