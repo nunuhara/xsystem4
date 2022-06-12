@@ -72,6 +72,7 @@ struct RE_renderer {
 	// Uniform variable locations
 	GLint local_transform;
 	GLint proj_transform;
+	GLint alpha_mod;
 	GLint has_bones;
 	GLint bone_matrices;
 

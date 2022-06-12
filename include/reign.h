@@ -85,6 +85,7 @@ struct RE_instance {
 	float pitch, roll, yaw;  // in degrees
 	vec3 vec;
 	vec3 scale;
+	float alpha;
 	bool draw;
 	float fps;
 	bool motion_blend;

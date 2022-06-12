@@ -15,11 +15,13 @@
  */
 
 uniform sampler2D tex;
+uniform float alpha_mod;
 
 in vec2 tex_coord;
 out vec4 frag_color;
 
 void main() {
-        // TODO: Implement lighting.
-        frag_color = texture(tex, tex_coord);
+	// TODO: Implement lighting.
+	vec4 texel = texture(tex, tex_coord);
+	frag_color = vec4(texel.rgb, texel.a * alpha_mod);
 }
