@@ -38,13 +38,22 @@
 #include "little_endian.h"
 #include "xsystem4.h"
 
-struct dbg_cmd {
-	const char *fullname;
-	const char *shortname;
-	const char *description;
-	unsigned min_args;
-	unsigned max_args;
-	void (*run)(unsigned nr_args, char **args);
+struct dbg_cmd_node;
+
+struct dbg_cmd_list {
+	unsigned nr_commands;
+	struct dbg_cmd_node *commands;
+};
+
+struct dbg_cmd_node {
+	enum { CMD_NODE_CMD, CMD_NODE_MOD } type;
+	union {
+		struct dbg_cmd cmd;
+		struct {
+			const char *name;
+			struct dbg_cmd_list list;
+		} mod;
+	};
 };
 
 static void dbg_cmd_help(unsigned nr_args, char **args);
@@ -182,8 +191,8 @@ static void dbg_cmd_vm_state(unsigned nr_args, char **args)
 	dbg_print_vm_state();
 }
 
-static struct dbg_cmd dbg_commands[] = {
-	{ "help",       "h",   "[command-name] - Display this message",  0, 1, dbg_cmd_help },
+static struct dbg_cmd dbg_default_commands[] = {
+	{ "help",       "h",   "[command-name] - Display this message",  0, 2, dbg_cmd_help },
 	{ "backtrace",  "bt",  "- Display stack trace",                  0, 0, dbg_cmd_backtrace },
 	{ "breakpoint", "bp",  "<function-or-address> - Set breakpoint", 1, 1, dbg_cmd_breakpoint },
 	{ "continue",   "c",   "- Resume execution",                     0, 0, dbg_cmd_continue },
@@ -200,32 +209,99 @@ static struct dbg_cmd dbg_commands[] = {
 	{ "vm-state",   "vm",  "- Display current VM state",             0, 0, dbg_cmd_vm_state },
 };
 
-static void dbg_cmd_help(unsigned nr_args, char **args)
-{
-	puts("Available Commands");
-	puts("------------------");
-	for (unsigned i = 0; i < sizeof(dbg_commands)/sizeof(*dbg_commands); i++) {
-		struct dbg_cmd *cmd = &dbg_commands[i];
-		if (!nr_args || !strcmp(args[0], cmd->fullname) || !strcmp(args[0], cmd->shortname)) {
-			if (cmd->shortname)
-				printf("%s (%s) %s\n", cmd->fullname, cmd->shortname, cmd->description);
-			else
-				printf("%s %s\n", cmd->fullname, cmd->description);
-		}
-	}
-}
+static struct dbg_cmd_list dbg_commands = {0};
 
 /*
  * Get a command by name.
  */
-static struct dbg_cmd *dbg_get_command(const char *name)
+static struct dbg_cmd_node *dbg_get_node(struct dbg_cmd_list *list, const char *name)
 {
-	for (unsigned i = 0; i < sizeof(dbg_commands)/sizeof(*dbg_commands); i++) {
-		struct dbg_cmd *cmd = &dbg_commands[i];
-		if (!strcmp(name, cmd->fullname) || (cmd->shortname && !strcmp(name, cmd->shortname)))
-			return cmd;
+	for (unsigned i = 0; i < list->nr_commands; i++) {
+		switch (list->commands[i].type) {
+		case CMD_NODE_CMD: {
+			struct dbg_cmd *cmd = &list->commands[i].cmd;
+			if (!strcmp(name, cmd->fullname) || (cmd->shortname && !strcmp(name, cmd->shortname)))
+				return &list->commands[i];
+			break;
+		}
+		case CMD_NODE_MOD:
+			if (!strcmp(name, list->commands[i].mod.name))
+				return &list->commands[i];
+			break;
+		}
 	}
 	return NULL;
+}
+
+static void dbg_help_cmd(struct dbg_cmd *cmd)
+{
+	if (cmd->shortname)
+		printf("%s (%s) %s\n", cmd->fullname, cmd->shortname, cmd->description);
+	else
+		printf("%s %s\n", cmd->fullname, cmd->description);
+}
+
+static void dbg_help_list(struct dbg_cmd_list *list)
+{
+	puts("Available Commands");
+	puts("------------------");
+	for (unsigned i = 0; i < list->nr_commands; i++) {
+		if (list->commands[i].type == CMD_NODE_MOD) {
+			printf("%s - command module; run to see additional commands\n",
+					list->commands[i].mod.name);
+		} else if (list->commands[i].type == CMD_NODE_CMD) {
+			dbg_help_cmd(&list->commands[i].cmd);
+		}
+	}
+}
+
+static void dbg_cmd_help(unsigned nr_args, char **args)
+{
+	if (!nr_args) {
+		dbg_help_list(&dbg_commands);
+		return;
+	}
+
+	struct dbg_cmd_node *node = dbg_get_node(&dbg_commands, args[0]);
+	if (!node) {
+		DBG_ERROR("'%s' is not a command or module", args[0]);
+		return;
+	}
+	if (nr_args > 1) {
+		if (node->type != CMD_NODE_MOD) {
+			DBG_ERROR("'%s' is not a command module", args[0]);
+			return;
+		}
+		node = dbg_get_node(&node->mod.list, args[1]);
+		if (!node) {
+			DBG_ERROR("'%s %s' is not a command or module", args[0], args[1]);
+			return;
+		}
+	}
+
+	switch (node->type) {
+	case CMD_NODE_CMD:
+		dbg_help_cmd(&node->cmd);
+		break;
+	case CMD_NODE_MOD:
+		dbg_help_list(&node->mod.list);
+		break;
+	}
+}
+
+void dbg_cmd_add_module(const char *name, unsigned nr_commands, struct dbg_cmd *commands)
+{
+	dbg_commands.commands = xrealloc_array(dbg_commands.commands, dbg_commands.nr_commands,
+			dbg_commands.nr_commands+1, sizeof(struct dbg_cmd_node));
+	struct dbg_cmd_node *node = &dbg_commands.commands[dbg_commands.nr_commands++];
+	node->type = CMD_NODE_MOD;
+	node->mod.name = name;
+	node->mod.list.nr_commands = nr_commands;
+	node->mod.list.commands = xcalloc(nr_commands, sizeof(struct dbg_cmd_node));
+	for (unsigned i = 0; i < nr_commands; i++) {
+		node->mod.list.commands[i].type = CMD_NODE_CMD;
+		node->mod.list.commands[i].cmd = commands[i];
+	}
 }
 
 #ifdef HAVE_READLINE
@@ -281,6 +357,37 @@ static char **cmd_parse(char *line, unsigned *nr_words)
 	return words;
 }
 
+static void execute_command(struct dbg_cmd *cmd, unsigned nr_args, char **args)
+{
+	if (nr_args < cmd->min_args || nr_args > cmd->max_args) {
+		printf("Wrong number of arguments to '%s' command\n", cmd->fullname);
+		return;
+	}
+	cmd->run(nr_args, args);
+}
+
+static void execute_words(struct dbg_cmd_list *list, unsigned nr_words, char **words)
+{
+	struct dbg_cmd_node *node = dbg_get_node(list, words[0]);
+	if (!node) {
+		printf("Invalid command: %s (type 'help' for a list of commands)\n", words[0]);
+		return;
+	}
+
+	switch (node->type) {
+	case CMD_NODE_CMD:
+		execute_command(&node->cmd, nr_words-1, words+1);
+		break;
+	case CMD_NODE_MOD:
+		if (nr_words == 1) {
+			printf("TODO: module help");
+			return;
+		}
+		execute_words(&node->mod.list, nr_words-1, words+1);
+		break;
+	}
+}
+
 static void execute_line(char *line)
 {
 	unsigned nr_words;
@@ -288,18 +395,7 @@ static void execute_line(char *line)
 	if (!nr_words)
 		return;
 
-	struct dbg_cmd *cmd = dbg_get_command(words[0]);
-	if (!cmd) {
-		printf("Invalid command: %s (type 'help' for a list of commands)\n", words[0]);
-		return;
-	}
-
-	if ((nr_words-1) < cmd->min_args || (nr_words-1) > cmd->max_args) {
-		printf("Wrong number of arguments to '%s' command\n", cmd->fullname);
-		return;
-	}
-
-	cmd->run(nr_words-1, words+1);
+	execute_words(&dbg_commands, nr_words, words);
 }
 
 void dbg_cmd_repl(void)
@@ -332,6 +428,13 @@ static void read_config(const char *path)
 
 void dbg_cmd_init(void)
 {
+	dbg_commands.nr_commands = sizeof(dbg_default_commands)/sizeof(*dbg_default_commands);
+	dbg_commands.commands = xcalloc(dbg_commands.nr_commands, sizeof(struct dbg_cmd_node));
+	for (unsigned i = 0; i < dbg_commands.nr_commands; i++) {
+		dbg_commands.commands[i].type = CMD_NODE_CMD;
+		dbg_commands.commands[i].cmd = dbg_default_commands[i];
+	}
+
 	char *path = xmalloc(PATH_MAX);
 	snprintf(path, PATH_MAX, "%s/.xsys4-debugrc", config.home_dir);
 	read_config(path);

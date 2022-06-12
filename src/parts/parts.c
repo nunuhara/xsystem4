@@ -545,6 +545,7 @@ bool PE_Init(void)
 {
 	parts_table = ht_create(1024);
 	parts_render_init();
+	parts_debug_init();
 	gfx_init();
 	gfx_font_init();
 	audio_init();

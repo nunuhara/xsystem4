@@ -86,7 +86,7 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common,
 	gfx_run_job(&job);
 }
 
-static void parts_render(struct parts *parts, struct parts_render_params *parent_params)
+static void _parts_render(struct parts *parts, struct parts_render_params *parent_params)
 {
 	if (!parts->show)
 		return;
@@ -124,8 +124,17 @@ static void parts_render(struct parts *parts, struct parts_render_params *parent
 	// render children
 	struct parts *child;
 	TAILQ_FOREACH(child, &parts->children, parts_list_entry) {
-		parts_render(child, &params);
+		_parts_render(child, &params);
 	}
+}
+
+void parts_render(struct parts *parts)
+{
+	struct parts_render_params params = {
+		.offset = { 0, 0 },
+		.alpha = 255,
+	};
+	_parts_render(parts, &params);
 }
 
 void parts_engine_render(possibly_unused struct sprite *_)
@@ -136,7 +145,7 @@ void parts_engine_render(possibly_unused struct sprite *_)
 	};
 	struct parts *parts;
 	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
-		parts_render(parts, &params);
+		_parts_render(parts, &params);
 	}
 }
 

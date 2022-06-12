@@ -246,13 +246,12 @@ void parts_set_state(struct parts *parts, enum parts_state_type state);
 void parts_release(int parts_no);
 void parts_release_all(void);
 void parts_set_surface_area(struct parts_common *common, int x, int y, int w, int h);
-void parts_print(struct parts *parts);
-void parts_engine_print(void);
 
 // render.c
 void parts_render_init(void);
 void parts_engine_dirty(void);
 void parts_dirty(struct parts *parts);
+void parts_render(struct parts *parts);
 
 // motion.c
 void parts_clear_motion(struct parts *parts);
@@ -264,6 +263,11 @@ extern bool parts_began_click;
 
 // construction.c
 void parts_cp_op_free(struct parts_cp_op *op);
+
+// debug.c
+void parts_debug_init(void);
+void parts_print(struct parts *parts);
+void parts_engine_print(void);
 
 static inline bool parts_state_valid(int state)
 {

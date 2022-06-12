@@ -36,6 +36,15 @@ struct breakpoint {
 	int count;
 };
 
+struct dbg_cmd {
+	const char *fullname;
+	const char *shortname;
+	const char *description;
+	unsigned min_args;
+	unsigned max_args;
+	void (*run)(unsigned nr_args, char **args);
+};
+
 extern bool dbg_enabled;
 extern unsigned dbg_current_frame;
 
@@ -48,6 +57,7 @@ void dbg_quit(void);
 void dbg_start(void(*fun)(void*), void *data);
 void dbg_cmd_init(void);
 void dbg_cmd_repl(void);
+void dbg_cmd_add_module(const char *name, unsigned nr_commands, struct dbg_cmd *commands);
 void dbg_handle_breakpoint(void);
 bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*), void *data);
 bool dbg_set_address_breakpoint(uint32_t address, void(*cb)(struct breakpoint*), void *data);

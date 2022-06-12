@@ -15,6 +15,7 @@
  */
 
 #include "system4.h"
+#include "system4/cg.h"
 #include "system4/string.h"
 
 #include "xsystem4.h"
@@ -324,3 +325,157 @@ void parts_engine_print(void)
 		parts_print(parts);
 	}
 }
+
+#ifdef DEBUGGER_ENABLED
+
+#include "debugger.h"
+
+static struct parts *dbg_get_parts(const char *no)
+{
+	struct parts *parts = parts_try_get(atoi(no));
+	if (!parts)
+		DBG_ERROR("No parts object with ID '%s'", no);
+	return parts;
+}
+
+static void parts_cmd_parts(unsigned nr_args, char **args)
+{
+	struct parts *parts = dbg_get_parts(args[0]);
+	if (!parts)
+		return;
+
+	parts_print(parts);
+}
+
+static void parts_list_print(struct parts *parts, int indent)
+{
+	indent_printf(indent, parts->show ? "+ " : "- ");
+	printf("parts %d ", parts->no);
+	struct parts_state *state = &parts->states[parts->state];
+	if (!state->common.texture.handle) {
+		printf("(unititialized)\n");
+	} else {
+		switch (state->type) {
+		case PARTS_CG:
+			printf("(cg %d)\n", state->cg.no);
+			break;
+		case PARTS_TEXT:
+			printf("(text)\n"); // TODO? store actual text and print it here
+			break;
+		case PARTS_ANIMATION:
+			printf("(animation %d+%d)\n", state->anim.cg_no, state->anim.nr_frames);
+			break;
+		case PARTS_NUMERAL:
+			printf("(numeral %d)\n", state->num.cg_no);
+			break;
+		case PARTS_HGAUGE:
+			printf("(hgauge)\n"); // TODO? store rate and cg and print them here
+			break;
+		case PARTS_VGAUGE:
+			printf("(vgauge)\n");
+			break;
+		case PARTS_CONSTRUCTION_PROCESS: {
+			printf("(construction process:");
+			struct parts_cp_op *op;
+			TAILQ_FOREACH(op, &state->cproc.ops, entry) {
+				switch (op->type) {
+				case PARTS_CP_CREATE:
+					printf(" create");
+					break;
+				case PARTS_CP_CREATE_PIXEL_ONLY:
+					printf(" create-pixel-only");
+					break;
+				case PARTS_CP_CG:
+					printf(" cg");
+					break;
+				case PARTS_CP_FILL_ALPHA_COLOR:
+					printf(" fill-alpha-color");
+					break;
+				case PARTS_CP_DRAW_TEXT:
+					printf(" draw-text");
+					break;
+				case PARTS_CP_COPY_TEXT:
+					printf(" copy-text");
+					break;
+				}
+			}
+			printf(")\n");
+			break;
+		}
+		}
+	}
+
+	struct parts *child;
+	TAILQ_FOREACH(child, &parts->children, parts_list_entry) {
+		parts_list_print(child, indent + 1);
+	}
+}
+
+static void parts_cmd_parts_list(unsigned nr_args, char **args)
+{
+	struct parts *parts;
+	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+		parts_list_print(parts, 0);
+	}
+}
+
+static void parts_cmd_parts_save(unsigned nr_args, char **args)
+{
+	struct parts *parts = dbg_get_parts(args[0]);
+	if (!parts)
+		return;
+
+	if (!parts->states[parts->state].common.texture.handle) {
+		DBG_ERROR("parts texture not initialized");
+		return;
+	}
+
+	// TODO: infer format from extension
+	gfx_save_texture(&parts->states[parts->state].common.texture, args[1], ALCG_PNG);
+}
+
+static void parts_cmd_parts_render(unsigned nr_args, char **args)
+{
+	struct parts *parts = dbg_get_parts(args[0]);
+	if (!parts)
+		return;
+
+	if (!parts->states[parts->state].common.texture.handle) {
+		DBG_ERROR("parts texture not initialized");
+		return;
+	}
+
+	// create output texture
+	Texture t;
+	gfx_init_texture_rgba(&t, config.view_width, config.view_height, (SDL_Color){0,0,0,0});
+
+	// render parts to texture
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, &t, 0, 0, t.w, t.h);
+	parts_render(parts);
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+
+	// write texture to disk
+	// TODO: infer format from extension
+	gfx_save_texture(&t, args[1], ALCG_PNG);
+	gfx_delete_texture(&t);
+}
+
+void parts_debug_init(void)
+{
+	struct dbg_cmd cmds[] = {
+		{ "show", NULL, "<parts-no> - Display parts object", 1, 1, parts_cmd_parts },
+		{ "list", NULL, "- Display parts list", 0, 0, parts_cmd_parts_list },
+		{ "save", NULL, "<parts-no> <file-name> - Save parts texture to an image file",
+			2, 2, parts_cmd_parts_save },
+		{ "render", NULL, "<parts-no> <file-name> - Render parts object to an image file",
+			2, 2, parts_cmd_parts_render },
+	};
+
+	dbg_cmd_add_module("parts", sizeof(cmds)/sizeof(*cmds), cmds);
+}
+
+#else
+
+void parts_debug_init(void) {}
+
+#endif // DEBUGGER ENABLED
