@@ -77,6 +77,7 @@ struct parts_text_line {
 };
 
 enum parts_type {
+	PARTS_UNINITIALIZED,
 	PARTS_CG,
 	PARTS_TEXT,
 	PARTS_ANIMATION,

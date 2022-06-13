@@ -152,6 +152,8 @@ static void parts_print_state(struct parts_state *state, int indent)
 	indent_printf(indent, "hitbox = "); gfx_print_rectangle(&com->hitbox); printf(",\n");
 	indent_printf(indent, "surface_area = "); gfx_print_rectangle(&com->surface_area); printf(",\n");
 	switch (state->type) {
+	case PARTS_UNINITIALIZED:
+		break;
 	case PARTS_CG:
 		parts_cg_print(&state->cg, indent);
 		break;
@@ -353,57 +355,56 @@ static void parts_list_print(struct parts *parts, int indent)
 	indent_printf(indent, parts->show ? "+ " : "- ");
 	printf("parts %d ", parts->no);
 	struct parts_state *state = &parts->states[parts->state];
-	if (!state->common.texture.handle) {
-		printf("(unititialized)\n");
-	} else {
-		switch (state->type) {
-		case PARTS_CG:
-			printf("(cg %d)\n", state->cg.no);
-			break;
-		case PARTS_TEXT:
-			printf("(text)\n"); // TODO? store actual text and print it here
-			break;
-		case PARTS_ANIMATION:
-			printf("(animation %d+%d)\n", state->anim.cg_no, state->anim.nr_frames);
-			break;
-		case PARTS_NUMERAL:
-			printf("(numeral %d)\n", state->num.cg_no);
-			break;
-		case PARTS_HGAUGE:
-			printf("(hgauge)\n"); // TODO? store rate and cg and print them here
-			break;
-		case PARTS_VGAUGE:
-			printf("(vgauge)\n");
-			break;
-		case PARTS_CONSTRUCTION_PROCESS: {
-			printf("(construction process:");
-			struct parts_cp_op *op;
-			TAILQ_FOREACH(op, &state->cproc.ops, entry) {
-				switch (op->type) {
-				case PARTS_CP_CREATE:
-					printf(" create");
-					break;
-				case PARTS_CP_CREATE_PIXEL_ONLY:
-					printf(" create-pixel-only");
-					break;
-				case PARTS_CP_CG:
-					printf(" cg");
-					break;
-				case PARTS_CP_FILL_ALPHA_COLOR:
-					printf(" fill-alpha-color");
-					break;
-				case PARTS_CP_DRAW_TEXT:
-					printf(" draw-text");
-					break;
-				case PARTS_CP_COPY_TEXT:
-					printf(" copy-text");
-					break;
-				}
+	switch (state->type) {
+	case PARTS_UNINITIALIZED:
+		printf("(uninitialized)\n");
+		break;
+	case PARTS_CG:
+		printf("(cg %d)\n", state->cg.no);
+		break;
+	case PARTS_TEXT:
+		printf("(text)\n"); // TODO? store actual text and print it here
+		break;
+	case PARTS_ANIMATION:
+		printf("(animation %d+%d)\n", state->anim.cg_no, state->anim.nr_frames);
+		break;
+	case PARTS_NUMERAL:
+		printf("(numeral %d)\n", state->num.cg_no);
+		break;
+	case PARTS_HGAUGE:
+		printf("(hgauge)\n"); // TODO? store rate and cg and print them here
+		break;
+	case PARTS_VGAUGE:
+		printf("(vgauge)\n");
+		break;
+	case PARTS_CONSTRUCTION_PROCESS: {
+		printf("(construction process:");
+		struct parts_cp_op *op;
+		TAILQ_FOREACH(op, &state->cproc.ops, entry) {
+			switch (op->type) {
+			case PARTS_CP_CREATE:
+				printf(" create");
+				break;
+			case PARTS_CP_CREATE_PIXEL_ONLY:
+				printf(" create-pixel-only");
+				break;
+			case PARTS_CP_CG:
+				printf(" cg");
+				break;
+			case PARTS_CP_FILL_ALPHA_COLOR:
+				printf(" fill-alpha-color");
+				break;
+			case PARTS_CP_DRAW_TEXT:
+				printf(" draw-text");
+				break;
+			case PARTS_CP_COPY_TEXT:
+				printf(" copy-text");
+				break;
 			}
-			printf(")\n");
-			break;
 		}
-		}
+		printf(")\n");
+		break;
+	}
 	}
 
 	struct parts *child;

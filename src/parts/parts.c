@@ -31,7 +31,6 @@ static struct hash_table *parts_table = NULL;
 
 static void parts_init(struct parts *parts)
 {
-	memset(parts, 0, sizeof(struct parts));
 	parts->delegate_index = -1;
 	parts->on_cursor_sound = -1;
 	parts->on_click_sound = -1;
@@ -111,6 +110,8 @@ static void parts_list_remove(struct parts_list *list, struct parts *parts)
 static void parts_state_free(struct parts_state *state)
 {
 	switch (state->type) {
+	case PARTS_UNINITIALIZED:
+		break;
 	case PARTS_CG:
 		gfx_delete_texture(&state->common.texture);
 		break;

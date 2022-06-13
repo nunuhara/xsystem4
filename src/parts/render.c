@@ -109,6 +109,8 @@ static void _parts_render(struct parts *parts, struct parts_render_params *paren
 	struct parts_state *state = &parts->states[parts->state];
 	if (state->common.texture.handle) {
 		switch (state->type) {
+		case PARTS_UNINITIALIZED:
+			break;
 		case PARTS_CG:
 		case PARTS_ANIMATION:
 		case PARTS_NUMERAL:
