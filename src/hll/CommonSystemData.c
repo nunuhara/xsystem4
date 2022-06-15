@@ -14,34 +14,132 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdint.h>
+
+#include "system4.h"
+#include "system4/hashtable.h"
 #include "system4/string.h"
 
 #include "hll.h"
 
+static struct string *save_path = NULL;
+
+union csd_datum {
+	void *p;
+	intptr_t i;
+	float f;
+	struct string *s;
+};
+
+static struct hash_table *csd_table(void)
+{
+	static struct hash_table *table = NULL;
+	if (!table) {
+		table = ht_create(64);
+	}
+	return table;
+}
+
+static void csd_put_datum(struct string *name, union csd_datum datum)
+{
+	struct ht_slot *slot = ht_put(csd_table(), name->text, NULL);
+	slot->value = datum.p;
+}
+
+static bool csd_get_datum(struct string *name, union csd_datum *out)
+{
+	return _ht_get(csd_table(), name->text, &out->p);
+}
+
 static void CommonSystemData_SetFullPathSaveFileName(struct string *filename)
 {
+	if (save_path)
+		free_string(save_path);
+	save_path = string_dup(filename);
 	NOTICE("SetFullPathSaveFileName(%s)", filename->text);
 }
 
 HLL_WARN_UNIMPLEMENTED(false, bool, CommonSystemData, LoadAtStartup);
 //static bool CommonSystemData_LoadAtStartup(void);
-//static bool CommonSystemData_SetDataInt(struct string *name, int value);
-//static bool CommonSystemData_SetDataFloat(struct string *name, float value);
-//static bool CommonSystemData_SetDataString(struct string *name, struct string *value);
-//static bool CommonSystemData_SetDataBool(struct string *name, bool value);
-//static bool CommonSystemData_GetDataInt(struct string *name, int *value);
-//static bool CommonSystemData_GetDataFloat(struct string *name, float *value);
-//static bool CommonSystemData_GetDataString(struct string *name, struct string **value);
-//static bool CommonSystemData_GetDataBool(struct string *name, bool *value);
+
+static bool CommonSystemData_SetDataInt(struct string *name, int value)
+{
+	csd_put_datum(name, (union csd_datum) { .i = value });
+	return true;
+}
+
+static bool CommonSystemData_SetDataFloat(struct string *name, float value)
+{
+	csd_put_datum(name, (union csd_datum) { .f = value });
+	return true;
+}
+
+static bool CommonSystemData_SetDataString(struct string *name, struct string *value)
+{
+	union csd_datum datum = { .s = string_dup(value) };
+	struct ht_slot *slot = ht_put(csd_table(), name->text, NULL);
+	if (slot->value)
+		free_string(slot->value);
+	slot->value = datum.p;
+	return true;
+}
+
+static bool CommonSystemData_SetDataBool(struct string *name, bool value)
+{
+	csd_put_datum(name, (union csd_datum) { .i = value });
+	return true;
+}
+
+static bool CommonSystemData_GetDataInt(struct string *name, int *value)
+{
+	union csd_datum datum;
+	if (csd_get_datum(name, &datum)) {
+		*value = datum.i;
+		return true;
+	}
+	return false;
+}
+
+static bool CommonSystemData_GetDataFloat(struct string *name, float *value)
+{
+	union csd_datum datum;
+	if (csd_get_datum(name, &datum)) {
+		*value = datum.f;
+		return true;
+	}
+	return false;
+}
+
+static bool CommonSystemData_GetDataString(struct string *name, struct string **value)
+{
+	union csd_datum datum;
+	if (csd_get_datum(name, &datum)) {
+		if (*value)
+			free_string(*value);
+		*value = string_dup(datum.s);
+		return true;
+	}
+	return false;
+}
+
+static bool CommonSystemData_GetDataBool(struct string *name, bool *value)
+{
+	union csd_datum datum;
+	if (csd_get_datum(name, &datum)) {
+		*value = datum.i;
+		return true;
+	}
+	return false;
+}
 
 HLL_LIBRARY(CommonSystemData,
 	    HLL_EXPORT(SetFullPathSaveFileName, CommonSystemData_SetFullPathSaveFileName),
 	    HLL_EXPORT(LoadAtStartup, CommonSystemData_LoadAtStartup),
-	    HLL_TODO_EXPORT(SetDataInt, CommonSystemData_SetDataInt),
-	    HLL_TODO_EXPORT(SetDataFloat, CommonSystemData_SetDataFloat),
-	    HLL_TODO_EXPORT(SetDataString, CommonSystemData_SetDataString),
-	    HLL_TODO_EXPORT(SetDataBool, CommonSystemData_SetDataBool),
-	    HLL_TODO_EXPORT(GetDataInt, CommonSystemData_GetDataInt),
-	    HLL_TODO_EXPORT(GetDataFloat, CommonSystemData_GetDataFloat),
-	    HLL_TODO_EXPORT(GetDataString, CommonSystemData_GetDataString),
-	    HLL_TODO_EXPORT(GetDataBool, CommonSystemData_GetDataBool));
+	    HLL_EXPORT(SetDataInt, CommonSystemData_SetDataInt),
+	    HLL_EXPORT(SetDataFloat, CommonSystemData_SetDataFloat),
+	    HLL_EXPORT(SetDataString, CommonSystemData_SetDataString),
+	    HLL_EXPORT(SetDataBool, CommonSystemData_SetDataBool),
+	    HLL_EXPORT(GetDataInt, CommonSystemData_GetDataInt),
+	    HLL_EXPORT(GetDataFloat, CommonSystemData_GetDataFloat),
+	    HLL_EXPORT(GetDataString, CommonSystemData_GetDataString),
+	    HLL_EXPORT(GetDataBool, CommonSystemData_GetDataBool));
