@@ -227,5 +227,9 @@ struct font *fnl_font_load(struct fnl *lib, unsigned index)
 	font->super.get_actual_size_round_down = fnl_font_get_actual_size_round_down;
 	font->super.get_glyph = fnl_font_get_glyph;
 	font->super.size_char = fnl_font_size_char;
+
+	if (!game_rance7_mg)
+		gfx_text_advance_edges = true;
+
 	return &font->super;
 }

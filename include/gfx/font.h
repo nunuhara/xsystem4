@@ -107,6 +107,8 @@ static inline void text_style_set_edge_width(struct text_style *ts, float w)
 	ts->edge_down = w;
 }
 
+extern bool gfx_text_advance_edges;
+
 void gfx_font_init(void);
 void ft_font_init(void);
 struct font *ft_font_load(const char *path);

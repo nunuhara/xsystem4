@@ -43,6 +43,9 @@
 #define MAX_FONTS 32
 static struct font *fonts[MAX_FONTS] = {0};
 
+// Controls whether edge widths are taken into account during text layout.
+bool gfx_text_advance_edges = false;
+
 static struct font *load_font(enum font_face type)
 {
 	static const char *local_font_paths[] = {
@@ -166,16 +169,6 @@ static uint32_t char_to_code(const char *ch, enum charmap charmap)
 	return c;
 }
 
-static float font_size_text(struct font_size *size, const char *text)
-{
-	float x = 0.0f;
-	while (*text) {
-		x += font_size_char(size, char_to_code(text, size->font->charmap));
-		text = sjis_skip_char(text);
-	}
-	return x;
-}
-
 float gfx_size_char(struct text_style *ts, const char *ch)
 {
 	struct font_size *size = text_style_font_size(ts);
@@ -184,7 +177,15 @@ float gfx_size_char(struct text_style *ts, const char *ch)
 
 float gfx_size_text(struct text_style *ts, const char *text)
 {
-	return font_size_text(text_style_font_size(ts), text);
+	struct font_size *size = text_style_font_size(ts);
+	float edge_advance = gfx_text_advance_edges ? ts->edge_left + ts->edge_right : 0.0f;
+	float x = 0.0f;
+	while (*text) {
+		x += font_size_char(size, char_to_code(text, size->font->charmap));
+		x += edge_advance;
+		text = sjis_skip_char(text);
+	}
+	return x;
 }
 
 float gfx_get_actual_font_size(unsigned face, float size)
@@ -214,6 +215,7 @@ struct text_render_metrics {
 	float scale_x;
 	float space_scale_x;
 	float font_spacing;
+	float edge_spacing;
 	enum text_render_mode mode;
 	struct font_size *font_size;
 };
@@ -224,6 +226,7 @@ static int render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 	int pos_y = tm->y + tm->font_size->y_offset;
 
 	while (*msg) {
+		pos_x += tm->edge_spacing;
 		// get glyph for character
 		float scale_x = *msg == ' ' ? tm->space_scale_x : tm->scale_x;
 		uint32_t code = char_to_code(msg, tm->font_size->font->charmap);
@@ -246,6 +249,7 @@ static int render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 
 		// advance
 		pos_x += glyph->advance * scale_x * config.text_x_scale + tm->font_spacing;
+		pos_x += tm->edge_spacing;
 	}
 	return roundf(pos_x - tm->x);
 }
@@ -282,6 +286,7 @@ int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *
 			.scale_x = ts->scale_x,
 			.space_scale_x = ts->space_scale_x,
 			.font_spacing = ts->font_spacing,
+			.edge_spacing = gfx_text_advance_edges ? edge_width : 0.0,
 			.mode = RENDER_BLENDED,
 			.font_size = font_size,
 		};
@@ -296,6 +301,7 @@ int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *
 		.scale_x = ts->scale_x,
 		.space_scale_x = ts->space_scale_x,
 		.font_spacing = ts->font_spacing,
+		.edge_spacing = gfx_text_advance_edges ? edge_width : 0.0,
 		.mode = RENDER_BLENDED,
 		.font_size = font_size,
 	};
