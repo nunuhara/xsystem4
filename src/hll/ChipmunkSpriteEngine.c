@@ -105,7 +105,7 @@ static bool ChipmunkSpriteEngine_SP_GetFontWidth(struct string *text, int *width
 		return true;
 	}
 
-	*width = SJIS_2BYTE(text->text[0]) ? text_sprite_ts.size : text_sprite_ts.size / 2;
+	*width = gfx_size_text(&text_sprite_ts, text->text);
 	return true;
 }
 
