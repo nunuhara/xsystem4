@@ -35,7 +35,11 @@ void parts_cp_op_free(struct parts_cp_op *op)
 	case PARTS_CP_CREATE:
 	case PARTS_CP_CREATE_PIXEL_ONLY:
 	case PARTS_CP_CG:
+	case PARTS_CP_FILL:
 	case PARTS_CP_FILL_ALPHA_COLOR:
+	case PARTS_CP_FILL_AMAP:
+	case PARTS_CP_DRAW_CUT_CG:
+	case PARTS_CP_COPY_CUT_CG:
 		break;
 	case PARTS_CP_DRAW_TEXT:
 	case PARTS_CP_COPY_TEXT:
@@ -99,7 +103,23 @@ bool PE_AddCreateCGToProcess(int parts_no, struct string *cg_name, int state)
 	return true;
 }
 
-bool PE_AddFillToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int state);
+bool PE_AddFillToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts_construction_process *cproc = get_cproc(parts_no, state);
+	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
+	op->type = PARTS_CP_FILL;
+	op->fill = (struct parts_cp_fill) {
+		.x = x, .y = y, .w = w, .h = h,
+		.r = r, .g = g, .b = b, .a = 255
+	};
+
+	parts_add_cp_op(cproc, op);
+	return true;
+
+}
 
 bool PE_AddFillAlphaColorToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int a, int state)
 {
@@ -109,7 +129,7 @@ bool PE_AddFillAlphaColorToPartsConstructionProcess(int parts_no, int x, int y, 
 	struct parts_construction_process *cproc = get_cproc(parts_no, state);
 	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
 	op->type = PARTS_CP_FILL_ALPHA_COLOR;
-	op->fill_alpha_color = (struct parts_cp_fill_alpha_color) {
+	op->fill = (struct parts_cp_fill) {
 		.x = x, .y = y, .w = w, .h = h,
 		.r = r, .g = g, .b = b, .a = a
 	};
@@ -118,17 +138,82 @@ bool PE_AddFillAlphaColorToPartsConstructionProcess(int parts_no, int x, int y, 
 	return true;
 }
 
-bool PE_AddFillAMapToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int a, int state);
+bool PE_AddFillAMapToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int a, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts_construction_process *cproc = get_cproc(parts_no, state);
+	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
+	op->type = PARTS_CP_FILL_AMAP;
+	op->fill = (struct parts_cp_fill) {
+		.x = x, .y = y, .w = w, .h = h,
+		.r = 0, .g = 0, .b = 0, .a = a
+	};
+
+	parts_add_cp_op(cproc, op);
+	return true;
+}
+
 bool PE_AddFillWithAlphaToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
 		int r, int g, int b, int a, int state);
 bool PE_AddFillGradationHorizonToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
 		int top_r, int top_g, int top_b, int bot_r, int bot_g, int bot_b, int state);
 bool PE_AddDrawRectToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
 		int r, int g, int b, int state);
+
 bool PE_AddDrawCutCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
-		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state);
+		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	int cg_no;
+	if (!asset_exists_by_name(ASSET_CG, cg_name->text, &cg_no)) {
+		WARNING("Invalid CG name: %s", display_sjis0(cg_name->text));
+		return false;
+	}
+
+	struct parts_construction_process *cproc = get_cproc(parts_no, state);
+	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
+	op->type = PARTS_CP_DRAW_CUT_CG;
+	op->cut_cg = (struct parts_cp_cut_cg) {
+		.cg_no = cg_no,
+		.dx = dx, .dy = dy, .dw = dw, .dh = dh,
+		.sx = sx, .sy = sy, .sw = sw, .sh = sh,
+		.interp_type = interp_type
+	};
+
+	parts_add_cp_op(cproc, op);
+	return true;
+}
+
 bool PE_AddCopyCutCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
-		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state);
+		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	int cg_no;
+	if (!asset_exists_by_name(ASSET_CG, cg_name->text, &cg_no)) {
+		WARNING("Invalid CG name: %s", display_sjis0(cg_name->text));
+		return false;
+	}
+
+	struct parts_construction_process *cproc = get_cproc(parts_no, state);
+	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
+	op->type = PARTS_CP_COPY_CUT_CG;
+	op->cut_cg = (struct parts_cp_cut_cg) {
+		.cg_no = cg_no,
+		.dx = dx, .dy = dy, .dw = dw, .dh = dh,
+		.sx = sx, .sy = sy, .sw = sw, .sh = sh,
+		.interp_type = interp_type
+	};
+
+	parts_add_cp_op(cproc, op);
+	return true;
+}
+
 bool PE_AddGrayFilterToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
 		bool full_size, int state);
 bool PE_AddAddFilterToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
@@ -222,10 +307,47 @@ static void build_cg(struct parts *parts, struct parts_construction_process *cpr
 	cg_free(cg);
 }
 
-static void build_fill_alpha_color(struct parts_construction_process *cproc,
-		struct parts_cp_fill_alpha_color *op)
+static void build_fill(struct parts_construction_process *cproc, struct parts_cp_fill *op)
+{
+	gfx_fill(&cproc->common.texture, op->x, op->y, op->w, op->h, op->r, op->g, op->b);
+}
+
+static void build_fill_alpha_color(struct parts_construction_process *cproc, struct parts_cp_fill *op)
 {
 	gfx_fill_alpha_color(&cproc->common.texture, op->x, op->y, op->w, op->h, op->r, op->g, op->b, op->a);
+}
+
+static void build_fill_amap(struct parts_construction_process *cproc, struct parts_cp_fill *op)
+{
+	gfx_fill_amap(&cproc->common.texture, op->x, op->y, op->w, op->h, op->a);
+}
+
+static void build_draw_cut_cg(struct parts_construction_process *cproc, struct parts_cp_cut_cg *op)
+{
+	struct cg *cg = asset_cg_load(op->cg_no);
+	assert(cg);
+
+	Texture src;
+	gfx_init_texture_with_cg(&src, cg);
+	cg_free(cg);
+
+	gfx_copy_stretch_blend_amap(&cproc->common.texture, op->dx, op->dy, op->dw, op->dh,
+			&src, op->sx, op->sy, op->sw, op->sh);
+	gfx_delete_texture(&src);
+}
+
+static void build_copy_cut_cg(struct parts_construction_process *cproc, struct parts_cp_cut_cg *op)
+{
+	struct cg *cg = asset_cg_load(op->cg_no);
+	assert(cg);
+
+	Texture src;
+	gfx_init_texture_with_cg(&src, cg);
+	cg_free(cg);
+
+	gfx_copy_stretch_with_alpha_map(&cproc->common.texture, op->dx, op->dy, op->dw, op->dh,
+			&src, op->sx, op->sy, op->sw, op->sh);
+	gfx_delete_texture(&src);
 }
 
 static void build_draw_text(struct parts_construction_process *cproc, struct parts_cp_text *op)
@@ -261,8 +383,20 @@ bool PE_BuildPartsConstructionProcess(int parts_no, int state)
 		case PARTS_CP_CG:
 			build_cg(parts, cproc, &op->cg);
 			break;
+		case PARTS_CP_FILL:
+			build_fill(cproc, &op->fill);
+			break;
 		case PARTS_CP_FILL_ALPHA_COLOR:
-			build_fill_alpha_color(cproc, &op->fill_alpha_color);
+			build_fill_alpha_color(cproc, &op->fill);
+			break;
+		case PARTS_CP_FILL_AMAP:
+			build_fill_amap(cproc, &op->fill);
+			break;
+		case PARTS_CP_DRAW_CUT_CG:
+			build_draw_cut_cg(cproc, &op->cut_cg);
+			break;
+		case PARTS_CP_COPY_CUT_CG:
+			build_copy_cut_cg(cproc, &op->cut_cg);
 			break;
 		case PARTS_CP_DRAW_TEXT:
 			build_draw_text(cproc, &op->text);

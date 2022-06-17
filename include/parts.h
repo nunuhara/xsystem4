@@ -100,7 +100,15 @@ bool PE_IsExist(int parts_no);
 bool PE_AddCreateToPartsConstructionProcess(int parts_no, int w, int h, int state);
 bool PE_AddCreatePixelOnlyToPartsConstructionProcess(int parts_no, int w, int h, int state);
 bool PE_AddCreateCGToProcess(int parts_no, struct string *cg_name, int state);
-bool PE_AddFillAlphaColorToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int a, int state);
+bool PE_AddFillToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
+		int r, int g, int b, int state);
+bool PE_AddFillAlphaColorToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
+		int r, int g, int b, int a, int state);
+bool PE_AddFillAMapToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int a, int state);
+bool PE_AddDrawCutCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
+		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state);
+bool PE_AddCopyCutCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
+		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state);
 bool PE_AddCopyTextToPartsConstructionProcess(int parts_no, int x, int y, struct string *text,
 		int type, int size, int r, int g, int b, float bold_weight,
 		int edge_r, int edge_g, int edge_b, float edge_weight,

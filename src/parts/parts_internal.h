@@ -137,7 +137,11 @@ enum parts_cp_op_type {
 	PARTS_CP_CREATE,
 	PARTS_CP_CREATE_PIXEL_ONLY,
 	PARTS_CP_CG,
+	PARTS_CP_FILL,
 	PARTS_CP_FILL_ALPHA_COLOR,
+	PARTS_CP_FILL_AMAP,
+	PARTS_CP_DRAW_CUT_CG,
+	PARTS_CP_COPY_CUT_CG,
 	PARTS_CP_DRAW_TEXT,
 	PARTS_CP_COPY_TEXT,
 #define PARTS_NR_CP_TYPES (PARTS_CP_COPY_TEXT+1)
@@ -152,9 +156,16 @@ struct parts_cp_cg {
 	int no;
 };
 
-struct parts_cp_fill_alpha_color {
+struct parts_cp_fill {
 	int x, y, w, h;
 	int r, g, b, a;
+};
+
+struct parts_cp_cut_cg {
+	int cg_no;
+	int dx, dy, dw, dh;
+	int sx, sy, sw, sh;
+	int interp_type;
 };
 
 struct parts_cp_text {
@@ -170,7 +181,8 @@ struct parts_cp_op {
 	union {
 		struct parts_cp_create create;
 		struct parts_cp_cg cg;
-		struct parts_cp_fill_alpha_color fill_alpha_color;
+		struct parts_cp_fill fill;
+		struct parts_cp_cut_cg cut_cg;
 		struct parts_cp_text text;
 	};
 };

@@ -84,7 +84,11 @@ static void parts_construction_process_print(struct parts_construction_process *
 		[PARTS_CP_CREATE] = "PARTS_CP_CREATE",
 		[PARTS_CP_CREATE_PIXEL_ONLY] = "PARTS_CP_CREATE_PIXEL_ONLY",
 		[PARTS_CP_CG] = "PARTS_CP_CG",
+		[PARTS_CP_FILL] = "PARTS_CP_FILL",
 		[PARTS_CP_FILL_ALPHA_COLOR] = "PARTS_CP_FILL_ALPHA_COLOR",
+		[PARTS_CP_FILL_AMAP] = "PARTS_CP_FILL_AMAP",
+		[PARTS_CP_DRAW_CUT_CG] = "PARTS_CP_DRAW_CUT_CG",
+		[PARTS_CP_COPY_CUT_CG] = "PARTS_CP_COPY_CUT_CG",
 		[PARTS_CP_DRAW_TEXT] = "PARTS_CP_DRAW_TEXT",
 		[PARTS_CP_COPY_TEXT] = "PARTS_CP_COPY_TEXT",
 	};
@@ -111,13 +115,22 @@ static void parts_construction_process_print(struct parts_construction_process *
 		case PARTS_CP_CG:
 			indent_printf(indent, "cg.no = %d\n", op->cg.no);
 			break;
+		case PARTS_CP_FILL:
 		case PARTS_CP_FILL_ALPHA_COLOR:
-			indent_printf(indent, "fill_alpha_color.rect = {x=%d,y=%d,w=%d,h=%d},\n",
-					op->fill_alpha_color.x, op->fill_alpha_color.y,
-					op->fill_alpha_color.w, op->fill_alpha_color.h);
-			indent_printf(indent, "fill_alpha_color.color = (%d,%d,%d,%d)\n",
-					op->fill_alpha_color.r, op->fill_alpha_color.g,
-					op->fill_alpha_color.b, op->fill_alpha_color.a);
+		case PARTS_CP_FILL_AMAP:
+			indent_printf(indent, "fill.rect = {x=%d,y=%d,w=%d,h=%d},\n",
+					op->fill.x, op->fill.y, op->fill.w, op->fill.h);
+			indent_printf(indent, "fill.color = (%d,%d,%d,%d)\n",
+					op->fill.r, op->fill.g, op->fill.b, op->fill.a);
+			break;
+		case PARTS_CP_DRAW_CUT_CG:
+		case PARTS_CP_COPY_CUT_CG:
+			indent_printf(indent, "cut_cg.cg_no = %d,\n", op->cut_cg.cg_no);
+			indent_printf(indent, "cut_cg.dst = {x=%d,y=%d,w=%d,h=%d},\n",
+					op->cut_cg.dx, op->cut_cg.dy, op->cut_cg.dw, op->cut_cg.dh);
+			indent_printf(indent, "cut_cg.src = {x=%d,y=%d,w=%d,h=%d},\n",
+					op->cut_cg.sx, op->cut_cg.sy, op->cut_cg.sw, op->cut_cg.sh);
+			indent_printf(indent, "cut_cg.interp_type = %d\n", op->cut_cg.interp_type);
 			break;
 		case PARTS_CP_DRAW_TEXT:
 		case PARTS_CP_COPY_TEXT:
@@ -396,8 +409,20 @@ static void parts_list_print(struct parts *parts, int indent)
 			case PARTS_CP_CG:
 				printf(" cg");
 				break;
+			case PARTS_CP_FILL:
+				printf(" fill");
+				break;
 			case PARTS_CP_FILL_ALPHA_COLOR:
 				printf(" fill-alpha-color");
+				break;
+			case PARTS_CP_FILL_AMAP:
+				printf(" fill-amap");
+				break;
+			case PARTS_CP_DRAW_CUT_CG:
+				printf(" draw-cut-cg");
+				break;
+			case PARTS_CP_COPY_CUT_CG:
+				printf(" copy-cut-cg");
 				break;
 			case PARTS_CP_DRAW_TEXT:
 				printf(" draw-text");
