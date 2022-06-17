@@ -114,8 +114,9 @@ bool PE_SetPartsTextSurfaceArea(int parts_no, int x, int y, int w, int h, int st
 	if (!parts_state_valid(--state))
 		return false;
 
-	struct parts_text *text = parts_get_text(parts_get(parts_no), state);
-	parts_set_surface_area(&text->common, x, y, w, h);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_text *text = parts_get_text(parts, state);
+	parts_set_surface_area(parts, &text->common, x, y, w, h);
 	return true;
 }
 

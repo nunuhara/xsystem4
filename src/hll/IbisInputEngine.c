@@ -17,9 +17,11 @@
 #include "hll.h"
 #include "sact.h"
 
-//bool Mouse_HideCursorByGame(bool Hide);
+//bool Mouse_MovePosImmediately(int x, int y);
+//bool Mouse_HideCursorByGame(bool hide);
 //bool Mouse_IsHideCursorByGame(void);
 //void Mouse_HideByStepMessage(void);
+HLL_QUIET_UNIMPLEMENTED(, void, IbisInputEngine, Mouse_HideByStepMessage);
 //void MouseWheel_ClearCount(void);
 HLL_QUIET_UNIMPLEMENTED(, void, IbisInputEngine, MouseWheel_ClearCount);
 
@@ -49,6 +51,10 @@ HLL_WARN_UNIMPLEMENTED(0.0, float, IbisInputEngine, Joystick_GetAxis, int dev, i
 
 HLL_LIBRARY(IbisInputEngine,
 	    HLL_EXPORT(Mouse_GetPos, sact_Mouse_GetPos),
+	    HLL_TODO_EXPORT(Mouse_MovePosImmediately, IbisInputEngine_Mouse_MovePosImmediately),
+	    HLL_TODO_EXPORT(Mouse_HideCursorByGame, IbisInputEngine_Mouse_HideCursorByGame),
+	    HLL_TODO_EXPORT(Mouse_IsHideCursorByGame, IbisInputEngine_Mouse_IsHideCursorByGame),
+	    HLL_EXPORT(Mouse_HideByStepMessage, IbisInputEngine_Mouse_HideByStepMessage),
 	    HLL_EXPORT(MouseWheel_ClearCount, IbisInputEngine_MouseWheel_ClearCount),
 	    HLL_EXPORT(MouseWheel_GetCount, IbisInputEngine_MouseWheel_GetCount),
 	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown),

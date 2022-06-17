@@ -37,6 +37,7 @@ static void parts_init(struct parts *parts)
 	parts->origin_mode = 1;
 	parts->z = 1;
 	parts->show = true;
+	parts->alpha = 255;
 	parts->parent = -1;
 	parts->linked_to = -1;
 	parts->linked_from = -1;
@@ -56,17 +57,31 @@ static struct parts *parts_alloc(void)
 	return parts;
 }
 
-static void parts_list_insert(struct parts_list *list, struct parts *parts)
+static void parts_list_insert(struct parts *parts)
 {
 	struct parts *p;
-	TAILQ_FOREACH(p, list, parts_list_entry) {
+	PARTS_LIST_FOREACH(p) {
 		if (p->z >= parts->z) {
 			TAILQ_INSERT_BEFORE(p, parts, parts_list_entry);
 			return;
 		}
 	}
-	TAILQ_INSERT_TAIL(list, parts, parts_list_entry);
+	TAILQ_INSERT_TAIL(&parts_list, parts, parts_list_entry);
 	parts_engine_dirty();
+}
+
+static void parts_set_parent(struct parts *child, struct parts *parent)
+{
+	if (child->parent >= 0) {
+		struct parts *old_parent = parts_get(child->parent);
+		TAILQ_REMOVE(&old_parent->children, child, child_list_entry);
+	}
+	if (parent) {
+		TAILQ_INSERT_TAIL(&parent->children, child, child_list_entry);
+		child->parent = parent->no;
+	} else {
+		child->parent = -1;
+	}
 }
 
 struct parts *parts_try_get(int parts_no)
@@ -86,7 +101,7 @@ struct parts *parts_get(int parts_no)
 	struct parts *parts = parts_alloc();
 	parts->no = parts_no;
 	slot->value = parts;
-	parts_list_insert(&parts_list, parts);
+	parts_list_insert(parts);
 	return parts;
 }
 
@@ -95,16 +110,9 @@ bool parts_exists(int parts_no)
 	return !!ht_get_int(parts_table, parts_no, NULL);
 }
 
-static struct parts_list *parts_get_list(struct parts *parts)
+static void parts_list_remove(struct parts *parts)
 {
-	if (parts->parent < 0)
-		return &parts_list;
-	return &parts_get(parts->parent)->children;
-}
-
-static void parts_list_remove(struct parts_list *list, struct parts *parts)
-{
-	TAILQ_REMOVE(list, parts, parts_list_entry);
+	TAILQ_REMOVE(&parts_list, parts, parts_list_entry);
 }
 
 static void parts_state_free(struct parts_state *state)
@@ -114,6 +122,8 @@ static void parts_state_free(struct parts_state *state)
 		break;
 	case PARTS_CG:
 		gfx_delete_texture(&state->common.texture);
+		if (state->cg.name)
+			free_string(state->cg.name);
 		break;
 	case PARTS_TEXT:
 		gfx_delete_texture(&state->common.texture);
@@ -123,6 +133,7 @@ static void parts_state_free(struct parts_state *state)
 		for (unsigned i = 0; i < state->anim.nr_frames; i++) {
 			gfx_delete_texture(&state->anim.frames[i]);
 		}
+		free(state->anim.frames);
 		break;
 	case PARTS_NUMERAL:
 		gfx_delete_texture(&state->common.texture);
@@ -256,12 +267,22 @@ static Point calculate_offset(int mode, int w, int h)
 static void parts_common_recalculate_hitbox(struct parts *parts, struct parts_common *common)
 {
 	common->origin_offset = calculate_offset(parts->origin_mode, common->w, common->h);
-	common->hitbox = (Rectangle) {
-		.x = parts->pos.x + common->origin_offset.x,
-		.y = parts->pos.y + common->origin_offset.y,
-		.w = common->w,
-		.h = common->h,
-	};
+
+	if (common->surface_area.w || common->surface_area.h) {
+		Rectangle r = { 0, 0, common->w, common->h };
+		SDL_IntersectRect(&r, &common->surface_area, &common->hitbox);
+		common->origin_offset.x -= common->surface_area.x;
+		common->origin_offset.y -= common->surface_area.y;
+		common->hitbox.x += parts->pos.x + common->origin_offset.x;
+		common->hitbox.y += parts->pos.y + common->origin_offset.y;
+	} else {
+		common->hitbox = (Rectangle) {
+			.x = parts->pos.x + common->origin_offset.x,
+			.y = parts->pos.y + common->origin_offset.y,
+			.w = common->w,
+			.h = common->h,
+		};
+	}
 }
 
 static void parts_recalculate_hitbox(struct parts *parts)
@@ -327,7 +348,7 @@ void parts_set_alpha(struct parts *parts, int alpha)
 	parts_dirty(parts);
 }
 
-static bool parts_set_cg(struct parts *parts, struct cg *cg, int cg_no, int state)
+static bool parts_set_cg(struct parts *parts, struct cg *cg, int cg_no, struct string *name, int state)
 {
 	if (!cg)
 		return false;
@@ -336,6 +357,9 @@ static bool parts_set_cg(struct parts *parts, struct cg *cg, int cg_no, int stat
 	gfx_init_texture_with_cg(&parts_cg->common.texture, cg);
 	parts_set_dims(parts, &parts_cg->common, cg->metrics.w, cg->metrics.h);
 	parts_cg->no = cg_no;
+	if (parts_cg->name)
+		free_string(parts_cg->name);
+	parts_cg->name = name;
 	parts_dirty(parts);
 	cg_free(cg);
 	return true;
@@ -348,7 +372,7 @@ bool parts_set_cg_by_index(struct parts *parts, int cg_no, int state)
 		parts_dirty(parts);
 		return true;
 	}
-	return parts_set_cg(parts, asset_cg_load(cg_no), cg_no, state);
+	return parts_set_cg(parts, asset_cg_load(cg_no), cg_no, NULL, state);
 }
 
 bool parts_set_cg_by_name(struct parts *parts, struct string *cg_name, int state)
@@ -360,7 +384,7 @@ bool parts_set_cg_by_name(struct parts *parts, struct string *cg_name, int state
 	}
 	int no;
 	struct cg *cg = asset_cg_load_by_name(cg_name->text, &no);
-	return parts_set_cg(parts, cg, no, state);
+	return parts_set_cg(parts, cg, no, string_dup(cg_name), state);
 }
 
 void parts_set_hgauge_rate(struct parts *parts, float rate, int state)
@@ -467,9 +491,12 @@ void parts_set_state(struct parts *parts, enum parts_state_type state)
 	}
 }
 
-void parts_set_surface_area(struct parts_common *common, int x, int y, int w, int h)
+void parts_set_surface_area(struct parts *parts, struct parts_common *common, int x, int y, int w, int h)
 {
+	if (x < 0 || y < 0)
+		return;
 	common->surface_area = (Rectangle) { x, y, w, h };
+	parts_common_recalculate_hitbox(parts, common);
 }
 
 static void parts_update_loop(struct parts *parts, int passed_time)
@@ -498,7 +525,7 @@ static void parts_update_loop(struct parts *parts, int passed_time)
 static void parts_update_animation(int passed_time)
 {
 	struct parts *parts;
-	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+	PARTS_LIST_FOREACH(parts) {
 		parts_update_loop(parts, passed_time);
 	}
 }
@@ -515,14 +542,14 @@ void parts_release(int parts_no)
 		parts_state_free(&parts->states[i]);
 	}
 
+	// break parent/child relationships
 	while (!TAILQ_EMPTY(&parts->children)) {
 		struct parts *child = TAILQ_FIRST(&parts->children);
-		child->parent = -1;
-		parts_list_remove(&parts->children, child);
-		parts_list_insert(&parts_list, child);
+		parts_set_parent(child, NULL);
 	}
+	parts_set_parent(parts, NULL);
 
-	parts_list_remove(parts_get_list(parts), parts);
+	parts_list_remove(parts);
 	free(parts);
 	slot->value = NULL;
 	parts_engine_dirty();
@@ -575,59 +602,65 @@ int PE_GetDelegateIndex(int parts_no)
 
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int sprite_deform, int state)
 {
-	if (!parts_state_valid(--state)) {
-		WARNING("Invalid parts state: %d", state);
+	if (!parts_state_valid(--state))
 		return false;
-	}
 	return parts_set_cg_by_name(parts_get(parts_no), cg_name, state);
 }
 
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, possibly_unused int sprite_deform, int state)
 {
-	if (!parts_state_valid(--state)) {
-		WARNING("Invalid parts state: %d", state);
+	if (!parts_state_valid(--state))
 		return false;
-	}
 	return parts_set_cg_by_index(parts_get(parts_no), cg_no, state);
+}
+
+void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state)
+{
+	if (!parts_state_valid(--state))
+		return;
+	struct parts_cg *cg = parts_get_cg(parts_get(parts_no), state);
+	if (cg->name) {
+		if (*cg_name)
+			free_string(*cg_name);
+		*cg_name = string_dup(cg->name);
+	}
 }
 
 bool PE_SetPartsCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
 {
-	if (!parts_state_valid(--state)) {
-		WARNING("Invalid parts state: %d", state);
+	if (!parts_state_valid(--state))
 		return false;
-	}
 
-	struct parts_cg *cg = parts_get_cg(parts_get(parts_no), state);
-	parts_set_surface_area(&cg->common, x, y, w, h);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_cg *cg = parts_get_cg(parts, state);
+	parts_set_surface_area(parts, &cg->common, x, y, w, h);
 	return true;
 }
 
 int PE_GetPartsCGNumber(int parts_no, int state)
 {
 	if (!parts_state_valid(--state)) {
-		WARNING("Invalid parts state: %d", state);
 		return false;
 	}
 
 	return parts_get_cg(parts_get(parts_no), state)->no;
 }
 
-bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_time, int state)
+static bool set_loop_cg(int parts_no, int start_no, int nr_frames, int frame_time, int state,
+		struct cg *(*load_cg)(int no, void *data), void *data)
 {
-	if (!parts_state_valid(--state)) {
-		WARNING("Invalid parts state: %d", state);
+	if (!parts_state_valid(--state))
 		return false;
-	}
 	if (nr_frames <= 0 || nr_frames > 10000) {
 		WARNING("Invalid frame count: %d", nr_frames);
+		return false;
 	}
 
 	int w = 0, h = 0;
 	struct parts *parts = parts_get(parts_no);
 	Texture *frames = xcalloc(nr_frames, sizeof(Texture));
 	for (int i = 0; i < nr_frames; i++) {
-		struct cg *cg = asset_cg_load(cg_no + i);
+		struct cg *cg = load_cg(start_no + i, data);
 		if (!cg) {
 			for (int j = 0; j < i; j++) {
 				gfx_delete_texture(&frames[j]);
@@ -643,13 +676,41 @@ bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_tim
 
 	struct parts_animation *anim = parts_get_animation(parts, state);
 	parts_set_dims(parts, &anim->common, w, h);
-	anim->frames = frames; // free previous value?
+	free(anim->frames);
+	anim->frames = frames;
 	anim->nr_frames = nr_frames;
 	anim->frame_time = frame_time;
 	anim->elapsed = 0;
 	anim->current_frame = 0;
 	anim->common.texture = frames[0];
 	return true;
+
+}
+
+static struct cg *load_loop_cg_by_index(int no, void *_)
+{
+	return asset_cg_load(no);
+}
+
+bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_time, int state)
+{
+	return set_loop_cg(parts_no, cg_no, nr_frames, frame_time, state,
+			load_loop_cg_by_index, NULL);
+}
+
+static struct cg *load_loop_cg_by_name(int no, void *data)
+{
+	int unused_no;
+	struct string *cg_name = string_format((struct string*)data, (union vm_value){.i=no});
+	struct cg *cg = asset_cg_load_by_name(cg_name->text, &unused_no);
+	free_string(cg_name);
+	return cg;
+}
+
+bool PE_SetLoopCG(int parts_no, struct string *cg_name, int start_no, int nr_frames, int frame_time, int state)
+{
+	return set_loop_cg(parts_no, start_no, nr_frames, frame_time, state,
+			load_loop_cg_by_name, cg_name);
 }
 
 bool PE_SetLoopCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
@@ -659,8 +720,9 @@ bool PE_SetLoopCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 		return false;
 	}
 
-	struct parts_animation *anim = parts_get_animation(parts_get(parts_no), state);
-	parts_set_surface_area(&anim->common, x, y, w, h);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_animation *anim = parts_get_animation(parts, state);
+	parts_set_surface_area(parts, &anim->common, x, y, w, h);
 	return true;
 }
 
@@ -719,8 +781,9 @@ bool PE_SetHGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 	if (!parts_state_valid(--state))
 		return false;
 
-	struct parts_gauge *g = parts_get_hgauge(parts_get(parts_no), state);
-	parts_set_surface_area(&g->common, x, y, w, h);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = parts_get_hgauge(parts, state);
+	parts_set_surface_area(parts, &g->common, x, y, w, h);
 	return true;
 }
 
@@ -759,8 +822,9 @@ bool PE_SetVGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 	if (!parts_state_valid(--state))
 		return false;
 
-	struct parts_gauge *g = parts_get_vgauge(parts_get(parts_no), state);
-	parts_set_surface_area(&g->common, x, y, w, h);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = parts_get_vgauge(parts, state);
+	parts_set_surface_area(parts, &g->common, x, y, w, h);
 	return true;
 }
 
@@ -849,8 +913,9 @@ bool PE_SetNumeralSurfaceArea(int parts_no, int x, int y, int w, int h, int stat
 	if (!parts_state_valid(--state))
 		return false;
 
-	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
-	parts_set_surface_area(&n->common, x, y, w, h);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_numeral *n = parts_get_numeral(parts, state);
+	parts_set_surface_area(parts, &n->common, x, y, w, h);
 	return true;
 }
 
@@ -893,9 +958,8 @@ void PE_SetZ(int parts_no, int z)
 	struct parts *parts = parts_get(parts_no);
 	parts->z = z;
 
-	struct parts_list *list = parts_get_list(parts);
-	parts_list_remove(list, parts);
-	parts_list_insert(list, parts);
+	parts_list_remove(parts);
+	parts_list_insert(parts);
 }
 
 void PE_SetShow(int parts_no, bool show)
@@ -913,8 +977,16 @@ void PE_SetAlpha(int parts_no, int alpha)
 }
 
 void PE_SetPartsDrawFilter(int PartsNumber, int DrawFilter);
-void PE_SetAddColor(int PartsNumber, int nR, int nG, int nB);
-void PE_SetMultiplyColor(int PartsNumber, int nR, int nG, int nB);
+
+void PE_SetAddColor(int parts_no, int r, int g, int b)
+{
+	//NOTICE("PE_SetAddColor(%d, %d, %d, %d)", parts_no, r, g, b);
+}
+
+void PE_SetMultiplyColor(int parts_no, int r, int g, int b)
+{
+	//NOTICE("PE_SetMultiplyColor(%d, %d, %d, %d)", parts_no, r, g, b);
+}
 
 int PE_GetPartsX(int parts_no)
 {
@@ -972,9 +1044,7 @@ void PE_SetParentPartsNumber(int parts_no, int parent_parts_no)
 	if (parts->parent == parent_parts_no)
 		return;
 
-	parts_list_remove(parts_get_list(parts), parts);
-	parts_list_insert(&parts_get(parent_parts_no)->children, parts);
-	parts->parent = parent_parts_no;
+	parts_set_parent(parts, parts_get(parent_parts_no));
 }
 
 bool PE_SetPartsGroupNumber(possibly_unused int PartsNumber, possibly_unused int GroupNumber)
@@ -1009,11 +1079,27 @@ void PE_SetPartsRotateZ(int parts_no, float rot_z)
 }
 
 void PE_SetPartsAlphaClipperPartsNumber(int PartsNumber, int AlphaClipperPartsNumber);
-void PE_SetPartsPixelDecide(int PartsNumber, bool PixelDecide);
+
+void PE_SetPartsPixelDecide(int parts_no, bool pixel_decide)
+{
+	//NOTICE("PE_SetPartsPixelDecide(%d, %s)", parts_no, pixel_decide ? "true" : "false");
+}
+
 bool PE_SetThumbnailReductionSize(int ReductionSize);
 bool PE_SetThumbnailMode(bool Mode);
 
 bool PE_Save(struct page **buffer)
+{
+	// TODO
+	if (*buffer) {
+		delete_page_vars(*buffer);
+		free_page(*buffer);
+	}
+	*buffer = NULL;
+	return true;
+}
+
+bool PE_SaveWithoutHideParts(struct page **buffer)
 {
 	// TODO
 	if (*buffer) {

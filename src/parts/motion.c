@@ -15,6 +15,7 @@
  */
 
 #include "system4.h"
+#include "system4/string.h"
 
 #include "audio.h"
 #include "xsystem4.h"
@@ -162,10 +163,10 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 	}
 }
 
-static void parts_list_update_motion(struct parts_list *list)
+static void parts_update_all_motion(void)
 {
 	struct parts *parts;
-	TAILQ_FOREACH(parts, list, parts_list_entry) {
+	PARTS_LIST_FOREACH(parts) {
 		struct parts_motion *motion;
 		TAILQ_FOREACH(motion, &parts->motion, entry) {
 			if (motion->begin_time > motion_t)
@@ -175,13 +176,7 @@ static void parts_list_update_motion(struct parts_list *list)
 			//        at the end-state of the second motion.
 			parts_update_with_motion(parts, motion);
 		}
-		parts_list_update_motion(&parts->children);
 	}
-}
-
-static void parts_update_all_motion(void)
-{
-	parts_list_update_motion(&parts_list);
 
 	struct sound_motion *sound;
 	TAILQ_FOREACH(sound, &sound_motion_list, entry) {
@@ -198,10 +193,10 @@ static void parts_update_all_motion(void)
  * NOTE: If a motion begins at e.g. t=100 with a value of v=0, then that value
  *       becomes the initial value of v at t=0.
  */
-static void parts_list_init_all_motion(struct parts_list *list)
+static void parts_init_all_motion(void)
 {
 	struct parts *parts;
-	TAILQ_FOREACH(parts, list, parts_list_entry) {
+	PARTS_LIST_FOREACH(parts) {
 		struct parts_motion *motion;
 		bool initialized[PARTS_NR_MOTION_TYPES] = {0};
 		TAILQ_FOREACH(motion, &parts->motion, entry) {
@@ -213,18 +208,12 @@ static void parts_list_init_all_motion(struct parts_list *list)
 	}
 }
 
-static void parts_list_fini_all_motion(struct parts_list *list)
-{
-	struct parts *parts;
-	TAILQ_FOREACH(parts, list, parts_list_entry) {
-		parts_clear_motion(parts);
-		parts_list_fini_all_motion(&parts->children);
-	}
-}
-
 static void parts_fini_all_motion(void)
 {
-	parts_list_fini_all_motion(&parts_list);
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		parts_clear_motion(parts);
+	}
 
 	while (!TAILQ_EMPTY(&sound_motion_list)) {
 		struct sound_motion *motion = TAILQ_FIRST(&sound_motion_list);
@@ -244,6 +233,13 @@ void PE_AddMotionPos(int parts_no, int begin_x, int begin_y, int end_x, int end_
 	parts_add_motion(parts, motion);
 }
 
+void PE_AddMotionPos_curve(int parts_no, int begin_x, int begin_y, int end_x, int end_y,
+		int begin_t, int end_t, struct string *curve_name)
+{
+	// TODO: use curve
+	PE_AddMotionPos(parts_no, begin_x, begin_y, end_x, end_y, begin_t, end_t);
+}
+
 void PE_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int end_t)
 {
 	struct parts *parts = parts_get(parts_no);
@@ -251,6 +247,13 @@ void PE_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int en
 	motion->begin.i = begin_a;
 	motion->end.i = end_a;
 	parts_add_motion(parts, motion);
+}
+
+void PE_AddMotionAlpha_curve(int parts_no, int begin_a, int end_a, int begin_t, int end_t,
+		struct string *curve_name)
+{
+	// TODO: use curve
+	PE_AddMotionAlpha(parts_no, begin_a, end_a, begin_t, end_t);
 }
 
 void PE_AddMotionCG_by_index(int parts_no, int begin_cg_no, int nr_cg, int begin_t, int end_t)
@@ -372,7 +375,7 @@ void PE_BeginMotion(void)
 	// FIXME: starting a motion seems to clear non-default states
 	motion_t = 0;
 	is_motion = true;
-	parts_list_init_all_motion(&parts_list);
+	parts_init_all_motion();
 }
 
 void PE_EndMotion(void)
@@ -395,6 +398,12 @@ void PE_SetMotionTime(int t)
 	parts_update_all_motion();
 	if (t >= motion_end_t)
 		PE_EndMotion();
+}
+
+void PE_UpdateMotionTime(int time, possibly_unused bool skip)
+{
+	// TODO: use skip
+	PE_SetMotionTime(motion_t + time);
 }
 
 bool PE_IsMotion(void)

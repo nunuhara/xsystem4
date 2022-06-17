@@ -200,7 +200,7 @@ static void build_create(struct parts *parts, struct parts_construction_process 
 		struct parts_cp_create *op)
 {
 	gfx_delete_texture(&cproc->common.texture);
-	gfx_init_texture_rgba(&cproc->common.texture, op->w, op->h, (SDL_Color){0,0,0,0});
+	gfx_init_texture_rgba(&cproc->common.texture, op->w, op->h, (SDL_Color){0,0,0,255});
 	parts_set_dims(parts, &cproc->common, op->w, op->h);
 }
 
@@ -230,12 +230,15 @@ static void build_fill_alpha_color(struct parts_construction_process *cproc,
 
 static void build_draw_text(struct parts_construction_process *cproc, struct parts_cp_text *op)
 {
-	// FIXME: this should set alpha to 0 in text area
 	gfx_render_text(&cproc->common.texture, op->x, op->y, op->text->text, &op->style);
 }
 
 static void build_copy_text(struct parts_construction_process *cproc, struct parts_cp_text *op)
 {
+	int w = ceilf(gfx_size_text (&op->style, op->text->text));
+	int h = ceilf(op->style.size + op->style.edge_up + op->style.edge_down);
+	gfx_fill_with_alpha(&cproc->common.texture, op->x, op->y, w, h,
+			op->style.edge_color.r, op->style.edge_color.g, op->style.edge_color.b, 0);
 	gfx_render_text(&cproc->common.texture, op->x, op->y, op->text->text, &op->style);
 }
 
@@ -278,7 +281,8 @@ bool PE_SetPartsConstructionSurfaceArea(int parts_no, int x, int y, int w, int h
 	if (!parts_state_valid(--state))
 		return false;
 
-	struct parts_construction_process *cproc = get_cproc(parts_no, state);
-	parts_set_surface_area(&cproc->common, x, y, w, h);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_construction_process *cproc = parts_get_construction_process(parts, state);
+	parts_set_surface_area(parts, &cproc->common, x, y, w, h);
 	return true;
 }

@@ -80,7 +80,7 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
 
 	struct parts *parts;
-	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
+	PARTS_LIST_FOREACH(parts) {
 		parts_update_mouse(parts, cur_pos, cur_clicking);
 	}
 
@@ -174,6 +174,19 @@ bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state)
 	if (!parts_state_valid(--state))
 		return false;
 
-	// TODO
-	return false;
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts)
+		return false;
+
+	// TODO: this could be cached
+	Rectangle hitbox = parts->states[state].common.hitbox;
+	struct parts *parent = parts;
+	while (parent->parent >= 0) {
+		parent = parts_get(parent->parent);
+		hitbox.x += parent->pos.x;
+		hitbox.y += parent->pos.y;
+	}
+
+	Point mouse_pos = { mouse_x, mouse_y };
+	return SDL_PointInRect(&mouse_pos, &hitbox);
 }

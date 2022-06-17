@@ -81,17 +81,16 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common,
 	}
 
 	gfx_prepare_job(&job);
-	glUniform1f(parts_shader.alpha_mod, common->texture.alpha_mod / 255.0);
+	glUniform1f(parts_shader.alpha_mod, params->alpha / 255.0);
 	glUniform2f(parts_shader.bot_left, r.x, r.y);
 	glUniform2f(parts_shader.top_right, r.x + r.w, r.y + r.h);
 	gfx_run_job(&job);
 }
 
-static void _parts_render(struct parts *parts, struct parts_render_params *parent_params)
+void parts_render(struct parts *parts)
 {
 	if (!parts->show)
 		return;
-
 	if (parts->linked_to >= 0) {
 		struct parts *link_parts = parts_get(parts->linked_to);
 		struct parts_state *link_state = &link_parts->states[link_parts->state];
@@ -99,11 +98,21 @@ static void _parts_render(struct parts *parts, struct parts_render_params *paren
 			return;
 	}
 
-	struct parts_render_params params = *parent_params;
-	// modify params per parts values
-	params.alpha *= parts->alpha / 255.0;
-	params.offset.x += parts->pos.x;
-	params.offset.y += parts->pos.y;
+	struct parts_render_params params = {
+		.offset = parts->pos,
+		.alpha = parts->alpha,
+	};
+
+	// adjust pos/alpha per parent parts
+	struct parts *parent = parts;
+	while (parent->parent >= 0) {
+		parent = parts_get(parent->parent);
+		if (!parent->show)
+			return;
+		params.alpha *= parent->alpha / 255.0f;
+		params.offset.x += parent->pos.x;
+		params.offset.y += parent->pos.y;
+	}
 
 	// render
 	struct parts_state *state = &parts->states[parts->state];
@@ -124,32 +133,13 @@ static void _parts_render(struct parts *parts, struct parts_render_params *paren
 			break;
 		}
 	}
-
-	// render children
-	struct parts *child;
-	TAILQ_FOREACH(child, &parts->children, parts_list_entry) {
-		_parts_render(child, &params);
-	}
-}
-
-void parts_render(struct parts *parts)
-{
-	struct parts_render_params params = {
-		.offset = { 0, 0 },
-		.alpha = 255,
-	};
-	_parts_render(parts, &params);
 }
 
 void parts_engine_render(possibly_unused struct sprite *_)
 {
-	struct parts_render_params params = {
-		.offset = { 0, 0 },
-		.alpha = 255,
-	};
 	struct parts *parts;
-	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
-		_parts_render(parts, &params);
+	PARTS_LIST_FOREACH(parts) {
+		parts_render(parts);
 	}
 }
 

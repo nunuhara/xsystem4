@@ -98,6 +98,7 @@ struct parts_common {
 struct parts_cg {
 	struct parts_common common;
 	int no;
+	struct string *name;
 };
 
 struct parts_text {
@@ -199,6 +200,7 @@ struct parts {
 	enum parts_state_type state;
 	struct parts_state states[PARTS_NR_STATES];
 	TAILQ_ENTRY(parts) parts_list_entry;
+	TAILQ_ENTRY(parts) child_list_entry;
 	struct parts_list children;
 	int no;
 	int delegate_index;
@@ -218,6 +220,9 @@ struct parts {
 	struct { float x, y, z; } rotation;
 	TAILQ_HEAD(, parts_motion) motion;
 };
+
+#define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
+#define PARTS_FOREACH_CHILD(iter, parent) TAILQ_FOREACH(iter, &parent->children, child_list_entry)
 
 // parts.c
 extern struct parts_list parts_list;
@@ -244,7 +249,7 @@ bool parts_set_number(struct parts *parts, int n, int state);
 void parts_set_state(struct parts *parts, enum parts_state_type state);
 void parts_release(int parts_no);
 void parts_release_all(void);
-void parts_set_surface_area(struct parts_common *common, int x, int y, int w, int h);
+void parts_set_surface_area(struct parts *parts, struct parts_common *common, int x, int y, int w, int h);
 
 // render.c
 void parts_render_init(void);

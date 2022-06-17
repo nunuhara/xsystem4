@@ -139,6 +139,10 @@ static void parts_construction_process_print(struct parts_construction_process *
 
 static void parts_print_state(struct parts_state *state, int indent)
 {
+	if (state->type == PARTS_UNINITIALIZED) {
+		printf("UNINITIALIZED");
+		return;
+	}
 	printf("{\n");
 	indent++;
 
@@ -304,7 +308,7 @@ static void _parts_print(struct parts *parts, int indent)
 	} else {
 		indent_printf(indent, "children = {\n");
 		struct parts *child;
-		TAILQ_FOREACH(child, &parts->children, parts_list_entry) {
+		PARTS_FOREACH_CHILD(child, parts) {
 			_parts_print(child, indent+1);
 			printf(",\n");
 		}
@@ -324,8 +328,9 @@ void parts_print(struct parts *parts)
 void parts_engine_print(void)
 {
 	struct parts *parts;
-	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
-		parts_print(parts);
+	PARTS_LIST_FOREACH(parts) {
+		if (parts->parent < 0)
+			parts_print(parts);
 	}
 }
 
@@ -357,25 +362,25 @@ static void parts_list_print(struct parts *parts, int indent)
 	struct parts_state *state = &parts->states[parts->state];
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
-		printf("(uninitialized)\n");
+		printf("(uninitialized)");
 		break;
 	case PARTS_CG:
-		printf("(cg %d)\n", state->cg.no);
+		printf("(cg %d)", state->cg.no);
 		break;
 	case PARTS_TEXT:
-		printf("(text)\n"); // TODO? store actual text and print it here
+		printf("(text)"); // TODO? store actual text and print it here
 		break;
 	case PARTS_ANIMATION:
-		printf("(animation %d+%d)\n", state->anim.cg_no, state->anim.nr_frames);
+		printf("(animation %d+%d)", state->anim.cg_no, state->anim.nr_frames);
 		break;
 	case PARTS_NUMERAL:
-		printf("(numeral %d)\n", state->num.cg_no);
+		printf("(numeral %d)", state->num.cg_no);
 		break;
 	case PARTS_HGAUGE:
-		printf("(hgauge)\n"); // TODO? store rate and cg and print them here
+		printf("(hgauge)"); // TODO? store rate and cg and print them here
 		break;
 	case PARTS_VGAUGE:
-		printf("(vgauge)\n");
+		printf("(vgauge)");
 		break;
 	case PARTS_CONSTRUCTION_PROCESS: {
 		printf("(construction process:");
@@ -402,13 +407,15 @@ static void parts_list_print(struct parts *parts, int indent)
 				break;
 			}
 		}
-		printf(")\n");
+		printf(")");
 		break;
 	}
 	}
 
+	printf(" @ z=%d\n", parts->z);
+
 	struct parts *child;
-	TAILQ_FOREACH(child, &parts->children, parts_list_entry) {
+	PARTS_FOREACH_CHILD(child, parts) {
 		parts_list_print(child, indent + 1);
 	}
 }
@@ -416,8 +423,9 @@ static void parts_list_print(struct parts *parts, int indent)
 static void parts_cmd_parts_list(unsigned nr_args, char **args)
 {
 	struct parts *parts;
-	TAILQ_FOREACH(parts, &parts_list, parts_list_entry) {
-		parts_list_print(parts, 0);
+	PARTS_LIST_FOREACH(parts) {
+		if (parts->parent < 0)
+			parts_list_print(parts, 0);
 	}
 }
 

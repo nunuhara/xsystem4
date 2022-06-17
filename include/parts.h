@@ -30,9 +30,12 @@ void PE_SetDelegateIndex(int parts_no, int delegate_index);
 int PE_GetDelegateIndex(int parts_no);
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, int sprite_deform, int state);
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, int sprite_deform, int state);
+void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state);
 bool PE_SetPartsCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
 int PE_GetPartsCGNumber(int parts_no, int state);
 bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_time, int state);
+bool PE_SetLoopCG(int parts_no, struct string *cg_name, int start_no, int nr_frames,
+		int frame_time, int state);
 bool PE_SetLoopCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
 bool PE_SetHGaugeCG(int parts_no, struct string *cg_name, int state);
 bool PE_SetHGaugeCG_by_index(int parts_no, int cg_no, int state);
@@ -62,6 +65,8 @@ void PE_SetZ(int parts_no, int z);
 void PE_SetShow(int parts_no, bool show);
 void PE_SetAlpha(int parts_no, int alpha);
 void PE_SetPartsDrawFilter(int PartsNumber, int DrawFilter);;
+void PE_SetAddColor(int parts_no, int r, int g, int b);
+void PE_SetMultiplyColor(int parts_no, int r, int g, int b);
 int PE_GetPartsX(int parts_no);
 int PE_GetPartsY(int parts_no);
 int PE_GetPartsZ(int parts_no);
@@ -85,6 +90,7 @@ void PE_SetPartsPixelDecide(int PartsNumber, bool PixelDecide);
 bool PE_SetThumbnailReductionSize(int ReductionSize);
 bool PE_SetThumbnailMode(bool Mode);
 bool PE_Save(struct page **buffer);
+bool PE_SaveWithoutHideParts(struct page **buffer);
 bool PE_Load(struct page **buffer);
 // GUIEngine
 int PE_GetFreeNumber(void);
@@ -123,7 +129,11 @@ bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state);
 
 // motion.c
 void PE_AddMotionPos(int parts_no, int begin_x, int begin_y, int end_x, int end_y, int begin_t, int end_t);
+void PE_AddMotionPos_curve(int parts_no, int begin_x, int begin_y, int end_x, int end_y,
+		int begin_t, int end_t, struct string *curve_name);
 void PE_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int end_t);
+void PE_AddMotionAlpha_curve(int parts_no, int begin_a, int end_a, int begin_t, int end_t,
+		struct string *curve_name);
 void PE_AddMotionCG_by_index(int parts_no, int begin_cg_no, int nr_cg, int begin_t, int end_t);
 void PE_AddMotionHGaugeRate(int parts_no, int begin_numerator, int begin_denominator,
 			    int end_numerator, int end_denominator, int begin_t, int end_t);
@@ -140,6 +150,7 @@ void PE_AddMotionSound(int sound_no, int begin_t);
 void PE_BeginMotion(void);
 void PE_EndMotion(void);
 void PE_SetMotionTime(int t);
+void PE_UpdateMotionTime(int time, bool skip);
 bool PE_IsMotion(void);
 int PE_GetMotionEndTime(void);
 
