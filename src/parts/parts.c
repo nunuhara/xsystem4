@@ -36,6 +36,7 @@ static void parts_init(struct parts *parts)
 	parts->on_click_sound = -1;
 	parts->origin_mode = 1;
 	parts->z = 1;
+	parts->parent_z = -1;
 	parts->show = true;
 	parts->alpha = 255;
 	parts->parent = -1;
@@ -57,17 +58,36 @@ static struct parts *parts_alloc(void)
 	return parts;
 }
 
+static bool parts_below(struct parts *parts, struct parts *p)
+{
+	// TODO: handle case when p->parent_z == parts->parent_z (and neither are -1)
+	return (p->parent_z > parts->parent_z || (p->parent_z == parts->parent_z && p->z > parts->z));
+}
+
 static void parts_list_insert(struct parts *parts)
 {
 	struct parts *p;
 	PARTS_LIST_FOREACH(p) {
-		if (p->z >= parts->z) {
+		if (parts_below(parts, p)) {
 			TAILQ_INSERT_BEFORE(p, parts, parts_list_entry);
+			parts_engine_dirty();
 			return;
 		}
 	}
 	TAILQ_INSERT_TAIL(&parts_list, parts, parts_list_entry);
 	parts_engine_dirty();
+}
+
+static void parts_list_remove(struct parts *parts)
+{
+	TAILQ_REMOVE(&parts_list, parts, parts_list_entry);
+}
+
+static void parts_list_resort(struct parts *parts)
+{
+	// TODO: this could be optimized
+	parts_list_remove(parts);
+	parts_list_insert(parts);
 }
 
 static void parts_set_parent(struct parts *child, struct parts *parent)
@@ -79,8 +99,12 @@ static void parts_set_parent(struct parts *child, struct parts *parent)
 	if (parent) {
 		TAILQ_INSERT_TAIL(&parent->children, child, child_list_entry);
 		child->parent = parent->no;
+		child->parent_z = parent->z;
+		parts_list_resort(child);
 	} else {
 		child->parent = -1;
+		child->parent_z = -1;
+		parts_list_resort(child);
 	}
 }
 
@@ -108,11 +132,6 @@ struct parts *parts_get(int parts_no)
 bool parts_exists(int parts_no)
 {
 	return !!ht_get_int(parts_table, parts_no, NULL);
-}
-
-static void parts_list_remove(struct parts *parts)
-{
-	TAILQ_REMOVE(&parts_list, parts, parts_list_entry);
 }
 
 static void parts_state_free(struct parts_state *state)
@@ -956,10 +975,17 @@ void PE_SetPos(int parts_no, int x, int y)
 void PE_SetZ(int parts_no, int z)
 {
 	struct parts *parts = parts_get(parts_no);
-	parts->z = z;
+	if (parts->z == z)
+		return;
 
-	parts_list_remove(parts);
-	parts_list_insert(parts);
+	parts->z = z;
+	parts_list_resort(parts);
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		child->parent_z = z;
+		parts_list_resort(child);
+	}
 }
 
 void PE_SetShow(int parts_no, bool show)

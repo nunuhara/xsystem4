@@ -226,6 +226,7 @@ struct parts {
 	int linked_from;
 	uint8_t alpha;
 	int z;
+	int parent_z;
 	bool show;
 	Point pos;
 	struct { float x, y; } scale;
