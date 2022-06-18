@@ -22,8 +22,11 @@
 
 #include "system4.h"
 #include "system4/aar.h"
+#include "system4/cg.h"
+#include "system4/string.h"
 
 #include "3d_internal.h"
+#include "asset_manager.h"
 #include "reign.h"
 #include "sact.h"
 #include "xsystem4.h"
@@ -67,6 +70,19 @@ static void free_instance(struct RE_instance *instance)
 	free(instance);
 }
 
+static void RE_back_cg_init(struct RE_back_cg *bcg)
+{
+	bcg->blend_rate = 1.0;
+	bcg->mag = 1.0;
+}
+
+static void RE_back_cg_destroy(struct RE_back_cg *bcg)
+{
+	gfx_delete_texture(&bcg->texture);
+	if (bcg->name)
+		free_string(bcg->name);
+}
+
 struct RE_plugin *RE_plugin_new(void)
 {
 	char *aar_path = gamedir_path("Data/ReignData.red");
@@ -86,6 +102,8 @@ struct RE_plugin *RE_plugin_new(void)
 	plugin->plugin.update = RE_render;
 	plugin->plugin.debug_print = RE_debug_print;
 	plugin->aar = aar;
+	for (int i = 0; i < RE_NR_BACK_CGS; i++)
+		RE_back_cg_init(&plugin->back_cg[i]);
 	return plugin;
 }
 
@@ -98,6 +116,8 @@ void RE_plugin_free(struct RE_plugin *plugin)
 	archive_free(plugin->aar);
 	if (plugin->renderer)
 		RE_renderer_free(plugin->renderer);
+	for (int i = 0; i < RE_NR_BACK_CGS; i++)
+		RE_back_cg_destroy(&plugin->back_cg[i]);
 	free(plugin);
 }
 
@@ -240,50 +260,52 @@ bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float en
 	return true;
 }
 
-static void print_motion(const char *name, struct motion *m, int indent)
+bool RE_back_cg_set(struct RE_back_cg *bcg, int no)
 {
-	const char *state;
-	switch (m->state) {
-	case RE_MOTION_STATE_STOP: state = "STOP"; break;
-	case RE_MOTION_STATE_NOLOOP: state = "NOLOOP"; break;
-	case RE_MOTION_STATE_LOOP: state = "LOOP"; break;
-	default: state = "?"; break;
+	if (!bcg)
+		return false;
+	if (bcg->name) {
+		free_string(bcg->name);
+		bcg->name = NULL;
 	}
-	indent_printf(indent, "%s = {name=\"%s\", state=%s, frame=%f},\n",
-	              name, m->name, state, m->current_frame);
+	bcg->no = no;
+	gfx_delete_texture(&bcg->texture);
+
+	struct cg *cg = asset_cg_load(no);
+	if (!cg) {
+		WARNING("cannot load back CG: %d", no);
+		return false;
+	}
+	gfx_init_texture_with_cg(&bcg->texture, cg);
+	cg_free(cg);
+	return true;
 }
 
-void RE_debug_print(struct sact_sprite *sp, int indent)
+bool RE_back_cg_set_name(struct RE_back_cg *bcg, struct string *name, struct archive *aar)
 {
-	struct RE_plugin *p = (struct RE_plugin *)sp->plugin;
+	if (!bcg)
+		return false;
+	if (bcg->name)
+		free_string(bcg->name);
+	bcg->name = string_ref(name);
+	bcg->no = 0;
+	gfx_delete_texture(&bcg->texture);
 
-	indent_printf(indent, "name = \"%s\",\n", p->plugin.name);
-	indent_printf(indent, "camera = {x=%f, y=%f, z=%f, pitch=%f, roll=%f, yaw=%f},\n",
-	              p->camera.pos[0], p->camera.pos[1], p->camera.pos[2],
-	              p->camera.pitch, p->camera.roll, p->camera.yaw);
-
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
-		struct RE_instance *inst = p->instances[i];
-		if (!inst || !inst->model)
-			continue;
-		indent_printf(indent, "instance[%d] = {\n", i);
-		indent++;
-
-		indent_printf(indent, "path = \"%s\",\n", inst->model->path);
-		indent_printf(indent, "type = %d,\n", inst->type);
-		indent_printf(indent, "draw = %d,\n", inst->draw);
-		indent_printf(indent, "pos = {x=%f, y=%f, z=%f},\n", inst->pos[0], inst->pos[1], inst->pos[2]);
-		indent_printf(indent, "vec = {x=%f, y=%f, z=%f},\n", inst->vec[0], inst->vec[1], inst->vec[2]);
-		indent_printf(indent, "scale = {x=%f, y=%f, z=%f},\n", inst->scale[0], inst->scale[1], inst->scale[2]);
-		if (inst->motion)
-			print_motion("motion", inst->motion, indent);
-		if (inst->next_motion)
-			print_motion("next_motion", inst->next_motion, indent);
-		indent_printf(indent, "fps = %f,\n", inst->fps);
-		if (inst->motion_blend)
-			indent_printf(indent, "motion_blend_rate = %f,\n", inst->motion_blend_rate);
-
-		indent--;
-		indent_printf(indent, "},\n");
+	char *cg_path = xmalloc(name->size + 5);
+	sprintf(cg_path, "%s.bmp", name->text);
+	struct archive_data *dfile = archive_get_by_name(aar, cg_path);
+	free(cg_path);
+	if (!dfile) {
+		WARNING("cannot load back CG %s", name->text);
+		return false;
 	}
+	struct cg *cg = cg_load_data(dfile);
+	archive_free_data(dfile);
+	if (!cg) {
+		WARNING("cg_load_data failed: %s", name->text);
+		return false;
+	}
+	gfx_init_texture_with_cg(&bcg->texture, cg);
+	cg_free(cg);
+	return true;
 }

@@ -190,6 +190,15 @@ static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat
 	glUseProgram(0);
 }
 
+static void render_back_cg(struct texture *dst, struct RE_back_cg *bcg, struct RE_renderer *r)
+{
+	if (!bcg->texture.handle)
+		return;
+	int sw = bcg->texture.w;
+	int sh = bcg->texture.h;
+	gfx_copy_stretch_blend(dst, bcg->x, bcg->y, sw * bcg->mag, sh * bcg->mag, &bcg->texture, 0, 0, sw, sh, bcg->blend_rate * 255);
+}
+
 void RE_render(struct sact_sprite *sp)
 {
 	uint32_t timestamp = SDL_GetTicks();
@@ -211,6 +220,13 @@ void RE_render(struct sact_sprite *sp)
 		ERROR("Incomplete framebuffer");
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	// Draw background CGs.
+	glDisable(GL_DEPTH_TEST);
+	for (int i = 0; i < RE_NR_BACK_CGS; i++)
+		render_back_cg(texture, &plugin->back_cg[i], r);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
