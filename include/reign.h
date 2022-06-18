@@ -18,9 +18,11 @@
 #define SYSTEM4_REIGN_H
 
 #define RE_MAX_INSTANCES 32
+#define RE_NR_BACK_CGS 16
 
 #include <cglm/types.h>
 
+#include "gfx/gfx.h"
 #include "plugin.h"
 
 enum RE_motion_state {
@@ -40,6 +42,17 @@ struct RE_camera {
 	float pitch, roll, yaw;  // in degrees
 };
 
+struct RE_back_cg {
+	struct texture texture;
+	struct string *name;
+	int no;
+	float blend_rate;
+	float x;
+	float y;
+	float mag;
+	bool show;
+};
+
 struct RE_plugin {
 	struct draw_plugin plugin;
 	int sprite;
@@ -48,6 +61,8 @@ struct RE_plugin {
 	struct RE_renderer *renderer;
 	struct RE_camera camera;
 	mat4 proj_transform;
+
+	struct RE_back_cg back_cg[RE_NR_BACK_CGS];
 
 	// Settings.
 	int render_mode;
@@ -115,6 +130,9 @@ float RE_motion_get_frame(struct motion *motion);
 bool RE_motion_set_frame(struct motion *motion, float frame);
 bool RE_motion_set_frame_range(struct motion *motion, float begin, float end);
 bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float end);
+
+bool RE_back_cg_set(struct RE_back_cg *bcg, int no);
+bool RE_back_cg_set_name(struct RE_back_cg *bcg, struct string *name, struct archive *aar);
 
 void RE_render(struct sact_sprite *sp);
 void RE_debug_print(struct sact_sprite *sp, int indent);

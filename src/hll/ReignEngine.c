@@ -54,6 +54,14 @@ static struct motion *get_next_motion(unsigned plugin, unsigned instance)
 	return inst ? inst->next_motion : NULL;
 }
 
+static struct RE_back_cg *get_back_cg(unsigned plugin, unsigned num)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p || num >= RE_NR_BACK_CGS)
+		return NULL;
+	return &p->back_cg[num];
+}
+
 static int ReignEngine_CreatePlugin(void)
 {
 	for (int i = 0; i < RE_MAX_PLUGINS; i++) {
@@ -965,21 +973,107 @@ static bool ReignEngine_SetPostEffectFilterCr(int plugin, float cr)
 	return true;
 }
 
-//bool ReignEngine_GetBackCGName(int plugin, int num, struct string **pICGName);
-//int ReignEngine_GetBackCGNum(int plugin, int num);
-//float ReignEngine_GetBackCGBlendRate(int plugin, int num);
-//float ReignEngine_GetBackCGDestPosX(int plugin, int num);
-//float ReignEngine_GetBackCGDestPosY(int plugin, int num);
-//float ReignEngine_GetBackCGMag(int plugin, int num);
+static bool ReignEngine_GetBackCGName(int plugin, int num, struct string **cg_name)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	if (!bcg)
+		return false;
+	if (*cg_name)
+		free_string(*cg_name);
+	*cg_name = string_ref(bcg->name ? bcg->name : &EMPTY_STRING);
+	return true;
+}
+
+static int ReignEngine_GetBackCGNum(int plugin, int num)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	return bcg ? bcg->no : 0;
+}
+
+static float ReignEngine_GetBackCGBlendRate(int plugin, int num)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	return bcg ? bcg->blend_rate : 0.0;
+}
+
+static float ReignEngine_GetBackCGDestPosX(int plugin, int num)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	return bcg ? bcg->x : 0.0;
+}
+
+static float ReignEngine_GetBackCGDestPosY(int plugin, int num)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	return bcg ? bcg->y : 0.0;
+}
+
+static float ReignEngine_GetBackCGMag(int plugin, int num)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	return bcg ? bcg->mag : 0.0;
+}
+
 //float ReignEngine_GetBackCGQuakeMag(int plugin, int num);
-//bool ReignEngine_GetBackCGShow(int plugin, int num);
-HLL_WARN_UNIMPLEMENTED(true, bool, ReignEngine, SetBackCGName, int plugin, int num, struct string *pICGName /* e.g. "Data\Texture\cg29501" */);
-//bool ReignEngine_SetBackCGNum(int plugin, int num, int nCGNum);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetBackCGBlendRate, int plugin, int num, float blend_rate);
-HLL_WARN_UNIMPLEMENTED(true, bool, ReignEngine, SetBackCGDestPos, int plugin, int num, float fX, float fY);
-//bool ReignEngine_SetBackCGMag(int plugin, int num, float fMag);
+
+static bool ReignEngine_GetBackCGShow(int plugin, int num)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	return bcg ? bcg->show : false;
+}
+
+static bool ReignEngine_SetBackCGName(int plugin, int num, struct string *cg_name)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	return RE_back_cg_set_name(get_back_cg(plugin, num), cg_name, p->aar);
+}
+
+static bool ReignEngine_SetBackCGNum(int plugin, int num, int cg_num)
+{
+	return RE_back_cg_set(get_back_cg(plugin, num), cg_num);
+}
+
+static bool ReignEngine_SetBackCGBlendRate(int plugin, int num, float blend_rate)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	if (!bcg)
+		return false;
+	bcg->blend_rate = blend_rate;
+	return true;
+}
+
+static bool ReignEngine_SetBackCGDestPos(int plugin, int num, float x, float y)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	if (!bcg)
+		return false;
+	bcg->x = x;
+	bcg->y = y;
+	return true;
+}
+
+static bool ReignEngine_SetBackCGMag(int plugin, int num, float mag)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	if (!bcg)
+		return false;
+	bcg->mag = mag;
+	return true;
+}
+
 //bool ReignEngine_SetBackCGQuakeMag(int plugin, int num, float fQuakeMag);
-HLL_WARN_UNIMPLEMENTED(true, bool, ReignEngine, SetBackCGShow, int plugin, int num, bool bShow);
+
+static bool ReignEngine_SetBackCGShow(int plugin, int num, bool show)
+{
+	struct RE_back_cg* bcg = get_back_cg(plugin, num);
+	if (!bcg)
+		return false;
+	bcg->show = show;
+	return true;
+}
+
 //float ReignEngine_GetGlareBrightnessParam(int plugin, int index);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetGlareBrightnessParam, int plugin, int index, float param);
 //float ReignEngine_GetSSAOParam(int plugin, int type);
@@ -1313,19 +1407,19 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_EXPORT(SetPostEffectFilterY, ReignEngine_SetPostEffectFilterY),
 	    HLL_EXPORT(SetPostEffectFilterCb, ReignEngine_SetPostEffectFilterCb),
 	    HLL_EXPORT(SetPostEffectFilterCr, ReignEngine_SetPostEffectFilterCr),
-	    HLL_TODO_EXPORT(GetBackCGName, ReignEngine_GetBackCGName),
-	    HLL_TODO_EXPORT(GetBackCGNum, ReignEngine_GetBackCGNum),
-	    HLL_TODO_EXPORT(GetBackCGBlendRate, ReignEngine_GetBackCGBlendRate),
-	    HLL_TODO_EXPORT(GetBackCGDestPosX, ReignEngine_GetBackCGDestPosX),
-	    HLL_TODO_EXPORT(GetBackCGDestPosY, ReignEngine_GetBackCGDestPosY),
-	    HLL_TODO_EXPORT(GetBackCGMag, ReignEngine_GetBackCGMag),
+	    HLL_EXPORT(GetBackCGName, ReignEngine_GetBackCGName),
+	    HLL_EXPORT(GetBackCGNum, ReignEngine_GetBackCGNum),
+	    HLL_EXPORT(GetBackCGBlendRate, ReignEngine_GetBackCGBlendRate),
+	    HLL_EXPORT(GetBackCGDestPosX, ReignEngine_GetBackCGDestPosX),
+	    HLL_EXPORT(GetBackCGDestPosY, ReignEngine_GetBackCGDestPosY),
+	    HLL_EXPORT(GetBackCGMag, ReignEngine_GetBackCGMag),
 	    HLL_TODO_EXPORT(GetBackCGQuakeMag, ReignEngine_GetBackCGQuakeMag),
-	    HLL_TODO_EXPORT(GetBackCGShow, ReignEngine_GetBackCGShow),
+	    HLL_EXPORT(GetBackCGShow, ReignEngine_GetBackCGShow),
 	    HLL_EXPORT(SetBackCGName, ReignEngine_SetBackCGName),
-	    HLL_TODO_EXPORT(SetBackCGNum, ReignEngine_SetBackCGNum),
+	    HLL_EXPORT(SetBackCGNum, ReignEngine_SetBackCGNum),
 	    HLL_EXPORT(SetBackCGBlendRate, ReignEngine_SetBackCGBlendRate),
 	    HLL_EXPORT(SetBackCGDestPos, ReignEngine_SetBackCGDestPos),
-	    HLL_TODO_EXPORT(SetBackCGMag, ReignEngine_SetBackCGMag),
+	    HLL_EXPORT(SetBackCGMag, ReignEngine_SetBackCGMag),
 	    HLL_TODO_EXPORT(SetBackCGQuakeMag, ReignEngine_SetBackCGQuakeMag),
 	    HLL_EXPORT(SetBackCGShow, ReignEngine_SetBackCGShow),
 	    HLL_TODO_EXPORT(GetGlareBrightnessParam, ReignEngine_GetGlareBrightnessParam),
