@@ -54,12 +54,28 @@ struct monster {
 	bool make_shadow;
 	bool draw_shadow;
 	float shadow_bone_radius;
-	int nr_motions;
+	unsigned nr_motions;
 	struct motion *motions;
 };
 
-static int nr_monsters = 0;
+static unsigned nr_monsters = 0;
 static struct monster *monsters = NULL;
+
+static void return_string(struct string **out, const char *s)
+{
+	if (*out)
+		free_string(*out);
+	*out = s ? cstr_to_string(s) : string_ref(&EMPTY_STRING);
+}
+
+static struct motion *get_motion(unsigned monster, unsigned motion)
+{
+	if (monster >= nr_monsters)
+		return NULL;
+	if (motion >= monsters[monster].nr_motions)
+		return NULL;
+	return &monsters[monster].motions[motion];
+}
 
 static void init_monster(struct monster *m)
 {
@@ -218,12 +234,12 @@ static bool MonsterInfo_Load(struct string *filename)
 
 static void MonsterInfo_Release(void)
 {
-	for (int i = 0; i < nr_monsters; i++) {
+	for (unsigned i = 0; i < nr_monsters; i++) {
 		struct monster *m = &monsters[i];
 		free(m->name);
 		free(m->poly_name);
 		free(m->wear_effect_name);
-		for (int j = 0; j < m->nr_motions; j++) {
+		for (unsigned j = 0; j < m->nr_motions; j++) {
 			struct motion *mot = &m->motions[j];
 			free(mot->name);
 			free(mot->data_name);
@@ -245,18 +261,14 @@ static void MonsterInfo_GetViewName(int monster, struct string **name)
 {
 	if ((unsigned)monster >= nr_monsters)
 		return;
-	if (*name)
-		free_string(*name);
-	*name = cstr_to_string(monsters[monster].name);
+	return_string(name, monsters[monster].name);
 }
 
 static void MonsterInfo_GetPolyName(int monster, struct string **name)
 {
 	if ((unsigned)monster >= nr_monsters)
 		return;
-	if (*name)
-		free_string(*name);
-	*name = cstr_to_string(monsters[monster].poly_name);
+	return_string(name, monsters[monster].poly_name);
 }
 
 static float MonsterInfo_GetSpecular(int monster)
@@ -333,12 +345,7 @@ static void MonsterInfo_GetWearEffectName(int monster, struct string **name)
 {
 	if ((unsigned)monster >= nr_monsters)
 		return;
-	if (*name)
-		free_string(*name);
-	if (monsters[monster].wear_effect_name)
-		*name = cstr_to_string(monsters[monster].wear_effect_name);
-	else
-		*name = string_ref(&EMPTY_STRING);
+	return_string(name, monsters[monster].wear_effect_name);
 }
 
 static int MonsterInfo_GetCameraSetting(int monster)
@@ -348,83 +355,50 @@ static int MonsterInfo_GetCameraSetting(int monster)
 
 static void MonsterInfo_GetMotionName(int monster, int motion, struct string **name)
 {
-	if ((unsigned)monster >= nr_monsters)
-		return;
-	if ((unsigned)motion >= monsters[monster].nr_motions)
-		return;
-	if (*name)
-		free_string(*name);
-	*name = cstr_to_string(monsters[monster].motions[motion].name);
+	struct motion *m = get_motion(monster, motion);
+	return_string(name, m ? m->name : NULL);
 }
 
 static void MonsterInfo_GetMotionDataName(int monster, int motion, struct string **name)
 {
-	if ((unsigned)monster >= nr_monsters)
-		return;
-	if ((unsigned)motion >= monsters[monster].nr_motions)
-		return;
-	if (*name)
-		free_string(*name);
-	*name = cstr_to_string(monsters[monster].motions[motion].data_name);
+	struct motion *m = get_motion(monster, motion);
+	return_string(name, m ? m->data_name : NULL);
 }
 
 static int MonsterInfo_GetMotionType(int monster, int motion)
 {
-	if ((unsigned)monster >= nr_monsters)
-		return 0;
-	if ((unsigned)motion >= monsters[monster].nr_motions)
-		return 0;
-	return monsters[monster].motions[motion].type;
+	struct motion *m = get_motion(monster, motion);
+	return m ? m->type : 0;
 }
 
 static void MonsterInfo_GetMotionEffectName(int monster, int motion, struct string **name)
 {
-	if ((unsigned)monster >= nr_monsters)
-		return;
-	if ((unsigned)motion >= monsters[monster].nr_motions)
-		return;
-	if (*name)
-		free_string(*name);
-	if (monsters[monster].motions[motion].effect_name)
-		*name = cstr_to_string(monsters[monster].motions[motion].effect_name);
-	else
-		*name = string_ref(&EMPTY_STRING);
+	struct motion *m = get_motion(monster, motion);
+	return_string(name, m ? m->effect_name : NULL);
 }
 
 static float MonsterInfo_GetBeginFrame(int monster, int motion)
 {
-	if ((unsigned)monster >= nr_monsters)
-		return 0;
-	if ((unsigned)motion >= monsters[monster].nr_motions)
-		return 0;
-	return monsters[monster].motions[motion].frame_begin;
+	struct motion *m = get_motion(monster, motion);
+	return m ? m->frame_begin : 0.0;
 }
 
 static float MonsterInfo_GetEndFrame(int monster, int motion)
 {
-	if ((unsigned)monster >= nr_monsters)
-		return 0;
-	if ((unsigned)motion >= monsters[monster].nr_motions)
-		return 0;
-	return monsters[monster].motions[motion].frame_end;
+	struct motion *m = get_motion(monster, motion);
+	return m ? m->frame_end : 0.0;
 }
 
 static float MonsterInfo_GetBeginLoopFrame(int monster, int motion)
 {
-	if ((unsigned)monster >= nr_monsters)
-		return 0;
-	if ((unsigned)motion >= monsters[monster].nr_motions)
-		return 0;
-	return monsters[monster].motions[motion].loop_frame_begin;
+	struct motion *m = get_motion(monster, motion);
+	return m ? m->loop_frame_begin : 0.0;
 }
 
 static float MonsterInfo_GetEndLoopFrame(int monster, int motion)
 {
-	if ((unsigned)monster >= nr_monsters)
-		return 0;
-	if ((unsigned)motion >= monsters[monster].nr_motions)
-		return 0;
-	return monsters[monster].motions[motion].loop_frame_end;
+	struct motion *m = get_motion(monster, motion);
+	return  m ? m->loop_frame_end : 0.0;
 }
 
 static bool MonsterInfo_GetColumnPos(int monster, float *pos_x, float *pos_y, float *pos_z)
