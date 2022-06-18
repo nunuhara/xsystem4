@@ -46,10 +46,16 @@ bool PE_SetVGaugeCG_by_index(int parts_no, int cg_no, int state);
 bool PE_SetVGaugeRate(int parts_no, int numerator, int denominator, int state);
 bool PE_SetVGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
 bool PE_SetNumeralCG_by_index(int parts_no, int cg_no, int state);
-bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no, int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8, int w9, int w_minus, int w_comma, int state);
+bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no,
+		int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8,
+		int w9, int w_minus, int w_comma, int state);
+bool PE_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, struct string *cg_name,
+		int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8,
+		int w9, int w_minus, int w_comma, int state);
 bool PE_SetNumeralNumber(int parts_no, int n, int state);
 bool PE_SetNumeralShowComma(int parts_no, bool show_comma, int state);
 bool PE_SetNumeralSpace(int parts_no, int space, int state);
+bool PE_SetNumeralLength(int parts_no, int length, int state);
 bool PE_SetNumeralSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
 bool PE_SetPartsRectangleDetectionSize(int PartsNumber, int Width, int Height, int State);
 bool PE_SetPartsFlash(int PartsNumber, struct string *pIFlashFileName, int State);

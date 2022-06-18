@@ -432,9 +432,12 @@ void parts_set_vgauge_rate(struct parts *parts, float rate, int state)
 	parts_dirty(parts);
 }
 
-bool parts_set_number(struct parts *parts, int n, int state)
+static bool parts_numeral_update(struct parts *parts, struct parts_numeral *num)
 {
-	struct parts_numeral *num = parts_get_numeral(parts, state);
+	// XXX: don't generate texture if number hasn't been set yet
+	if (!num->have_num)
+		return true;
+	int n = num->num;
 	bool negative = n < 0;
 	if (negative)
 		n *= -1;
@@ -458,6 +461,10 @@ bool parts_set_number(struct parts *parts, int n, int state)
 			chars[nr_chars++] = 11;
 		}
 		chars[nr_chars++] = d[i];
+	}
+
+	for (int i = digits; i < num->length; i++) {
+		chars[nr_chars++] = 0;
 	}
 
 	// load any uninitialized textures
@@ -500,6 +507,15 @@ bool parts_set_number(struct parts *parts, int n, int state)
 
 	parts_dirty(parts);
 	return true;
+
+}
+
+bool parts_set_number(struct parts *parts, int n, int state)
+{
+	struct parts_numeral *num = parts_get_numeral(parts, state);
+	num->have_num = true;
+	num->num = n;
+	return parts_numeral_update(parts, num);
 }
 
 void parts_set_state(struct parts *parts, enum parts_state_type state)
@@ -747,8 +763,7 @@ bool PE_SetLoopCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 
 static bool set_gauge_cg(int parts_no, struct cg *cg, int state, bool vert)
 {
-	state--;
-	if (state < 0 || state >= PARTS_NR_STATES)
+	if (!parts_state_valid(--state))
 		return false;
 
 	struct parts *parts = parts_get(parts_no);
@@ -787,8 +802,7 @@ bool PE_SetHGaugeCG_by_index(int parts_no, int cg_no, int state)
 
 bool PE_SetHGaugeRate(int parts_no, int numerator, int denominator, int state)
 {
-	state--;
-	if (state < 0 || state >= PARTS_NR_STATES)
+	if (!parts_state_valid(--state))
 		return false;
 
 	parts_set_hgauge_rate(parts_get(parts_no), (float)numerator/(float)denominator, state);
@@ -828,8 +842,7 @@ bool PE_SetVGaugeCG_by_index(int parts_no, int cg_no, int state)
 
 bool PE_SetVGaugeRate(int parts_no, int numerator, int denominator, int state)
 {
-	state--;
-	if (state < 0 || state >= PARTS_NR_STATES)
+	if (!parts_state_valid(--state))
 		return false;
 
 	parts_set_vgauge_rate(parts_get(parts_no), (float)numerator/(float)denominator, state);
@@ -849,8 +862,7 @@ bool PE_SetVGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 
 bool PE_SetNumeralCG_by_index(int parts_no, int cg_no, int state)
 {
-	state--;
-	if (state < 0 || state >= PARTS_NR_STATES)
+	if (!parts_state_valid(--state))
 		return false;
 
 	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
@@ -863,19 +875,13 @@ bool PE_SetNumeralCG_by_index(int parts_no, int cg_no, int state)
 	return true;
 }
 
-bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no, int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8, int w9, int w_minus, int w_comma, int state)
+static void set_numeral_linked_cg_number_width_width_list(int parts_no, struct cg *cg,
+		int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8,
+		int w9, int w_minus, int w_comma, int state)
 {
 	// TODO? Create a generic numeral-font object that can be shared between parts.
 	//       In the current implementation, each number stores a complete copy of
 	//       its numeral font.
-
-	state--;
-	if (state < 0 || state > PARTS_NR_STATES)
-		return false;
-
-	struct cg *cg = asset_cg_load(cg_no);
-	if (!cg)
-		return false;
 
 	int w[12] = { w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w_minus, w_comma };
 	Texture t = {0};
@@ -895,13 +901,44 @@ bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no,
 	}
 
 	gfx_delete_texture(&t);
+}
+
+bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no,
+		int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8,
+		int w9, int w_minus, int w_comma, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+
+	set_numeral_linked_cg_number_width_width_list(parts_no, cg, w0, w1, w2, w3, w4,
+			w5, w6, w7, w8, w9, w_minus, w_comma, state);
+	return true;
+}
+
+bool PE_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, struct string *cg_name,
+		int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8,
+		int w9, int w_minus, int w_comma, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	int no;
+	struct cg *cg = asset_cg_load_by_name(cg_name->text, &no);
+	if (!cg)
+		return false;
+
+	set_numeral_linked_cg_number_width_width_list(parts_no, cg, w0, w1, w2, w3, w4,
+			w5, w6, w7, w8, w9, w_minus, w_comma, state);
 	return true;
 }
 
 bool PE_SetNumeralNumber(int parts_no, int n, int state)
 {
-	state--;
-	if (state < 0 || state > PARTS_NR_STATES)
+	if (!parts_state_valid(--state))
 		return false;
 
 	return parts_set_number(parts_get(parts_no), n, state);
@@ -909,21 +946,49 @@ bool PE_SetNumeralNumber(int parts_no, int n, int state)
 
 bool PE_SetNumeralShowComma(int parts_no, bool show_comma, int state)
 {
-	state--;
-	if (state < 0 || state > PARTS_NR_STATES)
+	if (!parts_state_valid(--state))
 		return false;
 
-	parts_get_numeral(parts_get(parts_no), state)->show_comma = show_comma;
+	struct parts *parts = parts_get(parts_no);
+	struct parts_numeral *num = parts_get_numeral(parts, state);
+	if (num->show_comma == show_comma)
+		return true;
+
+	num->show_comma = show_comma;
+	parts_numeral_update(parts, num);
+	//parts_get_numeral(parts_get(parts_no), state)->show_comma = show_comma;
 	return true;
 }
 
 bool PE_SetNumeralSpace(int parts_no, int space, int state)
 {
-	state--;
-	if (state < 0 || state > PARTS_NR_STATES)
+	if (!parts_state_valid(--state))
 		return false;
 
-	parts_get_numeral(parts_get(parts_no), state)->space = space;
+	struct parts *parts = parts_get(parts_no);
+	struct parts_numeral *num = parts_get_numeral(parts, state);
+	if (num->space == space)
+		return true;
+
+	num->space = space;
+	parts_numeral_update(parts, num);
+	//parts_get_numeral(parts_get(parts_no), state)->space = space;
+	return true;
+}
+
+bool PE_SetNumeralLength(int parts_no, int length, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_numeral *num = parts_get_numeral(parts, state);
+	if (num->length == length)
+		return true;
+
+	num->length = length;
+	parts_numeral_update(parts, num);
+	//parts_get_numeral(parts_get(parts_no), state)->length = length;
 	return true;
 }
 

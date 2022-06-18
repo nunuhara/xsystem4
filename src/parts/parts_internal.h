@@ -123,8 +123,11 @@ struct parts_animation {
 struct parts_numeral {
 	struct parts_common common;
 	Texture cg[12];
+	bool have_num;
+	int num;
 	int space;
 	int show_comma;
+	int length;
 	int cg_no;
 };
 
