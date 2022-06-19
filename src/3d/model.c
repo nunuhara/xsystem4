@@ -308,8 +308,11 @@ static int cmp_motions_by_bone_id(const void *lhs, const void *rhs)
 	return (*(struct mot_bone **)lhs)->id - (*(struct mot_bone **)rhs)->id;
 }
 
-struct motion *motion_load(const char *name, struct model *model, struct archive *aar)
+struct motion *motion_load(const char *name, struct RE_instance *instance, struct archive *aar)
 {
+	struct model *model = instance->model;
+	if (!model)
+		return NULL;
 	char *motname = xmalloc(strlen(model->path) + strlen(name) + 6);
 	sprintf(motname, "%s\\%s.MOT", model->path, name);
 
@@ -343,6 +346,7 @@ struct motion *motion_load(const char *name, struct model *model, struct archive
 	qsort(mot->motions, mot->nr_bones, sizeof(struct mot_bone *), cmp_motions_by_bone_id);
 
 	struct motion *motion = xcalloc(1, sizeof(struct motion));
+	motion->instance = instance;
 	motion->mot = mot;
 	motion->name = strdup(name);
 	return motion;
@@ -350,7 +354,9 @@ struct motion *motion_load(const char *name, struct model *model, struct archive
 
 void motion_free(struct motion *motion)
 {
-	mot_free(motion->mot);
-	free(motion->name);
+	if (motion->mot)
+		mot_free(motion->mot);
+	if (motion->name)
+		free(motion->name);
 	free(motion);
 }

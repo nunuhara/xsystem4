@@ -57,6 +57,7 @@ struct bone {
 };
 
 struct motion {
+	struct RE_instance *instance;
 	struct mot *mot;
 	char *name;
 	int state;
@@ -83,7 +84,14 @@ struct RE_renderer {
 	GLint vertex_bone_weight;
 
 	mat4 bone_transforms[MAX_BONES];
+	GLuint billboard_vao;
+	GLuint billboard_attr_buffer;
+	struct hash_table *billboard_textures;  // cg_no -> struct billboard_texture*
 	uint32_t last_frame_timestamp;
+};
+
+struct billboard_texture {
+	GLuint texture;
 };
 
 // model.c
@@ -91,13 +99,14 @@ struct RE_renderer {
 struct model *model_load(struct archive *aar, const char *path, struct RE_renderer *renderer);
 void model_free(struct model *model);
 
-struct motion *motion_load(const char *name, struct model *model, struct archive *aar);
+struct motion *motion_load(const char *name, struct RE_instance *instance, struct archive *aar);
 void motion_free(struct motion *motion);
 
 // renderer.c
 
 struct RE_renderer *RE_renderer_new(struct texture *texture);
 void RE_renderer_free(struct RE_renderer *r);
+bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);
 
 // parser.c
 

@@ -47,8 +47,14 @@ static const char *motion_state_name(enum RE_motion_state state)
 
 static void print_motion(const char *name, struct motion *m, int indent)
 {
-	indent_printf(indent, "%s = {name=\"%s\", state=%s, frame=%f},\n",
-	              name, m->name, motion_state_name(m->state), m->current_frame);
+	if (m->instance->type == RE_ITYPE_BILLBOARD) {
+		indent_printf(indent, "%s = {state=%s, frame=%f, range=(%d,%d), loop_range=(%d,%d)},\n",
+		              name, motion_state_name(m->state), m->current_frame,
+		              (int)m->frame_begin, (int)m->frame_end, (int)m->loop_frame_begin, (int)m->loop_frame_end);
+	} else {
+		indent_printf(indent, "%s = {name=\"%s\", state=%s, frame=%f},\n",
+		              name, m->name, motion_state_name(m->state), m->current_frame);
+	}
 }
 
 static void print_instance(struct RE_instance *inst, int index, int indent)
