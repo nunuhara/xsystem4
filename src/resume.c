@@ -37,18 +37,20 @@
  */
 
 static const char * const page_type_strtab[] = {
-	[GLOBAL_PAGE] = "globals",
-	[LOCAL_PAGE]  = "locals",
-	[STRUCT_PAGE] = "struct",
-	[ARRAY_PAGE]  = "array"
+	[GLOBAL_PAGE]   = "globals",
+	[LOCAL_PAGE]    = "locals",
+	[STRUCT_PAGE]   = "struct",
+	[ARRAY_PAGE]    = "array",
+	[DELEGATE_PAGE] = "delegate"
 };
 
 static enum page_type string_to_page_type(const char *str)
 {
-	if (!strcmp(str, "globals")) return GLOBAL_PAGE;
-	if (!strcmp(str, "locals"))  return LOCAL_PAGE;
-	if (!strcmp(str, "struct"))  return STRUCT_PAGE;
-	if (!strcmp(str, "array"))   return ARRAY_PAGE;
+	if (!strcmp(str, "globals"))  return GLOBAL_PAGE;
+	if (!strcmp(str, "locals"))   return LOCAL_PAGE;
+	if (!strcmp(str, "struct"))   return STRUCT_PAGE;
+	if (!strcmp(str, "array"))    return ARRAY_PAGE;
+	if (!strcmp(str, "delegate")) return DELEGATE_PAGE;
 	VM_ERROR("Invalid page type: %s", str);
 }
 
