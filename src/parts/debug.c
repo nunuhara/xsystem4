@@ -437,7 +437,7 @@ static void parts_list_print(struct parts *parts, int indent)
 	}
 	}
 
-	printf(" @ z=%d\n", parts->z);
+	printf(" @ z=%d (%d)\n", parts->global_z, parts->z);
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {

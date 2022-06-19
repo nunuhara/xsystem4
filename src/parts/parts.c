@@ -36,7 +36,7 @@ static void parts_init(struct parts *parts)
 	parts->on_click_sound = -1;
 	parts->origin_mode = 1;
 	parts->z = 1;
-	parts->parent_z = -1;
+	parts->global_z = 1;
 	parts->show = true;
 	parts->alpha = 255;
 	parts->parent = -1;
@@ -58,17 +58,11 @@ static struct parts *parts_alloc(void)
 	return parts;
 }
 
-static bool parts_below(struct parts *parts, struct parts *p)
-{
-	// TODO: handle case when p->parent_z == parts->parent_z (and neither are -1)
-	return (p->parent_z > parts->parent_z || (p->parent_z == parts->parent_z && p->z > parts->z));
-}
-
 static void parts_list_insert(struct parts *parts)
 {
 	struct parts *p;
 	PARTS_LIST_FOREACH(p) {
-		if (parts_below(parts, p)) {
+		if (p->global_z > parts->global_z) {
 			TAILQ_INSERT_BEFORE(p, parts, parts_list_entry);
 			parts_engine_dirty();
 			return;
@@ -90,6 +84,17 @@ static void parts_list_resort(struct parts *parts)
 	parts_list_insert(parts);
 }
 
+static void parts_update_global_z(struct parts *parts, int parent_z)
+{
+	parts->global_z = parent_z + parts->z;
+	parts_list_resort(parts);
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_z(child, parts->global_z);
+	}
+}
+
 static void parts_set_parent(struct parts *child, struct parts *parent)
 {
 	if (child->parent >= 0) {
@@ -99,12 +104,10 @@ static void parts_set_parent(struct parts *child, struct parts *parent)
 	if (parent) {
 		TAILQ_INSERT_TAIL(&parent->children, child, child_list_entry);
 		child->parent = parent->no;
-		child->parent_z = parent->z;
-		parts_list_resort(child);
+		parts_update_global_z(child, parent->global_z);
 	} else {
 		child->parent = -1;
-		child->parent_z = -1;
-		parts_list_resort(child);
+		parts_update_global_z(child, 0);
 	}
 }
 
@@ -1043,13 +1046,14 @@ void PE_SetZ(int parts_no, int z)
 	if (parts->z == z)
 		return;
 
+	int diff = z - parts->z;
 	parts->z = z;
+	parts->global_z += diff;
 	parts_list_resort(parts);
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
-		child->parent_z = z;
-		parts_list_resort(child);
+		parts_update_global_z(child, parts->global_z);
 	}
 }
 
@@ -1091,12 +1095,16 @@ int PE_GetPartsY(int parts_no)
 
 int PE_GetPartsWidth(int parts_no, possibly_unused int state)
 {
-	return parts_get_width(parts_get(parts_no));
+	if (!parts_state_valid(--state))
+		return 0;
+	return parts_get(parts_no)->states[state].common.w;
 }
 
 int PE_GetPartsHeight(int parts_no, possibly_unused int state)
 {
-	return parts_get_height(parts_get(parts_no));
+	if (!parts_state_valid(--state))
+		return 0;
+	return parts_get(parts_no)->states[state].common.h;
 }
 
 int PE_GetPartsZ(int parts_no)
