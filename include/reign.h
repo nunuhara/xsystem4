@@ -25,10 +25,20 @@
 #include "gfx/gfx.h"
 #include "plugin.h"
 
+enum RE_instance_type {
+	RE_ITYPE_UNINITIALIZED     = 0,
+	RE_ITYPE_STATIC            = 1,
+	RE_ITYPE_SKINNED           = 2,
+	RE_ITYPE_BILLBOARD         = 3,
+	RE_ITYPE_DIRECTIONAL_LIGHT = 4,
+	RE_ITYPE_SPECULAR_LIGHT    = 6,
+	RE_ITYPE_PARTICLE_EFFECT   = 8,
+};
+
 enum RE_motion_state {
-	RE_MOTION_STATE_STOP = 0,
+	RE_MOTION_STATE_STOP   = 0,
 	RE_MOTION_STATE_NOLOOP = 1,
-	RE_MOTION_STATE_LOOP = 2,
+	RE_MOTION_STATE_LOOP   = 2,
 };
 
 struct RE_options {
@@ -95,7 +105,7 @@ struct RE_instance {
 	struct motion *motion;
 	struct motion *next_motion;
 
-	int type;
+	enum RE_instance_type type;
 	vec3 pos;
 	float pitch, roll, yaw;  // in degrees
 	vec3 vec;
@@ -119,6 +129,7 @@ bool RE_set_projection(struct RE_plugin *plugin, float width, float height, floa
 int RE_create_instance(struct RE_plugin *plugin);
 bool RE_release_instance(struct RE_plugin *plugin, int instance);
 
+bool RE_instance_set_type(struct RE_instance *instance, int type);
 bool RE_instance_load(struct RE_instance *instance, const char *name);
 bool RE_instance_load_motion(struct RE_instance *instance, const char *name);
 bool RE_instance_load_next_motion(struct RE_instance *instance, const char *name);

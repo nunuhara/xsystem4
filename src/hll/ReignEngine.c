@@ -112,11 +112,7 @@ static bool ReignEngine_LoadInstance(int plugin, int instance, struct string *na
 
 static bool ReignEngine_SetInstanceType(int plugin, int instance, int type)
 {
-	struct RE_instance *ri = get_instance(plugin, instance);
-	if (!ri)
-		return false;
-	ri->type = type;
-	return true;
+	return RE_instance_set_type(get_instance(plugin, instance), type);
 }
 
 static bool ReignEngine_SetInstancePos(int plugin, int instance, float x, float y, float z)

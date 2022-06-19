@@ -176,6 +176,27 @@ bool RE_release_instance(struct RE_plugin *plugin, int instance)
 	return true;
 }
 
+bool RE_instance_set_type(struct RE_instance *instance, int type)
+{
+	if (!instance)
+		return false;
+	if (instance->type != RE_ITYPE_UNINITIALIZED)
+		ERROR("instance type cannot be changed");
+	switch (type) {
+	case RE_ITYPE_STATIC:
+	case RE_ITYPE_SKINNED:
+	case RE_ITYPE_BILLBOARD:
+	case RE_ITYPE_DIRECTIONAL_LIGHT:
+	case RE_ITYPE_SPECULAR_LIGHT:
+	case RE_ITYPE_PARTICLE_EFFECT:
+		break;
+	default:
+		ERROR("unknown instance type %d", type);
+	}
+	instance->type = type;
+	return true;
+}
+
 bool RE_instance_load(struct RE_instance *instance, const char *name)
 {
 	if (!instance)
