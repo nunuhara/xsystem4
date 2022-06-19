@@ -112,11 +112,7 @@ static bool ReignEngine_LoadInstance(int plugin, int instance, struct string *na
 
 static bool ReignEngine_SetInstanceType(int plugin, int instance, int type)
 {
-	struct RE_instance *ri = get_instance(plugin, instance);
-	if (!ri)
-		return false;
-	ri->type = type;
-	return true;
+	return RE_instance_set_type(get_instance(plugin, instance), type);
 }
 
 static bool ReignEngine_SetInstancePos(int plugin, int instance, float x, float y, float z)
@@ -222,7 +218,12 @@ static bool ReignEngine_SetInstanceScaleZ(int plugin, int instance, float scale_
 
 //bool ReignEngine_SetInstanceZBias(int plugin, int instance, float fZBias);
 //float ReignEngine_GetInstanceZBias(int plugin, int instance);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceVertexPos, int plugin, int instance, int index, float x, float y, float z);
+
+bool ReignEngine_SetInstanceVertexPos(int plugin, int instance, int index, float x, float y, float z)
+{
+	return RE_instance_set_vertex_pos(get_instance(plugin, instance), index, x, y, z);
+}
+
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceDiffuse, int plugin, int instance, float r, float g, float b);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceGlobeDiffuse, int plugin, int instance, float r, float g, float b);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceAmbient, int plugin, int instance, float r, float g, float b);

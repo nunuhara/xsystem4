@@ -21,32 +21,56 @@
 #include "sprite.h"
 #include "xsystem4.h"
 
+static const char *instance_type_name(enum RE_instance_type type)
+{
+	switch (type) {
+	case RE_ITYPE_UNINITIALIZED:     return "UNINITIALIZED";
+	case RE_ITYPE_STATIC:            return "STATIC";
+	case RE_ITYPE_SKINNED:           return "SKINNED";
+	case RE_ITYPE_BILLBOARD:         return "BILLBOARD";
+	case RE_ITYPE_DIRECTIONAL_LIGHT: return "DIRECTIONAL_LIGHT";
+	case RE_ITYPE_SPECULAR_LIGHT:    return "SPECULAR_LIGHT";
+	case RE_ITYPE_PARTICLE_EFFECT:   return "PARTICLE_EFFECT";
+	}
+	return "UNKNOWN";
+}
+
+static const char *motion_state_name(enum RE_motion_state state)
+{
+	switch (state) {
+	case RE_MOTION_STATE_STOP:   return "STOP";
+	case RE_MOTION_STATE_NOLOOP: return "NOLOOP";
+	case RE_MOTION_STATE_LOOP:   return "LOOP";
+	}
+	return "UNKNOWN";
+}
+
 static void print_motion(const char *name, struct motion *m, int indent)
 {
-	const char *state;
-	switch (m->state) {
-	case RE_MOTION_STATE_STOP: state = "STOP"; break;
-	case RE_MOTION_STATE_NOLOOP: state = "NOLOOP"; break;
-	case RE_MOTION_STATE_LOOP: state = "LOOP"; break;
-	default: state = "?"; break;
+	if (m->instance->type == RE_ITYPE_BILLBOARD) {
+		indent_printf(indent, "%s = {state=%s, frame=%f, range=(%d,%d), loop_range=(%d,%d)},\n",
+		              name, motion_state_name(m->state), m->current_frame,
+		              (int)m->frame_begin, (int)m->frame_end, (int)m->loop_frame_begin, (int)m->loop_frame_end);
+	} else {
+		indent_printf(indent, "%s = {name=\"%s\", state=%s, frame=%f},\n",
+		              name, m->name, motion_state_name(m->state), m->current_frame);
 	}
-	indent_printf(indent, "%s = {name=\"%s\", state=%s, frame=%f},\n",
-	              name, m->name, state, m->current_frame);
 }
 
 static void print_instance(struct RE_instance *inst, int index, int indent)
 {
-	if (!inst || !inst->model)
+	if (!inst)
 		return;
 	indent_printf(indent, "instance[%d] = {\n", index);
 	indent++;
 
-	indent_printf(indent, "path = \"%s\",\n", inst->model->path);
-	indent_printf(indent, "type = %d,\n", inst->type);
+	indent_printf(indent, "type = %s,\n", instance_type_name(inst->type));
 	indent_printf(indent, "draw = %d,\n", inst->draw);
 	indent_printf(indent, "pos = {x=%f, y=%f, z=%f},\n", inst->pos[0], inst->pos[1], inst->pos[2]);
 	indent_printf(indent, "vec = {x=%f, y=%f, z=%f},\n", inst->vec[0], inst->vec[1], inst->vec[2]);
 	indent_printf(indent, "scale = {x=%f, y=%f, z=%f},\n", inst->scale[0], inst->scale[1], inst->scale[2]);
+	if (inst->model)
+		indent_printf(indent, "path = \"%s\",\n", inst->model->path);
 	if (inst->motion)
 		print_motion("motion", inst->motion, indent);
 	if (inst->next_motion)

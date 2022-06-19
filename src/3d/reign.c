@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -176,6 +177,35 @@ bool RE_release_instance(struct RE_plugin *plugin, int instance)
 	return true;
 }
 
+bool RE_instance_set_type(struct RE_instance *instance, int type)
+{
+	if (!instance)
+		return false;
+	if (instance->type != RE_ITYPE_UNINITIALIZED)
+		ERROR("instance type cannot be changed");
+	switch (type) {
+	case RE_ITYPE_STATIC:
+		break;
+	case RE_ITYPE_SKINNED:
+		break;
+	case RE_ITYPE_BILLBOARD:
+		assert(!instance->motion);
+		instance->motion = xcalloc(1, sizeof(struct motion));
+		instance->motion->instance = instance;
+		break;
+	case RE_ITYPE_DIRECTIONAL_LIGHT:
+		break;
+	case RE_ITYPE_SPECULAR_LIGHT:
+		break;
+	case RE_ITYPE_PARTICLE_EFFECT:
+		break;
+	default:
+		ERROR("unknown instance type %d", type);
+	}
+	instance->type = type;
+	return true;
+}
+
 bool RE_instance_load(struct RE_instance *instance, const char *name)
 {
 	if (!instance)
@@ -189,21 +219,21 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 
 bool RE_instance_load_motion(struct RE_instance *instance, const char *name)
 {
-	if (!instance || !instance->model)
+	if (!instance)
 		return false;
 	if (instance->motion)
 		motion_free(instance->motion);
-	instance->motion = motion_load(name, instance->model, instance->plugin->aar);
+	instance->motion = motion_load(name, instance, instance->plugin->aar);
 	return !!instance->motion;
 }
 
 bool RE_instance_load_next_motion(struct RE_instance *instance, const char *name)
 {
-	if (!instance || !instance->model)
+	if (!instance)
 		return false;
 	if (instance->next_motion)
 		motion_free(instance->next_motion);
-	instance->next_motion = motion_load(name, instance->model, instance->plugin->aar);
+	instance->next_motion = motion_load(name, instance, instance->plugin->aar);
 	return !!instance->next_motion;
 }
 
@@ -214,6 +244,21 @@ bool RE_instance_free_next_motion(struct RE_instance *instance)
 	motion_free(instance->next_motion);
 	instance->next_motion = NULL;
 	return true;
+}
+
+bool RE_instance_set_vertex_pos(struct RE_instance *instance, int index, float x, float y, float z)
+{
+	if (!instance)
+		return false;
+	if (instance->type != RE_ITYPE_BILLBOARD)
+		ERROR("not implemented");
+	// Hack: This works because SetInstanceVertexPos is only used to scale
+	// billboards, and SetInstanceScale is not used for billboards.
+	if (index == 1) {
+		instance->scale[0] = x;
+		instance->scale[1] = y / 2.0;
+	}
+	return false;
 }
 
 int RE_motion_get_state(struct motion *motion)
@@ -248,6 +293,12 @@ bool RE_motion_set_frame_range(struct motion *motion, float begin, float end)
 		return false;
 	motion->frame_begin = begin;
 	motion->frame_end = end;
+	if (motion->instance->type == RE_ITYPE_BILLBOARD) {
+		for (int i = begin; i < end; i++) {
+			if (!RE_renderer_load_billboard_texture(motion->instance->plugin->renderer, i))
+				return false;
+		}
+	}
 	return true;
 }
 
@@ -257,6 +308,12 @@ bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float en
 		return false;
 	motion->loop_frame_begin = begin;
 	motion->loop_frame_end = end;
+	if (motion->instance->type == RE_ITYPE_BILLBOARD) {
+		for (int i = begin; i < end; i++) {
+			if (!RE_renderer_load_billboard_texture(motion->instance->plugin->renderer, i))
+				return false;
+		}
+	}
 	return true;
 }
 
