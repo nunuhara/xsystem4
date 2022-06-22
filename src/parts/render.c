@@ -32,6 +32,9 @@ static struct sprite goat_sprite;
 struct parts_render_params {
 	Point offset;
 	uint8_t alpha;
+	struct { float x, y; } scale;
+	SDL_Color add_color;
+	SDL_Color multiply_color;
 };
 
 static struct {
@@ -39,6 +42,8 @@ static struct {
 	GLint alpha_mod;
 	GLint bot_left;
 	GLint top_right;
+	GLint add_color;
+	GLint multiply_color;
 } parts_shader;
 
 static void parts_render_text(struct parts *parts, struct parts_common *common,
@@ -56,13 +61,21 @@ static void parts_render_text(struct parts *parts, struct parts_common *common,
 static void parts_render_cg(struct parts *parts, struct parts_common *common,
 		struct parts_render_params *params)
 {
+	switch (parts->draw_filter) {
+	case 1:
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+		break;
+	default:
+		break;
+	}
+
 	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
 	glm_translate(mw_transform, (vec3) { params->offset.x, params->offset.y, 0 });
 	// FIXME: need perspective for 3D rotate
 	//glm_rotate_x(mw_transform, parts->rotation.x, mw_transform);
 	//glm_rotate_y(mw_transform, parts->rotation.y, mw_transform);
 	glm_rotate_z(mw_transform, parts->rotation.z, mw_transform);
-	glm_scale(mw_transform, (vec3){ parts->scale.x, parts->scale.y, 1.0 });
+	glm_scale(mw_transform, (vec3){ params->scale.x, params->scale.y, 1.0 });
 	glm_translate(mw_transform, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
 	glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
@@ -84,7 +97,13 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common,
 	glUniform1f(parts_shader.alpha_mod, params->alpha / 255.0);
 	glUniform2f(parts_shader.bot_left, r.x, r.y);
 	glUniform2f(parts_shader.top_right, r.x + r.w, r.y + r.h);
+	glUniform3f(parts_shader.add_color, params->add_color.r / 255.0f,
+			params->add_color.g / 255.0f, params->add_color.b / 255.0f);
+	glUniform3f(parts_shader.multiply_color, params->multiply_color.r / 255.0f,
+			params->multiply_color.g / 255.0f, params->multiply_color.b / 255.0f);
 	gfx_run_job(&job);
+
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
 void parts_render(struct parts *parts)
@@ -101,6 +120,9 @@ void parts_render(struct parts *parts)
 	struct parts_render_params params = {
 		.offset = parts->pos,
 		.alpha = parts->alpha,
+		.scale = { parts->scale.x, parts->scale.y },
+		.add_color = parts->add_color,
+		.multiply_color = parts->multiply_color,
 	};
 
 	// adjust pos/alpha per parent parts
@@ -112,6 +134,14 @@ void parts_render(struct parts *parts)
 		params.alpha *= parent->alpha / 255.0f;
 		params.offset.x += parent->pos.x;
 		params.offset.y += parent->pos.y;
+		params.scale.x *= parent->scale.x;
+		params.scale.y *= parent->scale.y;
+		params.add_color.r *= parent->add_color.r / 255.0f;
+		params.add_color.g *= parent->add_color.g / 255.0f;
+		params.add_color.b *= parent->add_color.b / 255.0f;
+		params.multiply_color.r *= parent->multiply_color.r / 255.0f;
+		params.multiply_color.g *= parent->multiply_color.g / 255.0f;
+		params.multiply_color.b *= parent->multiply_color.b / 255.0f;
 	}
 
 	// render
@@ -172,4 +202,6 @@ void parts_render_init(void)
 	parts_shader.alpha_mod = glGetUniformLocation(parts_shader.shader.program, "alpha_mod");
 	parts_shader.bot_left = glGetUniformLocation(parts_shader.shader.program, "bot_left");
 	parts_shader.top_right = glGetUniformLocation(parts_shader.shader.program, "top_right");
+	parts_shader.add_color = glGetUniformLocation(parts_shader.shader.program, "add_color");
+	parts_shader.multiply_color = glGetUniformLocation(parts_shader.shader.program, "multiply_color");
 }

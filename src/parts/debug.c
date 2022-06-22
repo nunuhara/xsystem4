@@ -60,8 +60,11 @@ static void parts_animation_print(struct parts_animation *anim, int indent)
 
 static void parts_numeral_print(struct parts_numeral *num, int indent)
 {
+	indent_printf(indent, "num.have_num = %s,\n", num->have_num ? "true" : "false");
+	indent_printf(indent, "num.num = %d,\n", num->num);
 	indent_printf(indent, "num.space = %d,\n", num->space);
 	indent_printf(indent, "num.show_comma = %d,\n", num->show_comma);
+	indent_printf(indent, "num.length = %d,\n", num->length);
 	indent_printf(indent, "num.cg_no = %d,\n", num->cg_no);
 	indent_printf(indent, "num.cg = {\n");
 	for (int i = 0; i < 12; i++) {
@@ -143,7 +146,7 @@ static void parts_construction_process_print(struct parts_construction_process *
 			break;
 		}
 		indent--;
-		printf("},\n");
+		indent_printf(indent, "},\n");
 	}
 
 	indent--;
@@ -299,6 +302,9 @@ static void _parts_print(struct parts *parts, int indent)
 	indent_printf(indent, "scale = {x=%f,y=%f},\n", parts->scale.x, parts->scale.y);
 	indent_printf(indent, "rotation = {x=%f,y=%f,z=%f},\n",
 			parts->rotation.x, parts->rotation.y, parts->rotation.z);
+	indent_printf(indent, "add_color = "); gfx_print_color(&parts->add_color); printf(",\n");
+	indent_printf(indent, "multiply_color = "); gfx_print_color(&parts->multiply_color); printf(",\n");
+	indent_printf(indent, "draw_filter = %d,\n", parts->draw_filter);
 
 	// print motion data
 	if (TAILQ_EMPTY(&parts->motion)) {

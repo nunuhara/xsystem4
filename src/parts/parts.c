@@ -47,6 +47,7 @@ static void parts_init(struct parts *parts)
 	parts->rotation.x = 0.0;
 	parts->rotation.y = 0.0;
 	parts->rotation.z = 0.0;
+	parts->multiply_color = (SDL_Color) { 255, 255, 255, 255 };
 	TAILQ_INIT(&parts->children);
 	TAILQ_INIT(&parts->motion);
 }
@@ -201,10 +202,22 @@ static void parts_state_reset(struct parts_state *state, enum parts_type type)
 {
 	parts_state_free(state);
 	state->type = type;
-	if (type == PARTS_TEXT) {
+	switch (type) {
+	case PARTS_TEXT:
 		state->text.ts = default_text_style;
-	} else if (type == PARTS_CONSTRUCTION_PROCESS) {
+		break;
+	case PARTS_NUMERAL:
+		state->num.length = 1;
+		break;
+	case PARTS_CONSTRUCTION_PROCESS:
 		TAILQ_INIT(&state->cproc.ops);
+		break;
+	case PARTS_UNINITIALIZED:
+	case PARTS_CG:
+	case PARTS_ANIMATION:
+	case PARTS_HGAUGE:
+	case PARTS_VGAUGE:
+		break;
 	}
 }
 
@@ -288,9 +301,10 @@ static Point calculate_offset(int mode, int w, int h)
  */
 static void parts_common_recalculate_hitbox(struct parts *parts, struct parts_common *common)
 {
-	common->origin_offset = calculate_offset(parts->origin_mode, common->w, common->h);
 
 	if (common->surface_area.w || common->surface_area.h) {
+		common->origin_offset = calculate_offset(parts->origin_mode,
+				common->surface_area.w, common->surface_area.h);
 		Rectangle r = { 0, 0, common->w, common->h };
 		SDL_IntersectRect(&r, &common->surface_area, &common->hitbox);
 		common->origin_offset.x -= common->surface_area.x;
@@ -298,6 +312,7 @@ static void parts_common_recalculate_hitbox(struct parts *parts, struct parts_co
 		common->hitbox.x += parts->pos.x + common->origin_offset.x;
 		common->hitbox.y += parts->pos.y + common->origin_offset.y;
 	} else {
+		common->origin_offset = calculate_offset(parts->origin_mode, common->w, common->h);
 		common->hitbox = (Rectangle) {
 			.x = parts->pos.x + common->origin_offset.x,
 			.y = parts->pos.y + common->origin_offset.y,
@@ -989,7 +1004,8 @@ bool PE_SetNumeralLength(int parts_no, int length, int state)
 	if (num->length == length)
 		return true;
 
-	num->length = length;
+	num->length = max(1, length);
+	num->have_num = true;
 	parts_numeral_update(parts, num);
 	//parts_get_numeral(parts_get(parts_no), state)->length = length;
 	return true;
@@ -1071,16 +1087,31 @@ void PE_SetAlpha(int parts_no, int alpha)
 	parts_set_alpha(parts_get(parts_no), alpha);
 }
 
-void PE_SetPartsDrawFilter(int PartsNumber, int DrawFilter);
+void PE_SetPartsDrawFilter(int parts_no, int draw_filter)
+{
+	if (draw_filter && draw_filter != 1)
+		NOTICE("PE_SetPartsDrawFilter(%d, %d)", parts_no, draw_filter);
+	parts_get(parts_no)->draw_filter = draw_filter;
+}
 
 void PE_SetAddColor(int parts_no, int r, int g, int b)
 {
-	//NOTICE("PE_SetAddColor(%d, %d, %d, %d)", parts_no, r, g, b);
+	parts_get(parts_no)->add_color = (SDL_Color) {
+		min(255, max(0, r)),
+		min(255, max(0, g)),
+		min(255, max(0, b)),
+		255
+	};
 }
 
 void PE_SetMultiplyColor(int parts_no, int r, int g, int b)
 {
-	//NOTICE("PE_SetMultiplyColor(%d, %d, %d, %d)", parts_no, r, g, b);
+	parts_get(parts_no)->multiply_color = (SDL_Color) {
+		min(255, max(0, r)),
+		min(255, max(0, g)),
+		min(255, max(0, b)),
+		255
+	};
 }
 
 int PE_GetPartsX(int parts_no)
@@ -1093,18 +1124,32 @@ int PE_GetPartsY(int parts_no)
 	return parts_get(parts_no)->pos.y;
 }
 
-int PE_GetPartsWidth(int parts_no, possibly_unused int state)
+int PE_GetPartsWidth(int parts_no, int state)
 {
 	if (!parts_state_valid(--state))
 		return 0;
 	return parts_get(parts_no)->states[state].common.w;
 }
 
-int PE_GetPartsHeight(int parts_no, possibly_unused int state)
+int PE_GetPartsHeight(int parts_no, int state)
 {
 	if (!parts_state_valid(--state))
 		return 0;
 	return parts_get(parts_no)->states[state].common.h;
+}
+
+int PE_GetPartsUpperLeftPosX(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return 0;
+	return parts_get(parts_no)->states[state].common.hitbox.x;
+}
+
+int PE_GetPartsUpperLeftPosY(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return 0;
+	return parts_get(parts_no)->states[state].common.hitbox.y;
 }
 
 int PE_GetPartsZ(int parts_no)
@@ -1169,8 +1214,15 @@ void PE_SetPartsMagY(int parts_no, float scale_y)
 	parts_set_scale_y(parts_get(parts_no), scale_y);
 }
 
-void PE_SetPartsRotateX(int parts_no, float rot_x);
-void PE_SetPartsRotateY(int parts_no, float rot_y);
+void PE_SetPartsRotateX(int parts_no, float rot_x)
+{
+	NOTICE("PE_SetPartsRotateX(%d, %f)", parts_no, rot_x);
+}
+
+void PE_SetPartsRotateY(int parts_no, float rot_y)
+{
+	NOTICE("PE_SetPartsRotateY(%d, %f)", parts_no, rot_y);
+}
 
 void PE_SetPartsRotateZ(int parts_no, float rot_z)
 {

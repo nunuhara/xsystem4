@@ -18,6 +18,8 @@ uniform sampler2D tex;
 uniform float alpha_mod;
 uniform vec2 bot_left;
 uniform vec2 top_right;
+uniform vec3 add_color;
+uniform vec3 multiply_color;
 
 in vec2 tex_coord;
 out vec4 frag_color;
@@ -32,6 +34,7 @@ void main() {
 	vec2 bl = bot_left / size;
 	vec2 tr = top_right / size;
 
-	frag_color = texture(tex, tex_coord) * point_in_rect(tex_coord, bl, tr);
-	frag_color.a *= alpha_mod;
+	vec4 tex_color = texture(tex, tex_coord);
+	vec3 mod_color = (tex_color.rgb + add_color) * multiply_color;
+	frag_color = vec4(mod_color, tex_color.a * alpha_mod) * point_in_rect(tex_coord, bl, tr);
 }

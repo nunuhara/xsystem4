@@ -234,6 +234,9 @@ struct parts {
 	Point pos;
 	struct { float x, y; } scale;
 	struct { float x, y, z; } rotation;
+	SDL_Color add_color;
+	SDL_Color multiply_color;
+	int draw_filter;
 	TAILQ_HEAD(, parts_motion) motion;
 };
 
