@@ -180,11 +180,9 @@ bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state)
 
 	// TODO: this could be cached
 	Rectangle hitbox = parts->states[state].common.hitbox;
-	struct parts *parent = parts;
-	while (parent->parent >= 0) {
-		parent = parts_get(parent->parent);
-		hitbox.x += parent->pos.x;
-		hitbox.y += parent->pos.y;
+	for (struct parts *parent = parts->parent; parent; parent = parent->parent) {
+		hitbox.x += parent->local.pos.x;
+		hitbox.y += parent->local.pos.y;
 	}
 
 	Point mouse_pos = { mouse_x, mouse_y };

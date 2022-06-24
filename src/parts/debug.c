@@ -164,9 +164,6 @@ static void parts_print_state(struct parts_state *state, int indent)
 
 	struct parts_common *com = &state->common;
 
-	indent_printf(indent, "texture = ");
-	gfx_print_texture(&state->common.texture, indent);
-	printf(",\n");
 	indent_printf(indent, "dims = {w=%d,h=%d},\n", state->common.w, state->common.h);
 	indent_printf(indent, "origin_offset = "); gfx_print_point(&com->origin_offset); printf(",\n");
 	indent_printf(indent, "hitbox = "); gfx_print_rectangle(&com->hitbox); printf(",\n");
@@ -263,6 +260,40 @@ static void parts_print_motion(struct parts_motion *motion, int indent)
 	indent_printf(indent, "}");
 }
 
+static void parts_print_params(struct parts_params *global, struct parts_params *local, int indent)
+{
+	printf("{\n");
+	indent++;
+
+	indent_printf(indent, "z = %d (%d),\n", global->z, local->z);
+	indent_printf(indent, "pos = ");
+	gfx_print_point(&global->pos);
+	printf(" (");
+	gfx_print_point(&local->pos);
+	printf("),\n");
+	indent_printf(indent, "show = %s (%s),\n", global->show ? "true" : "false",
+			local->show ? "true" : "false");
+	indent_printf(indent, "alpha = %u (%u),\n", (unsigned)global->alpha, (unsigned)local->alpha);
+	indent_printf(indent, "scale = {x=%f,y=%f} ({x=%f,y=%f}),\n", global->scale.x, global->scale.y,
+			local->scale.x, local->scale.y);
+	indent_printf(indent, "rotation = {x=%f,y=%f,z=%f} ({x=%f,y=%f,z=%f}),\n",
+			global->rotation.x, global->rotation.y, global->rotation.z,
+			local->rotation.x, local->rotation.y, local->rotation.z);
+	indent_printf(indent, "add_color = ");
+	gfx_print_color(&global->add_color);
+	printf(" (");
+	gfx_print_color(&local->add_color);
+	printf("),\n");
+	indent_printf(indent, "multiply_color = ");
+	gfx_print_color(&global->multiply_color);
+	printf(" (");
+	gfx_print_color(&local->multiply_color);
+	printf("),\n");
+
+	indent--;
+	indent_printf(indent, "}");
+}
+
 static void _parts_print(struct parts *parts, int indent)
 {
 	static const char *state_names[PARTS_NR_STATES] = {
@@ -280,30 +311,33 @@ static void _parts_print(struct parts *parts, int indent)
 	// print states
 	indent_printf(indent, "state = %s,\n", state);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
+		if (parts->states[i].type == PARTS_UNINITIALIZED && i != parts->state)
+			continue;
 		indent_printf(indent, "state[%s] = ", state_names[i]);
 		parts_print_state(&parts->states[i], indent);
 		printf(",\n");
 	}
 
+	// print params
+	indent_printf(indent, "local = ");
+	parts_print_params(&parts->global, &parts->local, indent);
+	printf(",\n");
+
 	// print misc. data
-	indent_printf(indent, "delegate_index = %d,\n", parts->delegate_index);
+	if (parts->delegate_index >= 0)
+		indent_printf(indent, "delegate_index = %d,\n", parts->delegate_index);
 	indent_printf(indent, "sprite_deform = %d,\n", parts->sprite_deform);
 	indent_printf(indent, "clickable = %s,\n", parts->clickable ? "true" : "false");
-	indent_printf(indent, "on_cursor_sound = %d,\n", parts->on_cursor_sound);
-	indent_printf(indent, "on_click_sound = %d,\n", parts->on_click_sound);
+	if (parts->on_cursor_sound >= 0)
+		indent_printf(indent, "on_cursor_sound = %d,\n", parts->on_cursor_sound);
+	if (parts->on_click_sound >= 0)
+		indent_printf(indent, "on_click_sound = %d,\n", parts->on_click_sound);
 	indent_printf(indent, "origin_mode = %d,\n", parts->origin_mode);
-	indent_printf(indent, "parent = %d,\n", parts->parent);
-	indent_printf(indent, "linked_to = %d,\n", parts->linked_to);
-	indent_printf(indent, "linked_from = %d,\n", parts->linked_from);
-	indent_printf(indent, "alpha = %u,\n", (unsigned)parts->alpha);
-	indent_printf(indent, "pos = "); gfx_print_point(&parts->pos); printf(",\n");
-	indent_printf(indent, "z = %d,\n", parts->z);
-	indent_printf(indent, "show = %s,\n", parts->show ? "true" : "false");
-	indent_printf(indent, "scale = {x=%f,y=%f},\n", parts->scale.x, parts->scale.y);
-	indent_printf(indent, "rotation = {x=%f,y=%f,z=%f},\n",
-			parts->rotation.x, parts->rotation.y, parts->rotation.z);
-	indent_printf(indent, "add_color = "); gfx_print_color(&parts->add_color); printf(",\n");
-	indent_printf(indent, "multiply_color = "); gfx_print_color(&parts->multiply_color); printf(",\n");
+	indent_printf(indent, "parent = %d,\n", parts->parent ? parts->parent->no : -1);
+	if (parts->linked_to >= 0)
+		indent_printf(indent, "linked_to = %d,\n", parts->linked_to);
+	if (parts->linked_from >= 0)
+		indent_printf(indent, "linked_from = %d,\n", parts->linked_from);
 	indent_printf(indent, "draw_filter = %d,\n", parts->draw_filter);
 
 	// print motion data
@@ -348,7 +382,7 @@ void parts_engine_print(void)
 {
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
-		if (parts->parent < 0)
+		if (!parts->parent)
 			parts_print(parts);
 	}
 }
@@ -376,7 +410,7 @@ static void parts_cmd_parts(unsigned nr_args, char **args)
 
 static void parts_list_print(struct parts *parts, int indent)
 {
-	indent_printf(indent, parts->show ? "+ " : "- ");
+	indent_printf(indent, parts->local.show ? "+ " : "- ");
 	printf("parts %d ", parts->no);
 	struct parts_state *state = &parts->states[parts->state];
 	switch (state->type) {
@@ -443,7 +477,7 @@ static void parts_list_print(struct parts *parts, int indent)
 	}
 	}
 
-	printf(" @ z=%d (%d)\n", parts->global_z, parts->z);
+	printf(" @ z=%d (%d)\n", parts->global.z, parts->local.z);
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
@@ -455,7 +489,7 @@ static void parts_cmd_parts_list(unsigned nr_args, char **args)
 {
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
-		if (parts->parent < 0)
+		if (!parts->parent)
 			parts_list_print(parts, 0);
 	}
 }

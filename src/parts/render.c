@@ -29,14 +29,6 @@
 // Goat sprites are integrated into the scene via a single (virtual) sprite
 static struct sprite goat_sprite;
 
-struct parts_render_params {
-	Point offset;
-	uint8_t alpha;
-	struct { float x, y; } scale;
-	SDL_Color add_color;
-	SDL_Color multiply_color;
-};
-
 static struct {
 	struct shader shader;
 	GLint alpha_mod;
@@ -46,20 +38,18 @@ static struct {
 	GLint multiply_color;
 } parts_shader;
 
-static void parts_render_text(struct parts *parts, struct parts_common *common,
-		struct parts_render_params *params)
+static void parts_render_text(struct parts *parts, struct parts_common *common)
 {
 	Rectangle rect = {
-		.x = params->offset.x + common->origin_offset.x,
-		.y = params->offset.y + common->origin_offset.y,
+		.x = parts->global.pos.x + common->origin_offset.x,
+		.y = parts->global.pos.y + common->origin_offset.y,
 		.w = common->w,
 		.h = common->h
 	};
 	gfx_render_texture(&parts->states[parts->state].common.texture, &rect);
 }
 
-static void parts_render_cg(struct parts *parts, struct parts_common *common,
-		struct parts_render_params *params)
+static void parts_render_cg(struct parts *parts, struct parts_common *common)
 {
 	switch (parts->draw_filter) {
 	case 1:
@@ -70,12 +60,12 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common,
 	}
 
 	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
-	glm_translate(mw_transform, (vec3) { params->offset.x, params->offset.y, 0 });
+	glm_translate(mw_transform, (vec3) { parts->global.pos.x, parts->global.pos.y, 0 });
 	// FIXME: need perspective for 3D rotate
 	//glm_rotate_x(mw_transform, parts->rotation.x, mw_transform);
 	//glm_rotate_y(mw_transform, parts->rotation.y, mw_transform);
-	glm_rotate_z(mw_transform, parts->rotation.z, mw_transform);
-	glm_scale(mw_transform, (vec3){ params->scale.x, params->scale.y, 1.0 });
+	glm_rotate_z(mw_transform, parts->local.rotation.z, mw_transform);
+	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
 	glm_translate(mw_transform, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
 	glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
@@ -94,13 +84,13 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common,
 	}
 
 	gfx_prepare_job(&job);
-	glUniform1f(parts_shader.alpha_mod, params->alpha / 255.0);
+	glUniform1f(parts_shader.alpha_mod, parts->global.alpha / 255.0);
 	glUniform2f(parts_shader.bot_left, r.x, r.y);
 	glUniform2f(parts_shader.top_right, r.x + r.w, r.y + r.h);
-	glUniform3f(parts_shader.add_color, params->add_color.r / 255.0f,
-			params->add_color.g / 255.0f, params->add_color.b / 255.0f);
-	glUniform3f(parts_shader.multiply_color, params->multiply_color.r / 255.0f,
-			params->multiply_color.g / 255.0f, params->multiply_color.b / 255.0f);
+	glUniform3f(parts_shader.add_color, parts->global.add_color.r / 255.0f,
+			parts->global.add_color.g / 255.0f, parts->global.add_color.b / 255.0f);
+	glUniform3f(parts_shader.multiply_color, parts->global.multiply_color.r / 255.0f,
+			parts->global.multiply_color.g / 255.0f, parts->global.multiply_color.b / 255.0f);
 	gfx_run_job(&job);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
@@ -108,40 +98,13 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common,
 
 void parts_render(struct parts *parts)
 {
-	if (!parts->show)
+	if (!parts->global.show)
 		return;
 	if (parts->linked_to >= 0) {
 		struct parts *link_parts = parts_get(parts->linked_to);
 		struct parts_state *link_state = &link_parts->states[link_parts->state];
 		if (!SDL_PointInRect(&parts_prev_pos, &link_state->common.hitbox))
 			return;
-	}
-
-	struct parts_render_params params = {
-		.offset = parts->pos,
-		.alpha = parts->alpha,
-		.scale = { parts->scale.x, parts->scale.y },
-		.add_color = parts->add_color,
-		.multiply_color = parts->multiply_color,
-	};
-
-	// adjust pos/alpha per parent parts
-	struct parts *parent = parts;
-	while (parent->parent >= 0) {
-		parent = parts_get(parent->parent);
-		if (!parent->show)
-			return;
-		params.alpha *= parent->alpha / 255.0f;
-		params.offset.x += parent->pos.x;
-		params.offset.y += parent->pos.y;
-		params.scale.x *= parent->scale.x;
-		params.scale.y *= parent->scale.y;
-		params.add_color.r *= parent->add_color.r / 255.0f;
-		params.add_color.g *= parent->add_color.g / 255.0f;
-		params.add_color.b *= parent->add_color.b / 255.0f;
-		params.multiply_color.r *= parent->multiply_color.r / 255.0f;
-		params.multiply_color.g *= parent->multiply_color.g / 255.0f;
-		params.multiply_color.b *= parent->multiply_color.b / 255.0f;
 	}
 
 	// render
@@ -156,10 +119,10 @@ void parts_render(struct parts *parts)
 		case PARTS_HGAUGE:
 		case PARTS_VGAUGE:
 		case PARTS_CONSTRUCTION_PROCESS:
-			parts_render_cg(parts, &state->common, &params);
+			parts_render_cg(parts, &state->common);
 			break;
 		case PARTS_TEXT:
-			parts_render_text(parts, &state->common, &params);
+			parts_render_text(parts, &state->common);
 			break;
 		}
 	}

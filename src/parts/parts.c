@@ -27,27 +27,31 @@
 #include "parts_internal.h"
 
 struct parts_list parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
+static struct parts_list dirty_list = TAILQ_HEAD_INITIALIZER(dirty_list);
 static struct hash_table *parts_table = NULL;
+
+#define PARTS_PARAMS_INITIALIZER (struct parts_params) { \
+	.z = 1, \
+	.pos = { 0, 0 }, \
+	.show = true, \
+	.alpha = 255, \
+	.scale = { 1.0f, 1.0f }, \
+	.rotation = { 0.0f, 0.0f, 0.0f }, \
+	.add_color = { 0, 0, 0, 0 }, \
+	.multiply_color = { 255, 255, 255, 255 } \
+}
 
 static void parts_init(struct parts *parts)
 {
+	parts->local = PARTS_PARAMS_INITIALIZER;
+	parts->global = PARTS_PARAMS_INITIALIZER;
 	parts->delegate_index = -1;
 	parts->on_cursor_sound = -1;
 	parts->on_click_sound = -1;
 	parts->origin_mode = 1;
-	parts->z = 1;
-	parts->global_z = 1;
-	parts->show = true;
-	parts->alpha = 255;
-	parts->parent = -1;
+	parts->pending_parent = -1;
 	parts->linked_to = -1;
 	parts->linked_from = -1;
-	parts->scale.x = 1.0;
-	parts->scale.y = 1.0;
-	parts->rotation.x = 0.0;
-	parts->rotation.y = 0.0;
-	parts->rotation.z = 0.0;
-	parts->multiply_color = (SDL_Color) { 255, 255, 255, 255 };
 	TAILQ_INIT(&parts->children);
 	TAILQ_INIT(&parts->motion);
 }
@@ -59,11 +63,19 @@ static struct parts *parts_alloc(void)
 	return parts;
 }
 
+static void parts_component_dirty(struct parts *parts)
+{
+	if (parts->dirty)
+		return;
+	parts->dirty = true;
+	TAILQ_INSERT_TAIL(&dirty_list, parts, dirty_list_entry);
+}
+
 static void parts_list_insert(struct parts *parts)
 {
 	struct parts *p;
 	PARTS_LIST_FOREACH(p) {
-		if (p->global_z > parts->global_z) {
+		if (p->global.z > parts->global.z) {
 			TAILQ_INSERT_BEFORE(p, parts, parts_list_entry);
 			parts_engine_dirty();
 			return;
@@ -83,33 +95,6 @@ static void parts_list_resort(struct parts *parts)
 	// TODO: this could be optimized
 	parts_list_remove(parts);
 	parts_list_insert(parts);
-}
-
-static void parts_update_global_z(struct parts *parts, int parent_z)
-{
-	parts->global_z = parent_z + parts->z;
-	parts_list_resort(parts);
-
-	struct parts *child;
-	PARTS_FOREACH_CHILD(child, parts) {
-		parts_update_global_z(child, parts->global_z);
-	}
-}
-
-static void parts_set_parent(struct parts *child, struct parts *parent)
-{
-	if (child->parent >= 0) {
-		struct parts *old_parent = parts_get(child->parent);
-		TAILQ_REMOVE(&old_parent->children, child, child_list_entry);
-	}
-	if (parent) {
-		TAILQ_INSERT_TAIL(&parent->children, child, child_list_entry);
-		child->parent = parent->no;
-		parts_update_global_z(child, parent->global_z);
-	} else {
-		child->parent = -1;
-		parts_update_global_z(child, 0);
-	}
 }
 
 struct parts *parts_try_get(int parts_no)
@@ -309,13 +294,13 @@ static void parts_common_recalculate_hitbox(struct parts *parts, struct parts_co
 		SDL_IntersectRect(&r, &common->surface_area, &common->hitbox);
 		common->origin_offset.x -= common->surface_area.x;
 		common->origin_offset.y -= common->surface_area.y;
-		common->hitbox.x += parts->pos.x + common->origin_offset.x;
-		common->hitbox.y += parts->pos.y + common->origin_offset.y;
+		common->hitbox.x += parts->local.pos.x + common->origin_offset.x;
+		common->hitbox.y += parts->local.pos.y + common->origin_offset.y;
 	} else {
 		common->origin_offset = calculate_offset(parts->origin_mode, common->w, common->h);
 		common->hitbox = (Rectangle) {
-			.x = parts->pos.x + common->origin_offset.x,
-			.y = parts->pos.y + common->origin_offset.y,
+			.x = parts->local.pos.x + common->origin_offset.x,
+			.y = parts->local.pos.y + common->origin_offset.y,
 			.w = common->w,
 			.h = common->h,
 		};
@@ -329,11 +314,189 @@ static void parts_recalculate_hitbox(struct parts *parts)
 	}
 }
 
+static void parts_update_global_pos(struct parts *parts, Point parent_pos)
+{
+	parts->global.pos = (Point) {
+		parent_pos.x + parts->local.pos.x,
+		parent_pos.y + parts->local.pos.y
+	};
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_pos(child, parts->global.pos);
+	}
+}
+
 void parts_set_pos(struct parts *parts, Point pos)
 {
-	parts->pos.x = pos.x;
-	parts->pos.y = pos.y;
+	parts->local.pos.x = pos.x;
+	parts->local.pos.y = pos.y;
 	parts_recalculate_hitbox(parts);
+	parts_update_global_pos(parts, parts->parent ? parts->parent->global.pos : (Point){0,0});
+	parts_dirty(parts);
+}
+
+static void parts_update_global_z(struct parts *parts, int parent_z)
+{
+	parts->global.z = parent_z + parts->local.z;
+	parts_list_resort(parts);
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_z(child, parts->global.z);
+	}
+}
+
+void parts_set_z(struct parts *parts, int z)
+{
+	if (parts->local.z == z)
+		return;
+
+	parts->local.z = z;
+	parts_update_global_z(parts, parts->parent ? parts->parent->global.z : 0);
+	parts_dirty(parts);
+}
+
+static void parts_update_global_show(struct parts *parts, bool parent_show)
+{
+	parts->global.show = parent_show && parts->local.show;
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_show(child, parts->global.show);
+	}
+}
+
+void parts_set_show(struct parts *parts, bool show)
+{
+	if (parts->local.show == show)
+		return;
+
+	parts->local.show = show;
+	parts_update_global_show(parts, parts->parent ? parts->parent->global.show : true);
+	parts_dirty(parts);
+}
+
+static void parts_update_global_alpha(struct parts *parts, int parent_alpha)
+{
+	parts->global.alpha = parent_alpha * (parts->local.alpha / 255.0f);
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_alpha(child, parts->global.alpha);
+	}
+}
+
+void parts_set_alpha(struct parts *parts, int alpha)
+{
+	parts->local.alpha = max(0, min(255, alpha));
+	parts_update_global_alpha(parts, parts->parent ? parts->parent->global.alpha : 255);
+	parts_dirty(parts);
+}
+
+static void parts_update_global_add_color(struct parts *parts, SDL_Color parent_color)
+{
+	parts->global.add_color = (SDL_Color) {
+		parent_color.r * (parts->local.add_color.r / 255.0f),
+		parent_color.g * (parts->local.add_color.g / 255.0f),
+		parent_color.b * (parts->local.add_color.b / 255.0f),
+		0
+	};
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_add_color(child, parts->global.add_color);
+	}
+}
+
+void parts_set_add_color(struct parts *parts, SDL_Color color)
+{
+	parts->local.add_color = color;
+	parts_update_global_add_color(parts, parts->parent ? parts->parent->global.add_color
+			: (SDL_Color){0,0,0,0});
+	parts_dirty(parts);
+}
+
+static void parts_update_global_multiply_color(struct parts *parts, SDL_Color parent_color)
+{
+	parts->global.multiply_color = (SDL_Color) {
+		parent_color.r * (parts->local.multiply_color.r / 255.0f),
+		parent_color.g * (parts->local.multiply_color.g / 255.0f),
+		parent_color.b * (parts->local.multiply_color.b / 255.0f),
+		255
+	};
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_multiply_color(child, parts->global.multiply_color);
+	}
+}
+
+void parts_set_multiply_color(struct parts *parts, SDL_Color color)
+{
+	parts->local.multiply_color = color;
+	parts_update_global_multiply_color(parts, parts->parent ? parts->parent->global.multiply_color
+			: (SDL_Color){255,255,255,255});
+	parts_dirty(parts);
+}
+
+void parts_set_origin_mode(struct parts *parts, int origin_mode)
+{
+	parts->origin_mode = origin_mode;
+	parts_recalculate_hitbox(parts);
+	parts_dirty(parts);
+}
+
+static void parts_update_global_scale_x(struct parts *parts, float parent_scale_x)
+{
+	parts->global.scale.x = parent_scale_x * parts->local.scale.x;
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_scale_x(child, parts->global.scale.x);
+	}
+}
+
+void parts_set_scale_x(struct parts *parts, float mag)
+{
+	parts->local.scale.x = mag;
+	parts_recalculate_hitbox(parts);
+	parts_update_global_scale_x(parts, parts->parent ? parts->parent->global.scale.x : 1.0f);
+	parts_dirty(parts);
+}
+
+static void parts_update_global_scale_y(struct parts *parts, float parent_scale_y)
+{
+	parts->global.scale.y = parent_scale_y * parts->local.scale.y;
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_scale_y(child, parts->global.scale.y);
+	}
+}
+
+void parts_set_scale_y(struct parts *parts, float mag)
+{
+	parts->local.scale.y = mag;
+	parts_recalculate_hitbox(parts);
+	parts_update_global_scale_y(parts, parts->parent ? parts->parent->global.scale.y : 1.0f);
+	parts_dirty(parts);
+}
+
+static void parts_update_global_rotate_z(struct parts *parts, float parent_rot_z)
+{
+	parts->global.rotation.z = parent_rot_z + parts->local.rotation.z;
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_rotate_z(child, parts->global.rotation.z);
+	}
+}
+
+void parts_set_rotation_z(struct parts *parts, float rot)
+{
+	parts->local.rotation.z = rot;
+	parts_update_global_rotate_z(parts, parts->parent ? parts->parent->global.rotation.z : 0.0f);
 	parts_dirty(parts);
 }
 
@@ -342,47 +505,6 @@ void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int
 	common->w = w;
 	common->h = h;
 	parts_common_recalculate_hitbox(parts, common);
-}
-
-void parts_set_origin_mode(struct parts *parts, int origin_mode)
-{
-	parts->origin_mode = origin_mode;
-	parts_recalculate_hitbox(parts);
-}
-
-void parts_set_scale_x(struct parts *parts, float mag)
-{
-	parts->scale.x = mag;
-	parts_recalculate_hitbox(parts);
-	parts_dirty(parts);
-}
-
-void parts_set_scale_y(struct parts *parts, float mag)
-{
-	parts->scale.y = mag;
-	parts_recalculate_hitbox(parts);
-	parts_dirty(parts);
-}
-
-void parts_set_rotation_z(struct parts *parts, float rot)
-{
-	parts->rotation.z = rot;
-	parts_dirty(parts);
-}
-
-void parts_set_alpha(struct parts *parts, int alpha)
-{
-	parts->alpha = max(0, min(255, alpha));
-	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		struct parts_state *s = &parts->states[i];
-		s->common.texture.alpha_mod = parts->alpha;
-		if (s->type == PARTS_ANIMATION) {
-			for (unsigned i = 0; i < s->anim.nr_frames; i++) {
-				s->anim.frames[i].alpha_mod = parts->alpha;
-			}
-		}
-	}
-	parts_dirty(parts);
 }
 
 static bool parts_set_cg(struct parts *parts, struct cg *cg, int cg_no, struct string *name, int state)
@@ -598,9 +720,13 @@ void parts_release(int parts_no)
 	// break parent/child relationships
 	while (!TAILQ_EMPTY(&parts->children)) {
 		struct parts *child = TAILQ_FIRST(&parts->children);
-		parts_set_parent(child, NULL);
+		TAILQ_REMOVE(&parts->children, child, child_list_entry);
+		child->parent = NULL;
 	}
-	parts_set_parent(parts, NULL);
+	if (parts->parent) {
+		TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
+		parts->parent = NULL;
+	}
 
 	parts_list_remove(parts);
 	free(parts);
@@ -627,8 +753,88 @@ bool PE_Init(void)
 	return true;
 }
 
+static bool parts_has_dirty_parent(struct parts *parts)
+{
+	for (struct parts *parent = parts->parent; parent; parent = parent->parent) {
+		if (parent->dirty)
+			return true;
+	}
+	return false;
+}
+
+static void parts_combine_params(struct parts_params *parent, struct parts_params *child,
+		struct parts_params *out)
+{
+	out->z = parent->z + child->z;
+	out->pos = (Point) { parent->pos.x + child->pos.x, parent->pos.y + child->pos.y };
+	out->show = parent->show && child->show;
+	out->alpha = parent->alpha * (child->alpha / 255.0f);
+	out->scale.x = parent->scale.x * child->scale.x;
+	out->scale.y = parent->scale.y * child->scale.y;
+	out->rotation.x = parent->rotation.x + child->rotation.x;
+	out->rotation.y = parent->rotation.y + child->rotation.y;
+	out->rotation.z = parent->rotation.z + child->rotation.z;
+	out->add_color.r = parent->add_color.r * (child->add_color.r / 255.0f);
+	out->add_color.g = parent->add_color.g * (child->add_color.g / 255.0f);
+	out->add_color.b = parent->add_color.b * (child->add_color.b / 255.0f);
+	out->multiply_color.r = parent->multiply_color.r * (child->multiply_color.r / 255.0f);
+	out->multiply_color.g = parent->multiply_color.g * (child->multiply_color.g / 255.0f);
+	out->multiply_color.b = parent->multiply_color.b * (child->multiply_color.b / 255.0f);
+}
+
+static void parts_update_component(struct parts *parts)
+{
+	if (parts->parent) {
+		int old_z = parts->global.z;
+		parts_combine_params(&parts->parent->global, &parts->local, &parts->global);
+		if (parts->global.z != old_z)
+			parts_list_resort(parts);
+	}
+
+	if (parts->dirty) {
+		TAILQ_REMOVE(&dirty_list, parts, dirty_list_entry);
+		parts->dirty = false;
+	}
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_component(child);
+	}
+}
+
+void PE_UpdateComponent(possibly_unused int passed_time)
+{
+	while (!TAILQ_EMPTY(&dirty_list)) {
+		// pop parts object from dirty list
+		struct parts *parts = TAILQ_FIRST(&dirty_list);
+		TAILQ_REMOVE(&dirty_list, parts, dirty_list_entry);
+		parts->dirty = false;
+
+		// update parent
+		struct parts *parent;
+		if (parts->pending_parent >= 0 && (parent = parts_try_get(parts->pending_parent))) {
+			if (parts->parent) {
+				TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
+			}
+			parts->parent = parent;
+			TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
+		}
+		// TODO: should the child be orphaned if it already has a parent and an invalid
+		//       parent no is given?
+		parts->pending_parent = -1;
+
+		// don't do anything here if parent is dirty
+		if (parts_has_dirty_parent(parts))
+			continue;
+
+		// update child params
+		parts_update_component(parts);
+	}
+}
+
 void PE_Update(int passed_time, possibly_unused bool message_window_show)
 {
+	PE_UpdateComponent(passed_time);
 	audio_update();
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
@@ -1050,36 +1256,14 @@ void PE_SetPos(int parts_no, int x, int y)
 	parts_set_pos(parts_get(parts_no), (Point){ x, y });
 }
 
-/*
- * NOTE: If a ChipmunkSpriteEngine sprite is at Z=0, it's drawn behind;
- *       otherwise it's drawn in front, regardless of the parts Z-value.
- *       This is implemented by giving GoatGUIEngine sprites a Z-value of
- *       0 and a secondary Z-value of 1 + the value given here.
- */
 void PE_SetZ(int parts_no, int z)
 {
-	struct parts *parts = parts_get(parts_no);
-	if (parts->z == z)
-		return;
-
-	int diff = z - parts->z;
-	parts->z = z;
-	parts->global_z += diff;
-	parts_list_resort(parts);
-
-	struct parts *child;
-	PARTS_FOREACH_CHILD(child, parts) {
-		parts_update_global_z(child, parts->global_z);
-	}
+	parts_set_z(parts_get(parts_no), z);
 }
 
 void PE_SetShow(int parts_no, bool show)
 {
-	struct parts *parts = parts_get(parts_no);
-	if (parts->show != show) {
-		parts->show = show;
-		parts_dirty(parts);
-	}
+	parts_set_show(parts_get(parts_no), show);
 }
 
 void PE_SetAlpha(int parts_no, int alpha)
@@ -1096,32 +1280,34 @@ void PE_SetPartsDrawFilter(int parts_no, int draw_filter)
 
 void PE_SetAddColor(int parts_no, int r, int g, int b)
 {
-	parts_get(parts_no)->add_color = (SDL_Color) {
+	SDL_Color add_color = {
 		min(255, max(0, r)),
 		min(255, max(0, g)),
 		min(255, max(0, b)),
 		255
 	};
+	parts_set_add_color(parts_get(parts_no), add_color);
 }
 
 void PE_SetMultiplyColor(int parts_no, int r, int g, int b)
 {
-	parts_get(parts_no)->multiply_color = (SDL_Color) {
+	SDL_Color multiply_color = {
 		min(255, max(0, r)),
 		min(255, max(0, g)),
 		min(255, max(0, b)),
 		255
 	};
+	parts_set_multiply_color(parts_get(parts_no), multiply_color);
 }
 
 int PE_GetPartsX(int parts_no)
 {
-	return parts_get(parts_no)->pos.x;
+	return parts_get(parts_no)->local.pos.x;
 }
 
 int PE_GetPartsY(int parts_no)
 {
-	return parts_get(parts_no)->pos.y;
+	return parts_get(parts_no)->local.pos.y;
 }
 
 int PE_GetPartsWidth(int parts_no, int state)
@@ -1154,17 +1340,17 @@ int PE_GetPartsUpperLeftPosY(int parts_no, int state)
 
 int PE_GetPartsZ(int parts_no)
 {
-	return parts_get(parts_no)->z;
+	return parts_get(parts_no)->local.z;
 }
 
 bool PE_GetPartsShow(int parts_no)
 {
-	return parts_get(parts_no)->show;
+	return parts_get(parts_no)->local.show;
 }
 
 int PE_GetPartsAlpha(int parts_no)
 {
-	return parts_get(parts_no)->alpha;
+	return parts_get(parts_no)->local.alpha;
 }
 
 void PE_GetAddColor(int PartsNumber, int *nR, int *nG, int *nB);
@@ -1185,10 +1371,8 @@ int PE_GetPartsOriginPosMode(int parts_no)
 void PE_SetParentPartsNumber(int parts_no, int parent_parts_no)
 {
 	struct parts *parts = parts_get(parts_no);
-	if (parts->parent == parent_parts_no)
-		return;
-
-	parts_set_parent(parts, parts_get(parent_parts_no));
+	parts->pending_parent = parent_parts_no;
+	parts_component_dirty(parts);
 }
 
 bool PE_SetPartsGroupNumber(possibly_unused int PartsNumber, possibly_unused int GroupNumber)
@@ -1206,12 +1390,14 @@ bool PE_GetPartsMessageWindowShowLink(int PartsNumber);
 
 void PE_SetPartsMagX(int parts_no, float scale_x)
 {
-	parts_set_scale_x(parts_get(parts_no), scale_x);
+	struct parts *parts = parts_get(parts_no);
+	parts_set_scale_x(parts, scale_x);
 }
 
 void PE_SetPartsMagY(int parts_no, float scale_y)
 {
-	parts_set_scale_y(parts_get(parts_no), scale_y);
+	struct parts *parts = parts_get(parts_no);
+	parts_set_scale_y(parts, scale_y);
 }
 
 void PE_SetPartsRotateX(int parts_no, float rot_x)
@@ -1226,7 +1412,8 @@ void PE_SetPartsRotateY(int parts_no, float rot_y)
 
 void PE_SetPartsRotateZ(int parts_no, float rot_z)
 {
-	parts_set_rotation_z(parts_get(parts_no), rot_z);
+	struct parts *parts = parts_get(parts_no);
+	parts_set_rotation_z(parts, rot_z);
 }
 
 void PE_SetPartsAlphaClipperPartsNumber(int PartsNumber, int AlphaClipperPartsNumber);

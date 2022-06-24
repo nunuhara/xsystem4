@@ -210,13 +210,29 @@ struct parts_state {
 
 TAILQ_HEAD(parts_list, parts);
 
+struct parts_params {
+	int z;
+	Point pos;
+	bool show;
+	uint8_t alpha;
+	struct { float x, y; } scale;
+	struct { float x, y, z; } rotation;
+	SDL_Color add_color;
+	SDL_Color multiply_color;
+};
+
 struct parts {
 	//struct sprite sp;
 	enum parts_state_type state;
 	struct parts_state states[PARTS_NR_STATES];
 	TAILQ_ENTRY(parts) parts_list_entry;
 	TAILQ_ENTRY(parts) child_list_entry;
+	TAILQ_ENTRY(parts) dirty_list_entry;
 	struct parts_list children;
+	struct parts_params local;
+	struct parts_params global;
+	struct parts *parent;
+	int dirty;
 	int no;
 	int delegate_index;
 	int sprite_deform;
@@ -224,18 +240,9 @@ struct parts {
 	int on_cursor_sound;
 	int on_click_sound;
 	int origin_mode;
-	int parent;
+	int pending_parent;
 	int linked_to;
 	int linked_from;
-	uint8_t alpha;
-	int z;
-	int global_z;
-	bool show;
-	Point pos;
-	struct { float x, y; } scale;
-	struct { float x, y, z; } rotation;
-	SDL_Color add_color;
-	SDL_Color multiply_color;
 	int draw_filter;
 	TAILQ_HEAD(, parts_motion) motion;
 };

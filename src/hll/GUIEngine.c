@@ -39,7 +39,6 @@ static void GUIEngine_ModuleFini(void)
 //static void GUIEngine_PushController(void);
 //static void GUIEngine_PopController(ref array<int> EraseNumberList);
 //static void GUIEngine_UpdateComponent(possibly_unused int passed_time)
-HLL_QUIET_UNIMPLEMENTED(, void, GUIEngine, UpdateComponent, int passed_time);
 //static void GUIEngine_BeginInput(void);
 //static void GUIEngine_EndInput(void);
 //static void GUIEngine_UpdateInputState(int PassedTime);
@@ -510,7 +509,7 @@ HLL_LIBRARY(GUIEngine,
 	    HLL_EXPORT(IsExist, PE_IsExist),
 	    HLL_TODO_EXPORT(PushController, GUIEngine_PushController),
 	    HLL_TODO_EXPORT(PopController, GUIEngine_PopController),
-	    HLL_EXPORT(UpdateComponent, GUIEngine_UpdateComponent),
+	    HLL_EXPORT(UpdateComponent, PE_UpdateComponent),
 	    HLL_EXPORT(BeginInput, PE_BeginInput),
 	    HLL_EXPORT(EndInput, PE_EndInput),
 	    HLL_EXPORT(UpdateInputState, PE_UpdateInputState),
