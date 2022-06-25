@@ -274,6 +274,9 @@ static bool _afa_get_by_name(struct asset_manager *_manager, const char *_name,
 	// normalize name and get id from index
 	char *name = strdup(_name);
 	sjis_toupper(name);
+	char *dot = strrchr(name, '.');
+	if (dot)
+		*dot = '\0';
 	uintptr_t id = (uintptr_t)ht_get(manager->index, name, NULL);
 	free(name);
 
