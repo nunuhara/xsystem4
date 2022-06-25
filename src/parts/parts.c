@@ -577,7 +577,7 @@ static bool parts_numeral_update(struct parts *parts, struct parts_numeral *num)
 	// XXX: don't generate texture if number hasn't been set yet
 	if (!num->have_num)
 		return true;
-	int n = num->num;
+	int_least64_t n = num->num;
 	bool negative = n < 0;
 	if (negative)
 		n *= -1;
