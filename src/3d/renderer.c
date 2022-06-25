@@ -18,11 +18,45 @@
 #include <cglm/cglm.h>
 
 #include "system4.h"
+#include "system4/cg.h"
+#include "system4/hashtable.h"
 
 #include "3d_internal.h"
+#include "asset_manager.h"
 #include "reign.h"
 #include "sact.h"
 #include "vm.h"
+
+static void init_billboard_mesh(struct RE_renderer *r)
+{
+	static const GLfloat vertices[] = {
+		// x,    y,   z,    u,   v
+		-1.0,  2.0, 0.0,  0.0, 0.0,
+		-1.0,  0.0, 0.0,  0.0, 1.0,
+		 1.0,  2.0, 0.0,  1.0, 0.0,
+		 1.0,  0.0, 0.0,  1.0, 1.0,
+	};
+	glGenVertexArrays(1, &r->billboard_vao);
+	glBindVertexArray(r->billboard_vao);
+	glGenBuffers(1, &r->billboard_attr_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, r->billboard_attr_buffer);
+
+	glEnableVertexAttribArray(r->shader.vertex);
+	glVertexAttribPointer(r->shader.vertex, 3, GL_FLOAT, GL_FALSE, 20, (const void *)0);
+	glEnableVertexAttribArray(r->vertex_uv);
+	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, 20, (const void *)12);
+	glDisableVertexAttribArray(r->vertex_normal);
+	glVertexAttrib3f(r->vertex_normal, 0.0, 0.0, 1.0);
+	glDisableVertexAttribArray(r->vertex_bone_index);
+	glVertexAttribI4i(r->vertex_bone_index, 0, 0, 0, 0);
+	glDisableVertexAttribArray(r->vertex_bone_weight);
+	glVertexAttrib4f(r->vertex_bone_weight, 0.0, 0.0, 0.0, 0.0);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
 
 struct RE_renderer *RE_renderer_new(struct texture *texture)
 {
@@ -44,14 +78,52 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, texture->w, texture->h);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
+	init_billboard_mesh(r);
+	r->billboard_textures = ht_create(256);
 	r->last_frame_timestamp = SDL_GetTicks();
 	return r;
+}
+
+bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no)
+{
+	if (ht_get_int(r->billboard_textures, cg_no, NULL))
+		return true;
+
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+
+	struct billboard_texture *bt = xcalloc(1, sizeof(struct billboard_texture));
+	glGenTextures(1, &bt->texture);
+	glBindTexture(GL_TEXTURE_2D, bt->texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	cg_free(cg);
+	ht_put_int(r->billboard_textures, cg_no, bt);
+	return true;
+}
+
+static void free_billboard_texture(void *value)
+{
+	struct billboard_texture *bt = value;
+	glDeleteTextures(1, &bt->texture);
+	free(bt);
 }
 
 void RE_renderer_free(struct RE_renderer *r)
 {
 	glDeleteProgram(r->shader.program);
 	glDeleteRenderbuffers(1, &r->depth_buffer);
+	ht_foreach_value(r->billboard_textures, free_billboard_texture);
+	ht_free_int(r->billboard_textures);
+	glDeleteVertexArrays(1, &r->billboard_vao);
+	glDeleteBuffers(1, &r->billboard_attr_buffer);
 	free(r);
 }
 
@@ -129,6 +201,9 @@ static void animate(struct RE_instance *inst, struct RE_renderer *r, float delta
 	update_motion(inst->motion, delta_frame);
 	update_motion(inst->next_motion, delta_frame);
 
+	if (inst->type == RE_ITYPE_BILLBOARD)
+		return;
+
 	for (int i = 0; i < inst->model->nr_bones; i++) {
 		struct mot_frame mf;
 		calc_motion_frame(inst->motion, i, &mf);
@@ -151,30 +226,18 @@ static void animate(struct RE_instance *inst, struct RE_renderer *r, float delta
 	}
 }
 
-static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat4 view_transform, mat4 proj_transform, float delta_time)
+static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 {
-	if (!inst->draw || !inst->model)
+	struct model *model = inst->model;
+	if (!inst->model)
 		return;
 
 	if (inst->local_transform_needs_update)
 		update_local_transform(inst);
 
-	animate(inst, r, delta_time);
-
-	glUseProgram(r->shader.program);
-	glUniformMatrix4fv(r->shader.view_transform, 1, GL_FALSE, view_transform[0]);
-	glUniformMatrix4fv(r->proj_transform, 1, GL_FALSE, proj_transform[0]);
 	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, inst->local_transform[0]);
 	glUniform1f(r->alpha_mod, inst->alpha);
 
-	if (inst->model->nr_bones > 0) {
-		glUniform1i(r->has_bones, GL_TRUE);
-		glUniformMatrix4fv(r->bone_matrices, inst->model->nr_bones, GL_FALSE, r->bone_transforms[0][0]);
-	} else {
-		glUniform1i(r->has_bones, GL_FALSE);
-	}
-
-	struct model *model = inst->model;
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
 		glActiveTexture(GL_TEXTURE0);
@@ -186,8 +249,59 @@ static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat
 		glBindVertexArray(0);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
+}
 
-	glUseProgram(0);
+static void render_static_model(struct RE_instance *inst, struct RE_renderer *r)
+{
+	glUniform1i(r->has_bones, GL_FALSE);
+	render_model(inst, r);
+}
+
+static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r, float delta_time)
+{
+	struct model *model = inst->model;
+	if (!model)
+		return;
+
+	animate(inst, r, delta_time);
+
+	if (model->nr_bones > 0) {
+		glUniform1i(r->has_bones, GL_TRUE);
+		glUniformMatrix4fv(r->bone_matrices, model->nr_bones, GL_FALSE, r->bone_transforms[0][0]);
+	} else {
+		glUniform1i(r->has_bones, GL_FALSE);
+	}
+	render_model(inst, r);
+}
+
+static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat, float delta_time)
+{
+	animate(inst, r, delta_time);
+	int cg_no = inst->motion->current_frame;
+	struct billboard_texture *bt = ht_get_int(r->billboard_textures, cg_no, NULL);
+	if (!bt)
+		return;
+
+	mat4 local_transform;
+	glm_translate_make(local_transform, inst->pos);
+	mat3 rot;
+	glm_mat4_pick3t(view_mat, rot);
+	glm_mat4_ins3(rot, local_transform);
+	glm_scale(local_transform, inst->scale);
+
+	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, local_transform[0]);
+	glUniform1i(r->has_bones, GL_FALSE);
+	glUniform1f(r->alpha_mod, inst->alpha);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, bt->texture);
+	glUniform1i(r->shader.texture, 0);
+	glBindVertexArray(r->billboard_vao);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 static void render_back_cg(struct texture *dst, struct RE_back_cg *bcg, struct RE_renderer *r)
@@ -242,18 +356,37 @@ void RE_render(struct sact_sprite *sp)
 	plugin->proj_transform[1][1] *= -1;
 	glFrontFace(GL_CW);
 
+	glUseProgram(r->shader.program);
+	glUniformMatrix4fv(r->shader.view_transform, 1, GL_FALSE, view_transform[0]);
+	glUniformMatrix4fv(r->proj_transform, 1, GL_FALSE, plugin->proj_transform[0]);
+
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
-		if (plugin->instances[i])
-			render_instance(plugin->instances[i], r, view_transform, plugin->proj_transform, delta_time);
+		struct RE_instance *inst = plugin->instances[i];
+		if (!inst || !inst->draw)
+			continue;
+		switch (inst->type) {
+		case RE_ITYPE_STATIC:
+			render_static_model(inst, r);
+			break;
+		case RE_ITYPE_SKINNED:
+			render_skinned_model(inst, r, delta_time);
+			break;
+		case RE_ITYPE_BILLBOARD:
+			render_billboard(inst, r, view_transform, delta_time);
+			break;
+		default:
+			break;
+		}
 	}
 
 	plugin->proj_transform[1][1] *= -1;
 	glFrontFace(GL_CCW);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
+	glUseProgram(0);
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 
