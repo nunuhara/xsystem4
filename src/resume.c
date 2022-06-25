@@ -83,28 +83,28 @@ static cJSON *resume_page_to_json(struct page *page)
 	return json;
 }
 
+static cJSON *heap_item_to_json(int i, possibly_unused void *_)
+{
+	if (!heap[i].ref)
+		return NULL;
+
+	cJSON *item = cJSON_CreateArray();
+	cJSON_AddItemToArray(item, cJSON_CreateNumber(i));
+	cJSON_AddItemToArray(item, cJSON_CreateNumber(heap[i].ref));
+	switch (heap[i].type) {
+	case VM_PAGE:
+		cJSON_AddItemToArray(item, resume_page_to_json(heap[i].page));
+		break;
+	case VM_STRING:
+		cJSON_AddItemToArray(item, cJSON_CreateString(heap[i].s->text));
+		break;
+	}
+	return item;
+}
+
 static cJSON *heap_to_json(void)
 {
-	cJSON *json = cJSON_CreateArray();
-
-	for (size_t i = 0; i < heap_size; i++) {
-		if (!heap[i].ref)
-			continue;
-
-		cJSON *item = cJSON_CreateArray();
-		cJSON_AddItemToArray(item, cJSON_CreateNumber(i));
-		cJSON_AddItemToArray(item, cJSON_CreateNumber(heap[i].ref));
-		switch (heap[i].type) {
-		case VM_PAGE:
-			cJSON_AddItemToArray(item, resume_page_to_json(heap[i].page));
-			break;
-		case VM_STRING:
-			cJSON_AddItemToArray(item, cJSON_CreateString(heap[i].s->text));
-			break;
-		}
-		cJSON_AddItemToArray(json, item);
-	}
-	return json;
+	return cJSON_CreateArray_cb(heap_size, heap_item_to_json, NULL);
 }
 
 static cJSON *funcall_to_json(struct function_call *call)
