@@ -373,14 +373,8 @@ static void delegate_call(int dg_no)
 	// copy arguments into local page
 	struct ain_function_type *dg = &ain->delegates[dg_no];
 	for (int i = 0; i < dg->nr_arguments; i++) {
-		heap[slot].page->values[i] = stack_peek((dg->nr_arguments + 1) - i);
-		switch (dg->variables[i].type.data) {
-		case AIN_REF_TYPE:
-			heap_ref(heap[slot].page->values[i].i);
-			break;
-		default:
-			break;
-		}
+		union vm_value arg = stack_peek((dg->nr_arguments + 1) - i);
+		heap[slot].page->values[i] = vm_copy(arg, dg->variables[i].type.data);
 	}
 
 	call_stack[call_stack_ptr-1].struct_page = obj;
@@ -1527,7 +1521,8 @@ static enum opcode execute_instruction(enum opcode opcode)
 		//int functype = stack_pop().i;
 		stack_pop();
 		int str = stack_pop().i;
-		stack_pop_var()->i = get_function_by_name(heap_get_string(str)->text);
+		int fno = get_function_by_name(heap_get_string(str)->text);
+		stack_pop_var()->i = fno > 0 ? fno : 0;
 		stack_push(str);
 		break;
 	}
@@ -2112,8 +2107,8 @@ static enum opcode execute_instruction(enum opcode opcode)
 			}
 			stack_pop(); // dg_index
 			stack_pop(); // dg_page
-			for (int i = 0; i < ain->delegates[dg].nr_variables; i++) {
-				stack_pop(); // args
+			for (int i = ain->delegates[dg].nr_variables - 1; i >= 0; i--) {
+				variable_fini(stack_pop(), ain->delegates[dg].variables[i].type.data);
 			}
 			if (return_values) {
 				stack_push(r);
