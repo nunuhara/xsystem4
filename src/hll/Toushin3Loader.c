@@ -201,6 +201,7 @@ static bool Toushin3Loader_UnloadMapInfo(void)
 	if (!ts3m_map_info)
 		return false;
 	free_ts3m_info(ts3m_map_info);
+	ts3m_map_info = NULL;
 	return true;
 }
 
@@ -238,6 +239,7 @@ static bool Toushin3Loader_UnloadObjectInfo(void)
 	if (!ts3m_object_info)
 		return false;
 	free_ts3m_info(ts3m_object_info);
+	ts3m_object_info = NULL;
 	return true;
 }
 
@@ -278,6 +280,7 @@ static bool Toushin3Loader_UnloadBillboardInfo(void)
 	if (!ts3m_billboard_info)
 		return false;
 	free_ts3m_info(ts3m_billboard_info);
+	ts3m_billboard_info = NULL;
 	return true;
 }
 
