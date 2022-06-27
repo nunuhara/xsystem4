@@ -1684,8 +1684,12 @@ static enum opcode execute_instruction(enum opcode opcode)
 		union vm_value v = stack_pop();
 		int end = stack_pop().i;
 		int start = stack_pop().i;
-		int array = stack_pop_var()->i;
-		stack_push(array_find(heap[array].page, start, end, v, fno));
+		struct page *array = heap_get_page(stack_pop_var()->i);
+		stack_push(array_find(array, start, end, v, fno));
+		// FIXME: string key isn't freed if array is empty
+		if (array && array_type(array->a_type) == AIN_STRING) {
+			heap_unref(v.i);
+		}
 		break;
 	}
 	case A_REVERSE: {
@@ -1910,6 +1914,14 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int rval = stack_pop_var()->i;
 		int lval = stack_pop().i;
 		heap_string_assign(lval, heap_get_string(rval));
+		break;
+	}
+	case SH_A_FIND_SREF: {
+		union vm_value *v = stack_pop_var();
+		int end = stack_pop().i;
+		int start = stack_pop().i;
+		int array = stack_pop_var()->i;
+		stack_push(array_find(heap_get_page(array), start, end, *v, 0));
 		break;
 	}
 	case SH_SREF_EMPTY: {
