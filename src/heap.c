@@ -23,6 +23,7 @@
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "xsystem4.h"
 
 #define INITIAL_HEAP_SIZE  4096
 #define HEAP_ALLOC_STEP    4096
@@ -98,7 +99,10 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 	heap[slot].type = type;
 #ifdef DEBUG_HEAP
 	heap[slot].alloc_addr = instr_ptr;
-	heap[slot].ref_addr = 0;
+	memset(heap[slot].ref_addr, 0, sizeof(heap[slot].ref_addr));
+	heap[slot].ref_nr = 0;
+	memset(heap[slot].deref_addr, 0, sizeof(heap[slot].deref_addr));
+	heap[slot].deref_nr = 0;
 	heap[slot].free_addr = 0;
 #endif
 	return slot;
@@ -109,26 +113,37 @@ static void heap_free_slot(int32_t slot)
 	heap_free_stack[--heap_free_ptr] = slot;
 }
 
+static void heap_double_free(int32_t slot)
+{
+#ifdef DEBUG_HEAP
+		WARNING("double free of slot %d (%s)\nOriginally allocated at %X\nOriginally freed at %X",
+			 slot, vm_ptrtype_string(heap[slot].type),
+			 heap[slot].alloc_addr, heap[slot].free_addr);
+#else
+		WARNING("double free of slot %d (%s)", slot, vm_ptrtype_string(heap[slot].type));
+#endif
+}
+
 void heap_ref(int32_t slot)
 {
 	if (slot == -1)
 		return;
 	heap[slot].ref++;
 #ifdef DEBUG_HEAP
-	heap[slot].ref_addr = instr_ptr;
+	heap[slot].ref_addr[heap[slot].ref_nr++ % 16] = instr_ptr;
 #endif
 }
 
 void heap_unref(int slot)
 {
 	if (unlikely(heap[slot].ref <= 0)) {
-#ifdef DEBUG_HEAP
-		VM_ERROR("double free of slot %d (%s)\nOriginally allocated at %X\nOriginally freed at %X",
-			 slot, vm_ptrtype_string(heap[slot].type), heap[slot].alloc_addr, heap[slot].free_addr);
-#endif
-		VM_ERROR("double free of slot %d (%s)", slot, vm_ptrtype_string(heap[slot].type));
+		heap_double_free(slot);
+		VM_ERROR("double free");
 	}
 	if (heap[slot].ref > 1) {
+#ifdef DEBUG_HEAP
+		heap[slot].deref_addr[heap[slot].deref_nr++ % 16] = instr_ptr;
+#endif
 		heap[slot].ref--;
 		return;
 	}
@@ -157,10 +172,13 @@ void exit_unref(int slot)
 		return;
 	}
 	if (heap[slot].ref <= 0) {
-		WARNING("double free of slot %d", slot);
+		heap_double_free(slot);
 		return;
 	}
 	if (heap[slot].ref > 1) {
+#ifdef DEBUG_HEAP
+		heap[slot].deref_addr[heap[slot].deref_nr++ % 16] = 0xDEADC0DE;
+#endif
 		heap[slot].ref--;
 		return;
 	}
@@ -172,6 +190,7 @@ void exit_unref(int slot)
 				switch (variable_type(page, i, NULL, NULL)) {
 				case AIN_STRING:
 				case AIN_STRUCT:
+				case AIN_DELEGATE:
 				case AIN_ARRAY_TYPE:
 				case AIN_REF_TYPE:
 					if (page->values[i].i == -1)
@@ -287,4 +306,69 @@ int32_t heap_alloc_page(struct page *page)
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap[slot].page = page;
 	return slot;
+}
+
+static void describe_page(struct page *page)
+{
+	if (!page) {
+		sys_message("NULL_PAGE\n");
+		return;
+	}
+
+	switch (page->type) {
+	case GLOBAL_PAGE:
+		sys_message("GLOBAL_PAGE\n");
+		break;
+	case LOCAL_PAGE:
+		sys_message("LOCAL_PAGE: %s\n", display_sjis0(ain->functions[page->index].name));
+		break;
+	case STRUCT_PAGE:
+		sys_message("STRUCT_PAGE: %s\n", display_sjis0(ain->structures[page->index].name));
+		break;
+	case ARRAY_PAGE:
+		sys_message("ARRAY_PAGE: %s\n", display_sjis0(ain_strtype(ain, page->a_type, page->array.struct_type)));
+		break;
+	case DELEGATE_PAGE:
+		// TODO: list function names
+		sys_message("DELEGATE_PAGE\n");
+		break;
+	}
+}
+
+void heap_describe_slot(int slot)
+{
+	if (heap[slot].type == VM_STRING && heap[slot].s == &EMPTY_STRING)
+		return;
+#ifdef DEBUG_HEAP
+	sys_message("[%d](%d)(%08X)[", slot, heap[slot].ref, heap[slot].alloc_addr);
+	for (int i = 0; i < heap[slot].ref_nr && i < 16; i++) {
+		if (i > 0)
+			sys_message(",");
+		sys_message("%08X", heap[slot].ref_addr[i]);
+	}
+	sys_message("][");
+	for (int i = 0; i < heap[slot].deref_nr && i < 16; i++) {
+		if (i > 0)
+			sys_message(",");
+		sys_message("%08X", heap[slot].deref_addr[i]);
+	}
+	sys_message("] = ");
+#else
+	sys_message("[%d](%d) = ", slot, heap[slot].ref);
+#endif
+	switch (heap[slot].type) {
+	case VM_PAGE:
+		describe_page(heap[slot].page);
+		break;
+	case VM_STRING:
+		if (heap[slot].s) {
+			sys_message("STRING: %s\n", display_sjis0(heap[slot].s->text));
+		} else {
+			sys_message("STRING: NULL\n");
+		}
+		break;
+	default:
+		sys_message("???\n");
+		break;
+	}
 }

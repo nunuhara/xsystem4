@@ -40,7 +40,10 @@ struct vm_pointer {
 	};
 #ifdef DEBUG_HEAP
 	size_t alloc_addr;
-	size_t ref_addr;
+	size_t ref_addr[16];
+	size_t ref_nr;
+	size_t deref_addr[16];
+	size_t deref_nr;
 	size_t free_addr;
 #endif
 };
@@ -69,6 +72,8 @@ void heap_string_assign(int slot, struct string *string);
 void heap_struct_assign(int lval, int rval);
 int32_t heap_alloc_page(struct page *page);
 int32_t heap_alloc_string(struct string *s);
+
+void heap_describe_slot(int slot);
 
 /*
  * Guarantee `headroom` free slots are available on the heap.

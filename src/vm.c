@@ -247,6 +247,7 @@ union vm_value vm_copy(union vm_value v, enum ain_data_type type)
 	case AIN_STRING:
 		return (union vm_value) { .i = vm_string_ref(heap_get_string(v.i)) };
 	case AIN_STRUCT:
+	case AIN_DELEGATE:
 	case AIN_ARRAY_TYPE:
 		return (union vm_value) { .i = vm_copy_page(heap_get_page(v.i)) };
 	case AIN_REF_TYPE:
@@ -2119,7 +2120,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case DG_NUMOF: {
 		int dg = stack_pop().i;
-		stack_push(delegate_numof(heap_get_page(dg)));
+		stack_push(delegate_numof(heap_get_delegate_page(dg)));
 		break;
 	}
 	//case DG_EXIST:
@@ -2337,63 +2338,13 @@ int vm_time(void)
 	return (ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
 }
 
-#ifdef DEBUG_HEAP
-static void describe_page(struct page *page)
-{
-	if (!page) {
-		sys_message("NULL_PAGE\n");
-		return;
-	}
-
-	char *u;
-	switch (page->type) {
-	case GLOBAL_PAGE:
-		sys_message("GLOBAL_PAGE\n");
-		break;
-	case LOCAL_PAGE:
-		sys_message("LOCAL_PAGE: %s\n", display_sjis0(ain->functions[page->index].name));
-		break;
-	case STRUCT_PAGE:
-		sys_message("STRUCT_PAGE: %s\n", display_sjis0(ain->structures[page->index].name));
-		break;
-	case ARRAY_PAGE:
-		sys_message("ARRAY_PAGE: %s\n", display_sjis0(ain_strtype(ain, page->a_type, page->array.struct_type)));
-		break;
-	case DELEGATE_PAGE:
-		// TODO: list function names
-		sys_message("DELEGATE_PAGE\n");
-		break;
-	}
-}
-
-static void describe_slot(size_t slot)
-{
-	sys_message("[%d](%d)(%08X)(%08X) = ", slot, heap[slot].ref, heap[slot].alloc_addr, heap[slot].ref_addr);
-	switch (heap[slot].type) {
-	case VM_PAGE:
-		describe_page(heap[slot].page);
-		break;
-	case VM_STRING:
-		if (heap[slot].s) {
-			sys_message("STRING: %s\n", display_sjis0(heap[slot].s->text));
-		} else {
-			sys_message("STRING: NULL\n");
-		}
-		break;
-	default:
-		sys_message("???\n");
-		break;
-	}
-}
-#endif
-
 noreturn void vm_exit(int code)
 {
 	vm_free();
 #ifdef DEBUG_HEAP
 	for (size_t i = 0; i < heap_size; i++) {
 		if (heap[i].ref > 0)
-			describe_slot(i);
+			heap_describe_slot(i);
 	}
 	sys_message("Number of leaked objects: %d\n", heap_free_ptr);
 #endif

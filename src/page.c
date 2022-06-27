@@ -103,6 +103,7 @@ void variable_fini(union vm_value v, enum ain_data_type type)
 	switch (type) {
 	case AIN_STRING:
 	case AIN_STRUCT:
+	case AIN_DELEGATE:
 	case AIN_ARRAY_TYPE:
 	case AIN_REF_TYPE:
 		if (v.i == -1)
@@ -566,8 +567,10 @@ void array_sort_mem(struct page *page, int member_no)
 
 int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno)
 {
+	int r = -1;
+
 	if (!page)
-		return -1;
+		goto end;
 
 	start = max(start, 0);
 	end = min(end, page->nr_vars);
@@ -577,26 +580,37 @@ int array_find(struct page *page, int start, int end, union vm_value v, int comp
 		if (array_type(page->a_type) == AIN_STRING) {
 			struct string *v_str = heap_get_string(v.i);
 			for (int i = start; i < end; i++) {
-				if (!strcmp(v_str->text, heap_get_string(page->values[i].i)->text))
-					return i;
+				if (!strcmp(v_str->text, heap_get_string(page->values[i].i)->text)) {
+					r = i;
+					goto end;
+				}
 			}
 		} else {
 			for (int i = start; i < end; i++) {
-				if (page->values[i].i == v.i)
-					return i;
+				if (page->values[i].i == v.i) {
+					r = i;
+					goto end;
+				}
 			}
 		}
-		return -1;
+		goto end;
 	}
 
 	for (int i = start; i < end; i++) {
 		stack_push(v);
 		stack_push(page->values[i]);
 		vm_call(compare_fno, -1);
-		if (stack_pop().i)
-			return i;
+		if (stack_pop().i) {
+			r = i;
+			goto end;
+		}
 	}
-	return -1;
+
+end:
+	// FIXME: if page is NULL, the key doesn't get free'd here
+	if (page && array_type(page->a_type) == AIN_STRING)
+		variable_fini(v, AIN_STRING);
+	return r;
 }
 
 void array_reverse(struct page *page)
