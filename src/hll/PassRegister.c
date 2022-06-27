@@ -263,6 +263,9 @@ static void PassRegister_fini(void)
 	for (size_t i = 0; i < nr_registers; i++) {
 		free(registers[i].filename);
 		free(registers[i].integers);
+		for (size_t j = 0; j < registers[i].nr_strings; j++) {
+			free(registers[i].strings[j]);
+		}
 		free(registers[i].strings);
 	}
 	free(registers);
