@@ -47,6 +47,8 @@ struct mesh {
 struct material {
 	GLuint color_map;
 	bool opaque;
+	float specular_strength;
+	float specular_shininess;
 };
 
 struct bone {
@@ -191,11 +193,31 @@ struct mot_bone {
 	struct mot_frame frames[];
 };
 
+struct amt {
+	int version;
+	int nr_materials;
+	struct amt_material *materials[];
+};
+
+struct amt_material {
+	char *name;
+	float fields[];
+};
+
+enum amt_field_index {
+	AMT_SPECULAR_STRENGTH = 0,
+	AMT_SPECULAR_SHININESS = 2,
+};
+
 struct pol *pol_parse(uint8_t *data, size_t size);
 void pol_free(struct pol *pol);
 struct pol_bone *pol_find_bone(struct pol *pol, uint32_t id);
 
 struct mot *mot_parse(uint8_t *data, size_t size);
 void mot_free(struct mot *mot);
+
+struct amt *amt_parse(uint8_t *data, size_t size);
+void amt_free(struct amt *amt);
+struct amt_material *amt_find_material(struct amt *amt, const char *name);
 
 #endif /* SYSTEM4_3D_3D_INTERNAL_H */
