@@ -32,6 +32,7 @@ struct vertex {
 	GLfloat pos[3];
 	GLfloat normal[3];
 	GLfloat uv[2];
+	GLfloat tangent[4];
 	GLint bone_id[NR_WEIGHTS];
 	GLfloat bone_weight[NR_WEIGHTS];
 };
@@ -87,6 +88,9 @@ static bool init_material(struct material *material, const struct pol_material *
 	if (m->textures[SPECULAR_MAP]) {
 		material->specular_map = load_texture(aar, path, m->textures[SPECULAR_MAP]);
 	}
+	if (m->textures[NORMAL_MAP]) {
+		material->normal_map = load_texture(aar, path, m->textures[NORMAL_MAP]);
+	}
 
 	struct amt_material *amt_m = amt ? amt_find_material(amt, m->name) : NULL;
 	if (amt_m) {
@@ -109,6 +113,8 @@ static void destroy_material(struct material *material)
 		glDeleteTextures(1, &material->color_map);
 	if (material->specular_map)
 		glDeleteTextures(1, &material->specular_map);
+	if (material->normal_map)
+		glDeleteTextures(1, &material->normal_map);
 }
 
 static int cmp_by_bone_weight(const void *lhs, const void *rhs)
@@ -130,19 +136,65 @@ static void sort_and_normalize_bone_weights(struct pol_vertex *v)
 	}
 }
 
+static void calc_tangent(struct pol_mesh *m, struct pol_triangle *t, vec4 tangent[3])
+{
+	vec3 v1, v2;
+	glm_vec3_sub(m->vertices[t->vert_index[1]].pos, m->vertices[t->vert_index[0]].pos, v1);
+	glm_vec3_sub(m->vertices[t->vert_index[2]].pos, m->vertices[t->vert_index[0]].pos, v2);
+
+	vec2 w1, w2;
+	glm_vec2_sub(m->uvs[t->uv_index[1]], m->uvs[t->uv_index[0]], w1);
+	glm_vec2_sub(m->uvs[t->uv_index[2]], m->uvs[t->uv_index[0]], w2);
+
+	float r = 1.0 / (w1[0] * w2[1] - w2[0] * w1[1]);
+	if (!isfinite(r))  // degenerate uv triangle
+		r = 1.0;  // ??
+
+	vec3 sdir, tdir;
+	glm_vec3_scale(v1, w2[1], sdir);
+	glm_vec3_muladds(v2, -w1[1], sdir);
+	glm_vec3_scale(sdir, r, sdir);
+
+	glm_vec3_scale(v2, w1[0], tdir);
+	glm_vec3_muladds(v1, -w2[0], tdir);
+	glm_vec3_scale(tdir, r, tdir);
+
+	for (int i = 0; i < 3; i++) {
+		vec3 s;
+		glm_vec3_copy(sdir, s);
+
+		// Gram-Schmidt orthogonalize.
+		glm_vec3_muladds(t->normals[i], -glm_vec3_dot(t->normals[i], s), s);
+		glm_vec3_normalize(s);
+
+		// Calculate handedness.
+		vec3 c;
+		glm_vec3_cross(t->normals[i], sdir, c);
+		float w = (glm_vec3_dot(c, tdir) < 0.0) ? -1.0 : 1.0;
+
+		glm_vec4(s, w, tangent[i]);
+	}
+}
+
 static void add_mesh(struct model *model, struct pol_mesh *m, int material_index, int material, struct RE_renderer *r)
 {
+	bool has_normal_map = model->materials[material].normal_map != 0;
+
 	struct vertex *buf = xmalloc(m->nr_triangles * 3 * sizeof(struct vertex));
 	int v = 0;
 	for (uint32_t i = 0; i < m->nr_triangles; i++) {
 		struct pol_triangle *t = &m->triangles[i];
 		if (material_index >= 0 && t->material != (uint32_t)material_index)
 			continue;
+		vec4 tangent[3];
+		if (has_normal_map)
+			calc_tangent(m, t, tangent);
 		for (int j = 0; j < 3; j++) {
 			struct pol_vertex *vert = &m->vertices[t->vert_index[j]];
 			glm_vec3_copy(vert->pos, buf[v].pos);
 			glm_vec3_copy(t->normals[j], buf[v].normal);
 			glm_vec2_copy(m->uvs[t->uv_index[j]], buf[v].uv);
+			glm_vec4_copy(tangent[j], buf[v].tangent);
 			sort_and_normalize_bone_weights(vert);
 			for (uint32_t k = 0; k < NR_WEIGHTS; k++) {
 				if (model->bone_map && k < vert->nr_weights) {
@@ -179,6 +231,8 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 	glVertexAttribPointer(r->vertex_normal, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)offsetof(struct vertex, normal));
 	glEnableVertexAttribArray(r->vertex_uv);
 	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)offsetof(struct vertex, uv));
+	glEnableVertexAttribArray(r->vertex_tangent);
+	glVertexAttribPointer(r->vertex_tangent, 4, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)offsetof(struct vertex, tangent));
 	glEnableVertexAttribArray(r->vertex_bone_index);
 	glVertexAttribIPointer(r->vertex_bone_index, NR_WEIGHTS, GL_INT, sizeof(struct vertex), (const void *)offsetof(struct vertex, bone_id));
 	glEnableVertexAttribArray(r->vertex_bone_weight);

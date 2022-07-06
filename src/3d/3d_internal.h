@@ -48,6 +48,7 @@ struct mesh {
 struct material {
 	GLuint color_map;
 	GLuint specular_map;
+	GLuint normal_map;
 	float specular_strength;
 	float specular_shininess;
 	float rim_exponent;
@@ -97,10 +98,13 @@ struct RE_renderer {
 	GLint rim_exponent;
 	GLint rim_color;
 	GLint view_pos;
+	GLint use_normal_map;
+	GLint normal_texture;
 
 	// Attribute variable locations
 	GLint vertex_normal;
 	GLint vertex_uv;
+	GLint vertex_tangent;
 	GLint vertex_bone_index;
 	GLint vertex_bone_weight;
 
@@ -144,6 +148,7 @@ struct pol {
 enum pol_texture_type {
 	COLOR_MAP = 1,
 	SPECULAR_MAP = 4,
+	NORMAL_MAP = 8,
 	MAX_TEXTURE_TYPE
 };
 
