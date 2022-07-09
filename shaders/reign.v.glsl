@@ -17,6 +17,7 @@
 uniform mat4 local_transform;
 uniform mat4 view_transform;
 uniform mat4 proj_transform;
+uniform mat3 normal_transform;
 
 const int MAX_BONES = 211;  // see 3d_internal.h
 const int NR_WEIGHTS = 4;
@@ -30,6 +31,8 @@ in ivec4 vertex_bone_index;
 in vec4 vertex_bone_weight;
 
 out vec2 tex_coord;
+out vec3 normal;
+out vec3 frag_pos;
 
 void main() {
 	mat4 bone_transform = mat4(1.0f);
@@ -42,6 +45,10 @@ void main() {
 		}
 	}
 
-	gl_Position = proj_transform * view_transform * local_transform * bone_transform * vec4(vertex_pos, 1.0);
+	vec4 world_pos = local_transform * bone_transform * vec4(vertex_pos, 1.0);
+	gl_Position = proj_transform * view_transform * world_pos;
+	normal = normal_transform * mat3(bone_transform) * vertex_normal;
+
 	tex_coord = vertex_uv;
+	frag_pos = vec3(world_pos);
 }

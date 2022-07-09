@@ -36,28 +36,33 @@ struct vertex {
 	GLfloat bone_weight[NR_WEIGHTS];
 };
 
-static bool init_material(struct material *material, const struct pol_material *m, struct archive *aar, const char *path)
+static struct archive_data *get_aar_entry(struct archive *aar, const char *dir, const char *name, const char *ext)
+{
+	char *path = xmalloc(strlen(dir) + strlen(name) + strlen(ext) + 2);
+	sprintf(path, "%s\\%s%s", dir, name, ext);
+	struct archive_data *dfile = archive_get_by_name(aar, path);
+	free(path);
+	return dfile;
+}
+
+static bool init_material(struct material *material, const struct pol_material *m, struct amt *amt, struct archive *aar, const char *path)
 {
 	if (!m->textures[COLOR_MAP]) {
 		WARNING("No color texture");
 		return false;
 	}
-	char *texture_path = xmalloc(strlen(path) + strlen(m->textures[COLOR_MAP]) + 2);
-	sprintf(texture_path, "%s\\%s", path, m->textures[COLOR_MAP]);
-	struct archive_data *dfile = archive_get_by_name(aar, texture_path);
+	struct archive_data *dfile = get_aar_entry(aar, path, m->textures[COLOR_MAP], "");
 	if (!dfile) {
-		WARNING("cannot load texture %s", texture_path);
-		free(texture_path);
+		WARNING("cannot load texture %s\\%s", path, m->textures[COLOR_MAP]);
 		return false;
 	}
 	struct cg *cg = cg_load_data(dfile);
-	archive_free_data(dfile);
 	if (!cg) {
-		WARNING("cg_load_data failed: %s", texture_path);
-		free(texture_path);
+		WARNING("cg_load_data failed: %s", dfile->name);
+		archive_free_data(dfile);
 		return false;
 	}
-	free(texture_path);
+	archive_free_data(dfile);
 
 	glGenTextures(1, &material->color_map);
 	glBindTexture(GL_TEXTURE_2D, material->color_map);
@@ -69,8 +74,14 @@ static bool init_material(struct material *material, const struct pol_material *
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	material->opaque = !cg->metrics.has_alpha;
-
 	cg_free(cg);
+
+	struct amt_material *amt_m = amt ? amt_find_material(amt, m->name) : NULL;
+	if (amt_m) {
+		material->specular_strength = amt_m->fields[AMT_SPECULAR_STRENGTH];
+		material->specular_shininess = amt_m->fields[AMT_SPECULAR_SHININESS];
+	}
+
 	return true;
 }
 
@@ -206,24 +217,30 @@ struct model *model_load(struct archive *aar, const char *path, struct RE_render
 
 	const char *basename = strrchr(path, '\\');
 	basename = basename ? basename + 1 : path;
-	char *polname = xmalloc(strlen(path) + strlen(basename) + 6);
-	sprintf(polname, "%s\\%s.POL", path, basename);
 
-	struct archive_data *dfile = archive_get_by_name(aar, polname);
-	if (!dfile) {
-		WARNING("%s: not found", polname);
-		free(polname);
+	// Load .POL file
+	struct archive_data *pol_file = get_aar_entry(aar, path, basename, ".POL");
+	if (!pol_file) {
+		WARNING("%s\\%s.POL: not found", path, basename);
 		return NULL;
 	}
-
-	struct pol *pol = pol_parse(dfile->data, dfile->size);
-	archive_free_data(dfile);
+	struct pol *pol = pol_parse(pol_file->data, pol_file->size);
 	if (!pol) {
-		WARNING("%s: parse error", polname);
-		free(polname);
+		WARNING("%s: parse error", pol_file->name);
+		archive_free_data(pol_file);
 		return NULL;
 	}
-	free(polname);
+	archive_free_data(pol_file);
+
+	// Load .amt file, if any
+	struct amt *amt = NULL;
+	struct archive_data *amt_file = get_aar_entry(aar, path, basename, ".amt");
+	if (amt_file) {
+		amt = amt_parse(amt_file->data, amt_file->size);
+		if (!amt)
+			WARNING("%s: parse error", amt_file->name);
+		archive_free_data(amt_file);
+	}
 
 	struct model *model = xcalloc(1, sizeof(struct model));
 	model->path = strdup(path);
@@ -254,12 +271,12 @@ struct model *model_load(struct archive *aar, const char *path, struct RE_render
 	for (uint32_t i = 0; i < pol->nr_materials; i++) {
 		if (pol->materials[i].nr_children == 0) {
 			init_material(&model->materials[material_offsets[i]],
-				      &pol->materials[i].m, aar, path);
+				      &pol->materials[i].m, amt, aar, path);
 			continue;
 		}
 		for (uint32_t j = 0; j < pol->materials[i].nr_children; j++) {
 			init_material(&model->materials[material_offsets[i] + j],
-				      &pol->materials[i].children[j], aar, path);
+				      &pol->materials[i].children[j], amt, aar, path);
 		}
 	}
 
@@ -279,6 +296,8 @@ struct model *model_load(struct archive *aar, const char *path, struct RE_render
 	}
 
 	free(material_offsets);
+	if (amt)
+		amt_free(amt);
 	pol_free(pol);
 	return model;
 }
@@ -313,24 +332,19 @@ struct motion *motion_load(const char *name, struct RE_instance *instance, struc
 	struct model *model = instance->model;
 	if (!model)
 		return NULL;
-	char *motname = xmalloc(strlen(model->path) + strlen(name) + 6);
-	sprintf(motname, "%s\\%s.MOT", model->path, name);
 
-	struct archive_data *dfile = archive_get_by_name(aar, motname);
+	struct archive_data *dfile = get_aar_entry(aar, model->path, name, ".MOT");
 	if (!dfile) {
-		WARNING("%s: not found", motname);
-		free(motname);
+		WARNING("%s\\%s.MOT: not found", model->path, name);
 		return NULL;
 	}
-
 	struct mot *mot = mot_parse(dfile->data, dfile->size);
-	archive_free_data(dfile);
 	if (!mot) {
-		WARNING("%s: parse error", motname);
-		free(motname);
+		WARNING("%s: parse error", dfile->name);
+		archive_free_data(dfile);
 		return NULL;
 	}
-	free(motname);
+	archive_free_data(dfile);
 
 	if (model->nr_bones != (int)mot->nr_bones)
 		ERROR("%s: wrong number of bones. Expected %d but got %d", name, model->nr_bones, mot->nr_bones);

@@ -339,3 +339,61 @@ void mot_free(struct mot *mot)
 	}
 	free(mot);
 }
+
+struct amt *amt_parse(uint8_t *data, size_t size)
+{
+	struct buffer r;
+	buffer_init(&r, data, size);
+	if (memcmp(buffer_strdata(&r), "AMT\0", 4))
+		return NULL;
+	buffer_skip(&r, 4);
+
+	uint32_t version = buffer_read_int32(&r);
+	int nr_fields;
+	switch (version) {
+	case 1: nr_fields = 3; break;
+	case 2: nr_fields = 5; break;
+	case 3: nr_fields = 6; break;
+	case 4: nr_fields = 7; break;
+	case 5: nr_fields = 11; break;
+	case 6: nr_fields = 15; break;
+	default:
+		WARNING("unknown MOT version: %d", version);
+		return NULL;
+	}
+	int nr_materials = buffer_read_int32(&r);
+
+	struct amt *amt = xmalloc(sizeof(struct amt) + sizeof(struct amt_material *) * nr_materials);
+	amt->version = version;
+	amt->nr_materials = nr_materials;
+	for (int i = 0; i < nr_materials; i++) {
+		struct amt_material *m = amt->materials[i] =
+			xmalloc(sizeof(struct amt_material) + sizeof(float) * nr_fields);
+		m->name = read_cstring(&r);
+		for (int j = 0; j < nr_fields; j++)
+			m->fields[j] = buffer_read_float(&r);
+	}
+
+	if (buffer_remaining(&r) != 0) {
+		WARNING("extra data at end");
+	}
+	return amt;
+}
+
+void amt_free(struct amt *amt)
+{
+	for (int i = 0; i < amt->nr_materials; i++) {
+		free(amt->materials[i]->name);
+		free(amt->materials[i]);
+	}
+	free(amt);
+}
+
+struct amt_material *amt_find_material(struct amt *amt, const char *name)
+{
+	for (int i = 0; i < amt->nr_materials; i++) {
+		if (!strcmp(amt->materials[i]->name, name))
+			return amt->materials[i];
+	}
+	return NULL;
+}

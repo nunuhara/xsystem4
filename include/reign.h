@@ -91,9 +91,7 @@ struct RE_plugin {
 	bool use_power2_texture;
 	int shadow_map_resolution_level;
 	int texture_resolution_level;
-	float global_ambient_r;
-	float global_ambient_g;
-	float global_ambient_b;
+	vec3 global_ambient;
 	float post_effect_filter_y;
 	float post_effect_filter_cb;
 	float post_effect_filter_cr;
@@ -108,16 +106,23 @@ struct RE_instance {
 	enum RE_instance_type type;
 	vec3 pos;
 	float pitch, roll, yaw;  // in degrees
-	vec3 vec;
 	vec3 scale;
 	float alpha;
 	bool draw;
 	float fps;
 	bool motion_blend;
 	float motion_blend_rate;
+	vec3 ambient;
 
+	// Lights
+	vec3 vec;
+	vec3 diffuse;
+	vec3 globe_diffuse;
+
+	// Private
 	bool local_transform_needs_update;
 	mat4 local_transform;
+	mat3 normal_transform;
 	mat4 *bone_transforms;  // model->nr_bones elements
 };
 
