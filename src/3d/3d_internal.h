@@ -24,6 +24,7 @@
 #include "gfx/gl.h"
 #include "gfx/gfx.h"
 
+#define NR_DIR_LIGHTS 3
 #define MAX_BONES 211  // Maximum in TT3
 
 struct model {
@@ -75,9 +76,21 @@ struct RE_renderer {
 	// Uniform variable locations
 	GLint local_transform;
 	GLint proj_transform;
+	GLint normal_transform;
 	GLint alpha_mod;
 	GLint has_bones;
 	GLint bone_matrices;
+	GLint ambient;
+	struct {
+		GLint dir;
+		GLint diffuse;
+		GLint globe_diffuse;
+		GLint ambient;
+	} dir_lights[NR_DIR_LIGHTS];
+	GLint specular_light_dir;
+	GLint specular_strength;
+	GLint specular_shininess;
+	GLint view_pos;
 
 	// Attribute variable locations
 	GLint vertex_normal;

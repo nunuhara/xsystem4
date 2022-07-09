@@ -65,9 +65,24 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	gfx_load_shader(&r->shader, "shaders/reign.v.glsl", "shaders/reign.f.glsl");
 	r->local_transform = glGetUniformLocation(r->shader.program, "local_transform");
 	r->proj_transform = glGetUniformLocation(r->shader.program, "proj_transform");
+	r->normal_transform = glGetUniformLocation(r->shader.program, "normal_transform");
 	r->alpha_mod = glGetUniformLocation(r->shader.program, "alpha_mod");
 	r->has_bones = glGetUniformLocation(r->shader.program, "has_bones");
 	r->bone_matrices = glGetUniformLocation(r->shader.program, "bone_matrices");
+	r->ambient = glGetUniformLocation(r->shader.program, "ambient");
+	for (int i = 0; i < NR_DIR_LIGHTS; i++) {
+		char buf[64];
+		sprintf(buf, "dir_lights[%d].dir", i);
+		r->dir_lights[i].dir = glGetUniformLocation(r->shader.program, buf);
+		sprintf(buf, "dir_lights[%d].diffuse", i);
+		r->dir_lights[i].diffuse = glGetUniformLocation(r->shader.program, buf);
+		sprintf(buf, "dir_lights[%d].globe_diffuse", i);
+		r->dir_lights[i].globe_diffuse = glGetUniformLocation(r->shader.program, buf);
+	}
+	r->specular_light_dir = glGetUniformLocation(r->shader.program, "specular_light_dir");
+	r->specular_strength = glGetUniformLocation(r->shader.program, "specular_strength");
+	r->specular_shininess = glGetUniformLocation(r->shader.program, "specular_shininess");
+	r->view_pos = glGetUniformLocation(r->shader.program, "view_pos");
 	r->vertex_normal = glGetAttribLocation(r->shader.program, "vertex_normal");
 	r->vertex_uv = glGetAttribLocation(r->shader.program, "vertex_uv");
 	r->vertex_bone_index = glGetAttribLocation(r->shader.program, "vertex_bone_index");
@@ -156,6 +171,11 @@ static void update_local_transform(struct RE_instance *inst)
 	glm_mat4_mul(inst->local_transform, rot, inst->local_transform);
 	glm_scale(inst->local_transform, inst->scale);
 
+	mat3 normal;
+	glm_mat4_pick3(inst->local_transform, normal);
+	glm_mat3_inv(normal, normal);
+	glm_mat3_transpose_to(normal, inst->normal_transform);
+
 	inst->local_transform_needs_update = false;
 }
 
@@ -236,12 +256,26 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 		update_local_transform(inst);
 
 	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, inst->local_transform[0]);
+	glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, inst->normal_transform[0]);
 	glUniform1f(r->alpha_mod, inst->alpha);
+	vec3 ambient;
+	glm_vec3_add(inst->plugin->global_ambient, inst->ambient, ambient);
+	glUniform3fv(r->ambient, 1, ambient);
 
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
+		struct material *material = &model->materials[mesh->material];
+
+		if (inst->plugin->specular_mode) {
+			glUniform1f(r->specular_strength, material->specular_strength);
+			glUniform1f(r->specular_shininess, material->specular_shininess);
+		} else {
+			glUniform1f(r->specular_strength, 0.0);
+			glUniform1f(r->specular_shininess, 0.0);
+		}
+
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, model->materials[mesh->material].color_map);
+		glBindTexture(GL_TEXTURE_2D, material->color_map);
 		glUniform1i(r->shader.texture, 0);
 
 		glBindVertexArray(mesh->vao);
@@ -288,10 +322,20 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glm_mat4_pick3t(view_mat, rot);
 	glm_mat4_ins3(rot, local_transform);
 	glm_scale(local_transform, inst->scale);
+	mat3 normal_transform;
+	// This should be safe because billboards do not have non-uniform scaling.
+	glm_mat4_pick3(local_transform, normal_transform);
+
+	vec3 ambient;
+	glm_vec3_add(inst->plugin->global_ambient, inst->ambient, ambient);
+	glUniform3fv(r->ambient, 1, ambient);
 
 	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, local_transform[0]);
+	glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, normal_transform[0]);
 	glUniform1i(r->has_bones, GL_FALSE);
 	glUniform1f(r->alpha_mod, inst->alpha);
+	glUniform1f(r->specular_strength, 0.0);
+	glUniform1f(r->specular_shininess, 0.0);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
@@ -311,6 +355,41 @@ static void render_back_cg(struct texture *dst, struct RE_back_cg *bcg, struct R
 	int sw = bcg->texture.w;
 	int sh = bcg->texture.h;
 	gfx_copy_stretch_blend(dst, bcg->x, bcg->y, sw * bcg->mag, sh * bcg->mag, &bcg->texture, 0, 0, sw, sh, bcg->blend_rate * 255);
+}
+
+static void setup_lights(struct RE_plugin *plugin)
+{
+	struct RE_renderer *r = plugin->renderer;
+	glUniform3fv(r->view_pos, 1, plugin->camera.pos);
+	int light_index = 0;
+	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+		struct RE_instance *inst = plugin->instances[i];
+		if (!inst)
+			continue;
+		switch (inst->type) {
+		case RE_ITYPE_DIRECTIONAL_LIGHT:
+			if (light_index >= NR_DIR_LIGHTS) {
+				WARNING("too many directional lights");
+				break;
+			}
+			glUniform3fv(r->dir_lights[light_index].dir, 1, inst->vec);
+			glUniform3fv(r->dir_lights[light_index].diffuse, 1, inst->diffuse);
+			glUniform3fv(r->dir_lights[light_index].globe_diffuse, 1, inst->globe_diffuse);
+			light_index++;
+			break;
+		case RE_ITYPE_SPECULAR_LIGHT:
+			glUniform3fv(r->specular_light_dir, 1, inst->vec);
+			break;
+		default:
+			break;
+		}
+	}
+	for (; light_index < NR_DIR_LIGHTS; light_index++) {
+		const vec3 zero = {0.0, 0.0, 0.0};
+		glUniform3fv(r->dir_lights[light_index].dir, 1, zero);
+		glUniform3fv(r->dir_lights[light_index].diffuse, 1, zero);
+		glUniform3fv(r->dir_lights[light_index].globe_diffuse, 1, zero);
+	}
 }
 
 void RE_render(struct sact_sprite *sp)
@@ -362,6 +441,8 @@ void RE_render(struct sact_sprite *sp)
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	setup_lights(plugin);
 
 	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
 		struct RE_instance *inst = plugin->instances[i];

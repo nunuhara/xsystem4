@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <cglm/cglm.h>
 #include <stdlib.h>
 
 #include "system4.h"
@@ -135,6 +136,7 @@ static bool ReignEngine_SetInstanceVector(int plugin, int instance, float x, flo
 	ri->vec[0] = x;
 	ri->vec[1] = y;
 	ri->vec[2] = -z;
+	glm_vec3_normalize(ri->vec);
 	return true;
 }
 
@@ -219,14 +221,44 @@ static bool ReignEngine_SetInstanceScaleZ(int plugin, int instance, float scale_
 //bool ReignEngine_SetInstanceZBias(int plugin, int instance, float fZBias);
 //float ReignEngine_GetInstanceZBias(int plugin, int instance);
 
-bool ReignEngine_SetInstanceVertexPos(int plugin, int instance, int index, float x, float y, float z)
+static bool ReignEngine_SetInstanceVertexPos(int plugin, int instance, int index, float x, float y, float z)
 {
 	return RE_instance_set_vertex_pos(get_instance(plugin, instance), index, x, y, z);
 }
 
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceDiffuse, int plugin, int instance, float r, float g, float b);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceGlobeDiffuse, int plugin, int instance, float r, float g, float b);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceAmbient, int plugin, int instance, float r, float g, float b);
+static bool ReignEngine_SetInstanceDiffuse(int plugin, int instance, float r, float g, float b)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->diffuse[0] = r;
+	ri->diffuse[1] = g;
+	ri->diffuse[2] = b;
+	return true;
+}
+
+static bool ReignEngine_SetInstanceGlobeDiffuse(int plugin, int instance, float r, float g, float b)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->globe_diffuse[0] = r;
+	ri->globe_diffuse[1] = g;
+	ri->globe_diffuse[2] = b;
+	return true;
+}
+
+static bool ReignEngine_SetInstanceAmbient(int plugin, int instance, float r, float g, float b)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->ambient[0] = r;
+	ri->ambient[1] = g;
+	ri->ambient[2] = b;
+	return true;
+}
+
 //bool ReignEngine_SetInstanceSpecular(int plugin, int instance, float fSpecular);
 
 static bool ReignEngine_SetInstanceAlpha(int plugin, int instance, float alpha)
@@ -882,9 +914,9 @@ static bool ReignEngine_GetGlobalAmbient(int plugin, float *r, float *g, float *
 	struct RE_plugin *p = get_plugin(plugin);
 	if (!p)
 		return false;
-	*r = p->global_ambient_r;
-	*g = p->global_ambient_g;
-	*b = p->global_ambient_b;
+	*r = p->global_ambient[0];
+	*g = p->global_ambient[1];
+	*b = p->global_ambient[2];
 	return true;
 }
 
@@ -893,9 +925,9 @@ static bool ReignEngine_SetGlobalAmbient(int plugin, float r, float g, float b)
 	struct RE_plugin *p = get_plugin(plugin);
 	if (!p)
 		return false;
-	p->global_ambient_r = r;
-	p->global_ambient_g = g;
-	p->global_ambient_b = b;
+	p->global_ambient[0] = r;
+	p->global_ambient[1] = g;
+	p->global_ambient[2] = b;
 	return true;
 }
 
@@ -1085,7 +1117,7 @@ HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, IsLoading, int plugin);
 //bool ReignEngine_SetDebugInfoMode(int plugin, int nMode);
 HLL_WARN_UNIMPLEMENTED(30, int, ReignEngine, GetVertexShaderVersion, void);
 HLL_WARN_UNIMPLEMENTED(30, int, ReignEngine, GetPixelShaderVersion, void);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceSpecularReflectRate, int plugin, int instance, float rate);
+HLL_QUIET_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceSpecularReflectRate, int plugin, int instance, float rate);  // the value is unused?
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceFresnelReflectRate, int plugin, int instance, float rate);
 //float ReignEngine_GetInstanceSpecularReflectRate(int plugin, int instance);
 //float ReignEngine_GetInstanceFresnelReflectRate(int plugin, int instance);

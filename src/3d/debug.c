@@ -21,6 +21,8 @@
 #include "sprite.h"
 #include "xsystem4.h"
 
+#define SPREAD_VEC3(v) (v)[0], (v)[1], (v)[2]
+
 static const char *instance_type_name(enum RE_instance_type type)
 {
 	switch (type) {
@@ -65,17 +67,24 @@ static void print_instance(struct RE_instance *inst, int index, int indent)
 	indent++;
 
 	indent_printf(indent, "type = %s,\n", instance_type_name(inst->type));
-	indent_printf(indent, "draw = %d,\n", inst->draw);
-	indent_printf(indent, "pos = {x=%f, y=%f, z=%f},\n", inst->pos[0], inst->pos[1], inst->pos[2]);
-	indent_printf(indent, "vec = {x=%f, y=%f, z=%f},\n", inst->vec[0], inst->vec[1], inst->vec[2]);
-	indent_printf(indent, "scale = {x=%f, y=%f, z=%f},\n", inst->scale[0], inst->scale[1], inst->scale[2]);
+	if (inst->type == RE_ITYPE_DIRECTIONAL_LIGHT || inst->type == RE_ITYPE_SPECULAR_LIGHT) {
+		indent_printf(indent, "vec = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(inst->vec));
+		indent_printf(indent, "diffuse = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(inst->diffuse));
+		indent_printf(indent, "globe_diffuse = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(inst->globe_diffuse));
+	} else {
+		indent_printf(indent, "draw = %d,\n", inst->draw);
+		indent_printf(indent, "pos = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(inst->pos));
+		indent_printf(indent, "scale = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(inst->scale));
+		indent_printf(indent, "ambient = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(inst->ambient));
+	}
 	if (inst->model)
 		indent_printf(indent, "path = \"%s\",\n", inst->model->path);
-	if (inst->motion)
+	if (inst->motion) {
+		indent_printf(indent, "fps = %f,\n", inst->fps);
 		print_motion("motion", inst->motion, indent);
+	}
 	if (inst->next_motion)
 		print_motion("next_motion", inst->next_motion, indent);
-	indent_printf(indent, "fps = %f,\n", inst->fps);
 	if (inst->motion_blend)
 		indent_printf(indent, "motion_blend_rate = %f,\n", inst->motion_blend_rate);
 
@@ -109,8 +118,7 @@ void RE_debug_print(struct sact_sprite *sp, int indent)
 
 	indent_printf(indent, "name = \"%s\",\n", p->plugin.name);
 	indent_printf(indent, "camera = {x=%f, y=%f, z=%f, pitch=%f, roll=%f, yaw=%f},\n",
-	              p->camera.pos[0], p->camera.pos[1], p->camera.pos[2],
-	              p->camera.pitch, p->camera.roll, p->camera.yaw);
+	              SPREAD_VEC3(p->camera.pos), p->camera.pitch, p->camera.roll, p->camera.yaw);
 
 	for (int i = 0; i < RE_MAX_INSTANCES; i++)
 		print_instance(p->instances[i], i, indent);
