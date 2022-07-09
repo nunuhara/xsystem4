@@ -120,6 +120,11 @@ void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const c
 
 	glAttachShader(program, vertex_shader);
 	glAttachShader(program, fragment_shader);
+
+	// In OpenGL < 3.2, Attribute location 0 is special. Make sure it's assigned
+	// to the vertex position.
+	glBindAttribLocation(program, 0, "vertex_pos");
+
 	glLinkProgram(program);
 
 	GLint link_success;
