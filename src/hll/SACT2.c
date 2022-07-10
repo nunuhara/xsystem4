@@ -719,10 +719,7 @@ HLL_WARN_UNIMPLEMENTED( , void, SACT2, JoypadQuake_Set, int num, int type, int m
 
 bool sact_Joypad_GetAnalogStickStatus(int num, int type, float *degree, float *power)
 {
-	//hll_unimplemented_warning(SACT2, Joypad_GetAnalogStickStatus);
-	*degree = 0.0;
-	*power  = 0.0;
-	return true;
+	return joy_get_stick_status(num, type, degree, power);
 }
 
 bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *right, bool *up, bool *down)

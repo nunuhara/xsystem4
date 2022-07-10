@@ -24,6 +24,10 @@
 #include "scene.h"
 #include "vm.h"
 
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
+
 bool key_state[VK_NR_KEYCODES];
 static enum sact_keycode sdl_keytable[] = {
 	[SDL_SCANCODE_0] = VK_0,
@@ -317,6 +321,71 @@ bool joy_key_is_down(uint8_t code)
 	default:
 		return false;
 	}
+}
+
+static float joy_calc_deg(int x, int y)
+{
+	// calculate angle (degrees)
+	float a = atan2f(y, x) * (180.0f/M_PI);
+	if (a < 0)
+		a += 360.0f;
+	// rotate so that up is 0/360
+	a += 90.0f;
+	if (a > 360.0f)
+		a -= 360.0f;
+	return a;
+}
+
+static float joy_calc_pow(int x, int y)
+{
+	// XXX: in theory this should be scaled according to the angle so that
+	//      (32767,32767) returns exactly 1, but alicesoft themselves seem
+	//      to simply clamp pythagoras as below
+	return min(1.0f, sqrtf(x*x + y*y) / 32767.0f);
+}
+
+static float joy_calc_trigger(int left, int right)
+{
+	// for whatever reason alicesoft treats triggers as an analog stick
+	// (at least on an xbox controller)
+	float v = 315.0f;
+	v += ((float)left/32767.0f) * 90.0f;
+	v -= ((float)right/32767.0f) * 90.0f;
+	if (v < 0)
+		v += 360.0f;
+	if (v > 360.0f)
+		v -= 360.0f;
+	return v;
+}
+
+bool joy_get_stick_status(int controller, int type, float *deg, float *pow)
+{
+	SDL_GameController *ctrl = controllers[controller];
+	if (!ctrl)
+		goto invalid;
+	if (type == 0) {
+		int x = SDL_GameControllerGetAxis(ctrl, SDL_CONTROLLER_AXIS_LEFTX);
+		int y = SDL_GameControllerGetAxis(ctrl, SDL_CONTROLLER_AXIS_LEFTY);
+		if (abs(x) < JOYAXIS_DEADZONE && abs(y) < JOYAXIS_DEADZONE) {
+			*pow = 0.0f;
+			*deg = 0.0f;
+		} else {
+			*pow = joy_calc_pow(x, y);
+			*deg = joy_calc_deg(x, y);
+		}
+		return true;
+	}
+	if (type == 1) {
+		int left = SDL_GameControllerGetAxis(ctrl, SDL_CONTROLLER_AXIS_TRIGGERLEFT);
+		int right = SDL_GameControllerGetAxis(ctrl, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
+		*pow = 1.0f;
+		*deg = joy_calc_trigger(left, right);
+		return true;
+	}
+invalid:
+	*deg = 0.0f;
+	*pow = 0.0f;
+	return false;
 }
 
 static void joyaxis_clear_flag(struct joyaxis *joy)
