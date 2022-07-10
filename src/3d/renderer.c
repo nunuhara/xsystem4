@@ -82,6 +82,8 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->specular_light_dir = glGetUniformLocation(r->shader.program, "specular_light_dir");
 	r->specular_strength = glGetUniformLocation(r->shader.program, "specular_strength");
 	r->specular_shininess = glGetUniformLocation(r->shader.program, "specular_shininess");
+	r->rim_exponent = glGetUniformLocation(r->shader.program, "rim_exponent");
+	r->rim_color = glGetUniformLocation(r->shader.program, "rim_color");
 	r->view_pos = glGetUniformLocation(r->shader.program, "view_pos");
 	r->vertex_normal = glGetAttribLocation(r->shader.program, "vertex_normal");
 	r->vertex_uv = glGetAttribLocation(r->shader.program, "vertex_uv");
@@ -273,6 +275,8 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 			glUniform1f(r->specular_strength, 0.0);
 			glUniform1f(r->specular_shininess, 0.0);
 		}
+		glUniform1f(r->rim_exponent, material->rim_exponent);
+		glUniform3fv(r->rim_color, 1, material->rim_color);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, material->color_map);
@@ -336,6 +340,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glUniform1f(r->alpha_mod, inst->alpha);
 	glUniform1f(r->specular_strength, 0.0);
 	glUniform1f(r->specular_shininess, 0.0);
+	glUniform1f(r->rim_exponent, 0.0);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);

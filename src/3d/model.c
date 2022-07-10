@@ -80,6 +80,12 @@ static bool init_material(struct material *material, const struct pol_material *
 	if (amt_m) {
 		material->specular_strength = amt_m->fields[AMT_SPECULAR_STRENGTH];
 		material->specular_shininess = amt_m->fields[AMT_SPECULAR_SHININESS];
+		if (amt->version >= 5) {
+			material->rim_exponent = amt_m->fields[AMT_RIM_EXPONENT];
+			material->rim_color[0] = amt_m->fields[AMT_RIM_R];
+			material->rim_color[1] = amt_m->fields[AMT_RIM_G];
+			material->rim_color[2] = amt_m->fields[AMT_RIM_B];
+		}
 	}
 
 	return true;

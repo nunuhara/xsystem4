@@ -50,6 +50,8 @@ struct material {
 	bool opaque;
 	float specular_strength;
 	float specular_shininess;
+	float rim_exponent;
+	vec3 rim_color;
 };
 
 struct bone {
@@ -90,6 +92,8 @@ struct RE_renderer {
 	GLint specular_light_dir;
 	GLint specular_strength;
 	GLint specular_shininess;
+	GLint rim_exponent;
+	GLint rim_color;
 	GLint view_pos;
 
 	// Attribute variable locations
@@ -220,6 +224,11 @@ struct amt_material {
 enum amt_field_index {
 	AMT_SPECULAR_STRENGTH = 0,
 	AMT_SPECULAR_SHININESS = 2,
+	// amt v5+
+	AMT_RIM_EXPONENT = 7,
+	AMT_RIM_R = 8,
+	AMT_RIM_G = 9,
+	AMT_RIM_B = 10,
 };
 
 struct pol *pol_parse(uint8_t *data, size_t size);
