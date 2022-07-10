@@ -47,7 +47,7 @@ struct mesh {
 
 struct material {
 	GLuint color_map;
-	bool opaque;
+	GLuint specular_map;
 	float specular_strength;
 	float specular_shininess;
 	float rim_exponent;
@@ -92,6 +92,8 @@ struct RE_renderer {
 	GLint specular_light_dir;
 	GLint specular_strength;
 	GLint specular_shininess;
+	GLint use_specular_map;
+	GLint specular_texture;
 	GLint rim_exponent;
 	GLint rim_color;
 	GLint view_pos;
@@ -141,6 +143,7 @@ struct pol {
 
 enum pol_texture_type {
 	COLOR_MAP = 1,
+	SPECULAR_MAP = 4,
 	MAX_TEXTURE_TYPE
 };
 
