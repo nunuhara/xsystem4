@@ -23,6 +23,7 @@ struct dir_light {
 };
 
 uniform sampler2D tex;
+uniform sampler2D specular_texture;
 uniform float alpha_mod;
 
 uniform vec3 ambient;
@@ -30,6 +31,9 @@ uniform dir_light dir_lights[NR_DIR_LIGHTS];
 uniform vec3 specular_light_dir;
 uniform float specular_strength;
 uniform float specular_shininess;
+uniform bool use_specular_map;
+uniform float rim_exponent;
+uniform vec3 rim_color;
 uniform vec3 view_pos;
 
 in vec2 tex_coord;
@@ -39,6 +43,7 @@ out vec4 frag_color;
 
 void main() {
 	vec3 norm = normalize(normal);
+	vec3 view_dir = normalize(view_pos - frag_pos);
 	vec3 frag_rgb = ambient;
 
 	// Diffuse lighting
@@ -52,10 +57,17 @@ void main() {
 
 	// Specular lighting
 	if (specular_strength > 0.0) {
-		vec3 view_dir = normalize(view_pos - frag_pos);
 		vec3 reflect_dir = reflect(specular_light_dir, norm);
 		float specular = pow(max(dot(view_dir, reflect_dir), 0.0), specular_shininess) * specular_strength;
+		if (use_specular_map) {
+			specular *= texture(specular_texture, tex_coord).r;
+		}
 		frag_rgb += vec3(specular);
+	}
+
+	// Rim lighting
+	if (rim_exponent > 0) {
+		frag_rgb += pow(1.0 - max(dot(norm, view_dir), 0.0), rim_exponent) * rim_color;
 	}
 
 	frag_color = vec4(frag_rgb, texel.a * alpha_mod);

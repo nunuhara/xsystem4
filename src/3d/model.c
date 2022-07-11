@@ -45,27 +45,24 @@ static struct archive_data *get_aar_entry(struct archive *aar, const char *dir, 
 	return dfile;
 }
 
-static bool init_material(struct material *material, const struct pol_material *m, struct amt *amt, struct archive *aar, const char *path)
+static GLuint load_texture(struct archive *aar, const char *path, const char *name)
 {
-	if (!m->textures[COLOR_MAP]) {
-		WARNING("No color texture");
-		return false;
-	}
-	struct archive_data *dfile = get_aar_entry(aar, path, m->textures[COLOR_MAP], "");
+	struct archive_data *dfile = get_aar_entry(aar, path, name, "");
 	if (!dfile) {
-		WARNING("cannot load texture %s\\%s", path, m->textures[COLOR_MAP]);
-		return false;
+		WARNING("cannot load texture %s\\%s", path, name);
+		return 0;
 	}
 	struct cg *cg = cg_load_data(dfile);
 	if (!cg) {
 		WARNING("cg_load_data failed: %s", dfile->name);
 		archive_free_data(dfile);
-		return false;
+		return 0;
 	}
 	archive_free_data(dfile);
 
-	glGenTextures(1, &material->color_map);
-	glBindTexture(GL_TEXTURE_2D, material->color_map);
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -73,13 +70,34 @@ static bool init_material(struct material *material, const struct pol_material *
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, 0);
-	material->opaque = !cg->metrics.has_alpha;
 	cg_free(cg);
+	return texture;
+}
+
+static bool init_material(struct material *material, const struct pol_material *m, struct amt *amt, struct archive *aar, const char *path)
+{
+	if (!m->textures[COLOR_MAP]) {
+		WARNING("No color texture");
+		return false;
+	}
+	material->color_map = load_texture(aar, path, m->textures[COLOR_MAP]);
+	if (!material->color_map)
+		return false;
+
+	if (m->textures[SPECULAR_MAP]) {
+		material->specular_map = load_texture(aar, path, m->textures[SPECULAR_MAP]);
+	}
 
 	struct amt_material *amt_m = amt ? amt_find_material(amt, m->name) : NULL;
 	if (amt_m) {
 		material->specular_strength = amt_m->fields[AMT_SPECULAR_STRENGTH];
 		material->specular_shininess = amt_m->fields[AMT_SPECULAR_SHININESS];
+		if (amt->version >= 5) {
+			material->rim_exponent = amt_m->fields[AMT_RIM_EXPONENT];
+			material->rim_color[0] = amt_m->fields[AMT_RIM_R];
+			material->rim_color[1] = amt_m->fields[AMT_RIM_G];
+			material->rim_color[2] = amt_m->fields[AMT_RIM_B];
+		}
 	}
 
 	return true;
@@ -89,6 +107,8 @@ static void destroy_material(struct material *material)
 {
 	if (material->color_map)
 		glDeleteTextures(1, &material->color_map);
+	if (material->specular_map)
+		glDeleteTextures(1, &material->specular_map);
 }
 
 static int cmp_by_bone_weight(const void *lhs, const void *rhs)
