@@ -30,6 +30,8 @@
 enum {
 	COLOR_TEXTURE_UNIT,
 	SPECULAR_TEXTURE_UNIT,
+	LIGHT_TEXTURE_UNIT,
+	NORMAL_TEXTURE_UNIT,
 };
 
 static void init_billboard_mesh(struct RE_renderer *r)
@@ -50,8 +52,12 @@ static void init_billboard_mesh(struct RE_renderer *r)
 	glVertexAttribPointer(r->shader.vertex, 3, GL_FLOAT, GL_FALSE, 20, (const void *)0);
 	glEnableVertexAttribArray(r->vertex_uv);
 	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, 20, (const void *)12);
+	glDisableVertexAttribArray(r->vertex_light_uv);
+	glVertexAttrib2f(r->vertex_light_uv, 0.0, 0.0);
 	glDisableVertexAttribArray(r->vertex_normal);
 	glVertexAttrib3f(r->vertex_normal, 0.0, 0.0, 1.0);
+	glDisableVertexAttribArray(r->vertex_tangent);
+	glVertexAttrib3f(r->vertex_tangent, 1.0, 0.0, 0.0);
 	glDisableVertexAttribArray(r->vertex_bone_index);
 	glVertexAttribI4i(r->vertex_bone_index, 0, 0, 0, 0);
 	glDisableVertexAttribArray(r->vertex_bone_weight);
@@ -92,8 +98,14 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->rim_exponent = glGetUniformLocation(r->shader.program, "rim_exponent");
 	r->rim_color = glGetUniformLocation(r->shader.program, "rim_color");
 	r->view_pos = glGetUniformLocation(r->shader.program, "view_pos");
+	r->use_light_map = glGetUniformLocation(r->shader.program, "use_light_map");
+	r->light_texture = glGetUniformLocation(r->shader.program, "light_texture");
+	r->use_normal_map = glGetUniformLocation(r->shader.program, "use_normal_map");
+	r->normal_texture = glGetUniformLocation(r->shader.program, "normal_texture");
 	r->vertex_normal = glGetAttribLocation(r->shader.program, "vertex_normal");
 	r->vertex_uv = glGetAttribLocation(r->shader.program, "vertex_uv");
+	r->vertex_light_uv = glGetAttribLocation(r->shader.program, "vertex_light_uv");
+	r->vertex_tangent = glGetAttribLocation(r->shader.program, "vertex_tangent");
 	r->vertex_bone_index = glGetAttribLocation(r->shader.program, "vertex_bone_index");
 	r->vertex_bone_weight = glGetAttribLocation(r->shader.program, "vertex_bone_weight");
 
@@ -298,6 +310,24 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 		glBindTexture(GL_TEXTURE_2D, material->color_map);
 		glUniform1i(r->shader.texture, COLOR_TEXTURE_UNIT);
 
+		if (material->light_map && inst->plugin->light_map_mode) {
+			glUniform1i(r->use_light_map, GL_TRUE);
+			glActiveTexture(GL_TEXTURE0 + LIGHT_TEXTURE_UNIT);
+			glBindTexture(GL_TEXTURE_2D, material->light_map);
+			glUniform1i(r->light_texture, LIGHT_TEXTURE_UNIT);
+		} else {
+			glUniform1i(r->use_light_map, GL_FALSE);
+		}
+
+		if (material->normal_map && inst->draw_bump && inst->plugin->bump_mode) {
+			glUniform1i(r->use_normal_map, GL_TRUE);
+			glActiveTexture(GL_TEXTURE0 + NORMAL_TEXTURE_UNIT);
+			glBindTexture(GL_TEXTURE_2D, material->normal_map);
+			glUniform1i(r->normal_texture, NORMAL_TEXTURE_UNIT);
+		} else {
+			glUniform1i(r->use_normal_map, GL_FALSE);
+		}
+
 		glBindVertexArray(mesh->vao);
 		glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 		glBindVertexArray(0);
@@ -358,6 +388,8 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glUniform1f(r->specular_shininess, 0.0);
 	glUniform1i(r->use_specular_map, GL_FALSE);
 	glUniform1f(r->rim_exponent, 0.0);
+	glUniform1i(r->use_light_map, GL_FALSE);
+	glUniform1i(r->use_normal_map, GL_FALSE);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);

@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <cglm/cglm.h>
@@ -28,10 +29,21 @@
 
 #define NR_WEIGHTS 4
 
-struct vertex {
+struct vertex_common {
 	GLfloat pos[3];
 	GLfloat normal[3];
 	GLfloat uv[2];
+};
+
+struct vertex_light_uv {
+	GLfloat uv[2];
+};
+
+struct vertex_tangent {
+	GLfloat tangent[4];
+};
+
+struct vertex_bones {
 	GLint bone_id[NR_WEIGHTS];
 	GLfloat bone_weight[NR_WEIGHTS];
 };
@@ -84,9 +96,12 @@ static bool init_material(struct material *material, const struct pol_material *
 	if (!material->color_map)
 		return false;
 
-	if (m->textures[SPECULAR_MAP]) {
+	if (m->textures[SPECULAR_MAP])
 		material->specular_map = load_texture(aar, path, m->textures[SPECULAR_MAP]);
-	}
+	if (m->textures[LIGHT_MAP])
+		material->light_map = load_texture(aar, path, m->textures[LIGHT_MAP]);
+	if (m->textures[NORMAL_MAP])
+		material->normal_map = load_texture(aar, path, m->textures[NORMAL_MAP]);
 
 	struct amt_material *amt_m = amt ? amt_find_material(amt, m->name) : NULL;
 	if (amt_m) {
@@ -109,6 +124,10 @@ static void destroy_material(struct material *material)
 		glDeleteTextures(1, &material->color_map);
 	if (material->specular_map)
 		glDeleteTextures(1, &material->specular_map);
+	if (material->light_map)
+		glDeleteTextures(1, &material->light_map);
+	if (material->normal_map)
+		glDeleteTextures(1, &material->normal_map);
 }
 
 static int cmp_by_bone_weight(const void *lhs, const void *rhs)
@@ -130,65 +149,171 @@ static void sort_and_normalize_bone_weights(struct pol_vertex *v)
 	}
 }
 
+static void calc_tangent(struct pol_mesh *m, struct pol_triangle *t, vec4 tangent[3])
+{
+	vec3 v1, v2;
+	glm_vec3_sub(m->vertices[t->vert_index[1]].pos, m->vertices[t->vert_index[0]].pos, v1);
+	glm_vec3_sub(m->vertices[t->vert_index[2]].pos, m->vertices[t->vert_index[0]].pos, v2);
+
+	vec2 w1, w2;
+	glm_vec2_sub(m->uvs[t->uv_index[1]], m->uvs[t->uv_index[0]], w1);
+	glm_vec2_sub(m->uvs[t->uv_index[2]], m->uvs[t->uv_index[0]], w2);
+
+	float r = 1.0 / (w1[0] * w2[1] - w2[0] * w1[1]);
+	if (!isfinite(r))  // degenerate uv triangle
+		r = 1.0;  // ??
+
+	vec3 sdir, tdir;
+	glm_vec3_scale(v1, w2[1], sdir);
+	glm_vec3_muladds(v2, -w1[1], sdir);
+	glm_vec3_scale(sdir, r, sdir);
+
+	glm_vec3_scale(v2, w1[0], tdir);
+	glm_vec3_muladds(v1, -w2[0], tdir);
+	glm_vec3_scale(tdir, r, tdir);
+
+	for (int i = 0; i < 3; i++) {
+		vec3 s;
+		glm_vec3_copy(sdir, s);
+
+		// Gram-Schmidt orthogonalize.
+		glm_vec3_muladds(t->normals[i], -glm_vec3_dot(t->normals[i], s), s);
+		glm_vec3_normalize(s);
+
+		// Calculate handedness.
+		vec3 c;
+		glm_vec3_cross(t->normals[i], sdir, c);
+		float w = (glm_vec3_dot(c, tdir) < 0.0) ? -1.0 : 1.0;
+
+		glm_vec4(s, w, tangent[i]);
+	}
+}
+
+static void *buf_alloc(uint8_t **ptr, int size)
+{
+	void *p = *ptr;
+	*ptr += size;
+	return p;
+}
+
 static void add_mesh(struct model *model, struct pol_mesh *m, int material_index, int material, struct RE_renderer *r)
 {
-	struct vertex *buf = xmalloc(m->nr_triangles * 3 * sizeof(struct vertex));
-	int v = 0;
+	bool has_light_map = m->light_uvs && model->materials[material].light_map;
+	bool has_normal_map = model->materials[material].normal_map != 0;
+	bool has_bones = !!model->bone_map;
+
+	GLsizei stride = sizeof(struct vertex_common);
+	if (has_light_map)
+		stride += sizeof(struct vertex_light_uv);
+	if (has_normal_map)
+		stride += sizeof(struct vertex_tangent);
+	if (has_bones)
+		stride += sizeof(struct vertex_bones);
+
+	void *buffer = xmalloc(m->nr_triangles * 3 * stride);
+	uint8_t *ptr = buffer;
+
+	int nr_vertices = 0;
 	for (uint32_t i = 0; i < m->nr_triangles; i++) {
 		struct pol_triangle *t = &m->triangles[i];
 		if (material_index >= 0 && t->material != (uint32_t)material_index)
 			continue;
+		vec4 tangent[3];
+		if (has_normal_map)
+			calc_tangent(m, t, tangent);
 		for (int j = 0; j < 3; j++) {
 			struct pol_vertex *vert = &m->vertices[t->vert_index[j]];
-			glm_vec3_copy(vert->pos, buf[v].pos);
-			glm_vec3_copy(t->normals[j], buf[v].normal);
-			glm_vec2_copy(m->uvs[t->uv_index[j]], buf[v].uv);
-			sort_and_normalize_bone_weights(vert);
-			for (uint32_t k = 0; k < NR_WEIGHTS; k++) {
-				if (model->bone_map && k < vert->nr_weights) {
-					struct bone *bone = ht_get_int(model->bone_map, vert->weights[k].bone, NULL);
-					if (!bone)
-						WARNING("%s: invalid bone id in vertex data", model->path);
-					buf[v].bone_id[k] = bone ? bone->index : -1;
-					buf[v].bone_weight[k] = vert->weights[k].weight;
-				} else {
-					buf[v].bone_id[k] = -1;
-					buf[v].bone_weight[k] = 0.0;
+			struct vertex_common *v_common = buf_alloc(&ptr, sizeof(struct vertex_common));
+			glm_vec3_copy(vert->pos, v_common->pos);
+			glm_vec3_copy(t->normals[j], v_common->normal);
+			glm_vec2_copy(m->uvs[t->uv_index[j]], v_common->uv);
+			if (has_light_map) {
+				struct vertex_light_uv *v_light_uv = buf_alloc(&ptr, sizeof(struct vertex_light_uv));
+				glm_vec2_copy(m->light_uvs[t->light_uv_index[j]], v_light_uv->uv);
+			}
+			if (has_normal_map) {
+				struct vertex_tangent *v_tangent = buf_alloc(&ptr, sizeof(struct vertex_tangent));
+				glm_vec4_ucopy(tangent[j], v_tangent->tangent);
+			}
+			if (has_bones) {
+				struct vertex_bones *v_bones = buf_alloc(&ptr, sizeof(struct vertex_bones));
+				sort_and_normalize_bone_weights(vert);
+				for (uint32_t k = 0; k < NR_WEIGHTS; k++) {
+					if (k < vert->nr_weights) {
+						struct bone *bone = ht_get_int(model->bone_map, vert->weights[k].bone, NULL);
+						if (!bone)
+							WARNING("%s: invalid bone id in vertex data", model->path);
+						v_bones->bone_id[k] = bone ? bone->index : -1;
+						v_bones->bone_weight[k] = vert->weights[k].weight;
+					} else {
+						v_bones->bone_id[k] = -1;
+						v_bones->bone_weight[k] = 0.0;
+					}
 				}
 			}
-			v++;
+			nr_vertices++;
 		}
 	}
-	if (v == 0) {
-		free(buf);
+	assert(ptr == (uint8_t *)buffer + nr_vertices * stride);
+
+	if (nr_vertices == 0) {
+		free(buffer);
 		return;
 	}
 	model->meshes = xrealloc_array(model->meshes, model->nr_meshes, model->nr_meshes + 1, sizeof(struct mesh));
 	struct mesh *mesh = &model->meshes[model->nr_meshes++];
 	mesh->material = material;
-	mesh->nr_vertices = v;
+	mesh->nr_vertices = nr_vertices;
 
 	glGenVertexArrays(1, &mesh->vao);
 	glBindVertexArray(mesh->vao);
 	glGenBuffers(1, &mesh->attr_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, mesh->attr_buffer);
 
+	const uint8_t *base = (const uint8_t *)0;
 	glEnableVertexAttribArray(r->shader.vertex);
-	glVertexAttribPointer(r->shader.vertex, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)0);
+	glVertexAttribPointer(r->shader.vertex, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, pos));
 	glEnableVertexAttribArray(r->vertex_normal);
-	glVertexAttribPointer(r->vertex_normal, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)offsetof(struct vertex, normal));
+	glVertexAttribPointer(r->vertex_normal, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, normal));
 	glEnableVertexAttribArray(r->vertex_uv);
-	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)offsetof(struct vertex, uv));
-	glEnableVertexAttribArray(r->vertex_bone_index);
-	glVertexAttribIPointer(r->vertex_bone_index, NR_WEIGHTS, GL_INT, sizeof(struct vertex), (const void *)offsetof(struct vertex, bone_id));
-	glEnableVertexAttribArray(r->vertex_bone_weight);
-	glVertexAttribPointer(r->vertex_bone_weight, NR_WEIGHTS, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)offsetof(struct vertex, bone_weight));
-	glBufferData(GL_ARRAY_BUFFER, mesh->nr_vertices * sizeof(struct vertex), buf, GL_STATIC_DRAW);
+	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, uv));
+	base += sizeof(struct vertex_common);
+	if (has_light_map) {
+		glEnableVertexAttribArray(r->vertex_light_uv);
+		glVertexAttribPointer(r->vertex_light_uv, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_light_uv, uv));
+		base += sizeof(struct vertex_light_uv);
+	} else {
+		glDisableVertexAttribArray(r->vertex_light_uv);
+		glVertexAttrib2f(r->vertex_light_uv, 0.0, 0.0);
+	}
+	if (has_normal_map) {
+		glEnableVertexAttribArray(r->vertex_tangent);
+		glVertexAttribPointer(r->vertex_tangent, 4, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_tangent, tangent));
+		base += sizeof(struct vertex_tangent);
+	} else {
+		glDisableVertexAttribArray(r->vertex_tangent);
+		glVertexAttrib3f(r->vertex_tangent, 1.0, 0.0, 0.0);
+	}
+	if (has_bones) {
+		glEnableVertexAttribArray(r->vertex_bone_index);
+		glVertexAttribIPointer(r->vertex_bone_index, NR_WEIGHTS, GL_INT, stride, base + offsetof(struct vertex_bones, bone_id));
+		glEnableVertexAttribArray(r->vertex_bone_weight);
+		glVertexAttribPointer(r->vertex_bone_weight, NR_WEIGHTS, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_bones, bone_weight));
+		base += sizeof(struct vertex_bones);
+	} else {
+		glDisableVertexAttribArray(r->vertex_bone_index);
+		glVertexAttribI4i(r->vertex_bone_index, 0, 0, 0, 0);
+		glDisableVertexAttribArray(r->vertex_bone_weight);
+		glVertexAttrib4f(r->vertex_bone_weight, 0.0, 0.0, 0.0, 0.0);
+	}
+	assert((intptr_t)base == stride);
+
+	glBufferData(GL_ARRAY_BUFFER, mesh->nr_vertices * stride, buffer, GL_STATIC_DRAW);
 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	free(buf);
+	free(buffer);
 }
 
 static void destroy_mesh(struct mesh *mesh)

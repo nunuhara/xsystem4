@@ -109,6 +109,7 @@ struct RE_instance {
 	vec3 scale;
 	float alpha;
 	bool draw;
+	bool draw_bump;
 	float fps;
 	bool motion_blend;
 	float motion_blend_rate;

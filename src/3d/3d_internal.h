@@ -48,6 +48,8 @@ struct mesh {
 struct material {
 	GLuint color_map;
 	GLuint specular_map;
+	GLuint light_map;
+	GLuint normal_map;
 	float specular_strength;
 	float specular_shininess;
 	float rim_exponent;
@@ -97,10 +99,16 @@ struct RE_renderer {
 	GLint rim_exponent;
 	GLint rim_color;
 	GLint view_pos;
+	GLint use_light_map;
+	GLint light_texture;
+	GLint use_normal_map;
+	GLint normal_texture;
 
 	// Attribute variable locations
 	GLint vertex_normal;
 	GLint vertex_uv;
+	GLint vertex_light_uv;
+	GLint vertex_tangent;
 	GLint vertex_bone_index;
 	GLint vertex_bone_weight;
 
@@ -144,6 +152,8 @@ struct pol {
 enum pol_texture_type {
 	COLOR_MAP = 1,
 	SPECULAR_MAP = 4,
+	LIGHT_MAP = 7,
+	NORMAL_MAP = 8,
 	MAX_TEXTURE_TYPE
 };
 
@@ -165,6 +175,8 @@ struct pol_mesh {
 	struct pol_vertex *vertices;
 	uint32_t nr_uvs;
 	vec2 *uvs;
+	uint32_t nr_light_uvs;
+	vec2 *light_uvs;
 	uint32_t nr_triangles;
 	struct pol_triangle *triangles;
 };
@@ -183,6 +195,7 @@ struct pol_bone_weight {
 struct pol_triangle {
 	uint32_t vert_index[3];
 	uint32_t uv_index[3];
+	uint32_t light_uv_index[3];
 	vec3 normals[3];
 	uint32_t material;  // index in the material group
 };
