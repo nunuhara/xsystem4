@@ -35,6 +35,10 @@ struct vertex_common {
 	GLfloat uv[2];
 };
 
+struct vertex_light_uv {
+	GLfloat uv[2];
+};
+
 struct vertex_tangent {
 	GLfloat tangent[4];
 };
@@ -92,12 +96,12 @@ static bool init_material(struct material *material, const struct pol_material *
 	if (!material->color_map)
 		return false;
 
-	if (m->textures[SPECULAR_MAP]) {
+	if (m->textures[SPECULAR_MAP])
 		material->specular_map = load_texture(aar, path, m->textures[SPECULAR_MAP]);
-	}
-	if (m->textures[NORMAL_MAP]) {
+	if (m->textures[LIGHT_MAP])
+		material->light_map = load_texture(aar, path, m->textures[LIGHT_MAP]);
+	if (m->textures[NORMAL_MAP])
 		material->normal_map = load_texture(aar, path, m->textures[NORMAL_MAP]);
-	}
 
 	struct amt_material *amt_m = amt ? amt_find_material(amt, m->name) : NULL;
 	if (amt_m) {
@@ -120,6 +124,8 @@ static void destroy_material(struct material *material)
 		glDeleteTextures(1, &material->color_map);
 	if (material->specular_map)
 		glDeleteTextures(1, &material->specular_map);
+	if (material->light_map)
+		glDeleteTextures(1, &material->light_map);
 	if (material->normal_map)
 		glDeleteTextures(1, &material->normal_map);
 }
@@ -192,10 +198,13 @@ static void *buf_alloc(uint8_t **ptr, int size)
 
 static void add_mesh(struct model *model, struct pol_mesh *m, int material_index, int material, struct RE_renderer *r)
 {
+	bool has_light_map = m->light_uvs && model->materials[material].light_map;
 	bool has_normal_map = model->materials[material].normal_map != 0;
 	bool has_bones = !!model->bone_map;
 
 	GLsizei stride = sizeof(struct vertex_common);
+	if (has_light_map)
+		stride += sizeof(struct vertex_light_uv);
 	if (has_normal_map)
 		stride += sizeof(struct vertex_tangent);
 	if (has_bones)
@@ -218,6 +227,10 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 			glm_vec3_copy(vert->pos, v_common->pos);
 			glm_vec3_copy(t->normals[j], v_common->normal);
 			glm_vec2_copy(m->uvs[t->uv_index[j]], v_common->uv);
+			if (has_light_map) {
+				struct vertex_light_uv *v_light_uv = buf_alloc(&ptr, sizeof(struct vertex_light_uv));
+				glm_vec2_copy(m->light_uvs[t->light_uv_index[j]], v_light_uv->uv);
+			}
 			if (has_normal_map) {
 				struct vertex_tangent *v_tangent = buf_alloc(&ptr, sizeof(struct vertex_tangent));
 				glm_vec4_ucopy(tangent[j], v_tangent->tangent);
@@ -265,6 +278,14 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 	glEnableVertexAttribArray(r->vertex_uv);
 	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, uv));
 	base += sizeof(struct vertex_common);
+	if (has_light_map) {
+		glEnableVertexAttribArray(r->vertex_light_uv);
+		glVertexAttribPointer(r->vertex_light_uv, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_light_uv, uv));
+		base += sizeof(struct vertex_light_uv);
+	} else {
+		glDisableVertexAttribArray(r->vertex_light_uv);
+		glVertexAttrib2f(r->vertex_light_uv, 0.0, 0.0);
+	}
 	if (has_normal_map) {
 		glEnableVertexAttribArray(r->vertex_tangent);
 		glVertexAttribPointer(r->vertex_tangent, 4, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_tangent, tangent));

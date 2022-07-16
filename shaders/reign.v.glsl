@@ -41,11 +41,13 @@ uniform vec3 specular_light_dir;
 in vec3 vertex_pos;
 in vec3 vertex_normal;
 in vec2 vertex_uv;
+in vec2 vertex_light_uv;
 in vec4 vertex_tangent;
 in ivec4 vertex_bone_index;
 in vec4 vertex_bone_weight;
 
 out vec2 tex_coord;
+out vec2 light_tex_coord;
 out vec3 frag_pos;
 out vec3 eye;
 out vec3 normal;
@@ -82,6 +84,7 @@ void main() {
 	gl_Position = proj_transform * view_transform * world_pos;
 
 	tex_coord = vertex_uv;
+	light_tex_coord = vertex_light_uv;
 
 	// These are in tangent-space if use_normal_map is true, in world-space
 	// otherwise.

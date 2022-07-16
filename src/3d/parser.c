@@ -125,14 +125,20 @@ static void destroy_vertex(struct pol_vertex *v)
 		free(v->weights);
 }
 
-static void parse_triangle(struct buffer *r, int unknowns_length, struct pol_triangle *t)
+static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle_index, int unknowns_length)
 {
+	struct pol_triangle *t = &mesh->triangles[triangle_index];
 	t->vert_index[0] = buffer_read_int32(r);
 	t->vert_index[1] = buffer_read_int32(r);
 	t->vert_index[2] = buffer_read_int32(r);
 	t->uv_index[0] = buffer_read_int32(r);
 	t->uv_index[1] = buffer_read_int32(r);
 	t->uv_index[2] = buffer_read_int32(r);
+	if (mesh->light_uvs) {
+		t->light_uv_index[0] = buffer_read_int32(r) - mesh->nr_uvs;
+		t->light_uv_index[1] = buffer_read_int32(r) - mesh->nr_uvs;
+		t->light_uv_index[2] = buffer_read_int32(r) - mesh->nr_uvs;
+	}
 
 	buffer_skip(r, unknowns_length);
 
@@ -167,14 +173,16 @@ static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
 		mesh->uvs[i][1] = buffer_read_float(r);
 	}
 
-	int triangle_unknowns_length = 12;
-
-	int nr_unknown_f64s = buffer_read_int32(r);
-	if (nr_unknown_f64s) {
-		buffer_skip(r, nr_unknown_f64s * 8);
-		triangle_unknowns_length += 12;
+	mesh->nr_light_uvs = buffer_read_int32(r);
+	if (mesh->nr_light_uvs > 0) {
+		mesh->light_uvs = xcalloc(mesh->nr_light_uvs, sizeof(vec2));
+		for (uint32_t i = 0; i < mesh->nr_light_uvs; i++) {
+			mesh->light_uvs[i][0] = buffer_read_float(r);
+			mesh->light_uvs[i][1] = buffer_read_float(r);
+		}
 	}
 
+	int triangle_unknowns_length = 12;
 	if (pol_version == 1) {
 		int nr_unknown_vecs = buffer_read_int32(r);
 		buffer_skip(r, nr_unknown_vecs * 12);
@@ -191,7 +199,7 @@ static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
 	mesh->nr_triangles = buffer_read_int32(r);
 	mesh->triangles = xcalloc(mesh->nr_triangles, sizeof(struct pol_triangle));
 	for (uint32_t i = 0; i < mesh->nr_triangles; i++) {
-		parse_triangle(r, triangle_unknowns_length, &mesh->triangles[i]);
+		parse_triangle(r, mesh, i, triangle_unknowns_length);
 	}
 
 	if (pol_version == 1) {
@@ -213,6 +221,7 @@ static void free_mesh(struct pol_mesh *mesh)
 		destroy_vertex(&mesh->vertices[i]);
 	free(mesh->vertices);
 	free(mesh->uvs);
+	free(mesh->light_uvs);
 	free(mesh->triangles);
 	free(mesh);
 }

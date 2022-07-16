@@ -24,6 +24,7 @@ struct dir_light {
 
 uniform sampler2D tex;
 uniform sampler2D specular_texture;
+uniform sampler2D light_texture;
 uniform float alpha_mod;
 
 uniform bool use_normal_map;
@@ -36,8 +37,10 @@ uniform float specular_shininess;
 uniform bool use_specular_map;
 uniform float rim_exponent;
 uniform vec3 rim_color;
+uniform bool use_light_map;
 
 in vec2 tex_coord;
+in vec2 light_tex_coord;
 in vec3 frag_pos;
 in vec3 eye;
 in vec3 normal;
@@ -62,6 +65,9 @@ void main() {
 	for (int i = 0; i < NR_DIR_LIGHTS; i++) {
 		float half_lambert = dot(norm, -light_dir[i]) * 0.5 + 0.5;
 		diffuse += mix(dir_lights[i].globe_diffuse, dir_lights[i].diffuse, half_lambert);
+	}
+	if (use_light_map) {
+		diffuse *= texture(light_texture, light_tex_coord).rgb;
 	}
 	vec4 texel = texture(tex, tex_coord);
 	frag_rgb += texel.rgb * diffuse;
