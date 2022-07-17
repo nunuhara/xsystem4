@@ -112,11 +112,9 @@ struct RE_renderer {
 	GLint vertex_bone_index;
 	GLint vertex_bone_weight;
 
-	mat4 bone_transforms[MAX_BONES];
 	GLuint billboard_vao;
 	GLuint billboard_attr_buffer;
 	struct hash_table *billboard_textures;  // cg_no -> struct billboard_texture*
-	uint32_t last_frame_timestamp;
 };
 
 struct billboard_texture {

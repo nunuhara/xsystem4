@@ -94,7 +94,10 @@ static bool ReignEngine_UnbindPlugin(int handle)
 	return RE_plugin_unbind(get_plugin(handle));
 }
 
-HLL_QUIET_UNIMPLEMENTED(true, bool, ReignEngine, BuildModel, int plugin, int pass_time);
+static bool ReignEngine_BuildModel(int plugin, int pass_time)
+{
+	return RE_build_model(get_plugin(plugin), pass_time);
+}
 
 static int ReignEngine_CreateInstance(int plugin)
 {
