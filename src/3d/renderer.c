@@ -14,7 +14,6 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include <assert.h>
 #include <cglm/cglm.h>
 
 #include "system4.h"
@@ -25,7 +24,6 @@
 #include "asset_manager.h"
 #include "reign.h"
 #include "sact.h"
-#include "vm.h"
 
 enum {
 	COLOR_TEXTURE_UNIT,
@@ -116,7 +114,6 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 
 	init_billboard_mesh(r);
 	r->billboard_textures = ht_create(256);
-	r->last_frame_timestamp = SDL_GetTicks();
 	return r;
 }
 
@@ -200,73 +197,6 @@ static void update_local_transform(struct RE_instance *inst)
 	inst->local_transform_needs_update = false;
 }
 
-static void interpolate_motion_frame(struct mot_frame *m1, struct mot_frame *m2, float t, struct mot_frame *out)
-{
-	glm_vec3_lerp(m1->pos, m2->pos, t, out->pos);
-	glm_quat_nlerp(m1->rotq, m2->rotq, t, out->rotq);
-}
-
-static void update_motion(struct motion *m, float delta_frame)
-{
-	if (!m || m->state == RE_MOTION_STATE_STOP)
-		return;
-	m->current_frame += delta_frame;
-	switch (m->state) {
-	case RE_MOTION_STATE_NOLOOP:
-		if (m->current_frame > m->frame_end) {
-			m->current_frame = m->frame_end;
-			m->state = RE_MOTION_STATE_STOP;
-		}
-		break;
-	case RE_MOTION_STATE_LOOP:
-		if (m->current_frame > m->loop_frame_end)
-			m->current_frame = m->loop_frame_begin + fmodf(m->current_frame - m->loop_frame_begin, m->loop_frame_end - m->loop_frame_begin);
-		break;
-	default:
-		VM_ERROR("Invalid motion state %d", m->state);
-	}
-}
-
-static void calc_motion_frame(struct motion *m, int bone, struct mot_frame *out)
-{
-	int cur_frame = m->current_frame;
-	int next_frame = ceilf(m->current_frame);
-	float t = m->current_frame - cur_frame;
-	struct mot_frame *frames = m->mot->motions[bone]->frames;
-	interpolate_motion_frame(&frames[cur_frame], &frames[next_frame], t, out);
-}
-
-static void animate(struct RE_instance *inst, struct RE_renderer *r, float delta_time)
-{
-	float delta_frame = delta_time * inst->fps;
-	update_motion(inst->motion, delta_frame);
-	update_motion(inst->next_motion, delta_frame);
-
-	if (inst->type == RE_ITYPE_BILLBOARD)
-		return;
-
-	for (int i = 0; i < inst->model->nr_bones; i++) {
-		struct mot_frame mf;
-		calc_motion_frame(inst->motion, i, &mf);
-		if (inst->motion_blend && inst->next_motion) {
-			struct mot_frame next_mf;
-			calc_motion_frame(inst->next_motion, i, &next_mf);
-			interpolate_motion_frame(&mf, &next_mf, inst->motion_blend_rate, &mf);
-		}
-		mat4 bone_transform;
-		glm_translate_make(bone_transform, mf.pos);
-		glm_quat_rotate(bone_transform, mf.rotq, bone_transform);
-
-		if (inst->model->bones[i].parent >= 0) {
-			assert(inst->model->bones[i].parent < i);
-			glm_mat4_mul(inst->bone_transforms[inst->model->bones[i].parent], bone_transform, bone_transform);
-		}
-		glm_mat4_copy(bone_transform, inst->bone_transforms[i]);
-
-		glm_mat4_mul(bone_transform, inst->model->bones[i].inverse_bind_matrix, r->bone_transforms[i]);
-	}
-}
-
 static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 {
 	struct model *model = inst->model;
@@ -341,26 +271,23 @@ static void render_static_model(struct RE_instance *inst, struct RE_renderer *r)
 	render_model(inst, r);
 }
 
-static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r, float delta_time)
+static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r)
 {
 	struct model *model = inst->model;
 	if (!model)
 		return;
 
-	animate(inst, r, delta_time);
-
 	if (model->nr_bones > 0) {
 		glUniform1i(r->has_bones, GL_TRUE);
-		glUniformMatrix4fv(r->bone_matrices, model->nr_bones, GL_FALSE, r->bone_transforms[0][0]);
+		glUniformMatrix4fv(r->bone_matrices, model->nr_bones, GL_FALSE, inst->bone_transforms[0][0]);
 	} else {
 		glUniform1i(r->has_bones, GL_FALSE);
 	}
 	render_model(inst, r);
 }
 
-static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat, float delta_time)
+static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat)
 {
-	animate(inst, r, delta_time);
 	int cg_no = inst->motion->current_frame;
 	struct billboard_texture *bt = ht_get_int(r->billboard_textures, cg_no, NULL);
 	if (!bt)
@@ -448,18 +375,12 @@ static void setup_lights(struct RE_plugin *plugin)
 
 void RE_render(struct sact_sprite *sp)
 {
-	uint32_t timestamp = SDL_GetTicks();
-
 	struct RE_plugin *plugin = (struct RE_plugin *)sp->plugin;
 	struct RE_renderer *r = plugin->renderer;
-	if (!r) {
-		r->last_frame_timestamp = timestamp;
+	if (!r)
 		return;
-	}
 	sprite_dirty(sp);
 	struct texture *texture = sprite_get_texture(sp);
-
-	float delta_time = (timestamp - r->last_frame_timestamp) / 1000.0;
 
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, texture, 0, 0, texture->w, texture->h);
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, r->depth_buffer);
@@ -507,10 +428,10 @@ void RE_render(struct sact_sprite *sp)
 			render_static_model(inst, r);
 			break;
 		case RE_ITYPE_SKINNED:
-			render_skinned_model(inst, r, delta_time);
+			render_skinned_model(inst, r);
 			break;
 		case RE_ITYPE_BILLBOARD:
-			render_billboard(inst, r, view_transform, delta_time);
+			render_billboard(inst, r, view_transform);
 			break;
 		default:
 			break;
@@ -524,6 +445,4 @@ void RE_render(struct sact_sprite *sp)
 	glUseProgram(0);
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
-
-	r->last_frame_timestamp = timestamp;
 }

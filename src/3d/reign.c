@@ -30,6 +30,7 @@
 #include "asset_manager.h"
 #include "reign.h"
 #include "sact.h"
+#include "vm.h"
 #include "xsystem4.h"
 
 static struct RE_instance *create_instance(struct RE_plugin *plugin)
@@ -84,6 +85,74 @@ static void RE_back_cg_destroy(struct RE_back_cg *bcg)
 	gfx_delete_texture(&bcg->texture);
 	if (bcg->name)
 		free_string(bcg->name);
+}
+
+static void interpolate_motion_frame(struct mot_frame *m1, struct mot_frame *m2, float t, struct mot_frame *out)
+{
+	glm_vec3_lerp(m1->pos, m2->pos, t, out->pos);
+	glm_quat_nlerp(m1->rotq, m2->rotq, t, out->rotq);
+}
+
+static void update_motion(struct motion *m, float delta_frame)
+{
+	if (!m || m->state == RE_MOTION_STATE_STOP)
+		return;
+	m->current_frame += delta_frame;
+	switch (m->state) {
+	case RE_MOTION_STATE_NOLOOP:
+		if (m->current_frame > m->frame_end) {
+			m->current_frame = m->frame_end;
+			m->state = RE_MOTION_STATE_STOP;
+		}
+		break;
+	case RE_MOTION_STATE_LOOP:
+		if (m->current_frame > m->loop_frame_end)
+			m->current_frame = m->loop_frame_begin + fmodf(m->current_frame - m->loop_frame_begin, m->loop_frame_end - m->loop_frame_begin);
+		break;
+	default:
+		VM_ERROR("Invalid motion state %d", m->state);
+	}
+}
+
+static void calc_motion_frame(struct motion *m, int bone, struct mot_frame *out)
+{
+	int cur_frame = m->current_frame;
+	int next_frame = ceilf(m->current_frame);
+	float t = m->current_frame - cur_frame;
+	struct mot_frame *frames = m->mot->motions[bone]->frames;
+	interpolate_motion_frame(&frames[cur_frame], &frames[next_frame], t, out);
+}
+
+static void animate(struct RE_instance *inst, int elapsed_ms)
+{
+	float delta_frame = inst->fps * elapsed_ms / 1000.0;
+	update_motion(inst->motion, delta_frame);
+	update_motion(inst->next_motion, delta_frame);
+
+	if (inst->type != RE_ITYPE_SKINNED || !inst->motion)
+		return;
+
+	mat4 parent_transforms[MAX_BONES];
+	for (int i = 0; i < inst->model->nr_bones; i++) {
+		struct mot_frame mf;
+		calc_motion_frame(inst->motion, i, &mf);
+		if (inst->motion_blend && inst->next_motion) {
+			struct mot_frame next_mf;
+			calc_motion_frame(inst->next_motion, i, &next_mf);
+			interpolate_motion_frame(&mf, &next_mf, inst->motion_blend_rate, &mf);
+		}
+		mat4 bone_transform;
+		glm_translate_make(bone_transform, mf.pos);
+		glm_quat_rotate(bone_transform, mf.rotq, bone_transform);
+
+		if (inst->model->bones[i].parent >= 0) {
+			assert(inst->model->bones[i].parent < i);
+			glm_mat4_mul(parent_transforms[inst->model->bones[i].parent], bone_transform, bone_transform);
+		}
+		glm_mat4_copy(bone_transform, parent_transforms[i]);
+
+		glm_mat4_mul(bone_transform, inst->model->bones[i].inverse_bind_matrix, inst->bone_transforms[i]);
+	}
 }
 
 struct RE_plugin *RE_plugin_new(void)
@@ -145,6 +214,20 @@ bool RE_plugin_unbind(struct RE_plugin *plugin)
 	RE_renderer_free(plugin->renderer);
 	plugin->renderer = NULL;
 	plugin->sprite = 0;
+	return true;
+}
+
+bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
+{
+	if (!plugin)
+		return false;
+	if (elapsed_ms <= 0)
+		return true;
+
+	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+		if (plugin->instances[i])
+			animate(plugin->instances[i], elapsed_ms);
+	}
 	return true;
 }
 
