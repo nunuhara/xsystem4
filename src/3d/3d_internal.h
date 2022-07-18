@@ -121,6 +121,10 @@ struct billboard_texture {
 	GLuint texture;
 };
 
+// reign.c
+
+void RE_instance_update_local_transform(struct RE_instance *inst);
+
 // model.c
 
 struct model *model_load(struct archive *aar, const char *path, struct RE_renderer *renderer);

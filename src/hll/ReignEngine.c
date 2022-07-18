@@ -463,8 +463,22 @@ static bool ReignEngine_SetInstanceFPS(int plugin, int instance, float fps)
 	return true;
 }
 
-HLL_WARN_UNIMPLEMENTED(0, int, ReignEngine, GetInstanceBoneIndex, int plugin, int instance, struct string *name);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, TransInstanceLocalPosToWorldPosByBone, int plugin, int instance, int bone, float offset_x, float offset_y, float offset_z, float *x, float *y, float *z);
+static int ReignEngine_GetInstanceBoneIndex(int plugin, int instance, struct string *name)
+{
+	return RE_instance_get_bone_index(get_instance(plugin, instance), name->text);
+}
+
+static bool ReignEngine_TransInstanceLocalPosToWorldPosByBone(int plugin, int instance, int bone, float offset_x, float offset_y, float offset_z, float *x, float *y, float *z)
+{
+	vec3 offset = {offset_x, offset_y, -offset_z}, result;
+	if (!RE_instance_trans_local_pos_to_world_pos_by_bone(get_instance(plugin, instance), bone, offset, result))
+		return false;
+	*x = result[0];
+	*y = result[1];
+	*z = -result[2];
+	return true;
+}
+
 //int ReignEngine_GetInstanceNumofPolygon(int plugin, int instance);
 //int ReignEngine_GetInstanceTextureMemorySize(int plugin, int instance);
 //void ReignEngine_GetInstanceInfoText(int plugin, int instance, struct string **pIText);

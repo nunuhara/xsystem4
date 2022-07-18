@@ -346,6 +346,52 @@ bool RE_instance_set_vertex_pos(struct RE_instance *instance, int index, float x
 	return false;
 }
 
+int RE_instance_get_bone_index(struct RE_instance *instance, const char *name)
+{
+	if (!instance || !instance->model)
+		return -1;
+	for (int i = 0; i < instance->model->nr_bones; i++) {
+		if (!strcmp(instance->model->bones[i].name, name))
+			return i;
+	}
+	return -1;
+}
+
+bool RE_instance_trans_local_pos_to_world_pos_by_bone(struct RE_instance *instance, int bone, vec3 offset, vec3 out)
+{
+	if (!instance || !instance->bone_transforms || (unsigned)bone >= (unsigned)instance->model->nr_bones)
+		return false;
+
+	if (instance->local_transform_needs_update)
+		RE_instance_update_local_transform(instance);
+
+	glm_mat4_mulv3(instance->bone_transforms[bone], offset, 1.0, out);
+	glm_mat4_mulv3(instance->local_transform, out, 1.0, out);
+	return true;
+}
+
+void RE_instance_update_local_transform(struct RE_instance *inst)
+{
+	vec3 euler = {
+		glm_rad(inst->pitch),
+		glm_rad(inst->yaw),
+		glm_rad(inst->roll)
+	};
+	mat4 rot;
+	glm_euler(euler, rot);
+
+	glm_translate_make(inst->local_transform, inst->pos);
+	glm_mat4_mul(inst->local_transform, rot, inst->local_transform);
+	glm_scale(inst->local_transform, inst->scale);
+
+	mat3 normal;
+	glm_mat4_pick3(inst->local_transform, normal);
+	glm_mat3_inv(normal, normal);
+	glm_mat3_transpose_to(normal, inst->normal_transform);
+
+	inst->local_transform_needs_update = false;
+}
+
 int RE_motion_get_state(struct motion *motion)
 {
 	return motion ? motion->state : RE_MOTION_STATE_STOP;
