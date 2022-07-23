@@ -120,7 +120,7 @@ void RE_debug_print(struct sact_sprite *sp, int indent)
 	indent_printf(indent, "camera = {x=%f, y=%f, z=%f, pitch=%f, roll=%f, yaw=%f},\n",
 	              SPREAD_VEC3(p->camera.pos), p->camera.pitch, p->camera.roll, p->camera.yaw);
 
-	for (int i = 0; i < RE_MAX_INSTANCES; i++)
+	for (int i = 0; i < p->nr_instances; i++)
 		print_instance(p->instances[i], i, indent);
 
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)

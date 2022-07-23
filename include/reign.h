@@ -17,7 +17,6 @@
 #ifndef SYSTEM4_REIGN_H
 #define SYSTEM4_REIGN_H
 
-#define RE_MAX_INSTANCES 32
 #define RE_NR_BACK_CGS 16
 
 #include <cglm/types.h>
@@ -66,7 +65,8 @@ struct RE_back_cg {
 struct RE_plugin {
 	struct draw_plugin plugin;
 	int sprite;
-	struct RE_instance *instances[RE_MAX_INSTANCES];
+	int nr_instances;
+	struct RE_instance **instances;
 	struct archive *aar;
 	struct RE_renderer *renderer;
 	struct RE_camera camera;

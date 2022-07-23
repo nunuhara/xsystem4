@@ -173,6 +173,8 @@ struct RE_plugin *RE_plugin_new(void)
 	plugin->plugin.name = "ReignEngine";
 	plugin->plugin.update = RE_render;
 	plugin->plugin.debug_print = RE_debug_print;
+	plugin->nr_instances = 16;
+	plugin->instances = xcalloc(plugin->nr_instances, sizeof(struct RE_instance *));
 	plugin->aar = aar;
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_init(&plugin->back_cg[i]);
@@ -181,10 +183,11 @@ struct RE_plugin *RE_plugin_new(void)
 
 void RE_plugin_free(struct RE_plugin *plugin)
 {
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+	for (int i = 0; i < plugin->nr_instances; i++) {
 		if (plugin->instances[i])
 			free_instance(plugin->instances[i]);
 	}
+	free(plugin->instances);
 	archive_free(plugin->aar);
 	if (plugin->renderer)
 		RE_renderer_free(plugin->renderer);
@@ -222,7 +225,7 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 	if (!plugin)
 		return false;
 
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+	for (int i = 0; i < plugin->nr_instances; i++) {
 		if (plugin->instances[i])
 			animate(plugin->instances[i], elapsed_ms);
 	}
@@ -241,14 +244,17 @@ int RE_create_instance(struct RE_plugin *plugin)
 {
 	if (!plugin)
 		return -1;
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+	for (int i = 0; i < plugin->nr_instances; i++) {
 		if (!plugin->instances[i]) {
 			plugin->instances[i] = create_instance(plugin);
 			return i;
 		}
 	}
-	WARNING("too many instances");
-	return -1;
+	int old_size = plugin->nr_instances;
+	plugin->nr_instances *= 2;
+	plugin->instances = xrealloc_array(plugin->instances, old_size, plugin->nr_instances, sizeof(struct RE_instance *));
+	plugin->instances[old_size] = create_instance(plugin);
+	return old_size;
 }
 
 bool RE_release_instance(struct RE_plugin *plugin, int instance)

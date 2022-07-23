@@ -40,7 +40,7 @@ static struct RE_instance *get_instance(unsigned plugin, unsigned instance)
 	struct RE_plugin *rp = get_plugin(plugin);
 	if (!rp)
 		return NULL;
-	return instance < RE_MAX_INSTANCES ? rp->instances[instance] : NULL;
+	return instance < (unsigned)rp->nr_instances ? rp->instances[instance] : NULL;
 }
 
 static struct motion *get_motion(unsigned plugin, unsigned instance)

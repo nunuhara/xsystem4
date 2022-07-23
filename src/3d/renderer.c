@@ -321,7 +321,7 @@ static void setup_lights(struct RE_plugin *plugin)
 	struct RE_renderer *r = plugin->renderer;
 	glUniform3fv(r->view_pos, 1, plugin->camera.pos);
 	int light_index = 0;
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst)
 			continue;
@@ -397,7 +397,7 @@ void RE_render(struct sact_sprite *sp)
 
 	setup_lights(plugin);
 
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst || !inst->draw)
 			continue;
