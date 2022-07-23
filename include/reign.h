@@ -17,7 +17,6 @@
 #ifndef SYSTEM4_REIGN_H
 #define SYSTEM4_REIGN_H
 
-#define RE_MAX_INSTANCES 32
 #define RE_NR_BACK_CGS 16
 
 #include <cglm/types.h>
@@ -66,7 +65,8 @@ struct RE_back_cg {
 struct RE_plugin {
 	struct draw_plugin plugin;
 	int sprite;
-	struct RE_instance *instances[RE_MAX_INSTANCES];
+	int nr_instances;
+	struct RE_instance **instances;
 	struct archive *aar;
 	struct RE_renderer *renderer;
 	struct RE_camera camera;
@@ -142,6 +142,8 @@ bool RE_instance_load_motion(struct RE_instance *instance, const char *name);
 bool RE_instance_load_next_motion(struct RE_instance *instance, const char *name);
 bool RE_instance_free_next_motion(struct RE_instance *instance);
 bool RE_instance_set_vertex_pos(struct RE_instance *instance, int index, float x, float y, float z);
+int RE_instance_get_bone_index(struct RE_instance *instance, const char *name);
+bool RE_instance_trans_local_pos_to_world_pos_by_bone(struct RE_instance *instance, int bone, vec3 offset, vec3 out);
 
 int RE_motion_get_state(struct motion *motion);
 bool RE_motion_set_state(struct motion *motion, int state);

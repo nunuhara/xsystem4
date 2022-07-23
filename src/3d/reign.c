@@ -173,6 +173,8 @@ struct RE_plugin *RE_plugin_new(void)
 	plugin->plugin.name = "ReignEngine";
 	plugin->plugin.update = RE_render;
 	plugin->plugin.debug_print = RE_debug_print;
+	plugin->nr_instances = 16;
+	plugin->instances = xcalloc(plugin->nr_instances, sizeof(struct RE_instance *));
 	plugin->aar = aar;
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_init(&plugin->back_cg[i]);
@@ -181,10 +183,11 @@ struct RE_plugin *RE_plugin_new(void)
 
 void RE_plugin_free(struct RE_plugin *plugin)
 {
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+	for (int i = 0; i < plugin->nr_instances; i++) {
 		if (plugin->instances[i])
 			free_instance(plugin->instances[i]);
 	}
+	free(plugin->instances);
 	archive_free(plugin->aar);
 	if (plugin->renderer)
 		RE_renderer_free(plugin->renderer);
@@ -221,10 +224,8 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 {
 	if (!plugin)
 		return false;
-	if (elapsed_ms <= 0)
-		return true;
 
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+	for (int i = 0; i < plugin->nr_instances; i++) {
 		if (plugin->instances[i])
 			animate(plugin->instances[i], elapsed_ms);
 	}
@@ -243,14 +244,17 @@ int RE_create_instance(struct RE_plugin *plugin)
 {
 	if (!plugin)
 		return -1;
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+	for (int i = 0; i < plugin->nr_instances; i++) {
 		if (!plugin->instances[i]) {
 			plugin->instances[i] = create_instance(plugin);
 			return i;
 		}
 	}
-	WARNING("too many instances");
-	return -1;
+	int old_size = plugin->nr_instances;
+	plugin->nr_instances *= 2;
+	plugin->instances = xrealloc_array(plugin->instances, old_size, plugin->nr_instances, sizeof(struct RE_instance *));
+	plugin->instances[old_size] = create_instance(plugin);
+	return old_size;
 }
 
 bool RE_release_instance(struct RE_plugin *plugin, int instance)
@@ -344,6 +348,52 @@ bool RE_instance_set_vertex_pos(struct RE_instance *instance, int index, float x
 		instance->scale[1] = y / 2.0;
 	}
 	return false;
+}
+
+int RE_instance_get_bone_index(struct RE_instance *instance, const char *name)
+{
+	if (!instance || !instance->model)
+		return -1;
+	for (int i = 0; i < instance->model->nr_bones; i++) {
+		if (!strcmp(instance->model->bones[i].name, name))
+			return i;
+	}
+	return -1;
+}
+
+bool RE_instance_trans_local_pos_to_world_pos_by_bone(struct RE_instance *instance, int bone, vec3 offset, vec3 out)
+{
+	if (!instance || !instance->bone_transforms || (unsigned)bone >= (unsigned)instance->model->nr_bones)
+		return false;
+
+	if (instance->local_transform_needs_update)
+		RE_instance_update_local_transform(instance);
+
+	glm_mat4_mulv3(instance->bone_transforms[bone], offset, 1.0, out);
+	glm_mat4_mulv3(instance->local_transform, out, 1.0, out);
+	return true;
+}
+
+void RE_instance_update_local_transform(struct RE_instance *inst)
+{
+	vec3 euler = {
+		glm_rad(inst->pitch),
+		glm_rad(inst->yaw),
+		glm_rad(inst->roll)
+	};
+	mat4 rot;
+	glm_euler(euler, rot);
+
+	glm_translate_make(inst->local_transform, inst->pos);
+	glm_mat4_mul(inst->local_transform, rot, inst->local_transform);
+	glm_scale(inst->local_transform, inst->scale);
+
+	mat3 normal;
+	glm_mat4_pick3(inst->local_transform, normal);
+	glm_mat3_inv(normal, normal);
+	glm_mat3_transpose_to(normal, inst->normal_transform);
+
+	inst->local_transform_needs_update = false;
 }
 
 int RE_motion_get_state(struct motion *motion)

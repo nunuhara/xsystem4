@@ -175,28 +175,6 @@ static void calc_view_matrix(struct RE_camera *camera, mat4 out)
 	glm_look(camera->pos, front, up, out);
 }
 
-static void update_local_transform(struct RE_instance *inst)
-{
-	vec3 euler = {
-		glm_rad(inst->pitch),
-		glm_rad(inst->yaw),
-		glm_rad(inst->roll)
-	};
-	mat4 rot;
-	glm_euler(euler, rot);
-
-	glm_translate_make(inst->local_transform, inst->pos);
-	glm_mat4_mul(inst->local_transform, rot, inst->local_transform);
-	glm_scale(inst->local_transform, inst->scale);
-
-	mat3 normal;
-	glm_mat4_pick3(inst->local_transform, normal);
-	glm_mat3_inv(normal, normal);
-	glm_mat3_transpose_to(normal, inst->normal_transform);
-
-	inst->local_transform_needs_update = false;
-}
-
 static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 {
 	struct model *model = inst->model;
@@ -204,7 +182,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 		return;
 
 	if (inst->local_transform_needs_update)
-		update_local_transform(inst);
+		RE_instance_update_local_transform(inst);
 
 	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, inst->local_transform[0]);
 	glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, inst->normal_transform[0]);
@@ -343,7 +321,7 @@ static void setup_lights(struct RE_plugin *plugin)
 	struct RE_renderer *r = plugin->renderer;
 	glUniform3fv(r->view_pos, 1, plugin->camera.pos);
 	int light_index = 0;
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst)
 			continue;
@@ -419,7 +397,7 @@ void RE_render(struct sact_sprite *sp)
 
 	setup_lights(plugin);
 
-	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
+	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst || !inst->draw)
 			continue;
