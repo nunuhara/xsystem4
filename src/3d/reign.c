@@ -221,8 +221,6 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 {
 	if (!plugin)
 		return false;
-	if (elapsed_ms <= 0)
-		return true;
 
 	for (int i = 0; i < RE_MAX_INSTANCES; i++) {
 		if (plugin->instances[i])
