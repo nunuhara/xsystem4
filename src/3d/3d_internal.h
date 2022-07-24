@@ -36,6 +36,7 @@ struct model {
 	int nr_bones;
 	struct bone *bones;
 	struct hash_table *bone_map;  // bone id in POL/MOT -> struct bone *
+	vec3 aabb[2];  // axis-aligned bounding box
 };
 
 struct mesh {
@@ -75,11 +76,26 @@ struct motion {
 
 enum RE_attribute_location {
 	ATTR_VERTEX_POS = 0,
+	ATTR_BONE_INDEX,
+	ATTR_BONE_WEIGHT,
+};
+
+struct shadow_renderer {
+	GLuint program;
+	GLuint fbo;
+	GLuint texture;
+
+	// Uniform variable locations
+	GLint world_transform;
+	GLint view_transform;
+	GLint has_bones;
+	GLint bone_matrices;
 };
 
 struct RE_renderer {
 	GLuint program;
 	GLuint depth_buffer;
+	struct shadow_renderer shadow;
 
 	// Uniform variable locations
 	GLint world_transform;
@@ -110,14 +126,16 @@ struct RE_renderer {
 	GLint light_texture;
 	GLint use_normal_map;
 	GLint normal_texture;
+	GLint use_shadow_map;
+	GLint shadow_transform;
+	GLint shadow_texture;
+	GLint shadow_bias;
 
 	// Attribute variable locations
 	GLint vertex_normal;
 	GLint vertex_uv;
 	GLint vertex_light_uv;
 	GLint vertex_tangent;
-	GLint vertex_bone_index;
-	GLint vertex_bone_weight;
 
 	GLuint billboard_vao;
 	GLuint billboard_attr_buffer;
@@ -258,6 +276,7 @@ enum amt_field_index {
 
 struct pol *pol_parse(uint8_t *data, size_t size);
 void pol_free(struct pol *pol);
+void pol_compute_aabb(struct pol *model, vec3 dest[2]);
 struct pol_bone *pol_find_bone(struct pol *pol, uint32_t id);
 
 struct mot *mot_parse(uint8_t *data, size_t size);

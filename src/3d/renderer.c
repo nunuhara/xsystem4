@@ -25,11 +25,16 @@
 #include "reign.h"
 #include "sact.h"
 
+// TODO: Respect RE_plugin.shadow_map_resolution_level
+#define SHADOW_WIDTH 1024
+#define SHADOW_HEIGHT 1024
+
 enum {
 	COLOR_TEXTURE_UNIT,
 	SPECULAR_TEXTURE_UNIT,
 	LIGHT_TEXTURE_UNIT,
 	NORMAL_TEXTURE_UNIT,
+	SHADOW_TEXTURE_UNIT,
 };
 
 static GLuint load_shader(const char *vertex_shader_path, const char *fragment_shader_path)
@@ -41,9 +46,11 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 	glAttachShader(program, vertex_shader);
 	glAttachShader(program, fragment_shader);
 
-	// In OpenGL < 3.2, Attribute location 0 is special. Make sure it's assigned
-	// to the vertex position.
+	// Bind some attributes to fixed locations, so that common VAO can be used
+	// by multiple programs.
 	glBindAttribLocation(program, ATTR_VERTEX_POS, "vertex_pos");
+	glBindAttribLocation(program, ATTR_BONE_INDEX, "vertex_bone_index");
+	glBindAttribLocation(program, ATTR_BONE_WEIGHT, "vertex_bone_weight");
 
 	glLinkProgram(program);
 
@@ -57,6 +64,40 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 		ERROR("Failed to link shader %s, %s: %s", vertex_shader_path, fragment_shader_path, infolog);
 	}
 	return program;
+}
+
+static void init_shadow_renderer(struct shadow_renderer *sr)
+{
+	GLint orig_fbo;
+	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &orig_fbo);
+
+	sr->program = load_shader("shaders/reign_shadow.v.glsl", "shaders/reign_shadow.f.glsl");
+	sr->world_transform = glGetUniformLocation(sr->program, "world_transform");
+	sr->view_transform = glGetUniformLocation(sr->program, "view_transform");
+	sr->has_bones = glGetUniformLocation(sr->program, "has_bones");
+	sr->bone_matrices = glGetUniformLocation(sr->program, "bone_matrices");
+
+	glGenFramebuffers(1, &sr->fbo);
+	glGenTextures(1, &sr->texture);
+	glBindTexture(GL_TEXTURE_2D, sr->texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindFramebuffer(GL_FRAMEBUFFER, sr->fbo);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sr->texture, 0);
+	glDrawBuffers(0, NULL);
+	glReadBuffer(GL_NONE);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, orig_fbo);
+}
+
+static void destroy_shadow_renderer(struct shadow_renderer *sr)
+{
+	glDeleteTextures(1, &sr->texture);
+	glDeleteFramebuffers(1, &sr->fbo);
+	glDeleteProgram(sr->program);
 }
 
 static void init_billboard_mesh(struct RE_renderer *r)
@@ -83,15 +124,21 @@ static void init_billboard_mesh(struct RE_renderer *r)
 	glVertexAttrib3f(r->vertex_normal, 0.0, 0.0, 1.0);
 	glDisableVertexAttribArray(r->vertex_tangent);
 	glVertexAttrib3f(r->vertex_tangent, 1.0, 0.0, 0.0);
-	glDisableVertexAttribArray(r->vertex_bone_index);
-	glVertexAttribI4i(r->vertex_bone_index, 0, 0, 0, 0);
-	glDisableVertexAttribArray(r->vertex_bone_weight);
-	glVertexAttrib4f(r->vertex_bone_weight, 0.0, 0.0, 0.0, 0.0);
+	glDisableVertexAttribArray(ATTR_BONE_INDEX);
+	glVertexAttribI4i(ATTR_BONE_INDEX, 0, 0, 0, 0);
+	glDisableVertexAttribArray(ATTR_BONE_WEIGHT);
+	glVertexAttrib4f(ATTR_BONE_WEIGHT, 0.0, 0.0, 0.0, 0.0);
 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+static void destroy_billboard_mesh(struct RE_renderer *r)
+{
+	glDeleteVertexArrays(1, &r->billboard_vao);
+	glDeleteBuffers(1, &r->billboard_attr_buffer);
 }
 
 struct RE_renderer *RE_renderer_new(struct texture *texture)
@@ -130,18 +177,21 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->light_texture = glGetUniformLocation(r->program, "light_texture");
 	r->use_normal_map = glGetUniformLocation(r->program, "use_normal_map");
 	r->normal_texture = glGetUniformLocation(r->program, "normal_texture");
+	r->use_shadow_map = glGetUniformLocation(r->program, "use_shadow_map");
+	r->shadow_transform = glGetUniformLocation(r->program, "shadow_transform");
+	r->shadow_texture = glGetUniformLocation(r->program, "shadow_texture");
+	r->shadow_bias = glGetUniformLocation(r->program, "shadow_bias");
 	r->vertex_normal = glGetAttribLocation(r->program, "vertex_normal");
 	r->vertex_uv = glGetAttribLocation(r->program, "vertex_uv");
 	r->vertex_light_uv = glGetAttribLocation(r->program, "vertex_light_uv");
 	r->vertex_tangent = glGetAttribLocation(r->program, "vertex_tangent");
-	r->vertex_bone_index = glGetAttribLocation(r->program, "vertex_bone_index");
-	r->vertex_bone_weight = glGetAttribLocation(r->program, "vertex_bone_weight");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, r->depth_buffer);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, texture->w, texture->h);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
+	init_shadow_renderer(&r->shadow);
 	init_billboard_mesh(r);
 	r->billboard_textures = ht_create(256);
 	return r;
@@ -185,8 +235,8 @@ void RE_renderer_free(struct RE_renderer *r)
 	glDeleteRenderbuffers(1, &r->depth_buffer);
 	ht_foreach_value(r->billboard_textures, free_billboard_texture);
 	ht_free_int(r->billboard_textures);
-	glDeleteVertexArrays(1, &r->billboard_vao);
-	glDeleteBuffers(1, &r->billboard_attr_buffer);
+	destroy_billboard_mesh(r);
+	destroy_shadow_renderer(&r->shadow);
 	free(r);
 }
 
@@ -220,6 +270,15 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 	vec3 ambient;
 	glm_vec3_add(inst->plugin->global_ambient, inst->ambient, ambient);
 	glUniform3fv(r->ambient, 1, ambient);
+
+	if (inst->draw_shadow && inst->plugin->shadow_mode) {
+		glUniform1i(r->use_shadow_map, GL_TRUE);
+		glActiveTexture(GL_TEXTURE0 + SHADOW_TEXTURE_UNIT);
+		glBindTexture(GL_TEXTURE_2D, r->shadow.texture);
+		glUniform1i(r->shadow_texture, SHADOW_TEXTURE_UNIT);
+	} else {
+		glUniform1i(r->use_shadow_map, GL_FALSE);
+	}
 
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
@@ -337,6 +396,105 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+static bool calc_shadow_light_transform(struct RE_plugin *plugin, mat4 dest)
+{
+	// Compute AABB of shadow casters.
+	vec3 aabb[2];
+	glm_aabb_invalidate(aabb);
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = plugin->instances[i];
+		if (!inst || !inst->make_shadow || !inst->model)
+			continue;
+		// Start with the model's AABB, inflated with shadow_volume_bone_radius.
+		vec3 inst_aabb[2];
+		glm_vec3_subs(inst->model->aabb[0], inst->shadow_volume_bone_radius, inst_aabb[0]);
+		glm_vec3_adds(inst->model->aabb[1], inst->shadow_volume_bone_radius, inst_aabb[1]);
+		// To save CPU cycles, consider only the translation components of bone transforms.
+		vec3 bone_translation_aabb[2];
+		glm_aabb_invalidate(bone_translation_aabb);
+		for (int j = 0; j < inst->model->nr_bones; j++) {
+			glm_vec3_minv(inst->bone_transforms[j][3], bone_translation_aabb[0], bone_translation_aabb[0]);
+			glm_vec3_maxv(inst->bone_transforms[j][3], bone_translation_aabb[1], bone_translation_aabb[1]);
+		}
+		if (glm_aabb_isvalid(bone_translation_aabb)) {
+			glm_vec3_add(inst_aabb[0], bone_translation_aabb[0], inst_aabb[0]);
+			glm_vec3_add(inst_aabb[1], bone_translation_aabb[1], inst_aabb[1]);
+		}
+		// Apply local transform.
+		if (inst->local_transform_needs_update)
+			RE_instance_update_local_transform(inst);
+		glm_aabb_transform(inst_aabb, inst->local_transform, inst_aabb);
+
+		glm_aabb_merge(inst_aabb, aabb, aabb);
+	}
+	if (!glm_aabb_isvalid(aabb))
+		return false;
+
+	// Create a orthographic frustum that contains the AABB.
+	vec3 center;
+	glm_aabb_center(aabb, center);
+	vec3 light_pos;
+	glm_vec3_scale(plugin->shadow_map_light_dir, -glm_aabb_radius(aabb), light_pos);
+	glm_vec3_add(light_pos, center, light_pos);
+	mat4 view_matrix;
+	vec3 up = {0.0, 1.0, 0.0};
+	glm_lookat(light_pos, center, up, view_matrix);
+
+	mat4 proj_matrix;
+	glm_aabb_transform(aabb, view_matrix, aabb);
+	glm_ortho_aabb(aabb, proj_matrix);
+
+	glm_mat4_mul(proj_matrix, view_matrix, dest);
+	return true;
+}
+
+static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transform)
+{
+	if (!calc_shadow_light_transform(plugin, light_space_transform)) {
+		// No shadow casters, but proceed anyway to clear the shadow texture.
+		glm_mat4_identity(light_space_transform);
+	}
+
+	struct RE_renderer *r = plugin->renderer;
+	GLint orig_fbo, orig_viewport[4];
+	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &orig_fbo);
+	glGetIntegerv(GL_VIEWPORT, orig_viewport);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, r->shadow.fbo);
+	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	glClear(GL_DEPTH_BUFFER_BIT);
+	glUseProgram(r->shadow.program);
+
+	glUniformMatrix4fv(r->shadow.view_transform, 1, GL_FALSE, light_space_transform[0]);
+
+	glEnable(GL_DEPTH_TEST);
+
+	// Render the shadow casters.
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = plugin->instances[i];
+		if (!inst || !inst->make_shadow || !inst->model)
+			continue;
+		struct model *model = inst->model;
+		if (model->nr_bones > 0) {
+			glUniform1i(r->shadow.has_bones, GL_TRUE);
+			glUniformMatrix4fv(r->shadow.bone_matrices, model->nr_bones, GL_FALSE, inst->bone_transforms[0][0]);
+		} else {
+			glUniform1i(r->shadow.has_bones, GL_FALSE);
+		}
+		glUniformMatrix4fv(r->shadow.world_transform, 1, GL_FALSE, inst->local_transform[0]);
+		for (int j = 0; j < model->nr_meshes; j++) {
+			struct mesh *mesh = &model->meshes[j];
+			glBindVertexArray(mesh->vao);
+			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+		}
+		glBindVertexArray(0);
+	}
+
+	glDisable(GL_DEPTH_TEST);
+	glBindFramebuffer(GL_FRAMEBUFFER, orig_fbo);
+	glViewport(orig_viewport[0], orig_viewport[1], orig_viewport[2], orig_viewport[3]);
+}
+
 static void render_back_cg(struct texture *dst, struct RE_back_cg *bcg, struct RE_renderer *r)
 {
 	if (!bcg->texture.handle)
@@ -390,6 +548,12 @@ void RE_render(struct sact_sprite *sp)
 	sprite_dirty(sp);
 	struct texture *texture = sprite_get_texture(sp);
 
+	mat4 shadow_transform;
+	if (plugin->shadow_mode)
+		render_shadow_map(plugin, shadow_transform);
+	else
+		glm_mat4_identity(shadow_transform);
+
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, texture, 0, 0, texture->w, texture->h);
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, r->depth_buffer);
 	if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -421,6 +585,8 @@ void RE_render(struct sact_sprite *sp)
 	glUseProgram(r->program);
 	glUniformMatrix4fv(r->view_transform, 1, GL_FALSE, view_transform[0]);
 	glUniformMatrix4fv(r->proj_transform, 1, GL_FALSE, plugin->proj_transform[0]);
+	glUniformMatrix4fv(r->shadow_transform, 1, GL_FALSE, shadow_transform[0]);
+	glUniform1f(r->shadow_bias, plugin->shadow_bias);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

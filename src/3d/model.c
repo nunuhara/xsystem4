@@ -295,16 +295,16 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 		glVertexAttrib3f(r->vertex_tangent, 1.0, 0.0, 0.0);
 	}
 	if (has_bones) {
-		glEnableVertexAttribArray(r->vertex_bone_index);
-		glVertexAttribIPointer(r->vertex_bone_index, NR_WEIGHTS, GL_INT, stride, base + offsetof(struct vertex_bones, bone_id));
-		glEnableVertexAttribArray(r->vertex_bone_weight);
-		glVertexAttribPointer(r->vertex_bone_weight, NR_WEIGHTS, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_bones, bone_weight));
+		glEnableVertexAttribArray(ATTR_BONE_INDEX);
+		glVertexAttribIPointer(ATTR_BONE_INDEX, NR_WEIGHTS, GL_INT, stride, base + offsetof(struct vertex_bones, bone_id));
+		glEnableVertexAttribArray(ATTR_BONE_WEIGHT);
+		glVertexAttribPointer(ATTR_BONE_WEIGHT, NR_WEIGHTS, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_bones, bone_weight));
 		base += sizeof(struct vertex_bones);
 	} else {
-		glDisableVertexAttribArray(r->vertex_bone_index);
-		glVertexAttribI4i(r->vertex_bone_index, 0, 0, 0, 0);
-		glDisableVertexAttribArray(r->vertex_bone_weight);
-		glVertexAttrib4f(r->vertex_bone_weight, 0.0, 0.0, 0.0, 0.0);
+		glDisableVertexAttribArray(ATTR_BONE_INDEX);
+		glVertexAttribI4i(ATTR_BONE_INDEX, 0, 0, 0, 0);
+		glDisableVertexAttribArray(ATTR_BONE_WEIGHT);
+		glVertexAttrib4f(ATTR_BONE_WEIGHT, 0.0, 0.0, 0.0, 0.0);
 	}
 	assert((intptr_t)base == stride);
 
@@ -439,6 +439,8 @@ struct model *model_load(struct archive *aar, const char *path, struct RE_render
 			add_mesh(model, pol->meshes[i], j, m_off + j, r);
 		}
 	}
+
+	pol_compute_aabb(pol, model->aabb);
 
 	free(material_offsets);
 	if (amt)

@@ -285,9 +285,35 @@ static bool ReignEngine_SetInstanceDraw(int plugin, int instance, bool flag)
 	return true;
 }
 
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceDrawShadow, int plugin, int instance, bool flag);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceDrawBackShadow, int plugin, int instance, bool flag);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceDrawMakeShadow, int plugin, int instance, bool flag);
+static bool ReignEngine_SetInstanceDrawShadow(int plugin, int instance, bool flag)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->draw_shadow = flag;
+	return true;
+}
+
+static bool ReignEngine_SetInstanceDrawBackShadow(int plugin, int instance, bool flag)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	if (flag) {
+		WARNING("DrawBackShaodw is not supported");
+		return false;
+	}
+	return true;
+}
+
+static bool ReignEngine_SetInstanceDrawMakeShadow(int plugin, int instance, bool flag)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->make_shadow = flag;
+	return true;
+}
 
 static bool ReignEngine_SetInstanceDrawBump(int plugin, int instance, bool flag)
 {
@@ -306,9 +332,23 @@ static bool ReignEngine_GetInstanceDraw(int plugin, int instance)
 	return ri->draw;
 }
 
-//bool ReignEngine_GetInstanceDrawShadow(int plugin, int instance);
+static bool ReignEngine_GetInstanceDrawShadow(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	return ri->draw_shadow;
+}
+
 //bool ReignEngine_GetInstanceDrawBackShadow(int plugin, int instance);
-//bool ReignEngine_GetInstanceDrawMakeShadow(int plugin, int instance);
+
+static bool ReignEngine_GetInstanceDrawMakeShadow(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	return ri->make_shadow;
+}
 
 static bool ReignEngine_GetInstanceDrawBump(int plugin, int instance)
 {
@@ -486,8 +526,22 @@ static bool ReignEngine_TransInstanceLocalPosToWorldPosByBone(int plugin, int in
 HLL_WARN_UNIMPLEMENTED(0.0, float, ReignEngine, CalcInstanceHeightDetection, int plugin, int instance, float x, float z);
 //float ReignEngine_GetInstanceSoftFogEdgeLength(int plugin, int instance);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceSoftFogEdgeLength, int plugin, int instance, float length);
-//float ReignEngine_GetInstanceShadowVolumeBoneRadius(int plugin, int instance);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceShadowVolumeBoneRadius, int plugin, int instance, float radius);
+
+static float ReignEngine_GetInstanceShadowVolumeBoneRadius(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	return ri ? ri->shadow_volume_bone_radius : 0.0;
+}
+
+static bool ReignEngine_SetInstanceShadowVolumeBoneRadius(int plugin, int instance, float radius)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->shadow_volume_bone_radius = radius;
+	return true;
+}
+
 //bool ReignEngine_GetInstanceDebugDrawShadowVolume(int plugin, int instance);
 //bool ReignEngine_SetInstanceDebugDrawShadowVolume(int plugin, int instance, bool flag);
 //bool ReignEngine_SaveEffect(int plugin, int instance);
@@ -662,11 +716,44 @@ static int ReignEngine_GetShadowMapResolutionLevel(int plugin)
 }
 
 //float ReignEngine_GetShadowSplitDepth(int plugin, int num);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetShadowMapType, int plugin, int type);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetShadowMapLightLookPos, int plugin, float x, float y, float z);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetShadowMapLightDir, int plugin, float x, float y, float z);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetShadowBox, int plugin, float x, float y, float z, float size_x, float size_y, float size_z);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetShadowBias, int plugin, int num, float shadow_bias);
+
+static bool ReignEngine_SetShadowMapType(int plugin, int type)
+{
+	// Toushin Toshi 3 uses only type 0.
+	if (type != 0)
+		WARNING("non-zero shadow map type is not supported");
+	return true;
+}
+
+HLL_QUIET_UNIMPLEMENTED(true, bool, ReignEngine, SetShadowMapLightLookPos, int plugin, float x, float y, float z);  // no-op in shadow map type 0?
+
+static bool ReignEngine_SetShadowMapLightDir(int plugin, float x, float y, float z)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->shadow_map_light_dir[0] = x;
+	p->shadow_map_light_dir[1] = y;
+	p->shadow_map_light_dir[2] = -z;
+	glm_vec3_normalize(p->shadow_map_light_dir);
+	return true;
+}
+
+HLL_QUIET_UNIMPLEMENTED(true, bool, ReignEngine, SetShadowBox, int plugin, float x, float y, float z, float size_x, float size_y, float size_z);  // no-op in shadow map type 0?
+
+static bool ReignEngine_SetShadowBias(int plugin, int num, float shadow_bias)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	if (num != 0) {
+		WARNING("SetShadowBias(num=%d): not supported", num);
+		return false;
+	}
+	p->shadow_bias = shadow_bias;
+	return true;
+}
+
 //bool ReignEngine_SetShadowSlopeBias(int plugin, float fShadowSlopeBias);
 //bool ReignEngine_SetShadowFilterMag(int plugin, float fShadowFilterMag);
 //bool ReignEngine_SetShadowTargetDistance(int plugin, int num, float fDistance);
@@ -1194,9 +1281,9 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_EXPORT(SetInstanceDrawMakeShadow, ReignEngine_SetInstanceDrawMakeShadow),
 	    HLL_EXPORT(SetInstanceDrawBump, ReignEngine_SetInstanceDrawBump),
 	    HLL_EXPORT(GetInstanceDraw, ReignEngine_GetInstanceDraw),
-	    HLL_TODO_EXPORT(GetInstanceDrawShadow, ReignEngine_GetInstanceDrawShadow),
+	    HLL_EXPORT(GetInstanceDrawShadow, ReignEngine_GetInstanceDrawShadow),
 	    HLL_TODO_EXPORT(GetInstanceDrawBackShadow, ReignEngine_GetInstanceDrawBackShadow),
-	    HLL_TODO_EXPORT(GetInstanceDrawMakeShadow, ReignEngine_GetInstanceDrawMakeShadow),
+	    HLL_EXPORT(GetInstanceDrawMakeShadow, ReignEngine_GetInstanceDrawMakeShadow),
 	    HLL_EXPORT(GetInstanceDrawBump, ReignEngine_GetInstanceDrawBump),
 	    HLL_TODO_EXPORT(GetInstanceDrawType, ReignEngine_GetInstanceDrawType),
 	    HLL_EXPORT(SetInstanceDrawType, ReignEngine_SetInstanceDrawType),
@@ -1253,7 +1340,7 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_EXPORT(CalcInstanceHeightDetection, ReignEngine_CalcInstanceHeightDetection),
 	    HLL_TODO_EXPORT(GetInstanceSoftFogEdgeLength, ReignEngine_GetInstanceSoftFogEdgeLength),
 	    HLL_EXPORT(SetInstanceSoftFogEdgeLength, ReignEngine_SetInstanceSoftFogEdgeLength),
-	    HLL_TODO_EXPORT(GetInstanceShadowVolumeBoneRadius, ReignEngine_GetInstanceShadowVolumeBoneRadius),
+	    HLL_EXPORT(GetInstanceShadowVolumeBoneRadius, ReignEngine_GetInstanceShadowVolumeBoneRadius),
 	    HLL_EXPORT(SetInstanceShadowVolumeBoneRadius, ReignEngine_SetInstanceShadowVolumeBoneRadius),
 	    HLL_TODO_EXPORT(GetInstanceDebugDrawShadowVolume, ReignEngine_GetInstanceDebugDrawShadowVolume),
 	    HLL_TODO_EXPORT(SetInstanceDebugDrawShadowVolume, ReignEngine_SetInstanceDebugDrawShadowVolume),

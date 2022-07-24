@@ -37,6 +37,7 @@ uniform bool use_normal_map;
 uniform vec3 view_pos;
 uniform dir_light dir_lights[NR_DIR_LIGHTS];
 uniform vec3 specular_light_dir;
+uniform mat4 shadow_transform;
 
 in vec3 vertex_pos;
 in vec3 vertex_normal;
@@ -49,6 +50,7 @@ in vec4 vertex_bone_weight;
 out vec2 tex_coord;
 out vec2 light_tex_coord;
 out vec3 frag_pos;
+out vec4 shadow_frag_pos;
 out vec3 eye;
 out vec3 normal;
 out vec3 light_dir[NR_DIR_LIGHTS];
@@ -85,6 +87,8 @@ void main() {
 
 	tex_coord = vertex_uv;
 	light_tex_coord = vertex_light_uv;
+
+	shadow_frag_pos = shadow_transform * world_pos;
 
 	// These are in tangent-space if use_normal_map is true, in world-space
 	// otherwise.
