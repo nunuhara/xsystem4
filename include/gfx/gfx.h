@@ -73,6 +73,7 @@ void gfx_update_screen_scale(void);
 void gfx_set_wait_vsync(bool wait);
 
 void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const char *fragment_shader_path);
+GLuint gfx_load_shader_file(const char *path, GLenum type);
 
 // rendering
 void gfx_set_clear_color(int r, int g, int b, int a);

@@ -74,6 +74,9 @@ struct RE_plugin {
 
 	struct RE_back_cg back_cg[RE_NR_BACK_CGS];
 
+	vec3 shadow_map_light_dir;
+	float shadow_bias;
+
 	// Settings.
 	int render_mode;
 	int shadow_mode;
@@ -109,6 +112,9 @@ struct RE_instance {
 	vec3 scale;
 	float alpha;
 	bool draw;
+	bool draw_shadow;
+	bool make_shadow;
+	float shadow_volume_bone_radius;
 	bool draw_bump;
 	float fps;
 	bool motion_blend;

@@ -25,6 +25,7 @@ struct dir_light {
 uniform sampler2D tex;
 uniform sampler2D specular_texture;
 uniform sampler2D light_texture;
+uniform sampler2D shadow_texture;
 uniform float alpha_mod;
 
 uniform bool use_normal_map;
@@ -38,10 +39,13 @@ uniform bool use_specular_map;
 uniform float rim_exponent;
 uniform vec3 rim_color;
 uniform bool use_light_map;
+uniform bool use_shadow_map;
+uniform float shadow_bias;
 
 in vec2 tex_coord;
 in vec2 light_tex_coord;
 in vec3 frag_pos;
+in vec4 shadow_frag_pos;
 in vec3 eye;
 in vec3 normal;
 in vec3 light_dir[NR_DIR_LIGHTS];
@@ -86,6 +90,23 @@ void main() {
 	if (rim_exponent > 0.0) {
 		// Normal map is not used here.
 		frag_rgb += pow(1.0 - max(dot(normalize(normal), view_dir), 0.0), rim_exponent) * rim_color;
+	}
+
+	// Shadow mapping
+	if (use_shadow_map) {
+		vec3 shadow_coords = shadow_frag_pos.xyz / shadow_frag_pos.w * 0.5 + 0.5;
+		shadow_coords.z = min(1.0, shadow_coords.z - shadow_bias);
+		// PCF with 9 samples.
+		float shadow_factor = 1.0;
+		vec2 texel_size = 1.0 / vec2(textureSize(shadow_texture, 0));
+		for (int x = -1; x <= 1; ++x) {
+			for (int y = -1; y <= 1; ++y) {
+				float depth = texture(shadow_texture, shadow_coords.xy + vec2(x, y) * texel_size).r;
+				if (depth < shadow_coords.z)
+					shadow_factor -= 0.05;
+			}
+		}
+		frag_rgb *= shadow_factor;
 	}
 
 	frag_color = vec4(frag_rgb, texel.a * alpha_mod);

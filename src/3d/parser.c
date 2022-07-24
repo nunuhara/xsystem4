@@ -295,6 +295,23 @@ void pol_free(struct pol *pol)
 	free(pol);
 }
 
+void pol_compute_aabb(struct pol *pol, vec3 dest[2])
+{
+	vec3 aabb[2];
+	glm_aabb_invalidate(aabb);
+	for (uint32_t i = 0; i < pol->nr_meshes; i++) {
+		struct pol_mesh *mesh = pol->meshes[i];
+		if (!mesh)
+			continue;
+		for (uint32_t j = 0; j < mesh->nr_vertices; j++) {
+			glm_vec3_minv(mesh->vertices[j].pos, aabb[0], aabb[0]);
+			glm_vec3_maxv(mesh->vertices[j].pos, aabb[1], aabb[1]);
+		}
+	}
+	glm_vec3_copy(aabb[0], dest[0]);
+	glm_vec3_copy(aabb[1], dest[1]);
+}
+
 struct pol_bone *pol_find_bone(struct pol *pol, uint32_t id)
 {
 	for (uint32_t i = 0; i < pol->nr_bones; i++) {
