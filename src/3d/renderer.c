@@ -32,6 +32,33 @@ enum {
 	NORMAL_TEXTURE_UNIT,
 };
 
+static GLuint load_shader(const char *vertex_shader_path, const char *fragment_shader_path)
+{
+	GLuint program = glCreateProgram();
+	GLuint vertex_shader = gfx_load_shader_file(vertex_shader_path, GL_VERTEX_SHADER);
+	GLuint fragment_shader = gfx_load_shader_file(fragment_shader_path, GL_FRAGMENT_SHADER);
+
+	glAttachShader(program, vertex_shader);
+	glAttachShader(program, fragment_shader);
+
+	// In OpenGL < 3.2, Attribute location 0 is special. Make sure it's assigned
+	// to the vertex position.
+	glBindAttribLocation(program, ATTR_VERTEX_POS, "vertex_pos");
+
+	glLinkProgram(program);
+
+	GLint link_success;
+	glGetProgramiv(program, GL_LINK_STATUS, &link_success);
+	if (!link_success) {
+		GLint len;
+		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &len);
+		char *infolog = xmalloc(len + 1);
+		glGetProgramInfoLog(program, len, NULL, infolog);
+		ERROR("Failed to link shader %s, %s: %s", vertex_shader_path, fragment_shader_path, infolog);
+	}
+	return program;
+}
+
 static void init_billboard_mesh(struct RE_renderer *r)
 {
 	static const GLfloat vertices[] = {
@@ -46,8 +73,8 @@ static void init_billboard_mesh(struct RE_renderer *r)
 	glGenBuffers(1, &r->billboard_attr_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, r->billboard_attr_buffer);
 
-	glEnableVertexAttribArray(r->shader.vertex);
-	glVertexAttribPointer(r->shader.vertex, 3, GL_FLOAT, GL_FALSE, 20, (const void *)0);
+	glEnableVertexAttribArray(ATTR_VERTEX_POS);
+	glVertexAttribPointer(ATTR_VERTEX_POS, 3, GL_FLOAT, GL_FALSE, 20, (const void *)0);
 	glEnableVertexAttribArray(r->vertex_uv);
 	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, 20, (const void *)12);
 	glDisableVertexAttribArray(r->vertex_light_uv);
@@ -71,41 +98,44 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 {
 	struct RE_renderer *r = xcalloc(1, sizeof(struct RE_renderer));
 
-	gfx_load_shader(&r->shader, "shaders/reign.v.glsl", "shaders/reign.f.glsl");
-	r->local_transform = glGetUniformLocation(r->shader.program, "local_transform");
-	r->proj_transform = glGetUniformLocation(r->shader.program, "proj_transform");
-	r->normal_transform = glGetUniformLocation(r->shader.program, "normal_transform");
-	r->alpha_mod = glGetUniformLocation(r->shader.program, "alpha_mod");
-	r->has_bones = glGetUniformLocation(r->shader.program, "has_bones");
-	r->bone_matrices = glGetUniformLocation(r->shader.program, "bone_matrices");
-	r->ambient = glGetUniformLocation(r->shader.program, "ambient");
+	r->program = load_shader("shaders/reign.v.glsl", "shaders/reign.f.glsl");
+	r->world_transform = glGetUniformLocation(r->program, "world_transform");
+	r->view_transform = glGetUniformLocation(r->program, "view_transform");
+	r->texture = glGetUniformLocation(r->program, "tex");
+	r->local_transform = glGetUniformLocation(r->program, "local_transform");
+	r->proj_transform = glGetUniformLocation(r->program, "proj_transform");
+	r->normal_transform = glGetUniformLocation(r->program, "normal_transform");
+	r->alpha_mod = glGetUniformLocation(r->program, "alpha_mod");
+	r->has_bones = glGetUniformLocation(r->program, "has_bones");
+	r->bone_matrices = glGetUniformLocation(r->program, "bone_matrices");
+	r->ambient = glGetUniformLocation(r->program, "ambient");
 	for (int i = 0; i < NR_DIR_LIGHTS; i++) {
 		char buf[64];
 		sprintf(buf, "dir_lights[%d].dir", i);
-		r->dir_lights[i].dir = glGetUniformLocation(r->shader.program, buf);
+		r->dir_lights[i].dir = glGetUniformLocation(r->program, buf);
 		sprintf(buf, "dir_lights[%d].diffuse", i);
-		r->dir_lights[i].diffuse = glGetUniformLocation(r->shader.program, buf);
+		r->dir_lights[i].diffuse = glGetUniformLocation(r->program, buf);
 		sprintf(buf, "dir_lights[%d].globe_diffuse", i);
-		r->dir_lights[i].globe_diffuse = glGetUniformLocation(r->shader.program, buf);
+		r->dir_lights[i].globe_diffuse = glGetUniformLocation(r->program, buf);
 	}
-	r->specular_light_dir = glGetUniformLocation(r->shader.program, "specular_light_dir");
-	r->specular_strength = glGetUniformLocation(r->shader.program, "specular_strength");
-	r->specular_shininess = glGetUniformLocation(r->shader.program, "specular_shininess");
-	r->use_specular_map = glGetUniformLocation(r->shader.program, "use_specular_map");
-	r->specular_texture = glGetUniformLocation(r->shader.program, "specular_texture");
-	r->rim_exponent = glGetUniformLocation(r->shader.program, "rim_exponent");
-	r->rim_color = glGetUniformLocation(r->shader.program, "rim_color");
-	r->view_pos = glGetUniformLocation(r->shader.program, "view_pos");
-	r->use_light_map = glGetUniformLocation(r->shader.program, "use_light_map");
-	r->light_texture = glGetUniformLocation(r->shader.program, "light_texture");
-	r->use_normal_map = glGetUniformLocation(r->shader.program, "use_normal_map");
-	r->normal_texture = glGetUniformLocation(r->shader.program, "normal_texture");
-	r->vertex_normal = glGetAttribLocation(r->shader.program, "vertex_normal");
-	r->vertex_uv = glGetAttribLocation(r->shader.program, "vertex_uv");
-	r->vertex_light_uv = glGetAttribLocation(r->shader.program, "vertex_light_uv");
-	r->vertex_tangent = glGetAttribLocation(r->shader.program, "vertex_tangent");
-	r->vertex_bone_index = glGetAttribLocation(r->shader.program, "vertex_bone_index");
-	r->vertex_bone_weight = glGetAttribLocation(r->shader.program, "vertex_bone_weight");
+	r->specular_light_dir = glGetUniformLocation(r->program, "specular_light_dir");
+	r->specular_strength = glGetUniformLocation(r->program, "specular_strength");
+	r->specular_shininess = glGetUniformLocation(r->program, "specular_shininess");
+	r->use_specular_map = glGetUniformLocation(r->program, "use_specular_map");
+	r->specular_texture = glGetUniformLocation(r->program, "specular_texture");
+	r->rim_exponent = glGetUniformLocation(r->program, "rim_exponent");
+	r->rim_color = glGetUniformLocation(r->program, "rim_color");
+	r->view_pos = glGetUniformLocation(r->program, "view_pos");
+	r->use_light_map = glGetUniformLocation(r->program, "use_light_map");
+	r->light_texture = glGetUniformLocation(r->program, "light_texture");
+	r->use_normal_map = glGetUniformLocation(r->program, "use_normal_map");
+	r->normal_texture = glGetUniformLocation(r->program, "normal_texture");
+	r->vertex_normal = glGetAttribLocation(r->program, "vertex_normal");
+	r->vertex_uv = glGetAttribLocation(r->program, "vertex_uv");
+	r->vertex_light_uv = glGetAttribLocation(r->program, "vertex_light_uv");
+	r->vertex_tangent = glGetAttribLocation(r->program, "vertex_tangent");
+	r->vertex_bone_index = glGetAttribLocation(r->program, "vertex_bone_index");
+	r->vertex_bone_weight = glGetAttribLocation(r->program, "vertex_bone_weight");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, r->depth_buffer);
@@ -151,7 +181,7 @@ static void free_billboard_texture(void *value)
 
 void RE_renderer_free(struct RE_renderer *r)
 {
-	glDeleteProgram(r->shader.program);
+	glDeleteProgram(r->program);
 	glDeleteRenderbuffers(1, &r->depth_buffer);
 	ht_foreach_value(r->billboard_textures, free_billboard_texture);
 	ht_free_int(r->billboard_textures);
@@ -216,7 +246,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 
 		glActiveTexture(GL_TEXTURE0 + COLOR_TEXTURE_UNIT);
 		glBindTexture(GL_TEXTURE_2D, material->color_map);
-		glUniform1i(r->shader.texture, COLOR_TEXTURE_UNIT);
+		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
 		if (material->light_map && inst->plugin->light_map_mode) {
 			glUniform1i(r->use_light_map, GL_TRUE);
@@ -298,7 +328,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
-	glUniform1i(r->shader.texture, 0);
+	glUniform1i(r->texture, 0);
 	glBindVertexArray(r->billboard_vao);
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -388,8 +418,8 @@ void RE_render(struct sact_sprite *sp)
 	plugin->proj_transform[1][1] *= -1;
 	glFrontFace(GL_CW);
 
-	glUseProgram(r->shader.program);
-	glUniformMatrix4fv(r->shader.view_transform, 1, GL_FALSE, view_transform[0]);
+	glUseProgram(r->program);
+	glUniformMatrix4fv(r->view_transform, 1, GL_FALSE, view_transform[0]);
 	glUniformMatrix4fv(r->proj_transform, 1, GL_FALSE, plugin->proj_transform[0]);
 
 	glEnable(GL_BLEND);

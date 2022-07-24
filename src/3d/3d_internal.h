@@ -73,11 +73,18 @@ struct motion {
 	float loop_frame_begin, loop_frame_end;
 };
 
+enum RE_attribute_location {
+	ATTR_VERTEX_POS = 0,
+};
+
 struct RE_renderer {
-	struct shader shader;
+	GLuint program;
 	GLuint depth_buffer;
 
 	// Uniform variable locations
+	GLint world_transform;
+	GLint view_transform;
+	GLint texture;
 	GLint local_transform;
 	GLint proj_transform;
 	GLint normal_transform;

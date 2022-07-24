@@ -271,8 +271,8 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 	glBindBuffer(GL_ARRAY_BUFFER, mesh->attr_buffer);
 
 	const uint8_t *base = (const uint8_t *)0;
-	glEnableVertexAttribArray(r->shader.vertex);
-	glVertexAttribPointer(r->shader.vertex, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, pos));
+	glEnableVertexAttribArray(ATTR_VERTEX_POS);
+	glVertexAttribPointer(ATTR_VERTEX_POS, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, pos));
 	glEnableVertexAttribArray(r->vertex_normal);
 	glVertexAttribPointer(r->vertex_normal, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, normal));
 	glEnableVertexAttribArray(r->vertex_uv);

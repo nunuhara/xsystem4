@@ -89,7 +89,7 @@ static GLchar *read_shader_file(const char *path)
 	return source;
 }
 
-static GLuint load_shader_file(const char *path, GLenum type)
+GLuint gfx_load_shader_file(const char *path, GLenum type)
 {
 	GLint shader_compiled;
 	GLuint shader;
@@ -115,16 +115,11 @@ static GLuint load_shader_file(const char *path, GLenum type)
 void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const char *fragment_shader_path)
 {
 	GLuint program = glCreateProgram();
-	GLuint vertex_shader = load_shader_file(vertex_shader_path, GL_VERTEX_SHADER);
-	GLuint fragment_shader = load_shader_file(fragment_shader_path, GL_FRAGMENT_SHADER);
+	GLuint vertex_shader = gfx_load_shader_file(vertex_shader_path, GL_VERTEX_SHADER);
+	GLuint fragment_shader = gfx_load_shader_file(fragment_shader_path, GL_FRAGMENT_SHADER);
 
 	glAttachShader(program, vertex_shader);
 	glAttachShader(program, fragment_shader);
-
-	// In OpenGL < 3.2, Attribute location 0 is special. Make sure it's assigned
-	// to the vertex position.
-	glBindAttribLocation(program, 0, "vertex_pos");
-
 	glLinkProgram(program);
 
 	GLint link_success;
