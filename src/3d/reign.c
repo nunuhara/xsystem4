@@ -66,6 +66,10 @@ static void unload_instance(struct RE_instance *instance)
 		free(instance->bone_transforms);
 		instance->bone_transforms = NULL;
 	}
+	if (instance->height_detector) {
+		RE_renderer_free_height_detector(instance->height_detector);
+		instance->height_detector = NULL;
+	}
 }
 
 static void free_instance(struct RE_instance *instance)
@@ -372,6 +376,17 @@ bool RE_instance_trans_local_pos_to_world_pos_by_bone(struct RE_instance *instan
 	glm_mat4_mulv3(instance->bone_transforms[bone], offset, 1.0, out);
 	glm_mat4_mulv3(instance->local_transform, out, 1.0, out);
 	return true;
+}
+
+float RE_instance_calc_height(struct RE_instance *instance, float x, float z)
+{
+	if (!instance || !instance->model)
+		return 0.0;
+	if (!instance->height_detector) {
+		instance->height_detector = RE_renderer_create_height_detector(instance->plugin->renderer, instance->model);
+	}
+	float y = RE_renderer_detect_height(instance->height_detector, x, z);
+	return y;
 }
 
 void RE_instance_update_local_transform(struct RE_instance *inst)

@@ -523,7 +523,12 @@ static bool ReignEngine_TransInstanceLocalPosToWorldPosByBone(int plugin, int in
 //int ReignEngine_GetInstanceTextureMemorySize(int plugin, int instance);
 //void ReignEngine_GetInstanceInfoText(int plugin, int instance, struct string **pIText);
 //void ReignEngine_GetInstanceMaterialInfoText(int plugin, int instance, struct string **pIText);
-HLL_WARN_UNIMPLEMENTED(0.0, float, ReignEngine, CalcInstanceHeightDetection, int plugin, int instance, float x, float z);
+
+static float ReignEngine_CalcInstanceHeightDetection(int plugin, int instance, float x, float z)
+{
+	return RE_instance_calc_height(get_instance(plugin, instance), x, -z);
+}
+
 //float ReignEngine_GetInstanceSoftFogEdgeLength(int plugin, int instance);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceSoftFogEdgeLength, int plugin, int instance, float length);
 

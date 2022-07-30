@@ -14,5 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+out uvec4 frag_color;
+
 void main() {
+	frag_color.r = uint(gl_FragCoord.z * 65535.0);
 }

@@ -105,6 +105,7 @@ struct RE_instance {
 	struct model *model;
 	struct motion *motion;
 	struct motion *next_motion;
+	struct height_detector *height_detector;
 
 	enum RE_instance_type type;
 	vec3 pos;
@@ -150,6 +151,7 @@ bool RE_instance_free_next_motion(struct RE_instance *instance);
 bool RE_instance_set_vertex_pos(struct RE_instance *instance, int index, float x, float y, float z);
 int RE_instance_get_bone_index(struct RE_instance *instance, const char *name);
 bool RE_instance_trans_local_pos_to_world_pos_by_bone(struct RE_instance *instance, int bone, vec3 offset, vec3 out);
+float RE_instance_calc_height(struct RE_instance *instance, float x, float z);
 
 int RE_motion_get_state(struct motion *motion);
 bool RE_motion_set_state(struct motion *motion, int state);

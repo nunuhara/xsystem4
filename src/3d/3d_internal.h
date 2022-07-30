@@ -163,6 +163,9 @@ void motion_free(struct motion *motion);
 struct RE_renderer *RE_renderer_new(struct texture *texture);
 void RE_renderer_free(struct RE_renderer *r);
 bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);
+struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r, struct model *model);
+void RE_renderer_free_height_detector(struct height_detector *hd);
+float RE_renderer_detect_height(struct height_detector *hd, float x, float z);
 
 // parser.c
 

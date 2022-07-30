@@ -620,3 +620,97 @@ void RE_render(struct sact_sprite *sp)
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 }
+
+struct height_detector {
+	GLushort *buf;
+	vec3 aabb[2];
+};
+
+struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r, struct model *model)
+{
+	struct height_detector *hd = xcalloc(1, sizeof(struct height_detector));
+	vec3 aabb[2];
+	memcpy(aabb, model->aabb, sizeof(aabb));
+	// Add some Y padding.
+	aabb[0][1] -= 1.0;
+	aabb[1][1] += 1.0;
+	memcpy(hd->aabb, aabb, sizeof(aabb));
+
+	// Set up an orthographic projection matrix looking down the instance from
+	// right above.
+	mat4 view_matrix, proj_matrix;
+	glm_mat4_identity(view_matrix);
+	glm_rotate_x(view_matrix, glm_rad(90.0), view_matrix);
+	glm_aabb_transform(aabb, view_matrix, aabb);
+	glm_ortho_aabb(aabb, proj_matrix);
+
+	GLint orig_fbo, orig_viewport[4];
+	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &orig_fbo);
+	glGetIntegerv(GL_VIEWPORT, orig_viewport);
+
+	// Since OpenGL ES does not allow reading from depth textures, create a
+	// color texture and render depth values into it.
+	GLuint color_texture;
+	glGenTextures(1, &color_texture);
+	glBindTexture(GL_TEXTURE_2D, color_texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, NULL);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, r->shadow.fbo);
+	GLenum draw_buffers[1] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers(1, draw_buffers);
+	glReadBuffer(GL_COLOR_ATTACHMENT0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture, 0);
+
+	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	glClear(GL_DEPTH_BUFFER_BIT);
+	glUseProgram(r->shadow.program);
+	glUniformMatrix4fv(r->shadow.world_transform, 1, GL_FALSE, view_matrix[0]);
+	glUniformMatrix4fv(r->shadow.view_transform, 1, GL_FALSE, proj_matrix[0]);
+	glUniform1i(r->shadow.has_bones, GL_FALSE);
+
+	glEnable(GL_DEPTH_TEST);
+
+	// Render the model.
+	for (int i = 0; i < model->nr_meshes; i++) {
+		struct mesh *mesh = &model->meshes[i];
+		glBindVertexArray(mesh->vao);
+		glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+	}
+	glBindVertexArray(0);
+	glFinish();
+
+	hd->buf = xmalloc(SHADOW_WIDTH * SHADOW_HEIGHT * sizeof(GLushort));
+	glReadPixels(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT, GL_RED_INTEGER, GL_UNSIGNED_SHORT, hd->buf);
+
+	glDisable(GL_DEPTH_TEST);
+	glDrawBuffers(0, NULL);
+	glReadBuffer(GL_NONE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, orig_fbo);
+	glViewport(orig_viewport[0], orig_viewport[1], orig_viewport[2], orig_viewport[3]);
+
+	glDeleteTextures(1, &color_texture);
+	return hd;
+}
+
+void RE_renderer_free_height_detector(struct height_detector *hd)
+{
+	free(hd->buf);
+	free(hd);
+}
+
+float RE_renderer_detect_height(struct height_detector *hd, float x, float z)
+{
+	float minx = hd->aabb[0][0];
+	float maxx = hd->aabb[1][0];
+	float miny = hd->aabb[0][1];
+	float maxy = hd->aabb[1][1];
+	float minz = hd->aabb[0][2];
+	float maxz = hd->aabb[1][2];
+	if (x < minx || x > maxx || z < minz || z > maxz)
+		return 0.0;
+	int px = glm_percent(minx, maxx, x) * SHADOW_WIDTH;
+	int pz = glm_percent(maxz, minz, z) * SHADOW_HEIGHT;
+	float py = hd->buf[pz * SHADOW_WIDTH + px] / 65535.0;
+	return glm_lerp(maxy, miny, py);
+}
