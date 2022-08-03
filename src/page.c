@@ -624,8 +624,10 @@ struct page *delegate_new_from_method(int obj, int fun)
 	return page;
 }
 
-static bool delegate_contains(struct page *dst, int obj, int fun)
+bool delegate_contains(struct page *dst, int obj, int fun)
 {
+	if (!dst)
+		return false;
 	for (int i = 0; i < dst->nr_vars; i += 2) {
 		if (dst->values[i].i == obj && dst->values[i+1].i == fun)
 			return true;
@@ -660,6 +662,26 @@ int delegate_numof(struct page *page)
 	return page->nr_vars / 2;
 }
 
+void delegate_erase(struct page *page, int obj, int fun)
+{
+	if (!page)
+		return;
+	if (page->type != DELEGATE_PAGE)
+		VM_ERROR("Not a delegate");
+	for (int i = 0; i < page->nr_vars; i+= 2) {
+		if (page->values[i].i == obj && page->values[i+1].i == fun) {
+			if (page->values[i].i >= 0)
+				heap_unref(page->values[i].i);
+			for (int j = i+2; j < page->nr_vars; j += 2) {
+				page->values[j-2].i = page->values[j+0].i;
+				page->values[j-1].i = page->values[j+1].i;
+			}
+			page->nr_vars -= 2;
+			break;
+		}
+	}
+}
+
 struct page *delegate_plusa(struct page *dst, struct page *add)
 {
 	if (!add)
@@ -682,32 +704,9 @@ struct page *delegate_minusa(struct page *dst, struct page *minus)
 	if (dst->type != DELEGATE_PAGE || minus->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
 
-	// set matching obj/fun pairs to -1/-1
-	int removed = 0;
 	for (int i = 0; i < minus->nr_vars; i += 2) {
-		for (int j = 0; j < dst->nr_vars; j += 2) {
-			if (minus->values[i].i == dst->values[j].i && minus->values[i+1].i == dst->values[j+1].i) {
-				if (dst->values[j].i >= 0)
-					heap_unref(dst->values[j].i);
-				dst->values[j].i = -1;
-				dst->values[j+1].i = -1;
-				removed++;
-				break;
-			}
-		}
+		delegate_erase(dst, minus->values[i].i, minus->values[i+1].i);
 	}
-
-	// shift values to fill in gaps
-	for (int i = 0, p = 0; i < dst->nr_vars; i += 2) {
-		if (dst->values[i].i == -1 && dst->values[i+1].i == -1)
-			continue;
-		if (p < i) {
-			dst->values[p+0].i = dst->values[i+0].i;
-			dst->values[p+1].i = dst->values[i+1].i;
-		}
-		p += 2;
-	}
-	dst->nr_vars -= removed;
 
 	return dst;
 }

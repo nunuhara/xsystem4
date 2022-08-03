@@ -2080,7 +2080,14 @@ static enum opcode execute_instruction(enum opcode opcode)
 		array_sort_mem(heap[array].page, mno);
 		break;
 	}
-	//case DG_ADD:
+	case DG_ADD: {
+		int fun = stack_pop().i;
+		int obj = stack_pop().i;
+		int dg_i = stack_pop().i;
+		delete_page(dg_i);
+		heap_set_page(dg_i, delegate_new_from_method(obj, fun));
+		break;
+	}
 	case DG_SET: {
 		int fun = stack_pop().i;
 		int obj = stack_pop().i;
@@ -2135,8 +2142,20 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_push(delegate_numof(heap_get_delegate_page(dg)));
 		break;
 	}
-	//case DG_EXIST:
-	//case DG_ERASE:
+	case DG_EXIST: {
+		int fun = stack_pop().i;
+		int obj = stack_pop().i;
+		int dg_i = stack_pop().i;
+		stack_push(delegate_contains(heap_get_delegate_page(dg_i), obj, fun));
+		break;
+	}
+	case DG_ERASE: {
+		int fun = stack_pop().i;
+		int obj = stack_pop().i;
+		int dg_i = stack_pop().i;
+		delegate_erase(heap_get_delegate_page(dg_i), obj, fun);
+		break;
+	}
 	case DG_CLEAR: {
 		int slot = stack_pop().i;
 		if (!slot)
