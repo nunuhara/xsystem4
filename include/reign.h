@@ -40,6 +40,11 @@ enum RE_motion_state {
 	RE_MOTION_STATE_LOOP   = 2,
 };
 
+enum RE_fog_type {
+	RE_FOG_LINEAR           = 1,
+	RE_FOG_LIGHT_SCATTERING = 2,
+};
+
 struct RE_options {
 	int anti_aliasing;
 	int wait_vsync;
@@ -74,16 +79,26 @@ struct RE_plugin {
 
 	struct RE_back_cg back_cg[RE_NR_BACK_CGS];
 
-	vec3 shadow_map_light_dir;
-	float shadow_bias;
-
 	// Settings.
 	int render_mode;
 	int shadow_mode;
+	vec3 shadow_map_light_dir;
+	float shadow_bias;
 	int bump_mode;
 	int bloom_mode;
 	int glare_mode;
 	int fog_mode;
+	enum RE_fog_type fog_type;
+	float fog_near;
+	float fog_far;
+	vec3 fog_color;
+	float ls_beta_r;
+	float ls_beta_m;
+	float ls_g;
+	float ls_distance;
+	vec3 ls_light_dir;
+	vec3 ls_light_color;
+	vec3 ls_sun_color;
 	int specular_mode;
 	int light_map_mode;
 	int soft_fog_edge_mode;

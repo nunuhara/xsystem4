@@ -182,6 +182,7 @@ struct RE_plugin *RE_plugin_new(void)
 	plugin->aar = aar;
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_init(&plugin->back_cg[i]);
+	plugin->fog_type = RE_FOG_LINEAR;
 	return plugin;
 }
 

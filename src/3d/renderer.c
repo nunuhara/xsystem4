@@ -172,7 +172,7 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->specular_texture = glGetUniformLocation(r->program, "specular_texture");
 	r->rim_exponent = glGetUniformLocation(r->program, "rim_exponent");
 	r->rim_color = glGetUniformLocation(r->program, "rim_color");
-	r->view_pos = glGetUniformLocation(r->program, "view_pos");
+	r->camera_pos = glGetUniformLocation(r->program, "camera_pos");
 	r->use_light_map = glGetUniformLocation(r->program, "use_light_map");
 	r->light_texture = glGetUniformLocation(r->program, "light_texture");
 	r->use_normal_map = glGetUniformLocation(r->program, "use_normal_map");
@@ -181,6 +181,14 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->shadow_transform = glGetUniformLocation(r->program, "shadow_transform");
 	r->shadow_texture = glGetUniformLocation(r->program, "shadow_texture");
 	r->shadow_bias = glGetUniformLocation(r->program, "shadow_bias");
+	r->fog_type = glGetUniformLocation(r->program, "fog_type");
+	r->fog_near = glGetUniformLocation(r->program, "fog_near");
+	r->fog_far = glGetUniformLocation(r->program, "fog_far");
+	r->fog_color = glGetUniformLocation(r->program, "fog_color");
+	r->ls_params = glGetUniformLocation(r->program, "ls_params");
+	r->ls_light_dir = glGetUniformLocation(r->program, "ls_light_dir");
+	r->ls_light_color = glGetUniformLocation(r->program, "ls_light_color");
+	r->ls_sun_color = glGetUniformLocation(r->program, "ls_sun_color");
 	r->vertex_normal = glGetAttribLocation(r->program, "vertex_normal");
 	r->vertex_uv = glGetAttribLocation(r->program, "vertex_uv");
 	r->vertex_light_uv = glGetAttribLocation(r->program, "vertex_light_uv");
@@ -507,7 +515,7 @@ static void render_back_cg(struct texture *dst, struct RE_back_cg *bcg, struct R
 static void setup_lights(struct RE_plugin *plugin)
 {
 	struct RE_renderer *r = plugin->renderer;
-	glUniform3fv(r->view_pos, 1, plugin->camera.pos);
+	glUniform3fv(r->camera_pos, 1, plugin->camera.pos);
 	int light_index = 0;
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
@@ -587,6 +595,24 @@ void RE_render(struct sact_sprite *sp)
 	glUniformMatrix4fv(r->proj_transform, 1, GL_FALSE, plugin->proj_transform[0]);
 	glUniformMatrix4fv(r->shadow_transform, 1, GL_FALSE, shadow_transform[0]);
 	glUniform1f(r->shadow_bias, plugin->shadow_bias);
+	if (plugin->fog_mode) {
+		glUniform1i(r->fog_type, plugin->fog_type);
+		switch (plugin->fog_type) {
+		case RE_FOG_LINEAR:
+			glUniform1f(r->fog_near, plugin->fog_near);
+			glUniform1f(r->fog_far, plugin->fog_far);
+			glUniform3fv(r->fog_color, 1, plugin->fog_color);
+			break;
+		case RE_FOG_LIGHT_SCATTERING:
+			glUniform4f(r->ls_params, plugin->ls_beta_r, plugin->ls_beta_m, plugin->ls_g, plugin->ls_distance);
+			glUniform3fv(r->ls_light_dir, 1, plugin->ls_light_dir);
+			glUniform3fv(r->ls_light_color, 1, plugin->ls_light_color);
+			glUniform3fv(r->ls_sun_color, 1, plugin->ls_sun_color);
+			break;
+		}
+	} else {
+		glUniform1i(r->fog_type, 0);
+	}
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

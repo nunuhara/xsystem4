@@ -121,7 +121,7 @@ struct RE_renderer {
 	GLint specular_texture;
 	GLint rim_exponent;
 	GLint rim_color;
-	GLint view_pos;
+	GLint camera_pos;
 	GLint use_light_map;
 	GLint light_texture;
 	GLint use_normal_map;
@@ -130,6 +130,14 @@ struct RE_renderer {
 	GLint shadow_transform;
 	GLint shadow_texture;
 	GLint shadow_bias;
+	GLint fog_type;
+	GLint fog_near;
+	GLint fog_far;
+	GLint fog_color;
+	GLint ls_params;
+	GLint ls_light_dir;
+	GLint ls_light_color;
+	GLint ls_sun_color;
 
 	// Attribute variable locations
 	GLint vertex_normal;
