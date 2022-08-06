@@ -773,29 +773,203 @@ static bool ReignEngine_SetShadowMapResolutionLevel(int plugin, int level)
 }
 
 //bool ReignEngine_SetShadowSplitDepth(int plugin, int num, float fDepth);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetFogType, int plugin, int type);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetFogNear, int plugin, float near);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetFogFar, int plugin, float far);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetFogColor, int plugin, float r, float g, float b);
-//int ReignEngine_GetFogType(int plugin);
-//float ReignEngine_GetFogNear(int plugin);
-//float ReignEngine_GetFogFar(int plugin);
-//void ReignEngine_GetFogColor(int plugin, float *r, float *g, float *b);
+
+static bool ReignEngine_SetFogType(int plugin, int type)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	if (type != RE_FOG_LINEAR && type != RE_FOG_LIGHT_SCATTERING) {
+		WARNING("unknown fog type %d", type);
+		return false;
+	}
+	p->fog_type = type;
+	return true;
+}
+
+static bool ReignEngine_SetFogNear(int plugin, float near)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->fog_near = near;
+	return true;
+}
+
+static bool ReignEngine_SetFogFar(int plugin, float far)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->fog_far = far;
+	return true;
+}
+
+static bool ReignEngine_SetFogColor(int plugin, float r, float g, float b)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->fog_color[0] = r;
+	p->fog_color[1] = g;
+	p->fog_color[2] = b;
+	return true;
+}
+
+static int ReignEngine_GetFogType(int plugin)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	return p ? p->fog_type : 0;
+}
+
+static float ReignEngine_GetFogNear(int plugin)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	return p ? p->fog_near : 0.0;
+}
+
+static float ReignEngine_GetFogFar(int plugin)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	return p ? p->fog_far : 0.0;
+}
+
+static void ReignEngine_GetFogColor(int plugin, float *r, float *g, float *b)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return;
+	*r = p->fog_color[0];
+	*g = p->fog_color[1];
+	*b = p->fog_color[2];
+}
+
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, LoadLightScatteringSetting, int plugin, struct string *filename /* e.g. "Data\PolyData\BG\bg001\bg001.ls2" */);
-//float ReignEngine_GetLSBetaR(int plugin);
-//float ReignEngine_GetLSBetaM(int plugin);
-//float ReignEngine_GetLSG(int plugin);
-//float ReignEngine_GetLSDistance(int plugin);
-//void ReignEngine_GetLSLightDir(int plugin, float *pfX, float *pfY, float *pfZ);
-//void ReignEngine_GetLSLightColor(int plugin, float *r, float *g, float *b);
-//void ReignEngine_GetLSSunColor(int plugin, float *r, float *g, float *b);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetLSBetaR, int plugin, float beta_r);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetLSBetaM, int plugin, float beta_m);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetLSG, int plugin, float g);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetLSDistance, int plugin, float distance);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetLSLightDir, int plugin, float x, float y, float z);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetLSLightColor, int plugin, float r, float g, float b);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetLSSunColor, int plugin, float r, float g, float b);
+
+static float ReignEngine_GetLSBetaR(int plugin)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	return p ? p->ls_beta_r : 0.0;
+}
+
+static float ReignEngine_GetLSBetaM(int plugin)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	return p ? p->ls_beta_m : 0.0;
+}
+
+static float ReignEngine_GetLSG(int plugin)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	return p ? p->ls_g : 0.0;
+}
+
+static float ReignEngine_GetLSDistance(int plugin)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	return p ? p->ls_distance : 0.0;
+}
+
+static void ReignEngine_GetLSLightDir(int plugin, float *x, float *y, float *z)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return;
+	*x = p->ls_light_dir[0];
+	*y = p->ls_light_dir[1];
+	*z = -p->ls_light_dir[2];
+}
+
+static void ReignEngine_GetLSLightColor(int plugin, float *r, float *g, float *b)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return;
+	*r = p->ls_light_color[0];
+	*g = p->ls_light_color[1];
+	*b = p->ls_light_color[2];
+}
+
+static void ReignEngine_GetLSSunColor(int plugin, float *r, float *g, float *b)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return;
+	*r = p->ls_sun_color[0];
+	*g = p->ls_sun_color[1];
+	*b = p->ls_sun_color[2];
+}
+
+static bool ReignEngine_SetLSBetaR(int plugin, float beta_r)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->ls_beta_r = beta_r;
+	return true;
+}
+
+static bool ReignEngine_SetLSBetaM(int plugin, float beta_m)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->ls_beta_m = beta_m;
+	return true;
+}
+
+static bool ReignEngine_SetLSG(int plugin, float g)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->ls_g = g;
+	return true;
+}
+
+static bool ReignEngine_SetLSDistance(int plugin, float distance)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->ls_distance = distance;
+	return true;
+}
+
+static bool ReignEngine_SetLSLightDir(int plugin, float x, float y, float z)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->ls_light_dir[0] = x;
+	p->ls_light_dir[1] = y;
+	p->ls_light_dir[2] = -z;
+	glm_vec3_normalize(p->ls_light_dir);
+	return true;
+}
+
+static bool ReignEngine_SetLSLightColor(int plugin, float r, float g, float b)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->ls_light_color[0] = r;
+	p->ls_light_color[1] = g;
+	p->ls_light_color[2] = b;
+	return true;
+}
+
+static bool ReignEngine_SetLSSunColor(int plugin, float r, float g, float b)
+{
+	struct RE_plugin *p = get_plugin(plugin);
+	if (!p)
+		return false;
+	p->ls_sun_color[0] = r;
+	p->ls_sun_color[1] = g;
+	p->ls_sun_color[2] = b;
+	return true;
+}
+
 //bool ReignEngine_SetDrawTextureFog(int plugin, bool bDraw);
 //bool ReignEngine_GetDrawTextureFog(int plugin);
 
@@ -1494,18 +1668,18 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_EXPORT(SetFogNear, ReignEngine_SetFogNear),
 	    HLL_EXPORT(SetFogFar, ReignEngine_SetFogFar),
 	    HLL_EXPORT(SetFogColor, ReignEngine_SetFogColor),
-	    HLL_TODO_EXPORT(GetFogType, ReignEngine_GetFogType),
-	    HLL_TODO_EXPORT(GetFogNear, ReignEngine_GetFogNear),
-	    HLL_TODO_EXPORT(GetFogFar, ReignEngine_GetFogFar),
-	    HLL_TODO_EXPORT(GetFogColor, ReignEngine_GetFogColor),
+	    HLL_EXPORT(GetFogType, ReignEngine_GetFogType),
+	    HLL_EXPORT(GetFogNear, ReignEngine_GetFogNear),
+	    HLL_EXPORT(GetFogFar, ReignEngine_GetFogFar),
+	    HLL_EXPORT(GetFogColor, ReignEngine_GetFogColor),
 	    HLL_EXPORT(LoadLightScatteringSetting, ReignEngine_LoadLightScatteringSetting),
-	    HLL_TODO_EXPORT(GetLSBetaR, ReignEngine_GetLSBetaR),
-	    HLL_TODO_EXPORT(GetLSBetaM, ReignEngine_GetLSBetaM),
-	    HLL_TODO_EXPORT(GetLSG, ReignEngine_GetLSG),
-	    HLL_TODO_EXPORT(GetLSDistance, ReignEngine_GetLSDistance),
-	    HLL_TODO_EXPORT(GetLSLightDir, ReignEngine_GetLSLightDir),
-	    HLL_TODO_EXPORT(GetLSLightColor, ReignEngine_GetLSLightColor),
-	    HLL_TODO_EXPORT(GetLSSunColor, ReignEngine_GetLSSunColor),
+	    HLL_EXPORT(GetLSBetaR, ReignEngine_GetLSBetaR),
+	    HLL_EXPORT(GetLSBetaM, ReignEngine_GetLSBetaM),
+	    HLL_EXPORT(GetLSG, ReignEngine_GetLSG),
+	    HLL_EXPORT(GetLSDistance, ReignEngine_GetLSDistance),
+	    HLL_EXPORT(GetLSLightDir, ReignEngine_GetLSLightDir),
+	    HLL_EXPORT(GetLSLightColor, ReignEngine_GetLSLightColor),
+	    HLL_EXPORT(GetLSSunColor, ReignEngine_GetLSSunColor),
 	    HLL_EXPORT(SetLSBetaR, ReignEngine_SetLSBetaR),
 	    HLL_EXPORT(SetLSBetaM, ReignEngine_SetLSBetaM),
 	    HLL_EXPORT(SetLSG, ReignEngine_SetLSG),

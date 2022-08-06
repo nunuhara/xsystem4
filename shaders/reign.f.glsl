@@ -15,6 +15,8 @@
  */
 
 #define NR_DIR_LIGHTS 3
+#define FOG_LINEAR 1
+#define FOG_LIGHT_SCATTERING 2
 
 struct dir_light {
 	vec3 dir;
@@ -41,15 +43,22 @@ uniform vec3 rim_color;
 uniform bool use_light_map;
 uniform bool use_shadow_map;
 uniform float shadow_bias;
+uniform int fog_type;
+uniform float fog_near;
+uniform float fog_far;
+uniform vec3 fog_color;
 
 in vec2 tex_coord;
 in vec2 light_tex_coord;
 in vec3 frag_pos;
 in vec4 shadow_frag_pos;
+in float dist;
 in vec3 eye;
 in vec3 normal;
 in vec3 light_dir[NR_DIR_LIGHTS];
 in vec3 specular_dir;
+in vec3 ls_ex;
+in vec3 ls_in;
 out vec4 frag_color;
 
 void main() {
@@ -90,6 +99,14 @@ void main() {
 	if (rim_exponent > 0.0) {
 		// Normal map is not used here.
 		frag_rgb += pow(1.0 - max(dot(normalize(normal), view_dir), 0.0), rim_exponent) * rim_color;
+	}
+
+	// Fog
+	if (fog_type == FOG_LINEAR) {
+		float fog_factor = clamp((dist - fog_near) / (fog_far - fog_near), 0.0, 1.0);
+		frag_rgb = mix(frag_rgb, fog_color, fog_factor);
+	} else if (fog_type == FOG_LIGHT_SCATTERING) {
+		frag_rgb = frag_rgb * ls_ex + ls_in;
 	}
 
 	// Shadow mapping

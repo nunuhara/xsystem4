@@ -47,6 +47,15 @@ static const char *motion_state_name(enum RE_motion_state state)
 	return "UNKNOWN";
 }
 
+static const char *fog_type_name(enum RE_fog_type type)
+{
+	switch (type) {
+	case RE_FOG_LINEAR:           return "LINEAR";
+	case RE_FOG_LIGHT_SCATTERING: return "LIGHT_SCATTERING";
+	}
+	return "UNKNOWN";
+}
+
 static void print_motion(const char *name, struct motion *m, int indent)
 {
 	if (m->instance->type == RE_ITYPE_BILLBOARD) {
@@ -119,6 +128,24 @@ void RE_debug_print(struct sact_sprite *sp, int indent)
 	indent_printf(indent, "name = \"%s\",\n", p->plugin.name);
 	indent_printf(indent, "camera = {x=%f, y=%f, z=%f, pitch=%f, roll=%f, yaw=%f},\n",
 	              SPREAD_VEC3(p->camera.pos), p->camera.pitch, p->camera.roll, p->camera.yaw);
+	indent_printf(indent, "shadow_map_light_dir = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(p->shadow_map_light_dir));
+	indent_printf(indent, "shadow_bias = %f,\n", p->shadow_bias);
+
+	indent_printf(indent, "fog_type = %s,\n", fog_type_name(p->fog_type));
+	switch (p->fog_type) {
+	case RE_FOG_LINEAR:
+		indent_printf(indent, "fog_near = %f, fog_far = %f,\n", p->fog_near, p->fog_far);
+		indent_printf(indent, "fog_color = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(p->fog_color));
+		break;
+	case RE_FOG_LIGHT_SCATTERING:
+		indent_printf(indent, "ls_beta_r = %f, ls_beta_m = %f,\n", p->ls_beta_r, p->ls_beta_m);
+		indent_printf(indent, "ls_g = %f,\n", p->ls_g);
+		indent_printf(indent, "ls_distance = %f,\n", p->ls_distance);
+		indent_printf(indent, "ls_light_dir = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(p->ls_light_dir));
+		indent_printf(indent, "ls_light_color = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(p->ls_light_color));
+		indent_printf(indent, "ls_sun_color = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(p->ls_sun_color));
+		break;
+	}
 
 	for (int i = 0; i < p->nr_instances; i++)
 		print_instance(p->instances[i], i, indent);

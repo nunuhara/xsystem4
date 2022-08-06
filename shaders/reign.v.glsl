@@ -15,6 +15,9 @@
  */
 
 #define NR_DIR_LIGHTS 3
+#define FOG_LIGHT_SCATTERING 2
+
+const float PI = 3.14159265358979323846;
 
 struct dir_light {
 	vec3 dir;
@@ -34,10 +37,15 @@ uniform mat4 bone_matrices[MAX_BONES];
 
 uniform bool use_normal_map;
 
-uniform vec3 view_pos;
+uniform vec3 camera_pos;
 uniform dir_light dir_lights[NR_DIR_LIGHTS];
 uniform vec3 specular_light_dir;
 uniform mat4 shadow_transform;
+uniform int fog_type;
+uniform vec4 ls_params;  // (beta_r, beta_m, g, distance)
+uniform vec3 ls_light_dir;
+uniform vec3 ls_light_color;
+uniform vec3 ls_sun_color;
 
 in vec3 vertex_pos;
 in vec3 vertex_normal;
@@ -51,10 +59,13 @@ out vec2 tex_coord;
 out vec2 light_tex_coord;
 out vec3 frag_pos;
 out vec4 shadow_frag_pos;
+out float dist;
 out vec3 eye;
 out vec3 normal;
 out vec3 light_dir[NR_DIR_LIGHTS];
 out vec3 specular_dir;
+out vec3 ls_ex;
+out vec3 ls_in;
 
 void main() {
 	mat4 local_bone_transform = local_transform;
@@ -83,19 +94,39 @@ void main() {
 	}
 
 	vec4 world_pos = local_bone_transform * vec4(vertex_pos, 1.0);
-	gl_Position = proj_transform * view_transform * world_pos;
+	vec4 view_pos = view_transform * world_pos;
+	gl_Position = proj_transform * view_pos;
 
 	tex_coord = vertex_uv;
 	light_tex_coord = vertex_light_uv;
-
+	dist = -view_pos.z;
 	shadow_frag_pos = shadow_transform * world_pos;
 
 	// These are in tangent-space if use_normal_map is true, in world-space
 	// otherwise.
 	frag_pos = TBN * vec3(world_pos);
-	eye = TBN * view_pos;
+	eye = TBN * camera_pos;
 	light_dir[0] = TBN * dir_lights[0].dir;
 	light_dir[1] = TBN * dir_lights[1].dir;
 	light_dir[2] = TBN * dir_lights[2].dir;
 	specular_dir = TBN * specular_light_dir;
+
+	if (fog_type == FOG_LIGHT_SCATTERING) {
+		float beta_r = ls_params.x;
+		float beta_m = ls_params.y;
+		float g = ls_params.z;
+		float distance = dist / ls_params.w;
+
+		vec3 view_dir = normalize(camera_pos - vec3(world_pos));
+		float cos_theta = dot(view_dir, normalize(ls_light_dir));
+		// Note: `* PI` in the two assignments below should be `/ PI` (see the
+		// definitions of Rayleigh / Mie phase functions in [1]), but this is
+		// how TT3's shader works.
+		// [1] http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2012/10/ATI-LightScattering.pdf
+		float phase_r = 3.0 / 16.0 * PI * (1.0 + cos_theta * cos_theta);
+		float phase_m = 1.0 / 4.0 * PI * (1.0 - g) * (1.0 - g) / pow(1.0 + g * g - 2.0 * g * cos_theta, 1.5);
+		float f_ex = exp((beta_r + beta_m) * -distance);
+		ls_in = (phase_r * beta_r + phase_m * beta_m) / (beta_r + beta_m) * (1.0 - f_ex) * ls_sun_color;
+		ls_ex = ls_light_color * f_ex;
+	}
 }
