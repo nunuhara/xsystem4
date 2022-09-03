@@ -62,6 +62,10 @@ static void unload_instance(struct RE_instance *instance)
 		model_free(instance->model);
 		instance->model = NULL;
 	}
+	if (instance->effect) {
+		particle_effect_free(instance->effect);
+		instance->effect = NULL;
+	}
 	if (instance->bone_transforms) {
 		free(instance->bone_transforms);
 		instance->bone_transforms = NULL;
@@ -305,10 +309,23 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 	if (!instance)
 		return false;
 	unload_instance(instance);
-	instance->model = model_load(instance->plugin->aar, name, instance->plugin->renderer);
-	if (instance->model && instance->model->nr_bones > 0)
-		instance->bone_transforms = xcalloc(instance->model->nr_bones, sizeof(mat4));
-	return !!instance->model;
+	if (name[0] == '\0')
+		return false;
+
+	switch (instance->type) {
+	case RE_ITYPE_STATIC:
+	case RE_ITYPE_SKINNED:
+		instance->model = model_load(instance->plugin->aar, name, instance->plugin->renderer);
+		if (instance->model && instance->model->nr_bones > 0)
+			instance->bone_transforms = xcalloc(instance->model->nr_bones, sizeof(mat4));
+		return !!instance->model;
+	case RE_ITYPE_PARTICLE_EFFECT:
+		instance->effect = particle_effect_load(instance->plugin->aar, name);
+		return !!instance->effect;
+	default:
+		WARNING("Invalid instance type %d", instance->type);
+		return false;
+	}
 }
 
 bool RE_instance_load_motion(struct RE_instance *instance, const char *name)
@@ -466,6 +483,390 @@ bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float en
 		}
 	}
 	return true;
+}
+
+int RE_effect_get_num_object(struct particle_effect *effect)
+{
+	return effect ? effect->nr_objects : 0;
+}
+
+struct particle_object *RE_get_effect_object(struct particle_effect *effect, unsigned object)
+{
+	if (!effect || object >= (unsigned)effect->nr_objects)
+		return NULL;
+	return &effect->objects[object];
+}
+
+int RE_particle_get_type(struct particle_object *po)
+{
+	return po ? po->type : 0;
+}
+
+int RE_particle_get_move_type(struct particle_object *po)
+{
+	return po ? po->move_type : 0;
+}
+
+int RE_particle_get_up_vec_type(struct particle_object *po)
+{
+	return po ? po->up_vector_type : 0;
+}
+
+float RE_particle_get_move_curve(struct particle_object *po)
+{
+	return po ? po->move_curve : 0.0;
+}
+
+void RE_particle_get_frame(struct particle_object *po, int *begin_frame, int *end_frame)
+{
+	if (!po)
+		return;
+	*begin_frame = po->begin_frame;
+	*end_frame = po->end_frame;
+}
+
+int RE_particle_get_stop_frame(struct particle_object *po)
+{
+	return po ? po->stop_frame : 0;
+}
+
+const char *RE_particle_get_name(struct particle_object *po)
+{
+	return po ? po->name : NULL;
+}
+
+int RE_particle_get_num_pos(struct particle_object *po)
+{
+	return po ? NR_PARTICLE_POSITIONS : 0;
+}
+
+int RE_particle_get_num_pos_unit(struct particle_object *po, int pos)
+{
+	return po ? NR_PARTICLE_POSITION_UNITS : 0;
+}
+
+static struct particle_position_unit *get_position_unit(struct particle_object *po, int pos, int unit)
+{
+	if (!po || pos >= NR_PARTICLE_POSITIONS || !po->position[pos] || unit >= NR_PARTICLE_POSITION_UNITS)
+		return NULL;
+	return &po->position[pos]->units[unit];
+}
+
+int RE_particle_get_pos_unit_type(struct particle_object *po, int pos, int unit)
+{
+	struct particle_position_unit *u = get_position_unit(po, pos, unit);
+	return u ? u->type : 0;
+}
+
+int RE_particle_get_pos_unit_index(struct particle_object *po, int pos, int unit)
+{
+	struct particle_position_unit *u = get_position_unit(po, pos, unit);
+	if (!u)
+		return 0;
+	switch (u->type) {
+	case PARTICLE_POS_UNIT_BONE:
+		return u->bone.n;
+	case PARTICLE_POS_UNIT_TARGET:
+		return u->target.n;
+	default:
+		return 0;
+	}
+}
+
+int RE_particle_get_num_texture(struct particle_object *po)
+{
+	return po ? po->nr_textures : 0;
+}
+
+const char *RE_particle_get_texture(struct particle_object *po, int texture)
+{
+	if (!po || texture >= po->nr_textures)
+		return NULL;
+	return po->textures[texture];
+}
+
+bool RE_particle_get_size(struct particle_object *po, float *begin_size, float *end_size)
+{
+	if (!po)
+		return false;
+	*begin_size = po->size[0];
+	*end_size = po->size[1];
+	return true;
+}
+
+bool RE_particle_get_size2(struct particle_object *po, int frame, float *size)
+{
+	if (!po || frame >= po->nr_sizes2)
+		return false;
+	*size = po->sizes2[frame];
+	return true;
+}
+
+bool RE_particle_get_size_x(struct particle_object *po, int frame, float *size)
+{
+	if (!po || frame >= po->nr_sizes_x)
+		return false;
+	*size = po->sizes_x[frame];
+	return true;
+}
+
+bool RE_particle_get_size_y(struct particle_object *po, int frame, float *size)
+{
+	if (!po || frame >= po->nr_sizes_y)
+		return false;
+	*size = po->sizes_y[frame];
+	return true;
+}
+
+bool RE_particle_get_size_type(struct particle_object *po, int frame, int *type)
+{
+	if (!po || frame >= po->nr_size_types)
+		return false;
+	*type = po->size_types[frame];
+	return true;
+}
+
+bool RE_particle_get_size_x_type(struct particle_object *po, int frame, int *type)
+{
+	if (!po || frame >= po->nr_size_x_types)
+		return false;
+	*type = po->size_x_types[frame];
+	return true;
+}
+
+bool RE_particle_get_size_y_type(struct particle_object *po, int frame, int *type)
+{
+	if (!po || frame >= po->nr_size_y_types)
+		return false;
+	*type = po->size_y_types[frame];
+	return true;
+}
+
+int RE_particle_get_num_size2(struct particle_object *po)
+{
+	return po ? po->nr_sizes2 : 0;
+}
+
+int RE_particle_get_num_size_x(struct particle_object *po)
+{
+	return po ? po->nr_sizes_x : 0;
+}
+
+int RE_particle_get_num_size_y(struct particle_object *po)
+{
+	return po ? po->nr_sizes_y : 0;
+}
+
+int RE_particle_get_num_size_type(struct particle_object *po)
+{
+	return po ? po->nr_size_types : 0;
+}
+
+int RE_particle_get_num_size_x_type(struct particle_object *po)
+{
+	return po ? po->nr_size_x_types : 0;
+}
+
+int RE_particle_get_num_size_y_type(struct particle_object *po)
+{
+	return po ? po->nr_size_y_types : 0;
+}
+
+int RE_particle_get_blend_type(struct particle_object *po)
+{
+	return po ? po->blend_type : 0;
+}
+
+const char *RE_particle_get_polygon_name(struct particle_object *po)
+{
+	return po ? po->polygon_name : NULL;
+}
+
+int RE_particle_get_num_particles(struct particle_object *po)
+{
+	return po ? po->nr_particles : 0;
+}
+
+int RE_particle_get_alpha_fadein_time(struct particle_object *po)
+{
+	return po ? po->alpha_fadein_time : 0;
+}
+
+int RE_particle_get_alpha_fadeout_time(struct particle_object *po)
+{
+	return po ? po->alpha_fadeout_time : 0;
+}
+
+int RE_particle_get_texture_anime_time(struct particle_object *po)
+{
+	return po ? po->texture_anime_time : 0;
+}
+
+float RE_particle_get_alpha_fadein_frame(struct particle_object *po)
+{
+	return po ? po->alpha_fadein_frame : 0.0;
+}
+
+float RE_particle_get_alpha_fadeout_frame(struct particle_object *po)
+{
+	return po ? po->alpha_fadeout_frame : 0.0;
+}
+
+float RE_particle_get_texture_anime_frame(struct particle_object *po)
+{
+	return po ? po->texture_anime_frame : 0.0;
+}
+
+int RE_particle_get_frame_ref_type(struct particle_object *po)
+{
+	return po ? po->frame_ref_type : 0;
+}
+
+int RE_particle_get_frame_ref_param(struct particle_object *po)
+{
+	return po ? po->frame_ref_param : 0;
+}
+
+void RE_particle_get_x_rotation_angle(struct particle_object *po, float *begin_angle, float *end_angle)
+{
+	if (!po)
+		return;
+	*begin_angle = po->rotation[0][0];
+	*end_angle = po->rotation[1][0];
+}
+
+void RE_particle_get_y_rotation_angle(struct particle_object *po, float *begin_angle, float *end_angle)
+{
+	if (!po)
+		return;
+	*begin_angle = po->rotation[0][1];
+	*end_angle = po->rotation[1][1];
+}
+
+void RE_particle_get_z_rotation_angle(struct particle_object *po, float *begin_angle, float *end_angle)
+{
+	if (!po)
+		return;
+	*begin_angle = po->rotation[0][2];
+	*end_angle = po->rotation[1][2];
+}
+
+void RE_particle_get_x_revolution_angle(struct particle_object *po, float *begin_angle, float *end_angle)
+{
+	if (!po)
+		return;
+	*begin_angle = po->revolution_angle[0][0];
+	*end_angle = po->revolution_angle[1][0];
+}
+
+void RE_particle_get_x_revolution_distance(struct particle_object *po, float *begin_distance, float *end_distance)
+{
+	if (!po)
+		return;
+	*begin_distance = po->revolution_distance[0][0];
+	*end_distance = po->revolution_distance[1][0];
+}
+
+void RE_particle_get_y_revolution_angle(struct particle_object *po, float *begin_angle, float *end_angle)
+{
+	if (!po)
+		return;
+	*begin_angle = po->revolution_angle[0][1];
+	*end_angle = po->revolution_angle[1][1];
+}
+
+void RE_particle_get_y_revolution_distance(struct particle_object *po, float *begin_distance, float *end_distance)
+{
+	if (!po)
+		return;
+	*begin_distance = po->revolution_distance[0][1];
+	*end_distance = po->revolution_distance[1][1];
+}
+
+void RE_particle_get_z_revolution_angle(struct particle_object *po, float *begin_angle, float *end_angle)
+{
+	if (!po)
+		return;
+	*begin_angle = po->revolution_angle[0][2];
+	*end_angle = po->revolution_angle[1][2];
+}
+
+void RE_particle_get_z_revolution_distance(struct particle_object *po, float *begin_distance, float *end_distance)
+{
+	if (!po)
+		return;
+	*begin_distance = po->revolution_distance[0][2];
+	*end_distance = po->revolution_distance[1][2];
+}
+
+bool RE_particle_get_curve_length(struct particle_object *po, vec3 out)
+{
+	if (!po)
+		return false;
+	glm_vec3_copy(po->curve_length, out);
+	return true;
+}
+
+int RE_particle_get_child_frame(struct particle_object *po)
+{
+	return po ? po->child_frame : 0;
+}
+
+float RE_particle_get_child_length(struct particle_object *po)
+{
+	return po ? po->child_length : 0.0;
+}
+
+float RE_particle_get_child_begin_slope(struct particle_object *po)
+{
+	return po ? po->child_begin_slope : 0.0;
+}
+
+float RE_particle_get_child_end_slope(struct particle_object *po)
+{
+	return po ? po->child_end_slope : 0.0;
+}
+
+float RE_particle_get_child_create_begin_frame(struct particle_object *po)
+{
+	return po ? po->child_create_begin_frame : 0.0;
+}
+
+float RE_particle_get_child_create_end_frame(struct particle_object *po)
+{
+	return po ? po->child_create_end_frame : 0.0;
+}
+
+int RE_particle_get_child_move_dir_type(struct particle_object *po)
+{
+	return po ? po->child_move_dir_type : 0;
+}
+
+int RE_particle_get_dir_type(struct particle_object *po)
+{
+	return po ? po->dir_type : 0;
+}
+
+int RE_particle_get_num_damage(struct particle_object *po)
+{
+	return po ? po->nr_damages : 0;
+}
+
+int RE_particle_get_damage(struct particle_object *po, int frame)
+{
+	if (!po || frame >= po->nr_damages)
+		return 0;
+	return po->damages[frame];
+}
+
+float RE_particle_get_offset_x(struct particle_object *po)
+{
+	return po ? po->offset_x : 0.0;
+}
+
+float RE_particle_get_offset_y(struct particle_object *po)
+{
+	return po ? po->offset_y : 0.0;
 }
 
 bool RE_back_cg_set(struct RE_back_cg *bcg, int no)

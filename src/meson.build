@@ -34,6 +34,7 @@ xsystem4 = [version_h,
             '3d/debug.c',
             '3d/model.c',
             '3d/parser.c',
+            '3d/particle.c',
             '3d/reign.c',
             '3d/renderer.c',
 
