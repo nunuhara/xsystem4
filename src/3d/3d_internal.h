@@ -166,6 +166,8 @@ void model_free(struct model *model);
 struct motion *motion_load(const char *name, struct RE_instance *instance, struct archive *aar);
 void motion_free(struct motion *motion);
 
+struct archive_data *RE_get_aar_entry(struct archive *aar, const char *dir, const char *name, const char *ext);
+
 // renderer.c
 
 struct RE_renderer *RE_renderer_new(struct texture *texture);
@@ -174,6 +176,126 @@ bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);
 struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r, struct model *model);
 void RE_renderer_free_height_detector(struct height_detector *hd);
 float RE_renderer_detect_height(struct height_detector *hd, float x, float z);
+
+// particle.c
+
+enum particle_type {
+	PARTICLE_TYPE_BILLBOARD = 0,
+	PARTICLE_TYPE_POLYGON_OBJECT = 1,
+	PARTICLE_TYPE_SWORD_BLUR = 2,
+	PARTICLE_TYPE_CAMERA_VIBRATION = 3,
+};
+
+enum particle_move_type {
+	PARTICLE_MOVE_FIXED = 0,
+	PARTICLE_MOVE_LINEAR = 1,
+	PARTICLE_MOVE_EMITTER = 2,
+};
+
+enum particle_blend_type {
+	PARTICLE_BLEND_NORMAL = 0,
+	PARTICLE_BLEND_ADDITIVE = 1,
+};
+
+enum particle_frame_ref_type {
+	PARTICLE_FRAME_REF_EFFECT = 0,
+	PARTICLE_FRAME_REF_TARGET = 1,
+};
+
+struct particle_position_unit {
+	enum {
+		PARTICLE_POS_UNIT_NONE = 0,
+		PARTICLE_POS_UNIT_TARGET = 1,
+		PARTICLE_POS_UNIT_BONE = 2,
+		PARTICLE_POS_UNIT_RAND = 4,
+		PARTICLE_POS_UNIT_RAND_POSITIVE_Y = 5,
+		PARTICLE_POS_UNIT_ABSOLUTE = 6,
+	} type;
+	union {
+		struct {
+			int n;
+			vec3 pos;
+		} target;
+		struct {
+			int n;
+			// char *name;
+			vec3 pos;
+		} bone;
+		struct {
+			float f;
+		} rand;
+		vec3 absolute;
+	};
+};
+
+#define NR_PARTICLE_POSITIONS 2
+#define NR_PARTICLE_POSITION_UNITS 3
+struct particle_position {
+	struct particle_position_unit units[NR_PARTICLE_POSITION_UNITS];
+};
+
+struct particle_object {
+	char *name;
+	enum particle_type type;
+	enum particle_move_type move_type;
+	int up_vector_type;
+	float move_curve;
+	struct particle_position *position[NR_PARTICLE_POSITIONS];
+	float size[2];
+	int nr_sizes2;
+	float *sizes2;
+	int nr_sizes_x;
+	float *sizes_x;
+	int nr_sizes_y;
+	float *sizes_y;
+	int nr_size_types;
+	int *size_types;
+	int nr_size_x_types;
+	int *size_x_types;
+	int nr_size_y_types;
+	int *size_y_types;
+	int nr_textures;
+	char **textures;
+	enum particle_blend_type blend_type;
+	float texture_anime_frame;
+	int texture_anime_time;
+	char *polygon_name;
+	int begin_frame;
+	int end_frame;
+	int stop_frame;
+	enum particle_frame_ref_type frame_ref_type;
+	int frame_ref_param;
+	int nr_particles;
+	float alpha_fadein_frame;
+	int alpha_fadein_time;
+	float alpha_fadeout_frame;
+	int alpha_fadeout_time;
+	vec3 rotation[2];
+	vec3 revolution_angle[2];
+	vec3 revolution_distance[2];
+	vec3 curve_length;
+	int child_frame;
+	float child_length;
+	float child_begin_slope;
+	float child_end_slope;
+	float child_create_begin_frame;
+	float child_create_end_frame;
+	int child_move_dir_type;
+	int dir_type;
+	int nr_damages;
+	int *damages;
+	float offset_x;
+	float offset_y;
+};
+
+struct particle_effect {
+	char *path;
+	int nr_objects;
+	struct particle_object *objects;
+};
+
+struct particle_effect *particle_effect_load(struct archive *aar, const char *path);
+void particle_effect_free(struct particle_effect *effect);
 
 // parser.c
 

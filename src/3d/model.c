@@ -48,7 +48,7 @@ struct vertex_bones {
 	GLfloat bone_weight[NR_WEIGHTS];
 };
 
-static struct archive_data *get_aar_entry(struct archive *aar, const char *dir, const char *name, const char *ext)
+struct archive_data *RE_get_aar_entry(struct archive *aar, const char *dir, const char *name, const char *ext)
 {
 	char *path = xmalloc(strlen(dir) + strlen(name) + strlen(ext) + 2);
 	sprintf(path, "%s\\%s%s", dir, name, ext);
@@ -59,7 +59,7 @@ static struct archive_data *get_aar_entry(struct archive *aar, const char *dir, 
 
 static GLuint load_texture(struct archive *aar, const char *path, const char *name)
 {
-	struct archive_data *dfile = get_aar_entry(aar, path, name, "");
+	struct archive_data *dfile = RE_get_aar_entry(aar, path, name, "");
 	if (!dfile) {
 		WARNING("cannot load texture %s\\%s", path, name);
 		return 0;
@@ -357,14 +357,11 @@ static void destroy_bone(struct bone *bone)
 
 struct model *model_load(struct archive *aar, const char *path, struct RE_renderer *r)
 {
-	if (path[0] == '\0')
-		return NULL;
-
 	const char *basename = strrchr(path, '\\');
 	basename = basename ? basename + 1 : path;
 
 	// Load .POL file
-	struct archive_data *pol_file = get_aar_entry(aar, path, basename, ".POL");
+	struct archive_data *pol_file = RE_get_aar_entry(aar, path, basename, ".POL");
 	if (!pol_file) {
 		WARNING("%s\\%s.POL: not found", path, basename);
 		return NULL;
@@ -379,7 +376,7 @@ struct model *model_load(struct archive *aar, const char *path, struct RE_render
 
 	// Load .amt file, if any
 	struct amt *amt = NULL;
-	struct archive_data *amt_file = get_aar_entry(aar, path, basename, ".amt");
+	struct archive_data *amt_file = RE_get_aar_entry(aar, path, basename, ".amt");
 	if (amt_file) {
 		amt = amt_parse(amt_file->data, amt_file->size);
 		if (!amt)
@@ -480,7 +477,7 @@ struct motion *motion_load(const char *name, struct RE_instance *instance, struc
 	if (!model)
 		return NULL;
 
-	struct archive_data *dfile = get_aar_entry(aar, model->path, name, ".MOT");
+	struct archive_data *dfile = RE_get_aar_entry(aar, model->path, name, ".MOT");
 	if (!dfile) {
 		WARNING("%s\\%s.MOT: not found", model->path, name);
 		return NULL;

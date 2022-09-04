@@ -96,6 +96,8 @@ static void print_instance(struct RE_instance *inst, int index, int indent)
 		print_motion("next_motion", inst->next_motion, indent);
 	if (inst->motion_blend)
 		indent_printf(indent, "motion_blend_rate = %f,\n", inst->motion_blend_rate);
+	if (inst->effect)
+		indent_printf(indent, "path = \"%s\",\n", inst->effect->path);
 
 	indent--;
 	indent_printf(indent, "},\n");

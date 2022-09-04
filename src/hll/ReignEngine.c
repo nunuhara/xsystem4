@@ -55,6 +55,17 @@ static struct motion *get_next_motion(unsigned plugin, unsigned instance)
 	return inst ? inst->next_motion : NULL;
 }
 
+static struct particle_effect *get_effect(unsigned plugin, unsigned instance)
+{
+	struct RE_instance *inst = get_instance(plugin, instance);
+	return inst ? inst->effect : NULL;
+}
+
+static struct particle_object *get_particle(unsigned plugin, unsigned instance, unsigned object)
+{
+	return RE_get_effect_object(get_effect(plugin, instance), object);
+}
+
 static struct RE_back_cg *get_back_cg(unsigned plugin, unsigned num)
 {
 	struct RE_plugin *p = get_plugin(plugin);
@@ -551,57 +562,256 @@ static bool ReignEngine_SetInstanceShadowVolumeBoneRadius(int plugin, int instan
 //bool ReignEngine_SetInstanceDebugDrawShadowVolume(int plugin, int instance, bool flag);
 //bool ReignEngine_SaveEffect(int plugin, int instance);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, GetEffectFrameRange, int plugin, int instance, int *begin_frame, int *end_frame);
-//int ReignEngine_GetEffectObjectType(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectObjectMoveType(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectObjectUpVecType(int plugin, int instance, int nObject);
-//float ReignEngine_GetEffectObjectMoveCurve(int plugin, int instance, int nObject);
-//void ReignEngine_GetEffectObjectFrame(int plugin, int instance, int nObject, int *pnBeginFrame, int *pnEndFrame);
-//int ReignEngine_GetEffectObjectStopFrame(int plugin, int instance, int nObject);
-HLL_WARN_UNIMPLEMENTED(0, int, ReignEngine, GetEffectNumofObject, int plugin, int instance);
-//void ReignEngine_GetEffectObjectName(int plugin, int instance, int nObject, struct string **pIName);
-//int ReignEngine_GetEffectNumofObjectPos(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectNumofObjectPosUnit(int plugin, int instance, int nObject, int nPos);
-//int ReignEngine_GetEffectObjectPosUnitType(int plugin, int instance, int nObject, int nPos, int nPosUnit);
-//int ReignEngine_GetEffectObjectPosUnitIndex(int plugin, int instance, int nObject, int nPos, int nPosUnit);
+
+static int ReignEngine_GetEffectObjectType(int plugin, int instance, int object)
+{
+	return RE_particle_get_type(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectObjectMoveType(int plugin, int instance, int object)
+{
+	return RE_particle_get_move_type(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectObjectUpVecType(int plugin, int instance, int object)
+{
+	return RE_particle_get_up_vec_type(get_particle(plugin, instance, object));
+}
+
+static float ReignEngine_GetEffectObjectMoveCurve(int plugin, int instance, int object)
+{
+	return RE_particle_get_move_curve(get_particle(plugin, instance, object));
+}
+
+static void ReignEngine_GetEffectObjectFrame(int plugin, int instance, int object, int *begin_frame, int *end_frame)
+{
+	RE_particle_get_frame(get_particle(plugin, instance, object), begin_frame, end_frame);
+}
+
+static int ReignEngine_GetEffectObjectStopFrame(int plugin, int instance, int object)
+{
+	return RE_particle_get_stop_frame(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectNumofObject(int plugin, int instance)
+{
+	return RE_effect_get_num_object(get_effect(plugin, instance));
+}
+
+static void ReignEngine_GetEffectObjectName(int plugin, int instance, int object, struct string **name)
+{
+	if (*name)
+		free_string(*name);
+	const char *s = RE_particle_get_name(get_particle(plugin, instance, object));
+	*name = s ? cstr_to_string(s) : string_ref(&EMPTY_STRING);
+}
+
+static int ReignEngine_GetEffectNumofObjectPos(int plugin, int instance, int object)
+{
+	return RE_particle_get_num_pos(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectNumofObjectPosUnit(int plugin, int instance, int object, int pos)
+{
+	return RE_particle_get_num_pos_unit(get_particle(plugin, instance, object), pos);
+}
+
+static int ReignEngine_GetEffectObjectPosUnitType(int plugin, int instance, int object, int pos, int pos_unit)
+{
+	return RE_particle_get_pos_unit_type(get_particle(plugin, instance, object), pos, pos_unit);
+}
+
+static int ReignEngine_GetEffectObjectPosUnitIndex(int plugin, int instance, int object, int pos, int pos_unit)
+{
+	return RE_particle_get_pos_unit_index(get_particle(plugin, instance, object), pos, pos_unit);
+}
+
 //int ReignEngine_GetEffectNumofObjectPosUnitParam(int plugin, int instance, int nObject, int nPos, int nPosUnit);
 //float ReignEngine_GetEffectObjectPosUnitParam(int plugin, int instance, int nObject, int nPos, int nPosUnit, int nParam);
 //int ReignEngine_GetEffectNumofObjectPosUnitString(int plugin, int instance, int nObject, int nPos, int nPosUnit);
 //void ReignEngine_GetEffectObjectPosUnitString(int plugin, int instance, int nObject, int nPos, int nPosUnit, int nParam, struct string **pIResult);
-//int ReignEngine_GetEffectNumofObjectTexture(int plugin, int instance, int nObject);
-//void ReignEngine_GetEffectObjectTexture(int plugin, int instance, int nObject, int nTexture, struct string **pIName);
-//bool ReignEngine_GetEffectObjectSize(int plugin, int instance, int nObject, float *pfBeginSize, float *pfEndSize);
-//bool ReignEngine_GetEffectObjectSize2(int plugin, int instance, int nObject, int nFrame, float *pfSize);
-//bool ReignEngine_GetEffectObjectSizeX(int plugin, int instance, int nObject, int nFrame, float *pfSize);
-//bool ReignEngine_GetEffectObjectSizeY(int plugin, int instance, int nObject, int nFrame, float *pfSize);
-//bool ReignEngine_GetEffectObjectSizeType(int plugin, int instance, int nObject, int nFrame, int *nType);
-//bool ReignEngine_GetEffectObjectSizeXType(int plugin, int instance, int nObject, int nFrame, int *nType);
-//bool ReignEngine_GetEffectObjectSizeYType(int plugin, int instance, int nObject, int nFrame, int *nType);
-//int ReignEngine_GetEffectNumofObjectSize2(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectNumofObjectSizeX(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectNumofObjectSizeY(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectNumofObjectSizeType(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectNumofObjectSizeXType(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectNumofObjectSizeYType(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectObjectBlendType(int plugin, int instance, int nObject);
-//void ReignEngine_GetEffectObjectPolygonName(int plugin, int instance, int nObject, struct string **pIResult);
-//int ReignEngine_GetEffectNumofObjectParticle(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectObjectAlphaFadeInTime(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectObjectAlphaFadeOutTime(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectObjectTextureAnimeTime(int plugin, int instance, int nObject);
-//float ReignEngine_GetEffectObjectAlphaFadeInFrame(int plugin, int instance, int nObject);
-//float ReignEngine_GetEffectObjectAlphaFadeOutFrame(int plugin, int instance, int nObject);
-//float ReignEngine_GetEffectObjectTextureAnimeFrame(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectObjectFrameReferenceType(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectObjectFrameReferenceParam(int plugin, int instance, int nObject);
-//void ReignEngine_GetEffectObjectXRotationAngle(int plugin, int instance, int nObject, float *pfBeginAngle, float *pfEndAngle);
-//void ReignEngine_GetEffectObjectYRotationAngle(int plugin, int instance, int nObject, float *pfBeginAngle, float *pfEndAngle);
-//void ReignEngine_GetEffectObjectZRotationAngle(int plugin, int instance, int nObject, float *pfBeginAngle, float *pfEndAngle);
-//void ReignEngine_GetEffectObjectXRevolutionAngle(int plugin, int instance, int nObject, float *pfBeginAngle, float *pfEndAngle);
-//void ReignEngine_GetEffectObjectXRevolutionDistance(int plugin, int instance, int nObject, float *pfBeginDistance, float *pfEndDistance);
-//void ReignEngine_GetEffectObjectYRevolutionAngle(int plugin, int instance, int nObject, float *pfBeginAngle, float *pfEndAngle);
-//void ReignEngine_GetEffectObjectYRevolutionDistance(int plugin, int instance, int nObject, float *pfBeginDistance, float *pfEndDistance);
-//void ReignEngine_GetEffectObjectZRevolutionAngle(int plugin, int instance, int nObject, float *pfBeginAngle, float *pfEndAngle);
-//void ReignEngine_GetEffectObjectZRevolutionDistance(int plugin, int instance, int nObject, float *pfBeginDistance, float *pfEndDistance);
+
+static int ReignEngine_GetEffectNumofObjectTexture(int plugin, int instance, int object)
+{
+	return RE_particle_get_num_texture(get_particle(plugin, instance, object));
+}
+
+static void ReignEngine_GetEffectObjectTexture(int plugin, int instance, int object, int texture, struct string **name)
+{
+	if (*name)
+		free_string(*name);
+	const char *s = RE_particle_get_texture(get_particle(plugin, instance, object), texture);
+	*name = s ? cstr_to_string(s) : string_ref(&EMPTY_STRING);
+}
+
+static bool ReignEngine_GetEffectObjectSize(int plugin, int instance, int object, float *begin_size, float *end_size)
+{
+	return RE_particle_get_size(get_particle(plugin, instance, object), begin_size, end_size);
+}
+
+static bool ReignEngine_GetEffectObjectSize2(int plugin, int instance, int object, int frame, float *size)
+{
+	return RE_particle_get_size2(get_particle(plugin, instance, object), frame, size);
+}
+
+static bool ReignEngine_GetEffectObjectSizeX(int plugin, int instance, int object, int frame, float *size)
+{
+	return RE_particle_get_size_x(get_particle(plugin, instance, object), frame, size);
+}
+
+static bool ReignEngine_GetEffectObjectSizeY(int plugin, int instance, int object, int frame, float *size)
+{
+	return RE_particle_get_size_y(get_particle(plugin, instance, object), frame, size);
+}
+
+static bool ReignEngine_GetEffectObjectSizeType(int plugin, int instance, int object, int frame, int *type)
+{
+	return RE_particle_get_size_type(get_particle(plugin, instance, object), frame, type);
+}
+
+static bool ReignEngine_GetEffectObjectSizeXType(int plugin, int instance, int object, int frame, int *type)
+{
+	return RE_particle_get_size_x_type(get_particle(plugin, instance, object), frame, type);
+}
+
+static bool ReignEngine_GetEffectObjectSizeYType(int plugin, int instance, int object, int frame, int *type)
+{
+	return RE_particle_get_size_y_type(get_particle(plugin, instance, object), frame, type);
+}
+
+static int ReignEngine_GetEffectNumofObjectSize2(int plugin, int instance, int object)
+{
+	return RE_particle_get_num_size2(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectNumofObjectSizeX(int plugin, int instance, int object)
+{
+	return RE_particle_get_num_size_x(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectNumofObjectSizeY(int plugin, int instance, int object)
+{
+	return RE_particle_get_num_size_y(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectNumofObjectSizeType(int plugin, int instance, int object)
+{
+	return RE_particle_get_num_size_type(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectNumofObjectSizeXType(int plugin, int instance, int object)
+{
+	return RE_particle_get_num_size_x_type(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectNumofObjectSizeYType(int plugin, int instance, int object)
+{
+	return RE_particle_get_num_size_y_type(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectObjectBlendType(int plugin, int instance, int object)
+{
+	return RE_particle_get_blend_type(get_particle(plugin, instance, object));
+}
+
+static void ReignEngine_GetEffectObjectPolygonName(int plugin, int instance, int object, struct string **result)
+{
+	if (*result)
+		free_string(*result);
+	const char *s = RE_particle_get_polygon_name(get_particle(plugin, instance, object));
+	*result = s ? cstr_to_string(s) : string_ref(&EMPTY_STRING);
+}
+
+static int ReignEngine_GetEffectNumofObjectParticle(int plugin, int instance, int object)
+{
+	return RE_particle_get_num_particles(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectObjectAlphaFadeInTime(int plugin, int instance, int object)
+{
+	return RE_particle_get_alpha_fadein_time(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectObjectAlphaFadeOutTime(int plugin, int instance, int object)
+{
+	return RE_particle_get_alpha_fadeout_time(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectObjectTextureAnimeTime(int plugin, int instance, int object)
+{
+	return RE_particle_get_texture_anime_time(get_particle(plugin, instance, object));
+}
+
+static float ReignEngine_GetEffectObjectAlphaFadeInFrame(int plugin, int instance, int object)
+{
+	return RE_particle_get_alpha_fadein_frame(get_particle(plugin, instance, object));
+}
+
+static float ReignEngine_GetEffectObjectAlphaFadeOutFrame(int plugin, int instance, int object)
+{
+	return RE_particle_get_alpha_fadeout_frame(get_particle(plugin, instance, object));
+}
+
+static float ReignEngine_GetEffectObjectTextureAnimeFrame(int plugin, int instance, int object)
+{
+	return RE_particle_get_texture_anime_frame(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectObjectFrameReferenceType(int plugin, int instance, int object)
+{
+	return RE_particle_get_frame_ref_type(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectObjectFrameReferenceParam(int plugin, int instance, int object)
+{
+	return RE_particle_get_frame_ref_param(get_particle(plugin, instance, object));
+}
+
+static void ReignEngine_GetEffectObjectXRotationAngle(int plugin, int instance, int object, float *begin_angle, float *end_angle)
+{
+	RE_particle_get_x_rotation_angle(get_particle(plugin, instance, object), begin_angle, end_angle);
+}
+
+static void ReignEngine_GetEffectObjectYRotationAngle(int plugin, int instance, int object, float *begin_angle, float *end_angle)
+{
+	RE_particle_get_y_rotation_angle(get_particle(plugin, instance, object), begin_angle, end_angle);
+}
+
+static void ReignEngine_GetEffectObjectZRotationAngle(int plugin, int instance, int object, float *begin_angle, float *end_angle)
+{
+	RE_particle_get_z_rotation_angle(get_particle(plugin, instance, object), begin_angle, end_angle);
+}
+
+static void ReignEngine_GetEffectObjectXRevolutionAngle(int plugin, int instance, int object, float *begin_angle, float *end_angle)
+{
+	RE_particle_get_x_revolution_angle(get_particle(plugin, instance, object), begin_angle, end_angle);
+}
+
+static void ReignEngine_GetEffectObjectXRevolutionDistance(int plugin, int instance, int object, float *begin_distance, float *end_distance)
+{
+	RE_particle_get_x_revolution_distance(get_particle(plugin, instance, object), begin_distance, end_distance);
+}
+
+static void ReignEngine_GetEffectObjectYRevolutionAngle(int plugin, int instance, int object, float *begin_angle, float *end_angle)
+{
+	RE_particle_get_y_revolution_angle(get_particle(plugin, instance, object), begin_angle, end_angle);
+}
+
+static void ReignEngine_GetEffectObjectYRevolutionDistance(int plugin, int instance, int object, float *begin_distance, float *end_distance)
+{
+	RE_particle_get_y_revolution_distance(get_particle(plugin, instance, object), begin_distance, end_distance);
+}
+
+static void ReignEngine_GetEffectObjectZRevolutionAngle(int plugin, int instance, int object, float *begin_angle, float *end_angle)
+{
+	RE_particle_get_z_revolution_angle(get_particle(plugin, instance, object), begin_angle, end_angle);
+}
+
+static void ReignEngine_GetEffectObjectZRevolutionDistance(int plugin, int instance, int object, float *begin_distance, float *end_distance)
+{
+	RE_particle_get_z_revolution_distance(get_particle(plugin, instance, object), begin_distance, end_distance);
+}
+
 //bool ReignEngine_AddEffectObject(int plugin, int instance);
 //bool ReignEngine_DeleteEffectObject(int plugin, int instance, int nObject);
 //bool ReignEngine_SetEffectObjectName(int plugin, int instance, int nObject, struct string *pIName);
@@ -643,15 +853,55 @@ HLL_WARN_UNIMPLEMENTED(0, int, ReignEngine, GetEffectNumofObject, int plugin, in
 //bool ReignEngine_SetEffectObjectYRevolutionDistance(int plugin, int instance, int nObject, float fBeginDistance, float fEndDistance);
 //bool ReignEngine_SetEffectObjectZRevolutionAngle(int plugin, int instance, int nObject, float fBeginAngle, float fEndAngle);
 //bool ReignEngine_SetEffectObjectZRevolutionDistance(int plugin, int instance, int nObject, float fBeginDistance, float fEndDistance);
-//bool ReignEngine_GetEffectObjectCurveLength(int plugin, int instance, int nObject, float *pfX, float *pfY, float *pfZ);
+
+static bool ReignEngine_GetEffectObjectCurveLength(int plugin, int instance, int object, float *x, float *y, float *z)
+{
+	vec3 result;
+	if (!RE_particle_get_curve_length(get_particle(plugin, instance, object), result))
+		return false;
+	*x = result[0];
+	*y = result[1];
+	*z = result[2];
+	return true;
+}
+
 //bool ReignEngine_SetEffectObjectCurveLength(int plugin, int instance, int nObject, float x, float y, float z);
-//int ReignEngine_GetEffectObjectChildFrame(int plugin, int instance, int nObject);
-//float ReignEngine_GetEffectObjectChildLength(int plugin, int instance, int nObject);
-//float ReignEngine_GetEffectObjectChildBeginSlope(int plugin, int instance, int nObject);
-//float ReignEngine_GetEffectObjectChildEndSlope(int plugin, int instance, int nObject);
-//float ReignEngine_GetEffectObjectChildCreateBeginFrame(int plugin, int instance, int nObject);
-//float ReignEngine_GetEffectObjectChildCreateEndFrame(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectObjectChildMoveDirType(int plugin, int instance, int nObject);
+
+static int ReignEngine_GetEffectObjectChildFrame(int plugin, int instance, int object)
+{
+	return RE_particle_get_child_frame(get_particle(plugin, instance, object));
+}
+
+static float ReignEngine_GetEffectObjectChildLength(int plugin, int instance, int object)
+{
+	return RE_particle_get_child_length(get_particle(plugin, instance, object));
+}
+
+static float ReignEngine_GetEffectObjectChildBeginSlope(int plugin, int instance, int object)
+{
+	return RE_particle_get_child_begin_slope(get_particle(plugin, instance, object));
+}
+
+static float ReignEngine_GetEffectObjectChildEndSlope(int plugin, int instance, int object)
+{
+	return RE_particle_get_child_end_slope(get_particle(plugin, instance, object));
+}
+
+static float ReignEngine_GetEffectObjectChildCreateBeginFrame(int plugin, int instance, int object)
+{
+	return RE_particle_get_child_create_begin_frame(get_particle(plugin, instance, object));
+}
+
+static float ReignEngine_GetEffectObjectChildCreateEndFrame(int plugin, int instance, int object)
+{
+	return RE_particle_get_child_create_end_frame(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectObjectChildMoveDirType(int plugin, int instance, int object)
+{
+	return RE_particle_get_child_move_dir_type(get_particle(plugin, instance, object));
+}
+
 //bool ReignEngine_SetEffectObjectChildFrame(int plugin, int instance, int nObject, int nFrame);
 //bool ReignEngine_SetEffectObjectChildLength(int plugin, int instance, int nObject, float fLength);
 //bool ReignEngine_SetEffectObjectChildBeginSlope(int plugin, int instance, int nObject, float fSlope);
@@ -659,15 +909,38 @@ HLL_WARN_UNIMPLEMENTED(0, int, ReignEngine, GetEffectNumofObject, int plugin, in
 //bool ReignEngine_SetEffectObjectChildCreateBeginFrame(int plugin, int instance, int nObject, float fFrame);
 //bool ReignEngine_SetEffectObjectChildCreateEndFrame(int plugin, int instance, int nObject, float fFrame);
 //bool ReignEngine_SetEffectObjectChildMoveDirType(int plugin, int instance, int nObject, int type);
-//int ReignEngine_GetEffectObjectDirType(int plugin, int instance, int nObject);
+
+static int ReignEngine_GetEffectObjectDirType(int plugin, int instance, int object)
+{
+	return RE_particle_get_dir_type(get_particle(plugin, instance, object));
+}
+
 //bool ReignEngine_SetEffectObjectDirType(int plugin, int instance, int nObject, int type);
-//int ReignEngine_GetEffectNumofObjectDamage(int plugin, int instance, int nObject);
-//int ReignEngine_GetEffectObjectDamage(int plugin, int instance, int nObject, int nFrame);
+
+static int ReignEngine_GetEffectNumofObjectDamage(int plugin, int instance, int object)
+{
+	return RE_particle_get_num_damage(get_particle(plugin, instance, object));
+}
+
+static int ReignEngine_GetEffectObjectDamage(int plugin, int instance, int object, int frame)
+{
+	return RE_particle_get_damage(get_particle(plugin, instance, object), frame);
+}
+
 //bool ReignEngine_SetEffectObjectDamage(int plugin, int instance, int nObject, int nFrame, int nData);
 //bool ReignEngine_GetEffectObjectDraw(int plugin, int instance, int nObject);
 //bool ReignEngine_SetEffectObjectDraw(int plugin, int instance, int nObject, bool bDraw);
-//float ReignEngine_GetEffectObjectOffsetX(int plugin, int instance, int nObject);
-//float ReignEngine_GetEffectObjectOffsetY(int plugin, int instance, int nObject);
+
+static float ReignEngine_GetEffectObjectOffsetX(int plugin, int instance, int object)
+{
+	return RE_particle_get_offset_x(get_particle(plugin, instance, object));
+}
+
+static float ReignEngine_GetEffectObjectOffsetY(int plugin, int instance, int object)
+{
+	return RE_particle_get_offset_y(get_particle(plugin, instance, object));
+}
+
 //bool ReignEngine_SetEffectObjectOffsetX(int plugin, int instance, int nObject, float fOffsetX);
 //bool ReignEngine_SetEffectObjectOffsetY(int plugin, int instance, int nObject, float fOffsetY);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, GetCameraQuakeEffectFlag, int plugin, int instance);
@@ -1525,57 +1798,57 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_TODO_EXPORT(SetInstanceDebugDrawShadowVolume, ReignEngine_SetInstanceDebugDrawShadowVolume),
 	    HLL_TODO_EXPORT(SaveEffect, ReignEngine_SaveEffect),
 	    HLL_EXPORT(GetEffectFrameRange, ReignEngine_GetEffectFrameRange),
-	    HLL_TODO_EXPORT(GetEffectObjectType, ReignEngine_GetEffectObjectType),
-	    HLL_TODO_EXPORT(GetEffectObjectMoveType, ReignEngine_GetEffectObjectMoveType),
-	    HLL_TODO_EXPORT(GetEffectObjectUpVecType, ReignEngine_GetEffectObjectUpVecType),
-	    HLL_TODO_EXPORT(GetEffectObjectMoveCurve, ReignEngine_GetEffectObjectMoveCurve),
-	    HLL_TODO_EXPORT(GetEffectObjectFrame, ReignEngine_GetEffectObjectFrame),
-	    HLL_TODO_EXPORT(GetEffectObjectStopFrame, ReignEngine_GetEffectObjectStopFrame),
+	    HLL_EXPORT(GetEffectObjectType, ReignEngine_GetEffectObjectType),
+	    HLL_EXPORT(GetEffectObjectMoveType, ReignEngine_GetEffectObjectMoveType),
+	    HLL_EXPORT(GetEffectObjectUpVecType, ReignEngine_GetEffectObjectUpVecType),
+	    HLL_EXPORT(GetEffectObjectMoveCurve, ReignEngine_GetEffectObjectMoveCurve),
+	    HLL_EXPORT(GetEffectObjectFrame, ReignEngine_GetEffectObjectFrame),
+	    HLL_EXPORT(GetEffectObjectStopFrame, ReignEngine_GetEffectObjectStopFrame),
 	    HLL_EXPORT(GetEffectNumofObject, ReignEngine_GetEffectNumofObject),
-	    HLL_TODO_EXPORT(GetEffectObjectName, ReignEngine_GetEffectObjectName),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectPos, ReignEngine_GetEffectNumofObjectPos),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectPosUnit, ReignEngine_GetEffectNumofObjectPosUnit),
-	    HLL_TODO_EXPORT(GetEffectObjectPosUnitType, ReignEngine_GetEffectObjectPosUnitType),
-	    HLL_TODO_EXPORT(GetEffectObjectPosUnitIndex, ReignEngine_GetEffectObjectPosUnitIndex),
+	    HLL_EXPORT(GetEffectObjectName, ReignEngine_GetEffectObjectName),
+	    HLL_EXPORT(GetEffectNumofObjectPos, ReignEngine_GetEffectNumofObjectPos),
+	    HLL_EXPORT(GetEffectNumofObjectPosUnit, ReignEngine_GetEffectNumofObjectPosUnit),
+	    HLL_EXPORT(GetEffectObjectPosUnitType, ReignEngine_GetEffectObjectPosUnitType),
+	    HLL_EXPORT(GetEffectObjectPosUnitIndex, ReignEngine_GetEffectObjectPosUnitIndex),
 	    HLL_TODO_EXPORT(GetEffectNumofObjectPosUnitParam, ReignEngine_GetEffectNumofObjectPosUnitParam),
 	    HLL_TODO_EXPORT(GetEffectObjectPosUnitParam, ReignEngine_GetEffectObjectPosUnitParam),
 	    HLL_TODO_EXPORT(GetEffectNumofObjectPosUnitString, ReignEngine_GetEffectNumofObjectPosUnitString),
 	    HLL_TODO_EXPORT(GetEffectObjectPosUnitString, ReignEngine_GetEffectObjectPosUnitString),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectTexture, ReignEngine_GetEffectNumofObjectTexture),
-	    HLL_TODO_EXPORT(GetEffectObjectTexture, ReignEngine_GetEffectObjectTexture),
-	    HLL_TODO_EXPORT(GetEffectObjectSize, ReignEngine_GetEffectObjectSize),
-	    HLL_TODO_EXPORT(GetEffectObjectSize2, ReignEngine_GetEffectObjectSize2),
-	    HLL_TODO_EXPORT(GetEffectObjectSizeX, ReignEngine_GetEffectObjectSizeX),
-	    HLL_TODO_EXPORT(GetEffectObjectSizeY, ReignEngine_GetEffectObjectSizeY),
-	    HLL_TODO_EXPORT(GetEffectObjectSizeType, ReignEngine_GetEffectObjectSizeType),
-	    HLL_TODO_EXPORT(GetEffectObjectSizeXType, ReignEngine_GetEffectObjectSizeXType),
-	    HLL_TODO_EXPORT(GetEffectObjectSizeYType, ReignEngine_GetEffectObjectSizeYType),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectSize2, ReignEngine_GetEffectNumofObjectSize2),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectSizeX, ReignEngine_GetEffectNumofObjectSizeX),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectSizeY, ReignEngine_GetEffectNumofObjectSizeY),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectSizeType, ReignEngine_GetEffectNumofObjectSizeType),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectSizeXType, ReignEngine_GetEffectNumofObjectSizeXType),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectSizeYType, ReignEngine_GetEffectNumofObjectSizeYType),
-	    HLL_TODO_EXPORT(GetEffectObjectBlendType, ReignEngine_GetEffectObjectBlendType),
-	    HLL_TODO_EXPORT(GetEffectObjectPolygonName, ReignEngine_GetEffectObjectPolygonName),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectParticle, ReignEngine_GetEffectNumofObjectParticle),
-	    HLL_TODO_EXPORT(GetEffectObjectAlphaFadeInTime, ReignEngine_GetEffectObjectAlphaFadeInTime),
-	    HLL_TODO_EXPORT(GetEffectObjectAlphaFadeOutTime, ReignEngine_GetEffectObjectAlphaFadeOutTime),
-	    HLL_TODO_EXPORT(GetEffectObjectTextureAnimeTime, ReignEngine_GetEffectObjectTextureAnimeTime),
-	    HLL_TODO_EXPORT(GetEffectObjectAlphaFadeInFrame, ReignEngine_GetEffectObjectAlphaFadeInFrame),
-	    HLL_TODO_EXPORT(GetEffectObjectAlphaFadeOutFrame, ReignEngine_GetEffectObjectAlphaFadeOutFrame),
-	    HLL_TODO_EXPORT(GetEffectObjectTextureAnimeFrame, ReignEngine_GetEffectObjectTextureAnimeFrame),
-	    HLL_TODO_EXPORT(GetEffectObjectFrameReferenceType, ReignEngine_GetEffectObjectFrameReferenceType),
-	    HLL_TODO_EXPORT(GetEffectObjectFrameReferenceParam, ReignEngine_GetEffectObjectFrameReferenceParam),
-	    HLL_TODO_EXPORT(GetEffectObjectXRotationAngle, ReignEngine_GetEffectObjectXRotationAngle),
-	    HLL_TODO_EXPORT(GetEffectObjectYRotationAngle, ReignEngine_GetEffectObjectYRotationAngle),
-	    HLL_TODO_EXPORT(GetEffectObjectZRotationAngle, ReignEngine_GetEffectObjectZRotationAngle),
-	    HLL_TODO_EXPORT(GetEffectObjectXRevolutionAngle, ReignEngine_GetEffectObjectXRevolutionAngle),
-	    HLL_TODO_EXPORT(GetEffectObjectXRevolutionDistance, ReignEngine_GetEffectObjectXRevolutionDistance),
-	    HLL_TODO_EXPORT(GetEffectObjectYRevolutionAngle, ReignEngine_GetEffectObjectYRevolutionAngle),
-	    HLL_TODO_EXPORT(GetEffectObjectYRevolutionDistance, ReignEngine_GetEffectObjectYRevolutionDistance),
-	    HLL_TODO_EXPORT(GetEffectObjectZRevolutionAngle, ReignEngine_GetEffectObjectZRevolutionAngle),
-	    HLL_TODO_EXPORT(GetEffectObjectZRevolutionDistance, ReignEngine_GetEffectObjectZRevolutionDistance),
+	    HLL_EXPORT(GetEffectNumofObjectTexture, ReignEngine_GetEffectNumofObjectTexture),
+	    HLL_EXPORT(GetEffectObjectTexture, ReignEngine_GetEffectObjectTexture),
+	    HLL_EXPORT(GetEffectObjectSize, ReignEngine_GetEffectObjectSize),
+	    HLL_EXPORT(GetEffectObjectSize2, ReignEngine_GetEffectObjectSize2),
+	    HLL_EXPORT(GetEffectObjectSizeX, ReignEngine_GetEffectObjectSizeX),
+	    HLL_EXPORT(GetEffectObjectSizeY, ReignEngine_GetEffectObjectSizeY),
+	    HLL_EXPORT(GetEffectObjectSizeType, ReignEngine_GetEffectObjectSizeType),
+	    HLL_EXPORT(GetEffectObjectSizeXType, ReignEngine_GetEffectObjectSizeXType),
+	    HLL_EXPORT(GetEffectObjectSizeYType, ReignEngine_GetEffectObjectSizeYType),
+	    HLL_EXPORT(GetEffectNumofObjectSize2, ReignEngine_GetEffectNumofObjectSize2),
+	    HLL_EXPORT(GetEffectNumofObjectSizeX, ReignEngine_GetEffectNumofObjectSizeX),
+	    HLL_EXPORT(GetEffectNumofObjectSizeY, ReignEngine_GetEffectNumofObjectSizeY),
+	    HLL_EXPORT(GetEffectNumofObjectSizeType, ReignEngine_GetEffectNumofObjectSizeType),
+	    HLL_EXPORT(GetEffectNumofObjectSizeXType, ReignEngine_GetEffectNumofObjectSizeXType),
+	    HLL_EXPORT(GetEffectNumofObjectSizeYType, ReignEngine_GetEffectNumofObjectSizeYType),
+	    HLL_EXPORT(GetEffectObjectBlendType, ReignEngine_GetEffectObjectBlendType),
+	    HLL_EXPORT(GetEffectObjectPolygonName, ReignEngine_GetEffectObjectPolygonName),
+	    HLL_EXPORT(GetEffectNumofObjectParticle, ReignEngine_GetEffectNumofObjectParticle),
+	    HLL_EXPORT(GetEffectObjectAlphaFadeInTime, ReignEngine_GetEffectObjectAlphaFadeInTime),
+	    HLL_EXPORT(GetEffectObjectAlphaFadeOutTime, ReignEngine_GetEffectObjectAlphaFadeOutTime),
+	    HLL_EXPORT(GetEffectObjectTextureAnimeTime, ReignEngine_GetEffectObjectTextureAnimeTime),
+	    HLL_EXPORT(GetEffectObjectAlphaFadeInFrame, ReignEngine_GetEffectObjectAlphaFadeInFrame),
+	    HLL_EXPORT(GetEffectObjectAlphaFadeOutFrame, ReignEngine_GetEffectObjectAlphaFadeOutFrame),
+	    HLL_EXPORT(GetEffectObjectTextureAnimeFrame, ReignEngine_GetEffectObjectTextureAnimeFrame),
+	    HLL_EXPORT(GetEffectObjectFrameReferenceType, ReignEngine_GetEffectObjectFrameReferenceType),
+	    HLL_EXPORT(GetEffectObjectFrameReferenceParam, ReignEngine_GetEffectObjectFrameReferenceParam),
+	    HLL_EXPORT(GetEffectObjectXRotationAngle, ReignEngine_GetEffectObjectXRotationAngle),
+	    HLL_EXPORT(GetEffectObjectYRotationAngle, ReignEngine_GetEffectObjectYRotationAngle),
+	    HLL_EXPORT(GetEffectObjectZRotationAngle, ReignEngine_GetEffectObjectZRotationAngle),
+	    HLL_EXPORT(GetEffectObjectXRevolutionAngle, ReignEngine_GetEffectObjectXRevolutionAngle),
+	    HLL_EXPORT(GetEffectObjectXRevolutionDistance, ReignEngine_GetEffectObjectXRevolutionDistance),
+	    HLL_EXPORT(GetEffectObjectYRevolutionAngle, ReignEngine_GetEffectObjectYRevolutionAngle),
+	    HLL_EXPORT(GetEffectObjectYRevolutionDistance, ReignEngine_GetEffectObjectYRevolutionDistance),
+	    HLL_EXPORT(GetEffectObjectZRevolutionAngle, ReignEngine_GetEffectObjectZRevolutionAngle),
+	    HLL_EXPORT(GetEffectObjectZRevolutionDistance, ReignEngine_GetEffectObjectZRevolutionDistance),
 	    HLL_TODO_EXPORT(AddEffectObject, ReignEngine_AddEffectObject),
 	    HLL_TODO_EXPORT(DeleteEffectObject, ReignEngine_DeleteEffectObject),
 	    HLL_TODO_EXPORT(SetEffectObjectName, ReignEngine_SetEffectObjectName),
@@ -1617,15 +1890,15 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_TODO_EXPORT(SetEffectObjectYRevolutionDistance, ReignEngine_SetEffectObjectYRevolutionDistance),
 	    HLL_TODO_EXPORT(SetEffectObjectZRevolutionAngle, ReignEngine_SetEffectObjectZRevolutionAngle),
 	    HLL_TODO_EXPORT(SetEffectObjectZRevolutionDistance, ReignEngine_SetEffectObjectZRevolutionDistance),
-	    HLL_TODO_EXPORT(GetEffectObjectCurveLength, ReignEngine_GetEffectObjectCurveLength),
+	    HLL_EXPORT(GetEffectObjectCurveLength, ReignEngine_GetEffectObjectCurveLength),
 	    HLL_TODO_EXPORT(SetEffectObjectCurveLength, ReignEngine_SetEffectObjectCurveLength),
-	    HLL_TODO_EXPORT(GetEffectObjectChildFrame, ReignEngine_GetEffectObjectChildFrame),
-	    HLL_TODO_EXPORT(GetEffectObjectChildLength, ReignEngine_GetEffectObjectChildLength),
-	    HLL_TODO_EXPORT(GetEffectObjectChildBeginSlope, ReignEngine_GetEffectObjectChildBeginSlope),
-	    HLL_TODO_EXPORT(GetEffectObjectChildEndSlope, ReignEngine_GetEffectObjectChildEndSlope),
-	    HLL_TODO_EXPORT(GetEffectObjectChildCreateBeginFrame, ReignEngine_GetEffectObjectChildCreateBeginFrame),
-	    HLL_TODO_EXPORT(GetEffectObjectChildCreateEndFrame, ReignEngine_GetEffectObjectChildCreateEndFrame),
-	    HLL_TODO_EXPORT(GetEffectObjectChildMoveDirType, ReignEngine_GetEffectObjectChildMoveDirType),
+	    HLL_EXPORT(GetEffectObjectChildFrame, ReignEngine_GetEffectObjectChildFrame),
+	    HLL_EXPORT(GetEffectObjectChildLength, ReignEngine_GetEffectObjectChildLength),
+	    HLL_EXPORT(GetEffectObjectChildBeginSlope, ReignEngine_GetEffectObjectChildBeginSlope),
+	    HLL_EXPORT(GetEffectObjectChildEndSlope, ReignEngine_GetEffectObjectChildEndSlope),
+	    HLL_EXPORT(GetEffectObjectChildCreateBeginFrame, ReignEngine_GetEffectObjectChildCreateBeginFrame),
+	    HLL_EXPORT(GetEffectObjectChildCreateEndFrame, ReignEngine_GetEffectObjectChildCreateEndFrame),
+	    HLL_EXPORT(GetEffectObjectChildMoveDirType, ReignEngine_GetEffectObjectChildMoveDirType),
 	    HLL_TODO_EXPORT(SetEffectObjectChildFrame, ReignEngine_SetEffectObjectChildFrame),
 	    HLL_TODO_EXPORT(SetEffectObjectChildLength, ReignEngine_SetEffectObjectChildLength),
 	    HLL_TODO_EXPORT(SetEffectObjectChildBeginSlope, ReignEngine_SetEffectObjectChildBeginSlope),
@@ -1633,15 +1906,15 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_TODO_EXPORT(SetEffectObjectChildCreateBeginFrame, ReignEngine_SetEffectObjectChildCreateBeginFrame),
 	    HLL_TODO_EXPORT(SetEffectObjectChildCreateEndFrame, ReignEngine_SetEffectObjectChildCreateEndFrame),
 	    HLL_TODO_EXPORT(SetEffectObjectChildMoveDirType, ReignEngine_SetEffectObjectChildMoveDirType),
-	    HLL_TODO_EXPORT(GetEffectObjectDirType, ReignEngine_GetEffectObjectDirType),
+	    HLL_EXPORT(GetEffectObjectDirType, ReignEngine_GetEffectObjectDirType),
 	    HLL_TODO_EXPORT(SetEffectObjectDirType, ReignEngine_SetEffectObjectDirType),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectDamage, ReignEngine_GetEffectNumofObjectDamage),
-	    HLL_TODO_EXPORT(GetEffectObjectDamage, ReignEngine_GetEffectObjectDamage),
+	    HLL_EXPORT(GetEffectNumofObjectDamage, ReignEngine_GetEffectNumofObjectDamage),
+	    HLL_EXPORT(GetEffectObjectDamage, ReignEngine_GetEffectObjectDamage),
 	    HLL_TODO_EXPORT(SetEffectObjectDamage, ReignEngine_SetEffectObjectDamage),
 	    HLL_TODO_EXPORT(GetEffectObjectDraw, ReignEngine_GetEffectObjectDraw),
 	    HLL_TODO_EXPORT(SetEffectObjectDraw, ReignEngine_SetEffectObjectDraw),
-	    HLL_TODO_EXPORT(GetEffectObjectOffsetX, ReignEngine_GetEffectObjectOffsetX),
-	    HLL_TODO_EXPORT(GetEffectObjectOffsetY, ReignEngine_GetEffectObjectOffsetY),
+	    HLL_EXPORT(GetEffectObjectOffsetX, ReignEngine_GetEffectObjectOffsetX),
+	    HLL_EXPORT(GetEffectObjectOffsetY, ReignEngine_GetEffectObjectOffsetY),
 	    HLL_TODO_EXPORT(SetEffectObjectOffsetX, ReignEngine_SetEffectObjectOffsetX),
 	    HLL_TODO_EXPORT(SetEffectObjectOffsetY, ReignEngine_SetEffectObjectOffsetY),
 	    HLL_EXPORT(GetCameraQuakeEffectFlag, ReignEngine_GetCameraQuakeEffectFlag),
