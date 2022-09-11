@@ -245,7 +245,15 @@ bool RE_set_projection(struct RE_plugin *plugin, float width, float height, floa
 {
 	if (!plugin)
 		return false;
-	glm_perspective(glm_rad(deg), width / height, near, far, plugin->proj_transform);
+
+	float aspect = width / height;
+	glm_perspective(glm_rad(deg), aspect, near, far, plugin->proj_transform);
+
+	// Adjust the X and Y scaling factor, because ReignEngine calculates the
+	// projection matrix based on the horizontal FOV while glm_perspective takes
+	// the vertical FOV.
+	plugin->proj_transform[0][0] *= aspect;
+	plugin->proj_transform[1][1] *= aspect;
 	return true;
 }
 
