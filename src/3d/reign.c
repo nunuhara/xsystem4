@@ -323,7 +323,7 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 	switch (instance->type) {
 	case RE_ITYPE_STATIC:
 	case RE_ITYPE_SKINNED:
-		instance->model = model_load(instance->plugin->aar, name, instance->plugin->renderer);
+		instance->model = model_load(instance->plugin->aar, name);
 		if (instance->model && instance->model->nr_bones > 0)
 			instance->bone_transforms = xcalloc(instance->model->nr_bones, sizeof(mat4));
 		return !!instance->model;

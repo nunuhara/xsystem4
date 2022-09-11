@@ -46,11 +46,15 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 	glAttachShader(program, vertex_shader);
 	glAttachShader(program, fragment_shader);
 
-	// Bind some attributes to fixed locations, so that common VAO can be used
+	// Bind vertex attributes to fixed locations, so that common VAO can be used
 	// by multiple programs.
-	glBindAttribLocation(program, ATTR_VERTEX_POS, "vertex_pos");
-	glBindAttribLocation(program, ATTR_BONE_INDEX, "vertex_bone_index");
-	glBindAttribLocation(program, ATTR_BONE_WEIGHT, "vertex_bone_weight");
+	glBindAttribLocation(program, VATTR_POS, "vertex_pos");
+	glBindAttribLocation(program, VATTR_NORMAL, "vertex_normal");
+	glBindAttribLocation(program, VATTR_UV, "vertex_uv");
+	glBindAttribLocation(program, VATTR_BONE_INDEX, "vertex_bone_index");
+	glBindAttribLocation(program, VATTR_BONE_WEIGHT, "vertex_bone_weight");
+	glBindAttribLocation(program, VATTR_LIGHT_UV, "vertex_light_uv");
+	glBindAttribLocation(program, VATTR_TANGENT, "vertex_tangent");
 
 	glLinkProgram(program);
 
@@ -114,20 +118,20 @@ static void init_billboard_mesh(struct RE_renderer *r)
 	glGenBuffers(1, &r->billboard_attr_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, r->billboard_attr_buffer);
 
-	glEnableVertexAttribArray(ATTR_VERTEX_POS);
-	glVertexAttribPointer(ATTR_VERTEX_POS, 3, GL_FLOAT, GL_FALSE, 20, (const void *)0);
-	glEnableVertexAttribArray(r->vertex_uv);
-	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, 20, (const void *)12);
-	glDisableVertexAttribArray(r->vertex_light_uv);
-	glVertexAttrib2f(r->vertex_light_uv, 0.0, 0.0);
-	glDisableVertexAttribArray(r->vertex_normal);
-	glVertexAttrib3f(r->vertex_normal, 0.0, 0.0, 1.0);
-	glDisableVertexAttribArray(r->vertex_tangent);
-	glVertexAttrib3f(r->vertex_tangent, 1.0, 0.0, 0.0);
-	glDisableVertexAttribArray(ATTR_BONE_INDEX);
-	glVertexAttribI4i(ATTR_BONE_INDEX, 0, 0, 0, 0);
-	glDisableVertexAttribArray(ATTR_BONE_WEIGHT);
-	glVertexAttrib4f(ATTR_BONE_WEIGHT, 0.0, 0.0, 0.0, 0.0);
+	glEnableVertexAttribArray(VATTR_POS);
+	glVertexAttribPointer(VATTR_POS, 3, GL_FLOAT, GL_FALSE, 20, (const void *)0);
+	glEnableVertexAttribArray(VATTR_UV);
+	glVertexAttribPointer(VATTR_UV, 2, GL_FLOAT, GL_FALSE, 20, (const void *)12);
+	glDisableVertexAttribArray(VATTR_LIGHT_UV);
+	glVertexAttrib2f(VATTR_LIGHT_UV, 0.0, 0.0);
+	glDisableVertexAttribArray(VATTR_NORMAL);
+	glVertexAttrib3f(VATTR_NORMAL, 0.0, 0.0, 1.0);
+	glDisableVertexAttribArray(VATTR_TANGENT);
+	glVertexAttrib3f(VATTR_TANGENT, 1.0, 0.0, 0.0);
+	glDisableVertexAttribArray(VATTR_BONE_INDEX);
+	glVertexAttribI4i(VATTR_BONE_INDEX, 0, 0, 0, 0);
+	glDisableVertexAttribArray(VATTR_BONE_WEIGHT);
+	glVertexAttrib4f(VATTR_BONE_WEIGHT, 0.0, 0.0, 0.0, 0.0);
 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
@@ -189,10 +193,6 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->ls_light_dir = glGetUniformLocation(r->program, "ls_light_dir");
 	r->ls_light_color = glGetUniformLocation(r->program, "ls_light_color");
 	r->ls_sun_color = glGetUniformLocation(r->program, "ls_sun_color");
-	r->vertex_normal = glGetAttribLocation(r->program, "vertex_normal");
-	r->vertex_uv = glGetAttribLocation(r->program, "vertex_uv");
-	r->vertex_light_uv = glGetAttribLocation(r->program, "vertex_light_uv");
-	r->vertex_tangent = glGetAttribLocation(r->program, "vertex_tangent");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, r->depth_buffer);
