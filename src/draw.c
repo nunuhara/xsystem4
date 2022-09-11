@@ -712,6 +712,20 @@ void gfx_copy_stretch_blend_amap(struct texture *dst, int dx, int dy, int dw, in
 	restore_blend_mode();
 }
 
+void gfx_copy_stretch_blend_amap_alpha(struct texture *dst, int dx, int dy, int dw, int dh, struct texture *src, int sx, int sy, int sw, int sh, int a)
+{
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	struct copy_data data = STRETCH_DATA(dx, dy, dw, dh, sx, sy, sw, sh);
+	data.r = 1.0;
+	data.g = 1.0;
+	data.b = 1.0;
+	data.a = a / 255.0;
+	run_copy_shader(&blend_amap_alpha_bright_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
 // FIXME: this doesn't work correctly when the src rectangle crosses the edge of the CG.
 static void copy_rot_zoom(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag, Shader *shader)
 {

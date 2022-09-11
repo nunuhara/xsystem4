@@ -888,6 +888,9 @@ bool RE_back_cg_set(struct RE_back_cg *bcg, int no)
 	bcg->no = no;
 	gfx_delete_texture(&bcg->texture);
 
+	if (!no)  // unload only.
+		return true;
+
 	struct cg *cg = asset_cg_load(no);
 	if (!cg) {
 		WARNING("cannot load back CG: %d", no);

@@ -505,11 +505,11 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 
 static void render_back_cg(struct texture *dst, struct RE_back_cg *bcg, struct RE_renderer *r)
 {
-	if (!bcg->texture.handle)
+	if (!bcg->show || !bcg->texture.handle)
 		return;
 	int sw = bcg->texture.w;
 	int sh = bcg->texture.h;
-	gfx_copy_stretch_blend(dst, bcg->x, bcg->y, sw * bcg->mag, sh * bcg->mag, &bcg->texture, 0, 0, sw, sh, bcg->blend_rate * 255);
+	gfx_copy_stretch_blend_amap_alpha(dst, bcg->x, bcg->y, sw * bcg->mag, sh * bcg->mag, &bcg->texture, 0, 0, sw, sh, bcg->blend_rate * 255);
 }
 
 static void setup_lights(struct RE_plugin *plugin)
