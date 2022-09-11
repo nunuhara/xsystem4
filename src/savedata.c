@@ -280,7 +280,7 @@ static cJSON *read_save_file(const char *filename)
 	char *buf;
 	char *path = savedir_path(filename);
 
-	if (!(f = file_open_utf8(path, "r"))) {
+	if (!(f = file_open_utf8(path, "rb"))) {
 		WARNING("Failed to open save file: %s: %s", display_utf0(filename), strerror(errno));
 		free(path);
 		return NULL;
