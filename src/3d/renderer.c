@@ -411,7 +411,7 @@ static bool calc_shadow_light_transform(struct RE_plugin *plugin, mat4 dest)
 	glm_aabb_invalidate(aabb);
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
-		if (!inst || !inst->make_shadow || !inst->model)
+		if (!inst || !inst->draw || !inst->make_shadow || !inst->model)
 			continue;
 		// Start with the model's AABB, inflated with shadow_volume_bone_radius.
 		vec3 inst_aabb[2];
@@ -480,7 +480,7 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 	// Render the shadow casters.
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
-		if (!inst || !inst->make_shadow || !inst->model)
+		if (!inst || !inst->draw || !inst->make_shadow || !inst->model)
 			continue;
 		struct model *model = inst->model;
 		if (model->nr_bones > 0) {
