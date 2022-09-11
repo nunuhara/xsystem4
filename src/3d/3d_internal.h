@@ -74,10 +74,15 @@ struct motion {
 	float loop_frame_begin, loop_frame_end;
 };
 
+// Attribute variable locations
 enum RE_attribute_location {
-	ATTR_VERTEX_POS = 0,
-	ATTR_BONE_INDEX,
-	ATTR_BONE_WEIGHT,
+	VATTR_POS = 0,
+	VATTR_NORMAL,
+	VATTR_UV,
+	VATTR_BONE_INDEX,
+	VATTR_BONE_WEIGHT,
+	VATTR_LIGHT_UV,
+	VATTR_TANGENT,
 };
 
 struct shadow_renderer {
@@ -139,12 +144,6 @@ struct RE_renderer {
 	GLint ls_light_color;
 	GLint ls_sun_color;
 
-	// Attribute variable locations
-	GLint vertex_normal;
-	GLint vertex_uv;
-	GLint vertex_light_uv;
-	GLint vertex_tangent;
-
 	GLuint billboard_vao;
 	GLuint billboard_attr_buffer;
 	struct hash_table *billboard_textures;  // cg_no -> struct billboard_texture*
@@ -160,7 +159,7 @@ void RE_instance_update_local_transform(struct RE_instance *inst);
 
 // model.c
 
-struct model *model_load(struct archive *aar, const char *path, struct RE_renderer *renderer);
+struct model *model_load(struct archive *aar, const char *path);
 void model_free(struct model *model);
 
 struct motion *motion_load(const char *name, struct RE_instance *instance, struct archive *aar);

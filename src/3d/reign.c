@@ -245,7 +245,15 @@ bool RE_set_projection(struct RE_plugin *plugin, float width, float height, floa
 {
 	if (!plugin)
 		return false;
-	glm_perspective(glm_rad(deg), width / height, near, far, plugin->proj_transform);
+
+	float aspect = width / height;
+	glm_perspective(glm_rad(deg), aspect, near, far, plugin->proj_transform);
+
+	// Adjust the X and Y scaling factor, because ReignEngine calculates the
+	// projection matrix based on the horizontal FOV while glm_perspective takes
+	// the vertical FOV.
+	plugin->proj_transform[0][0] *= aspect;
+	plugin->proj_transform[1][1] *= aspect;
 	return true;
 }
 
@@ -315,7 +323,7 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 	switch (instance->type) {
 	case RE_ITYPE_STATIC:
 	case RE_ITYPE_SKINNED:
-		instance->model = model_load(instance->plugin->aar, name, instance->plugin->renderer);
+		instance->model = model_load(instance->plugin->aar, name);
 		if (instance->model && instance->model->nr_bones > 0)
 			instance->bone_transforms = xcalloc(instance->model->nr_bones, sizeof(mat4));
 		return !!instance->model;
@@ -879,6 +887,9 @@ bool RE_back_cg_set(struct RE_back_cg *bcg, int no)
 	}
 	bcg->no = no;
 	gfx_delete_texture(&bcg->texture);
+
+	if (!no)  // unload only.
+		return true;
 
 	struct cg *cg = asset_cg_load(no);
 	if (!cg) {

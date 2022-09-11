@@ -196,7 +196,7 @@ static void *buf_alloc(uint8_t **ptr, int size)
 	return p;
 }
 
-static void add_mesh(struct model *model, struct pol_mesh *m, int material_index, int material, struct RE_renderer *r)
+static void add_mesh(struct model *model, struct pol_mesh *m, int material_index, int material)
 {
 	bool has_light_map = m->light_uvs && model->materials[material].light_map;
 	bool has_normal_map = model->materials[material].normal_map != 0;
@@ -271,40 +271,40 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 	glBindBuffer(GL_ARRAY_BUFFER, mesh->attr_buffer);
 
 	const uint8_t *base = (const uint8_t *)0;
-	glEnableVertexAttribArray(ATTR_VERTEX_POS);
-	glVertexAttribPointer(ATTR_VERTEX_POS, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, pos));
-	glEnableVertexAttribArray(r->vertex_normal);
-	glVertexAttribPointer(r->vertex_normal, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, normal));
-	glEnableVertexAttribArray(r->vertex_uv);
-	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, uv));
+	glEnableVertexAttribArray(VATTR_POS);
+	glVertexAttribPointer(VATTR_POS, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, pos));
+	glEnableVertexAttribArray(VATTR_NORMAL);
+	glVertexAttribPointer(VATTR_NORMAL, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, normal));
+	glEnableVertexAttribArray(VATTR_UV);
+	glVertexAttribPointer(VATTR_UV, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, uv));
 	base += sizeof(struct vertex_common);
 	if (has_light_map) {
-		glEnableVertexAttribArray(r->vertex_light_uv);
-		glVertexAttribPointer(r->vertex_light_uv, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_light_uv, uv));
+		glEnableVertexAttribArray(VATTR_LIGHT_UV);
+		glVertexAttribPointer(VATTR_LIGHT_UV, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_light_uv, uv));
 		base += sizeof(struct vertex_light_uv);
 	} else {
-		glDisableVertexAttribArray(r->vertex_light_uv);
-		glVertexAttrib2f(r->vertex_light_uv, 0.0, 0.0);
+		glDisableVertexAttribArray(VATTR_LIGHT_UV);
+		glVertexAttrib2f(VATTR_LIGHT_UV, 0.0, 0.0);
 	}
 	if (has_normal_map) {
-		glEnableVertexAttribArray(r->vertex_tangent);
-		glVertexAttribPointer(r->vertex_tangent, 4, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_tangent, tangent));
+		glEnableVertexAttribArray(VATTR_TANGENT);
+		glVertexAttribPointer(VATTR_TANGENT, 4, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_tangent, tangent));
 		base += sizeof(struct vertex_tangent);
 	} else {
-		glDisableVertexAttribArray(r->vertex_tangent);
-		glVertexAttrib3f(r->vertex_tangent, 1.0, 0.0, 0.0);
+		glDisableVertexAttribArray(VATTR_TANGENT);
+		glVertexAttrib3f(VATTR_TANGENT, 1.0, 0.0, 0.0);
 	}
 	if (has_bones) {
-		glEnableVertexAttribArray(ATTR_BONE_INDEX);
-		glVertexAttribIPointer(ATTR_BONE_INDEX, NR_WEIGHTS, GL_INT, stride, base + offsetof(struct vertex_bones, bone_id));
-		glEnableVertexAttribArray(ATTR_BONE_WEIGHT);
-		glVertexAttribPointer(ATTR_BONE_WEIGHT, NR_WEIGHTS, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_bones, bone_weight));
+		glEnableVertexAttribArray(VATTR_BONE_INDEX);
+		glVertexAttribIPointer(VATTR_BONE_INDEX, NR_WEIGHTS, GL_INT, stride, base + offsetof(struct vertex_bones, bone_id));
+		glEnableVertexAttribArray(VATTR_BONE_WEIGHT);
+		glVertexAttribPointer(VATTR_BONE_WEIGHT, NR_WEIGHTS, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_bones, bone_weight));
 		base += sizeof(struct vertex_bones);
 	} else {
-		glDisableVertexAttribArray(ATTR_BONE_INDEX);
-		glVertexAttribI4i(ATTR_BONE_INDEX, 0, 0, 0, 0);
-		glDisableVertexAttribArray(ATTR_BONE_WEIGHT);
-		glVertexAttrib4f(ATTR_BONE_WEIGHT, 0.0, 0.0, 0.0, 0.0);
+		glDisableVertexAttribArray(VATTR_BONE_INDEX);
+		glVertexAttribI4i(VATTR_BONE_INDEX, 0, 0, 0, 0);
+		glDisableVertexAttribArray(VATTR_BONE_WEIGHT);
+		glVertexAttrib4f(VATTR_BONE_WEIGHT, 0.0, 0.0, 0.0, 0.0);
 	}
 	assert((intptr_t)base == stride);
 
@@ -355,7 +355,7 @@ static void destroy_bone(struct bone *bone)
 	free(bone->name);
 }
 
-struct model *model_load(struct archive *aar, const char *path, struct RE_renderer *r)
+struct model *model_load(struct archive *aar, const char *path)
 {
 	const char *basename = strrchr(path, '\\');
 	basename = basename ? basename + 1 : path;
@@ -429,11 +429,11 @@ struct model *model_load(struct archive *aar, const char *path, struct RE_render
 		struct pol_material_group *mg = &pol->materials[pol->meshes[i]->material];
 		int m_off = material_offsets[pol->meshes[i]->material];
 		if (mg->nr_children == 0) {
-			add_mesh(model, pol->meshes[i], -1, m_off, r);
+			add_mesh(model, pol->meshes[i], -1, m_off);
 			continue;
 		}
 		for (uint32_t j = 0; j < mg->nr_children; j++) {
-			add_mesh(model, pol->meshes[i], j, m_off + j, r);
+			add_mesh(model, pol->meshes[i], j, m_off + j);
 		}
 	}
 
