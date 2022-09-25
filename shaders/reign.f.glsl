@@ -15,6 +15,11 @@
  */
 
 #define NR_DIR_LIGHTS 3
+
+#define DIFFUSE_EMISSIVE 0
+#define DIFFUSE_NORMAL 1
+#define DIFFUSE_LIGHT_MAP 2
+
 #define FOG_LINEAR 1
 #define FOG_LIGHT_SCATTERING 2
 
@@ -40,7 +45,7 @@ uniform float specular_shininess;
 uniform bool use_specular_map;
 uniform float rim_exponent;
 uniform vec3 rim_color;
-uniform bool use_light_map;
+uniform int diffuse_type;
 uniform bool use_shadow_map;
 uniform float shadow_bias;
 uniform int fog_type;
@@ -74,16 +79,20 @@ void main() {
 	vec3 frag_rgb = ambient;
 
 	// Diffuse lighting
-	vec3 diffuse = vec3(0.0);
-	for (int i = 0; i < NR_DIR_LIGHTS; i++) {
-		float half_lambert = dot(norm, -light_dir[i]) * 0.5 + 0.5;
-		diffuse += mix(dir_lights[i].globe_diffuse, dir_lights[i].diffuse, half_lambert);
-	}
-	if (use_light_map) {
-		diffuse *= texture(light_texture, light_tex_coord).rgb;
-	}
 	vec4 texel = texture(tex, tex_coord);
-	frag_rgb += texel.rgb * diffuse;
+	if (diffuse_type == DIFFUSE_EMISSIVE) {
+		frag_rgb = texel.rgb;
+	} else {
+		vec3 diffuse = vec3(0.0);
+		for (int i = 0; i < NR_DIR_LIGHTS; i++) {
+			float half_lambert = dot(norm, -light_dir[i]) * 0.5 + 0.5;
+			diffuse += mix(dir_lights[i].globe_diffuse, dir_lights[i].diffuse, half_lambert);
+		}
+		if (diffuse_type == DIFFUSE_LIGHT_MAP) {
+			diffuse *= texture(light_texture, light_tex_coord).rgb;
+		}
+		frag_rgb += texel.rgb * diffuse;
+	}
 
 	// Specular lighting
 	if (specular_strength > 0.0) {

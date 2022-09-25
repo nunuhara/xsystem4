@@ -18,6 +18,7 @@
 #define SYSTEM4_REIGN_H
 
 #define RE_NR_BACK_CGS 16
+#define RE_NR_INSTANCE_TARGETS 2
 
 #include <cglm/types.h>
 
@@ -124,6 +125,7 @@ struct RE_instance {
 	struct height_detector *height_detector;
 
 	enum RE_instance_type type;
+	int target[RE_NR_INSTANCE_TARGETS];
 	vec3 pos;
 	float pitch, roll, yaw;  // in degrees
 	vec3 scale;
@@ -137,6 +139,10 @@ struct RE_instance {
 	bool motion_blend;
 	float motion_blend_rate;
 	vec3 ambient;
+	vec3 column_pos;
+	float column_height;
+	float column_radius;
+	float column_angle;  // around the Y axis, in degrees
 
 	// Lights
 	vec3 vec;
@@ -237,6 +243,7 @@ int RE_particle_get_num_damage(struct particle_object *po);
 int RE_particle_get_damage(struct particle_object *po, int frame);
 float RE_particle_get_offset_x(struct particle_object *po);
 float RE_particle_get_offset_y(struct particle_object *po);
+bool RE_effect_get_frame_range(struct RE_instance *instance, int *begin_frame, int *end_frame);
 
 bool RE_back_cg_set(struct RE_back_cg *bcg, int no);
 bool RE_back_cg_set_name(struct RE_back_cg *bcg, struct string *name, struct archive *aar);
