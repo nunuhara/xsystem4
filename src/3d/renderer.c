@@ -471,6 +471,8 @@ static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *
 
 	for (int index = 0; index < po->nr_particles; index++) {
 		struct particle_instance *pi = &po->instances[index];
+		if (frame < pi->begin_frame || pi->end_frame < frame)
+			continue;
 
 		float alpha = particle_object_calc_alpha(po, pi, frame);
 		glUniform1f(r->alpha_mod, alpha);
