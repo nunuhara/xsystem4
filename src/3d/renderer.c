@@ -37,6 +37,12 @@ enum {
 	SHADOW_TEXTURE_UNIT,
 };
 
+enum {
+	DIFFUSE_EMISSIVE = 0,
+	DIFFUSE_NORMAL = 1,
+	DIFFUSE_LIGHT_MAP = 2,
+};
+
 static GLuint load_shader(const char *vertex_shader_path, const char *fragment_shader_path)
 {
 	GLuint program = glCreateProgram();
@@ -108,10 +114,10 @@ static void init_billboard_mesh(struct RE_renderer *r)
 {
 	static const GLfloat vertices[] = {
 		// x,    y,   z,    u,   v
-		-1.0,  2.0, 0.0,  0.0, 0.0,
-		-1.0,  0.0, 0.0,  0.0, 1.0,
-		 1.0,  2.0, 0.0,  1.0, 0.0,
-		 1.0,  0.0, 0.0,  1.0, 1.0,
+		-1.0,  1.0, 0.0,  0.0, 0.0,
+		-1.0, -1.0, 0.0,  0.0, 1.0,
+		 1.0,  1.0, 0.0,  1.0, 0.0,
+		 1.0, -1.0, 0.0,  1.0, 1.0,
 	};
 	glGenVertexArrays(1, &r->billboard_vao);
 	glBindVertexArray(r->billboard_vao);
@@ -177,7 +183,7 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->rim_exponent = glGetUniformLocation(r->program, "rim_exponent");
 	r->rim_color = glGetUniformLocation(r->program, "rim_color");
 	r->camera_pos = glGetUniformLocation(r->program, "camera_pos");
-	r->use_light_map = glGetUniformLocation(r->program, "use_light_map");
+	r->diffuse_type = glGetUniformLocation(r->program, "diffuse_type");
 	r->light_texture = glGetUniformLocation(r->program, "light_texture");
 	r->use_normal_map = glGetUniformLocation(r->program, "use_normal_map");
 	r->normal_texture = glGetUniformLocation(r->program, "normal_texture");
@@ -224,6 +230,7 @@ bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, 0);
+	bt->has_alpha = cg->metrics.has_alpha;
 
 	cg_free(cg);
 	ht_put_int(r->billboard_textures, cg_no, bt);
@@ -248,7 +255,7 @@ void RE_renderer_free(struct RE_renderer *r)
 	free(r);
 }
 
-static void calc_view_matrix(struct RE_camera *camera, mat4 out)
+void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out)
 {
 	vec3 front = { 0.0, 0.0, -1.0 };
 	vec3 euler = {
@@ -259,7 +266,6 @@ static void calc_view_matrix(struct RE_camera *camera, mat4 out)
 	mat4 rot;
 	glm_euler(euler, rot);
 	glm_mat4_mulv3(rot, front, 0.0, front);
-	vec3 up = {0.0, 1.0, 0.0};
 	glm_look(camera->pos, front, up, out);
 }
 
@@ -316,12 +322,12 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
 		if (material->light_map && inst->plugin->light_map_mode) {
-			glUniform1i(r->use_light_map, GL_TRUE);
+			glUniform1i(r->diffuse_type, DIFFUSE_LIGHT_MAP);
 			glActiveTexture(GL_TEXTURE0 + LIGHT_TEXTURE_UNIT);
 			glBindTexture(GL_TEXTURE_2D, material->light_map);
 			glUniform1i(r->light_texture, LIGHT_TEXTURE_UNIT);
 		} else {
-			glUniform1i(r->use_light_map, GL_FALSE);
+			glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
 		}
 
 		if (material->normal_map && inst->draw_bump && inst->plugin->bump_mode) {
@@ -342,12 +348,16 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 
 static void render_static_model(struct RE_instance *inst, struct RE_renderer *r)
 {
+	if (!inst->draw)
+		return;
 	glUniform1i(r->has_bones, GL_FALSE);
 	render_model(inst, r);
 }
 
 static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r)
 {
+	if (!inst->draw)
+		return;
 	struct model *model = inst->model;
 	if (!model)
 		return;
@@ -363,6 +373,8 @@ static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r
 
 static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat)
 {
+	if (!inst->draw)
+		return;
 	int cg_no = inst->motion->current_frame;
 	struct billboard_texture *bt = ht_get_int(r->billboard_textures, cg_no, NULL);
 	if (!bt)
@@ -374,6 +386,8 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glm_mat4_pick3t(view_mat, rot);
 	glm_mat4_ins3(rot, local_transform);
 	glm_scale(local_transform, inst->scale);
+	// Billboard instances are bottomed at y=0.
+	glm_translate_y(local_transform, 1.0);
 	mat3 normal_transform;
 	// This should be safe because billboards do not have non-uniform scaling.
 	glm_mat4_pick3(local_transform, normal_transform);
@@ -390,8 +404,9 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glUniform1f(r->specular_shininess, 0.0);
 	glUniform1i(r->use_specular_map, GL_FALSE);
 	glUniform1f(r->rim_exponent, 0.0);
-	glUniform1i(r->use_light_map, GL_FALSE);
+	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
 	glUniform1i(r->use_normal_map, GL_FALSE);
+	glUniform1i(r->use_shadow_map, GL_FALSE);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
@@ -402,6 +417,133 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static void render_billboard_particles(struct RE_renderer *r, struct RE_instance *inst, struct particle_object *po, float frame)
+{
+	if (po->nr_textures == 0)
+		return;
+
+	glUniform1i(r->diffuse_type, DIFFUSE_EMISSIVE);
+	glUniform1i(r->fog_type, 0);
+
+	glActiveTexture(GL_TEXTURE0);
+	glUniform1i(r->texture, 0);
+	glBindVertexArray(r->billboard_vao);
+
+	for (int index = 0; index < po->nr_particles; index++) {
+		struct particle_instance *pi = &po->instances[index];
+		if (frame < pi->begin_frame || pi->end_frame < frame)
+			continue;
+
+		int step = (int)((frame - pi->begin_frame) / po->texture_anime_frame);
+		struct billboard_texture *bt = ht_get(inst->effect->textures, po->textures[step % po->nr_textures], NULL);
+		if (!bt)
+			continue;
+		glBindTexture(GL_TEXTURE_2D, bt->texture);
+
+		float alpha = particle_object_calc_alpha(po, pi, frame);
+		if (po->blend_type == PARTICLE_BLEND_ADDITIVE && !bt->has_alpha)
+			alpha *= alpha;  // why...
+		glUniform1f(r->alpha_mod, alpha);
+
+		mat4 local_transform;
+		particle_object_calc_local_transform(inst, po, pi, frame, local_transform);
+		glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, local_transform[0]);
+		glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, local_transform[0]);
+
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	}
+
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glUniform1i(r->fog_type, inst->plugin->fog_type);
+}
+
+static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *inst, struct particle_object *po, float frame)
+{
+	struct model *model = po->model;
+	if (!model)
+		return;
+
+	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
+
+	for (int index = 0; index < po->nr_particles; index++) {
+		struct particle_instance *pi = &po->instances[index];
+		if (frame < pi->begin_frame || pi->end_frame < frame)
+			continue;
+
+		float alpha = particle_object_calc_alpha(po, pi, frame);
+		glUniform1f(r->alpha_mod, alpha);
+
+		mat4 local_transform;
+		particle_object_calc_local_transform(inst, po, pi, frame, local_transform);
+		glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, local_transform[0]);
+		glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, local_transform[0]);
+
+		for (int i = 0; i < model->nr_meshes; i++) {
+			struct mesh *mesh = &model->meshes[i];
+			struct material *material = &model->materials[mesh->material];
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, material->color_map);
+			glUniform1i(r->texture, 0);
+
+			glBindVertexArray(mesh->vao);
+			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+
+			glBindVertexArray(0);
+			glBindTexture(GL_TEXTURE_2D, 0);
+		}
+	}
+}
+
+static void render_particle_effect(struct RE_instance *inst, struct RE_renderer *r)
+{
+	// NOTE: inst->draw flag has no effect for particle effects.
+	if (!inst->effect)
+		return;
+
+	vec3 ambient;
+	glm_vec3_add(inst->plugin->global_ambient, inst->ambient, ambient);
+	glUniform3fv(r->ambient, 1, ambient);
+
+	glUniform1i(r->has_bones, GL_FALSE);
+	glUniform1f(r->specular_strength, 0.0);
+	glUniform1f(r->specular_shininess, 0.0);
+	glUniform1i(r->use_specular_map, GL_FALSE);
+	glUniform1f(r->rim_exponent, 0.0);
+	glUniform1i(r->use_normal_map, GL_FALSE);
+	glUniform1i(r->use_shadow_map, GL_FALSE);
+
+	glDepthMask(GL_FALSE);
+
+	for (int i = 0; i < inst->effect->nr_objects; i++) {
+		struct particle_object *po = &inst->effect->objects[i];
+
+		switch (po->blend_type) {
+		case PARTICLE_BLEND_NORMAL:
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+			break;
+		case PARTICLE_BLEND_ADDITIVE:
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+			break;
+		}
+
+		switch (po->type) {
+		case PARTICLE_TYPE_BILLBOARD:
+			render_billboard_particles(r, inst, po, inst->motion->current_frame);
+			break;
+		case PARTICLE_TYPE_POLYGON_OBJECT:
+			render_polygon_particles(r, inst, po, inst->motion->current_frame);
+			break;
+		case PARTICLE_TYPE_SWORD_BLUR: // unused
+			break;
+		}
+	}
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDepthMask(GL_TRUE);
 }
 
 static bool calc_shadow_light_transform(struct RE_plugin *plugin, mat4 dest)
@@ -579,7 +721,7 @@ void RE_render(struct sact_sprite *sp)
 	glEnable(GL_CULL_FACE);
 
 	mat4 view_transform;
-	calc_view_matrix(&plugin->camera, view_transform);
+	RE_calc_view_matrix(&plugin->camera, GLM_YUP, view_transform);
 
 	// Tweak the projection transform so that the rendering result is vertically
 	// flipped. If we render the scene normally, the resulting image will be
@@ -621,7 +763,7 @@ void RE_render(struct sact_sprite *sp)
 
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
-		if (!inst || !inst->draw)
+		if (!inst)
 			continue;
 		switch (inst->type) {
 		case RE_ITYPE_STATIC:
@@ -632,6 +774,9 @@ void RE_render(struct sact_sprite *sp)
 			break;
 		case RE_ITYPE_BILLBOARD:
 			render_billboard(inst, r, view_transform);
+			break;
+		case RE_ITYPE_PARTICLE_EFFECT:
+			render_particle_effect(inst, r);
 			break;
 		default:
 			break;

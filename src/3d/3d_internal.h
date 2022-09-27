@@ -23,9 +23,15 @@
 
 #include "gfx/gl.h"
 #include "gfx/gfx.h"
+#include "reign.h"
 
 #define NR_DIR_LIGHTS 3
 #define MAX_BONES 211  // Maximum in TT3
+
+typedef struct vec3_range {
+	vec3 begin;
+	vec3 end;
+} vec3_range;
 
 struct model {
 	char *path;
@@ -127,7 +133,7 @@ struct RE_renderer {
 	GLint rim_exponent;
 	GLint rim_color;
 	GLint camera_pos;
-	GLint use_light_map;
+	GLint diffuse_type;
 	GLint light_texture;
 	GLint use_normal_map;
 	GLint normal_texture;
@@ -151,6 +157,7 @@ struct RE_renderer {
 
 struct billboard_texture {
 	GLuint texture;
+	bool has_alpha;
 };
 
 // reign.c
@@ -175,6 +182,7 @@ bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);
 struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r, struct model *model);
 void RE_renderer_free_height_detector(struct height_detector *hd);
 float RE_renderer_detect_height(struct height_detector *hd, float x, float z);
+void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out);
 
 // particle.c
 
@@ -191,6 +199,13 @@ enum particle_move_type {
 	PARTICLE_MOVE_EMITTER = 2,
 };
 
+enum particle_up_vector_type {
+	PARTICLE_UP_VECTOR_Y_AXIS = 0,
+	PARTICLE_UP_VECTOR_OBJECT_MOVE = 1,
+	PARTICLE_UP_VECTOR_INSTANCE_MOVE = 2,
+	PARTICLE_UP_VECTOR_TYPE_MAX = PARTICLE_UP_VECTOR_INSTANCE_MOVE
+};
+
 enum particle_blend_type {
 	PARTICLE_BLEND_NORMAL = 0,
 	PARTICLE_BLEND_ADDITIVE = 1,
@@ -199,6 +214,18 @@ enum particle_blend_type {
 enum particle_frame_ref_type {
 	PARTICLE_FRAME_REF_EFFECT = 0,
 	PARTICLE_FRAME_REF_TARGET = 1,
+};
+
+enum particle_child_move_dir_type {
+	PARTICLE_CHILD_MOVE_DIR_NORMAL = 0,
+	PARTICLE_CHILD_MOVE_DIR_REVERSE = 1,
+	PARTICLE_CHILD_MOVE_DIR_TYPE_MAX = PARTICLE_CHILD_MOVE_DIR_REVERSE
+};
+
+enum particle_dir_type {
+	PARTICLE_DIR_TYPE_NORMAL = 0,
+	PARTICLE_DIR_TYPE_XY_PLANE = 1,
+	PARTICLE_DIR_TYPE_MAX = PARTICLE_DIR_TYPE_XY_PLANE
 };
 
 struct particle_position_unit {
@@ -212,13 +239,13 @@ struct particle_position_unit {
 	} type;
 	union {
 		struct {
-			int n;
-			vec3 pos;
+			int index;
+			vec3 offset;
 		} target;
 		struct {
-			int n;
-			// char *name;
-			vec3 pos;
+			int target_index;
+			char *name;
+			vec3 offset;
 		} bone;
 		struct {
 			float f;
@@ -237,7 +264,7 @@ struct particle_object {
 	char *name;
 	enum particle_type type;
 	enum particle_move_type move_type;
-	int up_vector_type;
+	enum particle_up_vector_type up_vector_type;
 	float move_curve;
 	struct particle_position *position[NR_PARTICLE_POSITIONS];
 	float size[2];
@@ -269,9 +296,9 @@ struct particle_object {
 	int alpha_fadein_time;
 	float alpha_fadeout_frame;
 	int alpha_fadeout_time;
-	vec3 rotation[2];
-	vec3 revolution_angle[2];
-	vec3 revolution_distance[2];
+	vec3_range rotation;
+	vec3_range revolution_angle;
+	vec3_range revolution_distance;
 	vec3 curve_length;
 	int child_frame;
 	float child_length;
@@ -279,22 +306,42 @@ struct particle_object {
 	float child_end_slope;
 	float child_create_begin_frame;
 	float child_create_end_frame;
-	int child_move_dir_type;
-	int dir_type;
+	enum particle_child_move_dir_type child_move_dir_type;
+	enum particle_dir_type dir_type;
 	int nr_damages;
 	int *damages;
 	float offset_x;
 	float offset_y;
+
+	// Runtime data
+	struct model *model;
+	struct particle_instance *instances;
+	vec3_range pos;
+	vec3 move_vec, move_ortho;
+};
+
+struct particle_instance {
+	float begin_frame;
+	float end_frame;
+	vec3_range random_offset;
+	float roll_angle;
+	float pitch_angle;
 };
 
 struct particle_effect {
 	char *path;
+	struct hash_table *textures; // name -> struct billboard_texture*
+
 	int nr_objects;
 	struct particle_object *objects;
 };
 
 struct particle_effect *particle_effect_load(struct archive *aar, const char *path);
 void particle_effect_free(struct particle_effect *effect);
+void particle_effect_calc_frame_range(struct particle_effect *effect, struct motion *motion);
+void particle_effect_update(struct RE_instance *inst);
+void particle_object_calc_local_transform(struct RE_instance *inst, struct particle_object *po, struct particle_instance *pi, float frame, mat4 dest);
+float particle_object_calc_alpha(struct particle_object *po, struct particle_instance *pi, float frame);
 
 // parser.c
 

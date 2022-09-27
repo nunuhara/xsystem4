@@ -482,22 +482,97 @@ static bool ReignEngine_FreeInstanceNextMotion(int plugin, int instance)
 //bool ReignEngine_SaveInstanceAddMaterialData(int plugin, int instance);
 //bool ReignEngine_SetInstancePointPos(int plugin, int instance, int index, float x, float y, float z);
 //bool ReignEngine_GetInstancePointPos(int plugin, int instance, int index, float *pfX, float *pfY, float *pfZ);
-//bool ReignEngine_GetInstanceColumnPos(int plugin, int instance, float *fX, float *fY, float *fZ);
-//float ReignEngine_GetInstanceColumnHeight(int plugin, int instance);
-//float ReignEngine_GetInstanceColumnRadius(int plugin, int instance);
-//float ReignEngine_GetInstanceColumnAngle(int plugin, int instance);
+static bool ReignEngine_GetInstanceColumnPos(int plugin, int instance, float *x, float *y, float *z)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	*x = ri->column_pos[0];
+	*y = ri->column_pos[1];
+	*z = -ri->column_pos[2];
+	return true;
+}
+
+static float ReignEngine_GetInstanceColumnHeight(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	return ri ? ri->column_height : 0.0;
+}
+
+static float ReignEngine_GetInstanceColumnRadius(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	return ri ? ri->column_radius : 0.0;
+}
+
+static float ReignEngine_GetInstanceColumnAngle(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	return ri ? ri->column_angle : 0.0;
+}
+
 //float ReignEngine_GetInstanceColumnAngleP(int plugin, int instance);
 //float ReignEngine_GetInstanceColumnAngleB(int plugin, int instance);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceColumnPos, int plugin, int instance, float x, float y, float z);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceColumnHeight, int plugin, int instance, float height);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceColumnRadius, int plugin, int instance, float radius);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceColumnAngle, int plugin, int instance, float angle);
+
+static bool ReignEngine_SetInstanceColumnPos(int plugin, int instance, float x, float y, float z)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->column_pos[0] = x;
+	ri->column_pos[1] = y;
+	ri->column_pos[2] = -z;
+	return true;
+}
+
+static bool ReignEngine_SetInstanceColumnHeight(int plugin, int instance, float height)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->column_height = height;
+	return true;
+}
+
+static bool ReignEngine_SetInstanceColumnRadius(int plugin, int instance, float radius)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->column_radius = radius;
+	return true;
+}
+
+static bool ReignEngine_SetInstanceColumnAngle(int plugin, int instance, float angle)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->column_angle = angle;
+	return true;
+}
+
 //bool ReignEngine_SetInstanceColumnAngleP(int plugin, int instance, float fAngleP);
 //bool ReignEngine_SetInstanceColumnAngleB(int plugin, int instance, float fAngleB);
 //bool ReignEngine_GetInstanceDrawColumn(int plugin, int instance);
 //bool ReignEngine_SetInstanceDrawColumn(int plugin, int instance, bool bDraw);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceTarget, int plugin, int instance, int index, int target);
-//int ReignEngine_GetInstanceTarget(int plugin, int instance, int index);
+
+static bool ReignEngine_SetInstanceTarget(int plugin, int instance, int index, int target)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri || index < 0 || index >= RE_NR_INSTANCE_TARGETS)
+		return false;
+	ri->target[index] = target;
+	return true;
+}
+
+static int ReignEngine_GetInstanceTarget(int plugin, int instance, int index)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri || index < 0 || index >= RE_NR_INSTANCE_TARGETS)
+		return -1;
+	return ri->target[index];
+}
 
 static float ReignEngine_GetInstanceFPS(int plugin, int instance)
 {
@@ -561,7 +636,11 @@ static bool ReignEngine_SetInstanceShadowVolumeBoneRadius(int plugin, int instan
 //bool ReignEngine_GetInstanceDebugDrawShadowVolume(int plugin, int instance);
 //bool ReignEngine_SetInstanceDebugDrawShadowVolume(int plugin, int instance, bool flag);
 //bool ReignEngine_SaveEffect(int plugin, int instance);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, GetEffectFrameRange, int plugin, int instance, int *begin_frame, int *end_frame);
+
+static bool ReignEngine_GetEffectFrameRange(int plugin, int instance, int *begin_frame, int *end_frame)
+{
+	return RE_effect_get_frame_range(get_instance(plugin, instance), begin_frame, end_frame);
+}
 
 static int ReignEngine_GetEffectObjectType(int plugin, int instance, int object)
 {
@@ -1765,10 +1844,10 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_TODO_EXPORT(SaveInstanceAddMaterialData, ReignEngine_SaveInstanceAddMaterialData),
 	    HLL_TODO_EXPORT(SetInstancePointPos, ReignEngine_SetInstancePointPos),
 	    HLL_TODO_EXPORT(GetInstancePointPos, ReignEngine_GetInstancePointPos),
-	    HLL_TODO_EXPORT(GetInstanceColumnPos, ReignEngine_GetInstanceColumnPos),
-	    HLL_TODO_EXPORT(GetInstanceColumnHeight, ReignEngine_GetInstanceColumnHeight),
-	    HLL_TODO_EXPORT(GetInstanceColumnRadius, ReignEngine_GetInstanceColumnRadius),
-	    HLL_TODO_EXPORT(GetInstanceColumnAngle, ReignEngine_GetInstanceColumnAngle),
+	    HLL_EXPORT(GetInstanceColumnPos, ReignEngine_GetInstanceColumnPos),
+	    HLL_EXPORT(GetInstanceColumnHeight, ReignEngine_GetInstanceColumnHeight),
+	    HLL_EXPORT(GetInstanceColumnRadius, ReignEngine_GetInstanceColumnRadius),
+	    HLL_EXPORT(GetInstanceColumnAngle, ReignEngine_GetInstanceColumnAngle),
 	    HLL_TODO_EXPORT(GetInstanceColumnAngleP, ReignEngine_GetInstanceColumnAngleP),
 	    HLL_TODO_EXPORT(GetInstanceColumnAngleB, ReignEngine_GetInstanceColumnAngleB),
 	    HLL_EXPORT(SetInstanceColumnPos, ReignEngine_SetInstanceColumnPos),
@@ -1780,7 +1859,7 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_TODO_EXPORT(GetInstanceDrawColumn, ReignEngine_GetInstanceDrawColumn),
 	    HLL_TODO_EXPORT(SetInstanceDrawColumn, ReignEngine_SetInstanceDrawColumn),
 	    HLL_EXPORT(SetInstanceTarget, ReignEngine_SetInstanceTarget),
-	    HLL_TODO_EXPORT(GetInstanceTarget, ReignEngine_GetInstanceTarget),
+	    HLL_EXPORT(GetInstanceTarget, ReignEngine_GetInstanceTarget),
 	    HLL_EXPORT(GetInstanceFPS, ReignEngine_GetInstanceFPS),
 	    HLL_EXPORT(SetInstanceFPS, ReignEngine_SetInstanceFPS),
 	    HLL_EXPORT(GetInstanceBoneIndex, ReignEngine_GetInstanceBoneIndex),

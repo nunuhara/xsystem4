@@ -37,12 +37,16 @@ static struct RE_instance *create_instance(struct RE_plugin *plugin)
 {
 	struct RE_instance *instance = xcalloc(1, sizeof(struct RE_instance));
 	instance->plugin = plugin;
+	for (int i = 0; i < RE_NR_INSTANCE_TARGETS; i++)
+		instance->target[i] = -1;
 	instance->scale[0] = 1.0;
 	instance->scale[1] = 1.0;
 	instance->scale[2] = 1.0;
 	instance->alpha = 1.0;
 	instance->draw_bump = true;
 	instance->fps = 30.0;
+	instance->column_height = 1.0;
+	instance->column_radius = 1.0;
 	glm_mat4_identity(instance->local_transform);
 	glm_mat3_identity(instance->normal_transform);
 	return instance;
@@ -106,6 +110,8 @@ static void update_motion(struct motion *m, float delta_frame)
 	if (!m || m->state == RE_MOTION_STATE_STOP)
 		return;
 	m->current_frame += delta_frame;
+	if (m->current_frame < m->frame_begin)
+		m->current_frame = m->frame_begin;
 	switch (m->state) {
 	case RE_MOTION_STATE_NOLOOP:
 		if (m->current_frame > m->frame_end) {
@@ -131,13 +137,9 @@ static void calc_motion_frame(struct motion *m, int bone, struct mot_frame *out)
 	interpolate_motion_frame(&frames[cur_frame], &frames[next_frame], t, out);
 }
 
-static void animate(struct RE_instance *inst, int elapsed_ms)
+static void update_bones(struct RE_instance *inst)
 {
-	float delta_frame = inst->fps * elapsed_ms / 1000.0;
-	update_motion(inst->motion, delta_frame);
-	update_motion(inst->next_motion, delta_frame);
-
-	if (inst->type != RE_ITYPE_SKINNED || !inst->motion)
+	if (!inst->motion)
 		return;
 
 	mat4 parent_transforms[MAX_BONES];
@@ -235,8 +237,24 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 		return false;
 
 	for (int i = 0; i < plugin->nr_instances; i++) {
-		if (plugin->instances[i])
-			animate(plugin->instances[i], elapsed_ms);
+		struct RE_instance *inst = plugin->instances[i];
+		if (!inst)
+			continue;
+
+		float delta_frame = inst->fps * elapsed_ms / 1000.0;
+		update_motion(inst->motion, delta_frame);
+		update_motion(inst->next_motion, delta_frame);
+
+		if (inst->type == RE_ITYPE_SKINNED)
+			update_bones(inst);
+	}
+
+	// Update particle effects in a second pass, because it uses the results of
+	// update_bones().
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = plugin->instances[i];
+		if (inst && inst->type == RE_ITYPE_PARTICLE_EFFECT)
+			particle_effect_update(inst);
 	}
 	return true;
 }
@@ -329,6 +347,11 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 		return !!instance->model;
 	case RE_ITYPE_PARTICLE_EFFECT:
 		instance->effect = particle_effect_load(instance->plugin->aar, name);
+		if (!instance->motion) {
+			instance->motion = xcalloc(1, sizeof(struct motion));
+			instance->motion->instance = instance;
+			particle_effect_calc_frame_range(instance->effect, instance->motion);
+		}
 		return !!instance->effect;
 	default:
 		WARNING("Invalid instance type %d", instance->type);
@@ -573,9 +596,9 @@ int RE_particle_get_pos_unit_index(struct particle_object *po, int pos, int unit
 		return 0;
 	switch (u->type) {
 	case PARTICLE_POS_UNIT_BONE:
-		return u->bone.n;
+		return u->bone.target_index;
 	case PARTICLE_POS_UNIT_TARGET:
-		return u->target.n;
+		return u->target.index;
 	default:
 		return 0;
 	}
@@ -739,72 +762,72 @@ void RE_particle_get_x_rotation_angle(struct particle_object *po, float *begin_a
 {
 	if (!po)
 		return;
-	*begin_angle = po->rotation[0][0];
-	*end_angle = po->rotation[1][0];
+	*begin_angle = po->rotation.begin[0];
+	*end_angle = po->rotation.end[0];
 }
 
 void RE_particle_get_y_rotation_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->rotation[0][1];
-	*end_angle = po->rotation[1][1];
+	*begin_angle = po->rotation.begin[1];
+	*end_angle = po->rotation.end[1];
 }
 
 void RE_particle_get_z_rotation_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->rotation[0][2];
-	*end_angle = po->rotation[1][2];
+	*begin_angle = po->rotation.begin[2];
+	*end_angle = po->rotation.end[2];
 }
 
 void RE_particle_get_x_revolution_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->revolution_angle[0][0];
-	*end_angle = po->revolution_angle[1][0];
+	*begin_angle = po->revolution_angle.begin[0];
+	*end_angle = po->revolution_angle.end[0];
 }
 
 void RE_particle_get_x_revolution_distance(struct particle_object *po, float *begin_distance, float *end_distance)
 {
 	if (!po)
 		return;
-	*begin_distance = po->revolution_distance[0][0];
-	*end_distance = po->revolution_distance[1][0];
+	*begin_distance = po->revolution_distance.begin[0];
+	*end_distance = po->revolution_distance.end[0];
 }
 
 void RE_particle_get_y_revolution_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->revolution_angle[0][1];
-	*end_angle = po->revolution_angle[1][1];
+	*begin_angle = po->revolution_angle.begin[1];
+	*end_angle = po->revolution_angle.end[1];
 }
 
 void RE_particle_get_y_revolution_distance(struct particle_object *po, float *begin_distance, float *end_distance)
 {
 	if (!po)
 		return;
-	*begin_distance = po->revolution_distance[0][1];
-	*end_distance = po->revolution_distance[1][1];
+	*begin_distance = po->revolution_distance.begin[1];
+	*end_distance = po->revolution_distance.end[1];
 }
 
 void RE_particle_get_z_revolution_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->revolution_angle[0][2];
-	*end_angle = po->revolution_angle[1][2];
+	*begin_angle = po->revolution_angle.begin[2];
+	*end_angle = po->revolution_angle.end[2];
 }
 
 void RE_particle_get_z_revolution_distance(struct particle_object *po, float *begin_distance, float *end_distance)
 {
 	if (!po)
 		return;
-	*begin_distance = po->revolution_distance[0][2];
-	*end_distance = po->revolution_distance[1][2];
+	*begin_distance = po->revolution_distance.begin[2];
+	*end_distance = po->revolution_distance.end[2];
 }
 
 bool RE_particle_get_curve_length(struct particle_object *po, vec3 out)
@@ -875,6 +898,15 @@ float RE_particle_get_offset_x(struct particle_object *po)
 float RE_particle_get_offset_y(struct particle_object *po)
 {
 	return po ? po->offset_y : 0.0;
+}
+
+bool RE_effect_get_frame_range(struct RE_instance *instance, int *begin_frame, int *end_frame)
+{
+	if (!instance || !instance->effect || !instance->motion)
+		return false;
+	*begin_frame = instance->motion->frame_begin;
+	*end_frame = instance->motion->frame_end;
+	return true;
 }
 
 bool RE_back_cg_set(struct RE_back_cg *bcg, int no)
