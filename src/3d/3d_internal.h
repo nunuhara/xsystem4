@@ -55,6 +55,7 @@ struct mesh {
 struct material {
 	GLuint color_map;
 	GLuint specular_map;
+	GLuint alpha_map;
 	GLuint light_map;
 	GLuint normal_map;
 	float specular_strength;
@@ -149,6 +150,8 @@ struct RE_renderer {
 	GLint ls_light_dir;
 	GLint ls_light_color;
 	GLint ls_sun_color;
+	GLint use_alpha_map;
+	GLint alpha_texture;
 
 	GLuint billboard_vao;
 	GLuint billboard_attr_buffer;
@@ -358,6 +361,7 @@ struct pol {
 enum pol_texture_type {
 	COLOR_MAP = 1,
 	SPECULAR_MAP = 4,
+	ALPHA_MAP = 6,
 	LIGHT_MAP = 7,
 	NORMAL_MAP = 8,
 	MAX_TEXTURE_TYPE

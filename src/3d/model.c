@@ -99,6 +99,8 @@ static bool init_material(struct material *material, const struct pol_material *
 
 	if (m->textures[SPECULAR_MAP])
 		material->specular_map = load_texture(aar, path, m->textures[SPECULAR_MAP]);
+	if (m->textures[ALPHA_MAP])
+		material->alpha_map = load_texture(aar, path, m->textures[ALPHA_MAP]);
 	if (m->textures[LIGHT_MAP])
 		material->light_map = load_texture(aar, path, m->textures[LIGHT_MAP]);
 	if (m->textures[NORMAL_MAP])
@@ -129,6 +131,8 @@ static void destroy_material(struct material *material)
 		glDeleteTextures(1, &material->color_map);
 	if (material->specular_map)
 		glDeleteTextures(1, &material->specular_map);
+	if (material->alpha_map)
+		glDeleteTextures(1, &material->alpha_map);
 	if (material->light_map)
 		glDeleteTextures(1, &material->light_map);
 	if (material->normal_map)
