@@ -27,6 +27,7 @@
 #include "3d_internal.h"
 #include "reign.h"
 
+#define FP16_MIN 6.103516e-5f
 #define NR_WEIGHTS 4
 
 struct vertex_common {
@@ -98,6 +99,8 @@ static bool init_material(struct material *material, const struct pol_material *
 
 	if (m->textures[SPECULAR_MAP])
 		material->specular_map = load_texture(aar, path, m->textures[SPECULAR_MAP]);
+	if (m->textures[ALPHA_MAP])
+		material->alpha_map = load_texture(aar, path, m->textures[ALPHA_MAP]);
 	if (m->textures[LIGHT_MAP])
 		material->light_map = load_texture(aar, path, m->textures[LIGHT_MAP]);
 	if (m->textures[NORMAL_MAP])
@@ -112,6 +115,10 @@ static bool init_material(struct material *material, const struct pol_material *
 			material->rim_color[0] = amt_m->fields[AMT_RIM_R];
 			material->rim_color[1] = amt_m->fields[AMT_RIM_G];
 			material->rim_color[2] = amt_m->fields[AMT_RIM_B];
+			// Very small rim_exponent value should not be used for rim
+			// lighting. (e.g. meizi.amt in TT3)
+			if (material->rim_exponent < FP16_MIN)
+				material->rim_exponent = 0.0f;
 		}
 	}
 
@@ -124,6 +131,8 @@ static void destroy_material(struct material *material)
 		glDeleteTextures(1, &material->color_map);
 	if (material->specular_map)
 		glDeleteTextures(1, &material->specular_map);
+	if (material->alpha_map)
+		glDeleteTextures(1, &material->alpha_map);
 	if (material->light_map)
 		glDeleteTextures(1, &material->light_map);
 	if (material->normal_map)

@@ -32,6 +32,7 @@
 enum {
 	COLOR_TEXTURE_UNIT,
 	SPECULAR_TEXTURE_UNIT,
+	ALPHA_TEXTURE_UNIT,
 	LIGHT_TEXTURE_UNIT,
 	NORMAL_TEXTURE_UNIT,
 	SHADOW_TEXTURE_UNIT,
@@ -199,6 +200,8 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->ls_light_dir = glGetUniformLocation(r->program, "ls_light_dir");
 	r->ls_light_color = glGetUniformLocation(r->program, "ls_light_color");
 	r->ls_sun_color = glGetUniformLocation(r->program, "ls_sun_color");
+	r->use_alpha_map = glGetUniformLocation(r->program, "use_alpha_map");
+	r->alpha_texture = glGetUniformLocation(r->program, "alpha_texture");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, r->depth_buffer);
@@ -259,8 +262,8 @@ void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out)
 {
 	vec3 front = { 0.0, 0.0, -1.0 };
 	vec3 euler = {
-		glm_rad(camera->pitch),
-		glm_rad(camera->yaw),
+		glm_rad(camera->pitch + camera->quake_pitch),
+		glm_rad(camera->yaw + camera->quake_yaw),
 		glm_rad(camera->roll)
 	};
 	mat4 rot;
@@ -339,6 +342,15 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 			glUniform1i(r->use_normal_map, GL_FALSE);
 		}
 
+		if (material->alpha_map) {
+			glUniform1i(r->use_alpha_map, GL_TRUE);
+			glActiveTexture(GL_TEXTURE0 + ALPHA_TEXTURE_UNIT);
+			glBindTexture(GL_TEXTURE_2D, material->alpha_map);
+			glUniform1i(r->alpha_texture, ALPHA_TEXTURE_UNIT);
+		} else {
+			glUniform1i(r->use_alpha_map, GL_FALSE);
+		}
+
 		glBindVertexArray(mesh->vao);
 		glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 		glBindVertexArray(0);
@@ -407,6 +419,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
 	glUniform1i(r->use_normal_map, GL_FALSE);
 	glUniform1i(r->use_shadow_map, GL_FALSE);
+	glUniform1i(r->use_alpha_map, GL_FALSE);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
@@ -516,6 +529,7 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 	glUniform1f(r->rim_exponent, 0.0);
 	glUniform1i(r->use_normal_map, GL_FALSE);
 	glUniform1i(r->use_shadow_map, GL_FALSE);
+	glUniform1i(r->use_alpha_map, GL_FALSE);
 
 	glDepthMask(GL_FALSE);
 
@@ -538,11 +552,12 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 		case PARTICLE_TYPE_POLYGON_OBJECT:
 			render_polygon_particles(r, inst, po, inst->motion->current_frame);
 			break;
-		case PARTICLE_TYPE_SWORD_BLUR: // unused
+		case PARTICLE_TYPE_SWORD_BLUR:   // unused
+		case PARTICLE_TYPE_CAMERA_QUAKE: // handled in particle_effect_update()
 			break;
 		}
 	}
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
 	glDepthMask(GL_TRUE);
 }
 
@@ -757,7 +772,7 @@ void RE_render(struct sact_sprite *sp)
 	}
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
 
 	setup_lights(plugin);
 
@@ -790,6 +805,7 @@ void RE_render(struct sact_sprite *sp)
 	glUseProgram(0);
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 struct height_detector {

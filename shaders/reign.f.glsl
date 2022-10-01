@@ -31,6 +31,7 @@ struct dir_light {
 
 uniform sampler2D tex;
 uniform sampler2D specular_texture;
+uniform sampler2D alpha_texture;
 uniform sampler2D light_texture;
 uniform sampler2D shadow_texture;
 uniform float alpha_mod;
@@ -52,6 +53,7 @@ uniform int fog_type;
 uniform float fog_near;
 uniform float fog_far;
 uniform vec3 fog_color;
+uniform bool use_alpha_map;
 
 in vec2 tex_coord;
 in vec2 light_tex_coord;
@@ -135,5 +137,11 @@ void main() {
 		frag_rgb *= shadow_factor;
 	}
 
-	frag_color = vec4(frag_rgb, texel.a * alpha_mod);
+	// Alpha mapping
+	float alpha = texel.a * alpha_mod;
+	if (use_alpha_map) {
+		alpha *= texture(alpha_texture, tex_coord).r;
+	}
+
+	frag_color = vec4(frag_rgb, alpha);
 }

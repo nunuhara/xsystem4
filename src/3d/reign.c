@@ -236,6 +236,8 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 	if (!plugin)
 		return false;
 
+	plugin->camera.quake_pitch = plugin->camera.quake_yaw = 0.0;
+
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst)
@@ -519,6 +521,19 @@ bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float en
 int RE_effect_get_num_object(struct particle_effect *effect)
 {
 	return effect ? effect->nr_objects : 0;
+}
+
+bool RE_effect_get_camera_quake_flag(struct particle_effect *effect)
+{
+	return effect && effect->camera_quake_enabled;
+}
+
+bool RE_effect_set_camera_quake_flag(struct particle_effect *effect, bool enable)
+{
+	if (!effect)
+		return false;
+	effect->camera_quake_enabled = enable;
+	return true;
 }
 
 struct particle_object *RE_get_effect_object(struct particle_effect *effect, unsigned object)
