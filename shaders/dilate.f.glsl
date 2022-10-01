@@ -27,9 +27,9 @@ void main() {
 	int size = int(floor(threshold));
 	int cutoff = size + 1;
 	float edge_weight = fract(threshold);
-	vec2 tex_size = textureSize(tex, 0).xy;
+	vec2 tex_size = vec2(textureSize(tex, 0).xy);
 
-	float a_out = 0;
+	float a_out = 0.0;
 
 	for (int x = -cutoff; x <= cutoff; x++) {
 		for (int y = -cutoff; y <= cutoff; y++) {
@@ -37,7 +37,7 @@ void main() {
 			if (d > threshold)
 				continue;
 			float a = texture(tex, tex_coord + vec2(x, y) / tex_size).r;
-			if (d > size)
+			if (d > float(size))
 				a *= edge_weight;
 			a_out += a;
 		}
