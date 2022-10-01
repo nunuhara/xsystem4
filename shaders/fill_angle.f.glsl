@@ -27,7 +27,7 @@ out vec4 frag_color;
 void main() {
 	vec2 p = tex_coord - center;
 	float a = atan(p.y, p.x);
-	a = mod(a - start_angle, 2 * PI);
+	a = mod(a - start_angle, 2.0 * PI);
 	if (a > angle)
 		discard;
 	frag_color = color;
