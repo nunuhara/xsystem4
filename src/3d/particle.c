@@ -46,7 +46,7 @@ static enum particle_type parse_particle_type(const char *s)
 	else if (!strcmp(s, "剣ブラー"))
 		return PARTICLE_TYPE_SWORD_BLUR;
 	else if (!strcmp(s, "カメラ振動"))
-		return PARTICLE_TYPE_CAMERA_VIBRATION;
+		return PARTICLE_TYPE_CAMERA_QUAKE;
 	WARNING("unknown object type \"%s\"", s);
 	return (enum particle_type)-1;
 }
@@ -663,6 +663,7 @@ struct particle_effect *particle_effect_load(struct archive *aar, const char *pa
 	archive_free_data(dfile);
 
 	effect->path = strdup(path);
+	effect->camera_quake_enabled = true;
 	load_textures(effect, aar);
 	for (int i = 0; i < effect->nr_objects; i++) {
 		struct particle_object *po = &effect->objects[i];
@@ -744,6 +745,25 @@ void particle_effect_calc_frame_range(struct particle_effect *effect, struct mot
 	motion->frame_end = end_frame;
 }
 
+static void update_camera_quake(struct RE_instance *inst, struct particle_object *po)
+{
+	float frame = inst->motion->current_frame - po->begin_frame;
+	float total_frames = po->end_frame - po->begin_frame;
+	if (frame < 0 || frame >= total_frames)
+		return;
+
+	const float ease_in_duration = 4.0f;
+	const float ease_out_duration = 4.0f;
+	float amplitude = 1.0f;
+	if (total_frames - frame < ease_out_duration)
+		amplitude *= (total_frames - frame) / ease_out_duration;
+	else if (frame < ease_in_duration)
+		amplitude *= frame / ease_in_duration;
+
+	inst->plugin->camera.quake_pitch = sinf(frame * 1.1) * amplitude * -8.0f;
+	inst->plugin->camera.quake_yaw = sinf(frame * 1.7) * amplitude * 12.0f;
+}
+
 void particle_effect_update(struct RE_instance *inst)
 {
 	struct particle_effect *effect = inst->effect;
@@ -751,6 +771,11 @@ void particle_effect_update(struct RE_instance *inst)
 		return;
 	for (int i = 0; i < effect->nr_objects; i++) {
 		struct particle_object *po = &effect->objects[i];
+		if (po->type == PARTICLE_TYPE_CAMERA_QUAKE) {
+			if (effect->camera_quake_enabled)
+				update_camera_quake(inst, po);
+			continue;
+		}
 		// These cannot be precomputed, because they may depend on the target's
 		// *current* bone matrix.
 		eval_pos_for_object(inst, po->position[0], po->pos.begin);

@@ -259,8 +259,8 @@ void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out)
 {
 	vec3 front = { 0.0, 0.0, -1.0 };
 	vec3 euler = {
-		glm_rad(camera->pitch),
-		glm_rad(camera->yaw),
+		glm_rad(camera->pitch + camera->quake_pitch),
+		glm_rad(camera->yaw + camera->quake_yaw),
 		glm_rad(camera->roll)
 	};
 	mat4 rot;
@@ -538,7 +538,8 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 		case PARTICLE_TYPE_POLYGON_OBJECT:
 			render_polygon_particles(r, inst, po, inst->motion->current_frame);
 			break;
-		case PARTICLE_TYPE_SWORD_BLUR: // unused
+		case PARTICLE_TYPE_SWORD_BLUR:   // unused
+		case PARTICLE_TYPE_CAMERA_QUAKE: // handled in particle_effect_update()
 			break;
 		}
 	}

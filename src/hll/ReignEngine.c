@@ -1022,10 +1022,18 @@ static float ReignEngine_GetEffectObjectOffsetY(int plugin, int instance, int ob
 
 //bool ReignEngine_SetEffectObjectOffsetX(int plugin, int instance, int nObject, float fOffsetX);
 //bool ReignEngine_SetEffectObjectOffsetY(int plugin, int instance, int nObject, float fOffsetY);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, GetCameraQuakeEffectFlag, int plugin, int instance);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetCameraQuakeEffectFlag, int plugin, int instance, bool flag);
 
-bool ReignEngine_SetCameraPos(int plugin, float x, float y, float z)
+static bool ReignEngine_GetCameraQuakeEffectFlag(int plugin, int instance)
+{
+	return RE_effect_get_camera_quake_flag(get_effect(plugin, instance));
+}
+
+static bool ReignEngine_SetCameraQuakeEffectFlag(int plugin, int instance, bool flag)
+{
+	return RE_effect_set_camera_quake_flag(get_effect(plugin, instance), flag);
+}
+
+static bool ReignEngine_SetCameraPos(int plugin, float x, float y, float z)
 {
 	struct RE_plugin *p = get_plugin(plugin);
 	if (!p)
@@ -1036,7 +1044,7 @@ bool ReignEngine_SetCameraPos(int plugin, float x, float y, float z)
 	return true;
 }
 
-bool ReignEngine_SetCameraAngle(int plugin, float angle)
+static bool ReignEngine_SetCameraAngle(int plugin, float angle)
 {
 	struct RE_plugin *p = get_plugin(plugin);
 	if (!p)
@@ -1045,7 +1053,7 @@ bool ReignEngine_SetCameraAngle(int plugin, float angle)
 	return true;
 }
 
-bool ReignEngine_SetCameraAngleP(int plugin, float angle_p)
+static bool ReignEngine_SetCameraAngleP(int plugin, float angle_p)
 {
 	struct RE_plugin *p = get_plugin(plugin);
 	if (!p)
@@ -1054,7 +1062,7 @@ bool ReignEngine_SetCameraAngleP(int plugin, float angle_p)
 	return true;
 }
 
-bool ReignEngine_SetCameraAngleB(int plugin, float angle_b)
+static bool ReignEngine_SetCameraAngleB(int plugin, float angle_b)
 {
 	struct RE_plugin *p = get_plugin(plugin);
 	if (!p)

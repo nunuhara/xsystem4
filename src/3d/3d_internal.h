@@ -190,7 +190,7 @@ enum particle_type {
 	PARTICLE_TYPE_BILLBOARD = 0,
 	PARTICLE_TYPE_POLYGON_OBJECT = 1,
 	PARTICLE_TYPE_SWORD_BLUR = 2,
-	PARTICLE_TYPE_CAMERA_VIBRATION = 3,
+	PARTICLE_TYPE_CAMERA_QUAKE = 3,
 };
 
 enum particle_move_type {
@@ -331,9 +331,9 @@ struct particle_instance {
 struct particle_effect {
 	char *path;
 	struct hash_table *textures; // name -> struct billboard_texture*
-
 	int nr_objects;
 	struct particle_object *objects;
+	bool camera_quake_enabled;
 };
 
 struct particle_effect *particle_effect_load(struct archive *aar, const char *path);

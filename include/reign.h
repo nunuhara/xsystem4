@@ -55,6 +55,7 @@ extern struct RE_options RE_options;
 struct RE_camera {
 	vec3 pos;
 	float pitch, roll, yaw;  // in degrees
+	float quake_pitch, quake_yaw;
 };
 
 struct RE_back_cg {
@@ -183,6 +184,8 @@ bool RE_motion_set_frame_range(struct motion *motion, float begin, float end);
 bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float end);
 
 int RE_effect_get_num_object(struct particle_effect *effect);
+bool RE_effect_get_camera_quake_flag(struct particle_effect *effect);
+bool RE_effect_set_camera_quake_flag(struct particle_effect *effect, bool enable);
 struct particle_object *RE_get_effect_object(struct particle_effect *effect, unsigned object);
 int RE_particle_get_type(struct particle_object *po);
 int RE_particle_get_move_type(struct particle_object *po);
