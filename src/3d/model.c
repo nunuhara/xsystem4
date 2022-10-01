@@ -27,6 +27,7 @@
 #include "3d_internal.h"
 #include "reign.h"
 
+#define FP16_MIN 6.103516e-5f
 #define NR_WEIGHTS 4
 
 struct vertex_common {
@@ -112,6 +113,10 @@ static bool init_material(struct material *material, const struct pol_material *
 			material->rim_color[0] = amt_m->fields[AMT_RIM_R];
 			material->rim_color[1] = amt_m->fields[AMT_RIM_G];
 			material->rim_color[2] = amt_m->fields[AMT_RIM_B];
+			// Very small rim_exponent value should not be used for rim
+			// lighting. (e.g. meizi.amt in TT3)
+			if (material->rim_exponent < FP16_MIN)
+				material->rim_exponent = 0.0f;
 		}
 	}
 
