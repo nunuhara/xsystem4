@@ -80,14 +80,14 @@ static int MsgSkip_Init(struct string *name)
 
 static void MsgSkip_SetFlag(int msgnum)
 {
-	if (msgnum >= nr_flags)
+	if (msgnum < 0 || msgnum >= nr_flags)
 		return;
 	flags[msgnum] = 1;
 }
 
 static int MsgSkip_GetFlag(int msgnum)
 {
-	if (msgnum >= nr_flags)
+	if (msgnum < 0 || msgnum >= nr_flags)
 		return 0;
 	return !!flags[msgnum];
 }
