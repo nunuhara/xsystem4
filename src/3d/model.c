@@ -355,6 +355,14 @@ static struct bone *add_bone(struct model *model, struct pol *pol, struct pol_bo
 	glm_quat_mat4(pol_bone->rotq, bone->inverse_bind_matrix);
 	glm_translate(bone->inverse_bind_matrix, pol_bone->pos);
 
+	// Update bone_name_map. If the bone name is not unique in the POL, set the
+	// map value to NULL so that ID matching will be used.
+	struct ht_slot *slot = ht_put(model->bone_name_map, pol_bone->name, bone);
+	if (slot->value != bone) {
+		NOTICE("%s: non-unique bone %s", model->path, pol_bone->name);
+		slot->value = NULL;
+	}
+
 	model->nr_bones++;
 	return bone;
 }
@@ -401,6 +409,7 @@ struct model *model_load(struct archive *aar, const char *path)
 		if (pol->nr_bones > MAX_BONES)
 			ERROR("%s: Too many bones (%u)", model->path, pol->nr_bones);
 		model->bone_map = ht_create(pol->nr_bones * 3 / 2);
+		model->bone_name_map = ht_create(pol->nr_bones * 3 / 2);
 		model->bones = xcalloc(pol->nr_bones, sizeof(struct bone));
 		for (uint32_t i = 0; i < pol->nr_bones; i++) {
 			add_bone(model, pol, &pol->bones[i]);
@@ -470,6 +479,8 @@ void model_free(struct model *model)
 	free(model->bones);
 	if (model->bone_map)
 		ht_free_int(model->bone_map);
+	if (model->bone_name_map)
+		ht_free(model->bone_name_map);
 
 	free(model->path);
 	free(model);
@@ -505,9 +516,13 @@ struct motion *motion_load(const char *name, struct RE_instance *instance, struc
 	// Reorder mot->motions so that motion for model->bones[i] can be
 	// accessed by mot->motions[i].
 	for (uint32_t i = 0; i < mot->nr_bones; i++) {
-		struct bone *bone = ht_get_int(model->bone_map, mot->motions[i]->id, NULL);
+		// Match by name first, since some MOT have wrong bone IDs (e.g. maidsan_ahoge_*).
+		struct bone *bone = ht_get(model->bone_name_map, mot->motions[i]->name, NULL);
+		// If it is not found or is NULL (non-unique bone name), match by bone ID.
 		if (!bone)
-			ERROR("%s: invalid bone id %d", name, mot->motions[i]->id);
+			bone = ht_get_int(model->bone_map, mot->motions[i]->id, NULL);
+		if (!bone)
+			ERROR("%s: invalid bone \"%s\" (%d)", name, mot->motions[i]->name, mot->motions[i]->id);
 		mot->motions[i]->id = bone->index;
 	}
 	qsort(mot->motions, mot->nr_bones, sizeof(struct mot_bone *), cmp_motions_by_bone_id);
