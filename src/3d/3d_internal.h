@@ -42,6 +42,7 @@ struct model {
 	int nr_bones;
 	struct bone *bones;
 	struct hash_table *bone_map;  // bone id in POL/MOT -> struct bone *
+	struct hash_table *bone_name_map;  // bone name -> (struct bone * | NULL)
 	vec3 aabb[2];  // axis-aligned bounding box
 };
 
