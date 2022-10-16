@@ -439,6 +439,12 @@ struct model *model_load(struct archive *aar, const char *path)
 				      &pol->materials[i].children[j], amt, aar, path);
 		}
 	}
+	for (int i = 0; i < model->nr_materials; i++) {
+		if (model->materials[i].alpha_map) {
+			model->is_transparent = true;
+			break;
+		}
+	}
 
 	// Meshes
 	for (uint32_t i = 0; i < pol->nr_meshes; i++) {

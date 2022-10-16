@@ -98,6 +98,7 @@ static void print_instance(struct RE_instance *inst, int index, int indent)
 		indent_printf(indent, "motion_blend_rate = %f,\n", inst->motion_blend_rate);
 	if (inst->effect)
 		indent_printf(indent, "path = \"%s\",\n", inst->effect->path);
+	indent_printf(indent, "is_transparent = %d,\n", inst->is_transparent);
 
 	indent--;
 	indent_printf(indent, "},\n");

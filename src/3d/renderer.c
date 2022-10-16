@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <limits.h>
 #include <cglm/cglm.h>
 
 #include "system4.h"
@@ -214,16 +215,17 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	return r;
 }
 
-bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no)
+struct billboard_texture *RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no)
 {
-	if (ht_get_int(r->billboard_textures, cg_no, NULL))
-		return true;
+	struct billboard_texture *bt = ht_get_int(r->billboard_textures, cg_no, NULL);
+	if (bt)
+		return bt;
 
 	struct cg *cg = asset_cg_load(cg_no);
 	if (!cg)
-		return false;
+		return NULL;
 
-	struct billboard_texture *bt = xcalloc(1, sizeof(struct billboard_texture));
+	bt = xcalloc(1, sizeof(struct billboard_texture));
 	glGenTextures(1, &bt->texture);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
@@ -237,7 +239,7 @@ bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no)
 
 	cg_free(cg);
 	ht_put_int(r->billboard_textures, cg_no, bt);
-	return true;
+	return bt;
 }
 
 static void free_billboard_texture(void *value)
@@ -561,6 +563,26 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 	glDepthMask(GL_TRUE);
 }
 
+static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat)
+{
+	switch (inst->type) {
+	case RE_ITYPE_STATIC:
+		render_static_model(inst, r);
+		break;
+	case RE_ITYPE_SKINNED:
+		render_skinned_model(inst, r);
+		break;
+	case RE_ITYPE_BILLBOARD:
+		render_billboard(inst, r, view_mat);
+		break;
+	case RE_ITYPE_PARTICLE_EFFECT:
+		render_particle_effect(inst, r);
+		break;
+	default:
+		break;
+	}
+}
+
 static bool calc_shadow_light_transform(struct RE_plugin *plugin, mat4 dest)
 {
 	// Compute AABB of shadow casters.
@@ -704,6 +726,20 @@ static void setup_lights(struct RE_plugin *plugin)
 	}
 }
 
+static int cmp_instances_by_z(const void *lhs, const void *rhs)
+{
+	struct RE_instance *l = *(struct RE_instance **)lhs;
+	struct RE_instance *r = *(struct RE_instance **)rhs;
+	float lz = l ? l->pos[2] : FLT_MAX;
+	float rz = r ? r->pos[2] : FLT_MAX;
+	return (lz > rz) - (lz < rz);  // ascending order.
+}
+
+static bool is_transparent(struct RE_instance *inst)
+{
+	return inst->is_transparent || inst->alpha < 1.0f;
+}
+
 void RE_render(struct sact_sprite *sp)
 {
 	struct RE_plugin *plugin = (struct RE_plugin *)sp->plugin;
@@ -776,27 +812,27 @@ void RE_render(struct sact_sprite *sp)
 
 	setup_lights(plugin);
 
-	for (int i = 0; i < plugin->nr_instances; i++) {
-		struct RE_instance *inst = plugin->instances[i];
-		if (!inst)
+	// Sort instances by z-order.
+	struct RE_instance **sorted_instances = xmalloc(plugin->nr_instances * sizeof(struct RE_instance *));
+	memcpy(sorted_instances, plugin->instances, plugin->nr_instances * sizeof(struct RE_instance *));
+	qsort(sorted_instances, plugin->nr_instances, sizeof(struct RE_instance *), cmp_instances_by_z);
+
+	// Render opaque instances, from nearest to farthest.
+	for (int i = plugin->nr_instances - 1; i >= 0; i--) {
+		struct RE_instance *inst = sorted_instances[i];
+		if (!inst || is_transparent(inst))
 			continue;
-		switch (inst->type) {
-		case RE_ITYPE_STATIC:
-			render_static_model(inst, r);
-			break;
-		case RE_ITYPE_SKINNED:
-			render_skinned_model(inst, r);
-			break;
-		case RE_ITYPE_BILLBOARD:
-			render_billboard(inst, r, view_transform);
-			break;
-		case RE_ITYPE_PARTICLE_EFFECT:
-			render_particle_effect(inst, r);
-			break;
-		default:
-			break;
-		}
+		render_instance(inst, r, view_transform);
 	}
+	// Render transparent instances, from nearest to farthest.
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = sorted_instances[i];
+		if (!inst || !is_transparent(inst))
+			continue;
+		render_instance(inst, r, view_transform);
+	}
+
+	free(sorted_instances);
 
 	plugin->proj_transform[1][1] *= -1;
 	glFrontFace(GL_CCW);

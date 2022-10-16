@@ -44,6 +44,7 @@ struct model {
 	struct hash_table *bone_map;  // bone id in POL/MOT -> struct bone *
 	struct hash_table *bone_name_map;  // bone name -> (struct bone * | NULL)
 	vec3 aabb[2];  // axis-aligned bounding box
+	bool is_transparent;
 };
 
 struct mesh {
@@ -182,7 +183,7 @@ struct archive_data *RE_get_aar_entry(struct archive *aar, const char *dir, cons
 
 struct RE_renderer *RE_renderer_new(struct texture *texture);
 void RE_renderer_free(struct RE_renderer *r);
-bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);
+struct billboard_texture *RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);
 struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r, struct model *model);
 void RE_renderer_free_height_detector(struct height_detector *hd);
 float RE_renderer_detect_height(struct height_detector *hd, float x, float z);

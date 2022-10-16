@@ -151,6 +151,7 @@ struct RE_instance {
 	vec3 globe_diffuse;
 
 	// Private
+	bool is_transparent;
 	bool local_transform_needs_update;
 	mat4 local_transform;
 	mat3 normal_transform;
