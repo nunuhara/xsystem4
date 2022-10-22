@@ -29,6 +29,7 @@
 #include "xsystem4.h"
 
 #define clamp(min_value, max_value, value) min(max_value, max(min_value, value))
+#define muldiv(x, y, denom) ((int64_t)(x) * (int64_t)(y) / (int64_t)(denom))
 
 /*
  * The actual mixer implementation is contained in this header.
@@ -348,7 +349,7 @@ int channel_fade(struct channel *ch, int time, int volume, bool stop)
 		ch->fade.stop = stop;
 		ch->fade.start_pos = ch->frame;
 		ch->fade.start_volume = (float)ch->volume / 100.0;
-		ch->fade.frames = (time * ch->info.samplerate) / 1000;
+		ch->fade.frames = muldiv(time, ch->info.samplerate, 1000);
 		ch->fade.elapsed = 0;
 		ch->fade.end_volume = clamp(0.0f, 1.0f, (float)volume / 100.0f);
 	}
@@ -392,13 +393,13 @@ int channel_is_paused(possibly_unused struct channel *ch)
 
 int channel_get_pos(struct channel *ch)
 {
-	return (ch->frame * 1000) / ch->info.samplerate;
+	return muldiv(ch->frame, 1000, ch->info.samplerate);
 }
 
 int channel_get_length(struct channel *ch)
 {
 	// FIXME: how is this different than channel_get_time_length?
-	return (ch->info.frames * 1000) / ch->info.samplerate;
+	return muldiv(ch->info.frames, 1000, ch->info.samplerate);
 }
 
 int channel_get_sample_pos(struct channel *ch)
@@ -415,7 +416,7 @@ int channel_seek(struct channel *ch, int pos)
 {
 	// NOTE: SACT2.Music_Seek doesn't seem to do anything in Sengoku Rance...
 	SDL_LockAudioDevice(audio_device);
-	int r = cb_seek(ch, (pos * ch->info.samplerate) / 1000);
+	int r = cb_seek(ch, muldiv(pos, ch->info.samplerate, 1000));
 	SDL_UnlockAudioDevice(audio_device);
 	return r;
 }
@@ -433,7 +434,7 @@ int channel_get_volume(struct channel *ch)
 
 int channel_get_time_length(struct channel *ch)
 {
-	return (ch->info.frames * 1000) / ch->info.samplerate;
+	return muldiv(ch->info.frames, 1000, ch->info.samplerate);
 }
 
 static sf_count_t channel_vio_get_filelen(void *data)
