@@ -303,8 +303,11 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 		struct mesh *mesh = &model->meshes[i];
 		struct material *material = &model->materials[mesh->material];
 
+		glUniform1i(r->fog_type, (inst->plugin->fog_mode && !(mesh->flags & MESH_NOLIGHTING))
+			? inst->plugin->fog_type : 0);
+
 		GLboolean use_specular_map = GL_FALSE;
-		if (inst->plugin->specular_mode) {
+		if (inst->plugin->specular_mode && !(mesh->flags & MESH_NOLIGHTING)) {
 			glUniform1f(r->specular_strength, material->specular_strength);
 			glUniform1f(r->specular_shininess, material->specular_shininess);
 			if (material->specular_map) {
@@ -326,7 +329,9 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 		glBindTexture(GL_TEXTURE_2D, material->color_map);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
-		if (material->light_map && inst->plugin->light_map_mode) {
+		if (mesh->flags & MESH_NOLIGHTING) {
+			glUniform1i(r->diffuse_type, DIFFUSE_EMISSIVE);
+		} else if (material->light_map && inst->plugin->light_map_mode) {
 			glUniform1i(r->diffuse_type, DIFFUSE_LIGHT_MAP);
 			glActiveTexture(GL_TEXTURE0 + LIGHT_TEXTURE_UNIT);
 			glBindTexture(GL_TEXTURE_2D, material->light_map);
@@ -422,6 +427,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glUniform1i(r->use_normal_map, GL_FALSE);
 	glUniform1i(r->use_shadow_map, GL_FALSE);
 	glUniform1i(r->use_alpha_map, GL_FALSE);
+	glUniform1i(r->fog_type, inst->plugin->fog_mode ? inst->plugin->fog_type : 0);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
@@ -472,8 +478,6 @@ static void render_billboard_particles(struct RE_renderer *r, struct RE_instance
 
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glUniform1i(r->fog_type, inst->plugin->fog_type);
 }
 
 static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *inst, struct particle_object *po, float frame)
@@ -483,6 +487,7 @@ static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *
 		return;
 
 	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
+	glUniform1i(r->fog_type, inst->plugin->fog_mode ? inst->plugin->fog_type : 0);
 
 	for (int index = 0; index < po->nr_particles; index++) {
 		struct particle_instance *pi = &po->instances[index];
@@ -789,7 +794,6 @@ void RE_render(struct sact_sprite *sp)
 	glUniformMatrix4fv(r->shadow_transform, 1, GL_FALSE, shadow_transform[0]);
 	glUniform1f(r->shadow_bias, plugin->shadow_bias);
 	if (plugin->fog_mode) {
-		glUniform1i(r->fog_type, plugin->fog_type);
 		switch (plugin->fog_type) {
 		case RE_FOG_LINEAR:
 			glUniform1f(r->fog_near, plugin->fog_near);
@@ -803,8 +807,6 @@ void RE_render(struct sact_sprite *sp)
 			glUniform3fv(r->ls_sun_color, 1, plugin->ls_sun_color);
 			break;
 		}
-	} else {
-		glUniform1i(r->fog_type, 0);
 	}
 
 	glEnable(GL_BLEND);

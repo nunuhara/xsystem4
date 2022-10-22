@@ -148,6 +148,14 @@ static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle
 	t->material = buffer_read_int32(r);
 }
 
+static uint32_t parse_mesh_attributes(const char *name)
+{
+	uint32_t flags = 0;
+	if (strstr(name, "(nolighting)"))
+		flags |= MESH_NOLIGHTING;
+	return flags;
+}
+
 static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
 {
 	int type = buffer_read_int32(r);
@@ -158,6 +166,7 @@ static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
 	}
 	struct pol_mesh *mesh = xcalloc(1, sizeof(struct pol_mesh));
 	mesh->name = read_cstring(r);
+	mesh->flags = parse_mesh_attributes(mesh->name);
 	mesh->material = buffer_read_int32(r);
 
 	mesh->nr_vertices = buffer_read_int32(r);

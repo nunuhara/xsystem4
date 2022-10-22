@@ -271,6 +271,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 	}
 	model->meshes = xrealloc_array(model->meshes, model->nr_meshes, model->nr_meshes + 1, sizeof(struct mesh));
 	struct mesh *mesh = &model->meshes[model->nr_meshes++];
+	mesh->flags = m->flags;
 	mesh->material = material;
 	mesh->nr_vertices = nr_vertices;
 

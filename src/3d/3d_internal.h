@@ -48,6 +48,7 @@ struct model {
 };
 
 struct mesh {
+	uint32_t flags;
 	GLuint vao;
 	GLuint attr_buffer;
 	int nr_vertices;
@@ -380,8 +381,13 @@ struct pol_material_group {
 	struct pol_material *children;
 };
 
+enum mesh_flags {
+	MESH_NOLIGHTING = 1 << 0,
+};
+
 struct pol_mesh {
 	char *name;
+	uint32_t flags;
 	uint32_t material;
 	uint32_t nr_vertices;
 	struct pol_vertex *vertices;
