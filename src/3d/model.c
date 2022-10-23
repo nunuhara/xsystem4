@@ -89,6 +89,7 @@ static GLuint load_texture(struct archive *aar, const char *path, const char *na
 
 static bool init_material(struct material *material, const struct pol_material *m, struct amt *amt, struct archive *aar, const char *path)
 {
+	material->flags = m->flags;
 	if (!m->textures[COLOR_MAP]) {
 		WARNING("No color texture");
 		return false;

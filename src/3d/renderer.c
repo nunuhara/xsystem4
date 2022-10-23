@@ -45,6 +45,12 @@ enum {
 	DIFFUSE_LIGHT_MAP = 2,
 };
 
+enum {
+	ALPHA_BLEND = 0,
+	ALPHA_TEST = 1,
+	ALPHA_MAP_BLEND = 2,
+};
+
 static GLuint load_shader(const char *vertex_shader_path, const char *fragment_shader_path)
 {
 	GLuint program = glCreateProgram();
@@ -201,7 +207,7 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->ls_light_dir = glGetUniformLocation(r->program, "ls_light_dir");
 	r->ls_light_color = glGetUniformLocation(r->program, "ls_light_color");
 	r->ls_sun_color = glGetUniformLocation(r->program, "ls_sun_color");
-	r->use_alpha_map = glGetUniformLocation(r->program, "use_alpha_map");
+	r->alpha_mode = glGetUniformLocation(r->program, "alpha_mode");
 	r->alpha_texture = glGetUniformLocation(r->program, "alpha_texture");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
@@ -350,12 +356,14 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 		}
 
 		if (material->alpha_map) {
-			glUniform1i(r->use_alpha_map, GL_TRUE);
+			glUniform1i(r->alpha_mode, ALPHA_MAP_BLEND);
 			glActiveTexture(GL_TEXTURE0 + ALPHA_TEXTURE_UNIT);
 			glBindTexture(GL_TEXTURE_2D, material->alpha_map);
 			glUniform1i(r->alpha_texture, ALPHA_TEXTURE_UNIT);
+		} else if (material->flags & MATERIAL_SPRITE) {
+			glUniform1i(r->alpha_mode, ALPHA_TEST);
 		} else {
-			glUniform1i(r->use_alpha_map, GL_FALSE);
+			glUniform1i(r->alpha_mode, ALPHA_BLEND);
 		}
 
 		glBindVertexArray(mesh->vao);
@@ -426,7 +434,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
 	glUniform1i(r->use_normal_map, GL_FALSE);
 	glUniform1i(r->use_shadow_map, GL_FALSE);
-	glUniform1i(r->use_alpha_map, GL_FALSE);
+	glUniform1i(r->alpha_mode, ALPHA_BLEND);
 	glUniform1i(r->fog_type, inst->plugin->fog_mode ? inst->plugin->fog_type : 0);
 
 	glActiveTexture(GL_TEXTURE0);
@@ -536,7 +544,7 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 	glUniform1f(r->rim_exponent, 0.0);
 	glUniform1i(r->use_normal_map, GL_FALSE);
 	glUniform1i(r->use_shadow_map, GL_FALSE);
-	glUniform1i(r->use_alpha_map, GL_FALSE);
+	glUniform1i(r->alpha_mode, ALPHA_BLEND);
 
 	glDepthMask(GL_FALSE);
 

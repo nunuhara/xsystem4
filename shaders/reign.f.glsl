@@ -23,6 +23,10 @@
 #define FOG_LINEAR 1
 #define FOG_LIGHT_SCATTERING 2
 
+#define ALPHA_BLEND 0
+#define ALPHA_TEST 1
+#define ALPHA_MAP_BLEND 2
+
 struct dir_light {
 	vec3 dir;
 	vec3 diffuse;
@@ -53,7 +57,7 @@ uniform int fog_type;
 uniform float fog_near;
 uniform float fog_far;
 uniform vec3 fog_color;
-uniform bool use_alpha_map;
+uniform int alpha_mode;
 
 in vec2 tex_coord;
 in vec2 light_tex_coord;
@@ -139,7 +143,10 @@ void main() {
 
 	// Alpha mapping
 	float alpha = texel.a * alpha_mod;
-	if (use_alpha_map) {
+	if (alpha_mode == ALPHA_TEST) {
+		if (alpha < 1.0)
+			discard;
+	} else if (alpha_mode == ALPHA_MAP_BLEND) {
 		alpha *= texture(alpha_texture, tex_coord).r;
 	}
 

@@ -56,6 +56,7 @@ struct mesh {
 };
 
 struct material {
+	uint32_t flags;
 	GLuint color_map;
 	GLuint specular_map;
 	GLuint alpha_map;
@@ -153,7 +154,7 @@ struct RE_renderer {
 	GLint ls_light_dir;
 	GLint ls_light_color;
 	GLint ls_sun_color;
-	GLint use_alpha_map;
+	GLint alpha_mode;
 	GLint alpha_texture;
 
 	GLuint billboard_vao;
@@ -370,8 +371,13 @@ enum pol_texture_type {
 	MAX_TEXTURE_TYPE
 };
 
+enum material_flags {
+	MATERIAL_SPRITE = 1 << 0,
+};
+
 struct pol_material {
 	char *name;
+	uint32_t flags;
 	char *textures[MAX_TEXTURE_TYPE];
 };
 

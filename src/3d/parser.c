@@ -59,9 +59,18 @@ static void read_quaternion(struct buffer *r, versor q)
 	glm_quat_normalize(q);
 }
 
+static uint32_t parse_material_attributes(const char *name)
+{
+	uint32_t flags = 0;
+	if (strstr(name, "(sprite)"))
+		flags |= MATERIAL_SPRITE;
+	return flags;
+}
+
 static void parse_material(struct buffer *r, struct pol_material *m)
 {
 	m->name = read_cstring(r);
+	m->flags = parse_material_attributes(m->name);
 
 	int nr_textures = buffer_read_int32(r);
 	for (int i = 0; i < nr_textures; i++) {
