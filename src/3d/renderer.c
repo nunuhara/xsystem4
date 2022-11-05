@@ -43,6 +43,7 @@ enum {
 	DIFFUSE_EMISSIVE = 0,
 	DIFFUSE_NORMAL = 1,
 	DIFFUSE_LIGHT_MAP = 2,
+	DIFFUSE_ENV_MAP = 3,
 };
 
 enum {
@@ -335,7 +336,9 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 		glBindTexture(GL_TEXTURE_2D, material->color_map);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
-		if (mesh->flags & MESH_NOLIGHTING) {
+		if (mesh->flags & MESH_ENVMAP) {
+			glUniform1i(r->diffuse_type, DIFFUSE_ENV_MAP);
+		} else if (mesh->flags & MESH_NOLIGHTING) {
 			glUniform1i(r->diffuse_type, DIFFUSE_EMISSIVE);
 		} else if (material->light_map && inst->plugin->light_map_mode) {
 			glUniform1i(r->diffuse_type, DIFFUSE_LIGHT_MAP);

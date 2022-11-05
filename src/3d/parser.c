@@ -162,6 +162,8 @@ static uint32_t parse_mesh_attributes(const char *name)
 	uint32_t flags = 0;
 	if (strstr(name, "(nolighting)"))
 		flags |= MESH_NOLIGHTING;
+	if (strstr(name, "(env)"))
+		flags |= MESH_ENVMAP;
 	return flags;
 }
 
