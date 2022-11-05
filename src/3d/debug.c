@@ -50,6 +50,7 @@ static const char *motion_state_name(enum RE_motion_state state)
 static const char *fog_type_name(enum RE_fog_type type)
 {
 	switch (type) {
+	case RE_FOG_NONE:             return "NONE";
 	case RE_FOG_LINEAR:           return "LINEAR";
 	case RE_FOG_LIGHT_SCATTERING: return "LIGHT_SCATTERING";
 	}
@@ -136,6 +137,8 @@ void RE_debug_print(struct sact_sprite *sp, int indent)
 
 	indent_printf(indent, "fog_type = %s,\n", fog_type_name(p->fog_type));
 	switch (p->fog_type) {
+	case RE_FOG_NONE:
+		break;
 	case RE_FOG_LINEAR:
 		indent_printf(indent, "fog_near = %f, fog_far = %f,\n", p->fog_near, p->fog_far);
 		indent_printf(indent, "fog_color = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(p->fog_color));

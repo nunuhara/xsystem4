@@ -806,6 +806,8 @@ void RE_render(struct sact_sprite *sp)
 	glUniform1f(r->shadow_bias, plugin->shadow_bias);
 	if (plugin->fog_mode) {
 		switch (plugin->fog_type) {
+		case RE_FOG_NONE:
+			break;
 		case RE_FOG_LINEAR:
 			glUniform1f(r->fog_near, plugin->fog_near);
 			glUniform1f(r->fog_far, plugin->fog_far);

@@ -42,6 +42,7 @@ enum RE_motion_state {
 };
 
 enum RE_fog_type {
+	RE_FOG_NONE             = 0,
 	RE_FOG_LINEAR           = 1,
 	RE_FOG_LIGHT_SCATTERING = 2,
 };
