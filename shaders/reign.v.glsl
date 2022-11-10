@@ -89,8 +89,6 @@ void main() {
 		vec3 tangent = normal_bone_transform * vertex_tangent.xyz;
 		vec3 bitangent = cross(normal, tangent) * vertex_tangent.w;
 		TBN = transpose(mat3(tangent, bitangent, normal));
-		// Tangent-space normal vector.
-		normal = vec3(0.0, 0.0, 1.0);
 	}
 
 	vec4 world_pos = local_bone_transform * vec4(vertex_pos, 1.0);

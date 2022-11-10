@@ -59,9 +59,18 @@ static void read_quaternion(struct buffer *r, versor q)
 	glm_quat_normalize(q);
 }
 
+static uint32_t parse_material_attributes(const char *name)
+{
+	uint32_t flags = 0;
+	if (strstr(name, "(sprite)"))
+		flags |= MATERIAL_SPRITE;
+	return flags;
+}
+
 static void parse_material(struct buffer *r, struct pol_material *m)
 {
 	m->name = read_cstring(r);
+	m->flags = parse_material_attributes(m->name);
 
 	int nr_textures = buffer_read_int32(r);
 	for (int i = 0; i < nr_textures; i++) {
@@ -148,6 +157,16 @@ static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle
 	t->material = buffer_read_int32(r);
 }
 
+static uint32_t parse_mesh_attributes(const char *name)
+{
+	uint32_t flags = 0;
+	if (strstr(name, "(nolighting)"))
+		flags |= MESH_NOLIGHTING;
+	if (strstr(name, "(env)"))
+		flags |= MESH_ENVMAP;
+	return flags;
+}
+
 static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
 {
 	int type = buffer_read_int32(r);
@@ -158,6 +177,7 @@ static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
 	}
 	struct pol_mesh *mesh = xcalloc(1, sizeof(struct pol_mesh));
 	mesh->name = read_cstring(r);
+	mesh->flags = parse_mesh_attributes(mesh->name);
 	mesh->material = buffer_read_int32(r);
 
 	mesh->nr_vertices = buffer_read_int32(r);

@@ -188,7 +188,10 @@ struct RE_plugin *RE_plugin_new(void)
 	plugin->aar = aar;
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_init(&plugin->back_cg[i]);
-	plugin->fog_type = RE_FOG_LINEAR;
+	plugin->fog_type = RE_FOG_NONE;
+	plugin->fog_near = 1.0;
+	plugin->fog_far = 10.0;
+	glm_vec3_one(plugin->fog_color);
 	return plugin;
 }
 
@@ -346,6 +349,7 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 		instance->model = model_load(instance->plugin->aar, name);
 		if (instance->model && instance->model->nr_bones > 0)
 			instance->bone_transforms = xcalloc(instance->model->nr_bones, sizeof(mat4));
+		instance->is_transparent = instance->model->is_transparent;
 		return !!instance->model;
 	case RE_ITYPE_PARTICLE_EFFECT:
 		instance->effect = particle_effect_load(instance->plugin->aar, name);
@@ -354,6 +358,7 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 			instance->motion->instance = instance;
 			particle_effect_calc_frame_range(instance->effect, instance->motion);
 		}
+		instance->is_transparent = true;
 		return !!instance->effect;
 	default:
 		WARNING("Invalid instance type %d", instance->type);
@@ -496,8 +501,11 @@ bool RE_motion_set_frame_range(struct motion *motion, float begin, float end)
 	motion->frame_end = end;
 	if (motion->instance->type == RE_ITYPE_BILLBOARD) {
 		for (int i = begin; i < end; i++) {
-			if (!RE_renderer_load_billboard_texture(motion->instance->plugin->renderer, i))
+			struct billboard_texture *bt = RE_renderer_load_billboard_texture(motion->instance->plugin->renderer, i);
+			if (!bt)
 				return false;
+			if (bt->has_alpha)
+				motion->instance->is_transparent = true;
 		}
 	}
 	return true;
@@ -511,8 +519,11 @@ bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float en
 	motion->loop_frame_end = end;
 	if (motion->instance->type == RE_ITYPE_BILLBOARD) {
 		for (int i = begin; i < end; i++) {
-			if (!RE_renderer_load_billboard_texture(motion->instance->plugin->renderer, i))
+			struct billboard_texture *bt = RE_renderer_load_billboard_texture(motion->instance->plugin->renderer, i);
+			if (!bt)
 				return false;
+			if (bt->has_alpha)
+				motion->instance->is_transparent = true;
 		}
 	}
 	return true;

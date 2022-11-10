@@ -741,8 +741,8 @@ void particle_effect_calc_frame_range(struct particle_effect *effect, struct mot
 		if (end_frame < obj_end)
 			end_frame = obj_end;
 	}
-	motion->frame_begin = begin_frame;
-	motion->frame_end = end_frame;
+	motion->frame_begin = motion->loop_frame_begin = begin_frame;
+	motion->frame_end = motion->loop_frame_end = end_frame;
 }
 
 static void update_camera_quake(struct RE_instance *inst, struct particle_object *po)

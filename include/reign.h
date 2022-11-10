@@ -42,6 +42,7 @@ enum RE_motion_state {
 };
 
 enum RE_fog_type {
+	RE_FOG_NONE             = 0,
 	RE_FOG_LINEAR           = 1,
 	RE_FOG_LIGHT_SCATTERING = 2,
 };
@@ -151,6 +152,7 @@ struct RE_instance {
 	vec3 globe_diffuse;
 
 	// Private
+	bool is_transparent;
 	bool local_transform_needs_update;
 	mat4 local_transform;
 	mat3 normal_transform;

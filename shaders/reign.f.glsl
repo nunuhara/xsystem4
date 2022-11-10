@@ -19,9 +19,14 @@
 #define DIFFUSE_EMISSIVE 0
 #define DIFFUSE_NORMAL 1
 #define DIFFUSE_LIGHT_MAP 2
+#define DIFFUSE_ENV_MAP 3
 
 #define FOG_LINEAR 1
 #define FOG_LIGHT_SCATTERING 2
+
+#define ALPHA_BLEND 0
+#define ALPHA_TEST 1
+#define ALPHA_MAP_BLEND 2
 
 struct dir_light {
 	vec3 dir;
@@ -53,7 +58,7 @@ uniform int fog_type;
 uniform float fog_near;
 uniform float fog_far;
 uniform vec3 fog_color;
-uniform bool use_alpha_map;
+uniform int alpha_mode;
 
 in vec2 tex_coord;
 in vec2 light_tex_coord;
@@ -81,19 +86,25 @@ void main() {
 	vec3 frag_rgb = ambient;
 
 	// Diffuse lighting
-	vec4 texel = texture(tex, tex_coord);
-	if (diffuse_type == DIFFUSE_EMISSIVE) {
+	vec4 texel;
+	if (diffuse_type == DIFFUSE_ENV_MAP) {
+		texel = texture(tex, (vec2(normal.x, -normal.y) + 1.0) / 2.0);
 		frag_rgb = texel.rgb;
 	} else {
-		vec3 diffuse = vec3(0.0);
-		for (int i = 0; i < NR_DIR_LIGHTS; i++) {
-			float half_lambert = dot(norm, -light_dir[i]) * 0.5 + 0.5;
-			diffuse += mix(dir_lights[i].globe_diffuse, dir_lights[i].diffuse, half_lambert);
+		texel = texture(tex, tex_coord);
+		if (diffuse_type == DIFFUSE_EMISSIVE) {
+			frag_rgb = texel.rgb;
+		} else {
+			vec3 diffuse = vec3(0.0);
+			for (int i = 0; i < NR_DIR_LIGHTS; i++) {
+				float half_lambert = dot(norm, -light_dir[i]) * 0.5 + 0.5;
+				diffuse += mix(dir_lights[i].globe_diffuse, dir_lights[i].diffuse, half_lambert);
+			}
+			if (diffuse_type == DIFFUSE_LIGHT_MAP) {
+				diffuse *= texture(light_texture, light_tex_coord).rgb;
+			}
+			frag_rgb += texel.rgb * diffuse;
 		}
-		if (diffuse_type == DIFFUSE_LIGHT_MAP) {
-			diffuse *= texture(light_texture, light_tex_coord).rgb;
-		}
-		frag_rgb += texel.rgb * diffuse;
 	}
 
 	// Specular lighting
@@ -109,7 +120,8 @@ void main() {
 	// Rim lighting
 	if (rim_exponent > 0.0) {
 		// Normal map is not used here.
-		frag_rgb += pow(1.0 - max(dot(normalize(normal), view_dir), 0.0), rim_exponent) * rim_color;
+		vec3 n = use_normal_map ? vec3(0.0, 0.0, 1.0) : normalize(normal);
+		frag_rgb += pow(1.0 - max(dot(n, view_dir), 0.0), rim_exponent) * rim_color;
 	}
 
 	// Fog
@@ -139,7 +151,10 @@ void main() {
 
 	// Alpha mapping
 	float alpha = texel.a * alpha_mod;
-	if (use_alpha_map) {
+	if (alpha_mode == ALPHA_TEST) {
+		if (alpha < 1.0)
+			discard;
+	} else if (alpha_mode == ALPHA_MAP_BLEND) {
 		alpha *= texture(alpha_texture, tex_coord).r;
 	}
 

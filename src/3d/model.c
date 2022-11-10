@@ -89,6 +89,7 @@ static GLuint load_texture(struct archive *aar, const char *path, const char *na
 
 static bool init_material(struct material *material, const struct pol_material *m, struct amt *amt, struct archive *aar, const char *path)
 {
+	material->flags = m->flags;
 	if (!m->textures[COLOR_MAP]) {
 		WARNING("No color texture");
 		return false;
@@ -271,6 +272,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 	}
 	model->meshes = xrealloc_array(model->meshes, model->nr_meshes, model->nr_meshes + 1, sizeof(struct mesh));
 	struct mesh *mesh = &model->meshes[model->nr_meshes++];
+	mesh->flags = m->flags;
 	mesh->material = material;
 	mesh->nr_vertices = nr_vertices;
 
@@ -437,6 +439,12 @@ struct model *model_load(struct archive *aar, const char *path)
 		for (uint32_t j = 0; j < pol->materials[i].nr_children; j++) {
 			init_material(&model->materials[material_offsets[i] + j],
 				      &pol->materials[i].children[j], amt, aar, path);
+		}
+	}
+	for (int i = 0; i < model->nr_materials; i++) {
+		if (model->materials[i].alpha_map) {
+			model->is_transparent = true;
+			break;
 		}
 	}
 
