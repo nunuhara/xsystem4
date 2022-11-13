@@ -87,8 +87,11 @@ static void print_instance(struct RE_instance *inst, int index, int indent)
 		indent_printf(indent, "scale = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(inst->scale));
 		indent_printf(indent, "ambient = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(inst->ambient));
 	}
-	if (inst->model)
+	if (inst->model) {
 		indent_printf(indent, "path = \"%s\",\n", inst->model->path);
+		indent_printf(indent, "aabb = {min = {x=%f, y=%f, z=%f}, max = {x=%f, y=%f, z=%f}},\n",
+			      SPREAD_VEC3(inst->model->aabb[0]), SPREAD_VEC3(inst->model->aabb[1]));
+	}
 	if (inst->motion) {
 		indent_printf(indent, "fps = %f,\n", inst->fps);
 		print_motion("motion", inst->motion, indent);
@@ -99,7 +102,6 @@ static void print_instance(struct RE_instance *inst, int index, int indent)
 		indent_printf(indent, "motion_blend_rate = %f,\n", inst->motion_blend_rate);
 	if (inst->effect)
 		indent_printf(indent, "path = \"%s\",\n", inst->effect->path);
-	indent_printf(indent, "is_transparent = %d,\n", inst->is_transparent);
 
 	indent--;
 	indent_printf(indent, "},\n");
