@@ -23,6 +23,7 @@
 #include "input.h"
 #include "scene.h"
 #include "vm.h"
+#include "debugger.h"
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
@@ -217,6 +218,10 @@ static void mouse_event(SDL_MouseButtonEvent *e)
 	enum sact_keycode code = sdl_to_sact_button(e->button);
 	if (code)
 		key_state[code] = e->state == SDL_PRESSED;
+#ifdef DEBUGGER_ENABLED
+	if (e->button == SDL_BUTTON_MIDDLE && e->state == SDL_PRESSED && dbg_start_in_debugger)
+		dbg_repl();
+#endif
 }
 
 #define JOYAXIS_DEADZONE 13500
