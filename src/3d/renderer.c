@@ -52,6 +52,11 @@ enum {
 	ALPHA_MAP_BLEND = 2,
 };
 
+enum draw_phase {
+	DRAW_OPAQUE,
+	DRAW_TRANSPARENT,
+};
+
 static GLuint load_shader(const char *vertex_shader_path, const char *fragment_shader_path)
 {
 	GLuint program = glCreateProgram();
@@ -222,17 +227,16 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	return r;
 }
 
-struct billboard_texture *RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no)
+bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no)
 {
-	struct billboard_texture *bt = ht_get_int(r->billboard_textures, cg_no, NULL);
-	if (bt)
-		return bt;
+	if (ht_get_int(r->billboard_textures, cg_no, NULL))
+		return true;
 
 	struct cg *cg = asset_cg_load(cg_no);
 	if (!cg)
-		return NULL;
+		return false;
 
-	bt = xcalloc(1, sizeof(struct billboard_texture));
+	struct billboard_texture *bt = xcalloc(1, sizeof(struct billboard_texture));
 	glGenTextures(1, &bt->texture);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
@@ -246,7 +250,7 @@ struct billboard_texture *RE_renderer_load_billboard_texture(struct RE_renderer 
 
 	cg_free(cg);
 	ht_put_int(r->billboard_textures, cg_no, bt);
-	return bt;
+	return true;
 }
 
 static void free_billboard_texture(void *value)
@@ -281,10 +285,14 @@ void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out)
 	glm_look(camera->pos, front, up, out);
 }
 
-static void render_model(struct RE_instance *inst, struct RE_renderer *r)
+static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum draw_phase phase)
 {
 	struct model *model = inst->model;
 	if (!inst->model)
+		return;
+	bool all_transparent = inst->alpha < 1.0f;
+	bool all_opaque = !model->has_transparent_material && inst->alpha >= 1.0f;
+	if ((phase == DRAW_OPAQUE && all_transparent) || (phase == DRAW_TRANSPARENT && all_opaque))
 		return;
 
 	if (inst->local_transform_needs_update)
@@ -309,6 +317,9 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
 		struct material *material = &model->materials[mesh->material];
+		bool is_transparent = material->alpha_map || inst->alpha < 1.0f;
+		if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
+			continue;
 
 		glUniform1i(r->fog_type, (inst->plugin->fog_mode && !(mesh->flags & MESH_NOLIGHTING))
 			? inst->plugin->fog_type : 0);
@@ -376,15 +387,15 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r)
 	}
 }
 
-static void render_static_model(struct RE_instance *inst, struct RE_renderer *r)
+static void render_static_model(struct RE_instance *inst, struct RE_renderer *r, enum draw_phase phase)
 {
 	if (!inst->draw)
 		return;
 	glUniform1i(r->has_bones, GL_FALSE);
-	render_model(inst, r);
+	render_model(inst, r, phase);
 }
 
-static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r)
+static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r, enum draw_phase phase)
 {
 	if (!inst->draw)
 		return;
@@ -398,16 +409,19 @@ static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r
 	} else {
 		glUniform1i(r->has_bones, GL_FALSE);
 	}
-	render_model(inst, r);
+	render_model(inst, r, phase);
 }
 
-static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat)
+static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat, enum draw_phase phase)
 {
 	if (!inst->draw)
 		return;
 	int cg_no = inst->motion->current_frame;
 	struct billboard_texture *bt = ht_get_int(r->billboard_textures, cg_no, NULL);
 	if (!bt)
+		return;
+	bool is_transparent = bt->has_alpha || inst->alpha < 1.0f;
+	if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
 		return;
 
 	mat4 local_transform;
@@ -530,10 +544,10 @@ static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *
 	}
 }
 
-static void render_particle_effect(struct RE_instance *inst, struct RE_renderer *r)
+static void render_particle_effect(struct RE_instance *inst, struct RE_renderer *r, enum draw_phase phase)
 {
 	// NOTE: inst->draw flag has no effect for particle effects.
-	if (!inst->effect)
+	if (!inst->effect || phase == DRAW_OPAQUE)
 		return;
 
 	vec3 ambient;
@@ -579,20 +593,20 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 	glDepthMask(GL_TRUE);
 }
 
-static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat)
+static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat, enum draw_phase phase)
 {
 	switch (inst->type) {
 	case RE_ITYPE_STATIC:
-		render_static_model(inst, r);
+		render_static_model(inst, r, phase);
 		break;
 	case RE_ITYPE_SKINNED:
-		render_skinned_model(inst, r);
+		render_skinned_model(inst, r, phase);
 		break;
 	case RE_ITYPE_BILLBOARD:
-		render_billboard(inst, r, view_mat);
+		render_billboard(inst, r, view_mat, phase);
 		break;
 	case RE_ITYPE_PARTICLE_EFFECT:
-		render_particle_effect(inst, r);
+		render_particle_effect(inst, r, phase);
 		break;
 	default:
 		break;
@@ -751,11 +765,6 @@ static int cmp_instances_by_z(const void *lhs, const void *rhs)
 	return (lz > rz) - (lz < rz);  // ascending order.
 }
 
-static bool is_transparent(struct RE_instance *inst)
-{
-	return inst->is_transparent || inst->alpha < 1.0f;
-}
-
 void RE_render(struct sact_sprite *sp)
 {
 	struct RE_plugin *plugin = (struct RE_plugin *)sp->plugin;
@@ -835,16 +844,16 @@ void RE_render(struct sact_sprite *sp)
 	// Render opaque instances, from nearest to farthest.
 	for (int i = plugin->nr_instances - 1; i >= 0; i--) {
 		struct RE_instance *inst = sorted_instances[i];
-		if (!inst || is_transparent(inst))
+		if (!inst)
 			continue;
-		render_instance(inst, r, view_transform);
+		render_instance(inst, r, view_transform, DRAW_OPAQUE);
 	}
 	// Render transparent instances, from nearest to farthest.
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = sorted_instances[i];
-		if (!inst || !is_transparent(inst))
+		if (!inst)
 			continue;
-		render_instance(inst, r, view_transform);
+		render_instance(inst, r, view_transform, DRAW_TRANSPARENT);
 	}
 
 	free(sorted_instances);

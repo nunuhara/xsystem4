@@ -443,7 +443,7 @@ struct model *model_load(struct archive *aar, const char *path)
 	}
 	for (int i = 0; i < model->nr_materials; i++) {
 		if (model->materials[i].alpha_map) {
-			model->is_transparent = true;
+			model->has_transparent_material = true;
 			break;
 		}
 	}
