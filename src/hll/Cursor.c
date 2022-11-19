@@ -14,10 +14,27 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include "input.h"
 #include "hll.h"
 
-HLL_WARN_UNIMPLEMENTED(0, int, Cursor, Load, int nNum, int nLinkNum);
-HLL_WARN_UNIMPLEMENTED( , void, Cursor, Set, int nNum);
+#define TT3_CURSOR_TRANSPARENT 11
+
+HLL_WARN_UNIMPLEMENTED(1, int, Cursor, Load, int nNum, int nLinkNum);
+
+static void Cursor_Set(int num)
+{
+	switch (num) {
+	case 0:
+		mouse_show_cursor(true);
+		break;
+	case TT3_CURSOR_TRANSPARENT:
+		mouse_show_cursor(false);
+		break;
+	default:
+		WARNING("Cursor.Set: unexpected argument %d", num);
+		break;
+	}
+}
 
 HLL_LIBRARY(Cursor,
 	    HLL_EXPORT(Load, Cursor_Load),
