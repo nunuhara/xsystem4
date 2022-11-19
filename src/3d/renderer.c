@@ -314,6 +314,8 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glUniform1i(r->use_shadow_map, GL_FALSE);
 	}
 
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
 		struct material *material = &model->materials[mesh->material];
@@ -453,6 +455,14 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glUniform1i(r->use_shadow_map, GL_FALSE);
 	glUniform1i(r->alpha_mode, ALPHA_BLEND);
 	glUniform1i(r->fog_type, inst->plugin->fog_mode ? inst->plugin->fog_type : 0);
+	switch (inst->draw_type) {
+	case RE_DRAW_TYPE_NORMAL:
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+		break;
+	case RE_DRAW_TYPE_ADDITIVE:
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+		break;
+	}
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
@@ -589,7 +599,6 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 			break;
 		}
 	}
-	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
 	glDepthMask(GL_TRUE);
 }
 
@@ -832,7 +841,6 @@ void RE_render(struct sact_sprite *sp)
 	}
 
 	glEnable(GL_BLEND);
-	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
 
 	setup_lights(plugin);
 

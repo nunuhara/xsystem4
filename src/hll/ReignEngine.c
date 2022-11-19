@@ -369,8 +369,26 @@ static bool ReignEngine_GetInstanceDrawBump(int plugin, int instance)
 	return ri->draw_bump;
 }
 
-//int ReignEngine_GetInstanceDrawType(int plugin, int instance);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceDrawType, int plugin, int instance, int draw_type);
+static int ReignEngine_GetInstanceDrawType(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return 0;
+	return ri->draw_type;
+}
+
+static bool ReignEngine_SetInstanceDrawType(int plugin, int instance, int draw_type)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	if (draw_type < 0 || draw_type > RE_DRAW_TYPE_MAX) {
+		WARNING("unknown draw type %d", draw_type);
+		return false;
+	}
+	ri->draw_type = draw_type;
+	return true;
+}
 
 bool ReignEngine_LoadInstanceMotion(int plugin, int instance, struct string *name)
 {
@@ -1771,7 +1789,7 @@ HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetGlareBrightnessParam, int pl
 //float ReignEngine_GetSSAOParam(int plugin, int type);
 HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetSSAOParam, int plugin, int type, float param);
 //bool ReignEngine_CalcIntersectEyeVec(int plugin, int instance, int nMouseX, int nMouseY, float *pfX, float *pfY, float *pfZ);
-HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, IsLoading, int plugin);
+HLL_QUIET_UNIMPLEMENTED(false, bool, ReignEngine, IsLoading, int plugin);
 //int ReignEngine_GetDebugInfoMode(int plugin);
 //bool ReignEngine_SetDebugInfoMode(int plugin, int nMode);
 HLL_WARN_UNIMPLEMENTED(30, int, ReignEngine, GetVertexShaderVersion, void);
@@ -1824,7 +1842,7 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_TODO_EXPORT(GetInstanceDrawBackShadow, ReignEngine_GetInstanceDrawBackShadow),
 	    HLL_EXPORT(GetInstanceDrawMakeShadow, ReignEngine_GetInstanceDrawMakeShadow),
 	    HLL_EXPORT(GetInstanceDrawBump, ReignEngine_GetInstanceDrawBump),
-	    HLL_TODO_EXPORT(GetInstanceDrawType, ReignEngine_GetInstanceDrawType),
+	    HLL_EXPORT(GetInstanceDrawType, ReignEngine_GetInstanceDrawType),
 	    HLL_EXPORT(SetInstanceDrawType, ReignEngine_SetInstanceDrawType),
 	    HLL_EXPORT(LoadInstanceMotion, ReignEngine_LoadInstanceMotion),
 	    HLL_EXPORT(GetInstanceMotionState, ReignEngine_GetInstanceMotionState),
