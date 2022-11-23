@@ -464,6 +464,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 		break;
 	}
 
+	glDepthFunc(GL_LEQUAL);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
 	glUniform1i(r->texture, 0);
@@ -473,6 +474,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
+	glDepthFunc(GL_LESS);
 }
 
 static void render_billboard_particles(struct RE_renderer *r, struct RE_instance *inst, struct particle_object *po, float frame)
