@@ -76,14 +76,14 @@ static float ft_font_get_actual_size(struct font *_, float size)
 
 // Convert a glyph rendered by FreeType to a block-sized texture.
 // Block size is size x 1.5*size (full-width) or size/2 x 1.5*size (half-width)
-static Rectangle init_glyph_texture(Texture *dst, FT_Bitmap *glyph, int bitmap_top, int size, bool half_width)
+static Rectangle init_glyph_texture(Texture *dst, FT_Bitmap *glyph, int bitmap_left, int bitmap_top, int size, bool half_width)
 {
 	// calculate block size and offsets
 	int block_width = (half_width ? size/2 : size);
 	int block_height = size + size/2;
 	int width = block_width + GLYPH_BORDER_SIZE*2;
 	int height = block_height + GLYPH_BORDER_SIZE*2;
-	int off_x = max(0, (block_width - (int)glyph->width) / 2) + GLYPH_BORDER_SIZE;
+	int off_x = max(0, bitmap_left) + GLYPH_BORDER_SIZE;
 	int off_y = max(0, size - bitmap_top) + GLYPH_BORDER_SIZE;
 	uint8_t *bitmap = xcalloc(1, width * height);
 
@@ -136,8 +136,8 @@ static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint3
 	// create texture from bitmap
 	FT_Bitmap *bitmap = &font->font->glyph->bitmap;
 	if (bitmap->pixel_mode == FT_PIXEL_MODE_GRAY) {
-		glyph->rect = init_glyph_texture(t, bitmap, font->font->glyph->bitmap_top,
-				size->size, half_width);
+		glyph->rect = init_glyph_texture(t, bitmap, font->font->glyph->bitmap_left,
+				font->font->glyph->bitmap_top, size->size, half_width);
 	} else if (bitmap->pixel_mode == FT_PIXEL_MODE_MONO) {
 		FT_Bitmap tmp;
 		FT_Bitmap_New(&tmp);
@@ -151,8 +151,8 @@ static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint3
 			if (tmp.buffer[i])
 				tmp.buffer[i] = 255;
 		}
-		glyph->rect = init_glyph_texture(t, &tmp, font->font->glyph->bitmap_top,
-				size->size, half_width);
+		glyph->rect = init_glyph_texture(t, &tmp, font->font->glyph->bitmap_left,
+				font->font->glyph->bitmap_top, size->size, half_width);
 		FT_Bitmap_Done(ft_lib, &tmp);
 	} else {
 		WARNING("Font returned glyph with unsupported pixel mode");
