@@ -203,7 +203,7 @@ static bool MonsterInfo_Load(struct string *filename)
 {
 	char *path = gamedir_path("Data/ReignData.red");
 	int error = ARCHIVE_SUCCESS;
-	struct archive *aar = (struct archive *)aar_open(path, ARCHIVE_MMAP, &error);
+	struct archive *aar = (struct archive *)aar_open(path, MMAP_IF_64BIT, &error);
 	if (error == ARCHIVE_FILE_ERROR) {
 		WARNING("aar_open(\"%s\"): %s", display_utf0(path), strerror(errno));
 	} else if (error == ARCHIVE_BAD_ARCHIVE_ERROR) {

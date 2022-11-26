@@ -183,10 +183,10 @@ static bool afa_load_archive(struct asset_manager *_manager, const char *name)
 	snprintf(path, PATH_MAX, "%s.afa", name);
 
 	int error;
-	struct afa_archive *ar = afa_open(path, ARCHIVE_MMAP, &error);
+	struct afa_archive *ar = afa_open(path, MMAP_IF_64BIT, &error);
 	if (!ar) {
 		snprintf(path, PATH_MAX, "%s.AFA", name);
-		ar = afa_open(path, ARCHIVE_MMAP, &error);
+		ar = afa_open(path, MMAP_IF_64BIT, &error);
 		if (!ar) {
 			WARNING("Failed to open archive: %s", display_utf0(path));
 			return false;
@@ -324,7 +324,7 @@ static void ald_init(enum asset_type type, char **files, int count)
 		WARNING("Multiple asset archives for type %s", asset_strtype(type));
 
 	int error;
-	struct archive *ar = ald_open(files, count, ARCHIVE_MMAP, &error);
+	struct archive *ar = ald_open(files, count, MMAP_IF_64BIT, &error);
 	if (!ar)
 		ERROR("Failed to open ALD file: %s", archive_strerror(error));
 
@@ -343,7 +343,7 @@ static void afa_init(enum asset_type type, char *file)
 		WARNING("Multiple asset archives for type %s", asset_strtype(type));
 
 	int error;
-	struct afa_archive *ar = afa_open(file, ARCHIVE_MMAP, &error);
+	struct afa_archive *ar = afa_open(file, MMAP_IF_64BIT, &error);
 	if (!ar)
 		ERROR("Failed to open AFA file: %s", archive_strerror(error));
 
