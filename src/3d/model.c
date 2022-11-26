@@ -58,7 +58,7 @@ struct archive_data *RE_get_aar_entry(struct archive *aar, const char *dir, cons
 	return dfile;
 }
 
-static GLuint load_texture(struct archive *aar, const char *path, const char *name)
+static GLuint load_texture(struct archive *aar, const char *path, const char *name, bool *has_alpha_out)
 {
 	struct archive_data *dfile = RE_get_aar_entry(aar, path, name, "");
 	if (!dfile) {
@@ -83,6 +83,8 @@ static GLuint load_texture(struct archive *aar, const char *path, const char *na
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, 0);
+	if (has_alpha_out)
+		*has_alpha_out = cg->metrics.has_alpha;
 	cg_free(cg);
 	return texture;
 }
@@ -94,18 +96,21 @@ static bool init_material(struct material *material, const struct pol_material *
 		WARNING("No color texture");
 		return false;
 	}
-	material->color_map = load_texture(aar, path, m->textures[COLOR_MAP]);
+	bool has_alpha;
+	material->color_map = load_texture(aar, path, m->textures[COLOR_MAP], &has_alpha);
 	if (!material->color_map)
 		return false;
 
 	if (m->textures[SPECULAR_MAP])
-		material->specular_map = load_texture(aar, path, m->textures[SPECULAR_MAP]);
+		material->specular_map = load_texture(aar, path, m->textures[SPECULAR_MAP], NULL);
 	if (m->textures[ALPHA_MAP])
-		material->alpha_map = load_texture(aar, path, m->textures[ALPHA_MAP]);
+		material->alpha_map = load_texture(aar, path, m->textures[ALPHA_MAP], NULL);
 	if (m->textures[LIGHT_MAP])
-		material->light_map = load_texture(aar, path, m->textures[LIGHT_MAP]);
+		material->light_map = load_texture(aar, path, m->textures[LIGHT_MAP], NULL);
 	if (m->textures[NORMAL_MAP])
-		material->normal_map = load_texture(aar, path, m->textures[NORMAL_MAP]);
+		material->normal_map = load_texture(aar, path, m->textures[NORMAL_MAP], NULL);
+
+	material->is_transparent = has_alpha || material->alpha_map;
 
 	struct amt_material *amt_m = amt ? amt_find_material(amt, m->name) : NULL;
 	if (amt_m) {
@@ -442,7 +447,7 @@ struct model *model_load(struct archive *aar, const char *path)
 		}
 	}
 	for (int i = 0; i < model->nr_materials; i++) {
-		if (model->materials[i].alpha_map) {
+		if (model->materials[i].is_transparent) {
 			model->has_transparent_material = true;
 			break;
 		}
