@@ -39,14 +39,15 @@ static struct RE_instance *create_instance(struct RE_plugin *plugin)
 	instance->plugin = plugin;
 	for (int i = 0; i < RE_NR_INSTANCE_TARGETS; i++)
 		instance->target[i] = -1;
-	instance->scale[0] = 1.0;
-	instance->scale[1] = 1.0;
-	instance->scale[2] = 1.0;
-	instance->alpha = 1.0;
+	instance->scale[0] = 1.0f;
+	instance->scale[1] = 1.0f;
+	instance->scale[2] = 1.0f;
+	instance->alpha = 1.0f;
+	instance->shadow_volume_bone_radius = 0.1f;
 	instance->draw_bump = true;
-	instance->fps = 30.0;
-	instance->column_height = 1.0;
-	instance->column_radius = 1.0;
+	instance->fps = 30.0f;
+	instance->column_height = 1.0f;
+	instance->column_radius = 1.0f;
 	glm_mat4_identity(instance->local_transform);
 	glm_mat3_identity(instance->normal_transform);
 	return instance;
@@ -143,6 +144,10 @@ static void update_bones(struct RE_instance *inst)
 		return;
 
 	mat4 parent_transforms[MAX_BONES];
+	vec3 aabb[2];
+	glm_aabb_invalidate(aabb);
+
+	// Update inst->bone_transforms.
 	for (int i = 0; i < inst->model->nr_bones; i++) {
 		struct mot_frame mf;
 		calc_motion_frame(inst->motion, i, &mf);
@@ -162,7 +167,18 @@ static void update_bones(struct RE_instance *inst)
 		glm_mat4_copy(bone_transform, parent_transforms[i]);
 
 		glm_mat4_mul(bone_transform, inst->model->bones[i].inverse_bind_matrix, inst->bone_transforms[i]);
+
+		glm_vec3_minv(aabb[0], bone_transform[3], aabb[0]);
+		glm_vec3_maxv(aabb[1], bone_transform[3], aabb[1]);
 	}
+
+	// Update inst->bounding_sphere.
+	vec3 center;
+	glm_aabb_center(aabb, center);
+	if (inst->local_transform_needs_update)
+		RE_instance_update_local_transform(inst);
+	glm_mat4_mulv3(inst->local_transform, center, 1.0f, inst->bounding_sphere);
+	inst->bounding_sphere[3] = glm_aabb_radius(aabb) * inst->scale[0] + inst->shadow_volume_bone_radius;
 }
 
 struct RE_plugin *RE_plugin_new(void)

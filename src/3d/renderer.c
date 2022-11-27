@@ -27,8 +27,8 @@
 #include "sact.h"
 
 // TODO: Respect RE_plugin.shadow_map_resolution_level
-#define SHADOW_WIDTH 1024
-#define SHADOW_HEIGHT 1024
+#define SHADOW_WIDTH 512
+#define SHADOW_HEIGHT 512
 
 enum {
 	COLOR_TEXTURE_UNIT,
@@ -626,52 +626,27 @@ static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat
 
 static bool calc_shadow_light_transform(struct RE_plugin *plugin, mat4 dest)
 {
-	// Compute AABB of shadow casters.
-	vec3 aabb[2];
-	glm_aabb_invalidate(aabb);
+	// Compute a bounding sphere of shadow casters.
+	vec4 bounding_sphere = {};
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst || !inst->draw || !inst->make_shadow || !inst->model)
 			continue;
-		// Start with the model's AABB, inflated with shadow_volume_bone_radius.
-		vec3 inst_aabb[2];
-		glm_vec3_subs(inst->model->aabb[0], inst->shadow_volume_bone_radius, inst_aabb[0]);
-		glm_vec3_adds(inst->model->aabb[1], inst->shadow_volume_bone_radius, inst_aabb[1]);
-		// To save CPU cycles, consider only the translation components of bone transforms.
-		vec3 bone_translation_aabb[2];
-		glm_aabb_invalidate(bone_translation_aabb);
-		for (int j = 0; j < inst->model->nr_bones; j++) {
-			glm_vec3_minv(inst->bone_transforms[j][3], bone_translation_aabb[0], bone_translation_aabb[0]);
-			glm_vec3_maxv(inst->bone_transforms[j][3], bone_translation_aabb[1], bone_translation_aabb[1]);
-		}
-		if (glm_aabb_isvalid(bone_translation_aabb)) {
-			glm_vec3_add(inst_aabb[0], bone_translation_aabb[0], inst_aabb[0]);
-			glm_vec3_add(inst_aabb[1], bone_translation_aabb[1], inst_aabb[1]);
-		}
-		// Apply local transform.
-		if (inst->local_transform_needs_update)
-			RE_instance_update_local_transform(inst);
-		glm_aabb_transform(inst_aabb, inst->local_transform, inst_aabb);
-
-		glm_aabb_merge(inst_aabb, aabb, aabb);
+		if (bounding_sphere[3] > 0.0f)
+			glm_sphere_merge(inst->bounding_sphere, bounding_sphere, inst->bounding_sphere);
+		else
+			glm_vec4_copy(inst->bounding_sphere, bounding_sphere);
 	}
-	if (!glm_aabb_isvalid(aabb))
+
+	float radius = bounding_sphere[3] * 1.2f;  // Add some padding.
+	if (radius <= 0.0f)
 		return false;
 
-	// Create a orthographic frustum that contains the AABB.
-	vec3 center;
-	glm_aabb_center(aabb, center);
-	vec3 light_pos;
-	glm_vec3_scale(plugin->shadow_map_light_dir, -glm_aabb_radius(aabb), light_pos);
-	glm_vec3_add(light_pos, center, light_pos);
+	// Create a orthographic frustum that contains the bounding sphere.
 	mat4 view_matrix;
-	vec3 up = {0.0, 1.0, 0.0};
-	glm_lookat(light_pos, center, up, view_matrix);
-
+	glm_look(bounding_sphere, plugin->shadow_map_light_dir, GLM_YUP, view_matrix);
 	mat4 proj_matrix;
-	glm_aabb_transform(aabb, view_matrix, aabb);
-	glm_ortho_aabb(aabb, proj_matrix);
-
+	glm_ortho(-radius, radius, -radius, radius, -radius, radius, proj_matrix);
 	glm_mat4_mul(proj_matrix, view_matrix, dest);
 	return true;
 }

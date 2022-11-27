@@ -165,6 +165,7 @@ struct RE_instance {
 	mat4 local_transform;
 	mat3 normal_transform;
 	mat4 *bone_transforms;  // model->nr_bones elements
+	vec4 bounding_sphere;
 	float z_from_camera;
 };
 
