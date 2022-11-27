@@ -69,6 +69,8 @@ void get_time(int *hour, int *min, int *sec, int *ms);
 #define XSYS4_DATA_DIR "/usr/local/share/xsystem4"
 #endif
 
+#define MMAP_IF_64BIT (sizeof(void*) >= 8 ? ARCHIVE_MMAP : 0)
+
 extern bool game_daibanchou_en;
 extern bool game_rance02_mg;
 extern bool game_rance6_mg;

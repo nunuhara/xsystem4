@@ -99,7 +99,7 @@ static GLuint *load_event_textures(int *nr_textures_out)
 {
 	char *path = gamedir_path("Data/Event.alk");
 	int error = ARCHIVE_SUCCESS;
-	struct alk_archive *alk = alk_open(path, ARCHIVE_MMAP, &error);
+	struct alk_archive *alk = alk_open(path, MMAP_IF_64BIT, &error);
 	if (error == ARCHIVE_FILE_ERROR) {
 		WARNING("alk_open(\"%s\"): %s", display_utf0(path), strerror(errno));
 	} else if (error == ARCHIVE_BAD_ARCHIVE_ERROR) {
@@ -146,7 +146,7 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 	if (ctx->version == DRAW_DUNGEON_1) {
 		char *path = gamedir_path("Data/DungeonData.dlf");
 		int error = ARCHIVE_SUCCESS;
-		struct archive *dlf = (struct archive *)dlf_open(path, ARCHIVE_MMAP, &error);
+		struct archive *dlf = (struct archive *)dlf_open(path, MMAP_IF_64BIT, &error);
 		if (error == ARCHIVE_FILE_ERROR) {
 			WARNING("dlf_open(\"%s\"): %s", display_utf0(path), strerror(errno));
 		} else if (error == ARCHIVE_BAD_ARCHIVE_ERROR) {
