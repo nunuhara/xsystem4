@@ -336,6 +336,8 @@ static void destroy_mesh(struct mesh *mesh)
 {
 	glDeleteVertexArrays(1, &mesh->vao);
 	glDeleteBuffers(1, &mesh->attr_buffer);
+	if (mesh->index_buffer)
+		glDeleteBuffers(1, &mesh->index_buffer);
 }
 
 static struct bone *add_bone(struct model *model, struct pol *pol, struct pol_bone *pol_bone)
@@ -497,6 +499,101 @@ void model_free(struct model *model)
 
 	free(model->path);
 	free(model);
+}
+
+static void init_sphere_mesh(struct mesh *mesh)
+{
+	const int w_segments = 16;
+	const int h_segments = 16;
+	const int nr_vertices = (w_segments + 1) * (h_segments + 1);
+	struct vertex_common *vertices = xcalloc(nr_vertices, sizeof(struct vertex_common));
+	struct vertex_common *v = vertices;
+	for (int y = 0; y <= h_segments; y++) {
+		float theta = GLM_PIf * y / h_segments;
+		for (int x = 0; x <= w_segments; x++, v++) {
+			float phi = 2.0f * GLM_PIf * x / w_segments;
+			v->pos[0] = -cosf(phi) * sinf(theta);
+			v->pos[1] = cosf(theta);
+			v->pos[2] = sinf(phi) * sinf(theta);
+			glm_vec3_copy(v->pos, v->normal);
+			v->uv[0] = v->uv[1] = 0.0f;
+		}
+	}
+	assert(v == vertices + nr_vertices);
+
+	const int nr_indices = 3 * 2 * w_segments * (h_segments - 1);
+	GLushort *indices = xcalloc(nr_indices, sizeof(GLushort));
+	GLushort *pi = indices;
+	for (int y = 0; y < h_segments; y++) {
+		for (int x = 0; x < w_segments; x++) {
+			GLushort a = y * w_segments + x + 1;
+			GLushort b = y * w_segments + x;
+			GLushort c = (y + 1) * w_segments + x;
+			GLushort d = (y + 1) * w_segments + x + 1;
+			if (y > 0) {
+				*pi++ = a;
+				*pi++ = b;
+				*pi++ = d;
+			}
+			if (y < h_segments - 1) {
+				*pi++ = b;
+				*pi++ = c;
+				*pi++ = d;
+			}
+		}
+	}
+	assert(pi == indices + nr_indices);
+
+	mesh->flags = MESH_NOLIGHTING;
+	mesh->nr_vertices = nr_vertices;
+	mesh->nr_indices = nr_indices;
+	glGenVertexArrays(1, &mesh->vao);
+	glBindVertexArray(mesh->vao);
+	glGenBuffers(1, &mesh->attr_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->attr_buffer);
+	glBufferData(GL_ARRAY_BUFFER, nr_vertices * sizeof(struct vertex_common), vertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(VATTR_POS);
+	glVertexAttribPointer(VATTR_POS, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_common), (void*)offsetof(struct vertex_common, pos));
+	glEnableVertexAttribArray(VATTR_NORMAL);
+	glVertexAttribPointer(VATTR_NORMAL, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_common), (void*)offsetof(struct vertex_common, normal));
+	glEnableVertexAttribArray(VATTR_UV);
+	glVertexAttribPointer(VATTR_UV, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex_common), (void*)offsetof(struct vertex_common, uv));
+
+	glGenBuffers(1, &mesh->index_buffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->index_buffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, nr_indices * sizeof(GLushort), indices, GL_STATIC_DRAW);
+	glBindVertexArray(0);
+
+	free(vertices);
+	free(indices);
+}
+
+struct model *model_create_sphere(int r, int g, int b, int a)
+{
+	struct model *model = xcalloc(1, sizeof(struct model));
+
+	model->nr_meshes = 1;
+	model->meshes = xcalloc(1, sizeof(struct mesh));
+	init_sphere_mesh(&model->meshes[0]);
+	model->aabb[0][0] = -1.0f;
+	model->aabb[0][1] = -1.0f;
+	model->aabb[0][2] = -1.0f;
+	model->aabb[1][0] = 1.0f;
+	model->aabb[1][1] = 1.0f;
+	model->aabb[1][2] = 1.0f;
+
+	model->nr_materials = 1;
+	model->materials = xcalloc(1, sizeof(struct material));
+	struct material *material = &model->materials[0];
+	material->is_transparent = true;
+	glGenTextures(1, &material->color_map);
+	glBindTexture(GL_TEXTURE_2D, material->color_map);
+	uint8_t pixel[4] = {r, g, b, a};
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	model->has_transparent_material = true;
+
+	return model;
 }
 
 static int cmp_motions_by_bone_id(const void *lhs, const void *rhs)

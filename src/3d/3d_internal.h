@@ -51,7 +51,9 @@ struct mesh {
 	uint32_t flags;
 	GLuint vao;
 	GLuint attr_buffer;
+	GLuint index_buffer;
 	int nr_vertices;
+	int nr_indices;
 	int material;
 };
 
@@ -176,6 +178,7 @@ void RE_instance_update_local_transform(struct RE_instance *inst);
 
 struct model *model_load(struct archive *aar, const char *path);
 void model_free(struct model *model);
+struct model *model_create_sphere(int r, int g, int b, int a);
 
 struct motion *motion_load(const char *name, struct RE_instance *instance, struct archive *aar);
 void motion_free(struct motion *motion);

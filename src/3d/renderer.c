@@ -383,7 +383,12 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		}
 
 		glBindVertexArray(mesh->vao);
-		glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+
+		if (mesh->nr_indices)
+			glDrawElements(GL_TRIANGLES, mesh->nr_indices, GL_UNSIGNED_SHORT, NULL);
+		else
+			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+
 		glBindVertexArray(0);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
@@ -412,6 +417,9 @@ static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r
 		glUniform1i(r->has_bones, GL_FALSE);
 	}
 	render_model(inst, r, phase);
+
+	if (inst->shadow_volume_instance && phase == DRAW_TRANSPARENT)
+		render_static_model(inst->shadow_volume_instance, r, phase);
 }
 
 static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat, enum draw_phase phase)

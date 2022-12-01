@@ -651,8 +651,17 @@ static bool ReignEngine_SetInstanceShadowVolumeBoneRadius(int plugin, int instan
 	return true;
 }
 
-//bool ReignEngine_GetInstanceDebugDrawShadowVolume(int plugin, int instance);
-//bool ReignEngine_SetInstanceDebugDrawShadowVolume(int plugin, int instance, bool flag);
+static bool ReignEngine_GetInstanceDebugDrawShadowVolume(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	return ri && ri->shadow_volume_instance && ri->shadow_volume_instance->draw;
+}
+
+static bool ReignEngine_SetInstanceDebugDrawShadowVolume(int plugin, int instance, bool flag)
+{
+	return RE_instance_set_debug_draw_shadow_volume(get_instance(plugin, instance), flag);
+}
+
 //bool ReignEngine_SaveEffect(int plugin, int instance);
 
 static bool ReignEngine_GetEffectFrameRange(int plugin, int instance, int *begin_frame, int *end_frame)
@@ -1899,8 +1908,8 @@ HLL_LIBRARY(ReignEngine,
 	    HLL_EXPORT(SetInstanceSoftFogEdgeLength, ReignEngine_SetInstanceSoftFogEdgeLength),
 	    HLL_EXPORT(GetInstanceShadowVolumeBoneRadius, ReignEngine_GetInstanceShadowVolumeBoneRadius),
 	    HLL_EXPORT(SetInstanceShadowVolumeBoneRadius, ReignEngine_SetInstanceShadowVolumeBoneRadius),
-	    HLL_TODO_EXPORT(GetInstanceDebugDrawShadowVolume, ReignEngine_GetInstanceDebugDrawShadowVolume),
-	    HLL_TODO_EXPORT(SetInstanceDebugDrawShadowVolume, ReignEngine_SetInstanceDebugDrawShadowVolume),
+	    HLL_EXPORT(GetInstanceDebugDrawShadowVolume, ReignEngine_GetInstanceDebugDrawShadowVolume),
+	    HLL_EXPORT(SetInstanceDebugDrawShadowVolume, ReignEngine_SetInstanceDebugDrawShadowVolume),
 	    HLL_TODO_EXPORT(SaveEffect, ReignEngine_SaveEffect),
 	    HLL_EXPORT(GetEffectFrameRange, ReignEngine_GetEffectFrameRange),
 	    HLL_EXPORT(GetEffectObjectType, ReignEngine_GetEffectObjectType),
