@@ -97,6 +97,24 @@ void set_page_ref(int v)
 	gi <- v;
 }
 
+void test_ref_compare(void)
+{
+	int i;
+	int j;
+	ref int rn;
+	ref int ri = i;
+	ref int rj = j;
+
+	test_bool("NULL === NULL", rn === NULL, true);
+	test_bool("NULL !== NULL", rn !== NULL, false);
+	test_bool("ri === NULL",   ri === NULL, false);
+	test_bool("ri !== NULL",   ri !== NULL, true);
+	test_bool("ri === ri",     ri === ri,   true);
+	test_bool("ri !== ri",     ri !== ri,   false);
+	test_bool("ri === rj",     ri === rj,   false);
+	test_bool("ri !== rj",     ri !== rj,   true);
+}
+
 void func_stack2(void)
 {
 	func_stack1();
@@ -140,6 +158,7 @@ void test_lang(void)
 	func_stack2();
 	'message1';
 	'message2';
+	test_ref_compare();
 }
 
 int msg_count = 0;
