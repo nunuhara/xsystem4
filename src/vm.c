@@ -851,6 +851,14 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_push(lhs_page == rhs_page && lhs_var == rhs_var ? 1 : 0);
 		break;
 	}
+	case R_NOTE: {
+		int rhs_var = stack_pop().i;
+		int rhs_page = stack_pop().i;
+		int lhs_var = stack_pop().i;
+		int lhs_page = stack_pop().i;
+		stack_push(lhs_page == rhs_page && lhs_var == rhs_var ? 0 : 1);
+		break;
+	}
 	case NEW: {
 		union vm_value v;
 		create_struct(stack_pop().i, &v);
