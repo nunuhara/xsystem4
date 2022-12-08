@@ -227,7 +227,7 @@ static bool ReignEngine_SetInstanceScaleZ(int plugin, int instance, float scale_
 	struct RE_instance *ri = get_instance(plugin, instance);
 	if (!ri)
 		return false;
-	ri->scale[0] = scale_z;
+	ri->scale[2] = scale_z;
 	ri->local_transform_needs_update = true;
 	return true;
 }
