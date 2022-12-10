@@ -712,6 +712,8 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 		glUniformMatrix4fv(r->shadow.world_transform, 1, GL_FALSE, inst->local_transform[0]);
 		for (int j = 0; j < model->nr_meshes; j++) {
 			struct mesh *mesh = &model->meshes[j];
+			if (mesh->flags & MESH_NOMAKESHADOW)
+				continue;
 			glBindVertexArray(mesh->vao);
 			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 		}
