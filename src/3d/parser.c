@@ -166,6 +166,8 @@ static uint32_t parse_mesh_attributes(const char *name)
 		flags |= MESH_NOMAKESHADOW;
 	if (strstr(name, "(env)"))
 		flags |= MESH_ENVMAP;
+	if (strstr(name, "(both)"))
+		flags |= MESH_BOTH;
 	return flags;
 }
 

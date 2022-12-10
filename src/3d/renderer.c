@@ -305,13 +305,11 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 	glm_vec3_add(inst->plugin->global_ambient, inst->ambient, ambient);
 	glUniform3fv(r->ambient, 1, ambient);
 
-	if (inst->draw_shadow && inst->plugin->shadow_mode) {
-		glUniform1i(r->use_shadow_map, GL_TRUE);
+	bool draw_shadow = inst->draw_shadow && inst->plugin->shadow_mode;
+	if (draw_shadow) {
 		glActiveTexture(GL_TEXTURE0 + SHADOW_TEXTURE_UNIT);
 		glBindTexture(GL_TEXTURE_2D, r->shadow.texture);
 		glUniform1i(r->shadow_texture, SHADOW_TEXTURE_UNIT);
-	} else {
-		glUniform1i(r->use_shadow_map, GL_FALSE);
 	}
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
@@ -348,6 +346,8 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glActiveTexture(GL_TEXTURE0 + COLOR_TEXTURE_UNIT);
 		glBindTexture(GL_TEXTURE_2D, material->color_map);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
+
+		glUniform1i(r->use_shadow_map, draw_shadow && !(mesh->flags & MESH_BOTH));
 
 		if (mesh->flags & MESH_ENVMAP) {
 			glUniform1i(r->diffuse_type, DIFFUSE_ENV_MAP);
