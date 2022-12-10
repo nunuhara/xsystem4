@@ -165,6 +165,7 @@ struct RE_instance {
 	mat4 local_transform;
 	mat3 normal_transform;
 	mat4 *bone_transforms;  // model->nr_bones elements
+	float z_from_camera;
 };
 
 struct RE_plugin *RE_plugin_new(void);

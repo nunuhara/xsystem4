@@ -773,9 +773,35 @@ static int cmp_instances_by_z(const void *lhs, const void *rhs)
 {
 	struct RE_instance *l = *(struct RE_instance **)lhs;
 	struct RE_instance *r = *(struct RE_instance **)rhs;
-	float lz = l ? l->pos[2] : FLT_MAX;
-	float rz = r ? r->pos[2] : FLT_MAX;
+	float lz = l ? l->z_from_camera : FLT_MAX;
+	float rz = r ? r->z_from_camera : FLT_MAX;
 	return (lz > rz) - (lz < rz);  // ascending order.
+}
+
+static struct RE_instance **sort_instances(struct RE_plugin *plugin, mat4 view_transform)
+{
+	struct RE_instance **instances = xmalloc(plugin->nr_instances * sizeof(struct RE_instance *));
+	memcpy(instances, plugin->instances, plugin->nr_instances * sizeof(struct RE_instance *));
+
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = instances[i];
+		if (!inst)
+			continue;
+		vec3 center;
+		if (inst->model) {
+			glm_aabb_center(inst->model->aabb, center);
+			if (inst->local_transform_needs_update)
+				RE_instance_update_local_transform(inst);
+			glm_mat4_mulv3(inst->local_transform, center, 1.0, center);
+		} else {
+			glm_vec3_copy(inst->pos, center);
+		}
+		glm_mat4_mulv3(view_transform, center, 1.0f, center);
+		inst->z_from_camera = center[2];
+	}
+
+	qsort(instances, plugin->nr_instances, sizeof(struct RE_instance *), cmp_instances_by_z);
+	return instances;
 }
 
 void RE_render(struct sact_sprite *sp)
@@ -849,9 +875,7 @@ void RE_render(struct sact_sprite *sp)
 	setup_lights(plugin);
 
 	// Sort instances by z-order.
-	struct RE_instance **sorted_instances = xmalloc(plugin->nr_instances * sizeof(struct RE_instance *));
-	memcpy(sorted_instances, plugin->instances, plugin->nr_instances * sizeof(struct RE_instance *));
-	qsort(sorted_instances, plugin->nr_instances, sizeof(struct RE_instance *), cmp_instances_by_z);
+	struct RE_instance **sorted_instances = sort_instances(plugin, view_transform);
 
 	// Render opaque instances, from nearest to farthest.
 	for (int i = plugin->nr_instances - 1; i >= 0; i--) {
