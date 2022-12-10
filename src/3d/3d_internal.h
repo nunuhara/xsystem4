@@ -57,6 +57,7 @@ struct mesh {
 
 struct material {
 	uint32_t flags;
+	bool is_transparent;
 	GLuint color_map;
 	GLuint specular_map;
 	GLuint alpha_map;

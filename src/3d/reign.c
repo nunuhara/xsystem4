@@ -961,6 +961,9 @@ bool RE_back_cg_set_name(struct RE_back_cg *bcg, struct string *name, struct arc
 	bcg->no = 0;
 	gfx_delete_texture(&bcg->texture);
 
+	if (name->size == 0)  // unload only.
+		return true;
+
 	char *cg_path = xmalloc(name->size + 5);
 	sprintf(cg_path, "%s.bmp", name->text);
 	struct archive_data *dfile = archive_get_by_name(aar, cg_path);

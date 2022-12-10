@@ -319,7 +319,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
 		struct material *material = &model->materials[mesh->material];
-		bool is_transparent = material->alpha_map || inst->alpha < 1.0f;
+		bool is_transparent = material->is_transparent || inst->alpha < 1.0f;
 		if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
 			continue;
 
@@ -464,6 +464,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 		break;
 	}
 
+	glDepthFunc(GL_LEQUAL);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
 	glUniform1i(r->texture, 0);
@@ -473,6 +474,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
+	glDepthFunc(GL_LESS);
 }
 
 static void render_billboard_particles(struct RE_renderer *r, struct RE_instance *inst, struct particle_object *po, float frame)
@@ -856,7 +858,7 @@ void RE_render(struct sact_sprite *sp)
 			continue;
 		render_instance(inst, r, view_transform, DRAW_OPAQUE);
 	}
-	// Render transparent instances, from nearest to farthest.
+	// Render transparent instances, from farthest to nearest.
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = sorted_instances[i];
 		if (!inst)
