@@ -217,19 +217,29 @@ static void effect_oscillate(float rate)
 	gfx_copy(dst, delta_x, delta_y, &effect.new, 0, 0, dst->w, dst->h);
 }
 
-static void effect_tv_switch_off(float rate)
+static void effect_tv_switch(float rate, Texture *src)
 {
 	Texture *dst = gfx_main_surface();
 	if (rate < 0.5f) {
 		int h = max(1, (int)(dst->h * (1.0f - rate * 2.0f)));
 		gfx_copy_stretch(dst, 0, dst->h * rate, dst->w, h,
-				 &effect.old, 0, 0, effect.old.w, effect.old.h);
+				 src, 0, 0, src->w, src->h);
 	} else {
 		rate -= 0.5f;
 		int w = dst->w * (1.0f - rate * 2.0f);
 		gfx_copy_stretch(dst, dst->w * rate, dst->h / 2, w, 1,
-				 &effect.old, 0, 0, effect.old.w, effect.old.h);
+				 src, 0, 0, src->w, src->h);
 	}
+}
+
+static void effect_tv_switch_off(float rate)
+{
+	effect_tv_switch(rate, &effect.old);
+}
+
+static void effect_tv_switch_on(float rate)
+{
+	effect_tv_switch(1.0f - rate, &effect.new);
 }
 
 static void effect_zoom_in_crossfade(float rate)
@@ -254,6 +264,7 @@ static effect_fun effect_functions[NR_EFFECTS] = {
 	[EFFECT_WHITEIN]           = effect_whitein,
 	[EFFECT_OSCILLATE]         = effect_oscillate,
 	[EFFECT_TV_SWITCH_OFF]     = effect_tv_switch_off,
+	[EFFECT_TV_SWITCH_ON]      = effect_tv_switch_on,
 	[EFFECT_ZOOM_LR]           = effect_zoom_lr,
 	[EFFECT_ZOOM_RL]           = effect_zoom_rl,
 	[EFFECT_ZOOM_IN_CROSSFADE] = effect_zoom_in_crossfade,
