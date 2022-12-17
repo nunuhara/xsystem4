@@ -82,11 +82,11 @@ void main() {
 	}
 
 	// World-space normal vector.
-	normal = normal_bone_transform * vertex_normal;
+	normal = normalize(normal_bone_transform * vertex_normal);
 
 	mat3 TBN = mat3(1.0f);
 	if (use_normal_map) {
-		vec3 tangent = normal_bone_transform * vertex_tangent.xyz;
+		vec3 tangent = normalize(normal_bone_transform * vertex_tangent.xyz);
 		vec3 bitangent = cross(normal, tangent) * vertex_tangent.w;
 		TBN = transpose(mat3(tangent, bitangent, normal));
 	}

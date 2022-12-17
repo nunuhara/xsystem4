@@ -389,8 +389,10 @@ struct pol_material_group {
 };
 
 enum mesh_flags {
-	MESH_NOLIGHTING = 1 << 0,
-	MESH_ENVMAP     = 1 << 1,
+	MESH_NOLIGHTING   = 1 << 0,
+	MESH_NOMAKESHADOW = 1 << 1,
+	MESH_ENVMAP       = 1 << 2,
+	MESH_BOTH         = 1 << 3,
 };
 
 struct pol_mesh {

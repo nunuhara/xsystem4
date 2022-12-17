@@ -104,7 +104,7 @@ static void init_shadow_renderer(struct shadow_renderer *sr)
 	glGenFramebuffers(1, &sr->fbo);
 	glGenTextures(1, &sr->texture);
 	glBindTexture(GL_TEXTURE_2D, sr->texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -305,13 +305,11 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 	glm_vec3_add(inst->plugin->global_ambient, inst->ambient, ambient);
 	glUniform3fv(r->ambient, 1, ambient);
 
-	if (inst->draw_shadow && inst->plugin->shadow_mode) {
-		glUniform1i(r->use_shadow_map, GL_TRUE);
+	bool draw_shadow = inst->draw_shadow && inst->plugin->shadow_mode;
+	if (draw_shadow) {
 		glActiveTexture(GL_TEXTURE0 + SHADOW_TEXTURE_UNIT);
 		glBindTexture(GL_TEXTURE_2D, r->shadow.texture);
 		glUniform1i(r->shadow_texture, SHADOW_TEXTURE_UNIT);
-	} else {
-		glUniform1i(r->use_shadow_map, GL_FALSE);
 	}
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
@@ -348,6 +346,8 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glActiveTexture(GL_TEXTURE0 + COLOR_TEXTURE_UNIT);
 		glBindTexture(GL_TEXTURE_2D, material->color_map);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
+
+		glUniform1i(r->use_shadow_map, draw_shadow && !(mesh->flags & MESH_BOTH));
 
 		if (mesh->flags & MESH_ENVMAP) {
 			glUniform1i(r->diffuse_type, DIFFUSE_ENV_MAP);
@@ -712,6 +712,8 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 		glUniformMatrix4fv(r->shadow.world_transform, 1, GL_FALSE, inst->local_transform[0]);
 		for (int j = 0; j < model->nr_meshes; j++) {
 			struct mesh *mesh = &model->meshes[j];
+			if (mesh->flags & MESH_NOMAKESHADOW)
+				continue;
 			glBindVertexArray(mesh->vao);
 			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 		}
@@ -771,9 +773,35 @@ static int cmp_instances_by_z(const void *lhs, const void *rhs)
 {
 	struct RE_instance *l = *(struct RE_instance **)lhs;
 	struct RE_instance *r = *(struct RE_instance **)rhs;
-	float lz = l ? l->pos[2] : FLT_MAX;
-	float rz = r ? r->pos[2] : FLT_MAX;
+	float lz = l ? l->z_from_camera : FLT_MAX;
+	float rz = r ? r->z_from_camera : FLT_MAX;
 	return (lz > rz) - (lz < rz);  // ascending order.
+}
+
+static struct RE_instance **sort_instances(struct RE_plugin *plugin, mat4 view_transform)
+{
+	struct RE_instance **instances = xmalloc(plugin->nr_instances * sizeof(struct RE_instance *));
+	memcpy(instances, plugin->instances, plugin->nr_instances * sizeof(struct RE_instance *));
+
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = instances[i];
+		if (!inst)
+			continue;
+		vec3 center;
+		if (inst->model) {
+			glm_aabb_center(inst->model->aabb, center);
+			if (inst->local_transform_needs_update)
+				RE_instance_update_local_transform(inst);
+			glm_mat4_mulv3(inst->local_transform, center, 1.0, center);
+		} else {
+			glm_vec3_copy(inst->pos, center);
+		}
+		glm_mat4_mulv3(view_transform, center, 1.0f, center);
+		inst->z_from_camera = center[2];
+	}
+
+	qsort(instances, plugin->nr_instances, sizeof(struct RE_instance *), cmp_instances_by_z);
+	return instances;
 }
 
 void RE_render(struct sact_sprite *sp)
@@ -847,9 +875,7 @@ void RE_render(struct sact_sprite *sp)
 	setup_lights(plugin);
 
 	// Sort instances by z-order.
-	struct RE_instance **sorted_instances = xmalloc(plugin->nr_instances * sizeof(struct RE_instance *));
-	memcpy(sorted_instances, plugin->instances, plugin->nr_instances * sizeof(struct RE_instance *));
-	qsort(sorted_instances, plugin->nr_instances, sizeof(struct RE_instance *), cmp_instances_by_z);
+	struct RE_instance **sorted_instances = sort_instances(plugin, view_transform);
 
 	// Render opaque instances, from nearest to farthest.
 	for (int i = plugin->nr_instances - 1; i >= 0; i--) {
