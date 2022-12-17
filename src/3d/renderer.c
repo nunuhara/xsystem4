@@ -410,7 +410,7 @@ static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r
 	if (!model)
 		return;
 
-	if (model->nr_bones > 0) {
+	if (model->nr_bones > 0 && inst->motion) {
 		glUniform1i(r->has_bones, GL_TRUE);
 		glUniformMatrix4fv(r->bone_matrices, model->nr_bones, GL_FALSE, inst->bone_transforms[0][0]);
 	} else {
