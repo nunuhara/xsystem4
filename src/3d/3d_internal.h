@@ -272,7 +272,14 @@ struct particle_position {
 	struct particle_position_unit units[NR_PARTICLE_POSITION_UNITS];
 };
 
-struct particle_object {
+struct pae {
+	char *path;
+	struct hash_table *textures; // name -> struct billboard_texture*
+	int nr_objects;
+	struct pae_object *objects;
+};
+
+struct pae_object {
 	char *name;
 	enum particle_type type;
 	enum particle_move_type move_type;
@@ -325,9 +332,18 @@ struct particle_object {
 	float offset_x;
 	float offset_y;
 
-	// Runtime data
 	struct model *model;
-	struct particle_instance *instances;
+};
+
+struct particle_effect {
+	struct pae *pae;
+	struct particle_object *objects;  // pae->nr_objects elements
+	bool camera_quake_enabled;
+};
+
+struct particle_object {
+	struct pae_object *pae_obj;
+	struct particle_instance *instances;  // pae_obj->nr_particles elements
 	vec3_range pos;
 	vec3 move_vec, move_ortho;
 };
@@ -340,20 +356,15 @@ struct particle_instance {
 	float pitch_angle;
 };
 
-struct particle_effect {
-	char *path;
-	struct hash_table *textures; // name -> struct billboard_texture*
-	int nr_objects;
-	struct particle_object *objects;
-	bool camera_quake_enabled;
-};
+struct pae *pae_load(struct archive *aar, const char *path);
+void pae_free(struct pae *pae);
+void pae_calc_frame_range(struct pae *pae, struct motion *motion);
+float pae_object_calc_alpha(struct pae_object *po, struct particle_instance *pi, float frame);
 
-struct particle_effect *particle_effect_load(struct archive *aar, const char *path);
+struct particle_effect *particle_effect_create(struct pae *pae);
 void particle_effect_free(struct particle_effect *effect);
-void particle_effect_calc_frame_range(struct particle_effect *effect, struct motion *motion);
 void particle_effect_update(struct RE_instance *inst);
 void particle_object_calc_local_transform(struct RE_instance *inst, struct particle_object *po, struct particle_instance *pi, float frame, mat4 dest);
-float particle_object_calc_alpha(struct particle_object *po, struct particle_instance *pi, float frame);
 
 // parser.c
 

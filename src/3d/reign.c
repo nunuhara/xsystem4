@@ -217,6 +217,7 @@ struct RE_plugin *RE_plugin_new(void)
 	plugin->instances = xcalloc(plugin->nr_instances, sizeof(struct RE_instance *));
 	plugin->aar = aar;
 	plugin->model_cache = ht_create(32);
+	plugin->pae_cache = ht_create(32);
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_init(&plugin->back_cg[i]);
 	plugin->fog_type = RE_FOG_NONE;
@@ -236,6 +237,8 @@ void RE_plugin_free(struct RE_plugin *plugin)
 	archive_free(plugin->aar);
 	ht_foreach_value(plugin->model_cache, (void(*)(void*))model_free);
 	ht_free(plugin->model_cache);
+	ht_foreach_value(plugin->pae_cache, (void(*)(void*))pae_free);
+	ht_free(plugin->pae_cache);
 	if (plugin->renderer)
 		RE_renderer_free(plugin->renderer);
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
@@ -376,6 +379,7 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 	if (name[0] == '\0')
 		return false;
 
+	struct pae *pae;
 	switch (instance->type) {
 	case RE_ITYPE_STATIC:
 	case RE_ITYPE_SKINNED:
@@ -389,13 +393,20 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 			instance->bone_transforms = xcalloc(instance->model->nr_bones, sizeof(mat4));
 		return !!instance->model;
 	case RE_ITYPE_PARTICLE_EFFECT:
-		instance->effect = particle_effect_load(instance->plugin->aar, name);
+		pae = ht_get(instance->plugin->pae_cache, name, NULL);
+		if (!pae) {
+			pae = pae_load(instance->plugin->aar, name);
+			if (!pae)
+				return false;
+			ht_put(instance->plugin->pae_cache, name, pae);
+		}
+		instance->effect = particle_effect_create(pae);
 		if (!instance->motion) {
 			instance->motion = xcalloc(1, sizeof(struct motion));
 			instance->motion->instance = instance;
-			particle_effect_calc_frame_range(instance->effect, instance->motion);
+			pae_calc_frame_range(instance->effect->pae, instance->motion);
 		}
-		return !!instance->effect;
+		return true;
 	default:
 		WARNING("Invalid instance type %d", instance->type);
 		return false;
@@ -574,7 +585,7 @@ bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float en
 
 int RE_effect_get_num_object(struct particle_effect *effect)
 {
-	return effect ? effect->nr_objects : 0;
+	return effect ? effect->pae->nr_objects : 0;
 }
 
 bool RE_effect_get_camera_quake_flag(struct particle_effect *effect)
@@ -592,47 +603,47 @@ bool RE_effect_set_camera_quake_flag(struct particle_effect *effect, bool enable
 
 struct particle_object *RE_get_effect_object(struct particle_effect *effect, unsigned object)
 {
-	if (!effect || object >= (unsigned)effect->nr_objects)
+	if (!effect || object >= (unsigned)effect->pae->nr_objects)
 		return NULL;
 	return &effect->objects[object];
 }
 
 int RE_particle_get_type(struct particle_object *po)
 {
-	return po ? po->type : 0;
+	return po ? po->pae_obj->type : 0;
 }
 
 int RE_particle_get_move_type(struct particle_object *po)
 {
-	return po ? po->move_type : 0;
+	return po ? po->pae_obj->move_type : 0;
 }
 
 int RE_particle_get_up_vec_type(struct particle_object *po)
 {
-	return po ? po->up_vector_type : 0;
+	return po ? po->pae_obj->up_vector_type : 0;
 }
 
 float RE_particle_get_move_curve(struct particle_object *po)
 {
-	return po ? po->move_curve : 0.0;
+	return po ? po->pae_obj->move_curve : 0.0;
 }
 
 void RE_particle_get_frame(struct particle_object *po, int *begin_frame, int *end_frame)
 {
 	if (!po)
 		return;
-	*begin_frame = po->begin_frame;
-	*end_frame = po->end_frame;
+	*begin_frame = po->pae_obj->begin_frame;
+	*end_frame = po->pae_obj->end_frame;
 }
 
 int RE_particle_get_stop_frame(struct particle_object *po)
 {
-	return po ? po->stop_frame : 0;
+	return po ? po->pae_obj->stop_frame : 0;
 }
 
 const char *RE_particle_get_name(struct particle_object *po)
 {
-	return po ? po->name : NULL;
+	return po ? po->pae_obj->name : NULL;
 }
 
 int RE_particle_get_num_pos(struct particle_object *po)
@@ -647,9 +658,9 @@ int RE_particle_get_num_pos_unit(struct particle_object *po, int pos)
 
 static struct particle_position_unit *get_position_unit(struct particle_object *po, int pos, int unit)
 {
-	if (!po || pos >= NR_PARTICLE_POSITIONS || !po->position[pos] || unit >= NR_PARTICLE_POSITION_UNITS)
+	if (!po || pos >= NR_PARTICLE_POSITIONS || !po->pae_obj->position[pos] || unit >= NR_PARTICLE_POSITION_UNITS)
 		return NULL;
-	return &po->position[pos]->units[unit];
+	return &po->pae_obj->position[pos]->units[unit];
 }
 
 int RE_particle_get_pos_unit_type(struct particle_object *po, int pos, int unit)
@@ -675,298 +686,298 @@ int RE_particle_get_pos_unit_index(struct particle_object *po, int pos, int unit
 
 int RE_particle_get_num_texture(struct particle_object *po)
 {
-	return po ? po->nr_textures : 0;
+	return po ? po->pae_obj->nr_textures : 0;
 }
 
 const char *RE_particle_get_texture(struct particle_object *po, int texture)
 {
-	if (!po || texture >= po->nr_textures)
+	if (!po || texture >= po->pae_obj->nr_textures)
 		return NULL;
-	return po->textures[texture];
+	return po->pae_obj->textures[texture];
 }
 
 bool RE_particle_get_size(struct particle_object *po, float *begin_size, float *end_size)
 {
 	if (!po)
 		return false;
-	*begin_size = po->size[0];
-	*end_size = po->size[1];
+	*begin_size = po->pae_obj->size[0];
+	*end_size = po->pae_obj->size[1];
 	return true;
 }
 
 bool RE_particle_get_size2(struct particle_object *po, int frame, float *size)
 {
-	if (!po || frame >= po->nr_sizes2)
+	if (!po || frame >= po->pae_obj->nr_sizes2)
 		return false;
-	*size = po->sizes2[frame];
+	*size = po->pae_obj->sizes2[frame];
 	return true;
 }
 
 bool RE_particle_get_size_x(struct particle_object *po, int frame, float *size)
 {
-	if (!po || frame >= po->nr_sizes_x)
+	if (!po || frame >= po->pae_obj->nr_sizes_x)
 		return false;
-	*size = po->sizes_x[frame];
+	*size = po->pae_obj->sizes_x[frame];
 	return true;
 }
 
 bool RE_particle_get_size_y(struct particle_object *po, int frame, float *size)
 {
-	if (!po || frame >= po->nr_sizes_y)
+	if (!po || frame >= po->pae_obj->nr_sizes_y)
 		return false;
-	*size = po->sizes_y[frame];
+	*size = po->pae_obj->sizes_y[frame];
 	return true;
 }
 
 bool RE_particle_get_size_type(struct particle_object *po, int frame, int *type)
 {
-	if (!po || frame >= po->nr_size_types)
+	if (!po || frame >= po->pae_obj->nr_size_types)
 		return false;
-	*type = po->size_types[frame];
+	*type = po->pae_obj->size_types[frame];
 	return true;
 }
 
 bool RE_particle_get_size_x_type(struct particle_object *po, int frame, int *type)
 {
-	if (!po || frame >= po->nr_size_x_types)
+	if (!po || frame >= po->pae_obj->nr_size_x_types)
 		return false;
-	*type = po->size_x_types[frame];
+	*type = po->pae_obj->size_x_types[frame];
 	return true;
 }
 
 bool RE_particle_get_size_y_type(struct particle_object *po, int frame, int *type)
 {
-	if (!po || frame >= po->nr_size_y_types)
+	if (!po || frame >= po->pae_obj->nr_size_y_types)
 		return false;
-	*type = po->size_y_types[frame];
+	*type = po->pae_obj->size_y_types[frame];
 	return true;
 }
 
 int RE_particle_get_num_size2(struct particle_object *po)
 {
-	return po ? po->nr_sizes2 : 0;
+	return po ? po->pae_obj->nr_sizes2 : 0;
 }
 
 int RE_particle_get_num_size_x(struct particle_object *po)
 {
-	return po ? po->nr_sizes_x : 0;
+	return po ? po->pae_obj->nr_sizes_x : 0;
 }
 
 int RE_particle_get_num_size_y(struct particle_object *po)
 {
-	return po ? po->nr_sizes_y : 0;
+	return po ? po->pae_obj->nr_sizes_y : 0;
 }
 
 int RE_particle_get_num_size_type(struct particle_object *po)
 {
-	return po ? po->nr_size_types : 0;
+	return po ? po->pae_obj->nr_size_types : 0;
 }
 
 int RE_particle_get_num_size_x_type(struct particle_object *po)
 {
-	return po ? po->nr_size_x_types : 0;
+	return po ? po->pae_obj->nr_size_x_types : 0;
 }
 
 int RE_particle_get_num_size_y_type(struct particle_object *po)
 {
-	return po ? po->nr_size_y_types : 0;
+	return po ? po->pae_obj->nr_size_y_types : 0;
 }
 
 int RE_particle_get_blend_type(struct particle_object *po)
 {
-	return po ? po->blend_type : 0;
+	return po ? po->pae_obj->blend_type : 0;
 }
 
 const char *RE_particle_get_polygon_name(struct particle_object *po)
 {
-	return po ? po->polygon_name : NULL;
+	return po ? po->pae_obj->polygon_name : NULL;
 }
 
 int RE_particle_get_num_particles(struct particle_object *po)
 {
-	return po ? po->nr_particles : 0;
+	return po ? po->pae_obj->nr_particles : 0;
 }
 
 int RE_particle_get_alpha_fadein_time(struct particle_object *po)
 {
-	return po ? po->alpha_fadein_time : 0;
+	return po ? po->pae_obj->alpha_fadein_time : 0;
 }
 
 int RE_particle_get_alpha_fadeout_time(struct particle_object *po)
 {
-	return po ? po->alpha_fadeout_time : 0;
+	return po ? po->pae_obj->alpha_fadeout_time : 0;
 }
 
 int RE_particle_get_texture_anime_time(struct particle_object *po)
 {
-	return po ? po->texture_anime_time : 0;
+	return po ? po->pae_obj->texture_anime_time : 0;
 }
 
 float RE_particle_get_alpha_fadein_frame(struct particle_object *po)
 {
-	return po ? po->alpha_fadein_frame : 0.0;
+	return po ? po->pae_obj->alpha_fadein_frame : 0.0;
 }
 
 float RE_particle_get_alpha_fadeout_frame(struct particle_object *po)
 {
-	return po ? po->alpha_fadeout_frame : 0.0;
+	return po ? po->pae_obj->alpha_fadeout_frame : 0.0;
 }
 
 float RE_particle_get_texture_anime_frame(struct particle_object *po)
 {
-	return po ? po->texture_anime_frame : 0.0;
+	return po ? po->pae_obj->texture_anime_frame : 0.0;
 }
 
 int RE_particle_get_frame_ref_type(struct particle_object *po)
 {
-	return po ? po->frame_ref_type : 0;
+	return po ? po->pae_obj->frame_ref_type : 0;
 }
 
 int RE_particle_get_frame_ref_param(struct particle_object *po)
 {
-	return po ? po->frame_ref_param : 0;
+	return po ? po->pae_obj->frame_ref_param : 0;
 }
 
 void RE_particle_get_x_rotation_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->rotation.begin[0];
-	*end_angle = po->rotation.end[0];
+	*begin_angle = po->pae_obj->rotation.begin[0];
+	*end_angle = po->pae_obj->rotation.end[0];
 }
 
 void RE_particle_get_y_rotation_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->rotation.begin[1];
-	*end_angle = po->rotation.end[1];
+	*begin_angle = po->pae_obj->rotation.begin[1];
+	*end_angle = po->pae_obj->rotation.end[1];
 }
 
 void RE_particle_get_z_rotation_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->rotation.begin[2];
-	*end_angle = po->rotation.end[2];
+	*begin_angle = po->pae_obj->rotation.begin[2];
+	*end_angle = po->pae_obj->rotation.end[2];
 }
 
 void RE_particle_get_x_revolution_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->revolution_angle.begin[0];
-	*end_angle = po->revolution_angle.end[0];
+	*begin_angle = po->pae_obj->revolution_angle.begin[0];
+	*end_angle = po->pae_obj->revolution_angle.end[0];
 }
 
 void RE_particle_get_x_revolution_distance(struct particle_object *po, float *begin_distance, float *end_distance)
 {
 	if (!po)
 		return;
-	*begin_distance = po->revolution_distance.begin[0];
-	*end_distance = po->revolution_distance.end[0];
+	*begin_distance = po->pae_obj->revolution_distance.begin[0];
+	*end_distance = po->pae_obj->revolution_distance.end[0];
 }
 
 void RE_particle_get_y_revolution_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->revolution_angle.begin[1];
-	*end_angle = po->revolution_angle.end[1];
+	*begin_angle = po->pae_obj->revolution_angle.begin[1];
+	*end_angle = po->pae_obj->revolution_angle.end[1];
 }
 
 void RE_particle_get_y_revolution_distance(struct particle_object *po, float *begin_distance, float *end_distance)
 {
 	if (!po)
 		return;
-	*begin_distance = po->revolution_distance.begin[1];
-	*end_distance = po->revolution_distance.end[1];
+	*begin_distance = po->pae_obj->revolution_distance.begin[1];
+	*end_distance = po->pae_obj->revolution_distance.end[1];
 }
 
 void RE_particle_get_z_revolution_angle(struct particle_object *po, float *begin_angle, float *end_angle)
 {
 	if (!po)
 		return;
-	*begin_angle = po->revolution_angle.begin[2];
-	*end_angle = po->revolution_angle.end[2];
+	*begin_angle = po->pae_obj->revolution_angle.begin[2];
+	*end_angle = po->pae_obj->revolution_angle.end[2];
 }
 
 void RE_particle_get_z_revolution_distance(struct particle_object *po, float *begin_distance, float *end_distance)
 {
 	if (!po)
 		return;
-	*begin_distance = po->revolution_distance.begin[2];
-	*end_distance = po->revolution_distance.end[2];
+	*begin_distance = po->pae_obj->revolution_distance.begin[2];
+	*end_distance = po->pae_obj->revolution_distance.end[2];
 }
 
 bool RE_particle_get_curve_length(struct particle_object *po, vec3 out)
 {
 	if (!po)
 		return false;
-	glm_vec3_copy(po->curve_length, out);
+	glm_vec3_copy(po->pae_obj->curve_length, out);
 	return true;
 }
 
 int RE_particle_get_child_frame(struct particle_object *po)
 {
-	return po ? po->child_frame : 0;
+	return po ? po->pae_obj->child_frame : 0;
 }
 
 float RE_particle_get_child_length(struct particle_object *po)
 {
-	return po ? po->child_length : 0.0;
+	return po ? po->pae_obj->child_length : 0.0;
 }
 
 float RE_particle_get_child_begin_slope(struct particle_object *po)
 {
-	return po ? po->child_begin_slope : 0.0;
+	return po ? po->pae_obj->child_begin_slope : 0.0;
 }
 
 float RE_particle_get_child_end_slope(struct particle_object *po)
 {
-	return po ? po->child_end_slope : 0.0;
+	return po ? po->pae_obj->child_end_slope : 0.0;
 }
 
 float RE_particle_get_child_create_begin_frame(struct particle_object *po)
 {
-	return po ? po->child_create_begin_frame : 0.0;
+	return po ? po->pae_obj->child_create_begin_frame : 0.0;
 }
 
 float RE_particle_get_child_create_end_frame(struct particle_object *po)
 {
-	return po ? po->child_create_end_frame : 0.0;
+	return po ? po->pae_obj->child_create_end_frame : 0.0;
 }
 
 int RE_particle_get_child_move_dir_type(struct particle_object *po)
 {
-	return po ? po->child_move_dir_type : 0;
+	return po ? po->pae_obj->child_move_dir_type : 0;
 }
 
 int RE_particle_get_dir_type(struct particle_object *po)
 {
-	return po ? po->dir_type : 0;
+	return po ? po->pae_obj->dir_type : 0;
 }
 
 int RE_particle_get_num_damage(struct particle_object *po)
 {
-	return po ? po->nr_damages : 0;
+	return po ? po->pae_obj->nr_damages : 0;
 }
 
 int RE_particle_get_damage(struct particle_object *po, int frame)
 {
-	if (!po || frame >= po->nr_damages)
+	if (!po || frame >= po->pae_obj->nr_damages)
 		return 0;
-	return po->damages[frame];
+	return po->pae_obj->damages[frame];
 }
 
 float RE_particle_get_offset_x(struct particle_object *po)
 {
-	return po ? po->offset_x : 0.0;
+	return po ? po->pae_obj->offset_x : 0.0;
 }
 
 float RE_particle_get_offset_y(struct particle_object *po)
 {
-	return po ? po->offset_y : 0.0;
+	return po ? po->pae_obj->offset_y : 0.0;
 }
 
 bool RE_effect_get_frame_range(struct RE_instance *instance, int *begin_frame, int *end_frame)

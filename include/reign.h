@@ -85,6 +85,7 @@ struct RE_plugin {
 	struct RE_instance **instances;
 	struct archive *aar;
 	struct hash_table *model_cache;
+	struct hash_table *pae_cache;
 	struct RE_renderer *renderer;
 	struct RE_camera camera;
 	mat4 proj_transform;

@@ -239,10 +239,10 @@ static struct particle_position *parse_position(char **ptext)
 	return epos;
 }
 
-static struct particle_effect *parse_pae(char *text)
+static struct pae *parse_pae(char *text)
 {
-	struct particle_effect *pae = xcalloc(1, sizeof(struct particle_effect));
-	struct particle_object *current_object = NULL;
+	struct pae *pae = xcalloc(1, sizeof(struct pae));
+	struct pae_object *current_object = NULL;
 
 	for (;;) {
 		// Skip whitespaces and comments
@@ -269,7 +269,7 @@ static struct particle_effect *parse_pae(char *text)
 			if (!*text) { // EOF
 				return pae;
 			} else if (MATCH("オブジェクト " QUOTED_STRING " = {", string_buf)) {
-				pae->objects = xrealloc_array(pae->objects, pae->nr_objects, pae->nr_objects + 1, sizeof(struct particle_object));
+				pae->objects = xrealloc_array(pae->objects, pae->nr_objects, pae->nr_objects + 1, sizeof(struct pae_object));
 				current_object = &pae->objects[pae->nr_objects++];
 				current_object->name = utf2sjis(string_buf, 0);
 				// Default values.
@@ -449,15 +449,15 @@ static struct particle_effect *parse_pae(char *text)
 		}
 	}
  err:
-	particle_effect_free(pae);
+	pae_free(pae);
 	return NULL;
 }
 
-static void load_textures(struct particle_effect *effect, struct archive *aar)
+static void load_textures(struct pae *effect, struct archive *aar)
 {
 	effect->textures = ht_create(16);
 	for (int i = 0; i < effect->nr_objects; i++) {
-		struct particle_object *po = &effect->objects[i];
+		struct pae_object *po = &effect->objects[i];
 		for (int j = 0; j < po->nr_textures; j++) {
 			const char *name = po->textures[j];
 			if (ht_get(effect->textures, name, NULL))
@@ -587,7 +587,7 @@ static void eval_pos_for_instance(struct particle_position *pp, vec3 dest)
 	}
 }
 
-static float eval_child_slope(struct particle_object *po)
+static float eval_child_slope(struct pae_object *po)
 {
 	float slope = glm_lerp(po->child_begin_slope, po->child_end_slope, randf());
 	if (slope > 1.0)
@@ -607,29 +607,30 @@ static void interpolate_pos(vec3 begin, vec3 end, float move_curve, float t, vec
 
 static void init_particle_instances(struct particle_object *po)
 {
-	po->instances = xcalloc(po->nr_particles, sizeof(struct particle_instance));
+	struct pae_object *pae_obj = po->pae_obj;
+	po->instances = xcalloc(pae_obj->nr_particles, sizeof(struct particle_instance));
 
-	for (int i = 0; i < po->nr_particles; i++) {
+	for (int i = 0; i < pae_obj->nr_particles; i++) {
 		struct particle_instance *pi = &po->instances[i];
-		switch (po->move_type) {
+		switch (pae_obj->move_type) {
 		case PARTICLE_MOVE_FIXED:
 		case PARTICLE_MOVE_LINEAR:
-			pi->begin_frame = po->begin_frame;
-			pi->end_frame = po->end_frame;
+			pi->begin_frame = pae_obj->begin_frame;
+			pi->end_frame = pae_obj->end_frame;
 			break;
 		case PARTICLE_MOVE_EMITTER:
-			pi->begin_frame = glm_lerp(po->child_create_begin_frame, po->child_create_end_frame, (float)i / po->nr_particles);
-			pi->end_frame = pi->begin_frame + po->child_frame;
-			pi->roll_angle = eval_child_slope(po);
+			pi->begin_frame = glm_lerp(pae_obj->child_create_begin_frame, pae_obj->child_create_end_frame, (float)i / pae_obj->nr_particles);
+			pi->end_frame = pi->begin_frame + pae_obj->child_frame;
+			pi->roll_angle = eval_child_slope(pae_obj);
 			pi->pitch_angle = randf() * (2.0f * GLM_PIf);
 			break;
 		}
-		eval_pos_for_instance(po->position[0], pi->random_offset.begin);
-		eval_pos_for_instance(po->position[1], pi->random_offset.end);
+		eval_pos_for_instance(pae_obj->position[0], pi->random_offset.begin);
+		eval_pos_for_instance(pae_obj->position[1], pi->random_offset.end);
 	}
 }
 
-struct particle_effect *particle_effect_load(struct archive *aar, const char *path)
+struct pae *pae_load(struct archive *aar, const char *path)
 {
 	const char *basename = strrchr(path, '\\');
 	basename = basename ? basename + 1 : path;
@@ -653,20 +654,19 @@ struct particle_effect *particle_effect_load(struct archive *aar, const char *pa
 	// clarity.
 	char *text = sjis2utf(sjis_text, dfile->size);
 	free(sjis_text);
-	struct particle_effect *effect = parse_pae(text);
+	struct pae *pae = parse_pae(text);
 	free(text);
-	if (!effect) {
+	if (!pae) {
 		WARNING("could not parse %s", dfile->name);
 		archive_free_data(dfile);
 		return NULL;
 	}
 	archive_free_data(dfile);
 
-	effect->path = strdup(path);
-	effect->camera_quake_enabled = true;
-	load_textures(effect, aar);
-	for (int i = 0; i < effect->nr_objects; i++) {
-		struct particle_object *po = &effect->objects[i];
+	pae->path = strdup(path);
+	load_textures(pae, aar);
+	for (int i = 0; i < pae->nr_objects; i++) {
+		struct pae_object *po = &pae->objects[i];
 
 		if (po->polygon_name && *po->polygon_name) {
 			char *pol_path = xmalloc(strlen(path) + strlen(po->polygon_name) + 2);
@@ -674,10 +674,22 @@ struct particle_effect *particle_effect_load(struct archive *aar, const char *pa
 			po->model = model_load(aar, pol_path);
 			free(pol_path);
 		}
-
-		init_particle_instances(po);
 	}
 
+	return pae;
+}
+
+struct particle_effect *particle_effect_create(struct pae *pae)
+{
+	struct particle_effect *effect = xcalloc(1, sizeof(struct particle_effect));
+	effect->pae = pae;
+	effect->objects = xcalloc(pae->nr_objects, sizeof(struct particle_object));
+	effect->camera_quake_enabled = true;
+	for (int i = 0; i < pae->nr_objects; i++) {
+		struct particle_object *po = &effect->objects[i];
+		po->pae_obj = &pae->objects[i];
+		init_particle_instances(po);
+	}
 	return effect;
 }
 
@@ -699,10 +711,10 @@ static void particle_position_free(struct particle_position *pos)
 	free(pos);
 }
 
-void particle_effect_free(struct particle_effect *effect)
+void pae_free(struct pae *pae)
 {
-	for (int i = 0; i < effect->nr_objects; i++) {
-		struct particle_object *po = &effect->objects[i];
+	for (int i = 0; i < pae->nr_objects; i++) {
+		struct pae_object *po = &pae->objects[i];
 		free(po->name);
 		for (int j = 0; j < NR_PARTICLE_POSITIONS; j++)
 			particle_position_free(po->position[j]);
@@ -719,21 +731,30 @@ void particle_effect_free(struct particle_effect *effect)
 		free(po->damages);
 		if (po->model)
 			model_free(po->model);
-		free(po->instances);
 	}
-	ht_foreach_value(effect->textures, free_billboard_texture);
-	ht_free(effect->textures);
+	ht_foreach_value(pae->textures, free_billboard_texture);
+	ht_free(pae->textures);
+	free(pae->objects);
+	free(pae->path);
+	free(pae);
+}
+
+void particle_effect_free(struct particle_effect *effect)
+{
+	for (int i = 0; i < effect->pae->nr_objects; i++) {
+		struct particle_object *obj = &effect->objects[i];
+		free(obj->instances);
+	}
 	free(effect->objects);
-	free(effect->path);
 	free(effect);
 }
 
-void particle_effect_calc_frame_range(struct particle_effect *effect, struct motion *motion)
+void pae_calc_frame_range(struct pae *pae, struct motion *motion)
 {
 	int begin_frame = INT_MAX;
 	int end_frame = INT_MIN;
-	for (int i = 0; i < effect->nr_objects; i++) {
-		struct particle_object *po = &effect->objects[i];
+	for (int i = 0; i < pae->nr_objects; i++) {
+		struct pae_object *po = &pae->objects[i];
 		int obj_begin = po->begin_frame;
 		int obj_end = max(po->end_frame, po->child_create_end_frame + po->child_frame);
 		if (begin_frame > obj_begin)
@@ -745,7 +766,7 @@ void particle_effect_calc_frame_range(struct particle_effect *effect, struct mot
 	motion->frame_end = motion->loop_frame_end = end_frame;
 }
 
-static void update_camera_quake(struct RE_instance *inst, struct particle_object *po)
+static void update_camera_quake(struct RE_instance *inst, struct pae_object *po)
 {
 	float frame = inst->motion->current_frame - po->begin_frame;
 	float total_frames = po->end_frame - po->begin_frame;
@@ -769,19 +790,20 @@ void particle_effect_update(struct RE_instance *inst)
 	struct particle_effect *effect = inst->effect;
 	if (!effect)
 		return;
-	for (int i = 0; i < effect->nr_objects; i++) {
+	for (int i = 0; i < effect->pae->nr_objects; i++) {
 		struct particle_object *po = &effect->objects[i];
-		if (po->type == PARTICLE_TYPE_CAMERA_QUAKE) {
+		struct pae_object *pae_obj = po->pae_obj;
+		if (pae_obj->type == PARTICLE_TYPE_CAMERA_QUAKE) {
 			if (effect->camera_quake_enabled)
-				update_camera_quake(inst, po);
+				update_camera_quake(inst, pae_obj);
 			continue;
 		}
 		// These cannot be precomputed, because they may depend on the target's
 		// *current* bone matrix.
-		eval_pos_for_object(inst, po->position[0], po->pos.begin);
-		eval_pos_for_object(inst, po->position[1], po->pos.end);
+		eval_pos_for_object(inst, pae_obj->position[0], po->pos.begin);
+		eval_pos_for_object(inst, pae_obj->position[1], po->pos.end);
 		glm_vec3_sub(po->pos.end, po->pos.begin, po->move_vec);
-		switch (po->dir_type) {
+		switch (pae_obj->dir_type) {
 		case PARTICLE_DIR_TYPE_NORMAL:
 			glm_vec3_normalize(po->move_vec);
 			glm_vec3_ortho(po->move_vec, po->move_ortho);
@@ -798,45 +820,47 @@ void particle_effect_update(struct RE_instance *inst)
 
 static void calc_emitter_pos(struct particle_object *po, struct particle_instance *pi, float t, vec3 dest, vec3 move_vec)
 {
+	struct pae_object *pae_obj = po->pae_obj;
 	vec3 begin, end;
 	glm_vec3_add(po->pos.begin, pi->random_offset.begin, begin);
 	glm_vec3_add(po->pos.end, pi->random_offset.end, end);
-	interpolate_pos(begin, end, po->move_curve, t, dest);
+	interpolate_pos(begin, end, pae_obj->move_curve, t, dest);
 	if (move_vec)
 		glm_vec3_sub(end, begin, move_vec);
 
 	// Orbital rotation.
 	vec3 angle, dist;
-	glm_vec3_lerp(po->revolution_angle.begin, po->revolution_angle.end, t, angle);
-	glm_vec3_lerp(po->revolution_distance.begin, po->revolution_distance.end, t, dist);
+	glm_vec3_lerp(pae_obj->revolution_angle.begin, pae_obj->revolution_angle.end, t, angle);
+	glm_vec3_lerp(pae_obj->revolution_distance.begin, pae_obj->revolution_distance.end, t, dist);
 	glm_vec3_scale(angle, GLM_PIf / 180.0f, angle);  // deg -> rad
-	if (po->revolution_angle.begin[0] != 0.0f || po->revolution_angle.end[0] != 0.0f) {
+	if (pae_obj->revolution_angle.begin[0] != 0.0f || pae_obj->revolution_angle.end[0] != 0.0f) {
 		dest[1] += dist[0] * sinf(angle[0]);
 		dest[2] -= dist[0] * cosf(angle[0]);
 	}
-	if (po->revolution_angle.begin[1] != 0.0f || po->revolution_angle.end[1] != 0.0f) {
+	if (pae_obj->revolution_angle.begin[1] != 0.0f || pae_obj->revolution_angle.end[1] != 0.0f) {
 		dest[0] += dist[1] * sinf(angle[1]);
 		dest[2] -= dist[1] * cosf(angle[1]);
 	}
-	if (po->revolution_angle.begin[2] != 0.0f || po->revolution_angle.end[2] != 0.0f) {
+	if (pae_obj->revolution_angle.begin[2] != 0.0f || pae_obj->revolution_angle.end[2] != 0.0f) {
 		dest[1] += dist[2] * sinf(angle[2]);
 		dest[0] += dist[2] * cosf(angle[2]);
 	}
 
 	// Apply the curve.
-	glm_vec3_muladds(po->curve_length, 4.9f * t * (1.0f - t), dest);
+	glm_vec3_muladds(pae_obj->curve_length, 4.9f * t * (1.0f - t), dest);
 }
 
 static void calc_pos_and_up_vector(struct particle_object *po, struct particle_instance *pi, float t, vec3 pos, vec3 up_vector)
 {
-	switch (po->move_type) {
+	struct pae_object *pae_obj = po->pae_obj;
+	switch (pae_obj->move_type) {
 	case PARTICLE_MOVE_FIXED:
 		glm_vec3_add(po->pos.begin, pi->random_offset.begin, pos);
 		glm_vec3_copy(GLM_YUP, up_vector);
 		break;
 	case PARTICLE_MOVE_LINEAR:
 		calc_emitter_pos(po, pi, t, pos, up_vector);
-		switch (po->up_vector_type) {
+		switch (pae_obj->up_vector_type) {
 		case PARTICLE_UP_VECTOR_Y_AXIS:
 		case PARTICLE_UP_VECTOR_INSTANCE_MOVE:
 			glm_vec3_copy(GLM_YUP, up_vector);
@@ -852,12 +876,12 @@ static void calc_pos_and_up_vector(struct particle_object *po, struct particle_i
 	case PARTICLE_MOVE_EMITTER:
 		{
 			// Calculate the instance's initial and final position.
-			float t0 = glm_clamp_zo(glm_percent(po->begin_frame, po->end_frame, pi->begin_frame));
+			float t0 = glm_clamp_zo(glm_percent(pae_obj->begin_frame, pae_obj->end_frame, pi->begin_frame));
 			vec3_range inst_pos;
 			calc_emitter_pos(po, pi, t0, inst_pos.begin, NULL);
 			vec3 inst_move;
 			glm_vec3_copy(po->move_vec, inst_move);
-			switch (po->dir_type) {
+			switch (pae_obj->dir_type) {
 			case PARTICLE_DIR_TYPE_NORMAL:
 				glm_vec3_rotate(inst_move, pi->roll_angle, po->move_ortho);
 				glm_vec3_rotate(inst_move, pi->pitch_angle, po->move_vec);
@@ -867,12 +891,12 @@ static void calc_pos_and_up_vector(struct particle_object *po, struct particle_i
 				break;
 			}
 			glm_vec3_copy(inst_pos.begin, inst_pos.end);
-			switch (po->child_move_dir_type) {
+			switch (pae_obj->child_move_dir_type) {
 			case PARTICLE_CHILD_MOVE_DIR_NORMAL:
-				glm_vec3_muladds(inst_move, po->child_length, inst_pos.end);
+				glm_vec3_muladds(inst_move, pae_obj->child_length, inst_pos.end);
 				break;
 			case PARTICLE_CHILD_MOVE_DIR_REVERSE:
-				glm_vec3_muladds(inst_move, po->child_length, inst_pos.begin);
+				glm_vec3_muladds(inst_move, pae_obj->child_length, inst_pos.begin);
 				glm_vec3_negate(inst_move);
 				break;
 			}
@@ -880,7 +904,7 @@ static void calc_pos_and_up_vector(struct particle_object *po, struct particle_i
 			glm_vec3_lerp(inst_pos.begin, inst_pos.end, t, pos);
 
 			// Calculate the up vector.
-			switch (po->up_vector_type) {
+			switch (pae_obj->up_vector_type) {
 			case PARTICLE_UP_VECTOR_Y_AXIS:
 				glm_vec3_copy(GLM_YUP, up_vector);
 				break;
@@ -888,13 +912,13 @@ static void calc_pos_and_up_vector(struct particle_object *po, struct particle_i
 				glm_vec3_copy(po->move_vec, up_vector);
 				break;
 			case PARTICLE_UP_VECTOR_INSTANCE_MOVE:
-				if (po->child_length != 0.0f)
+				if (pae_obj->child_length != 0.0f)
 					glm_vec3_copy(inst_move, up_vector);
 				else
 					glm_vec3_copy(GLM_XUP, up_vector);
 				break;
 			}
-			if (po->dir_type == PARTICLE_DIR_TYPE_XY_PLANE) {
+			if (pae_obj->dir_type == PARTICLE_DIR_TYPE_XY_PLANE) {
 				mat3 rot = {{ inst_move[1], -inst_move[0], 0.0f },
 							{ inst_move[0],  inst_move[1], 0.0f },
 							{         0.0f,          0.0f, 1.0f }};
@@ -905,7 +929,7 @@ static void calc_pos_and_up_vector(struct particle_object *po, struct particle_i
 	}
 }
 
-static void calc_scale(struct particle_object *po, int frame, vec3 dest)
+static void calc_scale(struct pae_object *po, int frame, vec3 dest)
 {
 	glm_vec3_broadcast(po->sizes2[min(frame, po->nr_sizes2 - 1)], dest);
 	if (po->nr_sizes_x)
@@ -916,6 +940,7 @@ static void calc_scale(struct particle_object *po, int frame, vec3 dest)
 
 void particle_object_calc_local_transform(struct RE_instance *inst, struct particle_object *po, struct particle_instance *pi, float frame, mat4 dest)
 {
+	struct pae_object *pae_obj = po->pae_obj;
 	float t = glm_percent(pi->begin_frame, pi->end_frame, frame);
 
 	vec3 pos, up_vector;
@@ -927,7 +952,7 @@ void particle_object_calc_local_transform(struct RE_instance *inst, struct parti
 	float step_frac = rel_frame - cur_step;
 
 	glm_translate_make(dest, pos);
-	if (po->type == PARTICLE_TYPE_BILLBOARD) {
+	if (pae_obj->type == PARTICLE_TYPE_BILLBOARD) {
 		mat4 view_mat;
 		RE_calc_view_matrix(&inst->plugin->camera, up_vector, view_mat);
 		mat3 rot;
@@ -936,7 +961,7 @@ void particle_object_calc_local_transform(struct RE_instance *inst, struct parti
 	}
 
 	vec3 angles;
-	glm_vec3_lerp(po->rotation.begin, po->rotation.end, t, angles);
+	glm_vec3_lerp(pae_obj->rotation.begin, pae_obj->rotation.end, t, angles);
 	angles[0] *= -GLM_PIf / 180.0f;
 	angles[1] *= -GLM_PIf / 180.0f;
 	angles[2] *=  GLM_PIf / 180.0f;
@@ -944,21 +969,21 @@ void particle_object_calc_local_transform(struct RE_instance *inst, struct parti
 	glm_euler_zxy(angles, rotation_mat);
 	glm_mat4_mul(dest, rotation_mat, dest);
 
-	if (po->nr_sizes2 > 0) {
+	if (pae_obj->nr_sizes2 > 0) {
 		vec3 scale, scale2;
-		calc_scale(po, cur_step, scale);
-		calc_scale(po, next_step, scale2);
+		calc_scale(pae_obj, cur_step, scale);
+		calc_scale(pae_obj, next_step, scale2);
 		glm_vec3_lerp(scale, scale2, step_frac, scale);
 		glm_scale(dest, scale);
 	} else {
-		glm_scale_uni(dest, glm_lerp(po->size[0], po->size[1], t));
+		glm_scale_uni(dest, glm_lerp(pae_obj->size[0], pae_obj->size[1], t));
 	}
 
-	glm_translate_x(dest, -po->offset_x);
-	glm_translate_y(dest, -po->offset_y);
+	glm_translate_x(dest, -pae_obj->offset_x);
+	glm_translate_y(dest, -pae_obj->offset_y);
 }
 
-float particle_object_calc_alpha(struct particle_object *po, struct particle_instance *pi, float frame)
+float pae_object_calc_alpha(struct pae_object *po, struct particle_instance *pi, float frame)
 {
 	frame -= pi->begin_frame;
 	if (frame < po->alpha_fadein_frame)
