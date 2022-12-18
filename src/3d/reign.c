@@ -24,6 +24,7 @@
 #include "system4.h"
 #include "system4/aar.h"
 #include "system4/cg.h"
+#include "system4/hashtable.h"
 #include "system4/string.h"
 
 #include "3d_internal.h"
@@ -66,7 +67,7 @@ static void unload_instance(struct RE_instance *instance)
 		instance->next_motion = NULL;
 	}
 	if (instance->model) {
-		model_free(instance->model);
+		// No need to free, model is owned by plugin->model_cache.
 		instance->model = NULL;
 	}
 	if (instance->effect) {
@@ -215,6 +216,7 @@ struct RE_plugin *RE_plugin_new(void)
 	plugin->nr_instances = 16;
 	plugin->instances = xcalloc(plugin->nr_instances, sizeof(struct RE_instance *));
 	plugin->aar = aar;
+	plugin->model_cache = ht_create(32);
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_init(&plugin->back_cg[i]);
 	plugin->fog_type = RE_FOG_NONE;
@@ -232,6 +234,8 @@ void RE_plugin_free(struct RE_plugin *plugin)
 	}
 	free(plugin->instances);
 	archive_free(plugin->aar);
+	ht_foreach_value(plugin->model_cache, (void(*)(void*))model_free);
+	ht_free(plugin->model_cache);
 	if (plugin->renderer)
 		RE_renderer_free(plugin->renderer);
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
@@ -375,7 +379,12 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 	switch (instance->type) {
 	case RE_ITYPE_STATIC:
 	case RE_ITYPE_SKINNED:
-		instance->model = model_load(instance->plugin->aar, name);
+		instance->model = ht_get(instance->plugin->model_cache, name, NULL);
+		if (!instance->model) {
+			instance->model = model_load(instance->plugin->aar, name);
+			if (instance->model)
+				ht_put(instance->plugin->model_cache, name, instance->model);
+		}
 		if (instance->model && instance->model->nr_bones > 0)
 			instance->bone_transforms = xcalloc(instance->model->nr_bones, sizeof(mat4));
 		return !!instance->model;
