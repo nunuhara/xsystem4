@@ -38,6 +38,20 @@ struct font_ft {
 
 static FT_Library ft_lib;
 
+static bool is_half_width(uint32_t code)
+{
+	// ASCII characters
+	if (code < 128)
+		return true;
+	// Latin letters
+	if (0xbf <= code && code <= 0xff && code != 0xd7 && code != 0xf7)
+		return true;
+	// Halfwidth punctuation / katakana
+	if (0xff61 <= code && code <= 0xff9f)
+		return true;
+	return false;
+}
+
 void ft_font_init(void)
 {
 	if (FT_Init_FreeType(&ft_lib)) {
@@ -120,7 +134,7 @@ static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint3
 	Texture *t = &glyph->t[weight];
 
 	// render bitmap
-	bool half_width = code < 256;
+	bool half_width = is_half_width(code);
 	struct font_ft *font = (struct font_ft*)size->font;
 	ft_font_set_size(font, size->size);
 	if (FT_Load_Char(font->font, code, FT_LOAD_RENDER)) {
@@ -165,7 +179,7 @@ static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint3
 
 static float ft_font_size_char(struct font_size *size, uint32_t code)
 {
-	return code < 256 ? size->size / 2 : size->size;
+	return is_half_width(code) ? size->size / 2 : size->size;
 }
 
 struct font *ft_font_load(const char *path)
