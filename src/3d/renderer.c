@@ -201,7 +201,7 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->light_texture = glGetUniformLocation(r->program, "light_texture");
 	r->use_normal_map = glGetUniformLocation(r->program, "use_normal_map");
 	r->normal_texture = glGetUniformLocation(r->program, "normal_texture");
-	r->use_shadow_map = glGetUniformLocation(r->program, "use_shadow_map");
+	r->shadow_darkness = glGetUniformLocation(r->program, "shadow_darkness");
 	r->shadow_transform = glGetUniformLocation(r->program, "shadow_transform");
 	r->shadow_texture = glGetUniformLocation(r->program, "shadow_texture");
 	r->shadow_bias = glGetUniformLocation(r->program, "shadow_bias");
@@ -347,7 +347,10 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glBindTexture(GL_TEXTURE_2D, material->color_map);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
-		glUniform1i(r->use_shadow_map, draw_shadow && !(mesh->flags & MESH_BOTH));
+		if (draw_shadow && !(mesh->flags & MESH_BOTH))
+			glUniform1f(r->shadow_darkness, material->shadow_darkness);
+		else
+			glUniform1f(r->shadow_darkness, 0.0f);
 
 		if (mesh->flags & MESH_ENVMAP) {
 			glUniform1i(r->diffuse_type, DIFFUSE_ENV_MAP);
@@ -460,7 +463,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glUniform1f(r->rim_exponent, 0.0);
 	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
 	glUniform1i(r->use_normal_map, GL_FALSE);
-	glUniform1i(r->use_shadow_map, GL_FALSE);
+	glUniform1f(r->shadow_darkness, 0.0f);
 	glUniform1i(r->alpha_mode, ALPHA_BLEND);
 	glUniform1i(r->fog_type, inst->plugin->fog_mode ? inst->plugin->fog_type : 0);
 	switch (inst->draw_type) {
@@ -580,7 +583,7 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 	glUniform1i(r->use_specular_map, GL_FALSE);
 	glUniform1f(r->rim_exponent, 0.0);
 	glUniform1i(r->use_normal_map, GL_FALSE);
-	glUniform1i(r->use_shadow_map, GL_FALSE);
+	glUniform1f(r->shadow_darkness, 0.0f);
 	glUniform1i(r->alpha_mode, ALPHA_BLEND);
 
 	glDepthMask(GL_FALSE);

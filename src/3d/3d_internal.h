@@ -67,6 +67,7 @@ struct material {
 	GLuint normal_map;
 	float specular_strength;
 	float specular_shininess;
+	float shadow_darkness;
 	float rim_exponent;
 	vec3 rim_color;
 };
@@ -145,7 +146,7 @@ struct RE_renderer {
 	GLint light_texture;
 	GLint use_normal_map;
 	GLint normal_texture;
-	GLint use_shadow_map;
+	GLint shadow_darkness;
 	GLint shadow_transform;
 	GLint shadow_texture;
 	GLint shadow_bias;
@@ -471,6 +472,8 @@ struct amt_material {
 enum amt_field_index {
 	AMT_SPECULAR_STRENGTH = 0,
 	AMT_SPECULAR_SHININESS = 2,
+	// amt v4+
+	AMT_SHADOW_DARKNESS = 6,
 	// amt v5+
 	AMT_RIM_EXPONENT = 7,
 	AMT_RIM_R = 8,

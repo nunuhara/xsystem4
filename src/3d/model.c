@@ -111,11 +111,14 @@ static bool init_material(struct material *material, const struct pol_material *
 		material->normal_map = load_texture(aar, path, m->textures[NORMAL_MAP], NULL);
 
 	material->is_transparent = has_alpha || material->alpha_map;
+	material->shadow_darkness = 1.0f;
 
 	struct amt_material *amt_m = amt ? amt_find_material(amt, m->name) : NULL;
 	if (amt_m) {
 		material->specular_strength = amt_m->fields[AMT_SPECULAR_STRENGTH];
 		material->specular_shininess = amt_m->fields[AMT_SPECULAR_SHININESS];
+		if (amt->version >= 4)
+			material->shadow_darkness = amt_m->fields[AMT_SHADOW_DARKNESS];
 		if (amt->version >= 5) {
 			material->rim_exponent = amt_m->fields[AMT_RIM_EXPONENT];
 			material->rim_color[0] = amt_m->fields[AMT_RIM_R];
