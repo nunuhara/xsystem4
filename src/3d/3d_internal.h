@@ -430,7 +430,7 @@ struct pol_triangle {
 	uint32_t uv_index[3];
 	uint32_t light_uv_index[3];
 	vec3 normals[3];
-	uint32_t material;  // index in the material group
+	uint32_t material_group_index;
 };
 
 struct pol_bone {

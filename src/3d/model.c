@@ -214,7 +214,7 @@ static void *buf_alloc(uint8_t **ptr, int size)
 	return p;
 }
 
-static void add_mesh(struct model *model, struct pol_mesh *m, int material_index, int material)
+static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_group_index, int material)
 {
 	bool has_light_map = m->light_uvs && model->materials[material].light_map;
 	bool has_normal_map = model->materials[material].normal_map != 0;
@@ -234,7 +234,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, int material_index
 	int nr_vertices = 0;
 	for (uint32_t i = 0; i < m->nr_triangles; i++) {
 		struct pol_triangle *t = &m->triangles[i];
-		if (material_index >= 0 && t->material != (uint32_t)material_index)
+		if (t->material_group_index != material_group_index)
 			continue;
 		vec4 tangent[3];
 		if (has_normal_map)
@@ -465,7 +465,7 @@ struct model *model_load(struct archive *aar, const char *path)
 		struct pol_material_group *mg = &pol->materials[pol->meshes[i]->material];
 		int m_off = material_offsets[pol->meshes[i]->material];
 		if (mg->nr_children == 0) {
-			add_mesh(model, pol->meshes[i], -1, m_off);
+			add_mesh(model, pol->meshes[i], 0, m_off);
 			continue;
 		}
 		for (uint32_t j = 0; j < mg->nr_children; j++) {

@@ -134,7 +134,7 @@ static void destroy_vertex(struct pol_vertex *v)
 		free(v->weights);
 }
 
-static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle_index, int unknowns_length)
+static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle_index, int unknowns_length, const struct pol_material_group *mg)
 {
 	struct pol_triangle *t = &mesh->triangles[triangle_index];
 	t->vert_index[0] = buffer_read_int32(r);
@@ -154,7 +154,9 @@ static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle
 	read_direction(r, t->normals[0]);
 	read_direction(r, t->normals[1]);
 	read_direction(r, t->normals[2]);
-	t->material = buffer_read_int32(r);
+	t->material_group_index = buffer_read_int32(r);
+	if (t->material_group_index >= mg->nr_children)
+		t->material_group_index = 0;
 }
 
 static uint32_t parse_mesh_attributes(const char *name)
@@ -173,7 +175,7 @@ static uint32_t parse_mesh_attributes(const char *name)
 	return flags;
 }
 
-static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
+static struct pol_mesh *parse_mesh(struct buffer *r, const struct pol *pol)
 {
 	int type = buffer_read_int32(r);
 	if (type != 0) {
@@ -185,11 +187,15 @@ static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
 	mesh->name = read_cstring(r);
 	mesh->flags = parse_mesh_attributes(mesh->name);
 	mesh->material = buffer_read_int32(r);
+	if (mesh->material >= pol->nr_materials) {
+		WARNING("material index out of range (%d >= %d)", mesh->material, pol->nr_materials);
+		mesh->material = 0;
+	}
 
 	mesh->nr_vertices = buffer_read_int32(r);
 	mesh->vertices = xcalloc(mesh->nr_vertices, sizeof(struct pol_vertex));
 	for (uint32_t i = 0; i < mesh->nr_vertices; i++) {
-		parse_vertex(r, pol_version, &mesh->vertices[i]);
+		parse_vertex(r, pol->version, &mesh->vertices[i]);
 	}
 
 	mesh->nr_uvs = buffer_read_int32(r);
@@ -209,7 +215,7 @@ static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
 	}
 
 	int triangle_unknowns_length = 12;
-	if (pol_version == 1) {
+	if (pol->version == 1) {
 		int nr_unknown_vecs = buffer_read_int32(r);
 		buffer_skip(r, nr_unknown_vecs * 12);
 	} else {
@@ -225,10 +231,10 @@ static struct pol_mesh *parse_mesh(struct buffer *r, int pol_version)
 	mesh->nr_triangles = buffer_read_int32(r);
 	mesh->triangles = xcalloc(mesh->nr_triangles, sizeof(struct pol_triangle));
 	for (uint32_t i = 0; i < mesh->nr_triangles; i++) {
-		parse_triangle(r, mesh, i, triangle_unknowns_length);
+		parse_triangle(r, mesh, i, triangle_unknowns_length, &pol->materials[mesh->material]);
 	}
 
-	if (pol_version == 1) {
+	if (pol->version == 1) {
 		if (buffer_read_int32(r) != 1)
 			WARNING("unexpected mesh footer");
 		if (buffer_read_int32(r) != 0)
@@ -290,7 +296,7 @@ struct pol *pol_parse(uint8_t *data, size_t size)
 	pol->nr_meshes = buffer_read_int32(&r);
 	pol->meshes = xcalloc(pol->nr_meshes, sizeof(struct pol_mesh *));
 	for (uint32_t i = 0; i < pol->nr_meshes; i++) {
-		pol->meshes[i] = parse_mesh(&r, pol->version);
+		pol->meshes[i] = parse_mesh(&r, pol);
 	}
 
 	pol->nr_bones = buffer_read_int32(&r);
