@@ -138,7 +138,9 @@ static struct effect_shader blind_down_shader = EFFECT_SHADER("shaders/effects/b
 static struct effect_shader blind_lr_shader = EFFECT_SHADER("shaders/effects/blind_lr.f.glsl");
 static struct effect_shader linear_blur_shader = EFFECT_SHADER("shaders/effects/linear_blur.f.glsl");
 static struct effect_shader zigzag_crossfade_shader = EFFECT_SHADER("shaders/effects/zigzag_crossfade.f.glsl");
+static struct effect_shader noise_crossfade_shader = EFFECT_SHADER("shaders/effects/noise_crossfade.f.glsl");
 static struct effect_shader turn_page_shader = EFFECT_SHADER("shaders/effects/turn_page.f.glsl");
+static struct effect_shader sepia_noise_crossfade_shader = EFFECT_SHADER("shaders/effects/sepia_noise_crossfade.f.glsl");
 static struct effect_shader blur_fadeout_shader = EFFECT_SHADER("shaders/effects/blur_fadeout.f.glsl");
 static struct effect_shader blur_crossfade_shader = EFFECT_SHADER("shaders/effects/blur_crossfade.f.glsl");
 
@@ -153,7 +155,9 @@ static struct effect_shader *effect_shaders[NR_EFFECTS] = {
 	[EFFECT_BLIND_LR] = &blind_lr_shader,
 	[EFFECT_LINEAR_BLUR] = &linear_blur_shader,
 	[EFFECT_ZIGZAG_CROSSFADE] = &zigzag_crossfade_shader,
+	[EFFECT_NOISE_CROSSFADE] = &noise_crossfade_shader,
 	[EFFECT_TURN_PAGE] = &turn_page_shader,
+	[EFFECT_SEPIA_NOISE_CROSSFADE] = &sepia_noise_crossfade_shader,
 	[EFFECT_BLUR_FADEOUT] = &blur_fadeout_shader,
 	[EFFECT_BLUR_CROSSFADE] = &blur_crossfade_shader,
 };
