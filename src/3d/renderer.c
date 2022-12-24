@@ -317,7 +317,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
 		struct material *material = &model->materials[mesh->material];
-		bool is_transparent = material->is_transparent || inst->alpha < 1.0f;
+		bool is_transparent = (material->is_transparent && !(mesh->flags & MESH_SPRITE)) || inst->alpha < 1.0f;
 		if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
 			continue;
 
@@ -379,7 +379,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 			glActiveTexture(GL_TEXTURE0 + ALPHA_TEXTURE_UNIT);
 			glBindTexture(GL_TEXTURE_2D, material->alpha_map);
 			glUniform1i(r->alpha_texture, ALPHA_TEXTURE_UNIT);
-		} else if (material->flags & MATERIAL_SPRITE) {
+		} else if (material->flags & MATERIAL_SPRITE || mesh->flags & MESH_SPRITE) {
 			glUniform1i(r->alpha_mode, ALPHA_TEST);
 		} else {
 			glUniform1i(r->alpha_mode, ALPHA_BLEND);

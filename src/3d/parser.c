@@ -168,6 +168,8 @@ static uint32_t parse_mesh_attributes(const char *name)
 		flags |= MESH_ENVMAP;
 	if (strstr(name, "(both)"))
 		flags |= MESH_BOTH;
+	if (strstr(name, "(sprite)"))
+		flags |= MESH_SPRITE;
 	return flags;
 }
 

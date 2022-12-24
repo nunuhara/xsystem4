@@ -397,6 +397,7 @@ enum mesh_flags {
 	MESH_NOMAKESHADOW = 1 << 1,
 	MESH_ENVMAP       = 1 << 2,
 	MESH_BOTH         = 1 << 3,
+	MESH_SPRITE       = 1 << 4,
 };
 
 struct pol_mesh {
