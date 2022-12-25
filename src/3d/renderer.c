@@ -970,7 +970,7 @@ void RE_renderer_free_height_detector(struct height_detector *hd)
 	free(hd);
 }
 
-float RE_renderer_detect_height(struct height_detector *hd, float x, float z)
+bool RE_renderer_detect_height(struct height_detector *hd, float x, float z, float *y_out)
 {
 	float minx = hd->aabb[0][0];
 	float maxx = hd->aabb[1][0];
@@ -979,9 +979,12 @@ float RE_renderer_detect_height(struct height_detector *hd, float x, float z)
 	float minz = hd->aabb[0][2];
 	float maxz = hd->aabb[1][2];
 	if (x < minx || x > maxx || z < minz || z > maxz)
-		return 0.0;
+		return false;
 	int px = glm_percent(minx, maxx, x) * SHADOW_WIDTH;
 	int pz = glm_percent(maxz, minz, z) * SHADOW_HEIGHT;
-	float py = hd->buf[pz * SHADOW_WIDTH + px] / 65535.0;
-	return glm_lerp(maxy, miny, py);
+	GLushort val = hd->buf[pz * SHADOW_WIDTH + px];
+	if (!val)
+		return false;
+	*y_out = glm_lerp(maxy, miny, val / 65535.0f);
+	return true;
 }

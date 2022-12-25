@@ -488,8 +488,19 @@ float RE_instance_calc_height(struct RE_instance *instance, float x, float z)
 	if (!instance->height_detector) {
 		instance->height_detector = RE_renderer_create_height_detector(instance->plugin->renderer, instance->model);
 	}
-	float y = RE_renderer_detect_height(instance->height_detector, x, z);
-	return y;
+
+	float y;
+	if (RE_renderer_detect_height(instance->height_detector, x, z, &y))
+		return y;
+
+	// Return the average of 4 neighbors.
+	int cnt = 0;
+	float total = 0.0f;
+	if (RE_renderer_detect_height(instance->height_detector, x - 0.5f, z, &y)) { cnt++; total += y; }
+	if (RE_renderer_detect_height(instance->height_detector, x + 0.5f, z, &y)) { cnt++; total += y; }
+	if (RE_renderer_detect_height(instance->height_detector, x, z - 0.5f, &y)) { cnt++; total += y; }
+	if (RE_renderer_detect_height(instance->height_detector, x, z + 0.5f, &y)) { cnt++; total += y; }
+	return cnt ? total / cnt : 0.0f;
 }
 
 bool RE_instance_set_debug_draw_shadow_volume(struct RE_instance *inst, bool draw)
