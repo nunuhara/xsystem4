@@ -43,6 +43,7 @@ struct model {
 	struct bone *bones;
 	struct hash_table *bone_map;  // bone id in POL/MOT -> struct bone *
 	struct hash_table *bone_name_map;  // bone name -> (struct bone * | NULL)
+	struct hash_table *mot_cache;  // name -> struct mot *
 	vec3 aabb[2];  // axis-aligned bounding box
 	bool has_transparent_material;
 };
@@ -82,7 +83,6 @@ struct bone {
 struct motion {
 	struct RE_instance *instance;
 	struct mot *mot;
-	char *name;
 	int state;
 	float current_frame;
 	float frame_begin, frame_end;
@@ -453,6 +453,7 @@ struct pol_bone {
 };
 
 struct mot {
+	char *name;
 	uint32_t nr_frames;
 	uint32_t nr_bones;
 	struct mot_bone *motions[];
@@ -498,7 +499,7 @@ void pol_free(struct pol *pol);
 void pol_compute_aabb(struct pol *model, vec3 dest[2]);
 struct pol_bone *pol_find_bone(struct pol *pol, uint32_t id);
 
-struct mot *mot_parse(uint8_t *data, size_t size);
+struct mot *mot_parse(uint8_t *data, size_t size, const char *name);
 void mot_free(struct mot *mot);
 
 struct amt *amt_parse(uint8_t *data, size_t size);

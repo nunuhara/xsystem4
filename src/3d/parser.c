@@ -353,7 +353,7 @@ struct pol_bone *pol_find_bone(struct pol *pol, uint32_t id)
 	return NULL;
 }
 
-struct mot *mot_parse(uint8_t *data, size_t size)
+struct mot *mot_parse(uint8_t *data, size_t size, const char *name)
 {
 	struct buffer r;
 	buffer_init(&r, data, size);
@@ -369,6 +369,7 @@ struct mot *mot_parse(uint8_t *data, size_t size)
 	uint32_t nr_bones = buffer_read_int32(&r);
 
 	struct mot *mot = xcalloc(1, sizeof(struct mot) + nr_bones * sizeof(struct mot_bone *));
+	mot->name = strdup(name);
 	mot->nr_frames = nr_frames;
 	mot->nr_bones = nr_bones;
 	for (uint32_t i = 0; i < nr_bones; i++) {
@@ -391,6 +392,7 @@ struct mot *mot_parse(uint8_t *data, size_t size)
 
 void mot_free(struct mot *mot)
 {
+	free(mot->name);
 	for (uint32_t i = 0; i < mot->nr_bones; i++) {
 		free(mot->motions[i]->name);
 		free(mot->motions[i]);
