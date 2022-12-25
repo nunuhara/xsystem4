@@ -503,7 +503,7 @@ static void render_billboard_particles(struct RE_renderer *r, struct RE_instance
 
 	for (int index = 0; index < pae_obj->nr_particles; index++) {
 		struct particle_instance *pi = &po->instances[index];
-		if (frame < pi->begin_frame || pi->end_frame < frame)
+		if (frame < pi->begin_frame || pi->end_frame <= frame)
 			continue;
 
 		int step = (int)((frame - pi->begin_frame) / pae_obj->texture_anime_frame);
@@ -541,7 +541,7 @@ static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *
 
 	for (int index = 0; index < pae_obj->nr_particles; index++) {
 		struct particle_instance *pi = &po->instances[index];
-		if (frame < pi->begin_frame || pi->end_frame < frame)
+		if (frame < pi->begin_frame || pi->end_frame <= frame)
 			continue;
 
 		float alpha = pae_object_calc_alpha(pae_obj, pi, frame);
