@@ -51,7 +51,9 @@ struct mesh {
 	uint32_t flags;
 	GLuint vao;
 	GLuint attr_buffer;
+	GLuint index_buffer;
 	int nr_vertices;
+	int nr_indices;
 	int material;
 };
 
@@ -65,6 +67,7 @@ struct material {
 	GLuint normal_map;
 	float specular_strength;
 	float specular_shininess;
+	float shadow_darkness;
 	float rim_exponent;
 	vec3 rim_color;
 };
@@ -143,7 +146,7 @@ struct RE_renderer {
 	GLint light_texture;
 	GLint use_normal_map;
 	GLint normal_texture;
-	GLint use_shadow_map;
+	GLint shadow_darkness;
 	GLint shadow_transform;
 	GLint shadow_texture;
 	GLint shadow_bias;
@@ -176,6 +179,7 @@ void RE_instance_update_local_transform(struct RE_instance *inst);
 
 struct model *model_load(struct archive *aar, const char *path);
 void model_free(struct model *model);
+struct model *model_create_sphere(int r, int g, int b, int a);
 
 struct motion *motion_load(const char *name, struct RE_instance *instance, struct archive *aar);
 void motion_free(struct motion *motion);
@@ -393,6 +397,7 @@ enum mesh_flags {
 	MESH_NOMAKESHADOW = 1 << 1,
 	MESH_ENVMAP       = 1 << 2,
 	MESH_BOTH         = 1 << 3,
+	MESH_SPRITE       = 1 << 4,
 };
 
 struct pol_mesh {
@@ -425,7 +430,7 @@ struct pol_triangle {
 	uint32_t uv_index[3];
 	uint32_t light_uv_index[3];
 	vec3 normals[3];
-	uint32_t material;  // index in the material group
+	uint32_t material_group_index;
 };
 
 struct pol_bone {
@@ -468,6 +473,8 @@ struct amt_material {
 enum amt_field_index {
 	AMT_SPECULAR_STRENGTH = 0,
 	AMT_SPECULAR_SHININESS = 2,
+	// amt v4+
+	AMT_SHADOW_DARKNESS = 6,
 	// amt v5+
 	AMT_RIM_EXPONENT = 7,
 	AMT_RIM_R = 8,

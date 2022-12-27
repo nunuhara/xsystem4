@@ -52,7 +52,7 @@ uniform bool use_specular_map;
 uniform float rim_exponent;
 uniform vec3 rim_color;
 uniform int diffuse_type;
-uniform bool use_shadow_map;
+uniform float shadow_darkness;
 uniform float shadow_bias;
 uniform int fog_type;
 uniform float fog_near;
@@ -133,26 +133,26 @@ void main() {
 	}
 
 	// Shadow mapping
-	if (use_shadow_map) {
+	if (shadow_darkness > 0.0) {
 		vec3 shadow_coords = shadow_frag_pos.xyz / shadow_frag_pos.w * 0.5 + 0.5;
 		shadow_coords.z = min(1.0, shadow_coords.z - shadow_bias);
 		// PCF with 9 samples.
-		float shadow_factor = 1.0;
+		float brightness = 1.0;
 		vec2 texel_size = 1.0 / vec2(textureSize(shadow_texture, 0));
 		for (int x = -1; x <= 1; ++x) {
 			for (int y = -1; y <= 1; ++y) {
 				float depth = texture(shadow_texture, shadow_coords.xy + vec2(x, y) * texel_size).r;
 				if (depth < shadow_coords.z)
-					shadow_factor -= 0.05;
+					brightness -= 0.05 * shadow_darkness;
 			}
 		}
-		frag_rgb *= shadow_factor;
+		frag_rgb *= brightness;
 	}
 
 	// Alpha mapping
 	float alpha = texel.a * alpha_mod;
 	if (alpha_mode == ALPHA_TEST) {
-		if (alpha < 1.0)
+		if (alpha < 0.8)
 			discard;
 	} else if (alpha_mode == ALPHA_MAP_BLEND) {
 		alpha *= texture(alpha_texture, tex_coord).r;

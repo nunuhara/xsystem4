@@ -27,8 +27,8 @@
 #include "sact.h"
 
 // TODO: Respect RE_plugin.shadow_map_resolution_level
-#define SHADOW_WIDTH 1024
-#define SHADOW_HEIGHT 1024
+#define SHADOW_WIDTH 512
+#define SHADOW_HEIGHT 512
 
 enum {
 	COLOR_TEXTURE_UNIT,
@@ -201,7 +201,7 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->light_texture = glGetUniformLocation(r->program, "light_texture");
 	r->use_normal_map = glGetUniformLocation(r->program, "use_normal_map");
 	r->normal_texture = glGetUniformLocation(r->program, "normal_texture");
-	r->use_shadow_map = glGetUniformLocation(r->program, "use_shadow_map");
+	r->shadow_darkness = glGetUniformLocation(r->program, "shadow_darkness");
 	r->shadow_transform = glGetUniformLocation(r->program, "shadow_transform");
 	r->shadow_texture = glGetUniformLocation(r->program, "shadow_texture");
 	r->shadow_bias = glGetUniformLocation(r->program, "shadow_bias");
@@ -317,7 +317,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
 		struct material *material = &model->materials[mesh->material];
-		bool is_transparent = material->is_transparent || inst->alpha < 1.0f;
+		bool is_transparent = (material->is_transparent && !(mesh->flags & MESH_SPRITE)) || inst->alpha < 1.0f;
 		if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
 			continue;
 
@@ -347,7 +347,10 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glBindTexture(GL_TEXTURE_2D, material->color_map);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
-		glUniform1i(r->use_shadow_map, draw_shadow && !(mesh->flags & MESH_BOTH));
+		if (draw_shadow && !(mesh->flags & MESH_BOTH))
+			glUniform1f(r->shadow_darkness, material->shadow_darkness);
+		else
+			glUniform1f(r->shadow_darkness, 0.0f);
 
 		if (mesh->flags & MESH_ENVMAP) {
 			glUniform1i(r->diffuse_type, DIFFUSE_ENV_MAP);
@@ -376,14 +379,19 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 			glActiveTexture(GL_TEXTURE0 + ALPHA_TEXTURE_UNIT);
 			glBindTexture(GL_TEXTURE_2D, material->alpha_map);
 			glUniform1i(r->alpha_texture, ALPHA_TEXTURE_UNIT);
-		} else if (material->flags & MATERIAL_SPRITE) {
+		} else if (material->flags & MATERIAL_SPRITE || mesh->flags & MESH_SPRITE) {
 			glUniform1i(r->alpha_mode, ALPHA_TEST);
 		} else {
 			glUniform1i(r->alpha_mode, ALPHA_BLEND);
 		}
 
 		glBindVertexArray(mesh->vao);
-		glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+
+		if (mesh->nr_indices)
+			glDrawElements(GL_TRIANGLES, mesh->nr_indices, GL_UNSIGNED_SHORT, NULL);
+		else
+			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+
 		glBindVertexArray(0);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
@@ -405,13 +413,16 @@ static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r
 	if (!model)
 		return;
 
-	if (model->nr_bones > 0) {
+	if (model->nr_bones > 0 && inst->motion) {
 		glUniform1i(r->has_bones, GL_TRUE);
 		glUniformMatrix4fv(r->bone_matrices, model->nr_bones, GL_FALSE, inst->bone_transforms[0][0]);
 	} else {
 		glUniform1i(r->has_bones, GL_FALSE);
 	}
 	render_model(inst, r, phase);
+
+	if (inst->shadow_volume_instance && phase == DRAW_TRANSPARENT)
+		render_static_model(inst->shadow_volume_instance, r, phase);
 }
 
 static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat, enum draw_phase phase)
@@ -452,7 +463,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glUniform1f(r->rim_exponent, 0.0);
 	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
 	glUniform1i(r->use_normal_map, GL_FALSE);
-	glUniform1i(r->use_shadow_map, GL_FALSE);
+	glUniform1f(r->shadow_darkness, 0.0f);
 	glUniform1i(r->alpha_mode, ALPHA_BLEND);
 	glUniform1i(r->fog_type, inst->plugin->fog_mode ? inst->plugin->fog_type : 0);
 	switch (inst->draw_type) {
@@ -572,7 +583,7 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 	glUniform1i(r->use_specular_map, GL_FALSE);
 	glUniform1f(r->rim_exponent, 0.0);
 	glUniform1i(r->use_normal_map, GL_FALSE);
-	glUniform1i(r->use_shadow_map, GL_FALSE);
+	glUniform1f(r->shadow_darkness, 0.0f);
 	glUniform1i(r->alpha_mode, ALPHA_BLEND);
 
 	glDepthMask(GL_FALSE);
@@ -626,52 +637,27 @@ static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat
 
 static bool calc_shadow_light_transform(struct RE_plugin *plugin, mat4 dest)
 {
-	// Compute AABB of shadow casters.
-	vec3 aabb[2];
-	glm_aabb_invalidate(aabb);
+	// Compute a bounding sphere of shadow casters.
+	vec4 bounding_sphere = {};
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst || !inst->draw || !inst->make_shadow || !inst->model)
 			continue;
-		// Start with the model's AABB, inflated with shadow_volume_bone_radius.
-		vec3 inst_aabb[2];
-		glm_vec3_subs(inst->model->aabb[0], inst->shadow_volume_bone_radius, inst_aabb[0]);
-		glm_vec3_adds(inst->model->aabb[1], inst->shadow_volume_bone_radius, inst_aabb[1]);
-		// To save CPU cycles, consider only the translation components of bone transforms.
-		vec3 bone_translation_aabb[2];
-		glm_aabb_invalidate(bone_translation_aabb);
-		for (int j = 0; j < inst->model->nr_bones; j++) {
-			glm_vec3_minv(inst->bone_transforms[j][3], bone_translation_aabb[0], bone_translation_aabb[0]);
-			glm_vec3_maxv(inst->bone_transforms[j][3], bone_translation_aabb[1], bone_translation_aabb[1]);
-		}
-		if (glm_aabb_isvalid(bone_translation_aabb)) {
-			glm_vec3_add(inst_aabb[0], bone_translation_aabb[0], inst_aabb[0]);
-			glm_vec3_add(inst_aabb[1], bone_translation_aabb[1], inst_aabb[1]);
-		}
-		// Apply local transform.
-		if (inst->local_transform_needs_update)
-			RE_instance_update_local_transform(inst);
-		glm_aabb_transform(inst_aabb, inst->local_transform, inst_aabb);
-
-		glm_aabb_merge(inst_aabb, aabb, aabb);
+		if (bounding_sphere[3] > 0.0f)
+			glm_sphere_merge(inst->bounding_sphere, bounding_sphere, inst->bounding_sphere);
+		else
+			glm_vec4_copy(inst->bounding_sphere, bounding_sphere);
 	}
-	if (!glm_aabb_isvalid(aabb))
+
+	float radius = bounding_sphere[3] * 1.2f;  // Add some padding.
+	if (radius <= 0.0f)
 		return false;
 
-	// Create a orthographic frustum that contains the AABB.
-	vec3 center;
-	glm_aabb_center(aabb, center);
-	vec3 light_pos;
-	glm_vec3_scale(plugin->shadow_map_light_dir, -glm_aabb_radius(aabb), light_pos);
-	glm_vec3_add(light_pos, center, light_pos);
+	// Create a orthographic frustum that contains the bounding sphere.
 	mat4 view_matrix;
-	vec3 up = {0.0, 1.0, 0.0};
-	glm_lookat(light_pos, center, up, view_matrix);
-
+	glm_look(bounding_sphere, plugin->shadow_map_light_dir, GLM_YUP, view_matrix);
 	mat4 proj_matrix;
-	glm_aabb_transform(aabb, view_matrix, aabb);
-	glm_ortho_aabb(aabb, proj_matrix);
-
+	glm_ortho(-radius, radius, -radius, radius, -radius, radius, proj_matrix);
 	glm_mat4_mul(proj_matrix, view_matrix, dest);
 	return true;
 }
