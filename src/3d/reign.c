@@ -138,8 +138,12 @@ static void update_motion(struct motion *m, float delta_frame)
 
 static void calc_motion_frame(struct motion *m, int bone, struct mot_frame *out)
 {
-	int cur_frame = m->current_frame;
-	int next_frame = ceilf(m->current_frame);
+	uint32_t cur_frame = m->current_frame;
+	uint32_t next_frame = ceilf(m->current_frame);
+	if (next_frame >= m->mot->nr_frames) {
+		*out = m->mot->motions[bone]->frames[m->mot->nr_frames - 1];
+		return;
+	}
 	float t = m->current_frame - cur_frame;
 	struct mot_frame *frames = m->mot->motions[bone]->frames;
 	interpolate_motion_frame(&frames[cur_frame], &frames[next_frame], t, out);
