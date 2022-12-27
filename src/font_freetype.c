@@ -28,12 +28,14 @@
 #include "gfx/font.h"
 #include "xsystem4.h"
 
+#define MAX_FONT_SIZES 64
+
 struct font_ft {
 	struct font super;
 	FT_Face font;
 	unsigned current_size;
 	unsigned nr_sizes;
-	struct font_size *sizes;
+	struct font_size sizes[MAX_FONT_SIZES];
 };
 
 static FT_Library ft_lib;
@@ -69,7 +71,8 @@ static struct font_size *ft_font_get_size(struct font *_font, float size)
 		}
 	}
 
-	font->sizes = xrealloc_array(font->sizes, font->nr_sizes, font->nr_sizes+1, sizeof(struct font_size));
+	if (font->nr_sizes + 1 >= MAX_FONT_SIZES)
+		ERROR("Exceeded maximum number of font sizes");
 	struct font_size *fs = &font->sizes[font->nr_sizes++];
 	fs->size = size;
 	fs->y_offset = -roundf(size * 0.15f);
