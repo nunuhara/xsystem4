@@ -57,7 +57,7 @@ issues, please let me know or open a pull request to update this table.
 | Sengoku Rance -Three for the Slash! Thrust! Burn!- (EN) | Unknown     |       |
 | AliveZ                                                  | Unknown     |       |
 | エドランゼ ～Come on!水戸姫様～                         | Unknown     |       |
-| 闘神都市III                                             | Unsupported |       |
+| 闘神都市III                                             | Supported   |       |
 | ばにしゅ！～おっぱいの消えた王国～                      | Unknown     |       |
 | 僕だけの保健室                                          | Unknown     |       |
 | ももいろガーディアン                                    | Unknown     |       |
