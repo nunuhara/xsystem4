@@ -422,6 +422,7 @@ struct model *model_load(struct archive *aar, const char *path)
 			ERROR("%s: Too many bones (%u)", model->path, pol->nr_bones);
 		model->bone_map = ht_create(pol->nr_bones * 3 / 2);
 		model->bone_name_map = ht_create(pol->nr_bones * 3 / 2);
+		model->mot_cache = ht_create(16);
 		model->bones = xcalloc(pol->nr_bones, sizeof(struct bone));
 		for (uint32_t i = 0; i < pol->nr_bones; i++) {
 			add_bone(model, pol, &pol->bones[i]);
@@ -499,6 +500,10 @@ void model_free(struct model *model)
 		ht_free_int(model->bone_map);
 	if (model->bone_name_map)
 		ht_free(model->bone_name_map);
+	if (model->mot_cache) {
+		ht_foreach_value(model->mot_cache, (void(*)(void*))mot_free);
+		ht_free(model->mot_cache);
+	}
 
 	free(model->path);
 	free(model);
@@ -604,18 +609,14 @@ static int cmp_motions_by_bone_id(const void *lhs, const void *rhs)
 	return (*(struct mot_bone **)lhs)->id - (*(struct mot_bone **)rhs)->id;
 }
 
-struct motion *motion_load(const char *name, struct RE_instance *instance, struct archive *aar)
+static struct mot *mot_load(const char *name, struct model *model, struct archive *aar)
 {
-	struct model *model = instance->model;
-	if (!model)
-		return NULL;
-
 	struct archive_data *dfile = RE_get_aar_entry(aar, model->path, name, ".MOT");
 	if (!dfile) {
 		WARNING("%s\\%s.MOT: not found", model->path, name);
 		return NULL;
 	}
-	struct mot *mot = mot_parse(dfile->data, dfile->size);
+	struct mot *mot = mot_parse(dfile->data, dfile->size, name);
 	if (!mot) {
 		WARNING("%s: parse error", dfile->name);
 		archive_free_data(dfile);
@@ -640,18 +641,28 @@ struct motion *motion_load(const char *name, struct RE_instance *instance, struc
 	}
 	qsort(mot->motions, mot->nr_bones, sizeof(struct mot_bone *), cmp_motions_by_bone_id);
 
+	return mot;
+}
+
+struct motion *motion_load(const char *name, struct RE_instance *instance, struct archive *aar)
+{
+	struct model *model = instance->model;
+	if (!model || !model->mot_cache)
+		return NULL;
+	struct mot *mot = ht_get(model->mot_cache, name, NULL);
+	if (!mot) {
+		mot = mot_load(name, model, aar);
+		if (!mot)
+			return NULL;
+		ht_put(model->mot_cache, name, mot);
+	}
 	struct motion *motion = xcalloc(1, sizeof(struct motion));
 	motion->instance = instance;
 	motion->mot = mot;
-	motion->name = strdup(name);
 	return motion;
 }
 
 void motion_free(struct motion *motion)
 {
-	if (motion->mot)
-		mot_free(motion->mot);
-	if (motion->name)
-		free(motion->name);
 	free(motion);
 }

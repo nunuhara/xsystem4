@@ -25,6 +25,8 @@
 #include "gfx/gfx.h"
 #include "plugin.h"
 
+struct hash_table;
+
 enum RE_instance_type {
 	RE_ITYPE_UNINITIALIZED     = 0,
 	RE_ITYPE_STATIC            = 1,
@@ -82,6 +84,8 @@ struct RE_plugin {
 	int nr_instances;
 	struct RE_instance **instances;
 	struct archive *aar;
+	struct hash_table *model_cache;
+	struct hash_table *pae_cache;
 	struct RE_renderer *renderer;
 	struct RE_camera camera;
 	mat4 proj_transform;

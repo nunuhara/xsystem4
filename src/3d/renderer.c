@@ -490,7 +490,8 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 
 static void render_billboard_particles(struct RE_renderer *r, struct RE_instance *inst, struct particle_object *po, float frame)
 {
-	if (po->nr_textures == 0)
+	struct pae_object *pae_obj = po->pae_obj;
+	if (pae_obj->nr_textures == 0)
 		return;
 
 	glUniform1i(r->diffuse_type, DIFFUSE_EMISSIVE);
@@ -500,19 +501,19 @@ static void render_billboard_particles(struct RE_renderer *r, struct RE_instance
 	glUniform1i(r->texture, 0);
 	glBindVertexArray(r->billboard_vao);
 
-	for (int index = 0; index < po->nr_particles; index++) {
+	for (int index = 0; index < pae_obj->nr_particles; index++) {
 		struct particle_instance *pi = &po->instances[index];
-		if (frame < pi->begin_frame || pi->end_frame < frame)
+		if (frame < pi->begin_frame || pi->end_frame <= frame)
 			continue;
 
-		int step = (int)((frame - pi->begin_frame) / po->texture_anime_frame);
-		struct billboard_texture *bt = ht_get(inst->effect->textures, po->textures[step % po->nr_textures], NULL);
+		int step = (int)((frame - pi->begin_frame) / pae_obj->texture_anime_frame);
+		struct billboard_texture *bt = ht_get(inst->effect->pae->textures, pae_obj->textures[step % pae_obj->nr_textures], NULL);
 		if (!bt)
 			continue;
 		glBindTexture(GL_TEXTURE_2D, bt->texture);
 
-		float alpha = particle_object_calc_alpha(po, pi, frame);
-		if (po->blend_type == PARTICLE_BLEND_ADDITIVE && !bt->has_alpha)
+		float alpha = pae_object_calc_alpha(pae_obj, pi, frame);
+		if (pae_obj->blend_type == PARTICLE_BLEND_ADDITIVE && !bt->has_alpha)
 			alpha *= alpha;  // why...
 		glUniform1f(r->alpha_mod, alpha);
 
@@ -530,19 +531,20 @@ static void render_billboard_particles(struct RE_renderer *r, struct RE_instance
 
 static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *inst, struct particle_object *po, float frame)
 {
-	struct model *model = po->model;
+	struct pae_object *pae_obj = po->pae_obj;
+	struct model *model = pae_obj->model;
 	if (!model)
 		return;
 
 	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
 	glUniform1i(r->fog_type, inst->plugin->fog_mode ? inst->plugin->fog_type : 0);
 
-	for (int index = 0; index < po->nr_particles; index++) {
+	for (int index = 0; index < pae_obj->nr_particles; index++) {
 		struct particle_instance *pi = &po->instances[index];
-		if (frame < pi->begin_frame || pi->end_frame < frame)
+		if (frame < pi->begin_frame || pi->end_frame <= frame)
 			continue;
 
-		float alpha = particle_object_calc_alpha(po, pi, frame);
+		float alpha = pae_object_calc_alpha(pae_obj, pi, frame);
 		glUniform1f(r->alpha_mod, alpha);
 
 		mat4 local_transform;
@@ -588,10 +590,10 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 
 	glDepthMask(GL_FALSE);
 
-	for (int i = 0; i < inst->effect->nr_objects; i++) {
+	for (int i = 0; i < inst->effect->pae->nr_objects; i++) {
 		struct particle_object *po = &inst->effect->objects[i];
 
-		switch (po->blend_type) {
+		switch (po->pae_obj->blend_type) {
 		case PARTICLE_BLEND_NORMAL:
 			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
 			break;
@@ -600,7 +602,7 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 			break;
 		}
 
-		switch (po->type) {
+		switch (po->pae_obj->type) {
 		case PARTICLE_TYPE_BILLBOARD:
 			render_billboard_particles(r, inst, po, inst->motion->current_frame);
 			break;
@@ -968,7 +970,7 @@ void RE_renderer_free_height_detector(struct height_detector *hd)
 	free(hd);
 }
 
-float RE_renderer_detect_height(struct height_detector *hd, float x, float z)
+bool RE_renderer_detect_height(struct height_detector *hd, float x, float z, float *y_out)
 {
 	float minx = hd->aabb[0][0];
 	float maxx = hd->aabb[1][0];
@@ -977,9 +979,12 @@ float RE_renderer_detect_height(struct height_detector *hd, float x, float z)
 	float minz = hd->aabb[0][2];
 	float maxz = hd->aabb[1][2];
 	if (x < minx || x > maxx || z < minz || z > maxz)
-		return 0.0;
+		return false;
 	int px = glm_percent(minx, maxx, x) * SHADOW_WIDTH;
 	int pz = glm_percent(maxz, minz, z) * SHADOW_HEIGHT;
-	float py = hd->buf[pz * SHADOW_WIDTH + px] / 65535.0;
-	return glm_lerp(maxy, miny, py);
+	GLushort val = hd->buf[pz * SHADOW_WIDTH + px];
+	if (!val)
+		return false;
+	*y_out = glm_lerp(maxy, miny, val / 65535.0f);
+	return true;
 }

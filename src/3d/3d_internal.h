@@ -43,6 +43,7 @@ struct model {
 	struct bone *bones;
 	struct hash_table *bone_map;  // bone id in POL/MOT -> struct bone *
 	struct hash_table *bone_name_map;  // bone name -> (struct bone * | NULL)
+	struct hash_table *mot_cache;  // name -> struct mot *
 	vec3 aabb[2];  // axis-aligned bounding box
 	bool has_transparent_material;
 };
@@ -82,7 +83,6 @@ struct bone {
 struct motion {
 	struct RE_instance *instance;
 	struct mot *mot;
-	char *name;
 	int state;
 	float current_frame;
 	float frame_begin, frame_end;
@@ -193,7 +193,7 @@ void RE_renderer_free(struct RE_renderer *r);
 bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);
 struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r, struct model *model);
 void RE_renderer_free_height_detector(struct height_detector *hd);
-float RE_renderer_detect_height(struct height_detector *hd, float x, float z);
+bool RE_renderer_detect_height(struct height_detector *hd, float x, float z, float *y_out);
 void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out);
 
 // particle.c
@@ -272,7 +272,14 @@ struct particle_position {
 	struct particle_position_unit units[NR_PARTICLE_POSITION_UNITS];
 };
 
-struct particle_object {
+struct pae {
+	char *path;
+	struct hash_table *textures; // name -> struct billboard_texture*
+	int nr_objects;
+	struct pae_object *objects;
+};
+
+struct pae_object {
 	char *name;
 	enum particle_type type;
 	enum particle_move_type move_type;
@@ -325,9 +332,18 @@ struct particle_object {
 	float offset_x;
 	float offset_y;
 
-	// Runtime data
 	struct model *model;
-	struct particle_instance *instances;
+};
+
+struct particle_effect {
+	struct pae *pae;
+	struct particle_object *objects;  // pae->nr_objects elements
+	bool camera_quake_enabled;
+};
+
+struct particle_object {
+	struct pae_object *pae_obj;
+	struct particle_instance *instances;  // pae_obj->nr_particles elements
 	vec3_range pos;
 	vec3 move_vec, move_ortho;
 };
@@ -340,20 +356,15 @@ struct particle_instance {
 	float pitch_angle;
 };
 
-struct particle_effect {
-	char *path;
-	struct hash_table *textures; // name -> struct billboard_texture*
-	int nr_objects;
-	struct particle_object *objects;
-	bool camera_quake_enabled;
-};
+struct pae *pae_load(struct archive *aar, const char *path);
+void pae_free(struct pae *pae);
+void pae_calc_frame_range(struct pae *pae, struct motion *motion);
+float pae_object_calc_alpha(struct pae_object *po, struct particle_instance *pi, float frame);
 
-struct particle_effect *particle_effect_load(struct archive *aar, const char *path);
+struct particle_effect *particle_effect_create(struct pae *pae);
 void particle_effect_free(struct particle_effect *effect);
-void particle_effect_calc_frame_range(struct particle_effect *effect, struct motion *motion);
 void particle_effect_update(struct RE_instance *inst);
 void particle_object_calc_local_transform(struct RE_instance *inst, struct particle_object *po, struct particle_instance *pi, float frame, mat4 dest);
-float particle_object_calc_alpha(struct particle_object *po, struct particle_instance *pi, float frame);
 
 // parser.c
 
@@ -442,6 +453,7 @@ struct pol_bone {
 };
 
 struct mot {
+	char *name;
 	uint32_t nr_frames;
 	uint32_t nr_bones;
 	struct mot_bone *motions[];
@@ -487,7 +499,7 @@ void pol_free(struct pol *pol);
 void pol_compute_aabb(struct pol *model, vec3 dest[2]);
 struct pol_bone *pol_find_bone(struct pol *pol, uint32_t id);
 
-struct mot *mot_parse(uint8_t *data, size_t size);
+struct mot *mot_parse(uint8_t *data, size_t size, const char *name);
 void mot_free(struct mot *mot);
 
 struct amt *amt_parse(uint8_t *data, size_t size);
