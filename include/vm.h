@@ -110,8 +110,8 @@ void init_libraries(void);
 void exit_libraries(void);
 
 void vm_stack_trace(void);
-noreturn void _vm_error(const char *fmt, ...);
-noreturn void vm_exit(int code);
+_Noreturn void _vm_error(const char *fmt, ...);
+_Noreturn void vm_exit(int code);
 
 #define VM_ERROR(fmt, ...) \
 	_vm_error("*ERROR*(%s:%s:%d): " fmt "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
