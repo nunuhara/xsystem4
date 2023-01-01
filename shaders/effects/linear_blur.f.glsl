@@ -31,13 +31,13 @@ vec3 get_pixel(vec2 xy, float fade) {
 void main() {
         vec2 p = tex_coord * resolution;
 	// 1 - (x - 1)^2
-	float fade_progress = 1.0 - pow(progress - 1.0, 2); // (0..0.5..1) -> (0..1) [parabolic]
+	float fade_progress = 1.0 - pow(progress - 1.0, 2.0); // (0..0.5..1) -> (0..1) [parabolic]
 	// sin(PI*x)^4
 	float blur_size = pow(sin(PI * progress), 4.0); // (0..0.5..1) -> (0..1..0) [sine wave ^ 4]
 	float blur_half = (blur_size * resolution.x) / 2.0;
 
         vec3 avg = vec3(0.0);
-	int count = 0;
+	float count = 0.0;
 
 	avg += get_pixel(p / resolution, fade_progress);
 	count++;
@@ -45,7 +45,7 @@ void main() {
         for (float i = 1.0; i <= blur_half; i += 2.0) {
 		avg += get_pixel(vec2(p.x + i, p.y) / resolution, fade_progress);
 		avg += get_pixel(vec2(p.x - i, p.y) / resolution, fade_progress);
-		count += 2;
+		count += 2.0;
         }
 
         frag_color = vec4(avg / count, 1.0);
