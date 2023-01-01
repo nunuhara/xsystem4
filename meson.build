@@ -14,8 +14,8 @@ png = dependency('libpng')
 cglm = dependency('cglm', fallback : ['cglm', 'cglm_dep'])
 sndfile = dependency('sndfile')
 
-if get_option('use_gles')
-    gles = dependency('glesv2')
+gles = dependency('glesv2', version : '>=3', required: get_option('opengles'))
+if gles.found()
     gl_deps = [gles]
     add_project_arguments('-DUSE_GLES', language : 'c')
 else

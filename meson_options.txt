@@ -1,2 +1,2 @@
 option('debugger', type : 'feature', value : 'auto')
-option('use_gles', type : 'boolean', value : false, description : 'Target OpenGL ES 3.0')
+option('opengles', type : 'feature', value : 'auto', description : 'Target OpenGL ES 3.0')
