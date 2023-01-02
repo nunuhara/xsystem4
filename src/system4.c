@@ -120,12 +120,12 @@ static void read_mixer_channels(struct ini_entry *entry)
 	}
 }
 
-static void read_config(const char *path)
+static bool read_config(const char *path)
 {
 	int ini_size;
 	struct ini_entry *ini = ini_parse(path, &ini_size);
 	if (!ini)
-		ERROR("Failed to read %s", path);
+		return false;
 
 	for (int i = 0; i < ini_size; i++) {
 		if (!strcmp(ini[i].name->text, "GameName")) {
@@ -148,6 +148,7 @@ static void read_config(const char *path)
 		ini_free_entry(&ini[i]);
 	}
 	free(ini);
+	return true;
 }
 
 static void read_user_config_file(const char *path)
@@ -258,25 +259,29 @@ static void config_init(void)
 	mkdir_p(new_save_dir);
 }
 
-static void config_init_with_ini(const char *ini_path)
+static bool config_init_with_ini(const char *ini_path)
 {
-	read_config(ini_path);
+	if (!read_config(ini_path))
+		return false;
 	if (!config.ain_filename)
 		ERROR("No AIN filename specified in %s", ini_path);
 	char *tmp = strdup(ini_path);
 	config.game_dir = strdup(dirname(tmp));
 	free(tmp);
 	config_init();
+	return true;
 }
 
-static void config_init_with_dir(const char *dir)
+static bool config_init_with_dir(const char *dir)
 {
 	char path[PATH_MAX];
 	snprintf(path, PATH_MAX, "%s/System40.ini", dir);
 	if (!file_exists(path)) {
 		snprintf(path, PATH_MAX, "%s/AliceStart.ini", dir);
+		if (!file_exists(path))
+			return false;
 	}
-	config_init_with_ini(path);
+	return config_init_with_ini(path);
 }
 
 static void config_init_with_ain(const char *ain_path)
@@ -335,7 +340,7 @@ static void ain_audit(FILE *f, struct ain *ain)
 
 static void usage(void)
 {
-	puts("Usage: xsystem4 <options> <inifile>");
+	puts("Usage: xsystem4 [options] [inifile-or-directory]");
 	puts("    -h, --help          Display this message and exit");
 	puts("    -v, --version       Display the version and exit");
 	puts("    -a, --audit         Audit AIN file for xsystem4 compatibility");
@@ -351,6 +356,17 @@ static void usage(void)
 	puts("        --debug         Start in debugger");
 #endif
 }
+
+static _Noreturn void _usage_error(const char *fmt, ...)
+{
+	usage();
+	puts("");
+
+	va_list ap;
+	va_start(ap, fmt);
+	sys_verror(fmt, ap);
+}
+#define usage_error(fmt, ...) _usage_error("Error: " fmt "\n", ##__VA_ARGS__)
 
 enum {
 	LOPT_HELP = 256,
@@ -369,8 +385,19 @@ enum {
 #endif
 };
 
+static void windows_error_handler(const char *msg)
+{
+	sys_warning("%s", msg);
+	sys_warning("Press any key to exit...\n");
+	getchar();
+	sys_exit(1);
+}
+
 int main(int argc, char *argv[])
 {
+#ifdef _WIN32
+	sys_error_handler = windows_error_handler;
+#endif
 	initialize_instructions();
 	char *ainfile;
 	int err = AIN_SUCCESS;
@@ -464,19 +491,22 @@ int main(int argc, char *argv[])
 	argv += optind;
 
 	if (argc < 1) {
-		config_init_with_dir(".");
+		if (!config_init_with_dir(".")) {
+			if (!config_init_with_dir("../"))
+				usage_error("Failed to find game in current or parent directory");
+		}
 	} else if (argc > 1) {
-		usage();
-		ERROR("Too many arguments");
+		usage_error("Too many arguments");
 	} else if (is_directory(argv[0])) {
-		config_init_with_dir(argv[0]);
+		if (!config_init_with_dir(argv[0]))
+			usage_error("Failed to find game in '%s'", argv[0]);
 	} else if (!strcasecmp(file_extension(argv[0]), "ini")) {
-		config_init_with_ini(argv[0]);
+		if (!config_init_with_ini(argv[0]))
+			usage_error("Failed to read .ini file '%s'", argv[0]);
 	} else if (!strcasecmp(file_extension(argv[0]), "ain")) {
 		config_init_with_ain(argv[0]);
 	} else {
-		usage();
-		ERROR("Can't initialize game with argument '%s'", argv[0]);
+		usage_error("Can't initialize game with argument '%s'", argv[0]);
 	}
 	ainfile = gamedir_path(config.ain_filename);
 
