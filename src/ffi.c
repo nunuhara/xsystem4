@@ -289,6 +289,7 @@ void hll_call(int libno, int fno)
 }
 
 extern struct static_library lib_ACXLoader;
+extern struct static_library lib_ACXLoaderP2;
 extern struct static_library lib_ADVSYS;
 extern struct static_library lib_AliceLogo;
 extern struct static_library lib_AliceLogo2;
@@ -308,6 +309,7 @@ extern struct static_library lib_Confirm3;
 extern struct static_library lib_CrayfishLogViewer;
 extern struct static_library lib_Cursor;
 extern struct static_library lib_Data;
+extern struct static_library lib_DrawField;
 extern struct static_library lib_DataFile;
 extern struct static_library lib_DrawDungeon;
 extern struct static_library lib_DrawDungeon14;
@@ -338,8 +340,10 @@ extern struct static_library lib_MonsterInfo;
 extern struct static_library lib_MsgLogManager;
 extern struct static_library lib_MsgLogViewer;
 extern struct static_library lib_MsgSkip;
+extern struct static_library lib_MusicSystem;
 extern struct static_library lib_OutputLog;
 extern struct static_library lib_PassRegister;
+extern struct static_library lib_PastelChime2;
 extern struct static_library lib_PlayDemo;
 extern struct static_library lib_PlayMovie;
 extern struct static_library lib_ReignEngine;
@@ -357,6 +361,7 @@ extern struct static_library lib_VSFile;
 
 static struct static_library *static_libraries[] = {
 	&lib_ACXLoader,
+	&lib_ACXLoaderP2,
 	&lib_ADVSYS,
 	&lib_AliceLogo,
 	&lib_AliceLogo2,
@@ -376,6 +381,7 @@ static struct static_library *static_libraries[] = {
 	&lib_CrayfishLogViewer,
 	&lib_Cursor,
 	&lib_Data,
+	&lib_DrawField,
 	&lib_DataFile,
 	&lib_DrawDungeon,
 	&lib_DrawDungeon14,
@@ -406,8 +412,10 @@ static struct static_library *static_libraries[] = {
 	&lib_MsgLogManager,
 	&lib_MsgLogViewer,
 	&lib_MsgSkip,
+	&lib_MusicSystem,
 	&lib_OutputLog,
 	&lib_PassRegister,
+	&lib_PastelChime2,
 	&lib_PlayDemo,
 	&lib_PlayMovie,
 	&lib_ReignEngine,

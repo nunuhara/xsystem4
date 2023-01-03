@@ -775,6 +775,8 @@ void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int 
 
 //void SACT2_Debug_Pause(void);
 //void SACT2_Debug_GetFuncStack(struct string **s, int nest);
+//static void SACT2_Key_ClearFlagNoCtrl(void);
+HLL_WARN_UNIMPLEMENTED(, void, SACT2, Key_ClearFlagNoCtrl, void);
 
 int SACT2_SP_SetBrightness(int sp_no, int brightness)
 {
@@ -787,6 +789,7 @@ int SACT2_SP_GetBrightness(int sp_no)
 {
 	return 255;
 }
+
 
 #define SACT_EXPORTS \
 	    HLL_EXPORT(_ModuleFini, sact_ModuleFini), \
@@ -868,6 +871,7 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_EXPORT(Joypad_GetAnalogStickStatus, sact_Joypad_GetAnalogStickStatus), \
 	    HLL_EXPORT(Joypad_GetDigitalStickStatus, sact_Joypad_GetDigitalStickStatus), \
 	    HLL_EXPORT(Key_ClearFlag, sact_Key_ClearFlag), \
+	    HLL_EXPORT(Key_ClearFlagNoCtrl, SACT2_Key_ClearFlagNoCtrl), \
 	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown), \
 	    HLL_EXPORT(Timer_Get, vm_time), \
 	    HLL_EXPORT(CG_IsExist, sact_CG_IsExist), \
