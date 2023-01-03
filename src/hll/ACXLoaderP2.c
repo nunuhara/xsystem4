@@ -121,10 +121,12 @@ static bool ACXLoaderP2_GetDataStruct(int line, struct page **page)
 	return true;
 }
 
-//static bool ACXLoaderP2_GetDataIntByKey();
-//static bool ACXLoaderP2_GetDataStringByKey();
-HLL_WARN_UNIMPLEMENTED(true, bool, ACXLoaderP2, GetDataIntByKey, void);
-HLL_WARN_UNIMPLEMENTED(true, bool, ACXLoaderP2, GetDataStringByKey, void);
+//static bool ACXLoaderP2_GetDataIntByKey(int nKey, int nColumn, int *pnData);
+//static bool ACXLoaderP2_GetDataIntByKey(int nLine, int nColumn, struct string *pIData);
+//static void ACXLoaderP2_GetError(int *nError, struct string *szErrorString);
+HLL_WARN_UNIMPLEMENTED(true, bool, ACXLoaderP2, GetDataIntByKey, int nKey, int nColumn, int *pnData);
+HLL_WARN_UNIMPLEMENTED(true, bool, ACXLoaderP2, GetDataStringByKey, int nLine, int nColumn, struct string *pIData);
+HLL_WARN_UNIMPLEMENTED(true, bool, ACXLoaderP2, GetError, int *nError, struct string *szErrorString);
 
 HLL_LIBRARY(ACXLoaderP2,
 		HLL_EXPORT(Load, ACXLoaderP2_Load),
@@ -135,4 +137,5 @@ HLL_LIBRARY(ACXLoaderP2,
 		HLL_EXPORT(GetDataString, ACXLoaderP2_GetDataString),
 		HLL_EXPORT(GetDataStruct, ACXLoaderP2_GetDataStruct),
 		HLL_EXPORT(GetDataIntByKey, ACXLoaderP2_GetDataIntByKey),
-		HLL_EXPORT(GetDataStringByKey, ACXLoaderP2_GetDataStringByKey));
+		HLL_EXPORT(GetDataStringByKey, ACXLoaderP2_GetDataStringByKey),
+		HLL_EXPORT(GetDataStringByKey, ACXLoaderP2_GetError));

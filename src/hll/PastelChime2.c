@@ -15,18 +15,20 @@
  */
 
 #include "hll.h"
+#include "system4/string.h"
 
-//static void PastelChime2_InitPastelChime2(void);
-//static void PastelChime2_LoadArray(void);
-//static void PastelChime2_LoadStringArray(void);
-//static void PastelChime2_File_Delete(void);
-//static void PastelChime2_SaveStringArray(void);
+//static bool InitPastelChime2(void);
+//static bool LoadArray(struct string file_name, int buf);
+//static bool LoadStringArray(struct string file_name, struct string buf);
+//static bool SaveStringArray(string file_name, struct string buf);
+//static bool File_Delete(struct string file_name);
 
-HLL_WARN_UNIMPLEMENTED(, void, PastelChime2, InitPastelChime2, void);
-HLL_WARN_UNIMPLEMENTED(, void, PastelChime2, LoadArray, void);
-HLL_WARN_UNIMPLEMENTED(, void, PastelChime2, LoadStringArray, void);
-HLL_WARN_UNIMPLEMENTED(, void, PastelChime2, File_Delete, void);
-HLL_WARN_UNIMPLEMENTED(, void, PastelChime2, SaveStringArray, void);
+
+HLL_WARN_UNIMPLEMENTED(true, bool, PastelChime2, InitPastelChime2, void);
+HLL_WARN_UNIMPLEMENTED(false, bool, PastelChime2, LoadArray, struct string file_name, int buf[]);
+HLL_WARN_UNIMPLEMENTED(true, bool, PastelChime2, LoadStringArray, struct string file_name, struct string buf[]);
+HLL_WARN_UNIMPLEMENTED(true, bool, PastelChime2, File_Delete, struct string file_name);
+HLL_WARN_UNIMPLEMENTED(true, bool, PastelChime2, SaveStringArray, struct string file_name, struct string buf[]);
 
 HLL_LIBRARY(PastelChime2,
 	HLL_EXPORT(InitPastelChime2, PastelChime2_InitPastelChime2),

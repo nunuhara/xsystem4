@@ -16,8 +16,8 @@
 
 #include "hll.h"
 
-//static void MusicSystem_SetErrorOutput(void);
-HLL_WARN_UNIMPLEMENTED(, void, MusicSystem, SetErrorOutput, void);
+//static void SetErrorOutput(bool bOutputIDE, bool bErrorMsgBox);
+HLL_WARN_UNIMPLEMENTED(, void, MusicSystem, SetErrorOutput, bool bOutputIDE, bool bErrorMsgBox);
 
 HLL_LIBRARY(MusicSystem,
 	HLL_EXPORT(SetErrorOutput, MusicSystem_SetErrorOutput));
