@@ -37,6 +37,7 @@
 #include "xsystem4.h"
 
 bool dbg_enabled = true;
+bool dbg_start_in_debugger = false;
 unsigned dbg_current_frame = 0;
 static jmp_buf dbg_continuation;
 

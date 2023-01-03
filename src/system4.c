@@ -402,9 +402,6 @@ int main(int argc, char *argv[])
 	char *ainfile;
 	int err = AIN_SUCCESS;
 	bool audit = false;
-#ifdef DEBUGGER_ENABLED
-	bool start_in_debugger = false;
-#endif
 
 	char *font_mincho = NULL;
 	char *font_gothic = NULL;
@@ -482,7 +479,7 @@ int main(int argc, char *argv[])
 			dbg_enabled = false;
 			break;
 		case LOPT_DEBUG:
-			start_in_debugger = true;
+			dbg_start_in_debugger = true;
 			break;
 #endif
 		}
@@ -548,7 +545,7 @@ int main(int argc, char *argv[])
 
 #ifdef DEBUGGER_ENABLED
 	dbg_init();
-	if (start_in_debugger)
+	if (dbg_start_in_debugger)
 		dbg_repl();
 #endif
 

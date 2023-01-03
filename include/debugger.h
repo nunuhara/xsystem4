@@ -46,6 +46,7 @@ struct dbg_cmd {
 };
 
 extern bool dbg_enabled;
+extern bool dbg_start_in_debugger;
 extern unsigned dbg_current_frame;
 
 void dbg_init(void);
