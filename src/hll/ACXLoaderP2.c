@@ -121,11 +121,38 @@ static bool ACXLoaderP2_GetDataStruct(int line, struct page **page)
 	return true;
 }
 
-//static bool ACXLoaderP2_GetDataIntByKey(int nKey, int nColumn, int *pnData);
-//static bool ACXLoaderP2_GetDataIntByKey(int nLine, int nColumn, struct string *pIData);
-//static void ACXLoaderP2_GetError(int *nError, struct string *szErrorString);
-HLL_WARN_UNIMPLEMENTED(true, bool, ACXLoaderP2, GetDataIntByKey, int nKey, int nColumn, int *pnData);
-HLL_WARN_UNIMPLEMENTED(true, bool, ACXLoaderP2, GetDataStringByKey, int nLine, int nColumn, struct string *pIData);
+static bool ACXLoaderP2_GetDataIntByKey(int key, int col, int *ptr)
+{
+	if (!acx)
+		return false;
+	if (col < 0 || col >= acx->nr_columns)
+		return false;
+	for (int line = 0; line < acx->nr_lines; line++) {
+		if (key == acx_get_int(acx, line, 0)) {
+			*ptr = acx_get_int(acx, line, col);
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool ACXLoaderP2_GetDataStringByKey(int key, int col, struct string **ptr)
+{
+	if (!acx)
+		return false;
+	if (col < 0 || col >= acx->nr_columns)
+		return false;
+	for (int line = 0; line < acx->nr_lines; line++) {
+		if (key == acx_get_int(acx, line, 0)) {
+			if (*ptr)
+				free_string(*ptr);
+			*ptr = string_ref(acx_get_string(acx, line, col));
+			return true;
+		}
+	}
+	return false;
+}
+
 HLL_WARN_UNIMPLEMENTED(true, bool, ACXLoaderP2, GetError, int *nError, struct string *szErrorString);
 
 HLL_LIBRARY(ACXLoaderP2,

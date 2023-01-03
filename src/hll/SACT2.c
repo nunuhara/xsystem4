@@ -281,7 +281,11 @@ int sact_SP_CreatePixelOnly(int sp_no, int width, int height)
 	return !!sact_create_sprite(sp_no, width, height, 0, 0, 0, -1);
 }
 
-//int SACT2_SP_CreateCustom(int sp);
+int sact_SP_CreateCustom(int sp_no)
+{
+	sact_create_sprite(sp_no, 1, 1, 0, 0, 0, 255);
+	return 1;
+}
 
 int sact_SP_Delete(int sp_no)
 {
@@ -734,8 +738,13 @@ bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *righ
 
 int sact_Key_ClearFlag(void)
 {
-	key_clear_flag();
+	key_clear_flag(false);
 	return 1;
+}
+
+void sact_Key_ClearFlagNoCtrl(void)
+{
+	key_clear_flag(true);
 }
 
 int sact_Key_IsDown(int keycode)
@@ -818,7 +827,7 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_EXPORT(SP_SaveCG, sact_SP_SaveCG), \
 	    HLL_EXPORT(SP_Create, sact_SP_Create), \
 	    HLL_EXPORT(SP_CreatePixelOnly, sact_SP_CreatePixelOnly), \
-	    HLL_TODO_EXPORT(SP_CreateCustom, SACT2_SP_CreateCustom), \
+	    HLL_EXPORT(SP_CreateCustom, sact_SP_CreateCustom), \
 	    HLL_EXPORT(SP_Delete, sact_SP_Delete), \
 	    HLL_EXPORT(SP_SetPos, sact_SP_SetPos), \
 	    HLL_EXPORT(SP_SetX, sact_SP_SetX), \
@@ -871,7 +880,7 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_EXPORT(Joypad_GetAnalogStickStatus, sact_Joypad_GetAnalogStickStatus), \
 	    HLL_EXPORT(Joypad_GetDigitalStickStatus, sact_Joypad_GetDigitalStickStatus), \
 	    HLL_EXPORT(Key_ClearFlag, sact_Key_ClearFlag), \
-	    HLL_EXPORT(Key_ClearFlagNoCtrl, SACT2_Key_ClearFlagNoCtrl), \
+	    HLL_EXPORT(Key_ClearFlagNoCtrl, sact_Key_ClearFlagNoCtrl), \
 	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown), \
 	    HLL_EXPORT(Timer_Get, vm_time), \
 	    HLL_EXPORT(CG_IsExist, sact_CG_IsExist), \
