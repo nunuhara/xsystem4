@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <math.h>
 #include "hll.h"
 
 //static int DrawField_Init(int nSurface);
@@ -159,7 +160,6 @@
 //static float DrawField_CosDeg(float fDeg);
 //static float DrawField_SinDeg(float fDeg);
 //static float DrawField_TanDeg(float fDeg);
-//static float DrawField_Sqrt(float f);
 //static float DrawField_Atan2(float fY, float fX);
 //static bool DrawField_TransPos2DToPos3DOnPlane(int nSurface, int nScreenX, int nScreenY, float fPlaneY, float *pfX, float *pfY, float *pfZ);
 //static bool DrawField_TransPos3DToPos2D(int nSurace, float fX, float fY, float fZ, int *pnScreenX, int *pnScreenY);
@@ -200,16 +200,19 @@
 //static int DrawField_GetNumofTexSound(int nSurface, int nType);
 
 
+static float DrawField_Sqrt(float f) {
+    return sqrtf(f);
+}
+
 HLL_WARN_UNIMPLEMENTED(0, int, DrawField, Init, int nSurface);
 HLL_WARN_UNIMPLEMENTED(, void, DrawField, Release, int nSurface);
 HLL_WARN_UNIMPLEMENTED(, void, DrawField, SetDrawFlag, int nSurface, int nFlag);
 HLL_WARN_UNIMPLEMENTED(true, bool, DrawField, GetDrawFlag, int nSurface);
-HLL_WARN_UNIMPLEMENTED(, void, DrawField, Sqrt, void);
 
 HLL_LIBRARY(DrawField,
-		HLL_EXPORT(Sqrt, DrawField_Init),
-		HLL_EXPORT(Sqrt, DrawField_Release),
-		HLL_EXPORT(Sqrt, DrawField_SetDrawFlag),
-		HLL_EXPORT(Sqrt, DrawField_GetDrawFlag),
+		HLL_EXPORT(Init, DrawField_Init),
+		HLL_EXPORT(Release, DrawField_Release),
+		HLL_EXPORT(SetDrawFlag, DrawField_SetDrawFlag),
+		HLL_EXPORT(GetDrawFlag, DrawField_GetDrawFlag),
 		HLL_EXPORT(Sqrt, DrawField_Sqrt)
         );
