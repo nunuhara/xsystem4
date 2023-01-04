@@ -316,6 +316,7 @@ extern struct static_library lib_DrawDungeon14;
 extern struct static_library lib_DrawGraph;
 extern struct static_library lib_DrawMovie;
 extern struct static_library lib_DrawMovie2;
+extern struct static_library lib_DrawNumeral;
 extern struct static_library lib_DrawPluginManager;
 extern struct static_library lib_DrawSimpleText;
 extern struct static_library lib_File;
@@ -388,6 +389,7 @@ static struct static_library *static_libraries[] = {
 	&lib_DrawGraph,
 	&lib_DrawMovie,
 	&lib_DrawMovie2,
+	&lib_DrawNumeral,
 	&lib_DrawPluginManager,
 	&lib_DrawSimpleText,
 	&lib_File,
