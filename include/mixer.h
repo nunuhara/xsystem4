@@ -49,6 +49,11 @@ int mixer_set_volume(int n, int volume);
 int mixer_get_mute(int n, int *mute);
 int mixer_set_mute(int n, int mute);
 
+struct sts_mixer_stream_t;
+int mixer_stream_play(struct sts_mixer_stream_t* stream, int volume);
+bool mixer_stream_set_volume(int voice, int volume);
+void mixer_stream_stop(int voice);
+
 struct archive_data;
 struct channel;
 enum asset_type;
