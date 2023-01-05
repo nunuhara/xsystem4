@@ -784,8 +784,6 @@ void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int 
 
 //void SACT2_Debug_Pause(void);
 //void SACT2_Debug_GetFuncStack(struct string **s, int nest);
-//static void SACT2_Key_ClearFlagNoCtrl(void);
-HLL_WARN_UNIMPLEMENTED(, void, SACT2, Key_ClearFlagNoCtrl, void);
 
 int SACT2_SP_SetBrightness(int sp_no, int brightness)
 {
