@@ -28,6 +28,8 @@
 #include "xsystem4.h"
 
 HLL_WARN_UNIMPLEMENTED(true, bool, PastelChime2, InitPastelChime2, void);
+HLL_WARN_UNIMPLEMENTED(false, bool, PastelChime2, DungeonDataToSaveData, int nSaveDataIndex);
+HLL_WARN_UNIMPLEMENTED(false, bool, PastelChime2, DungeonDataFromSaveData, int nSaveDataIndex);
 
 static void PastelChime2_str_erase_found(struct string **s, struct string **key)
 {
@@ -114,4 +116,6 @@ HLL_LIBRARY(PastelChime2,
 	HLL_EXPORT(LoadArray, PastelChime2_LoadArray),
 	HLL_EXPORT(LoadStringArray, PastelChime2_LoadStringArray),
     HLL_EXPORT(File_Delete, PastelChime2_File_Delete),
-    HLL_EXPORT(str_erase_found, PastelChime2_str_erase_found));
+    HLL_EXPORT(str_erase_found, PastelChime2_str_erase_found),
+	HLL_EXPORT(DungeonDataToSaveData, PastelChime2_DungeonDataToSaveData),
+	HLL_EXPORT(DungeonDataFromSaveData, PastelChime2_DungeonDataFromSaveData));
