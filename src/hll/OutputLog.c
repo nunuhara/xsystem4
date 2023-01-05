@@ -14,25 +14,51 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stdio.h>
+#include <string.h>
 
-#include "system4.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
-
 #include "hll.h"
 #include "xsystem4.h"
 
-static void OutputLog_Output(int handle, struct string *s)
+/*
+ * OutputLog is HLL for manipulating log files.
+ * For example, Pastel Chime C++ uses OutputLog HLL to write logs to
+ * Dungeon.log and SACT.log, etc.
+ * Currently, logs are written to standard output only, without creating a log file.
+ */
+
+static int OutputLog_Create(struct string *szName)
 {
-	sys_message("%s", display_sjis0(s->text));
+	return 0;
 }
 
-HLL_WARN_UNIMPLEMENTED(0, int,  OutputLog, Create, struct string *name);
-HLL_WARN_UNIMPLEMENTED( , void, OutputLog, Clear, int handle);
-HLL_WARN_UNIMPLEMENTED(0, int,  OutputLog, Save, int handle, struct string *filename);
-HLL_WARN_UNIMPLEMENTED(0, bool, OutputLog, EnableAutoSave, int handle, struct string *filename);
-HLL_WARN_UNIMPLEMENTED(0, bool, OutputLog, DisableAutoSave, int handle);
+static void OutputLog_Output(int nHandle, struct string *szText)
+{
+	sys_message("%s", display_sjis0(szText->text));
+}
+
+static bool OutputLog_EnableAutoSave(int nHandle, struct string *szFileName)
+{
+	return true;
+}
+
+static bool OutputLog_DisableAutoSave(int nHandle)
+{
+	return true;
+}
+
+static void OutputLog_Clear(int nHandle)
+{
+	return;
+}
+
+static void OutputLog_Save(int nHandle, struct string *szFileName)
+{
+	return;
+}
 
 HLL_LIBRARY(OutputLog,
 	    HLL_EXPORT(Create, OutputLog_Create),
