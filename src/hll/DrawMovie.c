@@ -77,6 +77,11 @@ static int DrawMovie_GetCount(void)
 	return movie_get_position(mc);
 }
 
+static void DrawMovie2_UpdateVolume(void)
+{
+	// Do nothing, as SetInnerVolume immediately takes effect.
+}
+
 HLL_LIBRARY(DrawMovie,
 	    HLL_EXPORT(Release, DrawMovie_Release),
 	    HLL_EXPORT(Load, DrawMovie_Load),
@@ -93,6 +98,8 @@ HLL_LIBRARY(DrawMovie2,
 	    HLL_EXPORT(Run, DrawMovie_Run),
 	    HLL_EXPORT(Draw, DrawMovie_Draw),
 	    HLL_EXPORT(SetVolume, DrawMovie_SetVolume),
+	    HLL_EXPORT(SetInnerVolume, DrawMovie_SetVolume),
+	    HLL_EXPORT(UpdateVolume, DrawMovie2_UpdateVolume),
 	    HLL_EXPORT(IsEnd, DrawMovie_IsEnd),
 	    HLL_EXPORT(GetCount, DrawMovie_GetCount)
 	);
