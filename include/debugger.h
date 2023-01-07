@@ -39,6 +39,7 @@ struct breakpoint {
 struct dbg_cmd {
 	const char *fullname;
 	const char *shortname;
+	const char *arg_description;
 	const char *description;
 	unsigned min_args;
 	unsigned max_args;

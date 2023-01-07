@@ -538,11 +538,11 @@ static void parts_cmd_parts_render(unsigned nr_args, char **args)
 void parts_debug_init(void)
 {
 	struct dbg_cmd cmds[] = {
-		{ "show", NULL, "<parts-no> - Display parts object", 1, 1, parts_cmd_parts },
-		{ "list", NULL, "- Display parts list", 0, 0, parts_cmd_parts_list },
-		{ "save", NULL, "<parts-no> <file-name> - Save parts texture to an image file",
+		{ "show", NULL, "<parts-no>", "Display parts object", 1, 1, parts_cmd_parts },
+		{ "list", NULL, NULL, "Display parts list", 0, 0, parts_cmd_parts_list },
+		{ "save", NULL, "<parts-no> <file-name>", "Save parts texture to an image file",
 			2, 2, parts_cmd_parts_save },
-		{ "render", NULL, "<parts-no> <file-name> - Render parts object to an image file",
+		{ "render", NULL, "<parts-no> <file-name>", "Render parts object to an image file",
 			2, 2, parts_cmd_parts_render },
 	};
 
