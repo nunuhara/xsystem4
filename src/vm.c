@@ -33,6 +33,7 @@
 
 #include "debugger.h"
 #include "little_endian.h"
+#include "input.h"
 #include "savedata.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -567,6 +568,7 @@ static void system_call(enum syscall_code code)
 		break;
 	}
 	case SYS_PEEK: {// system.Peek(void)
+		handle_events();
 		break;
 	}
 	case SYS_SLEEP: {// system.Sleep(int nSleep)
