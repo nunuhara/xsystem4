@@ -385,13 +385,15 @@ enum {
 #endif
 };
 
+#ifdef _WIN32
 static void windows_error_handler(const char *msg)
 {
 	sys_warning("%s", msg);
-	sys_warning("Press any key to exit...\n");
+	sys_warning("Press the enter key to exit...\n");
 	getchar();
 	sys_exit(1);
 }
+#endif
 
 int main(int argc, char *argv[])
 {
