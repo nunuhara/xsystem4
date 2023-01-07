@@ -183,19 +183,31 @@ static void dbg_cmd_scene(unsigned nr_args, char **args)
 
 static void dbg_cmd_next(unsigned nr_args, char **args)
 {
-	if (!dbg_set_step_over_breakpoint())
+	if (!dbg_set_step_over_breakpoint()) {
 		DBG_ERROR("Can't step over this instruction");
-	else
-		stepping = true;
+		return;
+	}
+	stepping = true;
 	dbg_continue();
 }
 
 static void dbg_cmd_step(unsigned nr_args, char **args)
 {
-	if (!dbg_set_step_into_breakpoint())
+	if (!dbg_set_step_into_breakpoint()) {
 		DBG_ERROR("Can't step into this instruction");
-	else
-		stepping = true;
+		return;
+	}
+	stepping = true;
+	dbg_continue();
+}
+
+static void dbg_cmd_finish(unsigned nr_args, char **args)
+{
+	if (!dbg_set_finish_breakpoint()) {
+		DBG_ERROR("Can't set finish breakpoint from this location");
+		return;
+	}
+	stepping = true;
 	dbg_continue();
 }
 
@@ -216,6 +228,7 @@ static struct dbg_cmd dbg_default_commands[] = {
 	{ "backtrace",  "bt",  "- Display stack trace",                  0, 0, dbg_cmd_backtrace },
 	{ "breakpoint", "bp",  "<function-or-address> - Set breakpoint", 1, 1, dbg_cmd_breakpoint },
 	{ "continue",   "c",   "- Resume execution",                     0, 0, dbg_cmd_continue },
+	{ "finish",     "fin", "- Step back to the caller function",     0, 0, dbg_cmd_finish },
 	{ "frame",      "f",   "<frame-number> - Set the current frame", 1, 1, dbg_cmd_frame },
 	{ "locals",     "l",   "[frame-number] - Print local variables", 0, 1, dbg_cmd_locals },
 	{ "log",        NULL,  "<function-name> - Log function calls",   1, 1, dbg_cmd_log },

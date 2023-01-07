@@ -341,6 +341,9 @@ static int32_t dbg_next_address(bool into, int *call_index)
 
 bool dbg_set_step_over_breakpoint(void)
 {
+	if (instr_ptr <= 0)
+		return false;
+
 	int call_index;
 	int32_t address = dbg_next_address(false, &call_index);
 	if (address < 0)
@@ -351,11 +354,27 @@ bool dbg_set_step_over_breakpoint(void)
 
 bool dbg_set_step_into_breakpoint(void)
 {
+	if (instr_ptr <= 0)
+		return false;
+
 	int call_index;
 	int32_t address = dbg_next_address(true, &call_index);
 	if (address < 0)
 		return false;
 	dbg_set_step_breakpoint(address, call_index);
+	return true;
+}
+
+bool dbg_set_finish_breakpoint(void)
+{
+	if (call_stack_ptr < 2)
+		return false;
+
+	int32_t address = call_stack[call_stack_ptr-1].return_address;
+	// XXX: VM_RETURN
+	if (address < 0)
+		return false;
+	dbg_set_step_breakpoint(address, call_stack_ptr - 1);
 	return true;
 }
 
@@ -549,6 +568,9 @@ struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, 
 // Rewind to DASM_REWIND instructions before the current instruction pointer.
 static bool dbg_init_dasm(struct dasm *dasm)
 {
+	if (call_stack_ptr < 1)
+		goto error;
+
 	unsigned addr_i = 0;
 	size_t addr[DASM_REWIND] = {0};
 	int fno = call_stack[call_stack_ptr-1].fno;
@@ -759,6 +781,11 @@ static bool dasm_print_finished(struct dasm *dasm, int dasm_i)
 
 void dbg_print_vm_state(void)
 {
+	if (call_stack_ptr < 1) {
+		DBG_ERROR("VM not running");
+		return;
+	}
+
 	puts("");
 	puts("     Stack           Disassembly");
 	puts("-----------------    -----------");
