@@ -639,6 +639,7 @@ static void dbg_print_local(struct dasm *dasm, int32_t n)
 
 static void dbg_print_arg(struct dasm *dasm, int n)
 {
+	static int hll = 0;
 	int32_t value = dasm_arg(dasm, n);
 	switch (dasm_arg_type(dasm, n)) {
 	case T_INT:
@@ -699,13 +700,20 @@ static void dbg_print_arg(struct dasm *dasm, int n)
 			printf("%s", syscalls[value].name);
 		break;
 	case T_HLL:
-		if (value < 0 || value >= ain->nr_libraries)
+		if (value < 0 || value >= ain->nr_libraries) {
 			printf("<invalid library number: %d>", value);
-		else
+		} else {
 			dbg_print_identifier(ain->libraries[value].name);
+			hll = value;
+		}
 		break;
 	case T_HLLFUNC:
-		printf("%d", value);
+		if (hll < 0 || hll >= ain->nr_libraries)
+			printf("%d", value);
+		else if (value < 0 || value >= ain->libraries[hll].nr_functions)
+			printf("<invalid library function number: %d>", value);
+		else
+			dbg_print_identifier(ain->libraries[hll].functions[value].name);
 		break;
 	case T_FILE:
 		if (!ain->nr_filenames)
