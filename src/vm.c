@@ -506,7 +506,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_EXISTS_FILE: { // system.ExistsFile(string szFileName)
 		int str = stack_pop().i;
-		char *path = unix_path(heap_get_string(str)->text);
+		char *path = gamedir_path(heap_get_string(str)->text);
 		stack_push(file_exists(path));
 		heap_unref(str);
 		free(path);
