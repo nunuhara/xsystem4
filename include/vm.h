@@ -88,8 +88,12 @@ static inline void stack_push_value(union vm_value v)
 #define stack_set(n, v) (stack_set_value((n), vm_value_cast(v)))
 #define stack_push(v) (stack_push_value(vm_value_cast(v)))
 union vm_value stack_pop(void);
+union vm_value stack_peek(int n);
+union vm_value *stack_peek_var(void);
 
+union vm_value local_get(int varno);
 union vm_value global_get(int varno);
+union vm_value member_get(int varno);
 void global_set(int varno, union vm_value val, bool call_dtors);
 struct page *local_page(void);
 struct page *get_local_page(int frame_no);
@@ -117,6 +121,8 @@ _Noreturn void vm_exit(int code);
 	_vm_error("*ERROR*(%s:%s:%d): " fmt "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
 
 #ifdef VM_PRIVATE
+#include "little_endian.h"
+#include "system4/ain.h"
 
 struct function_call {
 	int32_t fno;
@@ -130,6 +136,23 @@ extern struct function_call call_stack[4096];
 extern int32_t call_stack_ptr;
 
 extern size_t instr_ptr;
+
+// Read argument N for the current instruction.
+static inline int32_t get_argument(int n)
+{
+	return LittleEndian_getDW(ain->code, instr_ptr + 2 + n*4);
+}
+
+// XXX: not strictly portable
+static inline float get_argument_float(int n)
+{
+	union vm_value v;
+	v.i = LittleEndian_getDW(ain->code, instr_ptr + 2 + n*4);
+	return v.f;
+}
+
+uint32_t get_switch_address(int no, int val);
+uint32_t get_strswitch_address(int no, struct string *str);
 
 int vm_save_image(const char *key, const char *path);
 void vm_load_image(const char *key, const char *path);

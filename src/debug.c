@@ -114,6 +114,20 @@ static void add_breakpoint(uint32_t addr, struct breakpoint *bp)
 	slot->value = bp;
 }
 
+static void delete_breakpoint(uint32_t addr, struct breakpoint *bp)
+{
+	// restore opcode
+	LittleEndian_putW(ain->code, addr, bp->restore_op);
+
+	// remove from hash table
+	struct ht_slot *slot = ht_put_int(bp_table, addr, NULL);
+	assert(slot->value == bp);
+	slot->value = NULL;
+
+	free(bp->message);
+	free(bp);
+}
+
 static struct breakpoint *get_breakpoint(uint32_t addr)
 {
 	if (!bp_table)
@@ -172,6 +186,176 @@ bool dbg_set_address_breakpoint(uint32_t address, void(*cb)(struct breakpoint*),
 	add_breakpoint(address, bp);
 
 	printf("Set breakpoint at 0x%08x\n", address);
+	return true;
+}
+
+static void dbg_step_breakpoint_cb(struct breakpoint *bp)
+{
+	// XXX: mutually recursive functions could trigger breakpoint early.
+	//      use size of call stack to check for this case
+	if ((intptr_t)bp->data != call_stack_ptr)
+		return;
+	delete_breakpoint(instr_ptr, bp);
+	dbg_cmd_repl();
+}
+
+static void dbg_set_step_breakpoint(int32_t address, int call_index)
+{
+	// if a breakpoint is already set on the next address, leave it
+	enum opcode op = LittleEndian_getW(ain->code, address);
+	if ((op & OPTYPE_MASK) == BREAKPOINT)
+		return;
+
+	struct breakpoint *bp = xcalloc(1, sizeof(struct breakpoint));
+	bp->restore_op = op & ~OPTYPE_MASK;
+	assert(bp->restore_op >= 0 && bp->restore_op < NR_OPCODES);
+	bp->cb = dbg_step_breakpoint_cb;
+	bp->data = (void*)(intptr_t)call_index;
+	bp->message = NULL;
+	LittleEndian_putW(ain->code, address, BREAKPOINT | bp->restore_op);
+	add_breakpoint(address, bp);
+}
+
+static int32_t get_function_address(int fno)
+{
+	assert(fno > 0 && fno < ain->nr_functions);
+	return ain->functions[fno].address;
+}
+
+/* Determine the next address at the current instruction. */
+static int32_t dbg_next_address(bool into, int *call_index)
+{
+	*call_index = call_stack_ptr;
+	enum opcode current = LittleEndian_getW(ain->code, instr_ptr) & ~OPTYPE_MASK;
+	assert(current >= 0 && current < NR_OPCODES);
+	switch (current) {
+	case JUMP:
+		return get_argument(0);
+	case IFZ:
+		if (stack_peek(0).i == 0)
+			return get_argument(0);
+		break;
+	case IFNZ:
+		if (stack_peek(0).i)
+			return get_argument(0);
+		break;
+	case RETURN: {
+		*call_index = call_stack_ptr-1;
+		return call_stack[call_stack_ptr-1].return_address;
+	}
+	case _MSG:
+		if (!into)
+			break;
+		// TODO: step into message function
+		return -1;
+	case SWITCH:
+		return get_switch_address(get_argument(0), stack_peek(0).i);
+	case STRSWITCH:
+		return get_strswitch_address(get_argument(0), heap_get_string(stack_peek(0).i));
+	case SJUMP: {
+		if (!into)
+			break;
+		// XXX: can't determine RETURN address of scenario call (VM_RETURN)
+		return -1;
+		/*
+		int fno = heap[stack_peek(0).i].page->index;
+		return ain->functions[fno].address;
+		*/
+	}
+	case CALLFUNC:
+	case CALLMETHOD:
+	case THISCALLMETHOD_NOPARAM:
+		if (!into)
+			break;
+		*call_index = call_stack_ptr + 1;
+		return get_function_address(get_argument(0));
+	case CALLFUNC2:
+		if (!into)
+			break;
+		*call_index = call_stack_ptr + 1;
+		return get_function_address(stack_peek(1).i);
+	case SH_IF_LOC_LT_IMM:
+		if (local_get(get_argument(0)).i < get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_IF_LOC_GE_IMM:
+		if (local_get(get_argument(0)).i >= get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_IF_STRUCTREF_NE_LOCALREF:
+		if (member_get(get_argument(0)).i != local_get(get_argument(1)).i)
+			return get_argument(2);
+		break;
+	case SH_IF_STRUCTREF_GT_IMM:
+		if (member_get(get_argument(0)).i > get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_STRUCTREF2_CALLMETHOD_NO_PARAM:
+		if (!into)
+			break;
+		*call_index = call_stack_ptr + 1;
+		return get_function_address(get_argument(2));
+	case SH_IF_STRUCTREF_Z:
+		if (!member_get(get_argument(0)).i)
+			return get_argument(1);
+		break;
+	case SH_IF_STRUCT_A_NOT_EMPTY: {
+		struct page *array = heap_get_page(member_get(get_argument(0)).i);
+		if (array && array->nr_vars)
+			return get_argument(1);
+		break;
+	}
+	case SH_IF_LOC_GT_IMM:
+		if (local_get(get_argument(0)).i > get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_IF_STRUCTREF_NE_IMM:
+		if (member_get(get_argument(0)).i != get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_IF_STRUCTREF_EQ_IMM:
+		if (member_get(get_argument(0)).i == get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_IF_SREF_NE_STR0: {
+		struct string *a = heap_get_string(stack_peek_var()->i);
+		struct string *b = ain->strings[get_argument(0)];
+		if (strcmp(a->text, b->text))
+			return get_argument(1);
+		break;
+	}
+	case DG_CALL: {
+		if (!into)
+			return get_argument(1);
+		// XXX: can't determine RETURN address of delegate call (VM_RETURN)
+		return -1;
+	}
+	default:
+		// XXX: catch any unhandled control-flow instructions
+		if (instructions[current].ip_inc == 0)
+			return -1;
+		break;
+	}
+	return instr_ptr + instruction_width(current);
+}
+
+bool dbg_set_step_over_breakpoint(void)
+{
+	int call_index;
+	int32_t address = dbg_next_address(false, &call_index);
+	if (address < 0)
+		return false;
+	dbg_set_step_breakpoint(address, call_index);
+	return true;
+}
+
+bool dbg_set_step_into_breakpoint(void)
+{
+	int call_index;
+	int32_t address = dbg_next_address(true, &call_index);
+	if (address < 0)
+		return false;
+	dbg_set_step_breakpoint(address, call_index);
 	return true;
 }
 

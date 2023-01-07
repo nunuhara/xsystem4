@@ -39,6 +39,7 @@
 #include "xsystem4.h"
 
 struct dbg_cmd_node;
+static bool stepping = false;
 
 struct dbg_cmd_list {
 	unsigned nr_commands;
@@ -75,6 +76,7 @@ static void dbg_cmd_breakpoint(unsigned nr_args, char **args)
 
 static void dbg_cmd_continue(unsigned nr_args, char **args)
 {
+	stepping = false;
 	dbg_continue();
 }
 
@@ -179,6 +181,24 @@ static void dbg_cmd_scene(unsigned nr_args, char **args)
 	scene_print();
 }
 
+static void dbg_cmd_next(unsigned nr_args, char **args)
+{
+	if (!dbg_set_step_over_breakpoint())
+		DBG_ERROR("Can't step over this instruction");
+	else
+		stepping = true;
+	dbg_continue();
+}
+
+static void dbg_cmd_step(unsigned nr_args, char **args)
+{
+	if (!dbg_set_step_into_breakpoint())
+		DBG_ERROR("Can't step into this instruction");
+	else
+		stepping = true;
+	dbg_continue();
+}
+
 #ifdef HAVE_SCHEME
 static void dbg_cmd_scheme(unsigned nr_args, char **args)
 {
@@ -200,9 +220,11 @@ static struct dbg_cmd dbg_default_commands[] = {
 	{ "locals",     "l",   "[frame-number] - Print local variables", 0, 1, dbg_cmd_locals },
 	{ "log",        NULL,  "<function-name> - Log function calls",   1, 1, dbg_cmd_log },
 	{ "members",    "m",   "[frame-number] - Print struct members",  0, 1, dbg_cmd_members },
+	{ "next",       "n",   "- Step to next instruction (in current function)", 0, 0, dbg_cmd_next },
 	{ "print",      "p",   "<variable-name> - Print a variable",     1, 1, dbg_cmd_print },
 	{ "quit",       "q",   "- Quit xsystem4",                        0, 0, dbg_cmd_quit },
 	{ "scene",      NULL,  "- Display scene graph",                  0, 0, dbg_cmd_scene },
+	{ "step",       "s",   "- Step to next instruction",             0, 0, dbg_cmd_step },
 #ifdef HAVE_SCHEME
 	{ "scheme",     "scm", "- Drop into Scheme REPL",                0, 0, dbg_cmd_scheme },
 #endif
@@ -400,7 +422,10 @@ static void execute_line(char *line)
 
 void dbg_cmd_repl(void)
 {
-	puts("Entering the debugger REPL. Type 'help' for a list of commands.");
+	if (stepping)
+		dbg_print_vm_state();
+	else
+		puts("Entering the debugger REPL. Type 'help' for a list of commands.");
 	while (1) {
 		char *line = cmd_gets();
 		if (line)
