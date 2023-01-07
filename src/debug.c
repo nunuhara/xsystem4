@@ -737,44 +737,62 @@ static void dbg_print_instruction(struct dasm *dasm)
 		putchar(' ');
 		dbg_print_arg(dasm, i);
 	}
-	putchar('\n');
 }
 
-void dbg_print_dasm(void)
+static bool stack_print_finished(int stack_i)
 {
+	return stack_i >= stack_ptr;
+}
+
+static bool dasm_print_finished(struct dasm *dasm, int dasm_i)
+{
+	if (dasm_eof(dasm))
+		return true;
+	if (dasm_addr(dasm) < instr_ptr)
+		return false;
+	if (dasm_i < DASM_FWD)
+		return false;
+	return true;
+}
+
+#define STACK_MAX (DASM_REWIND + DASM_FWD)
+
+void dbg_print_vm_state(void)
+{
+	puts("");
+	puts("     Stack           Disassembly");
+	puts("-----------------    -----------");
+
 	struct dasm dasm;
 	if (!dbg_init_dasm(&dasm))
 		return;
 
-	for (; dasm_addr(&dasm) < instr_ptr && !dasm_eof(&dasm); dasm_next(&dasm)) {
-		dbg_print_instruction(&dasm);
-	}
-
-	for (int i = 0; i < DASM_FWD && !dasm_eof(&dasm); dasm_next(&dasm), i++) {
-		dbg_print_instruction(&dasm);
-	}
-}
-
-#define STACK_MAX 16
-
-void dbg_print_stack(void)
-{
-	int i = 0;
+	int stack_i = 0;
 	if (stack_ptr > STACK_MAX)
-		i = stack_ptr - STACK_MAX;
+		stack_i = stack_ptr - STACK_MAX;
 
-	for (; i < stack_ptr; i++) {
-		printf(" [%d]: 0x%08x\n", i, stack[i].i);
+	int dasm_i = 0;
+	while (!stack_print_finished(stack_i) || !dasm_print_finished(&dasm, dasm_i)) {
+		// print stack line
+		if (stack_i < stack_ptr) {
+			printf(" [%02d]: 0x%08x  ", stack_i, stack[stack_i].i);
+			stack_i++;
+		} else {
+			printf("                   ");
+		}
+
+		// print disassembly line
+		if (!dasm_print_finished(&dasm, dasm_i)) {
+			if (dasm_addr(&dasm) >= instr_ptr)
+				dasm_i++;
+			dbg_print_instruction(&dasm);
+			// XXX: stop printing at ENDFUNC
+			if (dasm_instruction(&dasm)->opcode == ENDFUNC) {
+				dasm.addr = dasm.ain->code_size;
+			}
+			dasm_next(&dasm);
+		}
+
+		putchar('\n');
 	}
-}
-
-void dbg_print_vm_state(void)
-{
-	puts(" Disassembly");
-	puts(" -----------");
-	dbg_print_dasm();
-	puts("");
-	puts(" Stack");
-	puts(" -----");
-	dbg_print_stack();
 }
