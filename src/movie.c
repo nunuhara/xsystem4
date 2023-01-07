@@ -115,6 +115,12 @@ struct movie_context *movie_load(const char *filename)
 		movie_free(mc);
 		return NULL;
 	}
+	if (!plm_has_headers(mc->plm)) {
+		WARNING("%s: not a MPEG-PS file", path);
+		free(path);
+		movie_free(mc);
+		return NULL;
+	}
 	free(path);
 
 	if (!movie_shader.program)
