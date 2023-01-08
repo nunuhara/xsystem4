@@ -158,7 +158,11 @@ static bool SystemService_GetMouseCursorConfig(int type, int *value)
 
 //bool SystemService_RunProgram(struct string *program_file_name, struct string *parameter);
 //bool SystemService_IsOpenedMutex(struct string *mutex_name);
-//void SystemService_GetGameFolderPath(struct string **folder_path);
+
+void SystemService_GetGameFolderPath(struct string **folder_path)
+{
+	*folder_path = make_string(config.game_dir, strlen(config.game_dir));
+}
 
 static void SystemService_GetTime(int *hour, int *min, int *sec)
 {
@@ -212,7 +216,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(GetMouseCursorConfig, SystemService_GetMouseCursorConfig),
 	    HLL_TODO_EXPORT(RunProgram, SystemService_RunProgram),
 	    HLL_TODO_EXPORT(IsOpenedMutex, SystemService_IsOpenedMutex),
-	    HLL_TODO_EXPORT(GetGameFolderPath, SystemService_GetGameFolderPath),
+	    HLL_EXPORT(GetGameFolderPath, SystemService_GetGameFolderPath),
 	    HLL_EXPORT(GetDate, get_date),
 	    HLL_EXPORT(GetTime, SystemService_GetTime),
 	    HLL_TODO_EXPORT(IsResetOnce, SystemService_IsResetOnce),
