@@ -159,16 +159,16 @@ static void dbg_cmd_members(unsigned nr_args, char **args)
 
 static void dbg_cmd_print(unsigned nr_args, char **args)
 {
-	union vm_value value;
-	struct ain_variable *var = dbg_get_variable(args[0], &value);
-	if (var) {
-		struct string *v = dbg_value_to_string(&var->type, value, 1);
-		printf("%s\n", display_sjis0(v->text));
-		free_string(v);
+	int recursive = nr_args == 2 ? atoi(args[1]) : 2;
+
+	struct ain_type type;
+	union vm_value value = dbg_eval_string(args[0], &type);
+	if (type.data == AIN_VOID)
 		return;
-	}
-	// TODO: print functions, etc.
-	DBG_ERROR("Undefined variable: %s", args[0]);
+
+	struct string *str = dbg_value_to_string(&type, value, recursive);
+	printf("%s\n", display_sjis0(str->text));
+	free_string(str);
 }
 
 static void dbg_cmd_quit(unsigned nr_args, char **args)
@@ -234,7 +234,7 @@ static struct dbg_cmd dbg_default_commands[] = {
 	{ "log", NULL, "<function-name>", "Log function calls", 1, 1, dbg_cmd_log },
 	{ "members", "m", "[frame-number]", "Print struct members", 0, 1, dbg_cmd_members },
 	{ "next", "n", NULL, "Step to the next instruction within the current function", 0, 0, dbg_cmd_next },
-	{ "print", "p", "<variable-name>", "Print a variable", 1, 1, dbg_cmd_print },
+	{ "print", "p", "<variable-name> [recursion-depth]", "Print a variable", 1, 2, dbg_cmd_print },
 	{ "quit", "q", NULL, "Quit xsystem4", 0, 0, dbg_cmd_quit },
 	{ "scene", NULL, NULL, "Display scene graph", 0, 0, dbg_cmd_scene },
 	{ "step", "s", NULL, "Step to the next instruction", 0, 0, dbg_cmd_step },
