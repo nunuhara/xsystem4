@@ -1499,11 +1499,11 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case S_MOD: {
-		stack_pop(); // ???
+		int type = stack_pop().i;
 		union vm_value val = stack_pop();
 		int fmt = stack_pop().i;
 		int dst = heap_alloc_slot(VM_STRING);
-		heap[dst].s = string_format(heap[fmt].s, val);
+		heap[dst].s = string_format(heap[fmt].s, val, type + 8);
 		heap_unref(fmt);
 		stack_push(dst);
 		break;

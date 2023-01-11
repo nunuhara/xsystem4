@@ -73,6 +73,7 @@ void test_strings(void)
 	test_string("abc%4Ddef % 42", "abc%4Ddef" % 42, "abc@@‚S‚Qdef");
 	test_string("abc%04Ddef % 42", "abc%04Ddef" % 42, "abc‚O‚O‚S‚Qdef");
 	test_string("\"%d %d\" % 42 % 43", "%d %d" % 42 % 43, "42 43");
+	test_string("%s %d % 42", "%s %d" % 42, "%s 42");
 	// float
 	test_string("abc%fdef % 12.3", "abc%fdef" % 12.3, "abc12.300000def");
 	test_string("abc%.2fdef % 12.3", "abc%.2fdef" % 12.3, "abc12.30def");

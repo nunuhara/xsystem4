@@ -960,7 +960,7 @@ bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_tim
 static struct cg *load_loop_cg_by_name(int no, void *data)
 {
 	int unused_no;
-	struct string *cg_name = string_format((struct string*)data, (union vm_value){.i=no});
+	struct string *cg_name = string_format((struct string*)data, (union vm_value){.i=no}, AIN_INT);
 	struct cg *cg = asset_cg_load_by_name(cg_name->text, &unused_no);
 	free_string(cg_name);
 	return cg;
