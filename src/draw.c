@@ -729,6 +729,8 @@ void gfx_copy_stretch_blend_amap_alpha(struct texture *dst, int dx, int dy, int 
 // FIXME: this doesn't work correctly when the src rectangle crosses the edge of the CG.
 static void copy_rot_zoom(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag, Shader *shader)
 {
+	w = min(w, src->w - sx);
+	h = min(h, src->h - sy);
 	// 1. scale src vertices to texture size
 	// 2. translate so that center point of copy region is at origin
 	// 3. rotate
