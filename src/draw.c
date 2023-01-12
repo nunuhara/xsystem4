@@ -773,15 +773,17 @@ void gfx_copy_rot_zoom_use_amap(Texture *dst, Texture *src, int sx, int sy, int 
 static void copy_rotate_y(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag, Shader *shader)
 {
 	Texture *src = front;
+	vec3 scale = { src->w * mag, src->h * mag, 0 };
 	if (rot > 90.0 && rot <= 270.0) {
 		src = back;
+		scale[0] *= -1.0f;
 	}
 
 	gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 0);
 
 	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
 	glm_rotate_y(mw_transform, rot * (M_PI/180.0), mw_transform);
-	glm_scale(mw_transform, (vec3){ src->w * mag, src->h * mag, 0 });
+	glm_scale(mw_transform, scale);
 	glm_translate(mw_transform, (vec3){ -0.5, -0.5, 0});
 
 	mat4 proj_transform;
