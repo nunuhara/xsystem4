@@ -21,6 +21,7 @@
 
 #include "little_endian.h"
 #include "system4/buffer.h"
+#include "system4/file.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -55,7 +56,7 @@ static struct buffer *ts3m_read_buf;
 static FILE *open_and_read_header(struct ts3m_header *header)
 {
 	char *path = gamedir_path("Data/Toushin3Map.dat");
-	FILE *fp = fopen(path, "rb");
+	FILE *fp = file_open_utf8(path, "rb");
 	free(path);
 
 	uint8_t buf[28];
