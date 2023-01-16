@@ -15,10 +15,14 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 #include <SDL.h>
 
 #include "system4.h"
+#include "system4/file.h"
 
 #include "gfx/gfx.h"
 #include "movie.h"
@@ -108,13 +112,14 @@ struct movie_context *movie_load(const char *filename)
 {
 	struct movie_context *mc = xcalloc(1, sizeof(struct movie_context));
 	char *path = gamedir_path(filename);
-	mc->plm = plm_create_with_filename(path);
-	if (!mc->plm) {
-		WARNING("Couldn't open %s", path);
+	FILE *fp = file_open_utf8(path, "rb");
+	if (!fp) {
+		WARNING("%s: %s", path, strerror(errno));
 		free(path);
 		movie_free(mc);
 		return NULL;
 	}
+	mc->plm = plm_create_with_file(fp, TRUE);
 	if (!plm_has_headers(mc->plm)) {
 		WARNING("%s: not a MPEG-PS file", path);
 		free(path);
