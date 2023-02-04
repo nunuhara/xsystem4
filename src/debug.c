@@ -114,6 +114,20 @@ static void add_breakpoint(uint32_t addr, struct breakpoint *bp)
 	slot->value = bp;
 }
 
+static void delete_breakpoint(uint32_t addr, struct breakpoint *bp)
+{
+	// restore opcode
+	LittleEndian_putW(ain->code, addr, bp->restore_op);
+
+	// remove from hash table
+	struct ht_slot *slot = ht_put_int(bp_table, addr, NULL);
+	assert(slot->value == bp);
+	slot->value = NULL;
+
+	free(bp->message);
+	free(bp);
+}
+
 static struct breakpoint *get_breakpoint(uint32_t addr)
 {
 	if (!bp_table)
@@ -175,6 +189,195 @@ bool dbg_set_address_breakpoint(uint32_t address, void(*cb)(struct breakpoint*),
 	return true;
 }
 
+static void dbg_step_breakpoint_cb(struct breakpoint *bp)
+{
+	// XXX: mutually recursive functions could trigger breakpoint early.
+	//      use size of call stack to check for this case
+	if ((intptr_t)bp->data != call_stack_ptr)
+		return;
+	delete_breakpoint(instr_ptr, bp);
+	dbg_cmd_repl();
+}
+
+static void dbg_set_step_breakpoint(int32_t address, int call_index)
+{
+	// if a breakpoint is already set on the next address, leave it
+	enum opcode op = LittleEndian_getW(ain->code, address);
+	if ((op & OPTYPE_MASK) == BREAKPOINT)
+		return;
+
+	struct breakpoint *bp = xcalloc(1, sizeof(struct breakpoint));
+	bp->restore_op = op & ~OPTYPE_MASK;
+	assert(bp->restore_op >= 0 && bp->restore_op < NR_OPCODES);
+	bp->cb = dbg_step_breakpoint_cb;
+	bp->data = (void*)(intptr_t)call_index;
+	bp->message = NULL;
+	LittleEndian_putW(ain->code, address, BREAKPOINT | bp->restore_op);
+	add_breakpoint(address, bp);
+}
+
+static int32_t get_function_address(int fno)
+{
+	assert(fno > 0 && fno < ain->nr_functions);
+	return ain->functions[fno].address;
+}
+
+/* Determine the next address at the current instruction. */
+static int32_t dbg_next_address(bool into, int *call_index)
+{
+	*call_index = call_stack_ptr;
+	enum opcode current = LittleEndian_getW(ain->code, instr_ptr) & ~OPTYPE_MASK;
+	assert(current >= 0 && current < NR_OPCODES);
+	switch (current) {
+	case JUMP:
+		return get_argument(0);
+	case IFZ:
+		if (stack_peek(0).i == 0)
+			return get_argument(0);
+		break;
+	case IFNZ:
+		if (stack_peek(0).i)
+			return get_argument(0);
+		break;
+	case RETURN: {
+		*call_index = call_stack_ptr-1;
+		return call_stack[call_stack_ptr-1].return_address;
+	}
+	case _MSG:
+		if (!into)
+			break;
+		// TODO: step into message function
+		return -1;
+	case SWITCH:
+		return get_switch_address(get_argument(0), stack_peek(0).i);
+	case STRSWITCH:
+		return get_strswitch_address(get_argument(0), heap_get_string(stack_peek(0).i));
+	case SJUMP: {
+		if (!into)
+			break;
+		// XXX: can't determine RETURN address of scenario call (VM_RETURN)
+		return -1;
+		/*
+		int fno = heap[stack_peek(0).i].page->index;
+		return ain->functions[fno].address;
+		*/
+	}
+	case CALLFUNC:
+	case CALLMETHOD:
+	case THISCALLMETHOD_NOPARAM:
+		if (!into)
+			break;
+		*call_index = call_stack_ptr + 1;
+		return get_function_address(get_argument(0));
+	case CALLFUNC2:
+		if (!into)
+			break;
+		*call_index = call_stack_ptr + 1;
+		return get_function_address(stack_peek(1).i);
+	case SH_IF_LOC_LT_IMM:
+		if (local_get(get_argument(0)).i < get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_IF_LOC_GE_IMM:
+		if (local_get(get_argument(0)).i >= get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_IF_STRUCTREF_NE_LOCALREF:
+		if (member_get(get_argument(0)).i != local_get(get_argument(1)).i)
+			return get_argument(2);
+		break;
+	case SH_IF_STRUCTREF_GT_IMM:
+		if (member_get(get_argument(0)).i > get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_STRUCTREF2_CALLMETHOD_NO_PARAM:
+		if (!into)
+			break;
+		*call_index = call_stack_ptr + 1;
+		return get_function_address(get_argument(2));
+	case SH_IF_STRUCTREF_Z:
+		if (!member_get(get_argument(0)).i)
+			return get_argument(1);
+		break;
+	case SH_IF_STRUCT_A_NOT_EMPTY: {
+		struct page *array = heap_get_page(member_get(get_argument(0)).i);
+		if (array && array->nr_vars)
+			return get_argument(1);
+		break;
+	}
+	case SH_IF_LOC_GT_IMM:
+		if (local_get(get_argument(0)).i > get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_IF_STRUCTREF_NE_IMM:
+		if (member_get(get_argument(0)).i != get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_IF_STRUCTREF_EQ_IMM:
+		if (member_get(get_argument(0)).i == get_argument(1))
+			return get_argument(2);
+		break;
+	case SH_IF_SREF_NE_STR0: {
+		struct string *a = heap_get_string(stack_peek_var()->i);
+		struct string *b = ain->strings[get_argument(0)];
+		if (strcmp(a->text, b->text))
+			return get_argument(1);
+		break;
+	}
+	case DG_CALL: {
+		if (!into)
+			return get_argument(1);
+		// XXX: can't determine RETURN address of delegate call (VM_RETURN)
+		return -1;
+	}
+	default:
+		// XXX: catch any unhandled control-flow instructions
+		if (instructions[current].ip_inc == 0)
+			return -1;
+		break;
+	}
+	return instr_ptr + instruction_width(current);
+}
+
+bool dbg_set_step_over_breakpoint(void)
+{
+	if (instr_ptr <= 0)
+		return false;
+
+	int call_index;
+	int32_t address = dbg_next_address(false, &call_index);
+	if (address < 0)
+		return false;
+	dbg_set_step_breakpoint(address, call_index);
+	return true;
+}
+
+bool dbg_set_step_into_breakpoint(void)
+{
+	if (instr_ptr <= 0)
+		return false;
+
+	int call_index;
+	int32_t address = dbg_next_address(true, &call_index);
+	if (address < 0)
+		return false;
+	dbg_set_step_breakpoint(address, call_index);
+	return true;
+}
+
+bool dbg_set_finish_breakpoint(void)
+{
+	if (call_stack_ptr < 2)
+		return false;
+
+	int32_t address = call_stack[call_stack_ptr-1].return_address;
+	// XXX: VM_RETURN
+	if (address < 0)
+		return false;
+	dbg_set_step_breakpoint(address, call_stack_ptr - 1);
+	return true;
+}
+
 static void _dbg_handle_breakpoint(void *data)
 {
 	struct breakpoint *bp = data;
@@ -216,25 +419,92 @@ void dbg_print_stack_trace(void)
 	}
 }
 
-struct ain_variable *dbg_get_member(const char *name, union vm_value *val_out)
+struct parse_object {
+	struct string *ident;
+	int index;
+};
+
+static void free_parse_objects(struct parse_object *objects, unsigned n)
 {
-	struct page *page = get_struct_page(dbg_current_frame);
-	if (!page)
-		return NULL;
-	assert(page->type == STRUCT_PAGE);
-	assert(page->index >= 0 && page->index < ain->nr_structures);
-	struct ain_struct *s = &ain->structures[page->index];
-	assert(page->nr_vars == s->nr_members);
-	for (int i = 0; i < s->nr_members; i++) {
-		if (!strcmp(s->members[i].name, name)) {
-			*val_out = page->values[i];
-			return &s->members[i];
-		}
+	for (unsigned i = 0; i < n; i++) {
+		free_string(objects[i].ident);
 	}
+	free(objects);
+}
+
+static struct parse_object *dbg_parse_expression(const char *expr, unsigned *nr_out)
+{
+	struct parse_object *objects = NULL;
+	unsigned nr_objects = 0;
+
+	// split on '.' character
+	int start = 0;
+	for (int i = 0; ; i++) {
+		if (expr[i] && expr[i] != '.')
+			continue;
+		// FIXME: allow leading and trailing whitespace
+		struct string *name = make_string(expr+start, i - start);
+		objects = xrealloc_array(objects, nr_objects, nr_objects+1, sizeof(struct parse_object));
+		objects[nr_objects++] = (struct parse_object) {
+			.ident = name,
+			.index = -1
+		};
+		start = i + 1;
+		if (!expr[i])
+			break;
+	}
+
+	// parse array subscripts
+	for (unsigned i = 0; i < nr_objects; i++) {
+		struct string *s = objects[i].ident;
+		// catch ".."
+		if (!s->size) {
+			DBG_ERROR("Empty variable name");
+			goto error;
+		}
+
+		// get location of subscript
+		char *p = strchr(s->text, '[');
+		if (!p)
+			continue;
+
+		// catch text following subscript
+		if (s->text[s->size - 1] != ']') {
+			DBG_ERROR("Text after array subscript: '%s'", s->text);
+			goto error;
+		}
+
+		// get subscript
+		unsigned p_i = p - s->text;
+		struct string *subscript = make_string(p+1, s->size - (p_i + 2));
+		struct ain_type subscript_type;
+		union vm_value value = dbg_eval_string(subscript->text, &subscript_type);
+		free_string(subscript);
+
+		// check subscript
+		if (subscript_type.data != AIN_INT) {
+			DBG_ERROR("Array subscript is not an integer");
+			goto error;
+		}
+		if (value.i < 0) {
+			DBG_ERROR("Negative array subscript");
+			goto error;
+		}
+
+		objects[i].index = value.i;
+
+		s->text[p_i] = '\0';
+		s->size = p_i;
+	}
+
+	*nr_out = nr_objects;
+	return objects;
+error:
+	free_parse_objects(objects, nr_objects);
 	return NULL;
 }
 
-struct ain_variable *dbg_get_local(const char *name, union vm_value *val_out)
+static struct ain_variable *dbg_get_local(const char *name, union vm_value *val_out)
 {
 	struct page *page = get_local_page(dbg_current_frame);
 	if (!page)
@@ -251,7 +521,7 @@ struct ain_variable *dbg_get_local(const char *name, union vm_value *val_out)
 	return NULL;
 }
 
-struct ain_variable *dbg_get_global(const char *name, union vm_value *val_out)
+static struct ain_variable *dbg_get_global(const char *name, union vm_value *val_out)
 {
 	for (int i = 0; i < ain->nr_globals; i++) {
 		if (!strcmp(ain->globals[i].name, name)) {
@@ -262,19 +532,247 @@ struct ain_variable *dbg_get_global(const char *name, union vm_value *val_out)
 	return NULL;
 }
 
-struct ain_variable *dbg_get_variable(const char *name, union vm_value *val_out)
+static union vm_value dbg_eval_subscript(struct parse_object *object, union vm_value value,
+		struct ain_type *type)
 {
-	struct ain_variable *var;
-	if (!strncmp(name, "this.", 5) && (var = dbg_get_member(name+5, val_out)))
-		return var;
-	if ((var = dbg_get_local(name, val_out)))
-		return var;
-	if ((var = dbg_get_global(name, val_out)))
-		return var;
-	return NULL;
+	if (object->index < 0)
+		return value;
+	switch (type->data) {
+	case AIN_ARRAY_TYPE:
+		break;
+	default:
+		DBG_ERROR("Array subscript given for non-array: '%s'", object->ident->text);
+		goto error;
+		break;
+	}
+
+	struct page *page = heap_get_page(value.i);
+	assert(page && page->type == ARRAY_PAGE);
+	if (object->index >= page->nr_vars) {
+		DBG_ERROR("Array subscript out of bounds: %d (size=%d)", object->index, page->nr_vars);
+		goto error;
+	}
+
+	if (page->array.rank > 1) {
+		type->rank--;
+	} else {
+		type->data = array_type(page->index);
+		type->struc = page->array.struct_type;
+		type->rank = 0;
+	}
+	return page->values[object->index];
+
+error:
+	type->data = AIN_VOID;
+	return (union vm_value) { .i = 0 };
 }
 
-struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, int recursive)
+static union vm_value dbg_eval_object(struct parse_object *object, struct ain_type *type_out)
+{
+	if (!strcmp(object->ident->text, "this")) {
+		int32_t page_i = call_stack[call_stack_ptr-1].struct_page;
+		if (page_i < 0) {
+			DBG_ERROR("'this' used outside of method");
+			goto error;
+		}
+		struct page *page = heap_get_page(page_i);
+		assert(page && page->type == STRUCT_PAGE);
+		assert(page->index >= 0 && page->index < ain->nr_structures);
+		type_out->data = AIN_STRUCT;
+		type_out->struc = page->index;
+		type_out->rank = 0;
+		return dbg_eval_subscript(object, (union vm_value){.i=page_i}, type_out);
+	}
+
+	char *endptr;
+	long i = strtol(object->ident->text, &endptr, 0);
+	if (*endptr == '\0') {
+		type_out->data = AIN_INT;
+		type_out->struc = -1;
+		type_out->rank = 0;
+		return (union vm_value) { .i = i };
+	}
+
+	union vm_value value;
+	struct ain_variable *var;
+	if ((var = dbg_get_local(object->ident->text, &value))) {
+		*type_out = var->type;
+		return dbg_eval_subscript(object, value, type_out);
+	}
+	if ((var = dbg_get_global(object->ident->text, &value))) {
+		*type_out = var->type;
+		return dbg_eval_subscript(object, value, type_out);
+	}
+	DBG_ERROR("Unbound variable: '%s'", object->ident->text);
+error:
+	type_out->data = AIN_VOID;
+	return (union vm_value) { .i = 0 };
+}
+
+static union vm_value dbg_eval_member(struct parse_object *object, union vm_value value,
+		struct ain_type *type)
+{
+	if (type->data != AIN_STRUCT) {
+		DBG_ERROR("Attempt to access member '%s' in non-struct", object->ident->text);
+		goto error;
+	}
+
+	// get struct page
+	struct page *page = heap_get_page(value.i);
+	assert(page && page->type == STRUCT_PAGE);
+	assert(page->index >= 0 && page->index < ain->nr_structures);
+	assert(page->index == type->struc);
+	struct ain_struct *struc = &ain->structures[page->index];
+
+	// get index of member
+	int index = -1;
+	for (int i = 0; i < struc->nr_members; i++) {
+		if (!strcmp(struc->members[i].name, object->ident->text)) {
+			index = i;
+			break;
+		}
+	}
+	if (index < 0) {
+		DBG_ERROR("Member '%s' does not exist in struct %s", object->ident->text,
+				struc->name);
+		goto error;
+	}
+
+	*type = struc->members[index].type;
+	return dbg_eval_subscript(object, page->values[index], type);
+error:
+	type->data = AIN_VOID;
+	return (union vm_value) { .i = 0 };
+}
+
+static union vm_value dbg_eval_expression(struct parse_object *objects, unsigned nr_objects,
+		struct ain_type *type_out)
+{
+	if (nr_objects < 1) {
+		DBG_ERROR("Empty expression");
+		goto error;
+	}
+
+	struct ain_type type;
+	union vm_value value = dbg_eval_object(&objects[0], &type);
+	if (type.data == AIN_VOID)
+		goto error;
+
+	for (unsigned i = 1; i < nr_objects; i++) {
+		value = dbg_eval_member(&objects[i], value, &type);
+		if (type.data == AIN_VOID)
+			goto error;
+	}
+
+	*type_out = type;
+	return value;
+error:
+	type_out->data = AIN_VOID;
+	return (union vm_value) { .i = 0 };
+}
+
+union vm_value dbg_eval_string(const char *str, struct ain_type *type_out)
+{
+	// parse string
+	unsigned nr_objects;
+	struct parse_object *objects = dbg_parse_expression(str, &nr_objects);
+	if (!objects) {
+		type_out->data = AIN_VOID;
+		return (union vm_value) { .i = 0 };
+	}
+
+	// evaluate parsed expression
+	union vm_value value = dbg_eval_expression(objects, nr_objects, type_out);
+	free_parse_objects(objects, nr_objects);
+	return value;
+}
+
+static void dbg_indent(struct string **s, int indent_level)
+{
+	for (int i = 0; i < indent_level; i++) {
+		string_append_cstr(s, "\t", 1);
+	}
+}
+static struct string *_dbg_value_to_string(struct ain_type *type, union vm_value value,
+		int recursive, int indent);
+
+static struct string *dbg_string_to_string(struct string *str)
+{
+	struct string *out = cstr_to_string("\"");
+	string_append(&out, str);
+	string_push_back(&out, '"');
+	return out;
+}
+
+static struct string *dbg_struct_to_string(struct ain_type *type, union vm_value value,
+		int recursive, int indent)
+{
+	if (value.i < 0)
+		return cstr_to_string("NULL");
+
+	struct page *page = heap_get_page(value.i);
+	if (page->nr_vars == 0)
+		return cstr_to_string("{}");
+	if (!recursive)
+		return cstr_to_string("{ <...> }");
+
+	struct string *out = cstr_to_string("{\n");
+	for (int i = 0; i < page->nr_vars; i++) {
+		struct ain_variable *m = &ain->structures[type->struc].members[i];
+		dbg_indent(&out, indent + 1);
+		string_append_cstr(&out, m->name, strlen(m->name));
+		string_append_cstr(&out, " = ", 3);
+		struct string *tmp = _dbg_value_to_string(&m->type, page->values[i],
+				recursive - 1, indent + 1);
+		string_append(&out, tmp);
+		free_string(tmp);
+		string_append_cstr(&out, ";\n", 2);
+	}
+	dbg_indent(&out, indent);
+	string_push_back(&out, '}');
+	return out;
+}
+
+static struct string *dbg_array_to_string(struct ain_type *type, union vm_value value,
+		int recursive, int indent)
+{
+	if (value.i < 0)
+		return cstr_to_string("[]");
+	struct page *page = heap_get_page(value.i);
+	if (!page || page->nr_vars == 0) {
+		return cstr_to_string("[]");
+	}
+	// get member type
+	struct ain_type t;
+	t.data = variable_type(page, 0, &t.struc, &t.rank);
+	t.array_type = NULL;
+	if (!recursive) {
+		switch (t.data) {
+		case AIN_STRUCT:
+		case AIN_REF_STRUCT:
+		case AIN_ARRAY_TYPE:
+		case AIN_REF_ARRAY_TYPE:
+			return cstr_to_string("[ <...> ]");
+		default:
+			break;
+		}
+	}
+	struct string *out = cstr_to_string("[\n");
+	for (int i = 0; i < page->nr_vars; i++) {
+		dbg_indent(&out, indent + 1);
+		struct string *tmp = _dbg_value_to_string(&t, page->values[i],
+				recursive - 1, indent + 1);
+		string_append(&out, tmp);
+		free_string(tmp);
+		string_append_cstr(&out, ";\n", 2);
+	}
+	dbg_indent(&out, indent);
+	string_push_back(&out, ']');
+	return out;
+}
+
+static struct string *_dbg_value_to_string(struct ain_type *type, union vm_value value,
+		int recursive, int indent)
 {
 	switch (type->data) {
 	case AIN_INT:
@@ -284,77 +782,24 @@ struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, 
 		return float_to_string(value.f, 6);
 	case AIN_BOOL:
 		return cstr_to_string(value.i ? "true" : "false");
-	case AIN_STRING: {
-		struct string *out = cstr_to_string("\"");
-		string_append(&out, heap_get_string(value.i));
-		string_push_back(&out, '"');
-		return out;
-	}
+	case AIN_STRING:
+		return dbg_string_to_string(heap_get_string(value.i));
 	case AIN_STRUCT:
-	case AIN_REF_STRUCT: {
-		if (value.i < 0)
-			return cstr_to_string("NULL");
-		struct page *page = heap_get_page(value.i);
-		if (page->nr_vars == 0) {
-			return cstr_to_string("{}");
-		}
-		if (!recursive) {
-			return cstr_to_string("{ <...> }");
-		}
-		struct string *out = cstr_to_string("{ ");
-		for (int i = 0; i < page->nr_vars; i++) {
-			struct ain_variable *m = &ain->structures[type->struc].members[i];
-			if (i) {
-				string_append_cstr(&out, "; ", 2);
-			}
-			string_append_cstr(&out, m->name, strlen(m->name));
-			string_append_cstr(&out, " = ", 3);
-			struct string *tmp = dbg_value_to_string(&m->type, page->values[i], recursive-1);
-			string_append(&out, tmp);
-			free_string(tmp);
-		}
-		string_append_cstr(&out, " }", 2);
-		return out;
-	}
+	case AIN_REF_STRUCT:
+		return dbg_struct_to_string(type, value, recursive, indent);
 	case AIN_ARRAY_TYPE:
-	case AIN_REF_ARRAY_TYPE: {
-		if (value.i < 0)
-			return cstr_to_string("[]");
-		struct page *page = heap_get_page(value.i);
-		if (!page || page->nr_vars == 0) {
-			return cstr_to_string("[]");
-		}
-		// get member type
-		struct ain_type t;
-		t.data = variable_type(page, 0, &t.struc, &t.rank);
-		t.array_type = NULL;
-		if (!recursive) {
-			switch (t.data) {
-			case AIN_STRUCT:
-			case AIN_REF_STRUCT:
-			case AIN_ARRAY_TYPE:
-			case AIN_REF_ARRAY_TYPE:
-				return cstr_to_string("[ <...> ]");
-			default:
-				break;
-			}
-		}
-		struct string *out = cstr_to_string("[ ");
-		for (int i = 0; i < page->nr_vars; i++) {
-			if (i) {
-				string_append_cstr(&out, "; ", 2);
-			}
-			struct string *tmp = dbg_value_to_string(&t, page->values[i], recursive-1);
-			string_append(&out, tmp);
-			free_string(tmp);
-		}
-		string_append_cstr(&out, " ]", 2);
-		return out;
-	}
+	case AIN_REF_ARRAY_TYPE:
+		return dbg_array_to_string(type, value, recursive, indent);
 	default:
 		return cstr_to_string("<unsupported-data-type>");
 	}
 	return string_ref(&EMPTY_STRING);
+
+}
+
+struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, int recursive)
+{
+	return _dbg_value_to_string(type, value, recursive, 0);
 }
 
 // the maximum number of instructions preceeding the instruction pointer to be displayed
@@ -365,6 +810,9 @@ struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, 
 // Rewind to DASM_REWIND instructions before the current instruction pointer.
 static bool dbg_init_dasm(struct dasm *dasm)
 {
+	if (call_stack_ptr < 1)
+		goto error;
+
 	unsigned addr_i = 0;
 	size_t addr[DASM_REWIND] = {0};
 	int fno = call_stack[call_stack_ptr-1].fno;
@@ -455,6 +903,7 @@ static void dbg_print_local(struct dasm *dasm, int32_t n)
 
 static void dbg_print_arg(struct dasm *dasm, int n)
 {
+	static int hll = 0;
 	int32_t value = dasm_arg(dasm, n);
 	switch (dasm_arg_type(dasm, n)) {
 	case T_INT:
@@ -515,13 +964,20 @@ static void dbg_print_arg(struct dasm *dasm, int n)
 			printf("%s", syscalls[value].name);
 		break;
 	case T_HLL:
-		if (value < 0 || value >= ain->nr_libraries)
+		if (value < 0 || value >= ain->nr_libraries) {
 			printf("<invalid library number: %d>", value);
-		else
+		} else {
 			dbg_print_identifier(ain->libraries[value].name);
+			hll = value;
+		}
 		break;
 	case T_HLLFUNC:
-		printf("%d", value);
+		if (hll < 0 || hll >= ain->nr_libraries)
+			printf("%d", value);
+		else if (value < 0 || value >= ain->libraries[hll].nr_functions)
+			printf("<invalid library function number: %d>", value);
+		else
+			dbg_print_identifier(ain->libraries[hll].functions[value].name);
 		break;
 	case T_FILE:
 		if (!ain->nr_filenames)
@@ -545,44 +1001,67 @@ static void dbg_print_instruction(struct dasm *dasm)
 		putchar(' ');
 		dbg_print_arg(dasm, i);
 	}
-	putchar('\n');
 }
 
-void dbg_print_dasm(void)
+static bool stack_print_finished(int stack_i)
 {
+	return stack_i >= stack_ptr;
+}
+
+static bool dasm_print_finished(struct dasm *dasm, int dasm_i)
+{
+	if (dasm_eof(dasm))
+		return true;
+	if (dasm_addr(dasm) < instr_ptr)
+		return false;
+	if (dasm_i < DASM_FWD)
+		return false;
+	return true;
+}
+
+#define STACK_MAX (DASM_REWIND + DASM_FWD)
+
+void dbg_print_vm_state(void)
+{
+	if (call_stack_ptr < 1) {
+		DBG_ERROR("VM not running");
+		return;
+	}
+
+	puts("");
+	puts("     Stack           Disassembly");
+	puts("-----------------    -----------");
+
 	struct dasm dasm;
 	if (!dbg_init_dasm(&dasm))
 		return;
 
-	for (; dasm_addr(&dasm) < instr_ptr && !dasm_eof(&dasm); dasm_next(&dasm)) {
-		dbg_print_instruction(&dasm);
-	}
-
-	for (int i = 0; i < DASM_FWD && !dasm_eof(&dasm); dasm_next(&dasm), i++) {
-		dbg_print_instruction(&dasm);
-	}
-}
-
-#define STACK_MAX 16
-
-void dbg_print_stack(void)
-{
-	int i = 0;
+	int stack_i = 0;
 	if (stack_ptr > STACK_MAX)
-		i = stack_ptr - STACK_MAX;
+		stack_i = stack_ptr - STACK_MAX;
 
-	for (; i < stack_ptr; i++) {
-		printf(" [%d]: 0x%08x\n", i, stack[i].i);
+	int dasm_i = 0;
+	while (!stack_print_finished(stack_i) || !dasm_print_finished(&dasm, dasm_i)) {
+		// print stack line
+		if (stack_i < stack_ptr) {
+			printf(" [%02d]: 0x%08x  ", stack_i, stack[stack_i].i);
+			stack_i++;
+		} else {
+			printf("                   ");
+		}
+
+		// print disassembly line
+		if (!dasm_print_finished(&dasm, dasm_i)) {
+			if (dasm_addr(&dasm) >= instr_ptr)
+				dasm_i++;
+			dbg_print_instruction(&dasm);
+			// XXX: stop printing at ENDFUNC
+			if (dasm_instruction(&dasm)->opcode == ENDFUNC) {
+				dasm.addr = dasm.ain->code_size;
+			}
+			dasm_next(&dasm);
+		}
+
+		putchar('\n');
 	}
-}
-
-void dbg_print_vm_state(void)
-{
-	puts(" Disassembly");
-	puts(" -----------");
-	dbg_print_dasm();
-	puts("");
-	puts(" Stack");
-	puts(" -----");
-	dbg_print_stack();
 }

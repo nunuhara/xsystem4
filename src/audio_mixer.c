@@ -717,3 +717,29 @@ int mixer_set_mute(int n, int mute)
 	mixers[n].muted = !!mute;
 	return 1;
 }
+
+int mixer_stream_play(sts_mixer_stream_t* stream, int volume)
+{
+	SDL_LockAudioDevice(audio_device);
+	float gain = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	int voice = sts_mixer_play_stream(&master->mixer, stream, gain);
+	SDL_UnlockAudioDevice(audio_device);
+	return voice;
+}
+
+bool mixer_stream_set_volume(int voice, int volume)
+{
+	if (voice < 0 || voice >= STS_MIXER_VOICES)
+		return false;
+	SDL_LockAudioDevice(audio_device);
+	master->mixer.voices[voice].gain = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	SDL_UnlockAudioDevice(audio_device);
+	return true;
+}
+
+void mixer_stream_stop(int voice)
+{
+	SDL_LockAudioDevice(audio_device);
+	sts_mixer_stop_voice(&master->mixer, voice);
+	SDL_UnlockAudioDevice(audio_device);
+}

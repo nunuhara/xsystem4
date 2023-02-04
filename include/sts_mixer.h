@@ -39,6 +39,11 @@ enum {
   STS_MIXER_SAMPLE_FORMAT_FLOAT               // floats
 };
 
+enum {
+  STS_STREAM_COMPLETE = 0,
+  STS_STREAM_CONTINUE = 1
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -66,7 +71,7 @@ typedef struct {
 // The callback which will be called when the stream needs more data.
 typedef int (*sts_mixer_stream_callback)(sts_mixer_sample_t* sample, void* userdata);
 
-typedef struct {
+typedef struct sts_mixer_stream_t {
   void*                     userdata;         // a userdata pointer which will passed to the callback
   sts_mixer_stream_callback callback;         // this callback will be called when the stream needs more data
   sts_mixer_sample_t        sample;           // the current stream "sample" which holds the current piece of audio
@@ -158,11 +163,6 @@ enum {
   STS_MIXER_VOICE_STOPPED,
   STS_MIXER_VOICE_PLAYING,
   STS_MIXER_VOICE_STREAMING
-};
-
-enum {
-  STS_STREAM_COMPLETE = 0,
-  STS_STREAM_CONTINUE = 1
 };
 
 static float sts_mixer__clamp(const float value, const float min, const float max) {
@@ -329,14 +329,14 @@ void sts_mixer_mix_audio(sts_mixer_t* mixer, void* output, unsigned int samples)
           voice->position = 0.0f;
           position = 0;
         }
-        left += sts_mixer__clamp_sample(sts_mixer__get_sample(&voice->stream->sample, position) * voice->gain);
-        right += sts_mixer__clamp_sample(sts_mixer__get_sample(&voice->stream->sample, position + 1) * voice->gain);
         // added in xsystem4: allow stopping stream via callback return value
         if (status == STS_STREAM_COMPLETE) {
           sts_mixer_stop_voice(mixer, i);
         } else {
+          left += sts_mixer__clamp_sample(sts_mixer__get_sample(&voice->stream->sample, position) * voice->gain);
+          right += sts_mixer__clamp_sample(sts_mixer__get_sample(&voice->stream->sample, position + 1) * voice->gain);
           voice->position += (float)voice->stream->sample.frequency * advance;
-	}
+        }
       }
     }
 

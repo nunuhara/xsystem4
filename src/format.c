@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "system4.h"
+#include "system4/ain.h"
 #include "system4/string.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -53,35 +54,43 @@ static int read_number(const char **_fmt)
 	return n;
 }
 
-static void parse_fmt_spec(const char **_fmt, struct fmt_spec *spec)
+static bool parse_fmt_spec(const char **_fmt, struct fmt_spec *spec, enum ain_data_type target)
 {
-	const char *fmt = *_fmt;
+	bool r = false;
+	const char *fmt = (*_fmt) + 1;
 	memset(spec, 0, sizeof(struct fmt_spec));
 	spec->precision = 6;
 	while (*fmt) {
 		switch (*fmt) {
 		case 'd':
 			spec->type = FMT_INT;
+			r = target == AIN_INT;
 			goto end;
 		case 'D':
 			spec->type = FMT_INT;
 			spec->zenkaku = true;
+			r = target == AIN_INT;
 			goto end;
 		case 'f':
 			spec->type = FMT_FLOAT;
+			r = target == AIN_FLOAT;
 			goto end;
 		case 'F':
 			spec->type = FMT_FLOAT;
 			spec->zenkaku = true;
+			r = target == AIN_FLOAT;
 			goto end;
 		case 's':
 			spec->type = FMT_STRING;
+			r = target == AIN_STRING;
 			goto end;
 		case 'c':
 			spec->type = FMT_CHAR;
+			r = target == AIN_INT;
 			goto end;
 		case 'b':
 			spec->type = FMT_BOOL;
+			r = target == AIN_INT;
 			goto end;
 		case '0':
 			spec->zero_pad = true;
@@ -109,7 +118,9 @@ static void parse_fmt_spec(const char **_fmt, struct fmt_spec *spec)
 warn:
 	WARNING("Invalid format specifier: %s", *_fmt);
 end:
-	*_fmt = ++fmt;
+	if (r)
+		*_fmt = ++fmt;
+	return r;
 }
 
 static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value arg)
@@ -128,7 +139,7 @@ static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value 
 		string_append_cstr(s, buf, len);
 		break;
 	case FMT_STRING:
-		string_append(s, heap[arg.i].s);
+		string_append(s, heap_get_string(arg.i));
 		heap_unref(arg.i);
 		break;
 	case FMT_CHAR:
@@ -143,15 +154,17 @@ static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value 
 	}
 }
 
-struct string *string_format(struct string *fmt, union vm_value arg)
+struct string *string_format(struct string *fmt, union vm_value arg, enum ain_data_type type)
 {
 	struct string *out = string_ref(&EMPTY_STRING);
 	for (const char *s = fmt->text; *s; s++) {
-		if (*s == '%') {
-			struct fmt_spec spec;
-			string_append_cstr(&out, fmt->text, s - fmt->text);
-			s++;
-			parse_fmt_spec(&s, &spec);
+		if (*s != '%')
+			continue;
+
+		size_t size = s - fmt->text;
+		struct fmt_spec spec;
+		if (parse_fmt_spec(&s, &spec, type)) {
+			string_append_cstr(&out, fmt->text, size);
 			append_fmt(&out, &spec, arg);
 			string_append_cstr(&out, s, strlen(s));
 			break;

@@ -33,6 +33,7 @@
 
 #include "debugger.h"
 #include "little_endian.h"
+#include "input.h"
 #include "savedata.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -76,20 +77,6 @@ static int16_t get_opcode(size_t addr)
 	return LittleEndian_getW(ain->code, addr);
 }
 
-// Read argument N for the current instruction.
-static int32_t get_argument(int n)
-{
-	return LittleEndian_getDW(ain->code, instr_ptr + 2 + n*4);
-}
-
-// XXX: not strictly portable
-static float get_argument_float(int n)
-{
-	union vm_value v;
-	v.i = LittleEndian_getDW(ain->code, instr_ptr + 2 + n*4);
-	return v.f;
-}
-
 static const char *current_instruction_name(void)
 {
 	int16_t opcode = get_opcode(instr_ptr);
@@ -116,7 +103,7 @@ struct page *get_local_page(int frame_no)
 	return slot < 1 ? NULL : heap[slot].page;
 }
 
-static union vm_value local_get(int varno)
+union vm_value local_get(int varno)
 {
 	return local_page()->values[varno];
 }
@@ -177,7 +164,7 @@ struct page *get_struct_page(int frame_no)
 	return slot < 1 ? NULL : heap[slot].page;
 }
 
-static union vm_value member_get(int varno)
+union vm_value member_get(int varno)
 {
 	return struct_page()->values[varno];
 }
@@ -187,7 +174,7 @@ static void member_set(int varno, int32_t value)
 	struct_page()->values[varno].i = value;
 }
 
-static union vm_value stack_peek(int n)
+union vm_value stack_peek(int n)
 {
 	return stack[stack_ptr - (1 + n)];
 }
@@ -208,6 +195,17 @@ static union vm_value *stack_pop_var(void)
 {
 	int32_t page_index = stack_pop().i;
 	int32_t heap_index = stack_pop().i;
+	if (unlikely(!heap_index_valid(heap_index)))
+		VM_ERROR("Out of bounds heap index: %d/%d", heap_index, page_index);
+	if (unlikely(!heap[heap_index].page || page_index >= heap[heap_index].page->nr_vars))
+		VM_ERROR("Out of bounds page index: %d/%d", heap_index, page_index);
+	return &heap[heap_index].page->values[page_index];
+}
+
+union vm_value *stack_peek_var(void)
+{
+	int32_t page_index = stack_peek(0).i;
+	int32_t heap_index = stack_peek(1).i;
 	if (unlikely(!heap_index_valid(heap_index)))
 		VM_ERROR("Out of bounds heap index: %d/%d", heap_index, page_index);
 	if (unlikely(!heap[heap_index].page || page_index >= heap[heap_index].page->nr_vars))
@@ -508,7 +506,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_EXISTS_FILE: { // system.ExistsFile(string szFileName)
 		int str = stack_pop().i;
-		char *path = unix_path(heap_get_string(str)->text);
+		char *path = gamedir_path(heap_get_string(str)->text);
 		stack_push(file_exists(path));
 		heap_unref(str);
 		free(path);
@@ -567,6 +565,7 @@ static void system_call(enum syscall_code code)
 		break;
 	}
 	case SYS_PEEK: {// system.Peek(void)
+		handle_events();
 		break;
 	}
 	case SYS_SLEEP: {// system.Sleep(int nSleep)
@@ -660,34 +659,32 @@ static void system_call(enum syscall_code code)
 	}
 }
 
-void exec_switch(int no, int val)
+uint32_t get_switch_address(int no, int val)
 {
 	struct ain_switch *s = &ain->switches[no];
 	for (int i = 0; i < s->nr_cases; i++) {
 		if (s->cases[i].value == val) {
-			instr_ptr = s->cases[i].address;
-			return;
+			return s->cases[i].address;
 		}
 	}
 	if (s->default_address > 0)
-		instr_ptr = s->default_address;
+		return s->default_address;
 	else
-		instr_ptr += instruction_width(SWITCH);
+		return instr_ptr + instruction_width(SWITCH);
 }
 
-void exec_strswitch(int no, struct string *str)
+uint32_t get_strswitch_address(int no, struct string *str)
 {
 	struct ain_switch *s = &ain->switches[no];
 	for (int i = 0; i < s->nr_cases; i++) {
 		if (!strcmp(str->text, ain->strings[s->cases[i].value]->text)) {
-			instr_ptr = s->cases[i].address;
-			return;
+			return s->cases[i].address;
 		}
 	}
 	if (s->default_address > 0)
-		instr_ptr = s->default_address;
+		return s->default_address;
 	else
-		instr_ptr += instruction_width(STRSWITCH);
+		return instr_ptr + instruction_width(STRSWITCH);
 }
 
 static void echo_message(int i)
@@ -955,12 +952,12 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case SWITCH: {
-		exec_switch(get_argument(0), stack_pop().i);
+		instr_ptr = get_switch_address(get_argument(0), stack_pop().i);
 		break;
 	}
 	case STRSWITCH: {
 		int str = stack_pop().i;
-		exec_strswitch(get_argument(0), heap_get_string(str));
+		instr_ptr = get_strswitch_address(get_argument(0), heap_get_string(str));
 		heap_unref(str);
 		break;
 	}
@@ -1502,11 +1499,11 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case S_MOD: {
-		stack_pop(); // ???
+		int type = stack_pop().i;
 		union vm_value val = stack_pop();
 		int fmt = stack_pop().i;
 		int dst = heap_alloc_slot(VM_STRING);
-		heap[dst].s = string_format(heap[fmt].s, val);
+		heap[dst].s = string_format(heap[fmt].s, val, type + 8);
 		heap_unref(fmt);
 		stack_push(dst);
 		break;

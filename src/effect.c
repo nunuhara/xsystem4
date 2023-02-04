@@ -328,14 +328,22 @@ int sact_TRANS_End(void)
 	return 1;
 }
 
-int sact_Effect(int type, possibly_unused int time, possibly_unused int key)
+int sact_Effect(int type, int time, possibly_unused int key)
 {
+	uint32_t start = SDL_GetTicks();
 	if (!sact_TRANS_Begin(type))
 		return 0;
 
-	for (int i = 0; i < time; i+= 16) {
-		sact_TRANS_Update((float)i / (float)time);
-		SDL_Delay(16);
+	uint32_t t = SDL_GetTicks() - start;
+	while (t < time) {
+		sact_TRANS_Update((float)t / (float)time);
+		uint32_t t2 = SDL_GetTicks() - start;
+		if (t2 < t + 16) {
+			SDL_Delay(t + 16 - t2);
+			t += 16;
+		} else {
+			t = t2;
+		}
 	}
 
 	sact_TRANS_End();

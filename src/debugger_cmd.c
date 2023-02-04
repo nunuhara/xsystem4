@@ -39,6 +39,7 @@
 #include "xsystem4.h"
 
 struct dbg_cmd_node;
+static bool stepping = false;
 
 struct dbg_cmd_list {
 	unsigned nr_commands;
@@ -75,6 +76,7 @@ static void dbg_cmd_breakpoint(unsigned nr_args, char **args)
 
 static void dbg_cmd_continue(unsigned nr_args, char **args)
 {
+	stepping = false;
 	dbg_continue();
 }
 
@@ -157,16 +159,16 @@ static void dbg_cmd_members(unsigned nr_args, char **args)
 
 static void dbg_cmd_print(unsigned nr_args, char **args)
 {
-	union vm_value value;
-	struct ain_variable *var = dbg_get_variable(args[0], &value);
-	if (var) {
-		struct string *v = dbg_value_to_string(&var->type, value, 1);
-		printf("%s\n", display_sjis0(v->text));
-		free_string(v);
+	int recursive = nr_args == 2 ? atoi(args[1]) : 2;
+
+	struct ain_type type;
+	union vm_value value = dbg_eval_string(args[0], &type);
+	if (type.data == AIN_VOID)
 		return;
-	}
-	// TODO: print functions, etc.
-	DBG_ERROR("Undefined variable: %s", args[0]);
+
+	struct string *str = dbg_value_to_string(&type, value, recursive);
+	printf("%s\n", display_sjis0(str->text));
+	free_string(str);
 }
 
 static void dbg_cmd_quit(unsigned nr_args, char **args)
@@ -177,6 +179,36 @@ static void dbg_cmd_quit(unsigned nr_args, char **args)
 static void dbg_cmd_scene(unsigned nr_args, char **args)
 {
 	scene_print();
+}
+
+static void dbg_cmd_next(unsigned nr_args, char **args)
+{
+	if (!dbg_set_step_over_breakpoint()) {
+		DBG_ERROR("Can't step over this instruction");
+		return;
+	}
+	stepping = true;
+	dbg_continue();
+}
+
+static void dbg_cmd_step(unsigned nr_args, char **args)
+{
+	if (!dbg_set_step_into_breakpoint()) {
+		DBG_ERROR("Can't step into this instruction");
+		return;
+	}
+	stepping = true;
+	dbg_continue();
+}
+
+static void dbg_cmd_finish(unsigned nr_args, char **args)
+{
+	if (!dbg_set_finish_breakpoint()) {
+		DBG_ERROR("Can't set finish breakpoint from this location");
+		return;
+	}
+	stepping = true;
+	dbg_continue();
 }
 
 #ifdef HAVE_SCHEME
@@ -192,21 +224,24 @@ static void dbg_cmd_vm_state(unsigned nr_args, char **args)
 }
 
 static struct dbg_cmd dbg_default_commands[] = {
-	{ "help",       "h",   "[command-name] - Display this message",  0, 2, dbg_cmd_help },
-	{ "backtrace",  "bt",  "- Display stack trace",                  0, 0, dbg_cmd_backtrace },
-	{ "breakpoint", "bp",  "<function-or-address> - Set breakpoint", 1, 1, dbg_cmd_breakpoint },
-	{ "continue",   "c",   "- Resume execution",                     0, 0, dbg_cmd_continue },
-	{ "frame",      "f",   "<frame-number> - Set the current frame", 1, 1, dbg_cmd_frame },
-	{ "locals",     "l",   "[frame-number] - Print local variables", 0, 1, dbg_cmd_locals },
-	{ "log",        NULL,  "<function-name> - Log function calls",   1, 1, dbg_cmd_log },
-	{ "members",    "m",   "[frame-number] - Print struct members",  0, 1, dbg_cmd_members },
-	{ "print",      "p",   "<variable-name> - Print a variable",     1, 1, dbg_cmd_print },
-	{ "quit",       "q",   "- Quit xsystem4",                        0, 0, dbg_cmd_quit },
-	{ "scene",      NULL,  "- Display scene graph",                  0, 0, dbg_cmd_scene },
+	{ "backtrace", "bt", NULL, "Display stack trace", 0, 0, dbg_cmd_backtrace },
+	{ "breakpoint", "bp", "<function-or-address>", "Set breakpoint at a function or address", 1, 1, dbg_cmd_breakpoint },
+	{ "continue", "c", NULL, "Resume execution", 0, 0, dbg_cmd_continue },
+	{ "finish", "fin", NULL, "Execute until the current function returns", 0, 0, dbg_cmd_finish },
+	{ "frame", "f", "<frame-number>", "Set the current frame", 1, 1, dbg_cmd_frame },
+	{ "help", "h", "[command-name]", "Get help about a command", 0, 2, dbg_cmd_help },
+	{ "locals", "l", "[frame-number]", "Print local variables", 0, 1, dbg_cmd_locals },
+	{ "log", NULL, "<function-name>", "Log function calls", 1, 1, dbg_cmd_log },
+	{ "members", "m", "[frame-number]", "Print struct members", 0, 1, dbg_cmd_members },
+	{ "next", "n", NULL, "Step to the next instruction within the current function", 0, 0, dbg_cmd_next },
+	{ "print", "p", "<variable-name> [recursion-depth]", "Print a variable", 1, 2, dbg_cmd_print },
+	{ "quit", "q", NULL, "Quit xsystem4", 0, 0, dbg_cmd_quit },
+	{ "scene", NULL, NULL, "Display scene graph", 0, 0, dbg_cmd_scene },
+	{ "step", "s", NULL, "Step to the next instruction", 0, 0, dbg_cmd_step },
 #ifdef HAVE_SCHEME
-	{ "scheme",     "scm", "- Drop into Scheme REPL",                0, 0, dbg_cmd_scheme },
+	{ "scheme", "scm", NULL, "Drop into the Scheme REPL", 0, 0, dbg_cmd_scheme },
 #endif
-	{ "vm-state",   "vm",  "- Display current VM state",             0, 0, dbg_cmd_vm_state },
+	{ "vm-state", "vm", NULL, "Display current VM state", 0, 0, dbg_cmd_vm_state },
 };
 
 static struct dbg_cmd_list dbg_commands = {0};
@@ -235,24 +270,56 @@ static struct dbg_cmd_node *dbg_get_node(struct dbg_cmd_list *list, const char *
 
 static void dbg_help_cmd(struct dbg_cmd *cmd)
 {
+	printf("%s", cmd->fullname);
 	if (cmd->shortname)
-		printf("%s (%s) %s\n", cmd->fullname, cmd->shortname, cmd->description);
+		printf(", %s", cmd->shortname);
+
+	if (cmd->arg_description)
+		printf(" %s", cmd->arg_description);
+
+	printf("\n\t%s\n", cmd->description);
+}
+
+static int cmd_name_max(struct dbg_cmd_list *list)
+{
+	int m = 0;
+	for (unsigned i = 0; i < list->nr_commands; i++) {
+		if (list->commands[i].type == CMD_NODE_MOD) {
+			m = max(m, strlen(list->commands[i].mod.name));
+		} else if (list->commands[i].type == CMD_NODE_CMD) {
+			m = max(m, strlen(list->commands[i].cmd.fullname));
+		}
+	}
+	return m;
+}
+
+static void dbg_help_cmd_short(struct dbg_cmd *cmd, int name_len)
+{
+	printf("%*s", name_len, cmd->fullname);
+	if (cmd->shortname)
+		printf(" (%s)%*s", cmd->shortname, 3 - (int)strlen(cmd->shortname), "");
 	else
-		printf("%s %s\n", cmd->fullname, cmd->description);
+		printf("      ");
+	printf(" -- %s\n", cmd->description);
 }
 
 static void dbg_help_list(struct dbg_cmd_list *list)
 {
+	int name_len = cmd_name_max(list);
+
+	puts("");
 	puts("Available Commands");
-	puts("------------------");
+	puts("==================");
 	for (unsigned i = 0; i < list->nr_commands; i++) {
 		if (list->commands[i].type == CMD_NODE_MOD) {
 			printf("%s - command module; run to see additional commands\n",
 					list->commands[i].mod.name);
 		} else if (list->commands[i].type == CMD_NODE_CMD) {
-			dbg_help_cmd(&list->commands[i].cmd);
+			dbg_help_cmd_short(&list->commands[i].cmd, name_len);
 		}
 	}
+	puts("");
+	puts("Type 'help <command>' to get help about a specific command.");
 }
 
 static void dbg_cmd_help(unsigned nr_args, char **args)
@@ -400,7 +467,10 @@ static void execute_line(char *line)
 
 void dbg_cmd_repl(void)
 {
-	puts("Entering the debugger REPL. Type 'help' for a list of commands.");
+	if (stepping)
+		dbg_print_vm_state();
+	else
+		puts("Entering the debugger REPL. Type 'help' for a list of commands.");
 	while (1) {
 		char *line = cmd_gets();
 		if (line)

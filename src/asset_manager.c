@@ -193,7 +193,7 @@ static bool afa_load_archive(struct asset_manager *_manager, const char *name)
 		}
 	}
 
-	for (int i = MAX_ARCHIVES - 1; i > 0; i++) {
+	for (int i = MAX_ARCHIVES - 1; i > 0; i--) {
 		manager->archives[i] = manager->archives[i-1];
 	}
 	manager->archives[0] = ar;
