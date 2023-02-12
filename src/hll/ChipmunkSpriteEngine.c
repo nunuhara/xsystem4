@@ -37,9 +37,14 @@ static void ChipmunkSpriteEngine_ModuleFini(void)
 	sact_ModuleFini();
 }
 
-static int ChipmunkSpriteEngine_Init(void *imain_system)
+static int ChipmunkSpriteEngine_Init(possibly_unused void *imain_system)
 {
-	return sact_Init(imain_system, 16);
+	return sact_init(16, true);
+}
+
+static int ChipmunkSpriteEngine_Init_with_size(possibly_unused void *imain_system, int cg_cache_size)
+{
+	return sact_init(cg_cache_size, true);
 }
 
 static int ChipmunkSpriteEngine_SP_SetCG(int sp_no, struct string *cg_name)
@@ -116,10 +121,42 @@ static void ChipmunkSpriteEngine_Sleep(void)
 }
 
 //static bool ChipmunkSpriteEngine_SP_SetCutCG(int sp_no, int cg_no, int cut_x, int cut_y, int cut_w, int cut_h);
-//static bool ChipmunkSpriteEngine_SP_SetMultipleColor(int sp_no, int r, int g, int b);
-//static bool ChipmunkSpriteEngine_SP_SetAddColor(int sp_no, int r, int g, int b, int a);
-//static bool ChipmunkSpriteEngine_SP_SetSurfaceArea(int sp_no, int x, int y, int w, int h);
-//static bool ChipmunkSpriteEngine_SP_GetSurfaceArea(int sp_no, int *x, int *y, int *w, int *h);
+
+static bool ChipmunkSpriteEngine_SP_SetMultipleColor(int sp_no, int r, int g, int b)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return false;
+	sprite_set_multiply_color(sp, r, g, b);
+	return true;
+}
+
+static bool ChipmunkSpriteEngine_SP_SetAddColor(int sp_no, int r, int g, int b, int a)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return false;
+	sprite_set_add_color(sp, r, g, b);
+	return true;
+}
+
+static bool ChipmunkSpriteEngine_SP_SetSurfaceArea(int sp_no, int x, int y, int w, int h)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return false;
+	sprite_set_surface_area(sp, x, y, w, h);
+	return true;
+}
+
+static bool ChipmunkSpriteEngine_SP_GetSurfaceArea(int sp_no, int *x, int *y, int *w, int *h)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return false;
+	*x = sp->surface_area.x;
+	*y = sp->surface_area.y;
+	*w = sp->surface_area.w;
+	*h = sp->surface_area.h;
+	return true;
+}
+
 //static bool ChipmunkSpriteEngine_SP_SetSpriteTransformMode(int sp_no, int transform_mode);
 //static bool ChipmunkSpriteEngine_SP_SetSpriteTransformPos(int sp_no, float x0, float y0, float z0, float w0, float u0, float v0, float x1, float y1, float z1, float w1, float u1, float v1, float x2, float y2, float z2, float w2, float u2, float v2, float x3, float y3, float z3, float w3, float u3, float v3);
 //static bool ChipmunkSpriteEngine_Sprite_SetTextureFilerType(int sp_no, int texture_filter_type);
@@ -175,12 +212,12 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SP_SetY, sact_SP_SetY),
 	    HLL_EXPORT(SP_SetZ, sact_SP_SetZ),
 	    HLL_EXPORT(SP_SetBlendRate, sact_SP_SetBlendRate),
-	    HLL_TODO_EXPORT(SP_SetMultipleColor, ChipmunkSpriteEngine_SP_SetMultipleColor),
-	    HLL_TODO_EXPORT(SP_SetAddColor, ChipmunkSpriteEngine_SP_SetAddColor),
+	    HLL_EXPORT(SP_SetMultipleColor, ChipmunkSpriteEngine_SP_SetMultipleColor),
+	    HLL_EXPORT(SP_SetAddColor, ChipmunkSpriteEngine_SP_SetAddColor),
 	    HLL_EXPORT(SP_SetShow, sact_SP_SetShow),
 	    HLL_EXPORT(SP_SetDrawMethod, sact_SP_SetDrawMethod),
-	    HLL_TODO_EXPORT(SP_SetSurfaceArea, ChipmunkSpriteEngine_SP_SetSurfaceArea),
-	    HLL_TODO_EXPORT(SP_GetSurfaceArea, ChipmunkSpriteEngine_SP_GetSurfaceArea),
+	    HLL_EXPORT(SP_SetSurfaceArea, ChipmunkSpriteEngine_SP_SetSurfaceArea),
+	    HLL_EXPORT(SP_GetSurfaceArea, ChipmunkSpriteEngine_SP_GetSurfaceArea),
 	    HLL_TODO_EXPORT(SP_SetSpriteTransformMode, ChipmunkSpriteEngine_SP_SetSpriteTransformMode),
 	    HLL_TODO_EXPORT(SP_SetSpriteTransformPos, ChipmunkSpriteEngine_SP_SetSpriteTransformPos),
 	    HLL_TODO_EXPORT(Sprite_SetTextureFilerType, ChipmunkSpriteEngine_Sprite_SetTextureFilerType),
@@ -251,8 +288,8 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(TRANS_Begin, sact_TRANS_Begin),
 	    HLL_EXPORT(TRANS_Update, sact_TRANS_Update),
 	    HLL_EXPORT(TRANS_End, sact_TRANS_End),
-	    HLL_TODO_EXPORT(VIEW_SetMode, SACTDX_VIEW_SetMode),
-	    HLL_TODO_EXPORT(VIEW_GetMode, SACTDX_VIEW_GetMode),
+	    HLL_EXPORT(VIEW_SetMode, sact_VIEW_SetMode),
+	    HLL_EXPORT(VIEW_GetMode, sact_VIEW_GetMode),
 	    HLL_EXPORT(VIEW_SetOffsetPos, ChipmunkSpriteEngine_VIEW_SetOffsetPos),
 	    HLL_TODO_EXPORT(DX_GetUsePower2Texture, SACTDX_DX_GetUsePower2Texture),
 	    HLL_TODO_EXPORT(DX_SetUsePower2Texture, SACTDX_DX_SetUsePower2Texture),
@@ -311,7 +348,7 @@ static void ChipmunkSpriteEngine_PreLink(void)
 
 	fun = get_fun(libno, "Init");
 	if (fun && fun->nr_arguments == 2) {
-		static_library_replace(&lib_ChipmunkSpriteEngine, "Init", sact_Init);
+		static_library_replace(&lib_ChipmunkSpriteEngine, "Init", ChipmunkSpriteEngine_Init_with_size);
 	}
 
 	fun = get_fun(libno, "SP_SetCG");

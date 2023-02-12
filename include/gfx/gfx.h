@@ -39,8 +39,6 @@ typedef struct texture {
 	mat4 world_transform;
 	int w, h;
 	bool has_alpha;
-	int alpha_mod;
-	enum draw_method draw_method;
 } Texture;
 
 struct gfx_render_job;
@@ -52,7 +50,6 @@ typedef struct shader {
 	GLuint view_transform;
 	GLuint texture;
 	GLuint vertex;
-	GLuint alpha_mod;
 	void (*prepare)(struct gfx_render_job *, void *);
 } Shader;
 
@@ -82,6 +79,7 @@ void gfx_swap(void);
 void gfx_prepare_job(struct gfx_render_job *job);
 void gfx_run_job(struct gfx_render_job *job);
 void gfx_render(struct gfx_render_job *job);
+void _gfx_render_texture(struct shader *s, struct texture *t, Rectangle *r, void *data);
 void gfx_render_texture(struct texture *t, Rectangle *r);
 
 // texture management

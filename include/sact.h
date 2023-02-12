@@ -24,7 +24,7 @@ struct sact_sprite *sact_get_sprite(int sp);
 struct sact_sprite *sact_try_get_sprite(int sp);
 struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
 void sact_ModuleFini(void);
-int sact_Init(void *_, int cg_cache_size);
+int sact_init(int cg_cache_size, bool chipmunk);
 #define sact_SetWP scene_set_wp
 #define sact_SetWP_Color scene_set_wp_color
 int sact_GetScreenWidth(void);
@@ -100,6 +100,8 @@ void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int 
 int sact_TRANS_Begin(int type);
 int sact_TRANS_Update(float rate);
 int sact_TRANS_End(void);
+bool sact_VIEW_SetMode(int mode);
+int sact_VIEW_GetMode(void);
 
 extern struct text_style text_sprite_ts;
 bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text);

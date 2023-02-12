@@ -1,4 +1,4 @@
-/* Copyright (C) 2019 Nunuhara Cabbage <nunuhara@haniwa.technology>
+/* Copyright (C) 2023 Nunuhara Cabbage <nunuhara@haniwa.technology>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
  */
 
 uniform sampler2D tex;
+uniform float blend_rate;
 
 in vec2 tex_coord;
 out vec4 frag_color;
 
 void main() {
         frag_color = texture(tex, tex_coord);
+	frag_color.a *= blend_rate;
 }

@@ -61,21 +61,10 @@ static mat4 world_view_transform = MAT4(
 	0, 0, 1, -1,
 	0, 0, 0,  1);
 
-struct default_shader {
-	struct shader s;
-	GLuint alpha_mod;
-} default_shader;
+static struct shader default_shader;
 
 GLuint main_surface_fb;
 struct texture main_surface;
-
-void prepare_default_shader(struct gfx_render_job *job, void *data)
-{
-	struct default_shader *s = (struct default_shader*)job->shader;
-	struct texture *t = (struct texture*)data;
-
-	glUniform1f(s->alpha_mod, t->alpha_mod / 255.0);
-}
 
 static GLchar *read_shader_file(const char *path)
 {
@@ -133,15 +122,12 @@ void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const c
 	dst->view_transform = glGetUniformLocation(program, "view_transform");
 	dst->texture = glGetUniformLocation(program, "tex");
 	dst->vertex = glGetAttribLocation(program, "vertex_pos");
-	dst->alpha_mod = glGetAttribLocation(program, "alpha_mod");
 	dst->prepare = NULL;
 }
 
 static int gl_initialize(void)
 {
-	gfx_load_shader(&default_shader.s, "shaders/render.v.glsl", "shaders/render.f.glsl");
-	default_shader.alpha_mod = glGetUniformLocation(default_shader.s.program, "alpha_mod");
-	default_shader.s.prepare = prepare_default_shader;
+	gfx_load_shader(&default_shader, "shaders/render.v.glsl", "shaders/render.f.glsl");
 
 	glClearColor(0.f, 0.f, 0.f, 1.f);
 
@@ -243,7 +229,7 @@ int gfx_init(void)
 
 void gfx_fini(void)
 {
-	glDeleteProgram(default_shader.s.program);
+	glDeleteProgram(default_shader.program);
 	SDL_DestroyWindow(sdl.window);
 	SDL_FreeFormat(sdl.format);
 	SDL_Quit();
@@ -268,8 +254,6 @@ static void main_surface_init(int w, int h)
 	main_surface.w = w;
 	main_surface.h = h;
 	main_surface.has_alpha = true;
-	main_surface.alpha_mod = 255;
-	main_surface.draw_method = DRAW_METHOD_NORMAL;
 
 	glGenFramebuffers(1, &main_surface_fb);
 	glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);
@@ -349,7 +333,7 @@ void gfx_swap(void)
 		0,  0, 1,  0,
 		0,  0, 0,  1);
 	struct gfx_render_job job = {
-		.shader = &default_shader.s,
+		.shader = &default_shader,
 		.texture = main_surface.handle,
 		.world_transform = mw_transform[0],
 		.view_transform = wv_transform[0],
@@ -402,7 +386,7 @@ void gfx_run_job(struct gfx_render_job *job)
 void gfx_render(struct gfx_render_job *job)
 {
 	if (!job->shader) {
-		job->shader = &default_shader.s;
+		job->shader = &default_shader;
 		gfx_prepare_job(job);
 		gfx_run_job(job);
 		job->shader = NULL;
@@ -412,46 +396,29 @@ void gfx_render(struct gfx_render_job *job)
 	}
 }
 
-void gfx_render_texture(struct texture *t, Rectangle *r)
+void _gfx_render_texture(struct shader *s, struct texture *t, Rectangle *r, void *data)
 {
 	if (!t->handle) {
 		WARNING("Attempted to render uninitialized texture");
 		return;
-	}
-	// set blend mode
-	switch (t->draw_method) {
-	case DRAW_METHOD_SCREEN:
-		glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
-		break;
-	case DRAW_METHOD_MULTIPLY:
-		glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
-		break;
-	case DRAW_METHOD_ADDITIVE:
-		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
-		break;
-	default:
-		// FIXME: why doesn't this work?
-		//if (t->alpha_mod != 255) {
-		//	glBlendColor(0, 0, 0, t->alpha_mod / 255.0);
-		//	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_CONSTANT_ALPHA, GL_ZERO);
-		//}
-		break;
 	}
 
 	t->world_transform[3][0] = r ? r->x : 0;
 	t->world_transform[3][1] = r ? r->y : 0;
 
 	struct gfx_render_job job = {
-		.shader = &default_shader.s,
+		.shader = s,
 		.texture = t->handle,
 		.world_transform = t->world_transform[0],
 		.view_transform = world_view_transform[0],
-		.data = t
+		.data = data
 	};
 	gfx_render(&job);
+}
 
-	if (t->draw_method != DRAW_METHOD_NORMAL || t->alpha_mod != 255)
-		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+void gfx_render_texture(struct texture *t, Rectangle *r)
+{
+	_gfx_render_texture(&default_shader, t, r, t);
 }
 
 static void init_texture(struct texture *t, int w, int h)
@@ -473,9 +440,6 @@ static void init_texture(struct texture *t, int w, int h)
 	t->h = h;
 
 	t->has_alpha = true;
-	t->alpha_mod = 255;
-	t->draw_method = DRAW_METHOD_NORMAL;
-
 }
 
 void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels)

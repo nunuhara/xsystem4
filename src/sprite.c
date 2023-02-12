@@ -40,6 +40,14 @@ bool sact_dirty = true;
 LIST_HEAD(listhead, sact_sprite) sprites_with_plugins =
 	LIST_HEAD_INITIALIZER(sprites_with_plugins);
 
+// XXX: sprites should typically be set to zero and then initialized with this
+//      function upon allocation.
+void sprite_init(struct sact_sprite *sp)
+{
+	sp->blend_rate = 255;
+	sp->multiply_color = (SDL_Color){255,255,255,255};
+}
+
 void sprite_free(struct sact_sprite *sp)
 {
 	scene_unregister_sprite(&sp->sp);
@@ -47,7 +55,9 @@ void sprite_free(struct sact_sprite *sp)
 	gfx_delete_texture(&sp->text.texture);
 	if (sp->plugin)
 		LIST_REMOVE(sp, entry);
+	// restore to initial state
 	memset(sp, 0, sizeof(struct sact_sprite));
+	sprite_init(sp);
 }
 
 static void sprite_init_texture(struct sact_sprite *sp)
@@ -60,14 +70,103 @@ static void sprite_init_texture(struct sact_sprite *sp)
 	}
 }
 
+static struct sprite_shader {
+	struct shader s;
+	GLuint blend_rate;
+	GLuint multiply_color;
+	GLuint add_color;
+	GLuint bot_left;
+	GLuint top_right;
+} sprite_shader = {0};
+
+static void prepare_sact_shader(struct gfx_render_job *job, void *data)
+{
+	struct sprite_shader *s = (struct sprite_shader*)job->shader;
+	struct sact_sprite *sp = (struct sact_sprite*)data;
+	glUniform1f(s->blend_rate, sp->blend_rate / 255.0f);
+}
+
+static void prepare_chipmunk_shader(struct gfx_render_job *job, void *data)
+{
+	struct sprite_shader *s = (struct sprite_shader*)job->shader;
+	struct sact_sprite *sp = (struct sact_sprite*)data;
+	glUniform1f(s->blend_rate, sp->blend_rate / 255.0f);
+	glUniform3f(s->multiply_color,
+			sp->multiply_color.r / 255.0f,
+			sp->multiply_color.g / 255.0f,
+			sp->multiply_color.b / 255.0f);
+	glUniform3f(s->add_color,
+			sp->add_color.r / 255.0f,
+			sp->add_color.g / 255.0f,
+			sp->add_color.b / 255.0f);
+
+	Rectangle r = sp->surface_area;
+	if (!r.w && !r.h) {
+		r = (Rectangle) { 0, 0, sp->rect.w, sp->rect.h };
+	}
+
+	glUniform2f(s->bot_left, r.x, r.y);
+	glUniform2f(s->top_right, r.x + r.w, r.y + r.h);
+}
+
+void sprite_init_sact(void)
+{
+	if (sprite_shader.s.prepare) {
+		if (sprite_shader.s.prepare != prepare_sact_shader) {
+			WARNING("mixed SACT2/ChipmunkSpriteEngine initialization");
+			return;
+		}
+	}
+	gfx_load_shader(&sprite_shader.s, "shaders/render.v.glsl", "shaders/sprite.f.glsl");
+	sprite_shader.blend_rate = glGetUniformLocation(sprite_shader.s.program, "blend_rate");
+	sprite_shader.s.prepare = prepare_sact_shader;
+
+}
+
+void sprite_init_chipmunk(void)
+{
+	if (sprite_shader.s.prepare) {
+		if (sprite_shader.s.prepare != prepare_chipmunk_shader) {
+			WARNING("mixed SACT2/ChipmunkSpriteEngine initialization");
+		} else {
+			return;
+		}
+	}
+	gfx_load_shader(&sprite_shader.s, "shaders/render.v.glsl", "shaders/parts.f.glsl");
+	sprite_shader.blend_rate = glGetUniformLocation(sprite_shader.s.program, "blend_rate");
+	sprite_shader.multiply_color = glGetUniformLocation(sprite_shader.s.program, "multiply_color");
+	sprite_shader.add_color = glGetUniformLocation(sprite_shader.s.program, "add_color");
+	sprite_shader.bot_left = glGetUniformLocation(sprite_shader.s.program, "bot_left");
+	sprite_shader.top_right = glGetUniformLocation(sprite_shader.s.program, "top_right");
+	sprite_shader.s.prepare = prepare_chipmunk_shader;
+}
+
 static void sprite_render(struct sprite *_sp)
 {
 	struct sact_sprite *sp = (struct sact_sprite*)_sp;
 	sprite_init_texture(sp);
-	gfx_render_texture(&sp->texture, &sp->rect);
-	if (sp->text.texture.handle) {
-		gfx_render_texture(&sp->text.texture, &sp->rect);
+
+	switch (sp->draw_method) {
+	case DRAW_METHOD_SCREEN:
+		glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
+		break;
+	case DRAW_METHOD_MULTIPLY:
+		glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
+		break;
+	case DRAW_METHOD_ADDITIVE:
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+		break;
+	case DRAW_METHOD_NORMAL:
+		break;
 	}
+
+	_gfx_render_texture(&sprite_shader.s, &sp->texture, &sp->rect, sp);
+	if (sp->text.texture.handle) {
+		_gfx_render_texture(&sprite_shader.s, &sp->text.texture, &sp->rect, sp);
+	}
+
+	if (sp->draw_method != DRAW_METHOD_NORMAL)
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
 struct texture *sprite_get_texture(struct sact_sprite *sp)
@@ -172,7 +271,7 @@ static void _sprite_print(struct sprite *sp)
 /*
  * Attach pixel data to a sprite. The texture is initialized lazily.
  */
-void sprite_init(struct sact_sprite *sp, int w, int h, int r, int g, int b, int a)
+void sprite_init_color(struct sact_sprite *sp, int w, int h, int r, int g, int b, int a)
 {
 	sp->color = (SDL_Color) { .r = r, .g = g, .b = b, .a = (a >= 0 ? a : 255) };
 	sp->rect.w = w;
@@ -205,30 +304,41 @@ void sprite_set_y(struct sact_sprite *sp, int y)
 	sprite_dirty(sp);
 }
 
-int sprite_get_blend_rate(struct sact_sprite *sp)
-{
-	return sprite_get_texture(sp)->alpha_mod;
-}
-
 void sprite_set_blend_rate(struct sact_sprite *sp, int rate)
 {
-	rate = max(0, min(255, rate));
-	sprite_get_texture(sp)->alpha_mod = rate;
-	sp->text.texture.alpha_mod = rate;
+	sp->blend_rate = max(0, min(255, rate));
 	sprite_dirty(sp);
+}
+
+void sprite_set_multiply_color(struct sact_sprite *sp, int r, int g, int b)
+{
+	sp->multiply_color.r = max(0, min(255, r));
+	sp->multiply_color.g = max(0, min(255, g));
+	sp->multiply_color.b = max(0, min(255, b));
+}
+
+void sprite_set_add_color(struct sact_sprite *sp, int r, int g, int b)
+{
+	sp->add_color.r = max(0, min(255, r));
+	sp->add_color.g = max(0, min(255, g));
+	sp->add_color.b = max(0, min(255, b));
+}
+
+void sprite_set_surface_area(struct sact_sprite *sp, int x, int y, int w, int h)
+{
+	sp->surface_area = (Rectangle) { x, y, w, h };
 }
 
 int sprite_set_draw_method(struct sact_sprite *sp, enum draw_method method)
 {
-	sprite_get_texture(sp)->draw_method = method;
-	sp->text.texture.draw_method = method;
+	sp->draw_method = method;
 	sprite_dirty(sp);
 	return 1;
 }
 
 enum draw_method sprite_get_draw_method(struct sact_sprite *sp)
 {
-	return sprite_get_texture(sp)->draw_method;
+	return sp->draw_method;
 }
 
 void sprite_set_text_home(struct sact_sprite *sp, int x, int y)
@@ -265,9 +375,6 @@ void sprite_text_draw(struct sact_sprite *sp, struct string *text, struct text_s
 			c = ts->color;
 		c.a = 0;
 		gfx_init_texture_rgba(&sp->text.texture, sp->rect.w, sp->rect.h, c);
-		Texture *sp_t = sprite_get_texture(sp);
-		sp->text.texture.alpha_mod = sp_t->alpha_mod;
-		sp->text.texture.draw_method = sp_t->draw_method;
 	}
 
 	ts->font_spacing = sp->text.char_space;
@@ -378,14 +485,6 @@ void gfx_print_texture(struct texture *t, int indent)
 	indent_printf(indent+1, "initialized = %s,\n", t->handle ? "true" : "false");
 	indent_printf(indent+1, "size = (%d,%d),\n", t->w, t->h);
 	indent_printf(indent+1, "has_alpha = %s,\n", t->has_alpha ? "true" : "false");
-	indent_printf(indent+1, "alpha_mod = %d,\n", t->alpha_mod);
-	switch (t->draw_method) {
-	case DRAW_METHOD_NORMAL:   indent_printf(indent+1, "draw_method = normal\n"); break;
-	case DRAW_METHOD_SCREEN:   indent_printf(indent+1, "draw_method = screen\n"); break;
-	case DRAW_METHOD_MULTIPLY: indent_printf(indent+1, "draw_method = multiply\n"); break;
-	case DRAW_METHOD_ADDITIVE: indent_printf(indent+1, "draw_method = additive\n"); break;
-	default:                   indent_printf(indent+1, "draw_method = unknown\n"); break;
-	}
 	indent_printf(indent, "}");
 }
 
@@ -407,6 +506,16 @@ void sprite_print(struct sact_sprite *sp)
 
 	indent_printf(indent, "texture = "); gfx_print_texture(&sp->texture, 1); printf(",\n");
 	indent_printf(indent, "color = "); gfx_print_color(&sp->color); printf(",\n");
+	indent_printf(indent, "blend_rate = %d,\n", sp->blend_rate);
+	indent_printf(indent, "multiply_color = "); gfx_print_color(&sp->multiply_color); printf(",\n");
+	indent_printf(indent, "add_color = "); gfx_print_color(&sp->add_color); printf(",\n");
+	switch (sp->draw_method) {
+	case DRAW_METHOD_NORMAL:   indent_printf(indent, "draw_method = normal,\n"); break;
+	case DRAW_METHOD_SCREEN:   indent_printf(indent, "draw_method = screen,\n"); break;
+	case DRAW_METHOD_MULTIPLY: indent_printf(indent, "draw_method = multiply,\n"); break;
+	case DRAW_METHOD_ADDITIVE: indent_printf(indent, "draw_method = additive,\n"); break;
+	default:                   indent_printf(indent, "draw_method = unknown,\n"); break;
+	}
 	indent_printf(indent, "rect = "); gfx_print_rectangle(&sp->rect); printf(",\n");
 
 	indent_printf(indent, "text = {\n");

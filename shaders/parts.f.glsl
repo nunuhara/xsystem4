@@ -15,7 +15,7 @@
  */
 
 uniform sampler2D tex;
-uniform float alpha_mod;
+uniform float blend_rate;
 uniform vec2 bot_left;
 uniform vec2 top_right;
 uniform vec3 add_color;
@@ -36,5 +36,5 @@ void main() {
 
 	vec4 tex_color = texture(tex, tex_coord);
 	vec3 mod_color = (tex_color.rgb + add_color) * multiply_color;
-	frag_color = vec4(mod_color, tex_color.a * alpha_mod) * point_in_rect(tex_coord, bl, tr);
+	frag_color = vec4(mod_color, tex_color.a * blend_rate) * point_in_rect(tex_coord, bl, tr);
 }

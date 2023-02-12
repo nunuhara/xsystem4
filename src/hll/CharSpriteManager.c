@@ -106,6 +106,7 @@ int CharSpriteManager_CreateHandle(void)
 	int handle = get_handle();
 	assert(!chars.sprites[handle]);
 	chars.sprites[handle] = xcalloc(1, sizeof(struct charsprite));
+	sprite_init(&chars.sprites[handle]->sp);
 	return handle;
 }
 
@@ -178,11 +179,10 @@ static void charsprite_render(struct charsprite *cs)
 	if (isascii(ch[0]))
 		w /= 2;
 
-	sprite_init(&cs->sp, w, h, 0, 0, 0, 0);
+	sprite_init_color(&cs->sp, w, h, 0, 0, 0, 0);
 	sprite_get_texture(&cs->sp); // XXX: force initialization of texture
 	gfx_render_text(&cs->sp.texture, 0.0f, 0, ch, &cs->ts);
 	sprite_dirty(&cs->sp);
-
 }
 
 void CharSpriteManager_Rebuild(void)

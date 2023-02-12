@@ -252,6 +252,7 @@ static struct multisprite *multisprite_alloc(int type, int n)
 	ms->ts.space_scale_x = 1.0f;
 	ms->ts.font_spacing = 0.0f;
 	ms->ts.font_size = NULL;
+	sprite_init(&ms->sp);
 	sprite_dirty(&ms->sp);
 	return ms;
 }
@@ -273,7 +274,7 @@ static struct multisprite *multisprite_get(int type, int n)
 	}
 	if (!sp_types[type].sprites[n]) {
 		multisprite_alloc(type, n);
-		sprite_init(&sp_types[type].sprites[n]->sp, 1, 1, 0, 0, 0, 255);
+		sprite_init_color(&sp_types[type].sprites[n]->sp, 1, 1, 0, 0, 0, 255);
 	}
 	return sp_types[type].sprites[n];
 }
@@ -298,7 +299,7 @@ static void multisprite_reset_cg(struct multisprite *sp)
 
 static int StoatSpriteEngine_Init(void *imain_system, int cg_cache_size)
 {
-	sact_Init(imain_system, cg_cache_size);
+	sact_init(cg_cache_size, false);
 	for (int i = 0; i < NR_SP_TYPES; i++) {
 		sp_types[i].nr_sprites = 16;
 		sp_types[i].sprites = xcalloc(16, sizeof(struct multisprite*));
@@ -451,7 +452,7 @@ static bool StoatSpriteEngine_MultiSprite_SetText(int type, int n, struct string
 
 	int w = text->size * (ms->ts.size/2);
 	int h = ms->ts.size;
-	sprite_init(&ms->sp, w, h, 0, 0, 0, 0);
+	sprite_init_color(&ms->sp, w, h, 0, 0, 0, 0);
 	sprite_get_texture(&ms->sp); // XXX: force initialization of texture
 	gfx_render_text(&ms->sp.texture, 0.0f, 0, text->text, &ms->ts);
 	sprite_dirty(&ms->sp);

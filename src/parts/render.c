@@ -31,7 +31,7 @@ static struct sprite goat_sprite;
 
 static struct {
 	struct shader shader;
-	GLint alpha_mod;
+	GLint blend_rate;
 	GLint bot_left;
 	GLint top_right;
 	GLint add_color;
@@ -84,7 +84,7 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 	}
 
 	gfx_prepare_job(&job);
-	glUniform1f(parts_shader.alpha_mod, parts->global.alpha / 255.0);
+	glUniform1f(parts_shader.blend_rate, parts->global.alpha / 255.0);
 	glUniform2f(parts_shader.bot_left, r.x, r.y);
 	glUniform2f(parts_shader.top_right, r.x + r.w, r.y + r.h);
 	glUniform3f(parts_shader.add_color, parts->global.add_color.r / 255.0f,
@@ -162,7 +162,7 @@ void parts_render_init(void)
 	scene_register_sprite(&goat_sprite);
 
 	gfx_load_shader(&parts_shader.shader, "shaders/render.v.glsl", "shaders/parts.f.glsl");
-	parts_shader.alpha_mod = glGetUniformLocation(parts_shader.shader.program, "alpha_mod");
+	parts_shader.blend_rate = glGetUniformLocation(parts_shader.shader.program, "blend_rate");
 	parts_shader.bot_left = glGetUniformLocation(parts_shader.shader.program, "bot_left");
 	parts_shader.top_right = glGetUniformLocation(parts_shader.shader.program, "top_right");
 	parts_shader.add_color = glGetUniformLocation(parts_shader.shader.program, "add_color");

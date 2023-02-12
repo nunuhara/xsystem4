@@ -46,6 +46,7 @@ static struct sact_sprite *sact_alloc_sprite(int sp)
 	sprites[sp] = xcalloc(1, sizeof(struct sact_sprite));
 	sprites[sp]->no = sp;
 	sprites[sp]->sp.z2 = sp;
+	sprite_init(sprites[sp]);
 	sprite_dirty(sprites[sp]);
 	return sprites[sp];
 }
@@ -92,7 +93,7 @@ struct sact_sprite *sact_try_get_sprite(int sp)
 	return sprites[sp];
 }
 
-int sact_Init(possibly_unused void *_, possibly_unused int cg_cache_size)
+int sact_init(possibly_unused int cg_cache_size, bool chipmunk)
 {
 	// already initialized
 	if (sprites)
@@ -112,7 +113,19 @@ int sact_Init(possibly_unused void *_, possibly_unused int cg_cache_size)
 	sp->texture = *t; // XXX: textures normally shouldn't be copied like this...
 
 	sprites++;
+
+	// initialize sprite renderer
+	if (chipmunk)
+		sprite_init_chipmunk();
+	else
+		sprite_init_sact();
+
 	return 1;
+}
+
+static int sact_Init(possibly_unused void *imain_system, int cg_cache_size)
+{
+	return sact_init(cg_cache_size, false);
 }
 
 void sact_ModuleFini(void)
@@ -267,7 +280,7 @@ struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, 
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return NULL;
-	sprite_init(sp, width, height, r, g, b, a);
+	sprite_init_color(sp, width, height, r, g, b, a);
 	return sp;
 }
 
@@ -945,13 +958,13 @@ HLL_WARN_UNIMPLEMENTED( , void, SACTDX, SetVolumeMixerBGMGroupNum, int n);
 //static void SACTDX_Key_ClearFlagNoCtrl(void);
 //static void SACTDX_Key_ClearFlagOne(int nKeyCode);
 
-static bool SACTDX_VIEW_SetMode(int mode)
+bool sact_VIEW_SetMode(int mode)
 {
 	view_mode = mode;
 	return true;
 }
 
-static int SACTDX_VIEW_GetMode(void)
+int sact_VIEW_GetMode(void)
 {
 	return view_mode;
 }
@@ -982,8 +995,8 @@ static void SACTDX_DX_SetUsePower2Texture(bool use)
 	HLL_EXPORT(TRANS_Begin, sact_TRANS_Begin),	    \
 	HLL_EXPORT(TRANS_Update, sact_TRANS_Update),	    \
 	HLL_EXPORT(TRANS_End, sact_TRANS_End),	\
-	HLL_EXPORT(VIEW_SetMode, SACTDX_VIEW_SetMode),	\
-	HLL_EXPORT(VIEW_GetMode, SACTDX_VIEW_GetMode),	\
+	HLL_EXPORT(VIEW_SetMode, sact_VIEW_SetMode),	\
+	HLL_EXPORT(VIEW_GetMode, sact_VIEW_GetMode),	\
 	HLL_EXPORT(DX_GetUsePower2Texture, SACTDX_DX_GetUsePower2Texture),	\
 	HLL_EXPORT(DX_SetUsePower2Texture, SACTDX_DX_SetUsePower2Texture)
 
