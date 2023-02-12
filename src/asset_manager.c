@@ -206,7 +206,8 @@ static bool afa_load_archive(struct asset_manager *_manager, const char *name)
 	return true;
 }
 
-static bool _afa_get_by_id(struct asset_manager *_manager, int id, struct afa_archive **ar_out, int *no_out)
+static bool _afa_get_by_index(struct asset_manager *_manager, int id,
+		struct afa_archive **ar_out, int *no_out)
 {
 	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
 	uint32_t no = id - 1;
@@ -221,25 +222,45 @@ static bool _afa_get_by_id(struct asset_manager *_manager, int id, struct afa_ar
 	return false;
 }
 
-static bool afa_exists_by_id(struct asset_manager *manager, int id)
+// XXX: id-indexed afa
+static bool afa_exists_by_id(struct asset_manager *_manager, int id)
 {
-	int no;
-	struct afa_archive *ar;
-	return _afa_get_by_id(manager, id, &ar, &no);
+	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
+	for (int i = 0; i < MAX_ARCHIVES && manager->archives[i]; i++) {
+		if (archive_exists(&manager->archives[i]->ar, id - 1))
+			return true;
+	}
+	return false;
 }
 
-static struct archive_data *afa_get_by_id(struct asset_manager *manager, int id)
+// XXX: string-indexed afa
+static bool afa_exists_by_index(struct asset_manager *manager, int index)
 {
 	int no;
 	struct afa_archive *ar;
-	if (!_afa_get_by_id(manager, id, &ar, &no))
+	return _afa_get_by_index(manager, index, &ar, &no);
+}
+
+// XXX: id-indexed afa
+static struct archive_data *afa_get_by_id(struct asset_manager *_manager, int id)
+{
+	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
+	for (int i = 0; i < MAX_ARCHIVES && manager->archives[i]; i++) {
+		struct archive_data *data = archive_get(&manager->archives[i]->ar, id - 1);
+		if (data)
+			return data;
+	}
+	return NULL;
+}
+
+// XXX: string-indexed afa
+static struct archive_data *afa_get_by_index(struct asset_manager *manager, int index)
+{
+	int no;
+	struct afa_archive *ar;
+	if (!_afa_get_by_index(manager, index, &ar, &no))
 		return NULL;
-	// XXX: we don't use archive_get here because it will return the wrong thing
-	//      for AFAv1 archives when not using integer indices
-	struct archive_data *data = afa_entry_to_descriptor(ar, &ar->files[no]);
-	if (data)
-		archive_load_file(data);
-	return data;
+	return archive_get(&ar->ar, no);
 }
 
 static void afa_index_archive(struct hash_table *index, struct afa_archive *ar, unsigned base)
@@ -285,7 +306,7 @@ static bool _afa_get_by_name(struct asset_manager *_manager, const char *_name,
 
 	if (id_out)
 		*id_out = id;
-	return _afa_get_by_id(_manager, id, ar_out, no_out);
+	return _afa_get_by_index(_manager, id, ar_out, no_out);
 }
 
 static bool afa_exists_by_name(struct asset_manager *manager, const char *name, int *id_out)
@@ -347,18 +368,21 @@ static void afa_init(enum asset_type type, char *file)
 	if (!ar)
 		ERROR("Failed to open AFA file: %s", archive_strerror(error));
 
+	struct asset_manager_afa *manager = xcalloc(1, sizeof(struct asset_manager_afa));
+	manager->manager.load_archive = afa_load_archive;
 	if (id_indexed_afa) {
-		_ald_init(type, &ar->ar);
-	} else {
-		struct asset_manager_afa *manager = xcalloc(1, sizeof(struct asset_manager_afa));
-		manager->manager.load_archive = afa_load_archive;
 		manager->manager.exists_by_id = afa_exists_by_id;
-		manager->manager.exists_by_name = afa_exists_by_name;
 		manager->manager.get_by_id = afa_get_by_id;
+		manager->manager.exists_by_name = NULL;
+		manager->manager.get_by_name = NULL;
+	} else {
+		manager->manager.exists_by_name = afa_exists_by_name;
 		manager->manager.get_by_name = afa_get_by_name;
-		manager->archives[0] = ar;
-		assets[type] = &manager->manager;
+		manager->manager.exists_by_id = afa_exists_by_index;
+		manager->manager.get_by_id = afa_get_by_index;
 	}
+	manager->archives[0] = ar;
+	assets[type] = &manager->manager;
 
 	free(file);
 }

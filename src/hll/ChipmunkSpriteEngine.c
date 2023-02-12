@@ -49,24 +49,53 @@ static int ChipmunkSpriteEngine_SP_SetCG(int sp_no, struct string *cg_name)
 	return sprite_set_cg_by_name(sp, cg_name->text);
 }
 
+// XXX: Rance Quest
+static int ChipmunkSpriteEngine_SP_SetCG_by_string_id(int sp_no, struct string *cg_no)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sprite_set_cg_from_asset(sp, atoi(cg_no->text));
+}
+
 static int ChipmunkSpriteEngine_CG_IsExist(struct string *cg_name)
 {
 	return asset_exists_by_name(ASSET_CG, cg_name->text, NULL);
 }
 
-static int ChipmunkSpriteEngine_CG_GetMetrics(struct string *cg_name, struct page **page)
+// XXX: Rance Quest
+static int ChipmunkSpriteEngine_CG_IsExist_by_string_id(struct string *cg_no)
+{
+	return asset_exists(ASSET_CG, atoi(cg_no->text));
+}
+
+static void set_cg_metrics(struct cg_metrics *metrics, struct page **page)
 {
 	union vm_value *cgm = (*page)->values;
+	cgm[0].i = metrics->w;
+	cgm[1].i = metrics->h;
+	cgm[2].i = metrics->bpp;
+	cgm[3].i = metrics->has_pixel;
+	cgm[4].i = metrics->has_alpha;
+	cgm[5].i = metrics->pixel_pitch;
+	cgm[6].i = metrics->alpha_pitch;
+}
+
+static int ChipmunkSpriteEngine_CG_GetMetrics(struct string *cg_name, struct page **page)
+{
 	struct cg_metrics metrics;
 	if (!asset_cg_get_metrics_by_name(cg_name->text, &metrics))
 		return 0;
-	cgm[0].i = metrics.w;
-	cgm[1].i = metrics.h;
-	cgm[2].i = metrics.bpp;
-	cgm[3].i = metrics.has_pixel;
-	cgm[4].i = metrics.has_alpha;
-	cgm[5].i = metrics.pixel_pitch;
-	cgm[6].i = metrics.alpha_pitch;
+	set_cg_metrics(&metrics, page);
+	return 1;
+}
+
+// XXX: Rance Quest
+static int ChipmunkSpriteEngine_CG_GetMetrics_by_string_id(struct string *cg_no, struct page **page)
+{
+	struct cg_metrics metrics;
+	if (!asset_cg_get_metrics(atoi(cg_no->text), &metrics))
+		return 0;
+	set_cg_metrics(&metrics, page);
 	return 1;
 }
 
@@ -286,19 +315,28 @@ static void ChipmunkSpriteEngine_PreLink(void)
 	}
 
 	fun = get_fun(libno, "SP_SetCG");
-	if (fun && fun->arguments[1].type.data == AIN_INT) {
+	if (fun && game_rance8) {
+		static_library_replace(&lib_ChipmunkSpriteEngine, "SP_SetCG",
+				ChipmunkSpriteEngine_SP_SetCG_by_string_id);
+	} else if (fun && fun->arguments[1].type.data == AIN_INT) {
 		static_library_replace(&lib_ChipmunkSpriteEngine, "SP_SetCG", sact_SP_SetCG);
 	}
 
 	// TODO: SP_SetCutCG
 
 	fun = get_fun(libno, "CG_IsExist");
-	if (fun && fun->arguments[0].type.data == AIN_INT) {
+	if (fun && game_rance8) {
+		static_library_replace(&lib_ChipmunkSpriteEngine, "CG_IsExist",
+				ChipmunkSpriteEngine_CG_IsExist_by_string_id);
+	} else if (fun && fun->arguments[0].type.data == AIN_INT) {
 		static_library_replace(&lib_ChipmunkSpriteEngine, "CG_IsExist", sact_CG_IsExist);
 	}
 
 	fun = get_fun(libno, "CG_GetMetrics");
-	if (fun && fun->arguments[0].type.data == AIN_INT) {
+	if (fun && game_rance8) {
+		static_library_replace(&lib_ChipmunkSpriteEngine, "CG_GetMetrics",
+				ChipmunkSpriteEngine_CG_GetMetrics_by_string_id);
+	} else if (fun && fun->arguments[0].type.data == AIN_INT) {
 		static_library_replace(&lib_ChipmunkSpriteEngine, "CG_GetMetrics", sact_CG_GetMetrics);
 	}
 

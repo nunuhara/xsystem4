@@ -20,6 +20,7 @@
 
 #include "asset_manager.h"
 #include "parts.h"
+#include "xsystem4.h"
 #include "hll.h"
 
 static void GoatGUIEngine_PreLink(void);
@@ -155,7 +156,10 @@ static void GoatGUIEngine_PreLink(void)
 	assert(libno >= 0);
 
 	fun = get_fun(libno, "SetPartsCG");
-	if (fun && fun->arguments[1].type.data == AIN_INT) {
+	if (fun && game_rance8) {
+		static_library_replace(&lib_GoatGUIEngine, "SetPartsCG", PE_SetPartsCG_by_string_index);
+	}
+	else if (fun && fun->arguments[1].type.data == AIN_INT) {
 		static_library_replace(&lib_GoatGUIEngine, "SetPartsCG", PE_SetPartsCG_by_index);
 	}
 

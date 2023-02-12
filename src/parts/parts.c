@@ -873,6 +873,15 @@ bool PE_SetPartsCG_by_index(int parts_no, int cg_no, possibly_unused int sprite_
 	return parts_set_cg_by_index(parts_get(parts_no), cg_no, state);
 }
 
+// XXX: Rance Quest
+bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_no,
+		possibly_unused int sprite_deform, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	return parts_set_cg_by_index(parts_get(parts_no), atoi(cg_no->text), state);
+}
+
 void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state)
 {
 	if (!parts_state_valid(--state))

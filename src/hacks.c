@@ -35,6 +35,7 @@ bool game_daibanchou_en = false;
 bool game_rance02_mg = false;
 bool game_rance6_mg = false;
 bool game_rance7_mg = false;
+bool game_rance8 = false;
 
 bool id_indexed_afa = false;
 
@@ -113,7 +114,7 @@ static void apply_rance02_hacks(struct ain *ain)
 
 	// multiply by config.text_x_scale (if not 1.0)
 	buffer_write_int32_at(&out, jump_addr + 2, out.index);
-	if (fabsf(1.0 - config.text_x_scale) > 0.01) {
+	if (fabsf(1.0f - config.text_x_scale) > 0.01) {
 		union { int32_t i; float f; } cast = { .f = config.text_x_scale };
 		write_instruction0(&out, ITOF);
 		write_instruction1(&out, F_PUSH, cast.i);
@@ -171,6 +172,9 @@ void apply_game_specific_hacks(struct ain *ain)
 		id_indexed_afa = true;
 	} else if (!strcmp(game_name, "大帝国")) {
 		id_indexed_afa = true;
+	} else if (!strcmp(game_name, "ランス・クエスト") || !strcmp(game_name, "Rance Quest")) {
+		id_indexed_afa = true;
+		game_rance8 = true;
 	}
 	free(game_name);
 }
