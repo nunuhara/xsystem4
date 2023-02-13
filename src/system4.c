@@ -100,10 +100,9 @@ static void read_mixer_channels(struct ini_entry *entry)
 	config.mixer_volumes = xcalloc(entry->value.list_size, sizeof(int));
 	for (size_t i = 0; i < entry->value.list_size; i++) {
 		if (entry->value.list[i].type == INI_NULL) {
-			WARNING("No name given for VolumeValancer[%d]", i);
-			continue;
-		}
-		if (entry->value.list[i].type == INI_STRING) {
+			config.mixer_channels[i] = strdup("Unnamed");
+			config.mixer_volumes[i] = 0;
+		} else if (entry->value.list[i].type == INI_STRING) {
 			config.mixer_channels[i] = strdup(entry->value.list[i].s->text);
 			// XXX: assumes default_volume was already initialized
 			config.mixer_volumes[i] = config.default_volume;
