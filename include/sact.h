@@ -102,6 +102,8 @@ int sact_TRANS_Update(float rate);
 int sact_TRANS_End(void);
 bool sact_VIEW_SetMode(int mode);
 int sact_VIEW_GetMode(void);
+bool sact_DX_GetUsePower2Texture(void);
+void sact_DX_SetUsePower2Texture(bool use);
 
 extern struct text_style text_sprite_ts;
 bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text);
