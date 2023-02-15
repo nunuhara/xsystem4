@@ -193,12 +193,15 @@ static bool ChipmunkSpriteEngine_SP_GetFontWidth(struct string *text, int *width
 //static int CG_GetFormat_by_index(int cg_no);
 //static int CG_GetFormat(struct string *cg_name);
 
-//static bool ChipmunkSpriteEngine_SP_Suspend(int sp_no);
+HLL_WARN_UNIMPLEMENTED(false, bool, ChipmunkSpriteEngine, SP_Suspend, int sp_no);
 //static bool ChipmunkSpriteEngine_SP_Resume(int sp_no);
 //static bool ChipmunkSpriteEngine_SP_IsSuspend(int sp_no);
 //static bool ChipmunkSpriteEngine_Debug_GetVideoMemoryInfo(int *max_size, int *use_size, int *use_max_size);
 //static void ChipmunkSpriteEngine_CombineTexture(void);
 //static void ChipmunkSpriteEngine_ReleaseCombinedTexture(void);
+
+HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, FPS_SetShow, bool bShow);
+HLL_WARN_UNIMPLEMENTED(false, bool, StoatSpriteEngine, FPS_GetShow, void);
 
 HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(_PreLink, ChipmunkSpriteEngine_PreLink),
@@ -267,8 +270,8 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SP_SetDashTextSprite, StoatSpriteEngine_SP_SetDashTextSprite),
 	    HLL_TODO_EXPORT(SP_SetAlphaClipperSpriteNumber, ChipmunkSpriteEngine_SP_SetAlphaClipperSpriteNumber),
 	    HLL_TODO_EXPORT(SP_GetAlphaClipperSpriteNumber, ChipmunkSpriteEngine_SP_GetAlphaClipperSpriteNumber),
-	    HLL_TODO_EXPORT(FPS_SetShow, StoatSpriteEngine_FPS_SetShow),
-	    HLL_TODO_EXPORT(FPS_GetShow, StoatSpriteEngine_FPS_GetShow),
+	    HLL_EXPORT(FPS_SetShow, StoatSpriteEngine_FPS_SetShow),
+	    HLL_EXPORT(FPS_GetShow, StoatSpriteEngine_FPS_GetShow),
 	    HLL_TODO_EXPORT(FPS_Get, StoatSpriteEngine_FPS_Get),
 	    HLL_EXPORT(GAME_MSG_GetNumof, sact_GAME_MSG_GetNumOf),
 	    HLL_TODO_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get),
@@ -339,7 +342,7 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_TODO_EXPORT(Debug_GetMaxAllocatedMemorySize, StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize),
 	    HLL_TODO_EXPORT(Debug_GetFillRate, StoatSpriteEngine_Debug_GetFillRate),
 	    HLL_TODO_EXPORT(MUSIC_ReloadParam, StoatSpriteEngine_MUSIC_ReloadParam),
-	    HLL_TODO_EXPORT(SP_Suspend, ChipmunkSpriteEngine_SP_Suspend),
+	    HLL_EXPORT(SP_Suspend, ChipmunkSpriteEngine_SP_Suspend),
 	    HLL_TODO_EXPORT(SP_Resume, ChipmunkSpriteEngine_SP_Resume),
 	    HLL_TODO_EXPORT(SP_IsSuspend, ChipmunkSpriteEngine_SP_IsSuspend),
 	    HLL_TODO_EXPORT(Debug_GetVideoMemoryInfo, ChipmunkSpriteEngine_Debug_GetVideoMemoryInfo),
