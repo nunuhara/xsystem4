@@ -14,12 +14,11 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include <time.h>
-
 #include "system4/string.h"
 
 #include "hll.h"
 #include "input.h"
+#include "vm.h"
 
 static void handle_events_throttled(void)
 {
@@ -28,11 +27,7 @@ static void handle_events_throttled(void)
 	static int count;
 	if (++count == 30) {
 		count = 0;
-		struct timespec ts = {
-			.tv_sec = 0,
-			.tv_nsec = 10000000L
-		};
-		nanosleep(&ts, NULL);
+		vm_sleep(10);
 	}
 	handle_events();
 }
