@@ -18,7 +18,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <libgen.h>
 #include <dirent.h>
 #include <ctype.h>
 #include <getopt.h>
@@ -266,7 +265,7 @@ static bool config_init_with_ini(const char *ini_path)
 	if (!config.ain_filename)
 		ERROR("No AIN filename specified in %s", ini_path);
 	char *tmp = strdup(ini_path);
-	config.game_dir = strdup(dirname(tmp));
+	config.game_dir = strdup(path_dirname(tmp));
 	free(tmp);
 	config_init();
 	return true;
@@ -286,12 +285,8 @@ static bool config_init_with_dir(const char *dir)
 
 static void config_init_with_ain(const char *ain_path)
 {
-	char *basename_tmp = strdup(ain_path);
-	char *dirname_tmp = strdup(ain_path);
-	config.ain_filename = strdup(basename(basename_tmp));
-	config.game_dir = strdup(dirname(dirname_tmp));
-	free(basename_tmp);
-	free(dirname_tmp);
+	config.ain_filename = strdup(path_basename(ain_path));
+	config.game_dir = strdup(path_dirname(ain_path));
 	config_init();
 }
 
