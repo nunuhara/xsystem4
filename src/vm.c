@@ -570,11 +570,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_SLEEP: {// system.Sleep(int nSleep)
 		int ms = stack_pop().i;
-		struct timespec ts = {
-			.tv_sec = ms / 1000,
-			.tv_nsec = (ms % 1000) * 1000000L
-		};
-		nanosleep(&ts, NULL);
+		vm_sleep(ms);
 		break;
 	}
 	case SYS_RESUME_READ_COMMENT: {// system.ResumeReadComment(string szKeyName, string szFileName, ref array@string aszComment)
@@ -2372,6 +2368,11 @@ int vm_time(void)
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return (ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
+}
+
+void vm_sleep(int ms)
+{
+	SDL_Delay(ms);
 }
 
 _Noreturn void vm_exit(int code)

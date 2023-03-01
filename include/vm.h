@@ -106,6 +106,7 @@ union vm_value vm_copy(union vm_value v, enum ain_data_type type);
 int vm_execute_ain(struct ain *program);
 void vm_call(int fno, int struct_page);
 int vm_time(void);
+void vm_sleep(int ms);
 
 void hll_call(int libno, int fno);
 bool library_exists(int libno);

@@ -17,6 +17,7 @@
 #include <time.h>
 
 #include "hll.h"
+#include "vm.h"
 
 HLL_WARN_UNIMPLEMENTED(1, int, Timer, Init, void *imainsystem);
 
@@ -28,11 +29,7 @@ static int Timer_Get(void)
 
 static void Timer_Wait(int time)
 {
-	struct timespec ts = {
-		.tv_sec = time / 1000,
-		.tv_nsec = (time % 1000) * 1000000L
-	};
-	nanosleep(&ts, NULL);
+	vm_sleep(time);
 }
 
 static void Timer_GetDayTime(int *year, int *month, int *day_of_week, int *day,
