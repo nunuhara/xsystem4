@@ -408,6 +408,7 @@ HLL_LIBRARY(DrawDungeon,
 	    DRAW_DUNGEON_EXPORTS
 	    );
 
+HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetRasterScroll, int surface, int type);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetRasterAmp, int nSurface, float fAmp);
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetLapFilter, int surface, int type, int r, int g, int b);
 
@@ -431,7 +432,7 @@ HLL_LIBRARY(DrawDungeon14,
 	    HLL_EXPORT(Init, DrawDungeon14_Init),
 	    DRAW_DUNGEON_EXPORTS,
 	    HLL_EXPORT(GetWalked, dungeon_get_walked),
-	    HLL_TODO_EXPORT(SetRasterScroll, DrawDungeon14_SetRasterScroll),
+	    HLL_EXPORT(SetRasterScroll, DrawDungeon14_SetRasterScroll),
 	    HLL_EXPORT(SetRasterAmp, DrawDungeon14_SetRasterAmp),
 	    HLL_EXPORT(SetLapFilter, DrawDungeon14_SetLapFilter),
 	    HLL_EXPORT(GetDrawMapObjectFlag, DrawDungeon14_GetDrawMapObjectFlag),
