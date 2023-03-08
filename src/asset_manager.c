@@ -18,7 +18,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <libgen.h>
 #include <dirent.h>
 #include <limits.h>
 #include <assert.h>
