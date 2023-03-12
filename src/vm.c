@@ -429,7 +429,7 @@ static void system_call(enum syscall_code code)
 	case SYS_GLOBAL_SAVE: { // system.GlobalSave(string szKeyName, string szFileName)
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
-		stack_push(save_globals(heap_get_string(keyname)->text, heap_get_string(filename)->text));
+		stack_push(save_globals(heap_get_string(keyname)->text, heap_get_string(filename)->text, NULL, NULL));
 		heap_unref(filename);
 		heap_unref(keyname);
 		break;
@@ -603,7 +603,7 @@ static void system_call(enum syscall_code code)
 		int groupname = stack_pop().i;
 		int filename = stack_pop().i;
 		int keyname = stack_pop().i;
-		stack_push(save_group(heap_get_string(keyname)->text,
+		stack_push(save_globals(heap_get_string(keyname)->text,
 				      heap_get_string(filename)->text,
 				      heap_get_string(groupname)->text,
 				      &n->i));
