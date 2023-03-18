@@ -521,7 +521,7 @@ int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_style *ts)
 	// XXX: In AliceSoft's implementation, this function succeeds even with
 	//      a negative sp_no...
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
-	if (!sp) return 0;
+	if (!sp || !sp->rect.w || !sp->rect.h) return 0;
 	sprite_text_draw(sp, text, ts);
 	return 1;
 }
