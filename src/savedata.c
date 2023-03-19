@@ -501,8 +501,10 @@ static union vm_value gsave_to_vm_value(struct gsave *save, enum ain_data_type t
 			for (int i = 0; i < rec->nr_indices; i++) {
 				struct gsave_keyval *kv = &save->keyvals[rec->indices[i]];
 				int index = struct_member_index(st, kv->name);
-				if (index < 0)
-					VM_ERROR("Bad save file: %s has no member named %s", display_sjis0(rec->struct_name), display_sjis1(kv->name));
+				if (index < 0) {
+					WARNING("structure %s has no member named %s", display_sjis0(rec->struct_name), display_sjis1(kv->name));
+					continue;
+				}
 				int struct_type, array_rank;
 				enum ain_data_type data_type = variable_type(page, index, &struct_type, &array_rank);
 				if (data_type != kv->type)
