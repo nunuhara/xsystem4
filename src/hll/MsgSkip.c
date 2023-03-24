@@ -25,6 +25,7 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
+#include "little_endian.h"
 #include "vm.h"
 #include "xsystem4.h"
 
@@ -43,38 +44,49 @@ static void msgskip_save(void)
 	if (!f)
 		ERROR("fopen: '%s': %s", display_utf0(save_path), strerror(errno));
 
-	fwrite(flags, nr_flags, 1, f);
+	uint8_t header[4];
+	LittleEndian_putDW(header, 0, nr_flags);
+	fwrite(header, sizeof(header), 1, f);
+	fwrite(flags, (nr_flags + 7) / 8, 1, f);
 	fclose(f);
 	free(flags);
 }
 
-static bool msgskip_initialized = false;
-
 static int MsgSkip_Init(struct string *name)
 {
-	if (msgskip_initialized)
+	if (flags)
 		return 1;
+
+	nr_flags = ain->nr_messages;
+	flags = xcalloc((nr_flags + 7) / 8, 1);
 
 	save_path = unix_path(name->text);
 
-	uint8_t *data;
 	size_t data_size;
-	if (file_exists(save_path)) {
-		data = file_read(save_path, &data_size);
-	} else {
-		data = xcalloc(ain->nr_messages, 1);
-		data_size = ain->nr_messages;
-	}
-	if (data_size != (size_t)ain->nr_messages) {
-		WARNING("Incorrect file size for MsgSkip file '%s'", display_utf0(save_path));
-		if (data_size < (size_t)ain->nr_messages) {
-			data = xrealloc_array(data, data_size, ain->nr_messages, 1);
+	uint8_t *data = file_read(save_path, &data_size);
+	if (data) {
+		if (data_size == (size_t)ain->nr_messages) {
+			// Migrate from the old format.
+			for (int i = 0; i < data_size; i++) {
+				if (data[i])
+					flags[i >> 3] |= 0x80 >> (i & 7);
+			}
+		} else {
+			int n = LittleEndian_getDW(data, 0);
+			if ((n + 7) / 8 != data_size - 4) {
+				WARNING("Corrupted MsgSkip file '%s'", display_utf0(save_path));
+			} else if (n != nr_flags) {
+				WARNING("Incorrect size for MsgSkip file '%s'", display_utf0(save_path));
+				if (n > nr_flags)
+					n = nr_flags;
+				memcpy(flags, data + 4, (n + 7) / 8);
+			} else {
+				memcpy(flags, data + 4, (nr_flags + 7) / 8);
+			}
 		}
+		free(data);
 	}
-	flags = data;
-	nr_flags = ain->nr_messages;
 	atexit(msgskip_save);
-	msgskip_initialized = true;
 	return 1;
 }
 
@@ -82,14 +94,14 @@ static void MsgSkip_SetFlag(int msgnum)
 {
 	if (msgnum < 0 || msgnum >= nr_flags)
 		return;
-	flags[msgnum] = 1;
+	flags[msgnum >> 3] |= 0x80 >> (msgnum & 7);
 }
 
 static int MsgSkip_GetFlag(int msgnum)
 {
 	if (msgnum < 0 || msgnum >= nr_flags)
 		return 0;
-	return !!flags[msgnum];
+	return !!(flags[msgnum >> 3] & 0x80 >> (msgnum & 7));
 }
 
 static void MsgSkip_SetEnable(int enable)
