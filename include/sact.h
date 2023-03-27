@@ -50,7 +50,7 @@ int sact_SP_SetY(int sp_no, int y);
 int sact_SP_SetZ(int sp, int z);
 int sact_SP_GetBlendRate(int sp_no);
 int sact_SP_SetBlendRate(int sp_no, int rate);
-int sact_SP_SetShow(int sp_no, bool show);
+int sact_SP_SetShow(int sp_no, int show);
 int sact_SP_SetDrawMethod(int sp_no, int method);
 int sact_SP_GetDrawMethod(int sp_no);
 int sact_SP_IsUsing(int sp_no);

@@ -175,6 +175,11 @@ struct texture *sprite_get_texture(struct sact_sprite *sp)
 	return &sp->texture;
 }
 
+static void _sprite_print(struct sprite *sp)
+{
+	sprite_print((struct sact_sprite*)sp);
+}
+
 void sprite_set_cg(struct sact_sprite *sp, struct cg *cg)
 {
 	gfx_delete_texture(&sp->texture);
@@ -184,6 +189,7 @@ void sprite_set_cg(struct sact_sprite *sp, struct cg *cg)
 	sp->sp.has_pixel = true;
 	sp->sp.has_alpha = cg->metrics.has_alpha;
 	sp->sp.render = sprite_render;
+	sp->sp.debug_print = _sprite_print;
 	sprite_dirty(sp);
 }
 
@@ -212,6 +218,7 @@ void sprite_set_cg_2x(struct sact_sprite *sp, struct cg *cg)
 	sp->sp.has_pixel = true;
 	sp->sp.has_alpha = cg->metrics.has_alpha;
 	sp->sp.render = sprite_render;
+	sp->sp.debug_print = _sprite_print;
 	sprite_dirty(sp);
 	gfx_delete_texture(&tmp);
 }
@@ -261,11 +268,6 @@ int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path)
 int sprite_save_cg(struct sact_sprite *sp, const char *path)
 {
 	return gfx_save_texture(sprite_get_texture(sp), path, ALCG_QNT);
-}
-
-static void _sprite_print(struct sprite *sp)
-{
-	sprite_print((struct sact_sprite*)sp);
 }
 
 /*
