@@ -361,11 +361,11 @@ int sact_SP_SetBlendRate(int sp_no, int rate)
 	return 1;
 }
 
-int sact_SP_SetShow(int sp_no, bool show)
+int sact_SP_SetShow(int sp_no, int show)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
-	sprite_set_show(sp, show);
+	sprite_set_show(sp, !!show);
 	return 1;
 }
 
