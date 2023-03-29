@@ -20,6 +20,11 @@ png = dependency('libpng', static : static_libs)
 cglm = dependency('cglm', version : '>=0.8.3', fallback : ['cglm', 'cglm_dep'])
 sndfile = dependency('sndfile', static : static_libs)
 
+avcodec = dependency('libavcodec', required: false)
+avformat = dependency('libavformat', required: false)
+avutil = dependency('libavutil', required: false)
+swscale = dependency('libswscale', required: false)
+
 gles = dependency('glesv2', version : '>=3', required: get_option('opengles'))
 if gles.found()
     gl_deps = [gles]

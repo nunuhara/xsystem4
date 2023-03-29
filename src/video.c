@@ -448,6 +448,12 @@ void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 }
 
+void gfx_update_texture_with_pixels(struct texture *t, void *pixels)
+{
+	glBindTexture(GL_TEXTURE_2D, t->handle);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, t->w, t->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+}
+
 void gfx_init_texture_with_cg(struct texture *t, struct cg *cg)
 {
 	gfx_init_texture_with_pixels(t, cg->metrics.w, cg->metrics.h, cg->pixels);
