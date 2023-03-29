@@ -32,7 +32,8 @@
             libwebp
             libsndfile
             glew
-            readline
+            readline81
+            chibi
             flex
             bison
           ];
@@ -60,7 +61,8 @@
               libwebp
               libsndfile
               glew
-              readline
+              readline81
+              chibi
               flex
               bison
             ];

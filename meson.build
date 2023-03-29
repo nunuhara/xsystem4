@@ -1,4 +1,5 @@
 project('system4', 'c',
+        meson_version: '>= 0.59',
         default_options : ['c_std=c11'])
 add_project_arguments('-D_DEFAULT_SOURCE', language : 'c')
 add_project_arguments('-DXSYS4_DATA_DIR="' + get_option('prefix') / get_option('datadir') / 'xsystem4"', language : 'c')
@@ -16,7 +17,7 @@ ffi = dependency('libffi', static : static_libs)
 tj = dependency('libturbojpeg', static : static_libs)
 webp = dependency('libwebp', static : static_libs)
 png = dependency('libpng', static : static_libs)
-cglm = dependency('cglm', fallback : ['cglm', 'cglm_dep'])
+cglm = dependency('cglm', version : '>=0.8.3', fallback : ['cglm', 'cglm_dep'])
 sndfile = dependency('sndfile', static : static_libs)
 
 gles = dependency('glesv2', version : '>=3', required: get_option('opengles'))
