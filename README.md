@@ -47,6 +47,36 @@ Finally install it to your system (optional),
 
     ninja -C build install
 
+### Windows
+
+xsystem4 can be built on Windows using MSYS2.
+
+First install MSYS2, and then open the MINGW64 shell and run the following command,
+
+    pacman -S flex bison \
+        mingw-w64-x86_64-gcc \
+        mingw-w64-x86_64-meson \
+        mingw-w64-x86_64-pkg-config \
+        mingw-w64-x86_64-SDL2 \
+        mingw-w64-x86_64-freetype \
+        mingw-w64-x86_64-libjpeg-turbo \
+        mingw-w64-x86_64-libwebp \
+        mingw-w64-x86_64-libsndfile \
+        mingw-w64-x86_64-glew
+
+Then build the xsystem4 executable with meson,
+
+    mkdir build
+    meson build
+    ninja -C build
+
+To create a portable executable, it is neccessary to copy some DLLs into the same directory as xsystem4.exe.
+You can determine the required DLLs with the following command,
+
+    ldd build/src/xsystem4.exe | grep mingw64
+
+The `fonts` and `shaders` directories must also be shipped together with xsystem4.exe.
+
 Installing
 ----------
 

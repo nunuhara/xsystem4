@@ -140,8 +140,14 @@ if get_option('debugger').allowed()
     endif
 endif
 
+static_link_args = []
+if host_machine.system() == 'windows'
+    static_link_args = ['-static', '-lstdc++']
+endif
+
 executable('xsystem4', xsystem4,
            dependencies : xsystem4_deps,
            c_args : ['-Wno-unused-parameter'],
+           link_args : static_link_args,
            include_directories : incdir,
            install : true)
