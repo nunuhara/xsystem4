@@ -64,6 +64,40 @@ First install MSYS2, and then open the MINGW64 shell and run the following comma
         mingw-w64-x86_64-libsndfile \
         mingw-w64-x86_64-glew
 
+To build with FFmpeg support, you must compile FFmpeg as a static library:
+
+    git clone https://github.com/FFmpeg/FFmpeg.git
+    cd FFmpeg
+    git checkout n6.0
+    ./configure --disable-everything \
+        --enable-decoder=mpegvideo \
+        --enable-decoder=mpeg1video \
+        --enable-decoder=mpeg2video \
+        --enable-decoder=mp2 \
+        --enable-parser=mpegaudio \
+        --enable-parser=mpegvideo \
+        --enable-demuxer=mpegps \
+        --enable-demuxer=mpegts \
+        --enable-demuxer=mpegtsraw \
+        --enable-demuxer=mpegvideo \
+        --enable-decoder=vc1 \
+        --enable-decoder=wmapro \
+        --enable-parser=vc1 \
+        --enable-hwaccel=vc1_d3d11va \
+        --enable-hwaccel=vc1_d3d11va2 \
+        --enable-hwaccel=vc1_dxva2 \
+        --enable-demuxer=asf \
+        --enable-protocol=file \
+        --enable-filter=scale \
+        --enable-static \
+        --disable-shared \
+        --extra-libs=-static \
+        --extra-cflags=--static
+    make
+    make install
+    cd ..
+    export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
+
 Then build the xsystem4 executable with meson,
 
     mkdir build

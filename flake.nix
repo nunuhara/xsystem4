@@ -36,6 +36,7 @@
             chibi
             flex
             bison
+            ffmpeg
           ];
         }
       );
@@ -65,6 +66,7 @@
               chibi
               flex
               bison
+              ffmpeg
             ];
           };
         }
