@@ -77,6 +77,4 @@ extern bool game_rance6_mg;
 extern bool game_rance7_mg;
 extern bool game_rance8;
 
-extern bool id_indexed_afa;
-
 #endif /* XSYSTEM4_H */

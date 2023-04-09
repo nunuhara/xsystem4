@@ -37,8 +37,6 @@ bool game_rance6_mg = false;
 bool game_rance7_mg = false;
 bool game_rance8 = false;
 
-bool id_indexed_afa = false;
-
 static void write_instruction0(struct buffer *out, enum opcode op)
 {
 	buffer_write_int16(out, op);
@@ -168,12 +166,7 @@ void apply_game_specific_hacks(struct ain *ain)
 		apply_rance6_hacks(ain);
 	} else if (!strcmp(game_name, "Sengoku Rance")) {
 		apply_rance7_hacks(ain);
-	} else if (!strcmp(game_name, "しゃーまんず・さんくちゅあり　巫女の聖域")) {
-		id_indexed_afa = true;
-	} else if (!strcmp(game_name, "大帝国")) {
-		id_indexed_afa = true;
 	} else if (!strcmp(game_name, "ランス・クエスト") || !strcmp(game_name, "Rance Quest")) {
-		id_indexed_afa = true;
 		game_rance8 = true;
 	}
 	free(game_name);

@@ -74,7 +74,6 @@ struct asset_manager_ald {
 struct asset_manager_afa {
 	struct asset_manager manager;
 	struct afa_archive *archives[MAX_ARCHIVES];
-	struct hash_table *index;
 };
 
 static struct asset_manager *assets[ASSET_TYPE_MAX] = {0};
@@ -196,32 +195,9 @@ static bool afa_load_archive(struct asset_manager *_manager, const char *name)
 		manager->archives[i] = manager->archives[i-1];
 	}
 	manager->archives[0] = ar;
-
-	// index needs to be rebuilt
-	if (manager->index) {
-		ht_free(manager->index);
-		manager->index = NULL;
-	}
 	return true;
 }
 
-static bool _afa_get_by_index(struct asset_manager *_manager, int id,
-		struct afa_archive **ar_out, int *no_out)
-{
-	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
-	uint32_t no = id - 1;
-	for (int i = 0; i < MAX_ARCHIVES && manager->archives[i]; i++) {
-		if (no < manager->archives[i]->nr_files) {
-			*ar_out = manager->archives[i];
-			*no_out = no;
-			return true;
-		}
-		no -= manager->archives[i]->nr_files;
-	}
-	return false;
-}
-
-// XXX: id-indexed afa
 static bool afa_exists_by_id(struct asset_manager *_manager, int id)
 {
 	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
@@ -232,15 +208,6 @@ static bool afa_exists_by_id(struct asset_manager *_manager, int id)
 	return false;
 }
 
-// XXX: string-indexed afa
-static bool afa_exists_by_index(struct asset_manager *manager, int index)
-{
-	int no;
-	struct afa_archive *ar;
-	return _afa_get_by_index(manager, index, &ar, &no);
-}
-
-// XXX: id-indexed afa
 static struct archive_data *afa_get_by_id(struct asset_manager *_manager, int id)
 {
 	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
@@ -252,76 +219,35 @@ static struct archive_data *afa_get_by_id(struct asset_manager *_manager, int id
 	return NULL;
 }
 
-// XXX: string-indexed afa
-static struct archive_data *afa_get_by_index(struct asset_manager *manager, int index)
-{
-	int no;
-	struct afa_archive *ar;
-	if (!_afa_get_by_index(manager, index, &ar, &no))
-		return NULL;
-	return archive_get(&ar->ar, no);
-}
-
-static void afa_index_archive(struct hash_table *index, struct afa_archive *ar, unsigned base)
-{
-	for (unsigned i = 0; i < ar->nr_files; i++) {
-		// normalize case and remove file extension from file name
-		char *name = strdup(ar->files[i].name->text);
-		char *dot = strrchr(name, '.');
-		if (dot)
-			*dot = '\0';
-		sjis_toupper(name);
-		// add file to index
-		ht_put(index, name, (void*)((uintptr_t)base + i + 1));
-		free(name);
-	}
-}
-
-static bool _afa_get_by_name(struct asset_manager *_manager, const char *_name,
-		struct afa_archive **ar_out, int *no_out, int *id_out)
+static struct archive_data *afa_get_by_name(struct asset_manager *_manager, const char *name,
+		int *id_out)
 {
 	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
-	// initialize index lazily
-	if (!manager->index) {
-		manager->index = ht_create(4096);
-		unsigned base = 0;
-		for (unsigned i = 0; i < MAX_ARCHIVES && manager->archives[i]; i++) {
-			afa_index_archive(manager->index, manager->archives[i], base);
-			base += manager->archives[i]->nr_files;
+
+	for (unsigned i = 0; i < MAX_ARCHIVES && manager->archives[i]; i++) {
+		struct archive_data *data;
+		data = archive_get_by_basename(&manager->archives[i]->ar, name);
+		if (data) {
+			if (id_out)
+				*id_out = data->no + 1;
+			return data;
 		}
 	}
-
-	// normalize name and get id from index
-	char *name = strdup(_name);
-	sjis_toupper(name);
-	char *dot = strrchr(name, '.');
-	if (dot)
-		*dot = '\0';
-	uintptr_t id = (uintptr_t)ht_get(manager->index, name, NULL);
-	free(name);
-
-	if (!id)
-		return false;
-
-	if (id_out)
-		*id_out = id;
-	return _afa_get_by_index(_manager, id, ar_out, no_out);
+	return NULL;
 }
 
-static bool afa_exists_by_name(struct asset_manager *manager, const char *name, int *id_out)
+static bool afa_exists_by_name(struct asset_manager *_manager, const char *name, int *id_out)
 {
-	int no;
-	struct afa_archive *ar;
-	return _afa_get_by_name(manager, name, &ar, &no, id_out);
-}
+	struct asset_manager_afa *manager = (struct asset_manager_afa*)_manager;
 
-static struct archive_data *afa_get_by_name(struct asset_manager *manager, const char *name, int *id_out)
-{
-	int no;
-	struct afa_archive *ar;
-	if (!_afa_get_by_name(manager, name, &ar, &no, id_out))
-		return NULL;
-	return archive_get(&ar->ar, no);
+	for (unsigned i = 0; i < MAX_ARCHIVES && manager->archives[i]; i++) {
+		if (archive_exists_by_basename(&manager->archives[i]->ar, name, id_out)) {
+			if (id_out)
+				*id_out += 1;
+			return true;
+		}
+	}
+	return false;
 }
 
 static void _ald_init(enum asset_type type, struct archive *ar)
@@ -369,17 +295,10 @@ static void afa_init(enum asset_type type, char *file)
 
 	struct asset_manager_afa *manager = xcalloc(1, sizeof(struct asset_manager_afa));
 	manager->manager.load_archive = afa_load_archive;
-	if (id_indexed_afa) {
-		manager->manager.exists_by_id = afa_exists_by_id;
-		manager->manager.get_by_id = afa_get_by_id;
-		manager->manager.exists_by_name = NULL;
-		manager->manager.get_by_name = NULL;
-	} else {
-		manager->manager.exists_by_name = afa_exists_by_name;
-		manager->manager.get_by_name = afa_get_by_name;
-		manager->manager.exists_by_id = afa_exists_by_index;
-		manager->manager.get_by_id = afa_get_by_index;
-	}
+	manager->manager.exists_by_id = afa_exists_by_id;
+	manager->manager.get_by_id = afa_get_by_id;
+	manager->manager.exists_by_name = afa_exists_by_name;
+	manager->manager.get_by_name = afa_get_by_name;
 	manager->archives[0] = ar;
 	assets[type] = &manager->manager;
 
