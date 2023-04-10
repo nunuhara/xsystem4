@@ -55,59 +55,53 @@ bool library_function_exists(int libno, int fno)
 #ifdef TRACE_HLL
 #include "system4/string.h"
 
-static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
+struct traced_library {
+	const char *name;
+	bool (*should_trace)(struct ain_hll_function *f, union vm_value **args);
+};
+
+#include "parts.h"
+static bool parts_engine_should_trace(struct ain_hll_function *f, union vm_value **args)
+{
+	if (!strcmp(f->name, "Update"))
+		return false;
+	if (!strcmp(f->name, "SetAddColor"))
+		return false;
+	if (!strcmp(f->name, "SetAlpha"))
+		return PE_GetPartsAlpha(args[0]->i) != args[1]->i;
+	if (!strcmp(f->name, "SetPartsCGSurfaceArea"))
+		return args[1]->i >= 0 && args[2]->i >= 0;
+	if (!strcmp(f->name, "SetPartsConstructionSurfaceArea"))
+		return args[1]->i >= 0 && args[2]->i >= 0;
+	if (!strcmp(f->name, "SetPartsMagX"))
+		return args[1]->f > 1.001 || args[1]->f < -1.001;
+	if (!strcmp(f->name, "SetPartsMagY"))
+		return args[1]->f > 1.001 || args[1]->f < -1.001;
+	if (!strcmp(f->name, "SetPartsOriginPosMode"))
+		return PE_GetPartsOriginPosMode(args[0]->i) != args[1]->i;
+	if (!strcmp(f->name, "SetPartsRotateZ"))
+		return args[1]->f > 0.001 || args[1]->f < -0.001;
+	if (!strcmp(f->name, "SetPos"))
+		return PE_GetPartsX(args[0]->i) != args[1]->i || PE_GetPartsX(args[0]->i) != args[2]->i;
+	if (!strcmp(f->name, "SetShow")) {
+		if (args[0]->i == 0)
+			return false; // ???
+		return PE_GetPartsShow(args[0]->i) != args[1]->i;
+	}
+	if (!strcmp(f->name, "SetZ"))
+		return PE_GetPartsZ(args[0]->i) != args[1]->i;
+	return true;
+}
+
+struct traced_library traced_libraries[] = {
+	{ "GUIEngine", NULL },
+	{ "PartsEngine", parts_engine_should_trace },
+};
+
+static void print_hll_trace(struct ain_library *lib, struct ain_hll_function *f,
 		      struct hll_function *fun, union vm_value *r, void *_args)
 {
-	/*
-	// list of traced libraries
-	if (!strcmp(lib->name, "StoatSpriteEngine") || !strcmp(lib->name, "ChipmunkSpriteEngine")) {
-		// list of excluded functions
-		if (!strcmp(f->name, "CharSprite_GetAlphaRate")) goto notrace;
-		if (!strcmp(f->name, "CharSprite_SetAlphaRate")) goto notrace;
-		if (!strcmp(f->name, "KEY_GetState")) goto notrace;
-		if (!strcmp(f->name, "Mouse_ClearWheel")) goto notrace;
-		if (!strcmp(f->name, "Mouse_GetPos")) goto notrace;
-		if (!strcmp(f->name, "Mouse_GetWheel")) goto notrace;
-		if (!strcmp(f->name, "MultiSprite_UpdateView")) goto notrace;
-		if (!strcmp(f->name, "SP_ExistAlpha")) goto notrace;
-		if (!strcmp(f->name, "SP_GetHeight")) goto notrace;
-		if (!strcmp(f->name, "SP_GetWidth")) goto notrace;
-		if (!strcmp(f->name, "SP_IsPtIn")) goto notrace;
-		if (!strcmp(f->name, "SP_IsPtInRect")) goto notrace;
-		if (!strcmp(f->name, "SYSTEM_SetReadMessageSkipping")) goto notrace;
-		if (!strcmp(f->name, "TRANS_Update")) goto notrace;
-		if (!strcmp(f->name, "Update")) goto notrace;
-		else goto notrace;
-	}
-	else if (!strcmp(lib->name, "VSFile"));
-	else if (!strcmp(lib->name, "GoatGUIEngine")) {
-		if (!strcmp(f->name, "Update")) goto notrace;
-		if (!strcmp(f->name, "IsMotion")) goto notrace;
-		if (!strcmp(f->name, "SetMotionTime")) goto notrace;
-		if (!strcmp(f->name, "GetClickPartsNumber")) goto notrace;
-	}
-	//else if (!strcmp(lib->name, "DrawGraph"));
-	else if (!strcmp(lib->name, "SACT2")) {
-		if (strncmp(f->name, "SP_", 3)) goto notrace;
-		if (!strcmp(f->name, "Key_IsDown")) goto notrace;
-		if (!strcmp(f->name, "Mouse_GetPos")) goto notrace;
-		if (!strcmp(f->name, "SP_ExistAlpha")) goto notrace;
-		if (!strcmp(f->name, "SP_IsPtInRect")) goto notrace;
-		if (!strcmp(f->name, "SP_IsPtIn")) goto notrace;
-		if (!strcmp(f->name, "SP_IsUsing")) goto notrace;
-		if (!strcmp(f->name, "SP_SetShow")) goto notrace;
-		if (!strcmp(f->name, "SP_SetPos")) goto notrace;
-		if (!strcmp(f->name, "Timer_Get")) goto notrace;
-		if (!strcmp(f->name, "Update")) goto notrace;
-	}
-	else*/ if (!strcmp(lib->name, "SengokuRanceFont")) {
-		if (!strcmp(f->name, "SP_SetReduceDescender")) goto notrace;
-		if (!strcmp(f->name, "SP_ClearState")) goto notrace;
-	}
-	else goto notrace;
-
 	sys_message("(%s) ", display_sjis0(ain->functions[call_stack[call_stack_ptr-1].fno].name));
-
 	sys_message("%s.%s(", lib->name, f->name);
 	union vm_value **args = _args;
 	for (int i = 0; i < f->nr_arguments; i++) {
@@ -183,8 +177,22 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 		}
 	}
 	sys_message("\n");
-	return;
-notrace:
+}
+
+static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
+		      struct hll_function *fun, union vm_value *r, void *_args)
+{
+	for (unsigned i = 0; i < sizeof(traced_libraries)/sizeof(*traced_libraries); i++) {
+		struct traced_library *l = &traced_libraries[i];
+		if (!strcmp(lib->name, l->name)) {
+			if (!l->should_trace || l->should_trace(f, _args)) {
+				print_hll_trace(lib, f, fun, r, _args);
+				return;
+			}
+			break;
+		}
+	}
+
 	ffi_call(&fun->cif, (void*)fun->fun, r, _args);
 }
 #endif /* TRACE_HLL */
@@ -340,6 +348,7 @@ extern struct static_library lib_MsgLogViewer;
 extern struct static_library lib_MsgSkip;
 extern struct static_library lib_OutputLog;
 extern struct static_library lib_PassRegister;
+extern struct static_library lib_PartsEngine;
 extern struct static_library lib_PlayDemo;
 extern struct static_library lib_PlayMovie;
 extern struct static_library lib_ReignEngine;
@@ -408,6 +417,7 @@ static struct static_library *static_libraries[] = {
 	&lib_MsgSkip,
 	&lib_OutputLog,
 	&lib_PassRegister,
+	&lib_PartsEngine,
 	&lib_PlayDemo,
 	&lib_PlayMovie,
 	&lib_ReignEngine,

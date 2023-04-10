@@ -418,7 +418,10 @@ static void parts_list_print(struct parts *parts, int indent)
 		printf("(uninitialized)");
 		break;
 	case PARTS_CG:
-		printf("(cg %d)", state->cg.no);
+		if (state->cg.name)
+			printf("(cg %s)", display_sjis0(state->cg.name->text));
+		else
+			printf("(cg %d)", state->cg.no);
 		break;
 	case PARTS_TEXT:
 		printf("(text)"); // TODO? store actual text and print it here

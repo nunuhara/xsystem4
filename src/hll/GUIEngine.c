@@ -501,6 +501,7 @@ HLL_QUIET_UNIMPLEMENTED(0, int, GUIEngine, GetMessageType);
 HLL_LIBRARY(GUIEngine,
 	    HLL_EXPORT(_ModuleInit, GUIEngine_ModuleInit),
 	    HLL_EXPORT(_ModuleFini, GUIEngine_ModuleFini),
+	    HLL_EXPORT(Init, PE_Init),
 	    HLL_EXPORT(Release, PE_ReleaseParts),
 	    HLL_EXPORT(ReleaseAll, PE_ReleaseAllParts),
 	    HLL_EXPORT(ReleaseAllWithoutSystem, PE_ReleaseAllPartsWithoutSystem),

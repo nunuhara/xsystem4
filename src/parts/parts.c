@@ -23,6 +23,7 @@
 #include "audio.h"
 #include "vm/page.h"
 #include "xsystem4.h"
+#include "sact.h"
 #include "parts.h"
 #include "parts_internal.h"
 
@@ -536,7 +537,7 @@ bool parts_set_cg_by_index(struct parts *parts, int cg_no, int state)
 
 bool parts_set_cg_by_name(struct parts *parts, struct string *cg_name, int state)
 {
-	if (!cg_name) {
+	if (!cg_name || *(cg_name->text) == '\0') {
 		parts_state_reset(&parts->states[state], PARTS_CG);
 		parts_dirty(parts);
 		return true;
@@ -742,14 +743,18 @@ void parts_release_all(void)
 	}
 }
 
+static bool parts_engine_initialized = false;
+
 bool PE_Init(void)
 {
+	if (parts_engine_initialized)
+		return true;
+	// XXX: Oyako Rankan doesn't call ChipmunkSpriteEngine.Init
+	sact_init(16, true);
 	parts_table = ht_create(1024);
 	parts_render_init();
 	parts_debug_init();
-	gfx_init();
-	gfx_font_init();
-	audio_init();
+	parts_engine_initialized = true;
 	return true;
 }
 
@@ -1470,7 +1475,8 @@ int PE_GetFreeNumber(void)
 	while (PE_IsExist(first_free)) {
 		first_free++;
 	}
-	return first_free;
+	// XXX: the ID is incremented even if the parts is not created
+	return first_free++;
 }
 
 bool PE_IsExist(int parts_no)
