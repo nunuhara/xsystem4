@@ -1437,8 +1437,17 @@ void PE_SetPartsPixelDecide(int parts_no, bool pixel_decide)
 	//NOTICE("PE_SetPartsPixelDecide(%d, %s)", parts_no, pixel_decide ? "true" : "false");
 }
 
-bool PE_SetThumbnailReductionSize(int ReductionSize);
-bool PE_SetThumbnailMode(bool Mode);
+bool PE_SetThumbnailReductionSize(int reduction_size)
+{
+	NOTICE("PE_SetThumbnailReductionSize(%d)", reduction_size);
+	return true;
+}
+
+bool PE_SetThumbnailMode(bool mode)
+{
+	NOTICE("PE_SetThumbnailMode(%s)", mode ? "true" : "false");
+	return true;
+}
 
 bool PE_Save(struct page **buffer)
 {

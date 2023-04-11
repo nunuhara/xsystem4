@@ -156,19 +156,38 @@ void PE_AddMotionAlpha_curve(int parts_no, int begin_a, int end_a, int begin_t, 
 void PE_AddMotionCG_by_index(int parts_no, int begin_cg_no, int nr_cg, int begin_t, int end_t);
 void PE_AddMotionHGaugeRate(int parts_no, int begin_numerator, int begin_denominator,
 			    int end_numerator, int end_denominator, int begin_t, int end_t);
+void PE_AddMotionHGaugeRate_curve(int parts_no, int begin_numerator, int begin_denominator,
+			    int end_numerator, int end_denominator, int begin_t, int end_t,
+			    struct string *curve_name);
 void PE_AddMotionVGaugeRate(int parts_no, int begin_numerator, int begin_denominator,
 			    int end_numerator, int end_denominator, int begin_t, int end_t);
+void PE_AddMotionVGaugeRate_curve(int parts_no, int begin_numerator, int begin_denominator,
+			    int end_numerator, int end_denominator, int begin_t, int end_t,
+			    struct string *curve_name);
 void PE_AddMotionNumeralNumber(int parts_no, int begin_n, int end_n, int begin_t, int end_t);
+void PE_AddMotionNumeralNumber_curve(int parts_no, int begin_n, int end_n, int begin_t,
+		int end_t, struct string *curve_name);
 void PE_AddMotionMagX(int parts_no, float begin, float end, int begin_t, int end_t);
+void PE_AddMotionMagX_curve(int parts_no, float begin, float end, int begin_t, int end_t,
+		struct string *curve_name);
 void PE_AddMotionMagY(int parts_no, float begin, float end, int begin_t, int end_t);
+void PE_AddMotionMagY_curve(int parts_no, float begin, float end, int begin_t, int end_t,
+		struct string *curve_name);
 void PE_AddMotionRotateX(int parts_no, float begin, float end, int begin_t, int end_t);
+void PE_AddMotionRotateX_curve(int parts_no, float begin, float end, int begin_t, int end_t,
+		struct string *curve_name);
 void PE_AddMotionRotateY(int parts_no, float begin, float end, int begin_t, int end_t);
+void PE_AddMotionRotateY_curve(int parts_no, float begin, float end, int begin_t, int end_t,
+		struct string *curve_name);
 void PE_AddMotionRotateZ(int parts_no, float begin, float end, int begin_t, int end_t);
+void PE_AddMotionRotateZ_curve(int parts_no, float begin, float end, int begin_t, int end_t,
+		struct string *curve_name);
 void PE_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin_t, int end_t);
 void PE_AddMotionSound(int sound_no, int begin_t);
 void PE_BeginMotion(void);
 void PE_EndMotion(void);
 void PE_SetMotionTime(int t);
+void PE_SeekEndMotion(void);
 void PE_UpdateMotionTime(int time, bool skip);
 bool PE_IsMotion(void);
 int PE_GetMotionEndTime(void);
