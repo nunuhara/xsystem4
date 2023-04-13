@@ -459,19 +459,22 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_MSGBOX: {
 		struct string *str = stack_peek_string(0);
-		SDL_ShowSimpleMessageBox(0, "xsystem4", display_sjis0(str->text), NULL);
+		char *utf = sjis2utf(str->text, str->size);
+		SDL_ShowSimpleMessageBox(0, "xsystem4", utf, NULL);
+		free(utf);
 		// XXX: caller S_POPs
 		break;
 	}
 	case SYS_MSGBOX_OK_CANCEL: {
 		int result = 0;
 		struct string *str = stack_peek_string(0);
+		char *utf = sjis2utf(str->text, str->size);
 
 		const SDL_MessageBoxData mbox = {
 			SDL_MESSAGEBOX_INFORMATION,
 			NULL,
 			"xsystem4",
-			display_sjis0(str->text),
+			utf,
 			SDL_arraysize(buttons),
 			buttons,
 			NULL
@@ -479,6 +482,7 @@ static void system_call(enum syscall_code code)
 		if (SDL_ShowMessageBox(&mbox, &result)) {
 			WARNING("Error displaying message box");
 		}
+		free(utf);
 		heap_unref(stack_pop().i);
 		stack_push(result);
 		break;
