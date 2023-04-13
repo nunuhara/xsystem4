@@ -66,11 +66,18 @@ struct page {
 		int index;
 		enum ain_data_type a_type;
 	};
-	// array-specific metadata
-	struct {
-		int struct_type;
-		int rank;
-	} array;
+	union {
+		// array-specific metadata
+		struct {
+			int struct_type;
+			int rank;
+		} array;
+		// struct-specific metadata
+		struct {
+			int *delegates;
+			unsigned nr_delegates;
+		} struc;
+	};
 	int nr_vars;
 	union vm_value values[];
 };
@@ -113,6 +120,8 @@ int alloc_struct(int no);
 void init_struct(int no, int slot);
 void delete_struct(int no, int slot);
 void create_struct(int no, union vm_value *var);
+void struct_register_delegate(int obj, int dg_i);
+void struct_unregister_delegate(int obj, int dg_i);
 
 // arrays
 enum ain_data_type array_type(enum ain_data_type type);
@@ -131,14 +140,14 @@ int array_find(struct page *page, int start, int end, union vm_value v, int comp
 void array_reverse(struct page *page);
 
 // delegates
-struct page *delegate_new_from_method(int obj, int fun);
-int delegate_numof(struct page *page);
-bool delegate_contains(struct page *dst, int obj, int fun);
-void delegate_erase(struct page *page, int obj, int fun);
-struct page *delegate_append(struct page *dst, int obj, int fun);
-struct page *delegate_plusa(struct page *dst, struct page *add);
-struct page *delegate_minusa(struct page *dst, struct page *minus);
-struct page *delegate_clear(struct page *page);
-void delegate_get(struct page *page, int i, int *obj_out, int *fun_out);
+void delegate_new_from_method(int dg_i, int obj, int fun);
+int delegate_numof(int dg_i);
+bool delegate_contains(int dg_i, int obj, int fun);
+void delegate_erase(int dg_i, int obj, int fun);
+void delegate_append(int dg_i, int obj, int fun);
+void delegate_plusa(int dg_i, int add_i);
+void delegate_minusa(int dg_i, int minus_i);
+void delegate_clear(int dg_i);
+void delegate_get(int dg_i, int i, int *obj_out, int *fun_out);
 
 #endif /* SYSTEM4_PAGE_H */

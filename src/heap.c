@@ -241,6 +241,14 @@ struct string *heap_get_string(int index)
 	return heap[index].s;
 }
 
+struct page *heap_get_struct_page(int index)
+{
+	struct page *page = heap_get_page(index);
+	if (unlikely(!page || page->type != STRUCT_PAGE))
+		VM_ERROR("Not a struct page: %d", index);
+	return page;
+}
+
 struct page *heap_get_delegate_page(int index)
 {
 	struct page *page = heap_get_page(index);
