@@ -239,7 +239,7 @@ int vm_copy_page(struct page *page)
 	return slot;
 }
 
-static void register_delegate_structs(struct page *dg, int dg_i)
+void vm_register_delegate_structs(struct page *dg, int dg_i)
 {
 	for (int i = 0; i < dg->nr_vars; i += 2) {
 		if (dg->values[i].i < 0)
@@ -254,7 +254,7 @@ int vm_copy_delegate_page(int dg_i)
 	int slot = vm_copy_page(page);
 
 	if (page) {
-		register_delegate_structs(page, slot);
+		vm_register_delegate_structs(page, slot);
 	}
 
 	return slot;
@@ -316,7 +316,8 @@ static void scenario_call(int slot)
 		.call_address = instr_ptr,
 		.return_address = VM_RETURN,
 		.page_slot = slot,
-		.struct_page = -1
+		.struct_page = -1,
+		.delegate = -1,
 	};
 	call_stack_ptr = 1;
 	instr_ptr = ain->functions[fno].address;
@@ -340,7 +341,8 @@ static int _function_call(int fno, int return_address)
 		.call_address = instr_ptr,
 		.return_address = return_address,
 		.page_slot = slot,
-		.struct_page = -1
+		.struct_page = -1,
+		.delegate = -1,
 	};
 	// initialize local variables
 	for (int i = f->nr_args; i < f->nr_vars; i++) {
@@ -378,10 +380,8 @@ static void method_call(int fno, int return_address)
 
 static void vm_execute(void);
 
-static void delegate_call(int dg_no)
+static void delegate_call(int dg_no, int return_address)
 {
-	size_t saved_ip = instr_ptr;
-
 	// stack: [arg0, ..., dg_page, dg_index]
 	int dg_page = stack_peek(1).i;
 	int dg_index = stack_peek(0).i;
@@ -389,7 +389,7 @@ static void delegate_call(int dg_no)
 	int obj, fun;
 	delegate_get(dg_page, dg_index, &obj, &fun);
 
-	int slot = _function_call(fun, VM_RETURN);
+	int slot = _function_call(fun, return_address);
 
 	// copy arguments into local page
 	struct ain_function_type *dg = &ain->delegates[dg_no];
@@ -399,8 +399,7 @@ static void delegate_call(int dg_no)
 	}
 
 	call_stack[call_stack_ptr-1].struct_page = obj;
-	vm_execute();
-	instr_ptr = saved_ip;
+	call_stack[call_stack_ptr-1].delegate = dg_no;
 }
 
 void vm_call(int fno, int struct_page)
@@ -420,6 +419,14 @@ static void function_return(void)
 {
 	heap_unref(call_stack[call_stack_ptr-1].page_slot);
 	instr_ptr = call_stack[call_stack_ptr-1].return_address;
+	if (call_stack[call_stack_ptr-1].delegate >= 0) {
+		const int dg = call_stack[call_stack_ptr-1].delegate;
+		if (ain->delegates[dg].return_type.data != AIN_VOID) {
+			stack[stack_ptr-2].i++;
+		} else {
+			stack[stack_ptr-1].i++;
+		}
+	}
 	call_stack_ptr--;
 }
 
@@ -2134,13 +2141,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 			if (ain->delegates[dg].return_type.data != AIN_VOID) {
 				stack_pop();
 			}
-			delegate_call(dg);
-			if (ain->delegates[dg].return_type.data != AIN_VOID) {
-				stack[stack_ptr-2].i++;
-			} else {
-				stack[stack_ptr-1].i++;
-			}
-			instr_ptr += 10;
+			delegate_call(dg, instr_ptr + instruction_width(DG_CALL));
 		} else {
 			// call finished: clean up stack and jump to return address
 			union vm_value r;
@@ -2196,7 +2197,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		struct page *new_dg = copy_page(set);
 		delete_page(dst_i);
 		heap_set_page(dst_i, new_dg);
-		register_delegate_structs(new_dg, dst_i);
+		vm_register_delegate_structs(new_dg, dst_i);
 		stack_push(set_i);
 		break;
 	}

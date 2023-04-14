@@ -114,6 +114,8 @@ static cJSON *funcall_to_json(struct function_call *call)
 	cJSON_AddNumberToObject(json, "return-address", call->return_address);
 	cJSON_AddNumberToObject(json, "local-page", call->page_slot);
 	cJSON_AddNumberToObject(json, "struct-page", call->struct_page);
+	if (call->delegate >= 0)
+		cJSON_AddNumberToObject(json, "delegate", call->delegate);
 	return json;
 }
 
@@ -266,8 +268,20 @@ static void alloc_heap_slot(int slot)
 	heap_free_ptr++;
 }
 
+struct delegate_list {
+	int *slots;
+	int n;
+};
+
+void delegate_list_add(struct delegate_list *list, int slot)
+{
+	list->slots = xrealloc_array(list->slots, list->n, list->n+1, sizeof(int));
+	list->slots[list->n++] = slot;
+}
+
 static void load_heap(cJSON *json)
 {
+	struct delegate_list delegates = {0};
 	delete_heap();
 
 	cJSON *item;
@@ -287,6 +301,8 @@ static void load_heap(cJSON *json)
 			load_string(slot, value);
 		} else if (cJSON_IsObject(value)) {
 			load_page(slot, value);
+			if (heap[slot].page->type == DELEGATE_PAGE)
+				delegate_list_add(&delegates, slot);
 		} else if (cJSON_IsNull(value)) {
 			heap[slot].type = VM_PAGE;
 			heap[slot].page = NULL;
@@ -294,6 +310,13 @@ static void load_heap(cJSON *json)
 			invalid_save_data("Invalid heap data");
 		}
 	}
+
+	for (int i = 0; i < delegates.n; i++) {
+		int slot = delegates.slots[i];
+		struct page *page = heap_get_delegate_page(slot);
+		vm_register_delegate_structs(page, slot);
+	}
+	free(delegates.slots);
 }
 
 static void load_call_stack(cJSON *json)
@@ -302,11 +325,13 @@ static void load_call_stack(cJSON *json)
 	cJSON *item;
 	cJSON_ArrayForEach(item, json) {
 		type_check(cJSON_Object, item);
+		cJSON *delegate = cJSON_GetObjectItem(item, "delegate");
 		call_stack[call_stack_ptr++] = (struct function_call) {
 			.fno            = type_check(cJSON_Number, cJSON_GetObjectItem(item, "function"))->valueint,
 			.return_address = type_check(cJSON_Number, cJSON_GetObjectItem(item, "return-address"))->valueint,
 			.page_slot      = type_check(cJSON_Number, cJSON_GetObjectItem(item, "local-page"))->valueint,
-			.struct_page    = type_check(cJSON_Number, cJSON_GetObjectItem(item, "struct-page"))->valueint
+			.struct_page    = type_check(cJSON_Number, cJSON_GetObjectItem(item, "struct-page"))->valueint,
+			.delegate       = delegate ? type_check(cJSON_Number, delegate)->valueint : -1
 		};
 	}
 }
