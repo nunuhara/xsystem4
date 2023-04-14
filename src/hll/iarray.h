@@ -19,6 +19,8 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include "gfx/types.h"
+#include "gfx/font.h"
 
 struct string;
 struct page;
@@ -37,8 +39,13 @@ void iarray_write(struct iarray_writer *w, int data);
 void iarray_write_at(struct iarray_writer *w, unsigned pos, int data);
 void iarray_write_float(struct iarray_writer *w, float data);
 void iarray_write_string(struct iarray_writer *w, struct string *s);
+void iarray_write_string_or_null(struct iarray_writer *w, struct string *s);
 void iarray_write_struct(struct iarray_writer *w, struct page *page);
 void iarray_write_array(struct iarray_writer *w, struct page *page);
+void iarray_write_point(struct iarray_writer *w, Point *p);
+void iarray_write_rectangle(struct iarray_writer *w, Rectangle *r);
+void iarray_write_color(struct iarray_writer *w, SDL_Color *color);
+void iarray_write_text_style(struct iarray_writer *w, struct text_style *style);
 
 static inline unsigned iarray_writer_pos(struct iarray_writer *w)
 {
@@ -63,7 +70,12 @@ bool iarray_init_reader(struct iarray_reader *r, struct page *a, const char *hea
 int iarray_read(struct iarray_reader *r);
 float iarray_read_float(struct iarray_reader *r);
 struct string *iarray_read_string(struct iarray_reader *r);
+struct string *iarray_read_string_or_null(struct iarray_reader *r);
 struct page *iarray_read_struct(struct iarray_reader *r, int struct_type);
 struct page *iarray_read_array(struct iarray_reader *r, struct ain_type *t);
+void iarray_read_point(struct iarray_reader *r, Point *p);
+void iarray_read_rectangle(struct iarray_reader *r, Rectangle *rect);
+void iarray_read_color(struct iarray_reader *r, SDL_Color *color);
+void iarray_read_text_style(struct iarray_reader *r, struct text_style *style);
 
 #endif /* SYSTEM4_HLL_IARRAY_H */

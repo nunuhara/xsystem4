@@ -15,10 +15,15 @@
  */
 
 #include <string.h>
+#include <assert.h>
+
+#include "system4/ain.h"
 
 #include "gfx/gfx.h"
 #include "parts.h"
 #include "hll.h"
+
+static void GUIEngine_PreLink(void);
 
 static void GUIEngine_ModuleInit(void)
 {
@@ -28,6 +33,16 @@ static void GUIEngine_ModuleInit(void)
 
 static void GUIEngine_ModuleFini(void)
 {
+}
+
+bool GUIEngine_Save(struct page **buffer)
+{
+	return true;
+}
+
+bool GUIEngine_Load(struct page **buffer)
+{
+	return true;
 }
 
 //static void GUIEngine_Release(int PartsNumber);
@@ -499,6 +514,7 @@ HLL_QUIET_UNIMPLEMENTED(0, int, GUIEngine, GetMessageType);
 //static bool GUIEngine_Load(ref array<int> SaveDataBuffer);
 
 HLL_LIBRARY(GUIEngine,
+	    HLL_EXPORT(_PreLink, GUIEngine_PreLink),
 	    HLL_EXPORT(_ModuleInit, GUIEngine_ModuleInit),
 	    HLL_EXPORT(_ModuleFini, GUIEngine_ModuleFini),
 	    HLL_EXPORT(Init, PE_Init),
@@ -965,4 +981,29 @@ HLL_LIBRARY(GUIEngine,
 	    HLL_EXPORT(Parts_UpdateMotionTime, PE_UpdateMotionTime),
 	    HLL_EXPORT(Save, PE_Save),
 	    HLL_EXPORT(SaveWithoutHideParts, PE_SaveWithoutHideParts),
-	    HLL_TODO_EXPORT(Load, GUIEngine_Load));
+	    HLL_EXPORT(Load, PE_Load));
+
+static struct ain_hll_function *get_fun(int libno, const char *name)
+{
+	int fno = ain_get_library_function(ain, libno, name);
+	return fno >= 0 ? &ain->libraries[libno].functions[fno] : NULL;
+}
+
+static void GUIEngine_PreLink(void)
+{
+	struct ain_hll_function *fun;
+	int libno = ain_get_library(ain, "GUIEngine");
+	assert(libno >= 0);
+
+	// XXX: if PartsEngine exists, don't call PE_Save/PE_Load for GUIEngine
+	//      (e.g. Oyako Rankan)
+	int pe_libno = ain_get_library(ain, "PartsEngine");
+	if (pe_libno >= 0) {
+		if ((fun = get_fun(libno, "Save")))
+			static_library_replace(&lib_GUIEngine, "Save", GUIEngine_Save);
+		if ((fun = get_fun(libno, "SaveWithoutHideParts")))
+			static_library_replace(&lib_GUIEngine, "SaveWithoutHideParts", GUIEngine_Save);
+		if ((fun = get_fun(libno, "Load")))
+			static_library_replace(&lib_GUIEngine, "Load", GUIEngine_Load);
+	}
+}

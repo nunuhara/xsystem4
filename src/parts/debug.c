@@ -45,7 +45,7 @@ static void parts_text_print(struct parts_text *text, int indent)
 
 static void parts_animation_print(struct parts_animation *anim, int indent)
 {
-	indent_printf(indent, "anim.cg_no = %u,\n", anim->cg_no);
+	indent_printf(indent, "anim.start_no = %u,\n", anim->start_no);
 	indent_printf(indent, "anim.frame_time = %u,\n", anim->frame_time);
 	indent_printf(indent, "anim.elapsed = %u,\n", anim->elapsed);
 	indent_printf(indent, "anim.current_frame = %u,\n", anim->current_frame);
@@ -427,7 +427,7 @@ static void parts_list_print(struct parts *parts, int indent)
 		printf("(text)"); // TODO? store actual text and print it here
 		break;
 	case PARTS_ANIMATION:
-		printf("(animation %d+%d)", state->anim.cg_no, state->anim.nr_frames);
+		printf("(animation %d+%d)", state->anim.start_no, state->anim.nr_frames);
 		break;
 	case PARTS_NUMERAL:
 		printf("(numeral %d)", state->num.cg_no);

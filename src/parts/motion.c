@@ -128,16 +128,20 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 		parts_set_alpha(parts, motion_calculate_i(motion, motion_t));
 		break;
 	case PARTS_MOTION_CG:
-		parts_set_cg_by_index(parts, motion_calculate_i(motion, motion_t), parts->state);
+		parts_cg_set_by_index(parts, parts_get_cg(parts, parts->state),
+				motion_calculate_i(motion, motion_t));
 		break;
 	case PARTS_MOTION_HGAUGE_RATE:
-		parts_set_hgauge_rate(parts, motion_calculate_f(motion, motion_t), parts->state);
+		parts_hgauge_set_rate(parts, parts_get_hgauge(parts, parts->state),
+				motion_calculate_f(motion, motion_t));
 		break;
 	case PARTS_MOTION_VGAUGE_RATE:
-		parts_set_vgauge_rate(parts, motion_calculate_f(motion, motion_t), parts->state);
+		parts_vgauge_set_rate(parts, parts_get_vgauge(parts, parts->state),
+				motion_calculate_f(motion, motion_t));
 		break;
 	case PARTS_MOTION_NUMERAL_NUMBER:
-		parts_set_number(parts, motion_calculate_i(motion, motion_t), parts->state);
+		parts_numeral_set_number(parts, parts_get_numeral(parts, parts->state),
+				motion_calculate_i(motion, motion_t));
 		break;
 	case PARTS_MOTION_MAG_X:
 		parts_set_scale_x(parts, motion_calculate_f(motion, motion_t));

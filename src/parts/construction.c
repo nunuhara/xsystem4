@@ -49,7 +49,7 @@ void parts_cp_op_free(struct parts_cp_op *op)
 	free(op);
 }
 
-static void parts_add_cp_op(struct parts_construction_process *cproc, struct parts_cp_op *op)
+void parts_add_cp_op(struct parts_construction_process *cproc, struct parts_cp_op *op)
 {
 	TAILQ_INSERT_TAIL(&cproc->ops, op, entry);
 }
@@ -364,13 +364,9 @@ static void build_copy_text(struct parts_construction_process *cproc, struct par
 	gfx_render_text(&cproc->common.texture, op->x, op->y, op->text->text, &op->style);
 }
 
-bool PE_BuildPartsConstructionProcess(int parts_no, int state)
+bool parts_build_construction_process(struct parts *parts,
+		struct parts_construction_process *cproc)
 {
-	if (!parts_state_valid(--state))
-		return false;
-
-	struct parts *parts = parts_get(parts_no);
-	struct parts_construction_process *cproc = parts_get_construction_process(parts, state);
 	struct parts_cp_op *op;
 	TAILQ_FOREACH(op, &cproc->ops, entry) {
 		switch (op->type) {
@@ -408,6 +404,16 @@ bool PE_BuildPartsConstructionProcess(int parts_no, int state)
 	}
 	parts_dirty(parts);
 	return true;
+}
+
+bool PE_BuildPartsConstructionProcess(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_construction_process *cproc = parts_get_construction_process(parts, state);
+	return parts_build_construction_process(parts, cproc);
 }
 
 bool PE_SetPartsConstructionSurfaceArea(int parts_no, int x, int y, int w, int h, int state)

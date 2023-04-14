@@ -90,6 +90,11 @@ void iarray_write_string(struct iarray_writer *w, struct string *s)
 	iarray_write(w, 0);
 }
 
+void iarray_write_string_or_null(struct iarray_writer *w, struct string *s)
+{
+	iarray_write_string(w, s ? s : &EMPTY_STRING);
+}
+
 static void iarray_write_value(struct iarray_writer *w, struct ain_type *t, int value)
 {
 	switch (t->data) {
@@ -148,6 +153,45 @@ void iarray_write_array(struct iarray_writer *w, struct page *page)
 	}
 }
 
+void iarray_write_point(struct iarray_writer *w, Point *p)
+{
+	iarray_write(w, p->x);
+	iarray_write(w, p->y);
+}
+
+void iarray_write_rectangle(struct iarray_writer *w, Rectangle *r)
+{
+	iarray_write(w, r->x);
+	iarray_write(w, r->y);
+	iarray_write(w, r->w);
+	iarray_write(w, r->h);
+}
+
+void iarray_write_color(struct iarray_writer *w, SDL_Color *color)
+{
+	iarray_write(w, color->r);
+	iarray_write(w, color->g);
+	iarray_write(w, color->b);
+	iarray_write(w, color->a);
+}
+
+void iarray_write_text_style(struct iarray_writer *w, struct text_style *style)
+{
+	iarray_write(w, style->face);
+	iarray_write_float(w, style->size);
+	iarray_write_float(w, style->bold_width);
+	iarray_write(w, style->weight);
+	iarray_write_float(w, style->edge_left);
+	iarray_write_float(w, style->edge_up);
+	iarray_write_float(w, style->edge_right);
+	iarray_write_float(w, style->edge_down);
+	iarray_write_color(w, &style->color);
+	iarray_write_color(w, &style->edge_color);
+	iarray_write_float(w, style->scale_x);
+	iarray_write_float(w, style->space_scale_x);
+	iarray_write_float(w, style->font_spacing);
+}
+
 struct page *iarray_to_page(struct iarray_writer *w)
 {
 	union vm_value dim = { .i = w->size };
@@ -203,6 +247,16 @@ struct string *iarray_read_string(struct iarray_reader *r)
 	return s;
 }
 
+struct string *iarray_read_string_or_null(struct iarray_reader *r)
+{
+	struct string *s = iarray_read_string(r);
+	if (*(s->text) == '\0') {
+		free_string(s);
+		return NULL;
+	}
+	return s;
+}
+
 static int32_t iarray_read_member(struct iarray_reader *r, struct ain_type *t)
 {
 	switch (t->data) {
@@ -252,4 +306,43 @@ struct page *iarray_read_array(struct iarray_reader *r, struct ain_type *t)
 		page->values[i].i = iarray_read_member(r, &next_t);
 	}
 	return page;
+}
+
+void iarray_read_point(struct iarray_reader *r, Point *p)
+{
+	p->x = iarray_read(r);
+	p->y = iarray_read(r);
+}
+
+void iarray_read_rectangle(struct iarray_reader *r, Rectangle *rect)
+{
+	rect->x = iarray_read(r);
+	rect->y = iarray_read(r);
+	rect->w = iarray_read(r);
+	rect->h = iarray_read(r);
+}
+
+void iarray_read_color(struct iarray_reader *r, SDL_Color *color)
+{
+	color->r = iarray_read(r);
+	color->g = iarray_read(r);
+	color->b = iarray_read(r);
+	color->a = iarray_read(r);
+}
+
+void iarray_read_text_style(struct iarray_reader *r, struct text_style *style)
+{
+	style->face = iarray_read(r);
+	style->size = iarray_read_float(r);
+	style->bold_width = iarray_read_float(r);
+	style->weight = iarray_read(r);
+	style->edge_left = iarray_read_float(r);
+	style->edge_up = iarray_read_float(r);
+	style->edge_right = iarray_read_float(r);
+	style->edge_down = iarray_read_float(r);
+	iarray_read_color(r, &style->color);
+	iarray_read_color(r, &style->edge_color);
+	style->scale_x = iarray_read_float(r);
+	style->space_scale_x = iarray_read_float(r);
+	style->font_spacing = iarray_read_float(r);
 }

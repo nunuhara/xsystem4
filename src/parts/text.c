@@ -39,13 +39,12 @@ static void parts_text_newline(struct parts_text *text)
 	const unsigned height = text->lines[text->nr_lines-1].height;
 	text->cursor = POINT(0, text->cursor.y + height + text->line_space);
 	text->lines = xrealloc_array(text->lines, text->nr_lines, text->nr_lines+1, sizeof(struct parts_text_line));
+	text->lines[text->nr_lines].text = make_string("", 0);
 	text->nr_lines++;
 }
 
-static void parts_text_append(struct parts *parts, struct string *text, int state)
+void parts_text_append(struct parts *parts, struct parts_text *t, struct string *text)
 {
-	struct parts_text *t = parts_get_text(parts, state);
-
 	if (!t->common.texture.handle) {
 		gfx_init_texture_rgba(&t->common.texture, config.view_width, config.view_height,
 				      (SDL_Color){ 0, 0, 0, 0 });
@@ -54,6 +53,7 @@ static void parts_text_append(struct parts *parts, struct string *text, int stat
 	if (!t->nr_lines) {
 		t->lines = xcalloc(1, sizeof(struct parts_text_line));
 		t->lines[0].height = 0;
+		t->lines[0].text = make_string("", 0);
 		t->nr_lines = 1;
 	}
 
@@ -72,7 +72,9 @@ static void parts_text_append(struct parts *parts, struct string *text, int stat
 
 		const unsigned old_height = t->lines[t->nr_lines-1].height;
 		const unsigned new_height = t->ts.size;
-		t->lines[t->nr_lines-1].height = max(old_height, new_height);
+		struct parts_text_line *line = &t->lines[t->nr_lines-1];
+		line->height = max(old_height, new_height);
+		string_append_cstr(&line->text, c, strlen(c));
 	}
 	parts_set_dims(parts, &t->common, t->cursor.x, t->cursor.y + t->lines[t->nr_lines-1].height);
 }
@@ -80,6 +82,9 @@ static void parts_text_append(struct parts *parts, struct string *text, int stat
 static void parts_text_clear(struct parts *parts, int state)
 {
 	struct parts_text *text = parts_get_text(parts, state);
+	for (int i = 0; i < text->nr_lines; i++) {
+		free_string(text->lines[i].text);
+	}
 	free(text->lines);
 	text->lines = NULL;
 	text->nr_lines = 0;
@@ -95,7 +100,7 @@ bool PE_SetText(int parts_no, struct string *text, int state)
 
 	struct parts *parts = parts_get(parts_no);
 	parts_text_clear(parts, state);
-	parts_text_append(parts, text, state);
+	parts_text_append(parts, parts_get_text(parts, state), text);
 	return true;
 }
 
@@ -105,7 +110,7 @@ bool PE_AddPartsText(int parts_no, struct string *text, int state)
 		return false;
 
 	struct parts *parts = parts_get(parts_no);
-	parts_text_append(parts, text, state);
+	parts_text_append(parts, parts_get_text(parts, state), text);
 	return true;
 }
 

@@ -54,6 +54,7 @@ xsystem4 = [version_h,
             'parts/parts.c',
             'parts/render.c',
             'parts/text.c',
+            'parts/save.c',
 
             'hll/ACXLoader.c',
             'hll/ADVSYS.c',

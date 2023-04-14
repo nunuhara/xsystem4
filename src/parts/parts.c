@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <assert.h>
+
 #include "system4.h"
 #include "system4/cg.h"
 #include "system4/hashtable.h"
@@ -72,6 +74,12 @@ static void parts_component_dirty(struct parts *parts)
 	TAILQ_INSERT_TAIL(&dirty_list, parts, dirty_list_entry);
 }
 
+static void dirty_list_remove(struct parts *parts)
+{
+	if (parts->dirty)
+		TAILQ_REMOVE(&dirty_list, parts, dirty_list_entry);
+}
+
 static void parts_list_insert(struct parts *parts)
 {
 	struct parts *p;
@@ -91,7 +99,7 @@ static void parts_list_remove(struct parts *parts)
 	TAILQ_REMOVE(&parts_list, parts, parts_list_entry);
 }
 
-static void parts_list_resort(struct parts *parts)
+void parts_list_resort(struct parts *parts)
 {
 	// TODO: this could be optimized
 	parts_list_remove(parts);
@@ -136,6 +144,9 @@ static void parts_state_free(struct parts_state *state)
 		break;
 	case PARTS_TEXT:
 		gfx_delete_texture(&state->common.texture);
+		for (int i = 0; i < state->text.nr_lines; i++) {
+			free_string(state->text.lines[i].text);
+		}
 		free(state->text.lines);
 		break;
 	case PARTS_ANIMATION:
@@ -184,7 +195,7 @@ static struct text_style default_text_style = {
 	.font_size = NULL
 };
 
-static void parts_state_reset(struct parts_state *state, enum parts_type type)
+void parts_state_reset(struct parts_state *state, enum parts_type type)
 {
 	parts_state_free(state);
 	state->type = type;
@@ -198,11 +209,14 @@ static void parts_state_reset(struct parts_state *state, enum parts_type type)
 	case PARTS_CONSTRUCTION_PROCESS:
 		TAILQ_INIT(&state->cproc.ops);
 		break;
+	case PARTS_HGAUGE:
+	case PARTS_VGAUGE:
+		state->gauge.cg_no = -1;
+		state->gauge.rate = 0.0f;
+		break;
 	case PARTS_UNINITIALIZED:
 	case PARTS_CG:
 	case PARTS_ANIMATION:
-	case PARTS_HGAUGE:
-	case PARTS_VGAUGE:
 		break;
 	}
 }
@@ -508,11 +522,11 @@ void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int
 	parts_common_recalculate_hitbox(parts, common);
 }
 
-static bool parts_set_cg(struct parts *parts, struct cg *cg, int cg_no, struct string *name, int state)
+bool _parts_cg_set(struct parts *parts, struct parts_cg *parts_cg, struct cg *cg, int cg_no,
+		struct string *name)
 {
 	if (!cg)
 		return false;
-	struct parts_cg *parts_cg = parts_get_cg(parts, state);
 	gfx_delete_texture(&parts_cg->common.texture);
 	gfx_init_texture_with_cg(&parts_cg->common.texture, cg);
 	parts_set_dims(parts, &parts_cg->common, cg->metrics.w, cg->metrics.h);
@@ -525,52 +539,18 @@ static bool parts_set_cg(struct parts *parts, struct cg *cg, int cg_no, struct s
 	return true;
 }
 
-bool parts_set_cg_by_index(struct parts *parts, int cg_no, int state)
+bool parts_cg_set_by_index(struct parts *parts, struct parts_cg *cg, int cg_no)
 {
-	if (!cg_no) {
-		parts_state_reset(&parts->states[state], PARTS_CG);
-		parts_dirty(parts);
-		return true;
-	}
-	return parts_set_cg(parts, asset_cg_load(cg_no), cg_no, NULL, state);
+	assert(cg_no);
+	return _parts_cg_set(parts, cg, asset_cg_load(cg_no), cg_no, NULL);
 }
 
-bool parts_set_cg_by_name(struct parts *parts, struct string *cg_name, int state)
+bool parts_cg_set(struct parts *parts, struct parts_cg *parts_cg, struct string *cg_name)
 {
-	if (!cg_name || *(cg_name->text) == '\0') {
-		parts_state_reset(&parts->states[state], PARTS_CG);
-		parts_dirty(parts);
-		return true;
-	}
+	assert(cg_name && *(cg_name->text) != '\0');
 	int no;
 	struct cg *cg = asset_cg_load_by_name(cg_name->text, &no);
-	return parts_set_cg(parts, cg, no, string_dup(cg_name), state);
-}
-
-void parts_set_hgauge_rate(struct parts *parts, float rate, int state)
-{
-	struct parts_gauge *g = parts_get_hgauge(parts, state);
-	if (!g->common.texture.handle) {
-		WARNING("HGauge texture uninitialized");
-		return;
-	}
-	int pixels = rate * g->cg.w;
-	gfx_copy_with_alpha_map(&g->common.texture, 0, 0, &g->cg, 0, 0, pixels, g->cg.h);
-	gfx_fill_amap(&g->common.texture, pixels, 0, g->cg.w - pixels, g->cg.h, 0);
-	parts_dirty(parts);
-}
-
-void parts_set_vgauge_rate(struct parts *parts, float rate, int state)
-{
-	struct parts_gauge *g = parts_get_vgauge(parts, state);
-	if (!g->common.texture.handle) {
-		WARNING("VGauge texture uninitialized");
-		return;
-	}
-	int pixels = rate * g->cg.h;
-	gfx_copy_with_alpha_map(&g->common.texture, 0, pixels, &g->cg, 0, pixels, g->cg.w, g->cg.h - pixels);
-	gfx_fill_amap(&g->common.texture, 0, 0, g->cg.w, pixels, 0);
-	parts_dirty(parts);
+	return _parts_cg_set(parts, parts_cg, cg, no, string_dup(cg_name));
 }
 
 static bool parts_numeral_update(struct parts *parts, struct parts_numeral *num)
@@ -651,9 +631,8 @@ static bool parts_numeral_update(struct parts *parts, struct parts_numeral *num)
 
 }
 
-bool parts_set_number(struct parts *parts, int n, int state)
+bool parts_numeral_set_number(struct parts *parts, struct parts_numeral *num, int n)
 {
-	struct parts_numeral *num = parts_get_numeral(parts, state);
 	num->have_num = true;
 	num->num = n;
 	return parts_numeral_update(parts, num);
@@ -730,6 +709,7 @@ void parts_release(int parts_no)
 	}
 
 	parts_list_remove(parts);
+	dirty_list_remove(parts);
 	free(parts);
 	slot->value = NULL;
 	parts_engine_dirty();
@@ -868,14 +848,32 @@ bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int spr
 {
 	if (!parts_state_valid(--state))
 		return false;
-	return parts_set_cg_by_name(parts_get(parts_no), cg_name, state);
+
+	struct parts *parts = parts_get(parts_no);
+	if (!cg_name || *(cg_name->text) == '\0') {
+		parts_state_reset(&parts->states[state], PARTS_CG);
+		parts_dirty(parts);
+		return true;
+	}
+
+	struct parts_cg *cg = parts_get_cg(parts, state);
+	return parts_cg_set(parts, cg, cg_name);
 }
 
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, possibly_unused int sprite_deform, int state)
 {
 	if (!parts_state_valid(--state))
 		return false;
-	return parts_set_cg_by_index(parts_get(parts_no), cg_no, state);
+
+	struct parts *parts = parts_get(parts_no);
+	if (!cg_no) {
+		parts_state_reset(&parts->states[state], PARTS_CG);
+		parts_dirty(parts);
+		return true;
+	}
+
+	struct parts_cg *cg = parts_get_cg(parts, state);
+	return parts_cg_set_by_index(parts, cg, cg_no);
 }
 
 // XXX: Rance Quest
@@ -884,7 +882,16 @@ bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_no,
 {
 	if (!parts_state_valid(--state))
 		return false;
-	return parts_set_cg_by_index(parts_get(parts_no), atoi(cg_no->text), state);
+
+	struct parts *parts = parts_get(parts_no);
+	if (!cg_no) {
+		parts_state_reset(&parts->states[state], PARTS_CG);
+		parts_dirty(parts);
+		return true;
+	}
+
+	struct parts_cg *cg = parts_get_cg(parts, state);
+	return parts_cg_set_by_index(parts, cg, atoi(cg_no->text));
 }
 
 void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state)
@@ -919,18 +926,11 @@ int PE_GetPartsCGNumber(int parts_no, int state)
 	return parts_get_cg(parts_get(parts_no), state)->no;
 }
 
-static bool set_loop_cg(int parts_no, int start_no, int nr_frames, int frame_time, int state,
+static bool _parts_animation_set_cg(struct parts *parts, struct parts_animation *anim,
+		int start_no, int nr_frames, int frame_time,
 		struct cg *(*load_cg)(int no, void *data), void *data)
 {
-	if (!parts_state_valid(--state))
-		return false;
-	if (nr_frames <= 0 || nr_frames > 10000) {
-		WARNING("Invalid frame count: %d", nr_frames);
-		return false;
-	}
-
 	int w = 0, h = 0;
-	struct parts *parts = parts_get(parts_no);
 	Texture *frames = xcalloc(nr_frames, sizeof(Texture));
 	for (int i = 0; i < nr_frames; i++) {
 		struct cg *cg = load_cg(start_no + i, data);
@@ -947,9 +947,9 @@ static bool set_loop_cg(int parts_no, int start_no, int nr_frames, int frame_tim
 		cg_free(cg);
 	}
 
-	struct parts_animation *anim = parts_get_animation(parts, state);
 	parts_set_dims(parts, &anim->common, w, h);
 	free(anim->frames);
+	anim->start_no = start_no;
 	anim->frames = frames;
 	anim->nr_frames = nr_frames;
 	anim->frame_time = frame_time;
@@ -957,7 +957,6 @@ static bool set_loop_cg(int parts_no, int start_no, int nr_frames, int frame_tim
 	anim->current_frame = 0;
 	anim->common.texture = frames[0];
 	return true;
-
 }
 
 static struct cg *load_loop_cg_by_index(int no, void *_)
@@ -965,10 +964,25 @@ static struct cg *load_loop_cg_by_index(int no, void *_)
 	return asset_cg_load(no);
 }
 
+bool parts_animation_set_cg_by_index(struct parts *parts, struct parts_animation *anim,
+		int cg_no, int nr_frames, int frame_time)
+{
+	return _parts_animation_set_cg(parts, anim, cg_no, nr_frames, frame_time,
+			load_loop_cg_by_index, NULL);
+}
+
 bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_time, int state)
 {
-	return set_loop_cg(parts_no, cg_no, nr_frames, frame_time, state,
-			load_loop_cg_by_index, NULL);
+	if (!parts_state_valid(--state))
+		return false;
+	if (nr_frames <= 0 || nr_frames > 10000) {
+		WARNING("Invalid frame count: %d", nr_frames);
+		return false;
+	}
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_animation *anim = parts_get_animation(parts, state);
+	return parts_animation_set_cg_by_index(parts, anim, cg_no, nr_frames, frame_time);
 }
 
 static struct cg *load_loop_cg_by_name(int no, void *data)
@@ -980,10 +994,29 @@ static struct cg *load_loop_cg_by_name(int no, void *data)
 	return cg;
 }
 
-bool PE_SetLoopCG(int parts_no, struct string *cg_name, int start_no, int nr_frames, int frame_time, int state)
+bool parts_animation_set_cg(struct parts *parts, struct parts_animation *anim,
+		struct string *cg_name, int start_no, int nr_frames, int frame_time)
 {
-	return set_loop_cg(parts_no, start_no, nr_frames, frame_time, state,
+	bool r = _parts_animation_set_cg(parts, anim, start_no, nr_frames, frame_time,
 			load_loop_cg_by_name, cg_name);
+	if (r)
+		anim->cg_name = string_dup(cg_name);
+	return r;
+}
+
+bool PE_SetLoopCG(int parts_no, struct string *cg_name, int start_no, int nr_frames,
+	int frame_time, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	if (nr_frames <= 0 || nr_frames > 10000) {
+		WARNING("Invalid frame count: %d", nr_frames);
+		return false;
+	}
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_animation *anim = parts_get_animation(parts, state);
+	return parts_animation_set_cg(parts, anim, cg_name, start_no, nr_frames, frame_time);
 }
 
 bool PE_SetLoopCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
@@ -999,13 +1032,8 @@ bool PE_SetLoopCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 	return true;
 }
 
-static bool set_gauge_cg(int parts_no, struct cg *cg, int state, bool vert)
+static void _parts_set_gauge_cg(struct parts *parts, struct parts_gauge *g, struct cg *cg)
 {
-	if (!parts_state_valid(--state))
-		return false;
-
-	struct parts *parts = parts_get(parts_no);
-	struct parts_gauge *g = vert ? parts_get_vgauge(parts, state) : parts_get_hgauge(parts, state);
 	gfx_init_texture_with_cg(&g->cg, cg);
 	gfx_init_texture_with_cg(&g->common.texture, cg);
 
@@ -1015,27 +1043,93 @@ static bool set_gauge_cg(int parts_no, struct cg *cg, int state, bool vert)
 	parts_set_dims(parts, &g->common, g->cg.w, g->cg.h);
 
 	parts_dirty(parts);
+}
+
+bool parts_gauge_set_cg(struct parts *parts, struct parts_gauge *g, struct string *cg_name)
+{
+	int cg_no;
+	struct cg *cg = asset_cg_load_by_name(cg_name->text, &cg_no);
+	if (!cg)
+		return false;
+	_parts_set_gauge_cg(parts, g, cg);
+	g->cg_no = cg_no;
+	return true;
+}
+
+bool parts_gauge_set_cg_by_index(struct parts *parts, struct parts_gauge *g, int cg_no)
+{
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+	_parts_set_gauge_cg(parts, g, cg);
+	g->cg_no = cg_no;
 	return true;
 }
 
 bool PE_SetHGaugeCG(int parts_no, struct string *cg_name, int state)
 {
-	struct cg *cg = asset_cg_load_by_name(cg_name->text, NULL);
-	if (!cg)
+	if (!parts_state_valid(--state))
 		return false;
-	bool r = set_gauge_cg(parts_no, cg, state, false);
-	cg_free(cg);
-	return r;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = parts_get_hgauge(parts, state);
+	return parts_gauge_set_cg(parts, g, cg_name);
 }
 
 bool PE_SetHGaugeCG_by_index(int parts_no, int cg_no, int state)
 {
-	struct cg *cg = asset_cg_load(cg_no);
-	if (!cg)
+	if (!parts_state_valid(--state))
 		return false;
-	bool r = set_gauge_cg(parts_no, cg, state, false);
-	cg_free(cg);
-	return r;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = parts_get_hgauge(parts, state);
+	return parts_gauge_set_cg_by_index(parts, g, cg_no);
+}
+
+bool PE_SetVGaugeCG(int parts_no, struct string *cg_name, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = parts_get_vgauge(parts, state);
+	return parts_gauge_set_cg(parts, g, cg_name);
+}
+
+bool PE_SetVGaugeCG_by_index(int parts_no, int cg_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = parts_get_vgauge(parts, state);
+	return parts_gauge_set_cg_by_index(parts, g, cg_no);
+}
+
+void parts_hgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate)
+{
+	if (!g->common.texture.handle) {
+		WARNING("HGauge texture uninitialized");
+		return;
+	}
+	int pixels = rate * g->cg.w;
+	gfx_copy_with_alpha_map(&g->common.texture, 0, 0, &g->cg, 0, 0, pixels, g->cg.h);
+	gfx_fill_amap(&g->common.texture, pixels, 0, g->cg.w - pixels, g->cg.h, 0);
+	parts_dirty(parts);
+	g->rate = rate;
+}
+
+void parts_vgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate)
+{
+	if (!g->common.texture.handle) {
+		WARNING("VGauge texture uninitialized");
+		return;
+	}
+	int pixels = rate * g->cg.h;
+	gfx_copy_with_alpha_map(&g->common.texture, 0, pixels, &g->cg, 0, pixels, g->cg.w, g->cg.h - pixels);
+	gfx_fill_amap(&g->common.texture, 0, 0, g->cg.w, pixels, 0);
+	parts_dirty(parts);
+	g->rate = rate;
 }
 
 bool PE_SetHGaugeRate(int parts_no, int numerator, int denominator, int state)
@@ -1043,7 +1137,20 @@ bool PE_SetHGaugeRate(int parts_no, int numerator, int denominator, int state)
 	if (!parts_state_valid(--state))
 		return false;
 
-	parts_set_hgauge_rate(parts_get(parts_no), (float)numerator/(float)denominator, state);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = parts_get_hgauge(parts, state);
+	parts_hgauge_set_rate(parts, g, (float)numerator/(float)denominator);
+	return true;
+}
+
+bool PE_SetVGaugeRate(int parts_no, int numerator, int denominator, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_gauge *g = parts_get_vgauge(parts, state);
+	parts_vgauge_set_rate(parts, g, (float)numerator/(float)denominator);
 	return true;
 }
 
@@ -1055,35 +1162,6 @@ bool PE_SetHGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 	struct parts *parts = parts_get(parts_no);
 	struct parts_gauge *g = parts_get_hgauge(parts, state);
 	parts_set_surface_area(parts, &g->common, x, y, w, h);
-	return true;
-}
-
-bool PE_SetVGaugeCG(int parts_no, struct string *cg_name, int state)
-{
-	struct cg *cg = asset_cg_load_by_name(cg_name->text, NULL);
-	if (!cg)
-		return false;
-	bool r = set_gauge_cg(parts_no, cg, state, true);
-	cg_free(cg);
-	return r;
-}
-
-bool PE_SetVGaugeCG_by_index(int parts_no, int cg_no, int state)
-{
-	struct cg *cg = asset_cg_load(cg_no);
-	if (!cg)
-		return false;
-	bool r = set_gauge_cg(parts_no, cg, state, true);
-	cg_free(cg);
-	return r;
-}
-
-bool PE_SetVGaugeRate(int parts_no, int numerator, int denominator, int state)
-{
-	if (!parts_state_valid(--state))
-		return false;
-
-	parts_set_vgauge_rate(parts_get(parts_no), (float)numerator/(float)denominator, state);
 	return true;
 }
 
@@ -1179,7 +1257,9 @@ bool PE_SetNumeralNumber(int parts_no, int n, int state)
 	if (!parts_state_valid(--state))
 		return false;
 
-	return parts_set_number(parts_get(parts_no), n, state);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_numeral *numeral = parts_get_numeral(parts, state);
+	return parts_numeral_set_number(parts, numeral, n);
 }
 
 bool PE_SetNumeralShowComma(int parts_no, bool show_comma, int state)
@@ -1416,12 +1496,12 @@ void PE_SetPartsMagY(int parts_no, float scale_y)
 
 void PE_SetPartsRotateX(int parts_no, float rot_x)
 {
-	NOTICE("PE_SetPartsRotateX(%d, %f)", parts_no, rot_x);
+	//NOTICE("PE_SetPartsRotateX(%d, %f)", parts_no, rot_x);
 }
 
 void PE_SetPartsRotateY(int parts_no, float rot_y)
 {
-	NOTICE("PE_SetPartsRotateY(%d, %f)", parts_no, rot_y);
+	//NOTICE("PE_SetPartsRotateY(%d, %f)", parts_no, rot_y);
 }
 
 void PE_SetPartsRotateZ(int parts_no, float rot_z)
@@ -1446,34 +1526,6 @@ bool PE_SetThumbnailReductionSize(int reduction_size)
 bool PE_SetThumbnailMode(bool mode)
 {
 	NOTICE("PE_SetThumbnailMode(%s)", mode ? "true" : "false");
-	return true;
-}
-
-bool PE_Save(struct page **buffer)
-{
-	// TODO
-	if (*buffer) {
-		delete_page_vars(*buffer);
-		free_page(*buffer);
-	}
-	*buffer = NULL;
-	return true;
-}
-
-bool PE_SaveWithoutHideParts(struct page **buffer)
-{
-	// TODO
-	if (*buffer) {
-		delete_page_vars(*buffer);
-		free_page(*buffer);
-	}
-	*buffer = NULL;
-	return true;
-}
-
-bool PE_Load(possibly_unused struct page **buffer)
-{
-	// TODO
 	return true;
 }
 
