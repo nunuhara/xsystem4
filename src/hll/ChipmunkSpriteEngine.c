@@ -161,7 +161,19 @@ static bool ChipmunkSpriteEngine_SP_GetSurfaceArea(int sp_no, int *x, int *y, in
 //static bool ChipmunkSpriteEngine_SP_SetSpriteTransformPos(int sp_no, float x0, float y0, float z0, float w0, float u0, float v0, float x1, float y1, float z1, float w1, float u1, float v1, float x2, float y2, float z2, float w2, float u2, float v2, float x3, float y3, float z3, float w3, float u3, float v3);
 //static bool ChipmunkSpriteEngine_Sprite_SetTextureFilerType(int sp_no, int texture_filter_type);
 //static int ChipmunkSpriteEngine_Sprite_GetTextureFilterType(int sp_no);
-//static bool ChipmunkSpriteEngine_SP_RenderView(int sp_no);
+
+static bool ChipmunkSpriteEngine_SP_RenderView(int sp_no)
+{
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	if (!sp) return false;
+
+	scene_render();
+	gfx_copy(sprite_get_texture(sp), 0, 0, gfx_main_surface(), 0, 0,
+			sprite_get_width(sp), sprite_get_height(sp));
+
+	return true;
+}
+
 //static bool ChipmunkSpriteEngine_SP_GetFontDescent(int *descent);
 
 static bool ChipmunkSpriteEngine_SP_GetFontWidth(struct string *text, int *width)
@@ -232,7 +244,7 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SP_GetBlendRate, sact_SP_GetBlendRate),
 	    HLL_EXPORT(SP_GetShow, sact_SP_GetShow),
 	    HLL_EXPORT(SP_GetDrawMethod, sact_SP_GetDrawMethod),
-	    HLL_TODO_EXPORT(SP_RenderView, ChipmunkSpriteEngine_SP_RenderView),
+	    HLL_EXPORT(SP_RenderView, ChipmunkSpriteEngine_SP_RenderView),
 	    HLL_EXPORT(SP_IsPtIn, sact_SP_IsPtIn),
 	    HLL_EXPORT(SP_IsPtInRect, sact_SP_IsPtInRect),
 	    HLL_EXPORT(SP_SetTextSprite, StoatSpriteEngine_SP_SetTextSprite),
