@@ -24,6 +24,7 @@ struct string;
 
 // parts.c
 bool PE_Init(void);
+void PE_Reset(void);
 void PE_Update(int passed_time, bool message_window_show);
 void PE_UpdateComponent(int passed_time);
 void PE_UpdateParts(int passed_time, bool is_skip, bool message_window_show);

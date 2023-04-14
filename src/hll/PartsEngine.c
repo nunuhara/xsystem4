@@ -24,6 +24,7 @@ static void PartsEngine_ModuleInit(void)
 
 static void PartsEngine_ModuleFini(void)
 {
+	PE_Reset();
 }
 
 void PartsEngine_Update(int passed_time, bool is_skip, bool message_window_show)

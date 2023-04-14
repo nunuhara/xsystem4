@@ -131,6 +131,7 @@ static int sact_Init(possibly_unused void *imain_system, int cg_cache_size)
 void sact_ModuleFini(void)
 {
 	sact_SP_DeleteAll();
+	audio_reset();
 }
 
 //int SACT2_Error(struct string *err);

@@ -20,7 +20,7 @@
 #include <stdbool.h>
 
 void audio_init(void);
-void audio_fini(void);
+void audio_reset(void);
 void audio_update(void);
 bool audio_play_sound(int sound_no);
 

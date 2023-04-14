@@ -27,6 +27,7 @@ static void GoatGUIEngine_PreLink(void);
 
 HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(_PreLink, GoatGUIEngine_PreLink),
+	    HLL_EXPORT(_ModuleFini, PE_Reset),
 	    HLL_EXPORT(Init, PE_Init),
 	    HLL_EXPORT(Update, PE_Update),
 	    HLL_EXPORT(SetPartsCG, PE_SetPartsCG),

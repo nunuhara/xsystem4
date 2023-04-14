@@ -54,6 +54,19 @@ void audio_init(void)
 	audio_initialized = true;
 }
 
+void audio_reset(void)
+{
+	for (int i = 0; i < wav.nr_slots; i++) {
+		wav_unprepare(i);
+	}
+	for (int i = 0; i < bgm.nr_slots; i++) {
+		bgm_unprepare(i);
+	}
+	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
+		anonymous_channels[i] = -1;
+	}
+}
+
 void audio_update(void)
 {
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {

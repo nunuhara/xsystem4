@@ -33,6 +33,7 @@ static void GUIEngine_ModuleInit(void)
 
 static void GUIEngine_ModuleFini(void)
 {
+	PE_Reset();
 }
 
 bool GUIEngine_Save(struct page **buffer)

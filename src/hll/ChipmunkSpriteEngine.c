@@ -35,6 +35,7 @@ static void ChipmunkSpriteEngine_PreLink(void);
 static void ChipmunkSpriteEngine_ModuleFini(void)
 {
 	sact_ModuleFini();
+	CharSpriteManager_Clear();
 }
 
 static int ChipmunkSpriteEngine_Init(possibly_unused void *imain_system)

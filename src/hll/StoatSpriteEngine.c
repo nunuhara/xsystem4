@@ -321,6 +321,7 @@ static void StoatSpriteEngine_ModuleFini(void)
 {
 	sact_ModuleFini();
 	multisprite_clear();
+	CharSpriteManager_Clear();
 }
 
 static void multisprite_update_pos(struct multisprite *ms)

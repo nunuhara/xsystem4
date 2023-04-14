@@ -738,6 +738,12 @@ bool PE_Init(void)
 	return true;
 }
 
+void PE_Reset(void)
+{
+	PE_ReleaseAllParts();
+	sact_ModuleFini();
+}
+
 static bool parts_has_dirty_parent(struct parts *parts)
 {
 	for (struct parts *parent = parts->parent; parent; parent = parent->parent) {
