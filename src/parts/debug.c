@@ -28,19 +28,22 @@ static void parts_cg_print(struct parts_cg *cg, int indent)
 
 static void parts_text_print(struct parts_text *text, int indent)
 {
-	indent_printf(indent, "text.lines = {");
+	indent_printf(indent, "text.lines = {\n");
 	for (unsigned i = 0; i < text->nr_lines; i++) {
-		if (i > 0)
-			putchar(',');
-		printf("%u", text->lines[i].height);
+		struct string *s = parts_text_line_get(&text->lines[i]);
+		indent_printf(indent+1, "contents = \"%s\",\n", display_sjis0(s->text));
+		indent_printf(indent+1, "width = %u,\n", text->lines[i].width);
+		indent_printf(indent+1, "height = %u,\n", text->lines[i].height);
+		free_string(s);
 	}
-	printf("},\n");
+	indent_printf(indent, "},\n");
 	indent_printf(indent, "text.line_space = %u,\n", text->line_space);
 	indent_printf(indent, "text.cursor = ");
 	gfx_print_point(&text->cursor);
 	printf(",\n");
 	indent_printf(indent, "text.ts = ");
 	gfx_print_text_style(&text->ts, indent);
+	printf("\n");
 }
 
 static void parts_animation_print(struct parts_animation *anim, int indent)

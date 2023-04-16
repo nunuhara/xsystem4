@@ -142,4 +142,15 @@ float gfx_get_actual_font_size_round_down(unsigned face, float size);
 
 void gfx_print_text_style(struct text_style *style, int indent);
 
+static inline float text_style_width(struct text_style *ts, const char *ch)
+{
+	return (gfx_size_char(ts, ch) + (ts->bold_width * 2) + ts->edge_left + ts->edge_right)
+		* ts->scale_x;
+}
+
+static inline float text_style_height(struct text_style *ts)
+{
+	return ts->size + (ts->bold_width * 2) + ts->edge_up + ts->edge_down;
+}
+
 #endif /* SYSTEM4_FONT_H */

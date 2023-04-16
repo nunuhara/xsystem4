@@ -34,63 +34,126 @@ static int extract_sjis_char(const char *src, char *dst)
 	return 1;
 }
 
-static void parts_text_newline(struct parts_text *text)
+struct string *parts_text_line_get(struct parts_text_line *line)
 {
-	const unsigned height = text->lines[text->nr_lines-1].height;
-	text->cursor = POINT(0, text->cursor.y + height + text->line_space);
-	text->lines = xrealloc_array(text->lines, text->nr_lines, text->nr_lines+1, sizeof(struct parts_text_line));
-	text->lines[text->nr_lines].text = make_string("", 0);
-	text->nr_lines++;
+	struct string *s = make_string("", 0);
+	for (int i = 0; i < line->nr_chars; i++) {
+		string_append_cstr(&s, line->chars[i].ch, strlen(line->chars[i].ch));
+	}
+	return s;
+}
+
+struct string *parts_text_get(struct parts_text *t)
+{
+	struct string *s = make_string("", 0);
+	for (int i = 0; i < t->nr_lines; i++) {
+		if (i > 0)
+			string_push_back(&s, '\n');
+		struct parts_text_line *line = &t->lines[i];
+		for (int i = 0; i < line->nr_chars; i++) {
+			string_append_cstr(&s, line->chars[i].ch, strlen(line->chars[i].ch));
+		}
+	}
+	return s;
+}
+
+static Point text_style_offset(struct text_style *ts)
+{
+	int x = max(ts->bold_width, ts->edge_left) * ts->scale_x;
+	int y = max(ts->bold_width, ts->edge_up);
+	return (Point){x,y};
+}
+
+static const char *parts_text_append_char(struct parts_text *t, const char *str)
+{
+	if (*str == '\n') {
+		t->lines = xrealloc_array(t->lines, t->nr_lines, t->nr_lines + 1,
+				sizeof(struct parts_text_line));
+		t->nr_lines++;
+		return str + 1;
+	}
+
+	struct parts_text_line *line = &t->lines[t->nr_lines - 1];
+	line->chars = xrealloc_array(line->chars, line->nr_chars, line->nr_chars + 1,
+			sizeof(struct parts_text_char));
+	struct parts_text_char *ch = &line->chars[line->nr_chars++];
+
+	ch->off = text_style_offset(&t->ts);
+	int len = extract_sjis_char(str, ch->ch);
+	int width = text_style_width(&t->ts, ch->ch);
+	int height = text_style_height(&t->ts);
+	gfx_init_texture_rgba(&ch->t, width, height, (SDL_Color){0,0,0,0});
+	ch->advance = gfx_render_text(&ch->t, 0, 0, ch->ch, &t->ts);
+
+	line->width += width;
+	line->height = max(line->height, height);
+	return str + len;
 }
 
 void parts_text_append(struct parts *parts, struct parts_text *t, struct string *text)
 {
-	if (!t->common.texture.handle) {
-		gfx_init_texture_rgba(&t->common.texture, config.view_width, config.view_height,
-				      (SDL_Color){ 0, 0, 0, 0 });
-	}
-
 	if (!t->nr_lines) {
 		t->lines = xcalloc(1, sizeof(struct parts_text_line));
-		t->lines[0].height = 0;
-		t->lines[0].text = make_string("", 0);
 		t->nr_lines = 1;
 	}
 
 	const char *msgp = text->text;
 	while (*msgp) {
-		char c[4];
-		int len = extract_sjis_char(msgp, c);
-		msgp += len;
-
-		if (c[0] == '\n') {
-			parts_text_newline(t);
-			continue;
-		}
-
-		t->cursor.x += gfx_render_text(&t->common.texture, t->cursor.x, t->cursor.y, c, &t->ts);
-
-		const unsigned old_height = t->lines[t->nr_lines-1].height;
-		const unsigned new_height = t->ts.size;
-		struct parts_text_line *line = &t->lines[t->nr_lines-1];
-		line->height = max(old_height, new_height);
-		string_append_cstr(&line->text, c, strlen(c));
+		msgp = parts_text_append_char(t, msgp);
 	}
-	parts_set_dims(parts, &t->common, t->cursor.x, t->cursor.y + t->lines[t->nr_lines-1].height);
+
+	// calculate required dimensions of texture
+	int width = 0;
+	int height = 0;
+	for (int i = 0; i < t->nr_lines; i++) {
+		width = max(width, t->lines[i].width);
+		height += t->lines[i].height;
+	}
+	if (!width || !height)
+		return;
+
+	// initialize texture
+	if (t->common.texture.handle)
+		gfx_delete_texture(&t->common.texture);
+	gfx_init_texture_rgba(&t->common.texture, width, height, (SDL_Color){0,0,0,0});
+
+	// copy glyph textures to main texture
+	t->cursor = POINT(0, 0);
+	for (int i = 0; i < t->nr_lines; i++) {
+		struct parts_text_line *line = &t->lines[i];
+		for (int i = 0; i < line->nr_chars; i++) {
+			struct parts_text_char *ch = &line->chars[i];
+			gfx_copy_with_alpha_map(&t->common.texture,
+					t->cursor.x, t->cursor.y,
+					&ch->t, 0, 0, ch->t.w, ch->t.h);
+			t->cursor.x += ch->advance;
+		}
+		t->cursor = POINT(0, t->cursor.y + line->height);
+	}
+	parts_set_dims(parts, &t->common, width, height);
+}
+
+void parts_text_free(struct parts_text *t)
+{
+	gfx_delete_texture(&t->common.texture);
+	for (int i = 0; i < t->nr_lines; i++) {
+		struct parts_text_line *line = &t->lines[i];
+		for (int i = 0; i < line->nr_chars; i++) {
+			gfx_delete_texture(&line->chars[i].t);
+		}
+		free(line->chars);
+	}
+	free(t->lines);
 }
 
 static void parts_text_clear(struct parts *parts, int state)
 {
 	struct parts_text *text = parts_get_text(parts, state);
-	for (int i = 0; i < text->nr_lines; i++) {
-		free_string(text->lines[i].text);
-	}
-	free(text->lines);
+	parts_text_free(text);
 	text->lines = NULL;
 	text->nr_lines = 0;
 	text->cursor.x = 0;
 	text->cursor.y = 0;
-	gfx_delete_texture(&text->common.texture);
 }
 
 bool PE_SetText(int parts_no, struct string *text, int state)
@@ -174,7 +237,7 @@ bool PE_SetPartsFontBoldWeight(int parts_no, float bold_weight, int state)
 	if (!parts_state_valid(--state))
 		return false;
 
-	parts_get_text(parts_get(parts_no), state)->ts.weight = bold_weight * 1000;
+	parts_get_text(parts_get(parts_no), state)->ts.bold_width = bold_weight;
 	return true;
 }
 

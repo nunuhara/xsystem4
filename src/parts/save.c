@@ -75,7 +75,9 @@ static void save_parts_text(struct iarray_writer *w, struct parts_text *text)
 	iarray_write_text_style(w, &text->ts);
 	iarray_write(w, text->nr_lines);
 	for (unsigned i = 0; i < text->nr_lines; i++) {
-		iarray_write_string(w, text->lines[i].text);
+		struct string *s = parts_text_line_get(&text->lines[i]);
+		iarray_write_string(w, s);
+		free_string(s);
 	}
 }
 

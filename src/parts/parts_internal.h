@@ -72,9 +72,18 @@ struct sound_motion {
 	bool played;
 };
 
+struct parts_text_char {
+	Texture t;
+	char ch[4];
+	int advance;
+	Point off;
+};
+
 struct parts_text_line {
+	struct parts_text_char *chars;
+	int nr_chars;
 	unsigned height;
-	struct string *text;
+	unsigned width;
 };
 
 enum parts_type {
@@ -291,6 +300,11 @@ bool parts_gauge_set_cg(struct parts *parts, struct parts_gauge *g, struct strin
 bool parts_gauge_set_cg_by_index(struct parts *parts, struct parts_gauge *g, int cg_no);
 void parts_hgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate);
 void parts_vgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate);
+
+// text.c
+void parts_text_free(struct parts_text *t);
+struct string *parts_text_line_get(struct parts_text_line *line);
+struct string *parts_text_get(struct parts_text *t);
 
 // render.c
 void parts_render_init(void);

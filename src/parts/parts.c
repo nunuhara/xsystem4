@@ -143,11 +143,7 @@ static void parts_state_free(struct parts_state *state)
 			free_string(state->cg.name);
 		break;
 	case PARTS_TEXT:
-		gfx_delete_texture(&state->common.texture);
-		for (int i = 0; i < state->text.nr_lines; i++) {
-			free_string(state->text.lines[i].text);
-		}
-		free(state->text.lines);
+		parts_text_free(&state->text);
 		break;
 	case PARTS_ANIMATION:
 		for (unsigned i = 0; i < state->anim.nr_frames; i++) {
