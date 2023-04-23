@@ -2367,10 +2367,8 @@ void vm_stack_trace(void)
 {
 	for (int i = call_stack_ptr - 1; i >= 0; i--) {
 		struct ain_function *f = &ain->functions[call_stack[i].fno];
-		char *u = sjis2utf(f->name, strlen(f->name));
 		uint32_t addr = (i == call_stack_ptr - 1) ? instr_ptr : call_stack[i+1].call_address;
-		sys_warning("\t0x%08x in %s\n", addr, u);
-		free(u);
+		sys_warning("\t0x%08x in %s\n", addr, display_sjis0(f->name));
 	}
 }
 
