@@ -45,7 +45,7 @@ HLL_WARN_UNIMPLEMENTED( , void, CrayfishLogViewer, SetWindowTitleName,
 
 static bool CrayfishLogViewer_AddText(struct string *text)
 {
-	sys_message("%s", display_sjis0(text->text));
+	log_message("Crayfish", "%s", display_sjis0(text->text));
 	return true;
 }
 

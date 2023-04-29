@@ -36,6 +36,7 @@
 #include "little_endian.h"
 #include "xsystem4.h"
 
+bool dbg_dap = false;
 bool dbg_enabled = true;
 bool dbg_start_in_debugger = false;
 unsigned dbg_current_frame = 0;
@@ -74,7 +75,10 @@ void dbg_start(void(*fun)(void*), void *data)
 
 static void _dbg_repl(void *_)
 {
-	dbg_cmd_repl();
+	if (dbg_dap)
+		dbg_dap_repl();
+	else
+		dbg_cmd_repl();
 }
 
 void dbg_repl(void)
@@ -86,10 +90,15 @@ void dbg_repl(void)
 
 void dbg_init(void)
 {
-	dbg_cmd_init();
+	if (dbg_dap)
+		dbg_dap_init();
+	else
+		dbg_cmd_init();
 #ifdef HAVE_SCHEME
 	dbg_scm_init();
 #endif
+	if (!dbg_dap && dbg_start_in_debugger)
+		dbg_repl();
 }
 
 void dbg_fini(void)
@@ -135,6 +144,17 @@ static struct breakpoint *get_breakpoint(uint32_t addr)
 	return ht_get_int(bp_table, addr, NULL);
 }
 
+bool dbg_clear_breakpoint(uint32_t addr, void(*free_data)(void*))
+{
+	struct breakpoint *bp = get_breakpoint(addr);
+	if (!bp)
+		return false;
+	if (free_data)
+		free_data(bp->data);
+	delete_breakpoint(addr, bp);
+	return true;
+}
+
 bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*), void *data)
 {
 	char *name = utf2sjis(_name, 0);
@@ -157,7 +177,7 @@ bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*
 	LittleEndian_putW(ain->code, f->address, BREAKPOINT | bp->restore_op);
 	add_breakpoint(f->address, bp);
 
-	printf("Set breakpoint at function '%s' (0x%08x)\n", display_utf0(_name), f->address);
+	log_message("debug", "Set breakpoint at function '%s' (0x%08x)\n", display_utf0(_name), f->address);
 	return true;
 }
 
@@ -185,7 +205,7 @@ bool dbg_set_address_breakpoint(uint32_t address, void(*cb)(struct breakpoint*),
 	LittleEndian_putW(ain->code, address, BREAKPOINT | bp->restore_op);
 	add_breakpoint(address, bp);
 
-	printf("Set breakpoint at 0x%08x\n", address);
+	log_message("debug", "Set breakpoint at 0x%08x\n", address);
 	return true;
 }
 
@@ -196,7 +216,7 @@ static void dbg_step_breakpoint_cb(struct breakpoint *bp)
 	if ((intptr_t)bp->data != call_stack_ptr)
 		return;
 	delete_breakpoint(instr_ptr, bp);
-	dbg_cmd_repl();
+	_dbg_repl(NULL);
 }
 
 static void dbg_set_step_breakpoint(int32_t address, int call_index)
@@ -384,8 +404,8 @@ static void _dbg_handle_breakpoint(void *data)
 	if (bp->cb) {
 		bp->cb(bp);
 	} else {
-		printf("%s\n", bp->message);
-		dbg_cmd_repl();
+		log_message("debug", "%s\n", bp->message);
+		_dbg_repl(NULL);
 	}
 }
 
@@ -408,7 +428,7 @@ void dbg_print_frame(unsigned no)
 	unsigned cs_no = call_stack_ptr - (1 + no);
 	struct ain_function *f = &ain->functions[call_stack[cs_no].fno];
 	uint32_t addr = no ? call_stack[cs_no+1].call_address : instr_ptr;
-	printf("%c #%d 0x%08x in %s\n", no == dbg_current_frame ? '*' : ' ',
+	sys_message("%c #%d 0x%08x in %s\n", no == dbg_current_frame ? '*' : ' ',
 			no, addr, display_sjis0(f->name));
 }
 

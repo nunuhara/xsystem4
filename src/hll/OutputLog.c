@@ -23,12 +23,25 @@
 #include "hll.h"
 #include "xsystem4.h"
 
-static void OutputLog_Output(int handle, struct string *s)
+static struct string **logs = NULL;
+static int nr_logs = 0;
+
+int OutputLog_Create(struct string *name)
 {
-	sys_message("%s", display_sjis0(s->text));
+	logs = xrealloc_array(logs, nr_logs, nr_logs + 1, sizeof(struct string*));
+	logs[nr_logs++] = string_dup(name);
+	return nr_logs - 1;
 }
 
-HLL_WARN_UNIMPLEMENTED(0, int,  OutputLog, Create, struct string *name);
+static void OutputLog_Output(int handle, struct string *s)
+{
+	if (handle < 0 || handle >= nr_logs) {
+		log_message("OutputLog", "%s", display_sjis0(s->text));
+	} else {
+		log_message(display_sjis0(logs[handle]->text), "%s", display_sjis1(s->text));
+	}
+}
+
 HLL_WARN_UNIMPLEMENTED( , void, OutputLog, Clear, int handle);
 HLL_WARN_UNIMPLEMENTED(0, int,  OutputLog, Save, int handle, struct string *filename);
 HLL_WARN_UNIMPLEMENTED(0, bool, OutputLog, EnableAutoSave, int handle, struct string *filename);

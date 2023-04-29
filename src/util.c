@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <time.h>
 #include <ctype.h>
 
@@ -25,6 +26,7 @@
 #include "system4/utfsjis.h"
 
 #include "xsystem4.h"
+#include "debugger.h"
 
 // In a Windows environment, console output should be SJIS-encoded
 // (assuming the user is using Japanese non-unicode locale).
@@ -173,13 +175,24 @@ void get_time(int *hour, int *min, int *sec, int *ms)
 	*ms   = ts.tv_nsec / 1000000;
 }
 
-void indent_printf(int indent, const char *fmt, ...)
+void indent_message(int indent, const char *fmt, ...)
 {
 	for (int i = 0; i < indent; i++)
 		putchar('\t');
 
 	va_list ap;
 	va_start(ap, fmt);
-	vprintf(fmt, ap);
+	sys_vmessage(fmt, ap);
+	va_end(ap);
+}
+
+void log_message(const char *log, const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	if (dbg_dap)
+		dbg_dap_log(log, fmt, ap);
+	else
+		sys_vmessage(fmt, ap);
 	va_end(ap);
 }

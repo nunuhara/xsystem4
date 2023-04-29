@@ -18,6 +18,7 @@
 #define SYSTEM4_DEBUGGER_H
 #ifdef DEBUGGER_ENABLED
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include "system4/instructions.h"
@@ -46,6 +47,7 @@ struct dbg_cmd {
 	void (*run)(unsigned nr_args, char **args);
 };
 
+extern bool dbg_dap;
 extern bool dbg_enabled;
 extern bool dbg_start_in_debugger;
 extern unsigned dbg_current_frame;
@@ -54,6 +56,8 @@ void dbg_init(void);
 void dbg_fini(void);
 void dbg_repl(void);
 
+void dbg_log(const char *log, const char *fmt, va_list ap);
+
 void dbg_continue(void);
 void dbg_quit(void);
 void dbg_start(void(*fun)(void*), void *data);
@@ -61,6 +65,7 @@ void dbg_cmd_init(void);
 void dbg_cmd_repl(void);
 void dbg_cmd_add_module(const char *name, unsigned nr_commands, struct dbg_cmd *commands);
 void dbg_handle_breakpoint(void);
+bool dbg_clear_breakpoint(uint32_t addr, void(*free_data)(void*));
 bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*), void *data);
 bool dbg_set_address_breakpoint(uint32_t address, void(*cb)(struct breakpoint*), void *data);
 bool dbg_set_step_over_breakpoint(void);
@@ -73,10 +78,22 @@ void dbg_print_vm_state(void);
 union vm_value dbg_eval_string(const char *str, struct ain_type *type_out);
 struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, int recursive);
 
+void dbg_dap_init(void);
+void dbg_dap_quit(void);
+void dbg_dap_repl(void);
+void dbg_dap_handle_messages(void);
+void dbg_dap_log(const char *log, const char *fmt, va_list ap);
+
 #ifdef HAVE_SCHEME
 void dbg_scm_init(void);
 void dbg_scm_fini(void);
 void dbg_scm_repl(void);
 #endif /* HAVE_SCHEME */
+#else  /* DEBUGGER ENABLED */
+#define dbg_init()
+#define dbg_repl()
+#define dbg_dap 0
+#define dbg_dap_handle_messages()
+#define dbg_dap_log(log, fmt, ap)
 #endif /* DEBUGGER_ENABLED */
 #endif /* SYSTEM4_DEBUGGER_H */

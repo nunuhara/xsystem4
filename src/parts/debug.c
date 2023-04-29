@@ -23,64 +23,64 @@
 
 static void parts_cg_print(struct parts_cg *cg, int indent)
 {
-	indent_printf(indent, "cg.no = %d,\n", cg->no);
+	indent_message(indent, "cg.no = %d,\n", cg->no);
 }
 
 static void parts_text_print(struct parts_text *text, int indent)
 {
-	indent_printf(indent, "text.lines = {\n");
+	indent_message(indent, "text.lines = {\n");
 	for (unsigned i = 0; i < text->nr_lines; i++) {
 		struct string *s = parts_text_line_get(&text->lines[i]);
-		indent_printf(indent+1, "contents = \"%s\",\n", display_sjis0(s->text));
-		indent_printf(indent+1, "width = %u,\n", text->lines[i].width);
-		indent_printf(indent+1, "height = %u,\n", text->lines[i].height);
+		indent_message(indent+1, "contents = \"%s\",\n", display_sjis0(s->text));
+		indent_message(indent+1, "width = %u,\n", text->lines[i].width);
+		indent_message(indent+1, "height = %u,\n", text->lines[i].height);
 		free_string(s);
 	}
-	indent_printf(indent, "},\n");
-	indent_printf(indent, "text.line_space = %u,\n", text->line_space);
-	indent_printf(indent, "text.cursor = ");
+	indent_message(indent, "},\n");
+	indent_message(indent, "text.line_space = %u,\n", text->line_space);
+	indent_message(indent, "text.cursor = ");
 	gfx_print_point(&text->cursor);
-	printf(",\n");
-	indent_printf(indent, "text.ts = ");
+	sys_message(",\n");
+	indent_message(indent, "text.ts = ");
 	gfx_print_text_style(&text->ts, indent);
-	printf("\n");
+	sys_message("\n");
 }
 
 static void parts_animation_print(struct parts_animation *anim, int indent)
 {
-	indent_printf(indent, "anim.start_no = %u,\n", anim->start_no);
-	indent_printf(indent, "anim.frame_time = %u,\n", anim->frame_time);
-	indent_printf(indent, "anim.elapsed = %u,\n", anim->elapsed);
-	indent_printf(indent, "anim.current_frame = %u,\n", anim->current_frame);
-	indent_printf(indent, "anim.frames = {\n");
+	indent_message(indent, "anim.start_no = %u,\n", anim->start_no);
+	indent_message(indent, "anim.frame_time = %u,\n", anim->frame_time);
+	indent_message(indent, "anim.elapsed = %u,\n", anim->elapsed);
+	indent_message(indent, "anim.current_frame = %u,\n", anim->current_frame);
+	indent_message(indent, "anim.frames = {\n");
 	for (unsigned i = 0; i < anim->nr_frames; i++) {
-		indent_printf(indent+1, "[%u] = ", i);
+		indent_message(indent+1, "[%u] = ", i);
 		gfx_print_texture(&anim->frames[i], indent+1);
-		indent_printf(indent+1, ",\n");
+		indent_message(indent+1, ",\n");
 	}
-	indent_printf(indent, "}\n");
+	indent_message(indent, "}\n");
 }
 
 static void parts_numeral_print(struct parts_numeral *num, int indent)
 {
-	indent_printf(indent, "num.have_num = %s,\n", num->have_num ? "true" : "false");
-	indent_printf(indent, "num.num = %d,\n", num->num);
-	indent_printf(indent, "num.space = %d,\n", num->space);
-	indent_printf(indent, "num.show_comma = %d,\n", num->show_comma);
-	indent_printf(indent, "num.length = %d,\n", num->length);
-	indent_printf(indent, "num.cg_no = %d,\n", num->cg_no);
-	indent_printf(indent, "num.cg = {\n");
+	indent_message(indent, "num.have_num = %s,\n", num->have_num ? "true" : "false");
+	indent_message(indent, "num.num = %d,\n", num->num);
+	indent_message(indent, "num.space = %d,\n", num->space);
+	indent_message(indent, "num.show_comma = %d,\n", num->show_comma);
+	indent_message(indent, "num.length = %d,\n", num->length);
+	indent_message(indent, "num.cg_no = %d,\n", num->cg_no);
+	indent_message(indent, "num.cg = {\n");
 	for (int i = 0; i < 12; i++) {
-		indent_printf(indent+1, "[%d] = ", i);
+		indent_message(indent+1, "[%d] = ", i);
 		gfx_print_texture(&num->cg[i], indent+1);
-		indent_printf(indent+1, ",\n");
+		indent_message(indent+1, ",\n");
 	}
-	indent_printf(indent, "}\n");
+	indent_message(indent, "}\n");
 }
 
 static void parts_gauge_print(struct parts_gauge *gauge, int indent)
 {
-	indent_printf(indent, "gauge.cg = ");
+	indent_message(indent, "gauge.cg = ");
 	gfx_print_texture(&gauge->cg, indent);
 }
 
@@ -99,78 +99,78 @@ static void parts_construction_process_print(struct parts_construction_process *
 		[PARTS_CP_COPY_TEXT] = "PARTS_CP_COPY_TEXT",
 	};
 
-	indent_printf(indent, "cproc.ops = {\n");
+	indent_message(indent, "cproc.ops = {\n");
 	indent++;
 
 	int i = 0;
 	struct parts_cp_op *op;
 	TAILQ_FOREACH(op, &cproc->ops, entry) {
-		indent_printf(indent, "[%d] = {\n", i++);
+		indent_message(indent, "[%d] = {\n", i++);
 		indent++;
 
 		const char *type = "INVALID_CONSTRUCTION_PROCERSS_TYPE";
 		if (op->type >= 0 && op->type < PARTS_NR_CP_TYPES)
 			type = type_names[op->type];
-		indent_printf(indent, "type = %s,\n", type);
+		indent_message(indent, "type = %s,\n", type);
 
 		switch (op->type) {
 		case PARTS_CP_CREATE:
 		case PARTS_CP_CREATE_PIXEL_ONLY:
-			indent_printf(indent, "create = {w=%d,h=%d}\n", op->create.w, op->create.h);
+			indent_message(indent, "create = {w=%d,h=%d}\n", op->create.w, op->create.h);
 			break;
 		case PARTS_CP_CG:
-			indent_printf(indent, "cg.no = %d\n", op->cg.no);
+			indent_message(indent, "cg.no = %d\n", op->cg.no);
 			break;
 		case PARTS_CP_FILL:
 		case PARTS_CP_FILL_ALPHA_COLOR:
 		case PARTS_CP_FILL_AMAP:
-			indent_printf(indent, "fill.rect = {x=%d,y=%d,w=%d,h=%d},\n",
+			indent_message(indent, "fill.rect = {x=%d,y=%d,w=%d,h=%d},\n",
 					op->fill.x, op->fill.y, op->fill.w, op->fill.h);
-			indent_printf(indent, "fill.color = (%d,%d,%d,%d)\n",
+			indent_message(indent, "fill.color = (%d,%d,%d,%d)\n",
 					op->fill.r, op->fill.g, op->fill.b, op->fill.a);
 			break;
 		case PARTS_CP_DRAW_CUT_CG:
 		case PARTS_CP_COPY_CUT_CG:
-			indent_printf(indent, "cut_cg.cg_no = %d,\n", op->cut_cg.cg_no);
-			indent_printf(indent, "cut_cg.dst = {x=%d,y=%d,w=%d,h=%d},\n",
+			indent_message(indent, "cut_cg.cg_no = %d,\n", op->cut_cg.cg_no);
+			indent_message(indent, "cut_cg.dst = {x=%d,y=%d,w=%d,h=%d},\n",
 					op->cut_cg.dx, op->cut_cg.dy, op->cut_cg.dw, op->cut_cg.dh);
-			indent_printf(indent, "cut_cg.src = {x=%d,y=%d,w=%d,h=%d},\n",
+			indent_message(indent, "cut_cg.src = {x=%d,y=%d,w=%d,h=%d},\n",
 					op->cut_cg.sx, op->cut_cg.sy, op->cut_cg.sw, op->cut_cg.sh);
-			indent_printf(indent, "cut_cg.interp_type = %d\n", op->cut_cg.interp_type);
+			indent_message(indent, "cut_cg.interp_type = %d\n", op->cut_cg.interp_type);
 			break;
 		case PARTS_CP_DRAW_TEXT:
 		case PARTS_CP_COPY_TEXT:
-			indent_printf(indent, "text.text = \"%s\",\n", display_sjis0(op->text.text->text));
-			indent_printf(indent, "text.pos = {x=%d,y=%d},\n", op->text.x, op->text.y);
-			indent_printf(indent, "text.line_space = %d,\n", op->text.line_space);
-			indent_printf(indent, "text.style = ");
+			indent_message(indent, "text.text = \"%s\",\n", display_sjis0(op->text.text->text));
+			indent_message(indent, "text.pos = {x=%d,y=%d},\n", op->text.x, op->text.y);
+			indent_message(indent, "text.line_space = %d,\n", op->text.line_space);
+			indent_message(indent, "text.style = ");
 			gfx_print_text_style(&op->text.style, indent);
-			printf("\n");
+			sys_message("\n");
 			break;
 		}
 		indent--;
-		indent_printf(indent, "},\n");
+		indent_message(indent, "},\n");
 	}
 
 	indent--;
-	indent_printf(indent, "}\n");
+	indent_message(indent, "}\n");
 }
 
 static void parts_print_state(struct parts_state *state, int indent)
 {
 	if (state->type == PARTS_UNINITIALIZED) {
-		printf("UNINITIALIZED");
+		sys_message("UNINITIALIZED");
 		return;
 	}
-	printf("{\n");
+	sys_message("{\n");
 	indent++;
 
 	struct parts_common *com = &state->common;
 
-	indent_printf(indent, "dims = {w=%d,h=%d},\n", state->common.w, state->common.h);
-	indent_printf(indent, "origin_offset = "); gfx_print_point(&com->origin_offset); printf(",\n");
-	indent_printf(indent, "hitbox = "); gfx_print_rectangle(&com->hitbox); printf(",\n");
-	indent_printf(indent, "surface_area = "); gfx_print_rectangle(&com->surface_area); printf(",\n");
+	indent_message(indent, "dims = {w=%d,h=%d},\n", state->common.w, state->common.h);
+	indent_message(indent, "origin_offset = "); gfx_print_point(&com->origin_offset); sys_message(",\n");
+	indent_message(indent, "hitbox = "); gfx_print_rectangle(&com->hitbox); sys_message(",\n");
+	indent_message(indent, "surface_area = "); gfx_print_rectangle(&com->surface_area); sys_message(",\n");
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
 		break;
@@ -196,22 +196,22 @@ static void parts_print_state(struct parts_state *state, int indent)
 	}
 
 	indent--;
-	indent_printf(indent, "}");
+	indent_message(indent, "}");
 }
 
 static void parts_print_motion_param(union parts_motion_param param, enum parts_motion_type type)
 {
 	switch (type) {
 	case PARTS_MOTION_POS:
-		printf("{x=%d,y=%d}", param.x, param.y);
+		sys_message("{x=%d,y=%d}", param.x, param.y);
 		break;
 	case PARTS_MOTION_VIBRATION_SIZE:
-		printf("{w=%d,h=%d}", param.x, param.y);
+		sys_message("{w=%d,h=%d}", param.x, param.y);
 		break;
 	case PARTS_MOTION_ALPHA:
 	case PARTS_MOTION_CG:
 	case PARTS_MOTION_NUMERAL_NUMBER:
-		printf("%d", param.i);
+		sys_message("%d", param.i);
 		break;
 	case PARTS_MOTION_HGAUGE_RATE:
 	case PARTS_MOTION_VGAUGE_RATE:
@@ -220,7 +220,7 @@ static void parts_print_motion_param(union parts_motion_param param, enum parts_
 	case PARTS_MOTION_ROTATE_X:
 	case PARTS_MOTION_ROTATE_Y:
 	case PARTS_MOTION_ROTATE_Z:
-		printf("%f", param.f);
+		sys_message("%f", param.f);
 		break;
 	}
 }
@@ -246,55 +246,55 @@ static void parts_print_motion(struct parts_motion *motion, int indent)
 	if (motion->type >= 0 && motion->type < PARTS_NR_MOTION_TYPES)
 		type = type_names[motion->type];
 
-	printf("{\n");
+	sys_message("{\n");
 	indent++;
 
-	indent_printf(indent, "type = %s,\n", type);
-	indent_printf(indent, "begin = ");
+	indent_message(indent, "type = %s,\n", type);
+	indent_message(indent, "begin = ");
 	parts_print_motion_param(motion->begin, motion->type);
-	printf(",\n");
-	indent_printf(indent, "end = ");
+	sys_message(",\n");
+	indent_message(indent, "end = ");
 	parts_print_motion_param(motion->end, motion->type);
-	printf(",\n");
-	indent_printf(indent, "begin_time = %d,\n", motion->begin_time);
-	indent_printf(indent, "end_time = %d,\n", motion->end_time);
+	sys_message(",\n");
+	indent_message(indent, "begin_time = %d,\n", motion->begin_time);
+	indent_message(indent, "end_time = %d,\n", motion->end_time);
 
 	indent--;
-	indent_printf(indent, "}");
+	indent_message(indent, "}");
 }
 
 static void parts_print_params(struct parts_params *global, struct parts_params *local, int indent)
 {
-	printf("{\n");
+	sys_message("{\n");
 	indent++;
 
-	indent_printf(indent, "z = %d (%d),\n", global->z, local->z);
-	indent_printf(indent, "pos = ");
+	indent_message(indent, "z = %d (%d),\n", global->z, local->z);
+	indent_message(indent, "pos = ");
 	gfx_print_point(&global->pos);
-	printf(" (");
+	sys_message(" (");
 	gfx_print_point(&local->pos);
-	printf("),\n");
-	indent_printf(indent, "show = %s (%s),\n", global->show ? "true" : "false",
+	sys_message("),\n");
+	indent_message(indent, "show = %s (%s),\n", global->show ? "true" : "false",
 			local->show ? "true" : "false");
-	indent_printf(indent, "alpha = %u (%u),\n", (unsigned)global->alpha, (unsigned)local->alpha);
-	indent_printf(indent, "scale = {x=%f,y=%f} ({x=%f,y=%f}),\n", global->scale.x, global->scale.y,
+	indent_message(indent, "alpha = %u (%u),\n", (unsigned)global->alpha, (unsigned)local->alpha);
+	indent_message(indent, "scale = {x=%f,y=%f} ({x=%f,y=%f}),\n", global->scale.x, global->scale.y,
 			local->scale.x, local->scale.y);
-	indent_printf(indent, "rotation = {x=%f,y=%f,z=%f} ({x=%f,y=%f,z=%f}),\n",
+	indent_message(indent, "rotation = {x=%f,y=%f,z=%f} ({x=%f,y=%f,z=%f}),\n",
 			global->rotation.x, global->rotation.y, global->rotation.z,
 			local->rotation.x, local->rotation.y, local->rotation.z);
-	indent_printf(indent, "add_color = ");
+	indent_message(indent, "add_color = ");
 	gfx_print_color(&global->add_color);
-	printf(" (");
+	sys_message(" (");
 	gfx_print_color(&local->add_color);
-	printf("),\n");
-	indent_printf(indent, "multiply_color = ");
+	sys_message("),\n");
+	indent_message(indent, "multiply_color = ");
 	gfx_print_color(&global->multiply_color);
-	printf(" (");
+	sys_message(" (");
 	gfx_print_color(&local->multiply_color);
-	printf("),\n");
+	sys_message("),\n");
 
 	indent--;
-	indent_printf(indent, "}");
+	indent_message(indent, "}");
 }
 
 static void _parts_print(struct parts *parts, int indent)
@@ -308,71 +308,71 @@ static void _parts_print(struct parts *parts, int indent)
 	if (parts->state >= 0 && parts->state < PARTS_NR_STATES)
 		state = state_names[parts->state];
 
-	indent_printf(indent, "parts %d = {\n", parts->no);
+	indent_message(indent, "parts %d = {\n", parts->no);
 	indent++;
 
 	// print states
-	indent_printf(indent, "state = %s,\n", state);
+	indent_message(indent, "state = %s,\n", state);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
 		if (parts->states[i].type == PARTS_UNINITIALIZED && i != parts->state)
 			continue;
-		indent_printf(indent, "state[%s] = ", state_names[i]);
+		indent_message(indent, "state[%s] = ", state_names[i]);
 		parts_print_state(&parts->states[i], indent);
-		printf(",\n");
+		sys_message(",\n");
 	}
 
 	// print params
-	indent_printf(indent, "local = ");
+	indent_message(indent, "local = ");
 	parts_print_params(&parts->global, &parts->local, indent);
-	printf(",\n");
+	sys_message(",\n");
 
 	// print misc. data
 	if (parts->delegate_index >= 0)
-		indent_printf(indent, "delegate_index = %d,\n", parts->delegate_index);
-	indent_printf(indent, "sprite_deform = %d,\n", parts->sprite_deform);
-	indent_printf(indent, "clickable = %s,\n", parts->clickable ? "true" : "false");
+		indent_message(indent, "delegate_index = %d,\n", parts->delegate_index);
+	indent_message(indent, "sprite_deform = %d,\n", parts->sprite_deform);
+	indent_message(indent, "clickable = %s,\n", parts->clickable ? "true" : "false");
 	if (parts->on_cursor_sound >= 0)
-		indent_printf(indent, "on_cursor_sound = %d,\n", parts->on_cursor_sound);
+		indent_message(indent, "on_cursor_sound = %d,\n", parts->on_cursor_sound);
 	if (parts->on_click_sound >= 0)
-		indent_printf(indent, "on_click_sound = %d,\n", parts->on_click_sound);
-	indent_printf(indent, "origin_mode = %d,\n", parts->origin_mode);
-	indent_printf(indent, "parent = %d,\n", parts->parent ? parts->parent->no : -1);
+		indent_message(indent, "on_click_sound = %d,\n", parts->on_click_sound);
+	indent_message(indent, "origin_mode = %d,\n", parts->origin_mode);
+	indent_message(indent, "parent = %d,\n", parts->parent ? parts->parent->no : -1);
 	if (parts->linked_to >= 0)
-		indent_printf(indent, "linked_to = %d,\n", parts->linked_to);
+		indent_message(indent, "linked_to = %d,\n", parts->linked_to);
 	if (parts->linked_from >= 0)
-		indent_printf(indent, "linked_from = %d,\n", parts->linked_from);
-	indent_printf(indent, "draw_filter = %d,\n", parts->draw_filter);
+		indent_message(indent, "linked_from = %d,\n", parts->linked_from);
+	indent_message(indent, "draw_filter = %d,\n", parts->draw_filter);
 
 	// print motion data
 	if (TAILQ_EMPTY(&parts->motion)) {
-		indent_printf(indent, "motion = {},\n");
+		indent_message(indent, "motion = {},\n");
 	} else {
-		indent_printf(indent, "motion = {\n");
+		indent_message(indent, "motion = {\n");
 		int i = 0;
 		struct parts_motion *motion;
 		TAILQ_FOREACH(motion, &parts->motion, entry) {
-			indent_printf(indent+1, "[%d] = ", i++);
+			indent_message(indent+1, "[%d] = ", i++);
 			parts_print_motion(motion, indent+1);
-			printf(",\n");
+			sys_message(",\n");
 		}
-		indent_printf(indent, "},\n");
+		indent_message(indent, "},\n");
 	}
 
 	// print children
 	if (TAILQ_EMPTY(&parts->children)) {
 
 	} else {
-		indent_printf(indent, "children = {\n");
+		indent_message(indent, "children = {\n");
 		struct parts *child;
 		PARTS_FOREACH_CHILD(child, parts) {
 			_parts_print(child, indent+1);
-			printf(",\n");
+			sys_message(",\n");
 		}
-		indent_printf(indent, "},\n");
+		indent_message(indent, "},\n");
 	}
 
 	indent--;
-	indent_printf(indent, "}");
+	indent_message(indent, "}");
 }
 
 void parts_print(struct parts *parts)
@@ -413,77 +413,77 @@ static void parts_cmd_parts(unsigned nr_args, char **args)
 
 static void parts_list_print(struct parts *parts, int indent)
 {
-	indent_printf(indent, parts->local.show ? "+ " : "- ");
-	printf("parts %d ", parts->no);
+	indent_message(indent, parts->local.show ? "+ " : "- ");
+	sys_message("parts %d ", parts->no);
 	struct parts_state *state = &parts->states[parts->state];
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
-		printf("(uninitialized)");
+		sys_message("(uninitialized)");
 		break;
 	case PARTS_CG:
 		if (state->cg.name)
-			printf("(cg %s)", display_sjis0(state->cg.name->text));
+			sys_message("(cg %s)", display_sjis0(state->cg.name->text));
 		else
-			printf("(cg %d)", state->cg.no);
+			sys_message("(cg %d)", state->cg.no);
 		break;
 	case PARTS_TEXT:
-		printf("(text)"); // TODO? store actual text and print it here
+		sys_message("(text)"); // TODO? store actual text and print it here
 		break;
 	case PARTS_ANIMATION:
-		printf("(animation %d+%d)", state->anim.start_no, state->anim.nr_frames);
+		sys_message("(animation %d+%d)", state->anim.start_no, state->anim.nr_frames);
 		break;
 	case PARTS_NUMERAL:
-		printf("(numeral %d)", state->num.cg_no);
+		sys_message("(numeral %d)", state->num.cg_no);
 		break;
 	case PARTS_HGAUGE:
-		printf("(hgauge)"); // TODO? store rate and cg and print them here
+		sys_message("(hgauge)"); // TODO? store rate and cg and print them here
 		break;
 	case PARTS_VGAUGE:
-		printf("(vgauge)");
+		sys_message("(vgauge)");
 		break;
 	case PARTS_CONSTRUCTION_PROCESS: {
-		printf("(construction process:");
+		sys_message("(construction process:");
 		struct parts_cp_op *op;
 		TAILQ_FOREACH(op, &state->cproc.ops, entry) {
 			switch (op->type) {
 			case PARTS_CP_CREATE:
-				printf(" create");
+				sys_message(" create");
 				break;
 			case PARTS_CP_CREATE_PIXEL_ONLY:
-				printf(" create-pixel-only");
+				sys_message(" create-pixel-only");
 				break;
 			case PARTS_CP_CG:
-				printf(" cg");
+				sys_message(" cg");
 				break;
 			case PARTS_CP_FILL:
-				printf(" fill");
+				sys_message(" fill");
 				break;
 			case PARTS_CP_FILL_ALPHA_COLOR:
-				printf(" fill-alpha-color");
+				sys_message(" fill-alpha-color");
 				break;
 			case PARTS_CP_FILL_AMAP:
-				printf(" fill-amap");
+				sys_message(" fill-amap");
 				break;
 			case PARTS_CP_DRAW_CUT_CG:
-				printf(" draw-cut-cg");
+				sys_message(" draw-cut-cg");
 				break;
 			case PARTS_CP_COPY_CUT_CG:
-				printf(" copy-cut-cg");
+				sys_message(" copy-cut-cg");
 				break;
 			case PARTS_CP_DRAW_TEXT:
-				printf(" draw-text");
+				sys_message(" draw-text");
 				break;
 			case PARTS_CP_COPY_TEXT:
-				printf(" copy-text");
+				sys_message(" copy-text");
 				break;
 			}
 		}
-		printf(")");
+		sys_message(")");
 		break;
 	}
 	}
 
-	printf(" @ z=%d (%d)\n", parts->global.z, parts->local.z);
+	sys_message(" @ z=%d (%d)\n", parts->global.z, parts->local.z);
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {

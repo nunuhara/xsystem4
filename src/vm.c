@@ -482,7 +482,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_OUTPUT: {// system.Output(string szText)
 		struct string *str = stack_peek_string(0);
-		sys_message("%s", display_sjis0(str->text));
+		log_message("stdout", "%s", display_sjis0(str->text));
 		// XXX: caller S_POPs
 		break;
 	}
@@ -2380,9 +2380,7 @@ _Noreturn void _vm_error(const char *fmt, ...)
 	va_end(ap);
 	sys_warning("at %s (0x%X) in:\n", current_instruction_name(), instr_ptr);
 	vm_stack_trace();
-#ifdef DEBUGGER_ENABLED
 	dbg_repl();
-#endif
 	sys_exit(1);
 }
 

@@ -376,6 +376,7 @@ enum {
 #ifdef DEBUGGER_ENABLED
 	LOPT_NODEBUG,
 	LOPT_DEBUG,
+	LOPT_DEBUG_API,
 #endif
 };
 
@@ -420,6 +421,7 @@ int main(int argc, char *argv[])
 #ifdef DEBUGGER_ENABLED
 			{ "nodebug",      no_argument,       0, LOPT_NODEBUG },
 			{ "debug",        no_argument,       0, LOPT_DEBUG },
+			{ "debug-api",    no_argument,       0, LOPT_DEBUG_API },
 #endif
 			{ 0 }
 		};
@@ -476,6 +478,10 @@ int main(int argc, char *argv[])
 			break;
 		case LOPT_DEBUG:
 			dbg_start_in_debugger = true;
+			break;
+		case LOPT_DEBUG_API:
+			dbg_dap = true;
+			sys_silent = true;
 			break;
 #endif
 		}
@@ -536,14 +542,7 @@ int main(int argc, char *argv[])
 	}
 
 	apply_game_specific_hacks(ain);
-
 	asset_manager_init();
-
-#ifdef DEBUGGER_ENABLED
 	dbg_init();
-	if (dbg_start_in_debugger)
-		dbg_repl();
-#endif
-
 	sys_exit(vm_execute_ain(ain));
 }

@@ -544,5 +544,7 @@ void handle_events(void)
 			break;
 		}
 	}
+	if (dbg_dap)
+		dbg_dap_handle_messages();
 }
 

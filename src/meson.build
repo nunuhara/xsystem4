@@ -20,6 +20,7 @@ xsystem4 = [version_h,
             'heap.c',
             'id_pool.c',
             'input.c',
+            'msgqueue.c',
             'page.c',
             'resume.c',
             'savedata.c',
@@ -137,6 +138,7 @@ if get_option('debugger').allowed()
     add_project_arguments('-DDEBUGGER_ENABLED', language : 'c')
     xsystem4 += 'debug.c'
     xsystem4 += 'debugger_cmd.c'
+    xsystem4 += 'debugger_dap.c'
     if chibi.found()
         xsystem4_deps += chibi
         xsystem4 += 'debugger_scm.c'
