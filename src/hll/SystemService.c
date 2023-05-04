@@ -16,6 +16,7 @@
 
 #include <string.h>
 
+#include "system4/ain.h"
 #include "system4/string.h"
 
 #include "input.h"
@@ -45,7 +46,11 @@ static bool SystemService_SetMixerName(int n, struct string *name)
 	return mixer_set_name(n, name->text);
 }
 
-//int SystemService_GetGameVersion(void);
+static int SystemService_GetGameVersion(void)
+{
+	return ain->game_version;
+}
+
 static void SystemService_GetGameName(struct string **game_name)
 {
 	if (*game_name)
@@ -53,7 +58,7 @@ static void SystemService_GetGameName(struct string **game_name)
 	*game_name = cstr_to_string(config.game_name);
 }
 
-//bool SystemService_AddURLMenu(string szTitle, string szURL);
+HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, AddURLMenu, struct string *title, struct string *url);
 
 static bool SystemService_IsFullScreen(void)
 {
@@ -195,9 +200,9 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(SetMixerName, SystemService_SetMixerName),
 	    HLL_EXPORT(SetMixerVolume, mixer_set_volume),
 	    HLL_EXPORT(SetMixerMute, mixer_set_mute),
-	    HLL_TODO_EXPORT(GetGameVersion, SystemService_GetGameVersion),
+	    HLL_EXPORT(GetGameVersion, SystemService_GetGameVersion),
 	    HLL_EXPORT(GetGameName, SystemService_GetGameName),
-	    HLL_TODO_EXPORT(AddURLMenu, SystemService_AddURLMenu),
+	    HLL_EXPORT(AddURLMenu, SystemService_AddURLMenu),
 	    HLL_EXPORT(IsFullScreen, SystemService_IsFullScreen),
 	    HLL_TODO_EXPORT(ChangeNormalScreen, SystemService_ChangeNormalScreen),
 	    HLL_EXPORT(ChangeFullScreen, SystemService_ChangeFullScreen),
