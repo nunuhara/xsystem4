@@ -477,7 +477,7 @@ static void cmd_setInstructionBreakpoints(cJSON *args, cJSON *resp)
 		char s_addr[9];
 		snprintf(s_addr, 9, "%x", addresses[i]);
 		cJSON_AddItemToArray(breakpoints, bp = cJSON_CreateObject());
-		cJSON_AddStringToObject(breakpoints, "instructionReference", s_addr);
+		cJSON_AddStringToObject(bp, "instructionReference", s_addr);
 		bool verified = dbg_set_address_breakpoint(addresses[i], NULL, NULL);
 		cJSON_AddBoolToObject(bp, "verified", verified);
 		// TODO: id, message, offset
@@ -594,8 +594,8 @@ static void cmd_setVariable(cJSON *args, cJSON *resp)
 
 static void cmd_disconnect(cJSON *args, cJSON *resp)
 {
-	// TODO
-	send_response(resp, false);
+	send_response(resp, true);
+	vm_exit(0);
 }
 
 static bool handle_request(cJSON *request)
@@ -700,6 +700,7 @@ static int read_command_thread(void *data)
 
 void dbg_dap_init(void)
 {
+	atexit(dbg_dap_quit);
 	queue = msgq_new();
 
 #ifdef _WIN32
