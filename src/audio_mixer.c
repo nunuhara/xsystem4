@@ -238,6 +238,7 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 		ch->fade.elapsed += frames_read;
 		if (ch->fade.elapsed >= ch->fade.frames) {
 			ch->fade.fading = false;
+			ch->volume = ch->fade.end_volume * 100.0;
 			if (ch->fade.stop) {
 				cb_seek(ch, 0);
 				r = STS_STREAM_COMPLETE;
