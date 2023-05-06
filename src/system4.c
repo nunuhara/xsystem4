@@ -224,7 +224,7 @@ static char *get_xsystem4_home(void)
 	}
 
 	// If all else fails, use the current directory
-	return xstrdup(".");
+	return realpath_utf8(".");
 }
 
 static char *get_save_path(const char *dir_name)
@@ -491,7 +491,7 @@ int main(int argc, char *argv[])
 
 	if (argc < 1) {
 		if (!config_init_with_dir(".")) {
-			if (!config_init_with_dir("../"))
+			if (!config_init_with_dir(".."))
 				usage_error("Failed to find game in current or parent directory");
 		}
 	} else if (argc > 1) {
