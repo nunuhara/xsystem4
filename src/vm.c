@@ -2295,7 +2295,8 @@ static void vm_free(void)
 		exit_unref(call_stack[i].page_slot);
 	}
 	// free globals
-	exit_unref(0);
+	if (heap_size > 0 && heap[0].ref > 0)
+		exit_unref(0);
 }
 
 static jmp_buf reset_buf;

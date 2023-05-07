@@ -539,16 +539,20 @@ static void link_libraries(void)
 	}
 }
 
+bool libraries_initialized = false;
+
 void init_libraries(void)
 {
 	library_run_all("_PreLink");
 	link_libraries();
 	library_run_all("_ModuleInit");
+	libraries_initialized = true;
 }
 
 void exit_libraries(void)
 {
-	library_run_all("_ModuleFini");
+	if (libraries_initialized)
+		library_run_all("_ModuleFini");
 }
 
 void static_library_replace(struct static_library *lib, const char *name, void *fun)
