@@ -46,13 +46,14 @@
 #endif
 
 static void dungeon_render(struct sact_sprite *sp);
+static void dungeon_debug_print(struct sact_sprite *sp, int indent);
 
 struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int surface)
 {
 	struct dungeon_context *ctx = xcalloc(1, sizeof(struct dungeon_context));
 	ctx->plugin.name = "DrawDungeon";
 	ctx->plugin.update = dungeon_render;
-	ctx->plugin.debug_print = NULL;
+	ctx->plugin.debug_print = dungeon_debug_print;
 	ctx->version = version;
 	ctx->surface = surface;
 	struct sact_sprite *sp = sact_get_sprite(ctx->surface);
@@ -448,4 +449,14 @@ bool dungeon_save_walk_data(int surface, int map, struct page **page)
 	for (int i = 0; i < nr_cells; i++)
 		array->values[offset++].i = ctx->dgn->cells[i].walked;
 	return true;
+}
+
+#define SPREAD_VEC3(v) (v)[0], (v)[1], (v)[2]
+
+void dungeon_debug_print(struct sact_sprite *sp, int indent)
+{
+	struct dungeon_context *ctx = (struct dungeon_context *)sp->plugin;
+
+	indent_message(indent, "name = \"%s\",\n", ctx->plugin.name);
+	indent_message(indent, "camera = {x=%f, y=%f, z=%f, angle=%f, angle_p=%f},\n", SPREAD_VEC3(ctx->camera.pos), ctx->camera.angle, ctx->camera.angle_p);
 }
