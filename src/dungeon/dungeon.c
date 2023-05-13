@@ -46,13 +46,14 @@
 #endif
 
 static void dungeon_render(struct sact_sprite *sp);
+static void dungeon_debug_print(struct sact_sprite *sp, int indent);
 
 struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int surface)
 {
 	struct dungeon_context *ctx = xcalloc(1, sizeof(struct dungeon_context));
 	ctx->plugin.name = "DrawDungeon";
 	ctx->plugin.update = dungeon_render;
-	ctx->plugin.debug_print = NULL;
+	ctx->plugin.debug_print = dungeon_debug_print;
 	ctx->version = version;
 	ctx->surface = surface;
 	struct sact_sprite *sp = sact_get_sprite(ctx->surface);
@@ -243,7 +244,7 @@ void dungeon_set_camera(int surface, float x, float y, float z, float angle, flo
 	ctx->camera.angle_p = angle_p * M_PI / 180;
 }
 
-static void model_view_matrix(struct camera *camera, mat4 out)
+static void model_view_matrix(struct camera *camera, vec3 eye_out, mat4 mv_out)
 {
 	// The actual camera position is slightly behind camera->pos.
 	float dist = 0.9;
@@ -252,10 +253,9 @@ static void model_view_matrix(struct camera *camera, mat4 out)
 		dist * sin(camera->angle_p),
 		dist * -cos(camera->angle) * cos(camera->angle_p),
 	};
-	vec3 eye;
-	glm_vec3_sub(camera->pos, d, eye);
+	glm_vec3_sub(camera->pos, d, eye_out);
 	vec3 up = {0.0, 1.0, 0.0};
-	glm_lookat(eye, camera->pos, up, out);
+	glm_lookat(eye_out, camera->pos, up, mv_out);
 }
 
 static void dungeon_render(struct sact_sprite *sp)
@@ -275,9 +275,10 @@ static void dungeon_render(struct sact_sprite *sp)
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
+	vec3 eye;
 	mat4 local_transform, view_transform, proj_transform;
 	glm_mat4_identity(local_transform);
-	model_view_matrix(&ctx->camera, view_transform);
+	model_view_matrix(&ctx->camera, eye, view_transform);
 	glm_perspective(M_PI / 3.0, (float)texture->w / texture->h, 0.5, 100.0, proj_transform);
 
 	// Tweak the projection transform so that the rendering result is vertically
@@ -287,9 +288,9 @@ static void dungeon_render(struct sact_sprite *sp)
 	proj_transform[1][1] *= -1;
 	glFrontFace(GL_CW);
 
-	int dgn_x = round(ctx->camera.pos[0] / 2.0);
-	int dgn_y = round(ctx->camera.pos[1] / 2.0);
-	int dgn_z = round(ctx->camera.pos[2] / -2.0);
+	int dgn_x = round(eye[0] / 2.0);
+	int dgn_y = round(eye[1] / 2.0);
+	int dgn_z = round(eye[2] / -2.0);
 	int nr_cells;
 	struct dgn_cell **cells = dgn_get_visible_cells(ctx->dgn, dgn_x, dgn_y, dgn_z, &nr_cells);
 	dungeon_renderer_render(ctx->renderer, cells, nr_cells, view_transform, proj_transform);
@@ -448,4 +449,14 @@ bool dungeon_save_walk_data(int surface, int map, struct page **page)
 	for (int i = 0; i < nr_cells; i++)
 		array->values[offset++].i = ctx->dgn->cells[i].walked;
 	return true;
+}
+
+#define SPREAD_VEC3(v) (v)[0], (v)[1], (v)[2]
+
+void dungeon_debug_print(struct sact_sprite *sp, int indent)
+{
+	struct dungeon_context *ctx = (struct dungeon_context *)sp->plugin;
+
+	indent_message(indent, "name = \"%s\",\n", ctx->plugin.name);
+	indent_message(indent, "camera = {x=%f, y=%f, z=%f, angle=%f, angle_p=%f},\n", SPREAD_VEC3(ctx->camera.pos), ctx->camera.angle, ctx->camera.angle_p);
 }
