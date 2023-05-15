@@ -35,6 +35,8 @@
 #include "dungeon/renderer.h"
 #include "dungeon/tes.h"
 #include "gfx/gfx.h"
+#include "cJSON.h"
+#include "json.h"
 #include "sact.h"
 #include "sprite.h"
 #include "vm.h"
@@ -46,14 +48,14 @@
 #endif
 
 static void dungeon_render(struct sact_sprite *sp);
-static void dungeon_debug_print(struct sact_sprite *sp, int indent);
+static cJSON *dungeon_to_json(struct sact_sprite *sp, bool verbose);
 
 struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int surface)
 {
 	struct dungeon_context *ctx = xcalloc(1, sizeof(struct dungeon_context));
 	ctx->plugin.name = "DrawDungeon";
 	ctx->plugin.update = dungeon_render;
-	ctx->plugin.debug_print = dungeon_debug_print;
+	ctx->plugin.to_json = dungeon_to_json;
 	ctx->version = version;
 	ctx->surface = surface;
 	struct sact_sprite *sp = sact_get_sprite(ctx->surface);
@@ -451,12 +453,16 @@ bool dungeon_save_walk_data(int surface, int map, struct page **page)
 	return true;
 }
 
-#define SPREAD_VEC3(v) (v)[0], (v)[1], (v)[2]
-
-void dungeon_debug_print(struct sact_sprite *sp, int indent)
+static cJSON *dungeon_to_json(struct sact_sprite *sp, bool verbose)
 {
+	cJSON *obj, *cam;
 	struct dungeon_context *ctx = (struct dungeon_context *)sp->plugin;
+	obj = cJSON_CreateObject();
+	cJSON_AddStringToObject(obj, "name", ctx->plugin.name);
+	cJSON_AddItemToObjectCS(obj, "camera", cam = cJSON_CreateObject());
+	cJSON_AddItemToObjectCS(cam, "pos", vec3_point_to_json(ctx->camera.pos, verbose));
+	cJSON_AddNumberToObject(cam, "angle", ctx->camera.angle);
+	cJSON_AddNumberToObject(cam, "angle_p", ctx->camera.angle_p);
 
-	indent_message(indent, "name = \"%s\",\n", ctx->plugin.name);
-	indent_message(indent, "camera = {x=%f, y=%f, z=%f, angle=%f, angle_p=%f},\n", SPREAD_VEC3(ctx->camera.pos), ctx->camera.angle, ctx->camera.angle_p);
+	return obj;
 }

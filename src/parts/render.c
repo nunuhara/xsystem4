@@ -146,9 +146,9 @@ void parts_dirty(possibly_unused struct parts *parts)
 	parts_engine_dirty();
 }
 
-static void _parts_engine_print(possibly_unused struct sprite *_)
+static cJSON *_parts_engine_to_json(struct sprite *_, bool verbose)
 {
-	parts_engine_print();
+	return parts_engine_to_json(verbose);
 }
 
 void parts_render_init(void)
@@ -158,7 +158,7 @@ void parts_render_init(void)
 	goat_sprite.has_pixel = true;
 	goat_sprite.has_alpha = true;
 	goat_sprite.render = parts_engine_render;
-	goat_sprite.debug_print = _parts_engine_print;
+	goat_sprite.to_json = _parts_engine_to_json;
 	scene_register_sprite(&goat_sprite);
 
 	gfx_load_shader(&parts_shader.shader, "shaders/render.v.glsl", "shaders/parts.f.glsl");

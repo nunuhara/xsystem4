@@ -17,6 +17,8 @@
 #include "system4/string.h"
 
 #include "3d_internal.h"
+#include "cJSON.h"
+#include "json.h"
 #include "reign.h"
 #include "sprite.h"
 #include "xsystem4.h"
@@ -57,107 +59,141 @@ static const char *fog_type_name(enum RE_fog_type type)
 	return "UNKNOWN";
 }
 
-static void print_motion(const char *name, struct motion *m, int indent)
+static cJSON *motion_to_json(struct motion *m)
 {
 	if (m->instance->type == RE_ITYPE_BILLBOARD) {
-		indent_message(indent, "%s = {state=%s, frame=%f, range=(%d,%d), loop_range=(%d,%d)},\n",
-		              name, motion_state_name(m->state), m->current_frame,
-		              (int)m->frame_begin, (int)m->frame_end, (int)m->loop_frame_begin, (int)m->loop_frame_end);
-	} else if (m->mot) {
-		indent_message(indent, "%s = {name=\"%s\", state=%s, frame=%f},\n",
-		              name, m->mot->name, motion_state_name(m->state), m->current_frame);
+		cJSON *obj = cJSON_CreateObject();
+		cJSON_AddStringToObject(obj, "state", motion_state_name(m->state));
+		cJSON_AddNumberToObject(obj, "frame", m->current_frame);
+		cJSON_AddItemToObjectCS(obj, "range", num2_to_json(m->frame_begin, m->frame_end));
+		cJSON_AddItemToObjectCS(obj, "loop_range", num2_to_json(m->loop_frame_begin, m->loop_frame_end));
+		return obj;
 	}
+	if (m->mot) {
+		cJSON *obj = cJSON_CreateObject();
+		cJSON_AddStringToObject(obj, "name", m->mot->name);
+		cJSON_AddStringToObject(obj, "state", motion_state_name(m->state));
+		cJSON_AddNumberToObject(obj, "frame", m->current_frame);
+		return obj;
+	}
+	return cJSON_CreateNull();
 }
 
-static void print_instance(struct RE_instance *inst, int index, int indent)
+static cJSON *instance_to_json(struct RE_instance *inst, int index, bool verbose)
 {
-	if (!inst)
-		return;
-	indent_message(indent, "instance[%d] = {\n", index);
-	indent++;
-
-	indent_message(indent, "type = %s,\n", instance_type_name(inst->type));
+	cJSON *obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(obj, "index", index);
+	cJSON_AddStringToObject(obj, "type", instance_type_name(inst->type));
 	if (inst->type == RE_ITYPE_DIRECTIONAL_LIGHT || inst->type == RE_ITYPE_SPECULAR_LIGHT) {
-		indent_message(indent, "vec = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(inst->vec));
-		indent_message(indent, "diffuse = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(inst->diffuse));
-		indent_message(indent, "globe_diffuse = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(inst->globe_diffuse));
+		cJSON_AddItemToObjectCS(obj, "vec", vec3_point_to_json(inst->vec, verbose));
+		cJSON_AddItemToObjectCS(obj, "diffuse", vec3_color_to_json(inst->diffuse, verbose));
+		cJSON_AddItemToObjectCS(obj, "globe_diffuse", vec3_color_to_json(inst->globe_diffuse, verbose));
 	} else {
-		indent_message(indent, "draw = %d,\n", inst->draw);
-		indent_message(indent, "pos = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(inst->pos));
-		indent_message(indent, "scale = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(inst->scale));
-		indent_message(indent, "ambient = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(inst->ambient));
+		cJSON_AddNumberToObject(obj, "draw", inst->draw);
+		cJSON_AddItemToObjectCS(obj, "pos", vec3_point_to_json(inst->pos, verbose));
+		cJSON_AddItemToObjectCS(obj, "scale", vec3_point_to_json(inst->scale, verbose));
+		cJSON_AddItemToObjectCS(obj, "ambient", vec3_color_to_json(inst->ambient, verbose));
 	}
 	if (inst->model) {
-		indent_message(indent, "path = \"%s\",\n", inst->model->path);
-		indent_message(indent, "aabb = {min = {x=%f, y=%f, z=%f}, max = {x=%f, y=%f, z=%f}},\n",
-			      SPREAD_VEC3(inst->model->aabb[0]), SPREAD_VEC3(inst->model->aabb[1]));
+		cJSON *tmp;
+		cJSON_AddStringToObject(obj, "path", inst->model->path);
+		cJSON_AddItemToObjectCS(obj, "aabb", tmp = cJSON_CreateObject());
+		cJSON_AddItemToObjectCS(tmp, "min", vec3_point_to_json(inst->model->aabb[0], verbose));
+		cJSON_AddItemToObjectCS(tmp, "max", vec3_point_to_json(inst->model->aabb[1], verbose));
 	}
 	if (inst->motion) {
-		indent_message(indent, "fps = %f,\n", inst->fps);
-		print_motion("motion", inst->motion, indent);
+		cJSON_AddNumberToObject(obj, "fps", inst->fps);
+		cJSON_AddItemToObjectCS(obj, "motion", motion_to_json(inst->motion));
 	}
-	if (inst->next_motion)
-		print_motion("next_motion", inst->next_motion, indent);
-	if (inst->motion_blend)
-		indent_message(indent, "motion_blend_rate = %f,\n", inst->motion_blend_rate);
-	if (inst->effect)
-		indent_message(indent, "path = \"%s\",\n", inst->effect->pae->path);
+	if (inst->next_motion) {
+		cJSON_AddItemToObjectCS(obj, "next_motion", motion_to_json(inst->next_motion));
+	}
+	if (inst->motion_blend) {
+		cJSON_AddNumberToObject(obj, "motion_blend_rate", inst->motion_blend_rate);
+	}
+	if (inst->effect) {
+		cJSON_AddStringToObject(obj, "path", inst->effect->pae->path);
+	}
 
-	indent--;
-	indent_message(indent, "},\n");
+	return obj;
 }
 
-static void print_back_cg(struct RE_back_cg *bcg, int index, int indent)
+static cJSON *back_cg_to_json(struct RE_back_cg *bcg, int index, bool verbose)
 {
-	if (!bcg->name && !bcg->no)
-		return;
-	indent_message(indent, "backCG[%d] = {\n", index);
-	indent++;
-
-	if (bcg->no)
-		indent_message(indent, "no = %d,\n", bcg->no);
-	if (bcg->name)
-		indent_message(indent, "name = \"%s\",\n", bcg->name ? bcg->name->text : "");
-	indent_message(indent, "pos = {x=%f, y=%f},\n", bcg->x, bcg->y);
-	indent_message(indent, "blend_rate = %f,\n", bcg->blend_rate);
-	indent_message(indent, "mag = %f,\n", bcg->mag);
-	indent_message(indent, "show = %d,\n", bcg->show);
-
-	indent--;
-	indent_message(indent, "},\n");
+	cJSON *obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(obj, "index", index);
+	if (bcg->no) {
+		cJSON_AddNumberToObject(obj, "no", bcg->no);
+	}
+	if (bcg->name) {
+		cJSON_AddStringToObject(obj, "name", bcg->name->text);
+	}
+	if (!verbose) {
+		cJSON_AddItemToObjectCS(obj, "pos", num2_to_json(bcg->x, bcg->y));
+	} else {
+		cJSON *pos;
+		cJSON_AddItemToObjectCS(obj, "pos", pos = cJSON_CreateObject());
+		cJSON_AddNumberToObject(pos, "x", bcg->x);
+		cJSON_AddNumberToObject(pos, "y", bcg->y);
+	}
+	cJSON_AddNumberToObject(obj, "blend_rate", bcg->blend_rate);
+	cJSON_AddNumberToObject(obj, "mag", bcg->mag);
+	cJSON_AddNumberToObject(obj, "show", bcg->show);
+	return obj;
 }
 
-void RE_debug_print(struct sact_sprite *sp, int indent)
+cJSON *RE_to_json(struct sact_sprite *sp, bool verbose)
 {
-	struct RE_plugin *p = (struct RE_plugin *)sp->plugin;
+	struct RE_plugin *p = (struct RE_plugin*)sp->plugin;
+	cJSON *obj, *cam, *a;
 
-	indent_message(indent, "name = \"%s\",\n", p->plugin.name);
-	indent_message(indent, "camera = {x=%f, y=%f, z=%f, pitch=%f, roll=%f, yaw=%f},\n",
-	              SPREAD_VEC3(p->camera.pos), p->camera.pitch, p->camera.roll, p->camera.yaw);
-	indent_message(indent, "shadow_map_light_dir = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(p->shadow_map_light_dir));
-	indent_message(indent, "shadow_bias = %f,\n", p->shadow_bias);
-
-	indent_message(indent, "fog_type = %s,\n", fog_type_name(p->fog_type));
+	obj = cJSON_CreateObject();
+	cJSON_AddStringToObject(obj, "name", p->plugin.name);
+	cJSON_AddItemToObjectCS(obj, "camera", cam = cJSON_CreateObject());
+	cJSON_AddItemToObjectCS(cam, "pos", vec3_point_to_json(p->camera.pos, verbose));
+	cJSON_AddNumberToObject(cam, "pitch", p->camera.pitch);
+	cJSON_AddNumberToObject(cam, "roll", p->camera.roll);
+	cJSON_AddNumberToObject(cam, "yaw", p->camera.yaw);
+	cJSON_AddItemToObjectCS(obj, "shadow_map_light_dir",
+			vec3_point_to_json(p->shadow_map_light_dir, verbose));
+	cJSON_AddNumberToObject(obj, "shadow_bias", p->shadow_bias);
+	cJSON_AddStringToObject(obj, "fog_type", fog_type_name(p->fog_type));
 	switch (p->fog_type) {
 	case RE_FOG_NONE:
 		break;
 	case RE_FOG_LINEAR:
-		indent_message(indent, "fog_near = %f, fog_far = %f,\n", p->fog_near, p->fog_far);
-		indent_message(indent, "fog_color = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(p->fog_color));
+		cJSON_AddNumberToObject(obj, "fog_near", p->fog_near);
+		cJSON_AddNumberToObject(obj, "fog_far", p->fog_far);
 		break;
 	case RE_FOG_LIGHT_SCATTERING:
-		indent_message(indent, "ls_beta_r = %f, ls_beta_m = %f,\n", p->ls_beta_r, p->ls_beta_m);
-		indent_message(indent, "ls_g = %f,\n", p->ls_g);
-		indent_message(indent, "ls_distance = %f,\n", p->ls_distance);
-		indent_message(indent, "ls_light_dir = {x=%f, y=%f, z=%f},\n", SPREAD_VEC3(p->ls_light_dir));
-		indent_message(indent, "ls_light_color = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(p->ls_light_color));
-		indent_message(indent, "ls_sun_color = {r=%f, g=%f, b=%f},\n", SPREAD_VEC3(p->ls_sun_color));
+		cJSON_AddNumberToObject(obj, "ls_beta_r", p->ls_beta_r);
+		cJSON_AddNumberToObject(obj, "ls_beta_m", p->ls_beta_m);
+		cJSON_AddNumberToObject(obj, "ls_g", p->ls_g);
+		cJSON_AddNumberToObject(obj, "ls_distance", p->ls_distance);
+		cJSON_AddItemToObjectCS(obj, "ls_light_dir",
+				vec3_point_to_json(p->ls_light_dir, verbose));
+		cJSON_AddItemToObjectCS(obj, "ls_light_color",
+				vec3_color_to_json(p->ls_light_color, verbose));
+		cJSON_AddItemToObjectCS(obj, "ls_sun_color",
+				vec3_color_to_json(p->ls_sun_color, verbose));
 		break;
 	}
 
-	for (int i = 0; i < p->nr_instances; i++)
-		print_instance(p->instances[i], i, indent);
+	cJSON_AddItemToObjectCS(obj, "instances", a = cJSON_CreateArray());
+	for (int i = 0; i < p->nr_instances; i++) {
+		if (!p->instances[i])
+			continue;
+		cJSON_AddItemToArray(a, instance_to_json(p->instances[i], i, verbose));
+		
+	}
 
-	for (int i = 0; i < RE_NR_BACK_CGS; i++)
-		print_back_cg(&p->back_cg[i], i, indent);
+	cJSON_AddItemToObjectCS(obj, "back_cgs", a = cJSON_CreateArray());
+	for (int i = 0; i < RE_NR_BACK_CGS; i++) {
+		struct RE_back_cg *bcg = &p->back_cg[i];
+		if (!bcg->name && !bcg->no)
+			continue;
+		cJSON_AddItemToArray(a, back_cg_to_json(bcg, i, verbose));
+	}
+
+	return obj;
 }

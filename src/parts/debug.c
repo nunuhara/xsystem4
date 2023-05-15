@@ -17,202 +17,247 @@
 #include "system4.h"
 #include "system4/cg.h"
 #include "system4/string.h"
+#include "system4/utfsjis.h"
 
 #include "xsystem4.h"
+#include "cJSON.h"
+#include "json.h"
 #include "parts_internal.h"
 
-static void parts_cg_print(struct parts_cg *cg, int indent)
+static void cJSON_AddSjisToObject(cJSON *obj, const char *name, const char *sjis)
 {
-	indent_message(indent, "cg.no = %d,\n", cg->no);
+	// TODO: can avoid copy by implementing this as part of cJSON proper
+	char *utf = sjis2utf(sjis, 0);
+	cJSON_AddStringToObject(obj, name, utf);
+	free(utf);
 }
 
-static void parts_text_print(struct parts_text *text, int indent)
+static void parts_cg_to_json(struct parts_cg *cg, cJSON *out, bool verbose)
 {
-	indent_message(indent, "text.lines = {\n");
+	cJSON_AddNumberToObject(out, "no", cg->no);
+}
+
+static void parts_text_to_json(struct parts_text *text, cJSON *out, bool verbose)
+{
+	cJSON *lines;
+
+	cJSON_AddItemToObjectCS(out, "lines", lines = cJSON_CreateArray());
 	for (unsigned i = 0; i < text->nr_lines; i++) {
+		cJSON *line;
 		struct string *s = parts_text_line_get(&text->lines[i]);
-		indent_message(indent+1, "contents = \"%s\",\n", display_sjis0(s->text));
-		indent_message(indent+1, "width = %u,\n", text->lines[i].width);
-		indent_message(indent+1, "height = %u,\n", text->lines[i].height);
+		cJSON_AddItemToArray(lines, line = cJSON_CreateObject());
+		cJSON_AddSjisToObject(line, "contents", s->text);
+		cJSON_AddNumberToObject(line, "width", text->lines[i].width);
+		cJSON_AddNumberToObject(line, "height", text->lines[i].height);
 		free_string(s);
 	}
-	indent_message(indent, "},\n");
-	indent_message(indent, "text.line_space = %u,\n", text->line_space);
-	indent_message(indent, "text.cursor = ");
-	gfx_print_point(&text->cursor);
-	sys_message(",\n");
-	indent_message(indent, "text.ts = ");
-	gfx_print_text_style(&text->ts, indent);
-	sys_message("\n");
+	cJSON_AddNumberToObject(out, "line_space", text->line_space);
+	cJSON_AddItemToObjectCS(out, "cursor", point_to_json(&text->cursor, verbose));
+	cJSON_AddItemToObjectCS(out, "text_style", text_style_to_json(&text->ts, verbose));
 }
 
-static void parts_animation_print(struct parts_animation *anim, int indent)
+static void parts_animation_to_json(struct parts_animation *anim, cJSON *out, bool verbose)
 {
-	indent_message(indent, "anim.start_no = %u,\n", anim->start_no);
-	indent_message(indent, "anim.frame_time = %u,\n", anim->frame_time);
-	indent_message(indent, "anim.elapsed = %u,\n", anim->elapsed);
-	indent_message(indent, "anim.current_frame = %u,\n", anim->current_frame);
-	indent_message(indent, "anim.frames = {\n");
+	cJSON *frames;
+
+	cJSON_AddNumberToObject(out, "start_no", anim->start_no);
+	cJSON_AddNumberToObject(out, "frame_time", anim->frame_time);
+	cJSON_AddNumberToObject(out, "elapsed", anim->elapsed);
+	cJSON_AddNumberToObject(out, "current_frame", anim->current_frame);
+	cJSON_AddItemToObjectCS(out, "frames", frames = cJSON_CreateArray());
 	for (unsigned i = 0; i < anim->nr_frames; i++) {
-		indent_message(indent+1, "[%u] = ", i);
-		gfx_print_texture(&anim->frames[i], indent+1);
-		indent_message(indent+1, ",\n");
+		cJSON_AddItemToArray(frames, texture_to_json(&anim->frames[i], verbose));
 	}
-	indent_message(indent, "}\n");
 }
 
-static void parts_numeral_print(struct parts_numeral *num, int indent)
+static void parts_numeral_to_json(struct parts_numeral *num, cJSON *out, bool verbose)
 {
-	indent_message(indent, "num.have_num = %s,\n", num->have_num ? "true" : "false");
-	indent_message(indent, "num.num = %d,\n", num->num);
-	indent_message(indent, "num.space = %d,\n", num->space);
-	indent_message(indent, "num.show_comma = %d,\n", num->show_comma);
-	indent_message(indent, "num.length = %d,\n", num->length);
-	indent_message(indent, "num.cg_no = %d,\n", num->cg_no);
-	indent_message(indent, "num.cg = {\n");
+	cJSON *cg;
+
+	cJSON_AddBoolToObject(out, "have_num", num->have_num);
+	cJSON_AddNumberToObject(out, "num", num->num);
+	cJSON_AddNumberToObject(out, "space", num->space);
+	cJSON_AddBoolToObject(out, "show_comma", num->show_comma);
+	cJSON_AddNumberToObject(out, "length", num->length);
+	cJSON_AddNumberToObject(out, "cg_no", num->cg_no);
+	cJSON_AddItemToObjectCS(out, "cg", cg = cJSON_CreateArray());
 	for (int i = 0; i < 12; i++) {
-		indent_message(indent+1, "[%d] = ", i);
-		gfx_print_texture(&num->cg[i], indent+1);
-		indent_message(indent+1, ",\n");
+		cJSON_AddItemToArray(cg, texture_to_json(&num->cg[i], verbose));
 	}
-	indent_message(indent, "}\n");
 }
 
-static void parts_gauge_print(struct parts_gauge *gauge, int indent)
+static void parts_gauge_to_json(struct parts_gauge *gauge, cJSON *out, bool verbose)
 {
-	indent_message(indent, "gauge.cg = ");
-	gfx_print_texture(&gauge->cg, indent);
+	cJSON_AddItemToObject(out, "cg", texture_to_json(&gauge->cg, verbose));
 }
 
-static void parts_construction_process_print(struct parts_construction_process *cproc, int indent)
+static void parts_construction_process_to_json(struct parts_construction_process *cproc,
+		cJSON *out, bool verbose)
 {
 	static const char *type_names[PARTS_NR_CP_TYPES] = {
-		[PARTS_CP_CREATE] = "PARTS_CP_CREATE",
-		[PARTS_CP_CREATE_PIXEL_ONLY] = "PARTS_CP_CREATE_PIXEL_ONLY",
-		[PARTS_CP_CG] = "PARTS_CP_CG",
-		[PARTS_CP_FILL] = "PARTS_CP_FILL",
-		[PARTS_CP_FILL_ALPHA_COLOR] = "PARTS_CP_FILL_ALPHA_COLOR",
-		[PARTS_CP_FILL_AMAP] = "PARTS_CP_FILL_AMAP",
-		[PARTS_CP_DRAW_CUT_CG] = "PARTS_CP_DRAW_CUT_CG",
-		[PARTS_CP_COPY_CUT_CG] = "PARTS_CP_COPY_CUT_CG",
-		[PARTS_CP_DRAW_TEXT] = "PARTS_CP_DRAW_TEXT",
-		[PARTS_CP_COPY_TEXT] = "PARTS_CP_COPY_TEXT",
+		[PARTS_CP_CREATE] = "create",
+		[PARTS_CP_CREATE_PIXEL_ONLY] = "create_pixel_only",
+		[PARTS_CP_CG] = "cg",
+		[PARTS_CP_FILL] = "fill",
+		[PARTS_CP_FILL_ALPHA_COLOR] = "fill_alpha_color",
+		[PARTS_CP_FILL_AMAP] = "fill_amap",
+		[PARTS_CP_DRAW_CUT_CG] = "draw_cut_cg",
+		[PARTS_CP_COPY_CUT_CG] = "copy_cut_cg",
+		[PARTS_CP_DRAW_TEXT] = "draw_text",
+		[PARTS_CP_COPY_TEXT] = "copy_text",
 	};
 
-	indent_message(indent, "cproc.ops = {\n");
-	indent++;
+	cJSON *ops, *tmp;
 
-	int i = 0;
+	cJSON_AddItemToObjectCS(out, "operations", ops = cJSON_CreateArray());
+
 	struct parts_cp_op *op;
 	TAILQ_FOREACH(op, &cproc->ops, entry) {
-		indent_message(indent, "[%d] = {\n", i++);
-		indent++;
-
-		const char *type = "INVALID_CONSTRUCTION_PROCERSS_TYPE";
+		const char *type = "invalid";
 		if (op->type >= 0 && op->type < PARTS_NR_CP_TYPES)
 			type = type_names[op->type];
-		indent_message(indent, "type = %s,\n", type);
 
+		cJSON *obj;
+		cJSON_AddItemToArray(ops, obj = cJSON_CreateObject());
+		cJSON_AddStringToObject(obj, "type", type);
 		switch (op->type) {
 		case PARTS_CP_CREATE:
 		case PARTS_CP_CREATE_PIXEL_ONLY:
-			indent_message(indent, "create = {w=%d,h=%d}\n", op->create.w, op->create.h);
+			cJSON_AddItemToObjectCS(obj, "size", tmp = cJSON_CreateObject());
+			cJSON_AddNumberToObject(tmp, "w", op->create.w);
+			cJSON_AddNumberToObject(tmp, "h", op->create.h);
 			break;
 		case PARTS_CP_CG:
-			indent_message(indent, "cg.no = %d\n", op->cg.no);
+			cJSON_AddNumberToObject(obj, "no", op->cg.no);
 			break;
 		case PARTS_CP_FILL:
 		case PARTS_CP_FILL_ALPHA_COLOR:
 		case PARTS_CP_FILL_AMAP:
-			indent_message(indent, "fill.rect = {x=%d,y=%d,w=%d,h=%d},\n",
-					op->fill.x, op->fill.y, op->fill.w, op->fill.h);
-			indent_message(indent, "fill.color = (%d,%d,%d,%d)\n",
-					op->fill.r, op->fill.g, op->fill.b, op->fill.a);
+			cJSON_AddItemToObjectCS(obj, "rect", tmp = cJSON_CreateObject());
+			cJSON_AddNumberToObject(tmp, "x", op->fill.x);
+			cJSON_AddNumberToObject(tmp, "y", op->fill.y);
+			cJSON_AddNumberToObject(tmp, "w", op->fill.w);
+			cJSON_AddNumberToObject(tmp, "h", op->fill.h);
+			cJSON_AddItemToObjectCS(obj, "color", tmp = cJSON_CreateObject());
+			cJSON_AddNumberToObject(tmp, "r", op->fill.r);
+			cJSON_AddNumberToObject(tmp, "g", op->fill.g);
+			cJSON_AddNumberToObject(tmp, "b", op->fill.b);
+			cJSON_AddNumberToObject(tmp, "a", op->fill.a);
 			break;
 		case PARTS_CP_DRAW_CUT_CG:
 		case PARTS_CP_COPY_CUT_CG:
-			indent_message(indent, "cut_cg.cg_no = %d,\n", op->cut_cg.cg_no);
-			indent_message(indent, "cut_cg.dst = {x=%d,y=%d,w=%d,h=%d},\n",
-					op->cut_cg.dx, op->cut_cg.dy, op->cut_cg.dw, op->cut_cg.dh);
-			indent_message(indent, "cut_cg.src = {x=%d,y=%d,w=%d,h=%d},\n",
-					op->cut_cg.sx, op->cut_cg.sy, op->cut_cg.sw, op->cut_cg.sh);
-			indent_message(indent, "cut_cg.interp_type = %d\n", op->cut_cg.interp_type);
+			cJSON_AddNumberToObject(obj, "no", op->cut_cg.cg_no);
+			cJSON_AddItemToObjectCS(obj, "dst", tmp = cJSON_CreateObject());
+			cJSON_AddNumberToObject(tmp, "x", op->cut_cg.dx);
+			cJSON_AddNumberToObject(tmp, "y", op->cut_cg.dy);
+			cJSON_AddNumberToObject(tmp, "w", op->cut_cg.dw);
+			cJSON_AddNumberToObject(tmp, "h", op->cut_cg.dh);
+			cJSON_AddItemToObjectCS(obj, "src", tmp = cJSON_CreateObject());
+			cJSON_AddNumberToObject(tmp, "x", op->cut_cg.sx);
+			cJSON_AddNumberToObject(tmp, "y", op->cut_cg.sy);
+			cJSON_AddNumberToObject(tmp, "w", op->cut_cg.sw);
+			cJSON_AddNumberToObject(tmp, "h", op->cut_cg.sh);
+			cJSON_AddNumberToObject(obj, "interp_type", op->cut_cg.interp_type);
 			break;
 		case PARTS_CP_DRAW_TEXT:
 		case PARTS_CP_COPY_TEXT:
-			indent_message(indent, "text.text = \"%s\",\n", display_sjis0(op->text.text->text));
-			indent_message(indent, "text.pos = {x=%d,y=%d},\n", op->text.x, op->text.y);
-			indent_message(indent, "text.line_space = %d,\n", op->text.line_space);
-			indent_message(indent, "text.style = ");
-			gfx_print_text_style(&op->text.style, indent);
-			sys_message("\n");
+			cJSON_AddSjisToObject(obj, "text", op->text.text->text);
+			cJSON_AddItemToObjectCS(obj, "pos", tmp = cJSON_CreateObject());
+			cJSON_AddNumberToObject(tmp, "x", op->text.x);
+			cJSON_AddNumberToObject(tmp, "y", op->text.y);
+			cJSON_AddNumberToObject(obj, "line_space", op->text.line_space);
+			cJSON_AddItemToObjectCS(obj, "style", text_style_to_json(&op->text.style, verbose));
 			break;
 		}
-		indent--;
-		indent_message(indent, "},\n");
 	}
-
-	indent--;
-	indent_message(indent, "}\n");
 }
 
-static void parts_print_state(struct parts_state *state, int indent)
+static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 {
-	if (state->type == PARTS_UNINITIALIZED) {
-		sys_message("UNINITIALIZED");
-		return;
-	}
-	sys_message("{\n");
-	indent++;
+	static const char *state_types[PARTS_NR_TYPES] = {
+		[PARTS_UNINITIALIZED] = "uninitialized",
+		[PARTS_CG] = "cg",
+		[PARTS_TEXT] = "text",
+		[PARTS_ANIMATION] = "animation",
+		[PARTS_NUMERAL] = "numeral",
+		[PARTS_HGAUGE] = "hgauge",
+		[PARTS_VGAUGE] = "vgauge",
+		[PARTS_CONSTRUCTION_PROCESS] = "construction_process"
+	};
+	const char *type = "invalid";
+	if (state->type >= 0 && state->type < PARTS_NR_TYPES)
+		type = state_types[state->type];
 
-	struct parts_common *com = &state->common;
+	cJSON *obj = cJSON_CreateObject();
+	cJSON_AddStringToObject(obj, "type", type);
 
-	indent_message(indent, "dims = {w=%d,h=%d},\n", state->common.w, state->common.h);
-	indent_message(indent, "origin_offset = "); gfx_print_point(&com->origin_offset); sys_message(",\n");
-	indent_message(indent, "hitbox = "); gfx_print_rectangle(&com->hitbox); sys_message(",\n");
-	indent_message(indent, "surface_area = "); gfx_print_rectangle(&com->surface_area); sys_message(",\n");
 	switch (state->type) {
-	case PARTS_UNINITIALIZED:
-		break;
 	case PARTS_CG:
-		parts_cg_print(&state->cg, indent);
+		parts_cg_to_json(&state->cg, obj, verbose);
 		break;
 	case PARTS_TEXT:
-		parts_text_print(&state->text, indent);
+		parts_text_to_json(&state->text, obj, verbose);
 		break;
 	case PARTS_ANIMATION:
-		parts_animation_print(&state->anim, indent);
+		parts_animation_to_json(&state->anim, obj, verbose);
 		break;
 	case PARTS_NUMERAL:
-		parts_numeral_print(&state->num, indent);
+		parts_numeral_to_json(&state->num, obj, verbose);
 		break;
 	case PARTS_HGAUGE:
 	case PARTS_VGAUGE:
-		parts_gauge_print(&state->gauge, indent);
+		parts_gauge_to_json(&state->gauge, obj, verbose);
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
-		parts_construction_process_print(&state->cproc, indent);
+		parts_construction_process_to_json(&state->cproc, obj, verbose);
+		break;
+	default:
 		break;
 	}
 
-	indent--;
-	indent_message(indent, "}");
+	return obj;
 }
 
-static void parts_print_motion_param(union parts_motion_param param, enum parts_motion_type type)
+static cJSON *parts_params_to_json(struct parts_params *params, bool verbose)
 {
+	cJSON *obj, *tmp;
+
+	obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(obj, "z", params->z);
+	cJSON_AddItemToObjectCS(obj, "pos", point_to_json(&params->pos, verbose));
+	cJSON_AddBoolToObject(obj, "show", params->show);
+	cJSON_AddNumberToObject(obj, "alpha", params->alpha);
+	cJSON_AddItemToObjectCS(obj, "scale", tmp = cJSON_CreateObject());
+	cJSON_AddNumberToObject(tmp, "x", params->scale.x);
+	cJSON_AddNumberToObject(tmp, "y", params->scale.y);
+	cJSON_AddItemToObjectCS(obj, "rotation", tmp = cJSON_CreateObject());
+	cJSON_AddNumberToObject(tmp, "x", params->rotation.x);
+	cJSON_AddNumberToObject(tmp, "y", params->rotation.y);
+	cJSON_AddNumberToObject(tmp, "z", params->rotation.z);
+	cJSON_AddItemToObjectCS(obj, "add_color", color_to_json(&params->add_color, verbose));
+	cJSON_AddItemToObjectCS(obj, "mul_color", color_to_json(&params->multiply_color, verbose));
+	return obj;
+}
+
+static cJSON *parts_motion_param_to_json(union parts_motion_param param, enum parts_motion_type type)
+{
+	cJSON *obj;
+
 	switch (type) {
 	case PARTS_MOTION_POS:
-		sys_message("{x=%d,y=%d}", param.x, param.y);
-		break;
+		obj = cJSON_CreateObject();
+		cJSON_AddNumberToObject(obj, "x", param.x);
+		cJSON_AddNumberToObject(obj, "y", param.y);
+		return obj;
 	case PARTS_MOTION_VIBRATION_SIZE:
-		sys_message("{w=%d,h=%d}", param.x, param.y);
-		break;
+		obj = cJSON_CreateObject();
+		cJSON_AddNumberToObject(obj, "w", param.x);
+		cJSON_AddNumberToObject(obj, "h", param.y);
+		return obj;
 	case PARTS_MOTION_ALPHA:
 	case PARTS_MOTION_CG:
 	case PARTS_MOTION_NUMERAL_NUMBER:
-		sys_message("%d", param.i);
-		break;
+		return cJSON_CreateNumber(param.i);
 	case PARTS_MOTION_HGAUGE_RATE:
 	case PARTS_MOTION_VGAUGE_RATE:
 	case PARTS_MOTION_MAG_X:
@@ -220,174 +265,105 @@ static void parts_print_motion_param(union parts_motion_param param, enum parts_
 	case PARTS_MOTION_ROTATE_X:
 	case PARTS_MOTION_ROTATE_Y:
 	case PARTS_MOTION_ROTATE_Z:
-		sys_message("%f", param.f);
-		break;
+		return cJSON_CreateNumber(param.f);
 	}
+	return cJSON_CreateNull();
 }
 
-static void parts_print_motion(struct parts_motion *motion, int indent)
+static cJSON *parts_motion_to_json(struct parts_motion *motion)
 {
 	static const char *type_names[PARTS_NR_MOTION_TYPES] = {
-		[PARTS_MOTION_POS] = "PARTS_MOTION_POS",
-		[PARTS_MOTION_ALPHA] = "PARTS_MOTION_ALPHA",
-		[PARTS_MOTION_CG] = "PARTS_MOTION_CG",
-		[PARTS_MOTION_HGAUGE_RATE] = "PARTS_MOTION_HGAUGE_RATE",
-		[PARTS_MOTION_VGAUGE_RATE] = "PARTS_MOTION_VGAUGE_RATE",
-		[PARTS_MOTION_NUMERAL_NUMBER] = "PARTS_MOTION_NUMERAL_NUMBER",
-		[PARTS_MOTION_MAG_X] = "PARTS_MOTION_MAG_X",
-		[PARTS_MOTION_MAG_Y] = "PARTS_MOTION_MAG_Y",
-		[PARTS_MOTION_ROTATE_X] = "PARTS_MOTION_ROTATE_X",
-		[PARTS_MOTION_ROTATE_Y] = "PARTS_MOTION_ROTATE_Y",
-		[PARTS_MOTION_ROTATE_Z] = "PARTS_MOTION_ROTATE_Z",
-		[PARTS_MOTION_VIBRATION_SIZE] = "PARTS_MOTION_VIBRATION_SIZE"
+		[PARTS_MOTION_POS] = "pos",
+		[PARTS_MOTION_ALPHA] = "alpha",
+		[PARTS_MOTION_CG] = "cg",
+		[PARTS_MOTION_HGAUGE_RATE] = "hgauge_rate",
+		[PARTS_MOTION_VGAUGE_RATE] = "vgauge_rate",
+		[PARTS_MOTION_NUMERAL_NUMBER] = "numeral_number",
+		[PARTS_MOTION_MAG_X] = "mag_x",
+		[PARTS_MOTION_MAG_Y] = "mag_y",
+		[PARTS_MOTION_ROTATE_X] = "rotate_x",
+		[PARTS_MOTION_ROTATE_Y] = "rotate_y",
+		[PARTS_MOTION_ROTATE_Z] = "rotate_z",
+		[PARTS_MOTION_VIBRATION_SIZE] = "vibration_size"
 	};
 
-	const char *type = "INVALID_MOTION_TYPE";
+	const char *type = "invalid";
 	if (motion->type >= 0 && motion->type < PARTS_NR_MOTION_TYPES)
 		type = type_names[motion->type];
 
-	sys_message("{\n");
-	indent++;
+	cJSON *obj;
 
-	indent_message(indent, "type = %s,\n", type);
-	indent_message(indent, "begin = ");
-	parts_print_motion_param(motion->begin, motion->type);
-	sys_message(",\n");
-	indent_message(indent, "end = ");
-	parts_print_motion_param(motion->end, motion->type);
-	sys_message(",\n");
-	indent_message(indent, "begin_time = %d,\n", motion->begin_time);
-	indent_message(indent, "end_time = %d,\n", motion->end_time);
-
-	indent--;
-	indent_message(indent, "}");
+	obj = cJSON_CreateObject();
+	cJSON_AddStringToObject(obj, "type", type);
+	cJSON_AddItemToObjectCS(obj, "begin", parts_motion_param_to_json(motion->begin, motion->type));
+	cJSON_AddItemToObjectCS(obj, "end", parts_motion_param_to_json(motion->end, motion->type));
+	cJSON_AddNumberToObject(obj, "begin_time", motion->begin_time);
+	cJSON_AddNumberToObject(obj, "end_time", motion->end_time);
+	return obj;
 }
 
-static void parts_print_params(struct parts_params *global, struct parts_params *local, int indent)
-{
-	sys_message("{\n");
-	indent++;
-
-	indent_message(indent, "z = %d (%d),\n", global->z, local->z);
-	indent_message(indent, "pos = ");
-	gfx_print_point(&global->pos);
-	sys_message(" (");
-	gfx_print_point(&local->pos);
-	sys_message("),\n");
-	indent_message(indent, "show = %s (%s),\n", global->show ? "true" : "false",
-			local->show ? "true" : "false");
-	indent_message(indent, "alpha = %u (%u),\n", (unsigned)global->alpha, (unsigned)local->alpha);
-	indent_message(indent, "scale = {x=%f,y=%f} ({x=%f,y=%f}),\n", global->scale.x, global->scale.y,
-			local->scale.x, local->scale.y);
-	indent_message(indent, "rotation = {x=%f,y=%f,z=%f} ({x=%f,y=%f,z=%f}),\n",
-			global->rotation.x, global->rotation.y, global->rotation.z,
-			local->rotation.x, local->rotation.y, local->rotation.z);
-	indent_message(indent, "add_color = ");
-	gfx_print_color(&global->add_color);
-	sys_message(" (");
-	gfx_print_color(&local->add_color);
-	sys_message("),\n");
-	indent_message(indent, "multiply_color = ");
-	gfx_print_color(&global->multiply_color);
-	sys_message(" (");
-	gfx_print_color(&local->multiply_color);
-	sys_message("),\n");
-
-	indent--;
-	indent_message(indent, "}");
-}
-
-static void _parts_print(struct parts *parts, int indent)
+cJSON *parts_to_json(struct parts *parts, bool verbose)
 {
 	static const char *state_names[PARTS_NR_STATES] = {
-		[PARTS_STATE_DEFAULT] = "PARTS_STATE_DEFAULT",
-		[PARTS_STATE_HOVERED] = "PARTS_STATE_HOVERED",
-		[PARTS_STATE_CLICKED] = "PARTS_STATE_CLICKED"
+		[PARTS_STATE_DEFAULT] = "default",
+		[PARTS_STATE_HOVERED] = "hovered",
+		[PARTS_STATE_CLICKED] = "clicked"
 	};
-	const char *state = "INVALID_PARTS_STATE";
+	const char *state = "invalid";
 	if (parts->state >= 0 && parts->state < PARTS_NR_STATES)
 		state = state_names[parts->state];
 
-	indent_message(indent, "parts %d = {\n", parts->no);
-	indent++;
+	cJSON *obj, *motions, *children;
 
-	// print states
-	indent_message(indent, "state = %s,\n", state);
-	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		if (parts->states[i].type == PARTS_UNINITIALIZED && i != parts->state)
-			continue;
-		indent_message(indent, "state[%s] = ", state_names[i]);
-		parts_print_state(&parts->states[i], indent);
-		sys_message(",\n");
-	}
-
-	// print params
-	indent_message(indent, "local = ");
-	parts_print_params(&parts->global, &parts->local, indent);
-	sys_message(",\n");
-
-	// print misc. data
+	obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(obj, "no", parts->no);
+	cJSON_AddStringToObject(obj, "state", state);
+	cJSON_AddItemToObjectCS(obj, "default", parts_state_to_json(&parts->states[PARTS_STATE_DEFAULT], verbose));
+	cJSON_AddItemToObjectCS(obj, "hovered", parts_state_to_json(&parts->states[PARTS_STATE_HOVERED], verbose));
+	cJSON_AddItemToObjectCS(obj, "clicked", parts_state_to_json(&parts->states[PARTS_STATE_CLICKED], verbose));
+	cJSON_AddItemToObjectCS(obj, "local", parts_params_to_json(&parts->local, verbose));
+	cJSON_AddItemToObjectCS(obj, "global", parts_params_to_json(&parts->global, verbose));
 	if (parts->delegate_index >= 0)
-		indent_message(indent, "delegate_index = %d,\n", parts->delegate_index);
-	indent_message(indent, "sprite_deform = %d,\n", parts->sprite_deform);
-	indent_message(indent, "clickable = %s,\n", parts->clickable ? "true" : "false");
+		cJSON_AddNumberToObject(obj, "delegate_index", parts->delegate_index);
+	cJSON_AddNumberToObject(obj, "sprite_deform", parts->sprite_deform);
+	cJSON_AddBoolToObject(obj, "clickable", parts->clickable);
 	if (parts->on_cursor_sound >= 0)
-		indent_message(indent, "on_cursor_sound = %d,\n", parts->on_cursor_sound);
+		cJSON_AddNumberToObject(obj, "on_cursor_sound", parts->on_cursor_sound);
 	if (parts->on_click_sound >= 0)
-		indent_message(indent, "on_click_sound = %d,\n", parts->on_click_sound);
-	indent_message(indent, "origin_mode = %d,\n", parts->origin_mode);
-	indent_message(indent, "parent = %d,\n", parts->parent ? parts->parent->no : -1);
+		cJSON_AddNumberToObject(obj, "on_click_sound", parts->on_click_sound);
+	cJSON_AddNumberToObject(obj, "origin_mode", parts->origin_mode);
+	cJSON_AddNumberToObject(obj, "parent", parts->parent ? parts->parent->no : -1);
 	if (parts->linked_to >= 0)
-		indent_message(indent, "linked_to = %d,\n", parts->linked_to);
+		cJSON_AddNumberToObject(obj, "linked_to", parts->linked_to);
 	if (parts->linked_from >= 0)
-		indent_message(indent, "linked_from = %d,\n", parts->linked_from);
-	indent_message(indent, "draw_filter = %d,\n", parts->draw_filter);
+		cJSON_AddNumberToObject(obj, "linked_from", parts->linked_from);
+	cJSON_AddNumberToObject(obj, "draw_filter", parts->draw_filter);
 
-	// print motion data
-	if (TAILQ_EMPTY(&parts->motion)) {
-		indent_message(indent, "motion = {},\n");
-	} else {
-		indent_message(indent, "motion = {\n");
-		int i = 0;
-		struct parts_motion *motion;
-		TAILQ_FOREACH(motion, &parts->motion, entry) {
-			indent_message(indent+1, "[%d] = ", i++);
-			parts_print_motion(motion, indent+1);
-			sys_message(",\n");
-		}
-		indent_message(indent, "},\n");
+	cJSON_AddItemToObjectCS(obj, "motions", motions = cJSON_CreateArray());
+	struct parts_motion *motion;
+	TAILQ_FOREACH(motion, &parts->motion, entry) {
+		cJSON_AddItemToArray(motions, parts_motion_to_json(motion));
 	}
 
-	// print children
-	if (TAILQ_EMPTY(&parts->children)) {
-
-	} else {
-		indent_message(indent, "children = {\n");
-		struct parts *child;
-		PARTS_FOREACH_CHILD(child, parts) {
-			_parts_print(child, indent+1);
-			sys_message(",\n");
-		}
-		indent_message(indent, "},\n");
+	cJSON_AddItemToObjectCS(obj, "children", children = cJSON_CreateArray());
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		cJSON_AddItemToArray(children, parts_to_json(child, verbose));
 	}
 
-	indent--;
-	indent_message(indent, "}");
+	return obj;
 }
 
-void parts_print(struct parts *parts)
+cJSON *parts_engine_to_json(bool verbose)
 {
-	_parts_print(parts, 0);
-	putchar('\n');
-}
+	cJSON *a = cJSON_CreateArray();
 
-void parts_engine_print(void)
-{
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
 		if (!parts->parent)
-			parts_print(parts);
+			cJSON_AddItemToArray(a, parts_to_json(parts, verbose));
 	}
+	return a;
 }
 
 #ifdef DEBUGGER_ENABLED
@@ -408,7 +384,13 @@ static void parts_cmd_parts(unsigned nr_args, char **args)
 	if (!parts)
 		return;
 
-	parts_print(parts);
+	cJSON *json = parts_to_json(parts, true);
+	char *text = cJSON_Print(json);
+
+	sys_message("%s\n", text);
+
+	free(text);
+	cJSON_Delete(json);
 }
 
 static void parts_list_print(struct parts *parts, int indent)

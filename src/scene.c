@@ -22,7 +22,9 @@
 #include "system4/cg.h"
 
 #include "asset_manager.h"
+#include "cJSON.h"
 #include "gfx/gfx.h"
+#include "json.h"
 #include "queue.h"
 #include "scene.h"
 #include "xsystem4.h"
@@ -137,30 +139,14 @@ void scene_set_sprite_z2(struct sprite *sp, int z, int z2)
 	}
 }
 
-void scene_print_sprite(struct sprite *sp, int indent)
-{
-	sys_message("{\n");
-	indent++;
-	indent_message(indent, "z = (%d,%d),\n", sp->z, sp->z2);
-	indent_message(indent, "has_pixel = %s,\n", sp->has_pixel ? "true" : "false");
-	indent_message(indent, "has_alpha = %s,\n", sp->has_alpha ? "true" : "false");
-	indent_message(indent, "hidden = %s,\n", sp->hidden ? "true" : "false");
-	indent_message(indent, "in_scene = %s,\n", sp->in_scene ? "true" : "false");
-	indent--;
-	sys_message("}");
-
-}
-
 void scene_print(void)
 {
 	struct sprite *p;
 	TAILQ_FOREACH(p, &sprite_list, entry) {
-		if (p->debug_print) {
-			p->debug_print(p);
-		} else {
-			sys_message("unknown_scene_entity ");
-			scene_print_sprite(p, 0);
-			putchar('\n');
-		}
+		cJSON *json = p->to_json ? p->to_json(p, false) : scene_sprite_to_json(p, false);
+		char *text = cJSON_Print(json);
+		sys_message("%s\n", text);
+		free(text);
+		cJSON_Delete(json);
 	}
 }

@@ -77,7 +77,7 @@ static void send_response(cJSON *response, bool success)
 	send_json(response);
 }
 
-static void emit_event(const char *name, struct cJSON *body)
+static void emit_event(const char *name, cJSON *body)
 {
 	cJSON *event = cJSON_CreateObject();
 	cJSON_AddStringToObject(event, "type", "event");

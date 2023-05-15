@@ -29,6 +29,7 @@
 #include "input.h"
 #include "gfx/gfx.h"
 #include "gfx/font.h"
+#include "json.h"
 #include "plugin.h"
 #include "sprite.h"
 #include "vm.h"
@@ -175,9 +176,9 @@ struct texture *sprite_get_texture(struct sact_sprite *sp)
 	return &sp->texture;
 }
 
-static void _sprite_print(struct sprite *sp)
+static cJSON *_sprite_to_json(struct sprite *sp, bool verbose)
 {
-	sprite_print((struct sact_sprite*)sp);
+	return sprite_to_json((struct sact_sprite*)sp, verbose);
 }
 
 void sprite_set_cg(struct sact_sprite *sp, struct cg *cg)
@@ -189,7 +190,7 @@ void sprite_set_cg(struct sact_sprite *sp, struct cg *cg)
 	sp->sp.has_pixel = true;
 	sp->sp.has_alpha = cg->metrics.has_alpha;
 	sp->sp.render = sprite_render;
-	sp->sp.debug_print = _sprite_print;
+	sp->sp.to_json = _sprite_to_json;
 	sprite_dirty(sp);
 }
 
@@ -218,7 +219,7 @@ void sprite_set_cg_2x(struct sact_sprite *sp, struct cg *cg)
 	sp->sp.has_pixel = true;
 	sp->sp.has_alpha = cg->metrics.has_alpha;
 	sp->sp.render = sprite_render;
-	sp->sp.debug_print = _sprite_print;
+	sp->sp.to_json = _sprite_to_json;
 	sprite_dirty(sp);
 	gfx_delete_texture(&tmp);
 }
@@ -283,7 +284,7 @@ void sprite_init_color(struct sact_sprite *sp, int w, int h, int r, int g, int b
 	sp->sp.has_pixel = true;
 	sp->sp.has_alpha = a >= 0;
 	sp->sp.render = sprite_render;
-	sp->sp.debug_print = _sprite_print;
+	sp->sp.to_json = _sprite_to_json;
 	sprite_dirty(sp);
 }
 
@@ -464,83 +465,4 @@ void sprite_call_plugins(void)
 	LIST_FOREACH(sp, &sprites_with_plugins, entry) {
 		sp->plugin->update(sp);
 	}
-}
-
-void gfx_print_color(SDL_Color *c)
-{
-	sys_message("(%d,%d,%d,%d)", c->r, c->g, c->b, c->a);
-}
-
-void gfx_print_rectangle(Rectangle *r)
-{
-	sys_message("{x=%d,y=%d,w=%d,h=%d}", r->x, r->y, r->w, r->h);
-}
-
-void gfx_print_point(Point *p)
-{
-	sys_message("{x=%d,y=%d}", p->x, p->y);
-}
-
-void gfx_print_texture(struct texture *t, int indent)
-{
-	sys_message("{\n");
-	indent_message(indent+1, "initialized = %s,\n", t->handle ? "true" : "false");
-	indent_message(indent+1, "size = (%d,%d),\n", t->w, t->h);
-	indent_message(indent+1, "has_alpha = %s,\n", t->has_alpha ? "true" : "false");
-	indent_message(indent, "}");
-}
-
-void sprite_print(struct sact_sprite *sp)
-{
-	int indent = 0;
-	indent_message(indent, "sprite %d = {\n", sp->no);
-	indent++;
-
-	indent_message(indent, "sp = {\n");
-	indent++;
-	indent_message(indent, "z = (%d,%d),\n", sp->sp.z, sp->sp.z2);
-	indent_message(indent, "has_pixel = %s,\n", sp->sp.has_pixel ? "true" : "false");
-	indent_message(indent, "has_alpha = %s,\n", sp->sp.has_alpha ? "true" : "false");
-	indent_message(indent, "hidden = %s,\n", sp->sp.hidden ? "true" : "false");
-	indent_message(indent, "in_scene = %s,\n", sp->sp.in_scene ? "true" : "false");
-	indent--;
-	indent_message(indent, "},\n");
-
-	indent_message(indent, "texture = "); gfx_print_texture(&sp->texture, 1); sys_message(",\n");
-	indent_message(indent, "color = "); gfx_print_color(&sp->color); sys_message(",\n");
-	indent_message(indent, "blend_rate = %d,\n", sp->blend_rate);
-	indent_message(indent, "multiply_color = "); gfx_print_color(&sp->multiply_color); sys_message(",\n");
-	indent_message(indent, "add_color = "); gfx_print_color(&sp->add_color); sys_message(",\n");
-	switch (sp->draw_method) {
-	case DRAW_METHOD_NORMAL:   indent_message(indent, "draw_method = normal,\n"); break;
-	case DRAW_METHOD_SCREEN:   indent_message(indent, "draw_method = screen,\n"); break;
-	case DRAW_METHOD_MULTIPLY: indent_message(indent, "draw_method = multiply,\n"); break;
-	case DRAW_METHOD_ADDITIVE: indent_message(indent, "draw_method = additive,\n"); break;
-	default:                   indent_message(indent, "draw_method = unknown,\n"); break;
-	}
-	indent_message(indent, "rect = "); gfx_print_rectangle(&sp->rect); sys_message(",\n");
-
-	indent_message(indent, "text = {\n");
-	indent++;
-	indent_message(indent, "texture = "); gfx_print_texture(&sp->text.texture, 2); sys_message(",\n");
-	indent_message(indent, "home = "); gfx_print_point(&sp->text.home); sys_message(",\n");
-	indent_message(indent, "pos = "); gfx_print_point(&sp->text.pos); sys_message(",\n");
-	indent_message(indent, "char_space = %d,\n", sp->text.char_space);
-	indent_message(indent, "line_space = %d,\n", sp->text.line_space);
-	if (sp->plugin) {
-		if (sp->plugin->debug_print) {
-			indent_message(indent, "plugin = {\n");
-			sp->plugin->debug_print(sp, indent + 1);
-			indent_message(indent, "},\n");
-		} else {
-			indent_message(indent, "plugin = %s,\n", sp->plugin->name);
-		}
-	}
-	indent--;
-	indent_message(indent, "},\n");
-
-	indent_message(indent, "cg_no = %d\n", sp->cg_no);
-	indent--;
-
-	indent_message(indent, "}\n");
 }

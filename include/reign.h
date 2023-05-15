@@ -25,6 +25,7 @@
 #include "gfx/gfx.h"
 #include "plugin.h"
 
+typedef struct cJSON cJSON;
 struct hash_table;
 
 enum RE_instance_type {
@@ -270,6 +271,6 @@ bool RE_back_cg_set(struct RE_back_cg *bcg, int no);
 bool RE_back_cg_set_name(struct RE_back_cg *bcg, struct string *name, struct archive *aar);
 
 void RE_render(struct sact_sprite *sp);
-void RE_debug_print(struct sact_sprite *sp, int indent);
+cJSON *RE_to_json(struct sact_sprite *sp, bool verbose);
 
 #endif /* SYSTEM4_REIGN_H */

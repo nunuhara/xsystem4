@@ -140,8 +140,6 @@ float gfx_size_text(struct text_style *ts, const char *text);
 float gfx_get_actual_font_size(unsigned face, float size);
 float gfx_get_actual_font_size_round_down(unsigned face, float size);
 
-void gfx_print_text_style(struct text_style *style, int indent);
-
 static inline float text_style_width(struct text_style *ts, const char *ch)
 {
 	return (gfx_size_char(ts, ch) + (ts->bold_width * 2) + ts->edge_left + ts->edge_right)

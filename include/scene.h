@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include "queue.h"
 
+typedef struct cJSON cJSON;
 struct texture;
 
 struct sprite {
@@ -40,7 +41,7 @@ struct sprite {
 	// The rendering function.
 	void (*render)(struct sprite*);
 	// Debug printing function
-	void (*debug_print)(struct sprite*);
+	cJSON *(*to_json)(struct sprite*, bool);
 };
 
 extern bool scene_is_dirty;

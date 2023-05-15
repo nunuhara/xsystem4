@@ -21,6 +21,7 @@
 #include "gfx/font.h"
 #include "queue.h"
 
+typedef struct cJSON cJSON;
 struct string;
 
 // NOTE: actual value is +1
@@ -95,6 +96,7 @@ enum parts_type {
 	PARTS_HGAUGE,
 	PARTS_VGAUGE,
 	PARTS_CONSTRUCTION_PROCESS,
+#define PARTS_NR_TYPES (PARTS_CONSTRUCTION_PROCESS+1)
 };
 
 struct parts_common {
@@ -328,8 +330,7 @@ bool parts_build_construction_process(struct parts *parts,
 
 // debug.c
 void parts_debug_init(void);
-void parts_print(struct parts *parts);
-void parts_engine_print(void);
+cJSON *parts_engine_to_json(bool verbose);
 
 static inline bool parts_state_valid(int state)
 {

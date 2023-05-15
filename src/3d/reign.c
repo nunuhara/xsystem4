@@ -216,7 +216,7 @@ struct RE_plugin *RE_plugin_new(void)
 	struct RE_plugin *plugin = xcalloc(1, sizeof(struct RE_plugin));
 	plugin->plugin.name = "ReignEngine";
 	plugin->plugin.update = RE_render;
-	plugin->plugin.debug_print = RE_debug_print;
+	plugin->plugin.to_json = RE_to_json;
 	plugin->nr_instances = 16;
 	plugin->instances = xcalloc(plugin->nr_instances, sizeof(struct RE_instance *));
 	plugin->aar = aar;
