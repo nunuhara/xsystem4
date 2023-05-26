@@ -38,7 +38,6 @@ typedef struct texture {
 	GLuint handle;
 	mat4 world_transform;
 	int w, h;
-	bool has_alpha;
 } Texture;
 
 struct gfx_render_job;

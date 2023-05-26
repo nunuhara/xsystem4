@@ -35,6 +35,7 @@ cJSON *num4_to_json(double a, double b, double c, double d);
 cJSON *num4_to_json_object(const char *a_name, double a, const char *b_name, double b,
 		const char *c_name, double c, const char *d_name, double d);
 cJSON *texture_to_json(struct texture *t, bool verbose);
+cJSON *texture_to_json_with_pixels(struct texture *t);
 cJSON *text_style_to_json(struct text_style *ts, bool verbose);
 cJSON *scene_sprite_to_json(struct sprite *sp, bool verbose);
 cJSON *sprite_to_json(struct sact_sprite *sp, bool verbose);

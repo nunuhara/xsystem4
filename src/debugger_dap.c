@@ -33,9 +33,15 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 #include "xsystem4.h"
+#include "base64.h"
 #include "cJSON.h"
 #include "debugger.h"
+#include "gfx/gfx.h"
+#include "json.h"
 #include "msgqueue.h"
+#include "parts/parts_internal.h"
+#include "sact.h"
+#include "scene.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
@@ -598,10 +604,166 @@ static void cmd_disconnect(cJSON *args, cJSON *resp)
 	vm_exit(0);
 }
 
+// get scene metadata
+static void cmd_xsystem4_scene(cJSON *args, cJSON *resp)
+{
+	cJSON *body;
+	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
+	cJSON_AddItemToObjectCS(body, "entities", scene_to_json(true));
+	send_response(resp, true);
+}
+
+static bool get_id(cJSON *args, const char *id_name, int *id_out)
+{
+	if (!args)
+		return false;
+
+	cJSON *j_id = cJSON_GetObjectItemCaseSensitive(args, id_name);
+	if (!j_id || !cJSON_IsNumber(j_id))
+		return false;
+
+	*id_out = j_id->valueint;
+	return true;
+}
+
+// render a scene entity (using sprite->render())
+static void cmd_xsystem4_renderEntity(cJSON *args, cJSON *resp)
+{
+	int id;
+	struct sprite *sp;
+
+	if (!get_id(args, "entityId", &id) || !(sp = scene_get(id))) {
+		send_response(resp, false);
+		return;
+	}
+
+	// create output texture
+	Texture t;
+	gfx_init_texture_rgba(&t, config.view_width, config.view_height, (SDL_Color){0,0,0,0});
+
+	// render entity to texture
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, &t, 0, 0, t.w, t.h);
+	sp->render(sp);
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+
+	// send response
+	cJSON *body;
+	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
+	cJSON_AddNumberToObject(body, "entityId", id);
+	cJSON_AddItemToObjectCS(body, "texture", texture_to_json_with_pixels(&t));
+	send_response(resp, true);
+	gfx_delete_texture(&t);
+}
+
+// get the stored texture data of a sact_sprite
+static void cmd_xsystem4_spriteTexture(cJSON *args, cJSON *resp)
+{
+	int id;
+	struct sact_sprite *sp;
+
+	if (!get_id(args, "spriteId", &id) || !(sp = sact_try_get_sprite(id)) || !sp->texture.handle) {
+		send_response(resp, false);
+		return;
+	}
+
+	cJSON *body;
+	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
+	cJSON_AddNumberToObject(body, "spriteId", id);
+	cJSON_AddItemToObjectCS(body, "texture", texture_to_json_with_pixels(&sp->texture));
+	if (sp->text.texture.handle) {
+		cJSON_AddItemToObjectCS(body, "textTexture", texture_to_json_with_pixels(&sp->text.texture));
+	}
+	send_response(resp, true);
+}
+
+static struct parts *get_parts(cJSON *args, int *id_out)
+{
+	struct parts *parts;
+
+	if (!get_id(args, "partsId", id_out) || !(parts = parts_try_get(*id_out))
+			|| !parts->states[parts->state].common.texture.handle)
+		return NULL;
+	return parts;
+}
+
+// render a parts object
+static void cmd_xsystem4_renderParts(cJSON *args, cJSON *resp)
+{
+	int parts_id;
+	struct parts *parts = get_parts(args, &parts_id);
+	if (!parts) {
+		send_response(resp, false);
+		return;
+	}
+
+	// create output texture
+	Texture t;
+	gfx_init_texture_rgba(&t, config.view_width, config.view_height, (SDL_Color){0,0,0,0});
+
+	// render parts to textre
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, &t, 0, 0, t.w, t.h);
+	parts_render(parts);
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+
+	// send response
+	cJSON *body;
+	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
+	cJSON_AddNumberToObject(body, "partsId", parts_id);
+	cJSON_AddItemToObjectCS(body, "texture", texture_to_json_with_pixels(&t));
+	send_response(resp, true);
+	gfx_delete_texture(&t);
+}
+
+// get the stored texture data of a parts object
+static void cmd_xsystem4_partsTexture(cJSON *args, cJSON *resp)
+{
+	int parts_id;
+	struct parts *parts = get_parts(args, &parts_id);;
+	if (!parts) {
+		send_response(resp, false);
+		return;
+	}
+
+	Texture *t = &parts->states[parts->state].common.texture;
+
+	cJSON *body;
+	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
+	cJSON_AddNumberToObject(body, "partsId", parts_id);
+	cJSON_AddItemToObjectCS(body, "texture", texture_to_json_with_pixels(t));
+	send_response(resp, true);
+}
+
+static struct {
+	const char *name;
+	void (*fun)(cJSON *args, cJSON *resp);
+	bool continue_repl;
+} commands[] = {
+	{ "initialize", cmd_initialize, true },
+	{ "launch", cmd_launch, true },
+	{ "configurationDone", cmd_configurationDone, true },
+	{ "continue", cmd_continue, false },
+	{ "stackTrace", cmd_stackTrace, true },
+	{ "stepIn", cmd_stepIn, false },
+	{ "stepOut", cmd_stepOut, false },
+	{ "next", cmd_next, false },
+	{ "pause", cmd_pause, true },
+	{ "evaluate", cmd_evaluate, true },
+	{ "setInstructionBreakpoints", cmd_setInstructionBreakpoints, true },
+	{ "threads", cmd_threads, true },
+	{ "scopes", cmd_scopes, true },
+	{ "variables", cmd_variables, true },
+	{ "setVariable", cmd_setVariable, true },
+	{ "disconnect", cmd_disconnect, true },
+	// DAP extensions
+	{ "xsystem4.scene", cmd_xsystem4_scene, true },
+	{ "xsystem4.renderEntity", cmd_xsystem4_renderEntity, true },
+	{ "xsystem4.spriteTexture", cmd_xsystem4_spriteTexture, true },
+	{ "xsystem4.renderParts", cmd_xsystem4_renderParts, true },
+	{ "xsystem4.partsTexture", cmd_xsystem4_partsTexture, true },
+};
+
 static bool handle_request(cJSON *request)
 {
-	bool continue_repl = true;
-
 	cJSON *resp = cJSON_CreateObject();
 	cJSON_AddStringToObject(resp, "type", "response");
 	cJSON *request_seq = cJSON_DetachItemFromObjectCaseSensitive(request, "seq");
@@ -613,49 +775,18 @@ static bool handle_request(cJSON *request)
 	if (!cJSON_IsString(command)) {
 		WARNING("protocol error: command is not a string");
 		cJSON_Delete(resp);
-		return continue_repl;
+		return true;
 	}
 
-	if (!strcmp(command->valuestring, "initialize")) {
-		cmd_initialize(args, resp);
-	} else if (!strcmp(command->valuestring, "launch")) {
-		cmd_launch(args, resp);
-	} else if (!strcmp(command->valuestring, "configurationDone")) {
-		cmd_configurationDone(args, resp);
-	} else if (!strcmp(command->valuestring, "continue")) {
-		cmd_continue(args, resp);
-		continue_repl = false;
-	} else if (!strcmp(command->valuestring, "stackTrace")) {
-		cmd_stackTrace(args, resp);
-	} else if (!strcmp(command->valuestring, "stepIn")) {
-		cmd_stepIn(args, resp);
-		continue_repl = false;
-	} else if (!strcmp(command->valuestring, "stepOut")) {
-		cmd_stepOut(args, resp);
-		continue_repl = false;
-	} else if (!strcmp(command->valuestring, "next")) {
-		cmd_next(args, resp);
-		continue_repl = false;
-	} else if (!strcmp(command->valuestring, "pause")) {
-		cmd_pause(args, resp);
-	} else if (!strcmp(command->valuestring, "evaluate")) {
-		cmd_evaluate(args, resp);
-	} else if (!strcmp(command->valuestring, "setInstructionBreakpoints")) {
-		cmd_setInstructionBreakpoints(args, resp);
-	} else if (!strcmp(command->valuestring, "threads")) {
-		cmd_threads(args, resp);
-	} else if (!strcmp(command->valuestring, "scopes")) {
-		cmd_scopes(args, resp);
-	} else if (!strcmp(command->valuestring, "variables")) {
-		cmd_variables(args, resp);
-	} else if (!strcmp(command->valuestring, "setVariable")) {
-		cmd_setVariable(args, resp);
-	} else if (!strcmp(command->valuestring, "disconnect")) {
-		cmd_disconnect(args, resp);
-	} else {
-		WARNING("unknown command \"%s\"", command->valuestring);
+	for (unsigned i = 0; i < sizeof(commands) / sizeof(*commands); i++) {
+		if (!strcmp(command->valuestring, commands[i].name)) {
+			commands[i].fun(args, resp);
+			return commands[i].continue_repl;
+		}
 	}
-	return continue_repl;
+
+	WARNING("unknown command \"%s\"", command->valuestring);
+	return true;
 }
 
 static bool handle_message(char *msg)

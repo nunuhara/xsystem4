@@ -38,6 +38,8 @@ struct sprite {
 	// the current scene. A sprite should be in the scene if there is pixel
 	// or text data attached to it and it is not hidden.
 	bool in_scene;
+	// Unique ID
+	int id;
 	// The rendering function.
 	void (*render)(struct sprite*);
 	// Debug printing function
@@ -56,6 +58,8 @@ void scene_set_sprite_z(struct sprite *sp, int z);
 void scene_set_sprite_z2(struct sprite *sp, int z, int z2);
 
 void scene_print(void);
+cJSON *scene_to_json(bool verbose);
+struct sprite *scene_get(int id);
 
 static inline void scene_sprite_dirty(struct sprite *sp)
 {

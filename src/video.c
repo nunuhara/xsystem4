@@ -253,7 +253,6 @@ static void main_surface_init(int w, int h)
 
 	main_surface.w = w;
 	main_surface.h = h;
-	main_surface.has_alpha = true;
 
 	glGenFramebuffers(1, &main_surface_fb);
 	glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);
@@ -438,8 +437,6 @@ static void init_texture(struct texture *t, int w, int h)
 
 	t->w = w;
 	t->h = h;
-
-	t->has_alpha = true;
 }
 
 void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels)
@@ -457,7 +454,6 @@ void gfx_update_texture_with_pixels(struct texture *t, void *pixels)
 void gfx_init_texture_with_cg(struct texture *t, struct cg *cg)
 {
 	gfx_init_texture_with_pixels(t, cg->metrics.w, cg->metrics.h, cg->pixels);
-	t->has_alpha = cg->metrics.has_alpha;
 }
 
 void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color)
@@ -579,7 +575,7 @@ int gfx_save_texture(Texture *t, const char *path, enum cg_type format)
 			.h = t->h,
 			.bpp = 24,
 			.has_pixel = true,
-			.has_alpha = t->has_alpha,
+			.has_alpha = true,
 			.pixel_pitch = t->w * 3,
 			.alpha_pitch = 1
 		},

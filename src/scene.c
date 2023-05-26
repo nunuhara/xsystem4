@@ -29,6 +29,8 @@
 #include "scene.h"
 #include "xsystem4.h"
 
+static int id_counter = 0;
+
 bool scene_is_dirty = true;
 
 static TAILQ_HEAD(listhead, sprite) sprite_list = TAILQ_HEAD_INITIALIZER(sprite_list);
@@ -39,6 +41,9 @@ void scene_register_sprite(struct sprite *sp)
 {
 	if (sp->in_scene)
 		return;
+
+	if (!sp->id)
+		sp->id = ++id_counter;
 
 	struct sprite *p;
 	TAILQ_FOREACH(p, &sprite_list, entry) {
@@ -149,4 +154,25 @@ void scene_print(void)
 		free(text);
 		cJSON_Delete(json);
 	}
+}
+
+cJSON *scene_to_json(bool verbose)
+{
+	cJSON *ar = cJSON_CreateArray();
+	struct sprite *p;
+	TAILQ_FOREACH(p, &sprite_list, entry) {
+		cJSON *sprite = p->to_json ? p->to_json(p, verbose) : scene_sprite_to_json(p, verbose);
+		cJSON_AddItemToArray(ar, sprite);
+	}
+	return ar;
+}
+
+struct sprite *scene_get(int id)
+{
+	struct sprite *p;
+	TAILQ_FOREACH(p, &sprite_list, entry) {
+		if (p->id == id)
+			return p;
+	}
+	return NULL;
 }

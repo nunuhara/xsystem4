@@ -16,6 +16,7 @@
 
 #include <cglm/types.h>
 
+#include "base64.h"
 #include "cJSON.h"
 #include "json.h"
 #include "gfx/gfx.h"
@@ -84,17 +85,24 @@ cJSON *texture_to_json(struct texture *t, bool verbose)
 {
 	if (!t->handle)
 		return cJSON_CreateNull();
-
+	if (!verbose)
+		return num2_to_json(t->w, t->h);
 	cJSON *obj = cJSON_CreateObject();
-	if (!verbose) {
-		cJSON_AddItemToObjectCS(obj, "size", num2_to_json(t->w, t->h));
-	} else {
-		cJSON *size;
-		cJSON_AddItemToObjectCS(obj, "size", size = cJSON_CreateObject());
-		cJSON_AddNumberToObject(size, "w", t->w);
-		cJSON_AddNumberToObject(size, "h", t->h);
-	}
-	cJSON_AddBoolToObject(obj, "has_alpha", t->has_alpha);
+	cJSON_AddNumberToObject(obj, "width", t->w);
+	cJSON_AddNumberToObject(obj, "height", t->h);
+	return obj;
+}
+
+cJSON *texture_to_json_with_pixels(struct texture *t)
+{
+	size_t size;
+	unsigned char *pixels = gfx_get_pixels(t);
+	unsigned char *b64 = base64_encode(pixels, t->w * t->h * 4, &size);
+	free(pixels);
+
+	cJSON *obj = texture_to_json(t, true);
+	cJSON_AddStringToObject(obj, "pixels", (char*)b64);
+	free(b64);
 	return obj;
 }
 
@@ -121,6 +129,7 @@ cJSON *text_style_to_json(struct text_style *ts, bool verbose)
 cJSON *scene_sprite_to_json(struct sprite *sp, bool verbose)
 {
 	cJSON *obj = cJSON_CreateObject();
+	cJSON_AddNumberToObject(obj, "id", sp->id);
 	cJSON_AddNumberToObject(obj, "z", sp->z);
 	cJSON_AddNumberToObject(obj, "z2", sp->z2);
 	cJSON_AddBoolToObject(obj, "has_pixel", sp->has_pixel);
@@ -154,34 +163,28 @@ static const char *draw_method_string(int draw_method)
 
 cJSON *sprite_to_json(struct sact_sprite *sp, bool verbose)
 {
-	cJSON *obj, *sprite;
+	cJSON *ent, *sprite;
 
-	obj = cJSON_CreateObject();
-	cJSON_AddItemToObjectCS (obj, "sprite", sprite = cJSON_CreateObject());
+	ent = scene_sprite_to_json(&sp->sp, verbose);
+	cJSON_AddItemToObjectCS(ent, "sprite", sprite = cJSON_CreateObject());
 	cJSON_AddNumberToObject(sprite, "no", sp->no);
-	cJSON_AddNumberToObject(sprite, "z", sp->sp.z);
-	cJSON_AddNumberToObject(sprite, "z2", sp->sp.z2);
-	cJSON_AddBoolToObject(sprite, "has_pixel", sp->sp.has_pixel);
-	cJSON_AddBoolToObject(sprite, "has_alpha", sp->sp.has_alpha);
-	cJSON_AddBoolToObject(sprite, "hidden", sp->sp.hidden);
-	cJSON_AddBoolToObject(sprite, "in_scene", sp->sp.in_scene);
-	cJSON_AddItemToObjectCS(obj, "texture", texture_to_json(&sp->texture, verbose));
-	cJSON_AddItemToObjectCS(obj, "color", color_to_json(&sp->color, verbose));
+	cJSON_AddItemToObjectCS(sprite, "texture", texture_to_json(&sp->texture, verbose));
+	cJSON_AddItemToObjectCS(sprite, "color", color_to_json(&sp->color, verbose));
 	if (verbose || sp->multiply_color.r != 255 || sp->multiply_color.g != 255
 			|| sp->multiply_color.b != 255)
-		cJSON_AddItemToObjectCS(obj, "mul_color", color_to_json(&sp->multiply_color, verbose));
+		cJSON_AddItemToObjectCS(sprite, "mul_color", color_to_json(&sp->multiply_color, verbose));
 	if (verbose || sp->add_color.r || sp->add_color.g || sp->add_color.b)
-		cJSON_AddItemToObjectCS(obj, "add_color", color_to_json(&sp->add_color, verbose));
+		cJSON_AddItemToObjectCS(sprite, "add_color", color_to_json(&sp->add_color, verbose));
 	if (verbose || sp->blend_rate != 255)
-		cJSON_AddNumberToObject(obj, "blend_rate", sp->blend_rate);
+		cJSON_AddNumberToObject(sprite, "blend_rate", sp->blend_rate);
 	if (verbose || sp->draw_method != DRAW_METHOD_NORMAL)
-		cJSON_AddStringToObject(obj, "draw_method", draw_method_string(sp->draw_method));
-	cJSON_AddItemToObjectCS(obj, "rect", rectangle_to_json(&sp->rect, verbose));
+		cJSON_AddStringToObject(sprite, "draw_method", draw_method_string(sp->draw_method));
+	cJSON_AddItemToObjectCS(sprite, "rect", rectangle_to_json(&sp->rect, verbose));
 	if (verbose || sp->cg_no)
-		cJSON_AddNumberToObject(obj, "cg_no", sp->cg_no);
+		cJSON_AddNumberToObject(sprite, "cg_no", sp->cg_no);
 	if (verbose || sp->text.texture.handle) {
 		cJSON *text;
-		cJSON_AddItemToObjectCS(obj, "text", text = cJSON_CreateObject());
+		cJSON_AddItemToObjectCS(sprite, "text", text = cJSON_CreateObject());
 		cJSON_AddItemToObjectCS(text, "texture", texture_to_json(&sp->text.texture, verbose));
 		if (verbose || sp->text.home.x || sp->text.home.y)
 			cJSON_AddItemToObjectCS(text, "home", point_to_json(&sp->text.home, verbose));
@@ -192,7 +195,7 @@ cJSON *sprite_to_json(struct sact_sprite *sp, bool verbose)
 			cJSON_AddNumberToObject(text, "line_space", sp->text.line_space);
 	}
 	if (verbose || sp->plugin)
-		cJSON_AddItemToObjectCS(obj, "plugin", draw_plugin_to_json(sp, verbose));
+		cJSON_AddItemToObjectCS(sprite, "plugin", draw_plugin_to_json(sp, verbose));
 
-	return obj;
+	return ent;
 }
