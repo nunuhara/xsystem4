@@ -365,6 +365,7 @@ void sprite_set_text_char_space(struct sact_sprite *sp, int px)
 void sprite_set_text_pos(struct sact_sprite *sp, int x, int y)
 {
 	sp->text.pos = (Point) { .x = x, .y = y };
+	sp->text.current_line_height = 0;
 	sprite_dirty(sp);
 }
 
@@ -382,6 +383,8 @@ void sprite_text_draw(struct sact_sprite *sp, struct string *text, struct text_s
 
 	ts->font_spacing = sp->text.char_space;
 	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos.x, sp->text.pos.y, text->text, ts);
+	if (sp->text.current_line_height < ts->size)
+		sp->text.current_line_height = ts->size;
 	sprite_dirty(sp);
 }
 
@@ -391,16 +394,19 @@ void sprite_text_clear(struct sact_sprite *sp)
 	sprite_dirty(sp);
 }
 
-void sprite_text_home(struct sact_sprite *sp, possibly_unused int size)
+void sprite_text_home(struct sact_sprite *sp, int size)
 {
-	// FIXME: do something with nTextSize
 	sp->text.pos = sp->text.home;
+	sp->text.current_line_height = size;
 	sprite_dirty(sp);
 }
 
 void sprite_text_new_line(struct sact_sprite *sp, int size)
 {
+	if (!size)
+		size = sp->text.current_line_height;
 	sp->text.pos = POINT(sp->text.home.x, sp->text.pos.y + size + sp->text.line_space);
+	sp->text.current_line_height = 0;
 	sprite_dirty(sp);
 }
 
@@ -417,6 +423,7 @@ void sprite_text_copy(struct sact_sprite *dsp, struct sact_sprite *ssp)
 	dsp->text.pos = ssp->text.pos;
 	dsp->text.char_space = ssp->text.char_space;
 	dsp->text.line_space = ssp->text.line_space;
+	dsp->text.current_line_height = ssp->text.current_line_height;
 	sprite_dirty(dsp);
 }
 

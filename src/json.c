@@ -193,6 +193,8 @@ cJSON *sprite_to_json(struct sact_sprite *sp, bool verbose)
 			cJSON_AddNumberToObject(text, "char_space", sp->text.char_space);
 		if (verbose || sp->text.line_space)
 			cJSON_AddNumberToObject(text, "line_space", sp->text.line_space);
+		if (verbose || sp->text.current_line_height)
+			cJSON_AddNumberToObject(text, "current_line_height", sp->text.current_line_height);
 	}
 	if (verbose || sp->plugin)
 		cJSON_AddItemToObjectCS(sprite, "plugin", draw_plugin_to_json(sp, verbose));

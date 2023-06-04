@@ -54,6 +54,7 @@ struct sact_sprite {
 		Point pos;
 		int char_space;
 		int line_space;
+		int current_line_height;
 	} text;
 	// The sprite handle
 	int no;
