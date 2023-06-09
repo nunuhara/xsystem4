@@ -30,9 +30,10 @@ enum asset_type {
 	ASSET_CG,
 	ASSET_FLAT,
 	ASSET_PACT,
-	ASSET_DATA
+	ASSET_DATA,
+	ASSET_FLASH
 };
-#define ASSET_TYPE_MAX (ASSET_DATA+1)
+#define ASSET_TYPE_MAX (ASSET_FLASH+1)
 
 const char *asset_strtype(enum asset_type type);
 void asset_manager_init(void);
