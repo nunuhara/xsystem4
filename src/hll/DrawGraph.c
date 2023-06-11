@@ -298,7 +298,10 @@ static void DrawGraph_CopyRotZoomUseAMap(int dst, int src, int sx, int sy, int w
 	gfx_copy_rot_zoom_use_amap(DTEX(dst), STEX(src), sx, sy, w, h, rotate, mag);
 }
 
-//void DrawGraph_CopyRotZoom2Bilinear(int dst, float cx, float cy, int src, float scx, float scy, float rot, float mag);
+static void DrawGraph_CopyRotZoom2Bilinear(int dst, float cx, float cy, int src, float scx, float scy, float rot, float mag)
+{
+	gfx_copy_root_zoom2(DTEX(dst), cx, cy, STEX(src), scx, scy, rot, mag);
+}
 
 static void DrawGraph_CopyRotateY(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag)
 {
@@ -469,7 +472,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(CopyRotZoom, DrawGraph_CopyRotZoom),
 	    HLL_EXPORT(CopyRotZoomAMap, DrawGraph_CopyRotZoomAMap),
 	    HLL_EXPORT(CopyRotZoomUseAMap, DrawGraph_CopyRotZoomUseAMap),
-	    //HLL_EXPORT(CopyRotZoom2Bilinear, DrawGraph_CopyRotZoom2Bilinear),
+	    HLL_EXPORT(CopyRotZoom2Bilinear, DrawGraph_CopyRotZoom2Bilinear),
 	    HLL_EXPORT(CopyRotateY, DrawGraph_CopyRotateY),
 	    HLL_EXPORT(CopyRotateYUseAMap, DrawGraph_CopyRotateYUseAMap),
 	    //HLL_EXPORT(CopyRotateYFixL, DrawGraph_CopyRotateYFixL),
