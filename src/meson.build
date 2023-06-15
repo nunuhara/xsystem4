@@ -53,6 +53,7 @@ xsystem4 = [version_h,
 
             'parts/construction.c',
             'parts/debug.c',
+            'parts/flash.c',
             'parts/input.c',
             'parts/motion.c',
             'parts/parts.c',

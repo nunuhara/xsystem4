@@ -298,6 +298,23 @@ static void load_parts_construction_process(struct iarray_reader *r, struct part
 	parts_build_construction_process(parts, cproc);
 }
 
+static void save_parts_flash(struct iarray_writer *w, struct parts_flash *flash)
+{
+	iarray_write_string_or_null(w, flash->name);
+	iarray_write(w, flash->stopped);
+	iarray_write(w, flash->current_frame);
+}
+
+static void load_parts_flash(struct iarray_reader *r, struct parts *parts,
+		struct parts_flash *flash)
+{
+	struct string *name = iarray_read_string_or_null(r);
+	parts_flash_load(parts, flash, name);
+	free_string(name);
+	flash->stopped = !!iarray_read(r);
+	parts_flash_seek(flash, iarray_read(r));
+}
+
 static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 {
 	iarray_write(w, state->type);
@@ -327,6 +344,9 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
 		save_parts_construction_process(w, &state->cproc);
+		break;
+	case PARTS_FLASH:
+		save_parts_flash(w, &state->flash);
 		break;
 	}
 }
@@ -363,6 +383,9 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
 		load_parts_construction_process(r, parts, &state->cproc);
+		break;
+	case PARTS_FLASH:
+		load_parts_flash(r, parts, &state->flash);
 		break;
 	}
 }

@@ -62,11 +62,6 @@ bool PE_SetNumeralSpace(int parts_no, int space, int state);
 bool PE_SetNumeralLength(int parts_no, int length, int state);
 bool PE_SetNumeralSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
 bool PE_SetPartsRectangleDetectionSize(int PartsNumber, int Width, int Height, int State);
-bool PE_SetPartsFlash(int PartsNumber, struct string *pIFlashFileName, int State);
-bool PE_IsPartsFlashEnd(int PartsNumber, int State);
-int PE_GetPartsFlashCurrentFrameNumber(int PartsNumber, int State);
-bool PE_BackPartsFlashBeginFrame(int PartsNumber, int State);
-bool PE_StepPartsFlashFinalFrame(int PartsNumber, int State);
 void PE_ReleaseParts(int parts_no);
 void PE_ReleaseAllParts(void);
 void PE_ReleaseAllPartsWithoutSystem(void);
@@ -206,5 +201,17 @@ bool PE_SetPartsFontEdgeColor(int parts_no, int r, int g, int b, int state);
 bool PE_SetPartsFontEdgeWeight(int parts_no, float edge_weight, int state);
 bool PE_SetTextCharSpace(int parts_no, int char_space, int state);
 bool PE_SetTextLineSpace(int parts_no, int line_space, int state);
+
+// flash.c
+bool PE_SetPartsFlash(int parts_no, struct string *flash_filename, int state);
+bool PE_IsPartsFlashEnd(int parts_no, int state);
+int PE_GetPartsFlashCurrentFrameNumber(int parts_no, int state);
+bool PE_BackPartsFlashBeginFrame(int parts_no, int state);
+bool PE_StepPartsFlashFinalFrame(int parts_no, int state);
+bool PE_SetPartsFlashAndStop(int parts_no, struct string *flash_filename, int state);
+bool PE_StopPartsFlash(int parts_no, int state);
+bool PE_StartPartsFlash(int parts_no, int state);
+bool PE_GoFramePartsFlash(int parts_no, int frame_no, int state);
+int PE_GetPartsFlashEndFrame(int parts_no, int state);
 
 #endif /* SYSTEM4_PARTS_H */
