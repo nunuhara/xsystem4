@@ -401,7 +401,10 @@ static void DrawGraph_CopyStretchWithAlphaMap(int dst, int dx, int dy, int dw, i
 	gfx_copy_stretch_with_alpha_map(DTEX(dst), dx, dy, dw, dh, STEX(src), sx, sy, sw, sh);
 }
 
-//void DrawGraph_CopyGrayscale(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight);
+static void DrawGraph_CopyGrayscale(int dst, int dx, int dy, int src, int sx, int sy, int width, int height)
+{
+	gfx_copy_grayscale(DTEX(dst), dx, dy, STEX(src), sx, sy, width, height);
+}
 
 HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(Copy, DrawGraph_Copy),
@@ -503,6 +506,6 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(FillWithAlpha, DrawGraph_FillWithAlpha),
 	    HLL_EXPORT(CopyStretchWithAlphaMap, DrawGraph_CopyStretchWithAlphaMap),
 	    // NOTE: xsystem4 uses bilinear interpolation by default
-	    HLL_EXPORT(CopyStretchBilinearWithAlphaMap, DrawGraph_CopyStretchWithAlphaMap)
-	    //HLL_EXPORT(CopyGrayscale, DrawGraph_CopyGrayscale),
+	    HLL_EXPORT(CopyStretchBilinearWithAlphaMap, DrawGraph_CopyStretchWithAlphaMap),
+	    HLL_EXPORT(CopyGrayscale, DrawGraph_CopyGrayscale)
 	);
