@@ -172,6 +172,13 @@ static void parts_construction_process_to_json(struct parts_construction_process
 	}
 }
 
+static void parts_flash_to_json(struct parts_flash *flash, cJSON *out, bool verbose)
+{
+	cJSON_AddSjisToObject(out, "filename", flash->name->text);
+	cJSON_AddNumberToObject(out, "frame_count", flash->swf->frame_count);
+	cJSON_AddNumberToObject(out, "current_frame", flash->current_frame);
+}
+
 static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 {
 	static const char *state_types[PARTS_NR_TYPES] = {
@@ -182,7 +189,8 @@ static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 		[PARTS_NUMERAL] = "numeral",
 		[PARTS_HGAUGE] = "hgauge",
 		[PARTS_VGAUGE] = "vgauge",
-		[PARTS_CONSTRUCTION_PROCESS] = "construction_process"
+		[PARTS_CONSTRUCTION_PROCESS] = "construction_process",
+		[PARTS_FLASH] = "flash"
 	};
 	const char *type = "invalid";
 	if (state->type >= 0 && state->type < PARTS_NR_TYPES)
@@ -192,6 +200,8 @@ static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 	cJSON_AddStringToObject(obj, "type", type);
 
 	switch (state->type) {
+	case PARTS_UNINITIALIZED:
+		break;
 	case PARTS_CG:
 		parts_cg_to_json(&state->cg, obj, verbose);
 		break;
@@ -211,7 +221,8 @@ static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 	case PARTS_CONSTRUCTION_PROCESS:
 		parts_construction_process_to_json(&state->cproc, obj, verbose);
 		break;
-	default:
+	case PARTS_FLASH:
+		parts_flash_to_json(&state->flash, obj, verbose);
 		break;
 	}
 
@@ -463,6 +474,9 @@ static void parts_list_print(struct parts *parts, int indent)
 		sys_message(")");
 		break;
 	}
+	case PARTS_FLASH:
+		sys_message("(flash %s)", display_sjis0(state->flash.name->text));
+		break;
 	}
 
 	sys_message(" @ z=%d (%d)\n", parts->global.z, parts->local.z);

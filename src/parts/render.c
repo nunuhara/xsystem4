@@ -19,6 +19,7 @@
 #include <cglm/cglm.h>
 
 #include "system4.h"
+#include "system4/hashtable.h"
 
 #include "gfx/gfx.h"
 #include "scene.h"
@@ -49,6 +50,27 @@ static void parts_render_text(struct parts *parts, struct parts_common *common)
 	gfx_render_texture(&parts->states[parts->state].common.texture, &rect);
 }
 
+static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rectangle *rect, float blend_rate, vec3 add_color, vec3 multiply_color)
+{
+	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
+
+	struct gfx_render_job job = {
+		.shader = &parts_shader.shader,
+		.texture = texture->handle,
+		.world_transform = mw_transform[0],
+		.view_transform = wv_transform[0],
+		.data = texture,
+	};
+
+	gfx_prepare_job(&job);
+	glUniform1f(parts_shader.blend_rate, blend_rate);
+	glUniform2f(parts_shader.bot_left, rect->x, rect->y);
+	glUniform2f(parts_shader.top_right, rect->x + rect->w, rect->y + rect->h);
+	glUniform3fv(parts_shader.add_color, 1, add_color);
+	glUniform3fv(parts_shader.multiply_color, 1, multiply_color);
+	gfx_run_job(&job);
+}
+
 static void parts_render_cg(struct parts *parts, struct parts_common *common)
 {
 	switch (parts->draw_filter) {
@@ -68,32 +90,78 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
 	glm_translate(mw_transform, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
 	glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
-	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
-
-	struct gfx_render_job job = {
-		.shader = &parts_shader.shader,
-		.texture = common->texture.handle,
-		.world_transform = mw_transform[0],
-		.view_transform = wv_transform[0],
-		.data = &common->texture,
-	};
 
 	Rectangle r = common->surface_area;
 	if (!r.w && !r.h) {
 		r = (Rectangle) { 0, 0, common->texture.w, common->texture.h };
 	}
 
-	gfx_prepare_job(&job);
-	glUniform1f(parts_shader.blend_rate, parts->global.alpha / 255.0);
-	glUniform2f(parts_shader.bot_left, r.x, r.y);
-	glUniform2f(parts_shader.top_right, r.x + r.w, r.y + r.h);
-	glUniform3f(parts_shader.add_color, parts->global.add_color.r / 255.0f,
-			parts->global.add_color.g / 255.0f, parts->global.add_color.b / 255.0f);
-	glUniform3f(parts_shader.multiply_color, parts->global.multiply_color.r / 255.0f,
-			parts->global.multiply_color.g / 255.0f, parts->global.multiply_color.b / 255.0f);
-	gfx_run_job(&job);
+	vec3 add_color = {
+		parts->global.add_color.r / 255.0f,
+		parts->global.add_color.g / 255.0f,
+		parts->global.add_color.b / 255.0f
+	};
+	vec3 multiply_color = {
+		parts->global.multiply_color.r / 255.0f,
+		parts->global.multiply_color.g / 255.0f,
+		parts->global.multiply_color.b / 255.0f,
+	};
+	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+}
+
+static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_shape *tag)
+{
+	struct texture *src = ht_get_int(f->bitmaps, tag->fill_style.bitmap_id, NULL);
+	if (!src)
+		ERROR("undefined bitmap id %d", tag->fill_style.bitmap_id);
+
+	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
+	glm_translate(mw_transform, (vec3) { parts->global.pos.x, parts->global.pos.y, 0 });
+	glm_rotate_z(mw_transform, parts->local.rotation.z, mw_transform);
+	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
+	int x = f->common.origin_offset.x + (obj->matrix.translate_x + tag->bounds.x_min) / 20;
+	int y = f->common.origin_offset.y + (obj->matrix.translate_y + tag->bounds.y_min) / 20;
+	int width = (tag->bounds.x_max - tag->bounds.x_min) / 20 * (obj->matrix.scale_x / 65536.0f);
+	int height = (tag->bounds.y_max - tag->bounds.y_min) / 20 * (obj->matrix.scale_y / 65536.0f);
+	// TODO: consider matrix.roate_skew
+	glm_translate(mw_transform, (vec3){ x, y, 0 });
+	glm_scale(mw_transform, (vec3){ width, height, 1.0 });
+
+	Rectangle r = { 0, 0, width, height };
+
+	float blend_rate = (parts->global.alpha / 255.0f) * (obj->color_transform.mult_terms[3] / 256.0f);
+	vec3 add_color = {
+		(parts->global.add_color.r + obj->color_transform.add_terms[0]) / 255.0f,
+		(parts->global.add_color.g + obj->color_transform.add_terms[1]) / 255.0f,
+		(parts->global.add_color.b + obj->color_transform.add_terms[2]) / 255.0f
+	};
+	vec3 multiply_color = {
+		(parts->global.multiply_color.r / 255.0f) * (obj->color_transform.mult_terms[0] / 256.0f),
+		(parts->global.multiply_color.g / 255.0f) * (obj->color_transform.mult_terms[1] / 256.0f),
+		(parts->global.multiply_color.b / 255.0f) * (obj->color_transform.mult_terms[2] / 256.0f)
+	};
+	parts_render_texture(src, mw_transform, &r, blend_rate, add_color, multiply_color);
+}
+
+static void parts_render_flash(struct parts *parts, struct parts_flash *f)
+{
+	struct parts_flash_object *obj;
+	TAILQ_FOREACH(obj, &f->display_list, entry) {
+		struct swf_tag *tag = ht_get_int(f->dictionary, obj->character_id, NULL);
+		if (!tag) {
+			WARNING("character %d is not defined", obj->character_id);
+			continue;
+		}
+		switch (tag->type) {
+		case TAG_DEFINE_SHAPE:
+			parts_render_flash_shape(parts, f, obj, (struct swf_tag_define_shape *)tag);
+			break;
+		default:
+			ERROR("unknown tag 0x%x", tag->type);
+		}
+	}
 }
 
 void parts_render(struct parts *parts)
@@ -109,22 +177,25 @@ void parts_render(struct parts *parts)
 
 	// render
 	struct parts_state *state = &parts->states[parts->state];
-	if (state->common.texture.handle) {
-		switch (state->type) {
-		case PARTS_UNINITIALIZED:
-			break;
-		case PARTS_CG:
-		case PARTS_ANIMATION:
-		case PARTS_NUMERAL:
-		case PARTS_HGAUGE:
-		case PARTS_VGAUGE:
-		case PARTS_CONSTRUCTION_PROCESS:
+	switch (state->type) {
+	case PARTS_UNINITIALIZED:
+		break;
+	case PARTS_CG:
+	case PARTS_ANIMATION:
+	case PARTS_NUMERAL:
+	case PARTS_HGAUGE:
+	case PARTS_VGAUGE:
+	case PARTS_CONSTRUCTION_PROCESS:
+		if (state->common.texture.handle)
 			parts_render_cg(parts, &state->common);
-			break;
-		case PARTS_TEXT:
+		break;
+	case PARTS_TEXT:
+		if (state->common.texture.handle)
 			parts_render_text(parts, &state->common);
-			break;
-		}
+		break;
+	case PARTS_FLASH:
+		parts_render_flash(parts, &state->flash);
+		break;
 	}
 }
 

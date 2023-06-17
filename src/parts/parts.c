@@ -170,6 +170,9 @@ static void parts_state_free(struct parts_state *state)
 			parts_cp_op_free(op);
 		}
 		break;
+	case PARTS_FLASH:
+		parts_flash_free(&state->flash);
+		break;
 	}
 	memset(state, 0, sizeof(struct parts_state));
 }
@@ -213,6 +216,7 @@ void parts_state_reset(struct parts_state *state, enum parts_type type)
 	case PARTS_UNINITIALIZED:
 	case PARTS_CG:
 	case PARTS_ANIMATION:
+	case PARTS_FLASH:
 		break;
 	}
 }
@@ -271,6 +275,14 @@ struct parts_construction_process *parts_get_construction_process(struct parts *
 		parts_state_reset(&parts->states[state], PARTS_CONSTRUCTION_PROCESS);
 	}
 	return &parts->states[state].cproc;
+}
+
+struct parts_flash *parts_get_flash(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_FLASH) {
+		parts_state_reset(&parts->states[state], PARTS_FLASH);
+	}
+	return &parts->states[state].flash;
 }
 
 static Point calculate_offset(int mode, int w, int h)
@@ -652,6 +664,12 @@ void parts_set_surface_area(struct parts *parts, struct parts_common *common, in
 
 static void parts_update_loop(struct parts *parts, int passed_time)
 {
+	if (parts->states[parts->state].type == PARTS_FLASH) {
+		if (parts_flash_update(&parts->states[parts->state].flash, passed_time))
+			parts_dirty(parts);
+		return;
+	}
+
 	if (parts->states[parts->state].type != PARTS_ANIMATION)
 		return;
 
@@ -1325,11 +1343,6 @@ bool PE_SetNumeralSurfaceArea(int parts_no, int x, int y, int w, int h, int stat
 }
 
 bool PE_SetPartsRectangleDetectionSize(int PartsNumber, int Width, int Height, int State);
-bool PE_SetPartsFlash(int PartsNumber, struct string *pIFlashFileName, int State);
-bool PE_IsPartsFlashEnd(int PartsNumber, int State);
-int PE_GetPartsFlashCurrentFrameNumber(int PartsNumber, int State);
-bool PE_BackPartsFlashBeginFrame(int PartsNumber, int State);
-bool PE_StepPartsFlashFinalFrame(int PartsNumber, int State);
 
 void PE_ReleaseParts(int parts_no)
 {
@@ -1546,9 +1559,3 @@ bool PE_IsExist(int parts_no)
 {
 	return !!ht_get_int(parts_table, parts_no, NULL);
 }
-
-bool PE_SetPartsFlashAndStop(int PartsNumber, struct string *pIFlashFileName, int State);
-bool PE_StopPartsFlash(int PartsNumber, int State);
-bool PE_StartPartsFlash(int PartsNumber, int State);
-bool PE_GoFramePartsFlash(int PartsNumber, int FrameNumber, int State);
-int PE_GetPartsFlashEndFrame(int PartsNumber, int State);

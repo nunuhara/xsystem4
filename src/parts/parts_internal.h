@@ -20,9 +20,11 @@
 #include "gfx/gfx.h"
 #include "gfx/font.h"
 #include "queue.h"
+#include "swf.h"
 
 typedef struct cJSON cJSON;
 struct string;
+struct hash_table;
 
 // NOTE: actual value is +1
 enum parts_state_type {
@@ -96,7 +98,8 @@ enum parts_type {
 	PARTS_HGAUGE,
 	PARTS_VGAUGE,
 	PARTS_CONSTRUCTION_PROCESS,
-#define PARTS_NR_TYPES (PARTS_CONSTRUCTION_PROCESS+1)
+	PARTS_FLASH,
+#define PARTS_NR_TYPES (PARTS_FLASH+1)
 };
 
 struct parts_common {
@@ -210,6 +213,28 @@ struct parts_construction_process {
 	TAILQ_HEAD(, parts_cp_op) ops;
 };
 
+struct parts_flash_object {
+	TAILQ_ENTRY(parts_flash_object) entry;
+	uint16_t depth;
+	uint16_t character_id;
+	struct swf_matrix matrix;
+	struct swf_cxform_with_alpha color_transform;
+};
+
+struct parts_flash {
+	struct parts_common common;
+	struct string *name;
+	struct swf *swf;
+
+	struct swf_tag *tag;
+	bool stopped;
+	unsigned elapsed;
+	int current_frame;
+	struct hash_table *dictionary;
+	struct hash_table *bitmaps;  // bitmap character id -> struct texture *
+	TAILQ_HEAD(, parts_flash_object) display_list;
+};
+
 struct parts_state {
 	enum parts_type type;
 	union {
@@ -220,6 +245,7 @@ struct parts_state {
 		struct parts_numeral num;
 		struct parts_gauge gauge;
 		struct parts_construction_process cproc;
+		struct parts_flash flash;
 	};
 };
 
@@ -276,6 +302,7 @@ struct parts_numeral *parts_get_numeral(struct parts *parts, int state);
 struct parts_gauge *parts_get_hgauge(struct parts *parts, int state);
 struct parts_gauge *parts_get_vgauge(struct parts *parts, int state);
 struct parts_construction_process *parts_get_construction_process(struct parts *parts, int state);
+struct parts_flash *parts_get_flash(struct parts *parts, int state);
 void parts_set_pos(struct parts *parts, Point pos);
 void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h);
 void parts_set_scale_x(struct parts *parts, float mag);
@@ -327,6 +354,12 @@ void parts_cp_op_free(struct parts_cp_op *op);
 void parts_add_cp_op(struct parts_construction_process *cproc, struct parts_cp_op *op);
 bool parts_build_construction_process(struct parts *parts,
 		struct parts_construction_process *cproc);
+
+// flash.c
+void parts_flash_free(struct parts_flash *f);
+bool parts_flash_load(struct parts *parts, struct parts_flash *f, struct string *filename);
+bool parts_flash_update(struct parts_flash *f, int passed_time);
+bool parts_flash_seek(struct parts_flash *f, int frame);
 
 // debug.c
 void parts_debug_init(void);

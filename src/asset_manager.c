@@ -51,6 +51,7 @@ const char *asset_strtype(enum asset_type type)
 	case ASSET_FLAT:  return "Flat";
 	case ASSET_PACT:  return "Pact";
 	case ASSET_DATA:  return "Data";
+	case ASSET_FLASH: return "Flash";
 	}
 	return "Invalid";
 }
@@ -402,6 +403,8 @@ void asset_manager_init(void)
 				afa_filenames[ASSET_FLAT] = path_join(config.game_dir, d_name);
 			} else if (!strcmp(type, "Pact.afa")) {
 				afa_filenames[ASSET_PACT] = path_join(config.game_dir, d_name);
+			} else if (!strcmp(type, "AFF.afa")) {
+				afa_filenames[ASSET_FLASH] = path_join(config.game_dir, d_name);
 			}
 		} else if (!strcasecmp(ext, "fnl")) {
 			if (!config.fnl_path)
@@ -421,6 +424,7 @@ void asset_manager_init(void)
 	ald_init(ASSET_FLAT, ald_filenames[ASSET_FLAT], ald_count[ASSET_FLAT]);
 	ald_init(ASSET_PACT, ald_filenames[ASSET_PACT], ald_count[ASSET_PACT]);
 	ald_init(ASSET_DATA, ald_filenames[ASSET_DATA], ald_count[ASSET_DATA]);
+	ald_init(ASSET_FLASH, ald_filenames[ASSET_FLASH], ald_count[ASSET_FLASH]);
 
 	// open AFA archives
 	afa_init(ASSET_BGM, afa_filenames[ASSET_BGM]);
@@ -430,4 +434,5 @@ void asset_manager_init(void)
 	afa_init(ASSET_FLAT, afa_filenames[ASSET_FLAT]);
 	afa_init(ASSET_PACT, afa_filenames[ASSET_PACT]);
 	afa_init(ASSET_DATA, afa_filenames[ASSET_DATA]);
+	afa_init(ASSET_FLASH, afa_filenames[ASSET_FLASH]);
 }
