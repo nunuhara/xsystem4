@@ -64,6 +64,7 @@ static struct copy_shader copy_key_shader;
 static struct copy_shader copy_alpha_key_shader;
 static struct copy_shader copy_use_amap_under_shader;
 static struct copy_shader copy_use_amap_border_shader;
+static struct copy_shader copy_grayscale_shader;
 static struct copy_shader blend_amap_color_shader;
 static struct copy_shader blend_amap_alpha_bright_shader;
 static struct copy_shader blend_use_amap_color_shader;
@@ -120,6 +121,9 @@ void gfx_draw_init(void)
 
 	// copy shader that only keeps fragments above a certain alpha threshold
 	load_copy_shader(&copy_use_amap_border_shader, "shaders/render.v.glsl", "shaders/copy_use_amap_border.f.glsl");
+
+	// copy shader with grayscale conversion
+	load_copy_shader(&copy_grayscale_shader, "shaders/render.v.glsl", "shaders/copy_grayscale.f.glsl");
 
 	// copy shader that sets source RGB to a constant
 	load_copy_shader(&blend_amap_color_shader, "shaders/render.v.glsl", "shaders/blend_amap_color.f.glsl");
@@ -770,6 +774,29 @@ void gfx_copy_rot_zoom_use_amap(Texture *dst, Texture *src, int sx, int sy, int 
 	copy_rot_zoom(dst, src, sx, sy, w, h, rotate, mag, &hitbox_shader.s);
 }
 
+void gfx_copy_root_zoom2(Texture *dst, float cx, float cy, Texture *src, float scx, float scy, float rot, float mag)
+{
+	gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 0);
+
+	// 1. scale src vertices to texture size
+	// 2. translate so that center point of copy region is at origin
+	// 3. rotate
+	// 4. scale
+	// 4. tranlate to center point of dst texture
+	// (applied in reverse order)
+	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
+	glm_translate(mw_transform, (vec3){ cx, cy, 0 });
+	glm_scale(mw_transform, (vec3){ mag, mag, 0 });
+	glm_rotate_z(mw_transform, -rot * (M_PI/180.0), mw_transform);
+	glm_translate(mw_transform, (vec3){ -scx, -scy, 0 });
+	glm_scale(mw_transform, (vec3){ src->w, src->h, 1 });
+
+	mat4 wv_transform = WV_TRANSFORM(dst->w, dst->h);
+
+	struct copy_data data = ROTATE_DATA(dst, 0, 0, src->w, src->h);
+	run_draw_shader(&hitbox_noblend_shader.s, dst, src, mw_transform, wv_transform, &data);
+}
+
 static void copy_rotate_y(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag, Shader *shader)
 {
 	Texture *src = front;
@@ -1006,6 +1033,16 @@ void gfx_copy_stretch_with_alpha_map(Texture *dst, int dx, int dy, int dw, int d
 
 	struct copy_data data = STRETCH_DATA(dx, dy, dw, dh, sx, sy, sw, sh);
 	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_copy_grayscale(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_grayscale_shader.s, dst, src, &data);
 
 	restore_blend_mode();
 }
