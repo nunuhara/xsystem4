@@ -138,7 +138,8 @@ static int gl_initialize(void)
 		0.f, 1.f, 0.f, 1.f
 	};
 
-	GLuint index_data[] = { 0, 1, 2, 3 };
+	GLuint rect_index_data[] = { 0, 1, 2, 3 };
+	GLuint line_index_data[] = { 0, 2 };
 
 	glGenVertexArrays(1, &sdl.gl.vao);
 	glBindVertexArray(sdl.gl.vao);
@@ -147,9 +148,13 @@ static int gl_initialize(void)
 	glBindBuffer(GL_ARRAY_BUFFER, sdl.gl.vbo);
 	glBufferData(GL_ARRAY_BUFFER, 4 * 4 * sizeof(GLfloat), vertex_data, GL_STATIC_DRAW);
 
-	glGenBuffers(1, &sdl.gl.ibo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sdl.gl.ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4 * sizeof(GLuint), index_data, GL_STATIC_DRAW);
+	glGenBuffers(1, &sdl.gl.rect_ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sdl.gl.rect_ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4 * sizeof(GLuint), rect_index_data, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &sdl.gl.line_ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sdl.gl.line_ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * sizeof(GLuint), line_index_data, GL_STATIC_DRAW);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -333,6 +338,7 @@ void gfx_swap(void)
 		0,  0, 0,  1);
 	struct gfx_render_job job = {
 		.shader = &default_shader,
+		.shape = GFX_RECTANGLE,
 		.texture = main_surface.handle,
 		.world_transform = mw_transform[0],
 		.view_transform = wv_transform[0],
@@ -374,8 +380,16 @@ void gfx_run_job(struct gfx_render_job *job)
 	glBindBuffer(GL_ARRAY_BUFFER, sdl.gl.vbo);
 	glVertexAttribPointer(job->shader->vertex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), NULL);
 
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sdl.gl.ibo);
-	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL);
+	switch (job->shape) {
+	case GFX_RECTANGLE:
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sdl.gl.rect_ibo);
+		glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL);
+		break;
+	case GFX_LINE:
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sdl.gl.line_ibo);
+		glDrawElements(GL_LINES, 2, GL_UNSIGNED_INT, NULL);
+		break;
+	}
 
 	glDisableVertexAttribArray(job->shader->vertex);
 	glBindVertexArray(0);
@@ -407,6 +421,7 @@ void _gfx_render_texture(struct shader *s, struct texture *t, Rectangle *r, void
 
 	struct gfx_render_job job = {
 		.shader = s,
+		.shape = GFX_RECTANGLE,
 		.texture = t->handle,
 		.world_transform = t->world_transform[0],
 		.view_transform = world_view_transform[0],

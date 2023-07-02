@@ -226,6 +226,8 @@ bool movie_draw(struct movie_context *mc, struct sact_sprite *sprite)
 
 	struct gfx_render_job job = {
 		.shader = &movie_shader,
+		.shape = GFX_RECTANGLE,
+		.texture = 0,
 		.world_transform = world_transform[0],
 		.view_transform = wv_transform[0],
 		.data = mc

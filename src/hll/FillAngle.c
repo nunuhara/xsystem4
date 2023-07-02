@@ -66,6 +66,7 @@ static bool FillAngle_FillAngleAMAP(int sprite, int center_x, int center_y, int 
 
 	struct gfx_render_job job = {
 		.shader = &shader.s,
+		.shape = GFX_RECTANGLE,
 		.texture = 0,
 		.world_transform = mw_transform[0],
 		.view_transform = wv_transform[0],

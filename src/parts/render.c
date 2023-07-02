@@ -56,6 +56,7 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 
 	struct gfx_render_job job = {
 		.shader = &parts_shader.shader,
+		.shape = GFX_RECTANGLE,
 		.texture = texture->handle,
 		.world_transform = mw_transform[0],
 		.view_transform = wv_transform[0],

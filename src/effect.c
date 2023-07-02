@@ -121,6 +121,7 @@ static void render_effect_shader(struct effect_shader *shader, Texture *old, Tex
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
 	struct gfx_render_job job = {
 		.shader = &shader->s,
+		.shape = GFX_RECTANGLE,
 		.texture = new->handle,
 		.world_transform = new->world_transform[0],
 		.view_transform = wv_transform[0],

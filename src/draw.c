@@ -167,6 +167,7 @@ static void run_draw_shader(Shader *s, Texture *dst, Texture *src, mat4 mw_trans
 
 	struct gfx_render_job job = {
 		.shader = s,
+		.shape = GFX_RECTANGLE,
 		.texture = src ? src->handle : 0,
 		.world_transform = mw_transform[0],
 		.view_transform = wv_transform[0],
@@ -1043,6 +1044,58 @@ void gfx_copy_grayscale(Texture *dst, int dx, int dy, Texture *src, int sx, int 
 
 	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
 	run_copy_shader(&copy_grayscale_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
+static void draw_line(Texture *dst, int x0, int y0, int x1, int y1, struct copy_data *data)
+{
+	GLfloat w = dst->w;
+	GLfloat h = dst->h;
+
+	mat4 mw_transform = MAT4(
+	     x1 - x0, 0,       0, x0,
+	     0,       y1 - y0, 0, y0,
+	     0,       0,       1, 0,
+	     0,       0,       0, 1);
+	mat4 wv_transform = WV_TRANSFORM(w, h);
+
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, 0, 0, w, h);
+
+	struct gfx_render_job job = {
+		.shader = &fill_shader.s,
+		.shape = GFX_LINE,
+		.texture = 0,
+		.world_transform = mw_transform[0],
+		.view_transform = wv_transform[0],
+		.data = data
+	};
+	gfx_render(&job);
+
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+}
+
+void gfx_draw_line(Texture *dst, int x0, int y0, int x1, int y1, int r, int g, int b)
+{
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE);
+
+	struct copy_data data = {
+		.r = r / 255.0,
+		.g = g / 255.0,
+		.b = b / 255.0,
+		.a = 1
+	};
+	draw_line(dst, x0, y0, x1, y1, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_draw_line_to_amap(Texture *dst, int x0, int y0, int x1, int y1, int a)
+{
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+
+	struct copy_data data = { .a = a / 255.0 };
+	draw_line(dst, x0, y0, x1, y1, &data);
 
 	restore_blend_mode();
 }
