@@ -132,6 +132,8 @@ void StoatSpriteEngine_SP_SetTextSpriteType(int type)
 
 void StoatSpriteEngine_SP_SetTextSpriteSize(int size)
 {
+	if (text_sprite_ts.size != size)
+		text_sprite_ts.font_size = NULL;
 	text_sprite_ts.size = size;
 }
 
