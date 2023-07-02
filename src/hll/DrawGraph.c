@@ -367,9 +367,15 @@ static void DrawGraph_CopyAMapHeightBlur(int dst, int dx, int dy, int src, int s
 	gfx_copy_amap_height_blur(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, blur);
 }
 
-HLL_WARN_UNIMPLEMENTED( , void, DrawGraph, DrawLine, int dst, int x0, int y0, int x1, int y1, int r, int g, int b);
+static void DrawGraph_DrawLine(int dst, int x0, int y0, int x1, int y1, int r, int g, int b)
+{
+	gfx_draw_line(DTEX(dst), x0, y0, x1, y1, r, g, b);
+}
 
-//void DrawGraph_DrawLineToAMap(int dst, int x0, int y0, int x1, int y1, int alpha);
+static void DrawGraph_DrawLineToAMap(int dst, int x0, int y0, int x1, int y1, int alpha)
+{
+	gfx_draw_line_to_amap(DTEX(dst), x0, y0, x1, y1, alpha);
+}
 
 static bool DrawGraph_GetAlphaColor(int surface, int x, int y, int *a)
 {
@@ -497,7 +503,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(CopyAMapWidthBlur, DrawGraph_CopyAMapWidthBlur),
 	    HLL_EXPORT(CopyAMapHeightBlur, DrawGraph_CopyAMapHeightBlur),
 	    HLL_EXPORT(DrawLine, DrawGraph_DrawLine),
-	    //HLL_EXPORT(DrawLineToAMap, DrawGraph_DrawLineToAMap),
+	    HLL_EXPORT(DrawLineToAMap, DrawGraph_DrawLineToAMap),
 	    HLL_EXPORT(GetPixelColor, sact_SP_GetPixelValue),
 	    HLL_EXPORT(GetAlphaColor, DrawGraph_GetAlphaColor),
 	    //HLL_EXPORT(DrawPolygon, DrawGraph_DrawPolygon),
