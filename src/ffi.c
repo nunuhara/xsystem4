@@ -360,6 +360,7 @@ extern struct static_library lib_StoatSpriteEngine;
 extern struct static_library lib_StretchHelper;
 extern struct static_library lib_SystemService;
 extern struct static_library lib_SystemServiceEx;
+extern struct static_library lib_TapirEngine;
 extern struct static_library lib_Timer;
 extern struct static_library lib_Toushin3Loader;
 extern struct static_library lib_VSFile;
@@ -429,6 +430,7 @@ static struct static_library *static_libraries[] = {
 	&lib_StretchHelper,
 	&lib_SystemService,
 	&lib_SystemServiceEx,
+	&lib_TapirEngine,
 	&lib_Timer,
 	&lib_Toushin3Loader,
 	&lib_VSFile,

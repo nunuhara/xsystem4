@@ -199,7 +199,7 @@ static void update_bones(struct RE_instance *inst)
 	}
 }
 
-struct RE_plugin *RE_plugin_new(void)
+struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 {
 	char *aar_path = gamedir_path("Data/ReignData.red");
 	int error = ARCHIVE_SUCCESS;
@@ -214,6 +214,7 @@ struct RE_plugin *RE_plugin_new(void)
 		return NULL;
 
 	struct RE_plugin *plugin = xcalloc(1, sizeof(struct RE_plugin));
+	plugin->version = version;
 	plugin->plugin.name = "ReignEngine";
 	plugin->plugin.update = RE_render;
 	plugin->plugin.to_json = RE_to_json;
@@ -255,9 +256,11 @@ bool RE_plugin_bind(struct RE_plugin *plugin, int sprite)
 	struct sact_sprite *sp = sact_try_get_sprite(sprite);
 	if (!sp)
 		return false;
-	plugin->renderer = RE_renderer_new(sprite_get_texture(sp));
+	plugin->renderer = RE_renderer_new();
 	plugin->sprite = sprite;
 	sprite_bind_plugin(sp, &plugin->plugin);
+	struct texture *texture = sprite_get_texture(sp);
+	RE_renderer_set_viewport_size(plugin->renderer, texture->w, texture->h);
 	return true;
 }
 
@@ -301,6 +304,21 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 		if (inst && inst->type == RE_ITYPE_PARTICLE_EFFECT)
 			particle_effect_update(inst);
 	}
+	return true;
+}
+
+bool RE_set_viewport(struct RE_plugin *plugin, int x, int y, int width, int height)
+{
+	if (!plugin)
+		return false;
+	struct sact_sprite *sp = sact_try_get_sprite(plugin->sprite);
+	if (!sp || sp->plugin != &plugin->plugin) {
+		WARNING("No sprite bound to plugin");
+		return false;
+	}
+	sprite_init_color(sp, width, height, 0, 0, 0, 255);
+	sprite_set_pos(sp, x, y);
+	RE_renderer_set_viewport_size(plugin->renderer, width, height);
 	return true;
 }
 
@@ -368,8 +386,10 @@ bool RE_instance_set_type(struct RE_instance *instance, int type)
 		break;
 	case RE_ITYPE_PARTICLE_EFFECT:
 		break;
+	case RE_ITYPE_PATH_LINE:
+		break;
 	default:
-		ERROR("unknown instance type %d", type);
+		VM_ERROR("unknown instance type %d", type);
 	}
 	instance->type = type;
 	return true;

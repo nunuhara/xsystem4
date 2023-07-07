@@ -28,6 +28,11 @@
 typedef struct cJSON cJSON;
 struct hash_table;
 
+enum RE_plugin_version {
+	RE_REIGN_PLUGIN,  // Toushin Toshi 3
+	RE_TAPIR_PLUGIN,  // Rance Quest
+};
+
 enum RE_instance_type {
 	RE_ITYPE_UNINITIALIZED     = 0,
 	RE_ITYPE_STATIC            = 1,
@@ -36,6 +41,7 @@ enum RE_instance_type {
 	RE_ITYPE_DIRECTIONAL_LIGHT = 4,
 	RE_ITYPE_SPECULAR_LIGHT    = 6,
 	RE_ITYPE_PARTICLE_EFFECT   = 8,
+	RE_ITYPE_PATH_LINE         = 9,
 };
 
 enum RE_motion_state {
@@ -54,6 +60,11 @@ enum RE_draw_type {
 	RE_DRAW_TYPE_NORMAL   = 0,
 	RE_DRAW_TYPE_ADDITIVE = 1,
 	RE_DRAW_TYPE_MAX = RE_DRAW_TYPE_ADDITIVE
+};
+
+enum RE_draw_options {
+	RE_DRAW_OPTION_UNKNOWN,
+	RE_DRAW_OPTION_MAX
 };
 
 struct RE_options {
@@ -81,6 +92,7 @@ struct RE_back_cg {
 
 struct RE_plugin {
 	struct draw_plugin plugin;
+	enum RE_plugin_version version;
 	int sprite;
 	int nr_instances;
 	struct RE_instance **instances;
@@ -127,6 +139,10 @@ struct RE_plugin {
 	float post_effect_filter_y;
 	float post_effect_filter_cb;
 	float post_effect_filter_cr;
+	int draw_options[RE_DRAW_OPTION_MAX];
+
+	// TapirEngine
+	bool suspended;
 };
 
 struct RE_instance {
@@ -175,11 +191,12 @@ struct RE_instance {
 	float z_from_camera;
 };
 
-struct RE_plugin *RE_plugin_new(void);
+struct RE_plugin *RE_plugin_new(enum RE_plugin_version version);
 void RE_plugin_free(struct RE_plugin *plugin);
 bool RE_plugin_bind(struct RE_plugin *plugin, int sprite);
 bool RE_plugin_unbind(struct RE_plugin *plugin);
 bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms);
+bool RE_set_viewport(struct RE_plugin *plugin, int x, int y, int width, int height);
 bool RE_set_projection(struct RE_plugin *plugin, float width, float height, float near, float far, float deg);
 int RE_create_instance(struct RE_plugin *plugin);
 bool RE_release_instance(struct RE_plugin *plugin, int instance);
