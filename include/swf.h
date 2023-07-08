@@ -113,6 +113,10 @@ struct swf_tag_define_shape {
 	struct swf_fill_style fill_style;
 };
 
+enum swf_sound_format {
+	SWF_SOUND_UNCOMPRESSED_LE = 3,
+};
+
 struct swf_tag_define_sound {
 	struct swf_tag t;
 	uint16_t sound_id;

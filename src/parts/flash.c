@@ -23,6 +23,8 @@
 #include "system4/string.h"
 
 #include "asset_manager.h"
+#include "audio.h"
+#include "little_endian.h"
 #include "swf.h"
 #include "xsystem4.h"
 #include "parts.h"
@@ -109,6 +111,11 @@ static void define_shape(struct parts_flash *f, struct swf_tag_define_shape *tag
 	ht_put_int(f->dictionary, tag->shape_id, tag);
 }
 
+static void define_sound(struct parts_flash *f, struct swf_tag_define_sound *tag)
+{
+	ht_put_int(f->dictionary, tag->sound_id, tag);
+}
+
 static void do_action(struct parts_flash *f, struct swf_tag_do_action *tag)
 {
 	for (struct swf_action *a = tag->actions; a->code != ACTION_END; a = a->next) {
@@ -188,6 +195,64 @@ static void remove_object(struct parts_flash *f, struct swf_tag_remove_object2 *
 	}
 }
 
+static void flash_archive_free_data(struct archive_data *data)
+{
+	free(data->data);
+	free(data);
+}
+
+static struct archive_ops flash_archive_ops = {
+	.free_data = flash_archive_free_data
+};
+
+static struct archive flash_archive = {
+	.mmapped = false,
+	.ops = &flash_archive_ops
+};
+
+static void start_sound(struct parts_flash *f, struct swf_tag_start_sound *tag)
+{
+	if (tag->flags != 0) {
+		ERROR("unsupported StartSound flag 0x%x", tag->flags);
+	}
+	struct swf_tag_define_sound *sound = ht_get_int(f->dictionary, tag->sound_id, NULL);
+	if (!sound || sound->t.type != TAG_DEFINE_SOUND) {
+		WARNING("undefined sound id %d", tag->sound_id);
+		return;
+	}
+	if (sound->format != SWF_SOUND_UNCOMPRESSED_LE) {
+		ERROR("unsupported sound format %d", sound->format);
+	}
+	int bytes_per_sample = sound->spec.sample_size / 8;
+
+	const uint8_t wav_header[] = {
+		'R' , 'I' , 'F' , 'F' , 0x00, 0x00, 0x00, 0x00,
+		'W' , 'A' , 'V' , 'E' , 'f' , 'm' , 't' , ' ' ,
+		0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 'd' , 'a' , 't' , 'a' ,
+		0x00, 0x00, 0x00, 0x00
+	};
+	uint32_t wav_size = sizeof(wav_header) + sound->data_len;
+	uint8_t *wav_buf = xmalloc(wav_size);
+	memcpy(wav_buf, wav_header, sizeof(wav_header));
+	LittleEndian_putDW(wav_buf, 4, wav_size - 8);
+	LittleEndian_putW(wav_buf, 22, sound->spec.channels);
+	LittleEndian_putDW(wav_buf, 24, sound->spec.rate);
+	LittleEndian_putDW(wav_buf, 28, sound->spec.rate * bytes_per_sample * sound->spec.channels);
+	LittleEndian_putW(wav_buf, 32, bytes_per_sample * sound->spec.channels);
+	LittleEndian_putW(wav_buf, 34, sound->spec.sample_size);
+	LittleEndian_putDW(wav_buf, 40, sound->data_len);
+	memcpy(wav_buf + sizeof(wav_header), sound->data, sound->data_len);
+
+	struct archive_data *dfile = xcalloc(1, sizeof(struct archive_data));
+	dfile->size = wav_size;
+	dfile->data = wav_buf;
+	dfile->archive = &flash_archive;
+
+	audio_play_archive_data(dfile);
+}
+
 bool parts_flash_seek(struct parts_flash *f, int frame)
 {
 	if (!f->swf || f->current_frame == frame)
@@ -204,6 +269,7 @@ bool parts_flash_seek(struct parts_flash *f, int frame)
 		switch (t->type) {
 		case TAG_FILE_ATTRIBUTES:
 		case TAG_SET_BACKGROUND_COLOR:
+		case TAG_SOUND_STREAM_HEAD2:
 			// Do nothing.
 			break;
 		case TAG_END:
@@ -219,6 +285,9 @@ bool parts_flash_seek(struct parts_flash *f, int frame)
 		case TAG_DEFINE_SHAPE:
 			define_shape(f, (struct swf_tag_define_shape*)t);
 			break;
+		case TAG_DEFINE_SOUND:
+			define_sound(f, (struct swf_tag_define_sound*)t);
+			break;
 		case TAG_DO_ACTION:
 			do_action(f, (struct swf_tag_do_action*)t);
 			break;
@@ -228,6 +297,9 @@ bool parts_flash_seek(struct parts_flash *f, int frame)
 			break;
 		case TAG_REMOVE_OBJECT2:
 			remove_object(f, (struct swf_tag_remove_object2*)t);
+			break;
+		case TAG_START_SOUND:
+			start_sound(f, (struct swf_tag_start_sound*)t);
 			break;
 		default:
 			ERROR("unknown tag 0x%x", t->type);

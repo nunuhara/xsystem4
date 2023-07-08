@@ -19,10 +19,14 @@
 
 #include <stdbool.h>
 
+struct archive_data;
+
 void audio_init(void);
 void audio_reset(void);
 void audio_update(void);
 bool audio_play_sound(int sound_no);
+// Takes ownership of dfile.
+bool audio_play_archive_data(struct archive_data *dfile);
 
 bool wav_exists(int no);
 bool bgm_exists(int no);
@@ -80,8 +84,6 @@ int bgm_get_time_length(int id);
 //int bgm_prepare_from_file(int id, char *filename);
 
 int wav_get_group_num_from_data_num(int no);
-
-struct archive_data;
 
 // Takes ownership of dfile.
 int wav_prepare_from_archive_data(int id, struct archive_data *dfile);

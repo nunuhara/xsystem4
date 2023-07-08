@@ -98,6 +98,25 @@ bool audio_play_sound(int sound_no)
 	return false;
 }
 
+bool audio_play_archive_data(struct archive_data *dfile)
+{
+	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
+		if (anonymous_channels[i] == -1) {
+			int ch = wav_get_unused_channel();
+			if (!wav_prepare_from_archive_data(ch, dfile))
+				return false;
+			if (!wav_play(ch)) {
+				wav_unprepare(ch);
+				return false;
+			}
+			anonymous_channels[i] = ch;
+			return true;
+		}
+	}
+	WARNING("Failed to allocate anonymous audio channel");
+	return false;
+}
+
 bool wav_exists(int no) { return asset_exists(ASSET_SOUND, no); }
 bool bgm_exists(int no) { return asset_exists(ASSET_BGM, no); }
 
