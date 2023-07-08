@@ -35,6 +35,7 @@ static const char *instance_type_name(enum RE_instance_type type)
 	case RE_ITYPE_DIRECTIONAL_LIGHT: return "DIRECTIONAL_LIGHT";
 	case RE_ITYPE_SPECULAR_LIGHT:    return "SPECULAR_LIGHT";
 	case RE_ITYPE_PARTICLE_EFFECT:   return "PARTICLE_EFFECT";
+	case RE_ITYPE_PATH_LINE:         return "PATH_LINE";
 	}
 	return "UNKNOWN";
 }

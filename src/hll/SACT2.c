@@ -970,12 +970,12 @@ int sact_VIEW_GetMode(void)
 	return view_mode;
 }
 
-static bool SACTDX_DX_GetUsePower2Texture(void)
+bool sact_DX_GetUsePower2Texture(void)
 {
 	return use_power2_texture;
 }
 
-static void SACTDX_DX_SetUsePower2Texture(bool use)
+void sact_DX_SetUsePower2Texture(bool use)
 {
 	use_power2_texture = use;
 }
@@ -998,8 +998,8 @@ static void SACTDX_DX_SetUsePower2Texture(bool use)
 	HLL_EXPORT(TRANS_End, sact_TRANS_End),	\
 	HLL_EXPORT(VIEW_SetMode, sact_VIEW_SetMode),	\
 	HLL_EXPORT(VIEW_GetMode, sact_VIEW_GetMode),	\
-	HLL_EXPORT(DX_GetUsePower2Texture, SACTDX_DX_GetUsePower2Texture),	\
-	HLL_EXPORT(DX_SetUsePower2Texture, SACTDX_DX_SetUsePower2Texture)
+	HLL_EXPORT(DX_GetUsePower2Texture, sact_DX_GetUsePower2Texture),	\
+	HLL_EXPORT(DX_SetUsePower2Texture, sact_DX_SetUsePower2Texture)
 
 HLL_LIBRARY(SACT2, SACT_EXPORTS);
 HLL_LIBRARY(SACTDX, SACT_EXPORTS, SACTDX_EXPORTS);

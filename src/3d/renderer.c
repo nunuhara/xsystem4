@@ -165,7 +165,7 @@ static void destroy_billboard_mesh(struct RE_renderer *r)
 	glDeleteBuffers(1, &r->billboard_attr_buffer);
 }
 
-struct RE_renderer *RE_renderer_new(struct texture *texture)
+struct RE_renderer *RE_renderer_new(void)
 {
 	struct RE_renderer *r = xcalloc(1, sizeof(struct RE_renderer));
 
@@ -217,14 +217,19 @@ struct RE_renderer *RE_renderer_new(struct texture *texture)
 	r->alpha_texture = glGetUniformLocation(r->program, "alpha_texture");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
-	glBindRenderbuffer(GL_RENDERBUFFER, r->depth_buffer);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, texture->w, texture->h);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
 	init_shadow_renderer(&r->shadow);
 	init_billboard_mesh(r);
 	r->billboard_textures = ht_create(256);
+	r->last_frame_timestamp = SDL_GetTicks();
 	return r;
+}
+
+void RE_renderer_set_viewport_size(struct RE_renderer *r, int width, int height)
+{
+	glBindRenderbuffer(GL_RENDERBUFFER, r->depth_buffer);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 }
 
 bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no)
@@ -796,8 +801,15 @@ void RE_render(struct sact_sprite *sp)
 {
 	struct RE_plugin *plugin = (struct RE_plugin *)sp->plugin;
 	struct RE_renderer *r = plugin->renderer;
-	if (!r)
+	if (!r || plugin->suspended)
 		return;
+
+	if (plugin->version == RE_TAPIR_PLUGIN) {
+		uint32_t timestamp = SDL_GetTicks();
+		RE_build_model(plugin, timestamp - r->last_frame_timestamp);
+		r->last_frame_timestamp = timestamp;
+	}
+
 	sprite_dirty(sp);
 	struct texture *texture = sprite_get_texture(sp);
 

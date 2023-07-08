@@ -24,11 +24,23 @@
 #include "hll.h"
 #include "reign.h"
 
-#define RE_MAX_PLUGINS 1
+#define RE_MAX_PLUGINS 2
 
 struct RE_options RE_options;
 
 static struct RE_plugin *plugins[RE_MAX_PLUGINS];
+
+static int create_plugin(enum RE_plugin_version version)
+{
+	for (int i = 0; i < RE_MAX_PLUGINS; i++) {
+		if (!plugins[i]) {
+			plugins[i] = RE_plugin_new(version);
+			return plugins[i] ? i : -1;
+		}
+	}
+	WARNING("too many plugins");
+	return -1;
+}
 
 static struct RE_plugin *get_plugin(unsigned plugin)
 {
@@ -76,14 +88,7 @@ static struct RE_back_cg *get_back_cg(unsigned plugin, unsigned num)
 
 static int ReignEngine_CreatePlugin(void)
 {
-	for (int i = 0; i < RE_MAX_PLUGINS; i++) {
-		if (!plugins[i]) {
-			plugins[i] = RE_plugin_new();
-			return plugins[i] ? i : -1;
-		}
-	}
-	WARNING("too many plugins");
-	return -1;
+	return create_plugin(RE_REIGN_PLUGIN);
 }
 
 static bool ReignEngine_ReleasePlugin(int handle)
@@ -1382,7 +1387,10 @@ static int ReignEngine_GetOptionWaitVSync(void)
 	return RE_options.wait_vsync;
 }
 
-//bool ReignEngine_SetViewport(int plugin, int nX, int nY, int nWidth, int nHeight);
+static bool ReignEngine_SetViewport(int plugin, int x, int y, int width, int height)
+{
+	return RE_set_viewport(get_plugin(plugin), x, y, width, height);
+}
 
 bool ReignEngine_SetProjection(int plugin, float width, float height, float near, float far, float deg)
 {
@@ -1810,351 +1818,451 @@ HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceFresnelReflectRate, 
 //float ReignEngine_StringToFloat(struct string *pIText);
 //bool ReignEngine_DrawToMainSurface(int plugin);
 
-HLL_LIBRARY(ReignEngine,
-	    HLL_EXPORT(CreatePlugin, ReignEngine_CreatePlugin),
-	    HLL_EXPORT(ReleasePlugin, ReignEngine_ReleasePlugin),
-	    HLL_EXPORT(BindPlugin, ReignEngine_BindPlugin),
-	    HLL_EXPORT(UnbindPlugin, ReignEngine_UnbindPlugin),
-	    HLL_EXPORT(BuildModel, ReignEngine_BuildModel),
-	    HLL_EXPORT(CreateInstance, ReignEngine_CreateInstance),
-	    HLL_EXPORT(ReleaseInstance, ReignEngine_ReleaseInstance),
-	    HLL_EXPORT(LoadInstance, ReignEngine_LoadInstance),
-	    HLL_EXPORT(SetInstanceType, ReignEngine_SetInstanceType),
-	    HLL_EXPORT(SetInstancePos, ReignEngine_SetInstancePos),
-	    HLL_EXPORT(SetInstanceVector, ReignEngine_SetInstanceVector),
-	    HLL_EXPORT(SetInstanceAngle, ReignEngine_SetInstanceAngle),
-	    HLL_EXPORT(SetInstanceAngleP, ReignEngine_SetInstanceAngleP),
-	    HLL_EXPORT(SetInstanceAngleB, ReignEngine_SetInstanceAngleB),
-	    HLL_EXPORT(GetInstanceScaleX, ReignEngine_GetInstanceScaleX),
-	    HLL_EXPORT(GetInstanceScaleY, ReignEngine_GetInstanceScaleY),
-	    HLL_EXPORT(GetInstanceScaleZ, ReignEngine_GetInstanceScaleZ),
-	    HLL_EXPORT(SetInstanceScaleX, ReignEngine_SetInstanceScaleX),
-	    HLL_EXPORT(SetInstanceScaleY, ReignEngine_SetInstanceScaleY),
-	    HLL_EXPORT(SetInstanceScaleZ, ReignEngine_SetInstanceScaleZ),
-	    HLL_TODO_EXPORT(SetInstanceZBias, ReignEngine_SetInstanceZBias),
-	    HLL_TODO_EXPORT(GetInstanceZBias, ReignEngine_GetInstanceZBias),
-	    HLL_EXPORT(SetInstanceVertexPos, ReignEngine_SetInstanceVertexPos),
-	    HLL_EXPORT(SetInstanceDiffuse, ReignEngine_SetInstanceDiffuse),
-	    HLL_EXPORT(SetInstanceGlobeDiffuse, ReignEngine_SetInstanceGlobeDiffuse),
-	    HLL_EXPORT(SetInstanceAmbient, ReignEngine_SetInstanceAmbient),
-	    HLL_TODO_EXPORT(SetInstanceSpecular, ReignEngine_SetInstanceSpecular),
-	    HLL_EXPORT(SetInstanceAlpha, ReignEngine_SetInstanceAlpha),
-	    HLL_TODO_EXPORT(SetInstanceAttenuationNear, ReignEngine_SetInstanceAttenuationNear),
-	    HLL_TODO_EXPORT(SetInstanceAttenuationFar, ReignEngine_SetInstanceAttenuationFar),
-	    HLL_EXPORT(SetInstanceDraw, ReignEngine_SetInstanceDraw),
-	    HLL_EXPORT(SetInstanceDrawShadow, ReignEngine_SetInstanceDrawShadow),
-	    HLL_EXPORT(SetInstanceDrawBackShadow, ReignEngine_SetInstanceDrawBackShadow),
-	    HLL_EXPORT(SetInstanceDrawMakeShadow, ReignEngine_SetInstanceDrawMakeShadow),
-	    HLL_EXPORT(SetInstanceDrawBump, ReignEngine_SetInstanceDrawBump),
-	    HLL_EXPORT(GetInstanceDraw, ReignEngine_GetInstanceDraw),
-	    HLL_EXPORT(GetInstanceDrawShadow, ReignEngine_GetInstanceDrawShadow),
-	    HLL_TODO_EXPORT(GetInstanceDrawBackShadow, ReignEngine_GetInstanceDrawBackShadow),
-	    HLL_EXPORT(GetInstanceDrawMakeShadow, ReignEngine_GetInstanceDrawMakeShadow),
-	    HLL_EXPORT(GetInstanceDrawBump, ReignEngine_GetInstanceDrawBump),
-	    HLL_EXPORT(GetInstanceDrawType, ReignEngine_GetInstanceDrawType),
-	    HLL_EXPORT(SetInstanceDrawType, ReignEngine_SetInstanceDrawType),
-	    HLL_EXPORT(LoadInstanceMotion, ReignEngine_LoadInstanceMotion),
-	    HLL_EXPORT(GetInstanceMotionState, ReignEngine_GetInstanceMotionState),
-	    HLL_EXPORT(GetInstanceMotionFrame, ReignEngine_GetInstanceMotionFrame),
-	    HLL_EXPORT(SetInstanceMotionState, ReignEngine_SetInstanceMotionState),
-	    HLL_EXPORT(SetInstanceMotionFrame, ReignEngine_SetInstanceMotionFrame),
-	    HLL_EXPORT(SetInstanceMotionFrameRange, ReignEngine_SetInstanceMotionFrameRange),
-	    HLL_EXPORT(SetInstanceMotionLoopFrameRange, ReignEngine_SetInstanceMotionLoopFrameRange),
-	    HLL_EXPORT(LoadInstanceNextMotion, ReignEngine_LoadInstanceNextMotion),
-	    HLL_EXPORT(SetInstanceNextMotionState, ReignEngine_SetInstanceNextMotionState),
-	    HLL_EXPORT(SetInstanceNextMotionFrame, ReignEngine_SetInstanceNextMotionFrame),
-	    HLL_EXPORT(SetInstanceNextMotionFrameRange, ReignEngine_SetInstanceNextMotionFrameRange),
-	    HLL_EXPORT(SetInstanceNextMotionLoopFrameRange, ReignEngine_SetInstanceNextMotionLoopFrameRange),
-	    HLL_EXPORT(SetInstanceMotionBlendRate, ReignEngine_SetInstanceMotionBlendRate),
-	    HLL_EXPORT(SetInstanceMotionBlend, ReignEngine_SetInstanceMotionBlend),
-	    HLL_EXPORT(IsInstanceMotionBlend, ReignEngine_IsInstanceMotionBlend),
-	    HLL_TODO_EXPORT(GetInstanceMotionBlendPutTime, ReignEngine_GetInstanceMotionBlendPutTime),
-	    HLL_EXPORT(SetInstanceMotionBlendPutTime, ReignEngine_SetInstanceMotionBlendPutTime),
-	    HLL_EXPORT(SwapInstanceMotion, ReignEngine_SwapInstanceMotion),
-	    HLL_EXPORT(FreeInstanceNextMotion, ReignEngine_FreeInstanceNextMotion),
-	    HLL_TODO_EXPORT(GetInstanceNumofMaterial, ReignEngine_GetInstanceNumofMaterial),
-	    HLL_TODO_EXPORT(GetInstanceMaterialName, ReignEngine_GetInstanceMaterialName),
-	    HLL_TODO_EXPORT(GetInstanceMaterialParam, ReignEngine_GetInstanceMaterialParam),
-	    HLL_TODO_EXPORT(SetInstanceMaterialParam, ReignEngine_SetInstanceMaterialParam),
-	    HLL_TODO_EXPORT(SaveInstanceAddMaterialData, ReignEngine_SaveInstanceAddMaterialData),
-	    HLL_TODO_EXPORT(SetInstancePointPos, ReignEngine_SetInstancePointPos),
-	    HLL_TODO_EXPORT(GetInstancePointPos, ReignEngine_GetInstancePointPos),
-	    HLL_EXPORT(GetInstanceColumnPos, ReignEngine_GetInstanceColumnPos),
-	    HLL_EXPORT(GetInstanceColumnHeight, ReignEngine_GetInstanceColumnHeight),
-	    HLL_EXPORT(GetInstanceColumnRadius, ReignEngine_GetInstanceColumnRadius),
-	    HLL_EXPORT(GetInstanceColumnAngle, ReignEngine_GetInstanceColumnAngle),
-	    HLL_TODO_EXPORT(GetInstanceColumnAngleP, ReignEngine_GetInstanceColumnAngleP),
-	    HLL_TODO_EXPORT(GetInstanceColumnAngleB, ReignEngine_GetInstanceColumnAngleB),
-	    HLL_EXPORT(SetInstanceColumnPos, ReignEngine_SetInstanceColumnPos),
-	    HLL_EXPORT(SetInstanceColumnHeight, ReignEngine_SetInstanceColumnHeight),
-	    HLL_EXPORT(SetInstanceColumnRadius, ReignEngine_SetInstanceColumnRadius),
-	    HLL_EXPORT(SetInstanceColumnAngle, ReignEngine_SetInstanceColumnAngle),
-	    HLL_TODO_EXPORT(SetInstanceColumnAngleP, ReignEngine_SetInstanceColumnAngleP),
-	    HLL_TODO_EXPORT(SetInstanceColumnAngleB, ReignEngine_SetInstanceColumnAngleB),
-	    HLL_TODO_EXPORT(GetInstanceDrawColumn, ReignEngine_GetInstanceDrawColumn),
-	    HLL_TODO_EXPORT(SetInstanceDrawColumn, ReignEngine_SetInstanceDrawColumn),
-	    HLL_EXPORT(SetInstanceTarget, ReignEngine_SetInstanceTarget),
-	    HLL_EXPORT(GetInstanceTarget, ReignEngine_GetInstanceTarget),
-	    HLL_EXPORT(GetInstanceFPS, ReignEngine_GetInstanceFPS),
-	    HLL_EXPORT(SetInstanceFPS, ReignEngine_SetInstanceFPS),
-	    HLL_EXPORT(GetInstanceBoneIndex, ReignEngine_GetInstanceBoneIndex),
-	    HLL_EXPORT(TransInstanceLocalPosToWorldPosByBone, ReignEngine_TransInstanceLocalPosToWorldPosByBone),
-	    HLL_TODO_EXPORT(GetInstanceNumofPolygon, ReignEngine_GetInstanceNumofPolygon),
-	    HLL_TODO_EXPORT(GetInstanceTextureMemorySize, ReignEngine_GetInstanceTextureMemorySize),
-	    HLL_TODO_EXPORT(GetInstanceInfoText, ReignEngine_GetInstanceInfoText),
-	    HLL_TODO_EXPORT(GetInstanceMaterialInfoText, ReignEngine_GetInstanceMaterialInfoText),
-	    HLL_EXPORT(CalcInstanceHeightDetection, ReignEngine_CalcInstanceHeightDetection),
-	    HLL_TODO_EXPORT(GetInstanceSoftFogEdgeLength, ReignEngine_GetInstanceSoftFogEdgeLength),
-	    HLL_EXPORT(SetInstanceSoftFogEdgeLength, ReignEngine_SetInstanceSoftFogEdgeLength),
-	    HLL_EXPORT(GetInstanceShadowVolumeBoneRadius, ReignEngine_GetInstanceShadowVolumeBoneRadius),
-	    HLL_EXPORT(SetInstanceShadowVolumeBoneRadius, ReignEngine_SetInstanceShadowVolumeBoneRadius),
-	    HLL_EXPORT(GetInstanceDebugDrawShadowVolume, ReignEngine_GetInstanceDebugDrawShadowVolume),
-	    HLL_EXPORT(SetInstanceDebugDrawShadowVolume, ReignEngine_SetInstanceDebugDrawShadowVolume),
-	    HLL_TODO_EXPORT(SaveEffect, ReignEngine_SaveEffect),
-	    HLL_EXPORT(GetEffectFrameRange, ReignEngine_GetEffectFrameRange),
-	    HLL_EXPORT(GetEffectObjectType, ReignEngine_GetEffectObjectType),
-	    HLL_EXPORT(GetEffectObjectMoveType, ReignEngine_GetEffectObjectMoveType),
-	    HLL_EXPORT(GetEffectObjectUpVecType, ReignEngine_GetEffectObjectUpVecType),
-	    HLL_EXPORT(GetEffectObjectMoveCurve, ReignEngine_GetEffectObjectMoveCurve),
-	    HLL_EXPORT(GetEffectObjectFrame, ReignEngine_GetEffectObjectFrame),
-	    HLL_EXPORT(GetEffectObjectStopFrame, ReignEngine_GetEffectObjectStopFrame),
-	    HLL_EXPORT(GetEffectNumofObject, ReignEngine_GetEffectNumofObject),
-	    HLL_EXPORT(GetEffectObjectName, ReignEngine_GetEffectObjectName),
-	    HLL_EXPORT(GetEffectNumofObjectPos, ReignEngine_GetEffectNumofObjectPos),
-	    HLL_EXPORT(GetEffectNumofObjectPosUnit, ReignEngine_GetEffectNumofObjectPosUnit),
-	    HLL_EXPORT(GetEffectObjectPosUnitType, ReignEngine_GetEffectObjectPosUnitType),
-	    HLL_EXPORT(GetEffectObjectPosUnitIndex, ReignEngine_GetEffectObjectPosUnitIndex),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectPosUnitParam, ReignEngine_GetEffectNumofObjectPosUnitParam),
-	    HLL_TODO_EXPORT(GetEffectObjectPosUnitParam, ReignEngine_GetEffectObjectPosUnitParam),
-	    HLL_TODO_EXPORT(GetEffectNumofObjectPosUnitString, ReignEngine_GetEffectNumofObjectPosUnitString),
-	    HLL_TODO_EXPORT(GetEffectObjectPosUnitString, ReignEngine_GetEffectObjectPosUnitString),
-	    HLL_EXPORT(GetEffectNumofObjectTexture, ReignEngine_GetEffectNumofObjectTexture),
-	    HLL_EXPORT(GetEffectObjectTexture, ReignEngine_GetEffectObjectTexture),
-	    HLL_EXPORT(GetEffectObjectSize, ReignEngine_GetEffectObjectSize),
-	    HLL_EXPORT(GetEffectObjectSize2, ReignEngine_GetEffectObjectSize2),
-	    HLL_EXPORT(GetEffectObjectSizeX, ReignEngine_GetEffectObjectSizeX),
-	    HLL_EXPORT(GetEffectObjectSizeY, ReignEngine_GetEffectObjectSizeY),
-	    HLL_EXPORT(GetEffectObjectSizeType, ReignEngine_GetEffectObjectSizeType),
-	    HLL_EXPORT(GetEffectObjectSizeXType, ReignEngine_GetEffectObjectSizeXType),
-	    HLL_EXPORT(GetEffectObjectSizeYType, ReignEngine_GetEffectObjectSizeYType),
-	    HLL_EXPORT(GetEffectNumofObjectSize2, ReignEngine_GetEffectNumofObjectSize2),
-	    HLL_EXPORT(GetEffectNumofObjectSizeX, ReignEngine_GetEffectNumofObjectSizeX),
-	    HLL_EXPORT(GetEffectNumofObjectSizeY, ReignEngine_GetEffectNumofObjectSizeY),
-	    HLL_EXPORT(GetEffectNumofObjectSizeType, ReignEngine_GetEffectNumofObjectSizeType),
-	    HLL_EXPORT(GetEffectNumofObjectSizeXType, ReignEngine_GetEffectNumofObjectSizeXType),
-	    HLL_EXPORT(GetEffectNumofObjectSizeYType, ReignEngine_GetEffectNumofObjectSizeYType),
-	    HLL_EXPORT(GetEffectObjectBlendType, ReignEngine_GetEffectObjectBlendType),
-	    HLL_EXPORT(GetEffectObjectPolygonName, ReignEngine_GetEffectObjectPolygonName),
-	    HLL_EXPORT(GetEffectNumofObjectParticle, ReignEngine_GetEffectNumofObjectParticle),
-	    HLL_EXPORT(GetEffectObjectAlphaFadeInTime, ReignEngine_GetEffectObjectAlphaFadeInTime),
-	    HLL_EXPORT(GetEffectObjectAlphaFadeOutTime, ReignEngine_GetEffectObjectAlphaFadeOutTime),
-	    HLL_EXPORT(GetEffectObjectTextureAnimeTime, ReignEngine_GetEffectObjectTextureAnimeTime),
-	    HLL_EXPORT(GetEffectObjectAlphaFadeInFrame, ReignEngine_GetEffectObjectAlphaFadeInFrame),
-	    HLL_EXPORT(GetEffectObjectAlphaFadeOutFrame, ReignEngine_GetEffectObjectAlphaFadeOutFrame),
-	    HLL_EXPORT(GetEffectObjectTextureAnimeFrame, ReignEngine_GetEffectObjectTextureAnimeFrame),
-	    HLL_EXPORT(GetEffectObjectFrameReferenceType, ReignEngine_GetEffectObjectFrameReferenceType),
-	    HLL_EXPORT(GetEffectObjectFrameReferenceParam, ReignEngine_GetEffectObjectFrameReferenceParam),
-	    HLL_EXPORT(GetEffectObjectXRotationAngle, ReignEngine_GetEffectObjectXRotationAngle),
-	    HLL_EXPORT(GetEffectObjectYRotationAngle, ReignEngine_GetEffectObjectYRotationAngle),
-	    HLL_EXPORT(GetEffectObjectZRotationAngle, ReignEngine_GetEffectObjectZRotationAngle),
-	    HLL_EXPORT(GetEffectObjectXRevolutionAngle, ReignEngine_GetEffectObjectXRevolutionAngle),
-	    HLL_EXPORT(GetEffectObjectXRevolutionDistance, ReignEngine_GetEffectObjectXRevolutionDistance),
-	    HLL_EXPORT(GetEffectObjectYRevolutionAngle, ReignEngine_GetEffectObjectYRevolutionAngle),
-	    HLL_EXPORT(GetEffectObjectYRevolutionDistance, ReignEngine_GetEffectObjectYRevolutionDistance),
-	    HLL_EXPORT(GetEffectObjectZRevolutionAngle, ReignEngine_GetEffectObjectZRevolutionAngle),
-	    HLL_EXPORT(GetEffectObjectZRevolutionDistance, ReignEngine_GetEffectObjectZRevolutionDistance),
-	    HLL_TODO_EXPORT(AddEffectObject, ReignEngine_AddEffectObject),
-	    HLL_TODO_EXPORT(DeleteEffectObject, ReignEngine_DeleteEffectObject),
-	    HLL_TODO_EXPORT(SetEffectObjectName, ReignEngine_SetEffectObjectName),
-	    HLL_TODO_EXPORT(SetEffectObjectType, ReignEngine_SetEffectObjectType),
-	    HLL_TODO_EXPORT(SetEffectObjectMoveType, ReignEngine_SetEffectObjectMoveType),
-	    HLL_TODO_EXPORT(SetEffectObjectUpVecType, ReignEngine_SetEffectObjectUpVecType),
-	    HLL_TODO_EXPORT(SetEffectObjectMoveCurve, ReignEngine_SetEffectObjectMoveCurve),
-	    HLL_TODO_EXPORT(SetEffectObjectFrame, ReignEngine_SetEffectObjectFrame),
-	    HLL_TODO_EXPORT(SetEffectObjectStopFrame, ReignEngine_SetEffectObjectStopFrame),
-	    HLL_TODO_EXPORT(SetEffectObjectPosUnitType, ReignEngine_SetEffectObjectPosUnitType),
-	    HLL_TODO_EXPORT(SetEffectObjectPosUnitIndex, ReignEngine_SetEffectObjectPosUnitIndex),
-	    HLL_TODO_EXPORT(SetEffectObjectPosUnitParam, ReignEngine_SetEffectObjectPosUnitParam),
-	    HLL_TODO_EXPORT(SetEffectObjectPosUnitString, ReignEngine_SetEffectObjectPosUnitString),
-	    HLL_TODO_EXPORT(SetEffectObjectTexture, ReignEngine_SetEffectObjectTexture),
-	    HLL_TODO_EXPORT(SetEffectObjectSize, ReignEngine_SetEffectObjectSize),
-	    HLL_TODO_EXPORT(SetEffectObjectSize2, ReignEngine_SetEffectObjectSize2),
-	    HLL_TODO_EXPORT(SetEffectObjectSizeX, ReignEngine_SetEffectObjectSizeX),
-	    HLL_TODO_EXPORT(SetEffectObjectSizeY, ReignEngine_SetEffectObjectSizeY),
-	    HLL_TODO_EXPORT(SetEffectObjectSizeType, ReignEngine_SetEffectObjectSizeType),
-	    HLL_TODO_EXPORT(SetEffectObjectSizeXType, ReignEngine_SetEffectObjectSizeXType),
-	    HLL_TODO_EXPORT(SetEffectObjectSizeYType, ReignEngine_SetEffectObjectSizeYType),
-	    HLL_TODO_EXPORT(SetEffectObjectBlendType, ReignEngine_SetEffectObjectBlendType),
-	    HLL_TODO_EXPORT(SetEffectObjectPolygonName, ReignEngine_SetEffectObjectPolygonName),
-	    HLL_TODO_EXPORT(SetEffectNumofObjectParticle, ReignEngine_SetEffectNumofObjectParticle),
-	    HLL_TODO_EXPORT(SetEffectObjectAlphaFadeInTime, ReignEngine_SetEffectObjectAlphaFadeInTime),
-	    HLL_TODO_EXPORT(SetEffectObjectAlphaFadeOutTime, ReignEngine_SetEffectObjectAlphaFadeOutTime),
-	    HLL_TODO_EXPORT(SetEffectObjectTextureAnimeTime, ReignEngine_SetEffectObjectTextureAnimeTime),
-	    HLL_TODO_EXPORT(SetEffectObjectAlphaFadeInFrame, ReignEngine_SetEffectObjectAlphaFadeInFrame),
-	    HLL_TODO_EXPORT(SetEffectObjectAlphaFadeOutFrame, ReignEngine_SetEffectObjectAlphaFadeOutFrame),
-	    HLL_TODO_EXPORT(SetEffectObjectTextureAnimeFrame, ReignEngine_SetEffectObjectTextureAnimeFrame),
-	    HLL_TODO_EXPORT(SetEffectObjectFrameReferenceType, ReignEngine_SetEffectObjectFrameReferenceType),
-	    HLL_TODO_EXPORT(SetEffectObjectFrameReferenceParam, ReignEngine_SetEffectObjectFrameReferenceParam),
-	    HLL_TODO_EXPORT(SetEffectObjectXRotationAngle, ReignEngine_SetEffectObjectXRotationAngle),
-	    HLL_TODO_EXPORT(SetEffectObjectYRotationAngle, ReignEngine_SetEffectObjectYRotationAngle),
-	    HLL_TODO_EXPORT(SetEffectObjectZRotationAngle, ReignEngine_SetEffectObjectZRotationAngle),
-	    HLL_TODO_EXPORT(SetEffectObjectXRevolutionAngle, ReignEngine_SetEffectObjectXRevolutionAngle),
-	    HLL_TODO_EXPORT(SetEffectObjectXRevolutionDistance, ReignEngine_SetEffectObjectXRevolutionDistance),
-	    HLL_TODO_EXPORT(SetEffectObjectYRevolutionAngle, ReignEngine_SetEffectObjectYRevolutionAngle),
-	    HLL_TODO_EXPORT(SetEffectObjectYRevolutionDistance, ReignEngine_SetEffectObjectYRevolutionDistance),
-	    HLL_TODO_EXPORT(SetEffectObjectZRevolutionAngle, ReignEngine_SetEffectObjectZRevolutionAngle),
-	    HLL_TODO_EXPORT(SetEffectObjectZRevolutionDistance, ReignEngine_SetEffectObjectZRevolutionDistance),
-	    HLL_EXPORT(GetEffectObjectCurveLength, ReignEngine_GetEffectObjectCurveLength),
-	    HLL_TODO_EXPORT(SetEffectObjectCurveLength, ReignEngine_SetEffectObjectCurveLength),
-	    HLL_EXPORT(GetEffectObjectChildFrame, ReignEngine_GetEffectObjectChildFrame),
-	    HLL_EXPORT(GetEffectObjectChildLength, ReignEngine_GetEffectObjectChildLength),
-	    HLL_EXPORT(GetEffectObjectChildBeginSlope, ReignEngine_GetEffectObjectChildBeginSlope),
-	    HLL_EXPORT(GetEffectObjectChildEndSlope, ReignEngine_GetEffectObjectChildEndSlope),
-	    HLL_EXPORT(GetEffectObjectChildCreateBeginFrame, ReignEngine_GetEffectObjectChildCreateBeginFrame),
-	    HLL_EXPORT(GetEffectObjectChildCreateEndFrame, ReignEngine_GetEffectObjectChildCreateEndFrame),
-	    HLL_EXPORT(GetEffectObjectChildMoveDirType, ReignEngine_GetEffectObjectChildMoveDirType),
-	    HLL_TODO_EXPORT(SetEffectObjectChildFrame, ReignEngine_SetEffectObjectChildFrame),
-	    HLL_TODO_EXPORT(SetEffectObjectChildLength, ReignEngine_SetEffectObjectChildLength),
-	    HLL_TODO_EXPORT(SetEffectObjectChildBeginSlope, ReignEngine_SetEffectObjectChildBeginSlope),
-	    HLL_TODO_EXPORT(SetEffectObjectChildEndSlope, ReignEngine_SetEffectObjectChildEndSlope),
-	    HLL_TODO_EXPORT(SetEffectObjectChildCreateBeginFrame, ReignEngine_SetEffectObjectChildCreateBeginFrame),
-	    HLL_TODO_EXPORT(SetEffectObjectChildCreateEndFrame, ReignEngine_SetEffectObjectChildCreateEndFrame),
-	    HLL_TODO_EXPORT(SetEffectObjectChildMoveDirType, ReignEngine_SetEffectObjectChildMoveDirType),
-	    HLL_EXPORT(GetEffectObjectDirType, ReignEngine_GetEffectObjectDirType),
-	    HLL_TODO_EXPORT(SetEffectObjectDirType, ReignEngine_SetEffectObjectDirType),
-	    HLL_EXPORT(GetEffectNumofObjectDamage, ReignEngine_GetEffectNumofObjectDamage),
-	    HLL_EXPORT(GetEffectObjectDamage, ReignEngine_GetEffectObjectDamage),
-	    HLL_TODO_EXPORT(SetEffectObjectDamage, ReignEngine_SetEffectObjectDamage),
-	    HLL_TODO_EXPORT(GetEffectObjectDraw, ReignEngine_GetEffectObjectDraw),
-	    HLL_TODO_EXPORT(SetEffectObjectDraw, ReignEngine_SetEffectObjectDraw),
-	    HLL_EXPORT(GetEffectObjectOffsetX, ReignEngine_GetEffectObjectOffsetX),
-	    HLL_EXPORT(GetEffectObjectOffsetY, ReignEngine_GetEffectObjectOffsetY),
-	    HLL_TODO_EXPORT(SetEffectObjectOffsetX, ReignEngine_SetEffectObjectOffsetX),
-	    HLL_TODO_EXPORT(SetEffectObjectOffsetY, ReignEngine_SetEffectObjectOffsetY),
-	    HLL_EXPORT(GetCameraQuakeEffectFlag, ReignEngine_GetCameraQuakeEffectFlag),
-	    HLL_EXPORT(SetCameraQuakeEffectFlag, ReignEngine_SetCameraQuakeEffectFlag),
-	    HLL_EXPORT(SetCameraPos, ReignEngine_SetCameraPos),
-	    HLL_EXPORT(SetCameraAngle, ReignEngine_SetCameraAngle),
-	    HLL_EXPORT(SetCameraAngleP, ReignEngine_SetCameraAngleP),
-	    HLL_EXPORT(SetCameraAngleB, ReignEngine_SetCameraAngleB),
-	    HLL_TODO_EXPORT(GetShadowBias, ReignEngine_GetShadowBias),
-	    HLL_TODO_EXPORT(GetShadowTargetDistance, ReignEngine_GetShadowTargetDistance),
-	    HLL_EXPORT(GetShadowMapResolutionLevel, ReignEngine_GetShadowMapResolutionLevel),
-	    HLL_TODO_EXPORT(GetShadowSplitDepth, ReignEngine_GetShadowSplitDepth),
-	    HLL_EXPORT(SetShadowMapType, ReignEngine_SetShadowMapType),
-	    HLL_EXPORT(SetShadowMapLightLookPos, ReignEngine_SetShadowMapLightLookPos),
-	    HLL_EXPORT(SetShadowMapLightDir, ReignEngine_SetShadowMapLightDir),
-	    HLL_EXPORT(SetShadowBox, ReignEngine_SetShadowBox),
-	    HLL_EXPORT(SetShadowBias, ReignEngine_SetShadowBias),
-	    HLL_TODO_EXPORT(SetShadowSlopeBias, ReignEngine_SetShadowSlopeBias),
-	    HLL_TODO_EXPORT(SetShadowFilterMag, ReignEngine_SetShadowFilterMag),
-	    HLL_TODO_EXPORT(SetShadowTargetDistance, ReignEngine_SetShadowTargetDistance),
-	    HLL_EXPORT(SetShadowMapResolutionLevel, ReignEngine_SetShadowMapResolutionLevel),
-	    HLL_TODO_EXPORT(SetShadowSplitDepth, ReignEngine_SetShadowSplitDepth),
-	    HLL_EXPORT(SetFogType, ReignEngine_SetFogType),
-	    HLL_EXPORT(SetFogNear, ReignEngine_SetFogNear),
-	    HLL_EXPORT(SetFogFar, ReignEngine_SetFogFar),
-	    HLL_EXPORT(SetFogColor, ReignEngine_SetFogColor),
-	    HLL_EXPORT(GetFogType, ReignEngine_GetFogType),
-	    HLL_EXPORT(GetFogNear, ReignEngine_GetFogNear),
-	    HLL_EXPORT(GetFogFar, ReignEngine_GetFogFar),
-	    HLL_EXPORT(GetFogColor, ReignEngine_GetFogColor),
-	    HLL_EXPORT(LoadLightScatteringSetting, ReignEngine_LoadLightScatteringSetting),
-	    HLL_EXPORT(GetLSBetaR, ReignEngine_GetLSBetaR),
-	    HLL_EXPORT(GetLSBetaM, ReignEngine_GetLSBetaM),
-	    HLL_EXPORT(GetLSG, ReignEngine_GetLSG),
-	    HLL_EXPORT(GetLSDistance, ReignEngine_GetLSDistance),
-	    HLL_EXPORT(GetLSLightDir, ReignEngine_GetLSLightDir),
-	    HLL_EXPORT(GetLSLightColor, ReignEngine_GetLSLightColor),
-	    HLL_EXPORT(GetLSSunColor, ReignEngine_GetLSSunColor),
-	    HLL_EXPORT(SetLSBetaR, ReignEngine_SetLSBetaR),
-	    HLL_EXPORT(SetLSBetaM, ReignEngine_SetLSBetaM),
-	    HLL_EXPORT(SetLSG, ReignEngine_SetLSG),
-	    HLL_EXPORT(SetLSDistance, ReignEngine_SetLSDistance),
-	    HLL_EXPORT(SetLSLightDir, ReignEngine_SetLSLightDir),
-	    HLL_EXPORT(SetLSLightColor, ReignEngine_SetLSLightColor),
-	    HLL_EXPORT(SetLSSunColor, ReignEngine_SetLSSunColor),
-	    HLL_TODO_EXPORT(SetDrawTextureFog, ReignEngine_SetDrawTextureFog),
-	    HLL_TODO_EXPORT(GetDrawTextureFog, ReignEngine_GetDrawTextureFog),
-	    HLL_EXPORT(SetOptionAntiAliasing, ReignEngine_SetOptionAntiAliasing),
-	    HLL_EXPORT(SetOptionWaitVSync, ReignEngine_SetOptionWaitVSync),
-	    HLL_EXPORT(GetOptionAntiAliasing, ReignEngine_GetOptionAntiAliasing),
-	    HLL_EXPORT(GetOptionWaitVSync, ReignEngine_GetOptionWaitVSync),
-	    HLL_TODO_EXPORT(SetViewport, ReignEngine_SetViewport),
-	    HLL_EXPORT(SetProjection, ReignEngine_SetProjection),
-	    HLL_TODO_EXPORT(GetBrightness, ReignEngine_GetBrightness),
-	    HLL_TODO_EXPORT(SetBrightness, ReignEngine_SetBrightness),
-	    HLL_EXPORT(SetRenderMode, ReignEngine_SetRenderMode),
-	    HLL_EXPORT(SetShadowMode, ReignEngine_SetShadowMode),
-	    HLL_EXPORT(SetBumpMode, ReignEngine_SetBumpMode),
-	    HLL_TODO_EXPORT(SetHDRMode, ReignEngine_SetHDRMode),
-	    HLL_EXPORT(SetVertexBlendMode, ReignEngine_SetVertexBlendMode),
-	    HLL_EXPORT(SetFogMode, ReignEngine_SetFogMode),
-	    HLL_EXPORT(SetSpecularMode, ReignEngine_SetSpecularMode),
-	    HLL_EXPORT(SetLightMapMode, ReignEngine_SetLightMapMode),
-	    HLL_EXPORT(SetSoftFogEdgeMode, ReignEngine_SetSoftFogEdgeMode),
-	    HLL_EXPORT(SetSSAOMode, ReignEngine_SetSSAOMode),
-	    HLL_EXPORT(SetShaderPrecisionMode, ReignEngine_SetShaderPrecisionMode),
-	    HLL_TODO_EXPORT(SetShaderDebugMode, ReignEngine_SetShaderDebugMode),
-	    HLL_EXPORT(GetRenderMode, ReignEngine_GetRenderMode),
-	    HLL_EXPORT(GetShadowMode, ReignEngine_GetShadowMode),
-	    HLL_EXPORT(GetBumpMode, ReignEngine_GetBumpMode),
-	    HLL_TODO_EXPORT(GetHDRMode, ReignEngine_GetHDRMode),
-	    HLL_EXPORT(GetVertexBlendMode, ReignEngine_GetVertexBlendMode),
-	    HLL_EXPORT(GetFogMode, ReignEngine_GetFogMode),
-	    HLL_EXPORT(GetSpecularMode, ReignEngine_GetSpecularMode),
-	    HLL_EXPORT(GetLightMapMode, ReignEngine_GetLightMapMode),
-	    HLL_EXPORT(GetSoftFogEdgeMode, ReignEngine_GetSoftFogEdgeMode),
-	    HLL_EXPORT(GetSSAOMode, ReignEngine_GetSSAOMode),
-	    HLL_EXPORT(GetShaderPrecisionMode, ReignEngine_GetShaderPrecisionMode),
-	    HLL_TODO_EXPORT(GetShaderDebugMode, ReignEngine_GetShaderDebugMode),
-	    HLL_EXPORT(GetTextureResolutionLevel, ReignEngine_GetTextureResolutionLevel),
-	    HLL_EXPORT(GetTextureFilterMode, ReignEngine_GetTextureFilterMode),
-	    HLL_EXPORT(SetTextureResolutionLevel, ReignEngine_SetTextureResolutionLevel),
-	    HLL_EXPORT(SetTextureFilterMode, ReignEngine_SetTextureFilterMode),
-	    HLL_EXPORT(GetUsePower2Texture, ReignEngine_GetUsePower2Texture),
-	    HLL_EXPORT(SetUsePower2Texture, ReignEngine_SetUsePower2Texture),
-	    HLL_EXPORT(GetGlobalAmbient, ReignEngine_GetGlobalAmbient),
-	    HLL_EXPORT(SetGlobalAmbient, ReignEngine_SetGlobalAmbient),
-	    HLL_EXPORT(GetBloomMode, ReignEngine_GetBloomMode),
-	    HLL_EXPORT(SetBloomMode, ReignEngine_SetBloomMode),
-	    HLL_EXPORT(GetGlareMode, ReignEngine_GetGlareMode),
-	    HLL_EXPORT(SetGlareMode, ReignEngine_SetGlareMode),
-	    HLL_EXPORT(GetPostEffectFilterY, ReignEngine_GetPostEffectFilterY),
-	    HLL_EXPORT(GetPostEffectFilterCb, ReignEngine_GetPostEffectFilterCb),
-	    HLL_EXPORT(GetPostEffectFilterCr, ReignEngine_GetPostEffectFilterCr),
-	    HLL_EXPORT(SetPostEffectFilterY, ReignEngine_SetPostEffectFilterY),
-	    HLL_EXPORT(SetPostEffectFilterCb, ReignEngine_SetPostEffectFilterCb),
-	    HLL_EXPORT(SetPostEffectFilterCr, ReignEngine_SetPostEffectFilterCr),
-	    HLL_EXPORT(GetBackCGName, ReignEngine_GetBackCGName),
-	    HLL_EXPORT(GetBackCGNum, ReignEngine_GetBackCGNum),
-	    HLL_EXPORT(GetBackCGBlendRate, ReignEngine_GetBackCGBlendRate),
-	    HLL_EXPORT(GetBackCGDestPosX, ReignEngine_GetBackCGDestPosX),
-	    HLL_EXPORT(GetBackCGDestPosY, ReignEngine_GetBackCGDestPosY),
-	    HLL_EXPORT(GetBackCGMag, ReignEngine_GetBackCGMag),
-	    HLL_TODO_EXPORT(GetBackCGQuakeMag, ReignEngine_GetBackCGQuakeMag),
-	    HLL_EXPORT(GetBackCGShow, ReignEngine_GetBackCGShow),
-	    HLL_EXPORT(SetBackCGName, ReignEngine_SetBackCGName),
-	    HLL_EXPORT(SetBackCGNum, ReignEngine_SetBackCGNum),
-	    HLL_EXPORT(SetBackCGBlendRate, ReignEngine_SetBackCGBlendRate),
-	    HLL_EXPORT(SetBackCGDestPos, ReignEngine_SetBackCGDestPos),
-	    HLL_EXPORT(SetBackCGMag, ReignEngine_SetBackCGMag),
-	    HLL_TODO_EXPORT(SetBackCGQuakeMag, ReignEngine_SetBackCGQuakeMag),
-	    HLL_EXPORT(SetBackCGShow, ReignEngine_SetBackCGShow),
-	    HLL_TODO_EXPORT(GetGlareBrightnessParam, ReignEngine_GetGlareBrightnessParam),
-	    HLL_EXPORT(SetGlareBrightnessParam, ReignEngine_SetGlareBrightnessParam),
-	    HLL_TODO_EXPORT(GetSSAOParam, ReignEngine_GetSSAOParam),
-	    HLL_EXPORT(SetSSAOParam, ReignEngine_SetSSAOParam),
-	    HLL_TODO_EXPORT(CalcIntersectEyeVec, ReignEngine_CalcIntersectEyeVec),
-	    HLL_EXPORT(IsLoading, ReignEngine_IsLoading),
-	    HLL_TODO_EXPORT(GetDebugInfoMode, ReignEngine_GetDebugInfoMode),
-	    HLL_TODO_EXPORT(SetDebugInfoMode, ReignEngine_SetDebugInfoMode),
-	    HLL_EXPORT(GetVertexShaderVersion, ReignEngine_GetVertexShaderVersion),
-	    HLL_EXPORT(GetPixelShaderVersion, ReignEngine_GetPixelShaderVersion),
-	    HLL_EXPORT(SetInstanceSpecularReflectRate, ReignEngine_SetInstanceSpecularReflectRate),
-	    HLL_EXPORT(SetInstanceFresnelReflectRate, ReignEngine_SetInstanceFresnelReflectRate),
-	    HLL_TODO_EXPORT(GetInstanceSpecularReflectRate, ReignEngine_GetInstanceSpecularReflectRate),
-	    HLL_TODO_EXPORT(GetInstanceFresnelReflectRate, ReignEngine_GetInstanceFresnelReflectRate),
-	    HLL_TODO_EXPORT(StringToFloat, ReignEngine_StringToFloat),
+static int TapirEngine_CreatePlugin(void)
+{
+	return create_plugin(RE_TAPIR_PLUGIN);
+}
+
+HLL_WARN_UNIMPLEMENTED(false, bool, TapirEngine, SetInstanceDrawParam, int plugin_number, int instance_number, int draw_param, int value);
+//bool TapirEngine_GetInstanceDrawParam(int PluginNumber, int InstanceNumber, int DrawParam, int *Value);
+HLL_WARN_UNIMPLEMENTED(0.0f, float, TapirEngine, CalcInstance2DDetectionHeight, int plugin_number, int instance_number, float x, float z);
+//bool TapirEngine_CalcInstance2DDetection(int PluginNumber, int InstanceNumber, float X0, float Y0, float Z0, float X1, float Y1, float Z1, float *X2, float *Y2, float *Z2, float Radius);
+//bool TapirEngine_FindInstancePath(int PluginNumber, int InstanceNumber, float StartX, float StartY, float StartZ, float GoalX, float GoalY, float GoalZ);
+//bool TapirEngine_CalcPathFinderIntersectEyeVec(int nPlugin, int nInstance, int nMouseX, int nMouseY, float *pfX, float *pfY, float *pfZ);
+//bool TapirEngine_OptimizeInstancePathLine(int PluginNumber, int InstanceNumber);
+//bool TapirEngine_GetInstancePathLine(int PluginNumber, int InstanceNumber, struct page **pIXArray, struct page **pIYArray, struct page **pIZArray);
+//bool TapirEngine_CreateInstancePathLineList(int PluginNumber, int InstanceNumber, int PathInstanceNumber);
+//bool TapirEngine_SetInstanceMeshShow(int PluginNumber, int InstanceNumber, struct string *pIMeshName, bool Show);
+
+static bool TapirEngine_SetDrawOption(int plugin_number, int draw_option, int param)
+{
+	struct RE_plugin *p = get_plugin(plugin_number);
+	if (!p)
+		return false;
+	if ((unsigned)draw_option >= RE_DRAW_OPTION_MAX) {
+		WARNING("DrawOption out of range: %d", draw_option);
+		return false;
+	}
+	p->draw_options[draw_option] = param;
+	return true;
+}
+
+static int TapirEngine_GetDrawOption(int plugin_number, int draw_option)
+{
+	struct RE_plugin *p = get_plugin(plugin_number);
+	if (!p)
+		return false;
+	if ((unsigned)draw_option >= RE_DRAW_OPTION_MAX) {
+		WARNING("DrawOption out of range: %d", draw_option);
+		return false;
+	}
+	return p->draw_options[draw_option];
+}
+
+//bool TapirEngine_SetDebugMode(int Plugin, int DebugModeType, int Mode);
+//int TapirEngine_GetDebugMode(int Plugin, int DebugModeType);
+HLL_WARN_UNIMPLEMENTED(false, bool, TapirEngine, SetThreadLoadingMode, int plugin_number, bool thread_loading_mode);
+
+static bool TapirEngine_Suspend(int plugin_number)
+{
+	struct RE_plugin *p = get_plugin(plugin_number);
+	if (!p)
+		return false;
+	p->suspended = true;
+	return true;
+}
+
+static bool TapirEngine_IsSuspend(int plugin_number)
+{
+	struct RE_plugin *p = get_plugin(plugin_number);
+	return p && p->suspended;
+}
+
+static bool TapirEngine_Resume(int plugin_number)
+{
+	struct RE_plugin *p = get_plugin(plugin_number);
+	if (!p)
+		return false;
+	p->suspended = false;
+	return true;
+}
+
+//int TapirEngine_GetNumofPlugin(void);
+//bool TapirEngine_IsExistPlugin(int PluginNumber);
+//int TapirEngine_GetNumofInstance(int PluginNumber);
+
+#define REIGN_EXPORTS \
+	    HLL_EXPORT(ReleasePlugin, ReignEngine_ReleasePlugin), \
+	    HLL_EXPORT(BindPlugin, ReignEngine_BindPlugin), \
+	    HLL_EXPORT(UnbindPlugin, ReignEngine_UnbindPlugin), \
+	    HLL_EXPORT(BuildModel, ReignEngine_BuildModel), \
+	    HLL_EXPORT(CreateInstance, ReignEngine_CreateInstance), \
+	    HLL_EXPORT(ReleaseInstance, ReignEngine_ReleaseInstance), \
+	    HLL_EXPORT(LoadInstance, ReignEngine_LoadInstance), \
+	    HLL_EXPORT(SetInstanceType, ReignEngine_SetInstanceType), \
+	    HLL_EXPORT(SetInstancePos, ReignEngine_SetInstancePos), \
+	    HLL_EXPORT(SetInstanceVector, ReignEngine_SetInstanceVector), \
+	    HLL_EXPORT(SetInstanceAngle, ReignEngine_SetInstanceAngle), \
+	    HLL_EXPORT(SetInstanceAngleP, ReignEngine_SetInstanceAngleP), \
+	    HLL_EXPORT(SetInstanceAngleB, ReignEngine_SetInstanceAngleB), \
+	    HLL_EXPORT(GetInstanceScaleX, ReignEngine_GetInstanceScaleX), \
+	    HLL_EXPORT(GetInstanceScaleY, ReignEngine_GetInstanceScaleY), \
+	    HLL_EXPORT(GetInstanceScaleZ, ReignEngine_GetInstanceScaleZ), \
+	    HLL_EXPORT(SetInstanceScaleX, ReignEngine_SetInstanceScaleX), \
+	    HLL_EXPORT(SetInstanceScaleY, ReignEngine_SetInstanceScaleY), \
+	    HLL_EXPORT(SetInstanceScaleZ, ReignEngine_SetInstanceScaleZ), \
+	    HLL_TODO_EXPORT(SetInstanceZBias, ReignEngine_SetInstanceZBias), \
+	    HLL_TODO_EXPORT(GetInstanceZBias, ReignEngine_GetInstanceZBias), \
+	    HLL_EXPORT(SetInstanceVertexPos, ReignEngine_SetInstanceVertexPos), \
+	    HLL_EXPORT(SetInstanceDiffuse, ReignEngine_SetInstanceDiffuse), \
+	    HLL_EXPORT(SetInstanceGlobeDiffuse, ReignEngine_SetInstanceGlobeDiffuse), \
+	    HLL_EXPORT(SetInstanceAmbient, ReignEngine_SetInstanceAmbient), \
+	    HLL_TODO_EXPORT(SetInstanceSpecular, ReignEngine_SetInstanceSpecular), \
+	    HLL_EXPORT(SetInstanceAlpha, ReignEngine_SetInstanceAlpha), \
+	    HLL_TODO_EXPORT(SetInstanceAttenuationNear, ReignEngine_SetInstanceAttenuationNear), \
+	    HLL_TODO_EXPORT(SetInstanceAttenuationFar, ReignEngine_SetInstanceAttenuationFar), \
+	    HLL_EXPORT(SetInstanceDraw, ReignEngine_SetInstanceDraw), \
+	    HLL_EXPORT(SetInstanceDrawShadow, ReignEngine_SetInstanceDrawShadow), \
+	    HLL_EXPORT(SetInstanceDrawBackShadow, ReignEngine_SetInstanceDrawBackShadow), \
+	    HLL_EXPORT(SetInstanceDrawMakeShadow, ReignEngine_SetInstanceDrawMakeShadow), \
+	    HLL_EXPORT(SetInstanceDrawBump, ReignEngine_SetInstanceDrawBump), \
+	    HLL_EXPORT(GetInstanceDraw, ReignEngine_GetInstanceDraw), \
+	    HLL_EXPORT(GetInstanceDrawShadow, ReignEngine_GetInstanceDrawShadow), \
+	    HLL_TODO_EXPORT(GetInstanceDrawBackShadow, ReignEngine_GetInstanceDrawBackShadow), \
+	    HLL_EXPORT(GetInstanceDrawMakeShadow, ReignEngine_GetInstanceDrawMakeShadow), \
+	    HLL_EXPORT(GetInstanceDrawBump, ReignEngine_GetInstanceDrawBump), \
+	    HLL_EXPORT(GetInstanceDrawType, ReignEngine_GetInstanceDrawType), \
+	    HLL_EXPORT(SetInstanceDrawType, ReignEngine_SetInstanceDrawType), \
+	    HLL_EXPORT(LoadInstanceMotion, ReignEngine_LoadInstanceMotion), \
+	    HLL_EXPORT(GetInstanceMotionState, ReignEngine_GetInstanceMotionState), \
+	    HLL_EXPORT(GetInstanceMotionFrame, ReignEngine_GetInstanceMotionFrame), \
+	    HLL_EXPORT(SetInstanceMotionState, ReignEngine_SetInstanceMotionState), \
+	    HLL_EXPORT(SetInstanceMotionFrame, ReignEngine_SetInstanceMotionFrame), \
+	    HLL_EXPORT(SetInstanceMotionFrameRange, ReignEngine_SetInstanceMotionFrameRange), \
+	    HLL_EXPORT(SetInstanceMotionLoopFrameRange, ReignEngine_SetInstanceMotionLoopFrameRange), \
+	    HLL_EXPORT(LoadInstanceNextMotion, ReignEngine_LoadInstanceNextMotion), \
+	    HLL_EXPORT(SetInstanceNextMotionState, ReignEngine_SetInstanceNextMotionState), \
+	    HLL_EXPORT(SetInstanceNextMotionFrame, ReignEngine_SetInstanceNextMotionFrame), \
+	    HLL_EXPORT(SetInstanceNextMotionFrameRange, ReignEngine_SetInstanceNextMotionFrameRange), \
+	    HLL_EXPORT(SetInstanceNextMotionLoopFrameRange, ReignEngine_SetInstanceNextMotionLoopFrameRange), \
+	    HLL_EXPORT(SetInstanceMotionBlendRate, ReignEngine_SetInstanceMotionBlendRate), \
+	    HLL_EXPORT(SetInstanceMotionBlend, ReignEngine_SetInstanceMotionBlend), \
+	    HLL_EXPORT(IsInstanceMotionBlend, ReignEngine_IsInstanceMotionBlend), \
+	    HLL_TODO_EXPORT(GetInstanceMotionBlendPutTime, ReignEngine_GetInstanceMotionBlendPutTime), \
+	    HLL_EXPORT(SetInstanceMotionBlendPutTime, ReignEngine_SetInstanceMotionBlendPutTime), \
+	    HLL_EXPORT(SwapInstanceMotion, ReignEngine_SwapInstanceMotion), \
+	    HLL_EXPORT(FreeInstanceNextMotion, ReignEngine_FreeInstanceNextMotion), \
+	    HLL_TODO_EXPORT(GetInstanceNumofMaterial, ReignEngine_GetInstanceNumofMaterial), \
+	    HLL_TODO_EXPORT(GetInstanceMaterialName, ReignEngine_GetInstanceMaterialName), \
+	    HLL_TODO_EXPORT(GetInstanceMaterialParam, ReignEngine_GetInstanceMaterialParam), \
+	    HLL_TODO_EXPORT(SetInstanceMaterialParam, ReignEngine_SetInstanceMaterialParam), \
+	    HLL_TODO_EXPORT(SaveInstanceAddMaterialData, ReignEngine_SaveInstanceAddMaterialData), \
+	    HLL_TODO_EXPORT(SetInstancePointPos, ReignEngine_SetInstancePointPos), \
+	    HLL_TODO_EXPORT(GetInstancePointPos, ReignEngine_GetInstancePointPos), \
+	    HLL_EXPORT(GetInstanceColumnPos, ReignEngine_GetInstanceColumnPos), \
+	    HLL_EXPORT(GetInstanceColumnHeight, ReignEngine_GetInstanceColumnHeight), \
+	    HLL_EXPORT(GetInstanceColumnRadius, ReignEngine_GetInstanceColumnRadius), \
+	    HLL_EXPORT(GetInstanceColumnAngle, ReignEngine_GetInstanceColumnAngle), \
+	    HLL_TODO_EXPORT(GetInstanceColumnAngleP, ReignEngine_GetInstanceColumnAngleP), \
+	    HLL_TODO_EXPORT(GetInstanceColumnAngleB, ReignEngine_GetInstanceColumnAngleB), \
+	    HLL_EXPORT(SetInstanceColumnPos, ReignEngine_SetInstanceColumnPos), \
+	    HLL_EXPORT(SetInstanceColumnHeight, ReignEngine_SetInstanceColumnHeight), \
+	    HLL_EXPORT(SetInstanceColumnRadius, ReignEngine_SetInstanceColumnRadius), \
+	    HLL_EXPORT(SetInstanceColumnAngle, ReignEngine_SetInstanceColumnAngle), \
+	    HLL_TODO_EXPORT(SetInstanceColumnAngleP, ReignEngine_SetInstanceColumnAngleP), \
+	    HLL_TODO_EXPORT(SetInstanceColumnAngleB, ReignEngine_SetInstanceColumnAngleB), \
+	    HLL_TODO_EXPORT(GetInstanceDrawColumn, ReignEngine_GetInstanceDrawColumn), \
+	    HLL_TODO_EXPORT(SetInstanceDrawColumn, ReignEngine_SetInstanceDrawColumn), \
+	    HLL_EXPORT(SetInstanceTarget, ReignEngine_SetInstanceTarget), \
+	    HLL_EXPORT(GetInstanceTarget, ReignEngine_GetInstanceTarget), \
+	    HLL_EXPORT(GetInstanceFPS, ReignEngine_GetInstanceFPS), \
+	    HLL_EXPORT(SetInstanceFPS, ReignEngine_SetInstanceFPS), \
+	    HLL_EXPORT(GetInstanceBoneIndex, ReignEngine_GetInstanceBoneIndex), \
+	    HLL_EXPORT(TransInstanceLocalPosToWorldPosByBone, ReignEngine_TransInstanceLocalPosToWorldPosByBone), \
+	    HLL_TODO_EXPORT(GetInstanceNumofPolygon, ReignEngine_GetInstanceNumofPolygon), \
+	    HLL_TODO_EXPORT(GetInstanceTextureMemorySize, ReignEngine_GetInstanceTextureMemorySize), \
+	    HLL_TODO_EXPORT(GetInstanceInfoText, ReignEngine_GetInstanceInfoText), \
+	    HLL_TODO_EXPORT(GetInstanceMaterialInfoText, ReignEngine_GetInstanceMaterialInfoText), \
+	    HLL_EXPORT(CalcInstanceHeightDetection, ReignEngine_CalcInstanceHeightDetection), \
+	    HLL_TODO_EXPORT(GetInstanceSoftFogEdgeLength, ReignEngine_GetInstanceSoftFogEdgeLength), \
+	    HLL_EXPORT(SetInstanceSoftFogEdgeLength, ReignEngine_SetInstanceSoftFogEdgeLength), \
+	    HLL_EXPORT(GetInstanceShadowVolumeBoneRadius, ReignEngine_GetInstanceShadowVolumeBoneRadius), \
+	    HLL_EXPORT(SetInstanceShadowVolumeBoneRadius, ReignEngine_SetInstanceShadowVolumeBoneRadius), \
+	    HLL_EXPORT(GetInstanceDebugDrawShadowVolume, ReignEngine_GetInstanceDebugDrawShadowVolume), \
+	    HLL_EXPORT(SetInstanceDebugDrawShadowVolume, ReignEngine_SetInstanceDebugDrawShadowVolume), \
+	    HLL_TODO_EXPORT(SaveEffect, ReignEngine_SaveEffect), \
+	    HLL_EXPORT(GetEffectFrameRange, ReignEngine_GetEffectFrameRange), \
+	    HLL_EXPORT(GetEffectObjectType, ReignEngine_GetEffectObjectType), \
+	    HLL_EXPORT(GetEffectObjectMoveType, ReignEngine_GetEffectObjectMoveType), \
+	    HLL_EXPORT(GetEffectObjectUpVecType, ReignEngine_GetEffectObjectUpVecType), \
+	    HLL_EXPORT(GetEffectObjectMoveCurve, ReignEngine_GetEffectObjectMoveCurve), \
+	    HLL_EXPORT(GetEffectObjectFrame, ReignEngine_GetEffectObjectFrame), \
+	    HLL_EXPORT(GetEffectObjectStopFrame, ReignEngine_GetEffectObjectStopFrame), \
+	    HLL_EXPORT(GetEffectNumofObject, ReignEngine_GetEffectNumofObject), \
+	    HLL_EXPORT(GetEffectObjectName, ReignEngine_GetEffectObjectName), \
+	    HLL_EXPORT(GetEffectNumofObjectPos, ReignEngine_GetEffectNumofObjectPos), \
+	    HLL_EXPORT(GetEffectNumofObjectPosUnit, ReignEngine_GetEffectNumofObjectPosUnit), \
+	    HLL_EXPORT(GetEffectObjectPosUnitType, ReignEngine_GetEffectObjectPosUnitType), \
+	    HLL_EXPORT(GetEffectObjectPosUnitIndex, ReignEngine_GetEffectObjectPosUnitIndex), \
+	    HLL_TODO_EXPORT(GetEffectNumofObjectPosUnitParam, ReignEngine_GetEffectNumofObjectPosUnitParam), \
+	    HLL_TODO_EXPORT(GetEffectObjectPosUnitParam, ReignEngine_GetEffectObjectPosUnitParam), \
+	    HLL_TODO_EXPORT(GetEffectNumofObjectPosUnitString, ReignEngine_GetEffectNumofObjectPosUnitString), \
+	    HLL_TODO_EXPORT(GetEffectObjectPosUnitString, ReignEngine_GetEffectObjectPosUnitString), \
+	    HLL_EXPORT(GetEffectNumofObjectTexture, ReignEngine_GetEffectNumofObjectTexture), \
+	    HLL_EXPORT(GetEffectObjectTexture, ReignEngine_GetEffectObjectTexture), \
+	    HLL_EXPORT(GetEffectObjectSize, ReignEngine_GetEffectObjectSize), \
+	    HLL_EXPORT(GetEffectObjectSize2, ReignEngine_GetEffectObjectSize2), \
+	    HLL_EXPORT(GetEffectObjectSizeX, ReignEngine_GetEffectObjectSizeX), \
+	    HLL_EXPORT(GetEffectObjectSizeY, ReignEngine_GetEffectObjectSizeY), \
+	    HLL_EXPORT(GetEffectObjectSizeType, ReignEngine_GetEffectObjectSizeType), \
+	    HLL_EXPORT(GetEffectObjectSizeXType, ReignEngine_GetEffectObjectSizeXType), \
+	    HLL_EXPORT(GetEffectObjectSizeYType, ReignEngine_GetEffectObjectSizeYType), \
+	    HLL_EXPORT(GetEffectNumofObjectSize2, ReignEngine_GetEffectNumofObjectSize2), \
+	    HLL_EXPORT(GetEffectNumofObjectSizeX, ReignEngine_GetEffectNumofObjectSizeX), \
+	    HLL_EXPORT(GetEffectNumofObjectSizeY, ReignEngine_GetEffectNumofObjectSizeY), \
+	    HLL_EXPORT(GetEffectNumofObjectSizeType, ReignEngine_GetEffectNumofObjectSizeType), \
+	    HLL_EXPORT(GetEffectNumofObjectSizeXType, ReignEngine_GetEffectNumofObjectSizeXType), \
+	    HLL_EXPORT(GetEffectNumofObjectSizeYType, ReignEngine_GetEffectNumofObjectSizeYType), \
+	    HLL_EXPORT(GetEffectObjectBlendType, ReignEngine_GetEffectObjectBlendType), \
+	    HLL_EXPORT(GetEffectObjectPolygonName, ReignEngine_GetEffectObjectPolygonName), \
+	    HLL_EXPORT(GetEffectNumofObjectParticle, ReignEngine_GetEffectNumofObjectParticle), \
+	    HLL_EXPORT(GetEffectObjectAlphaFadeInTime, ReignEngine_GetEffectObjectAlphaFadeInTime), \
+	    HLL_EXPORT(GetEffectObjectAlphaFadeOutTime, ReignEngine_GetEffectObjectAlphaFadeOutTime), \
+	    HLL_EXPORT(GetEffectObjectTextureAnimeTime, ReignEngine_GetEffectObjectTextureAnimeTime), \
+	    HLL_EXPORT(GetEffectObjectAlphaFadeInFrame, ReignEngine_GetEffectObjectAlphaFadeInFrame), \
+	    HLL_EXPORT(GetEffectObjectAlphaFadeOutFrame, ReignEngine_GetEffectObjectAlphaFadeOutFrame), \
+	    HLL_EXPORT(GetEffectObjectTextureAnimeFrame, ReignEngine_GetEffectObjectTextureAnimeFrame), \
+	    HLL_EXPORT(GetEffectObjectFrameReferenceType, ReignEngine_GetEffectObjectFrameReferenceType), \
+	    HLL_EXPORT(GetEffectObjectFrameReferenceParam, ReignEngine_GetEffectObjectFrameReferenceParam), \
+	    HLL_EXPORT(GetEffectObjectXRotationAngle, ReignEngine_GetEffectObjectXRotationAngle), \
+	    HLL_EXPORT(GetEffectObjectYRotationAngle, ReignEngine_GetEffectObjectYRotationAngle), \
+	    HLL_EXPORT(GetEffectObjectZRotationAngle, ReignEngine_GetEffectObjectZRotationAngle), \
+	    HLL_EXPORT(GetEffectObjectXRevolutionAngle, ReignEngine_GetEffectObjectXRevolutionAngle), \
+	    HLL_EXPORT(GetEffectObjectXRevolutionDistance, ReignEngine_GetEffectObjectXRevolutionDistance), \
+	    HLL_EXPORT(GetEffectObjectYRevolutionAngle, ReignEngine_GetEffectObjectYRevolutionAngle), \
+	    HLL_EXPORT(GetEffectObjectYRevolutionDistance, ReignEngine_GetEffectObjectYRevolutionDistance), \
+	    HLL_EXPORT(GetEffectObjectZRevolutionAngle, ReignEngine_GetEffectObjectZRevolutionAngle), \
+	    HLL_EXPORT(GetEffectObjectZRevolutionDistance, ReignEngine_GetEffectObjectZRevolutionDistance), \
+	    HLL_TODO_EXPORT(AddEffectObject, ReignEngine_AddEffectObject), \
+	    HLL_TODO_EXPORT(DeleteEffectObject, ReignEngine_DeleteEffectObject), \
+	    HLL_TODO_EXPORT(SetEffectObjectName, ReignEngine_SetEffectObjectName), \
+	    HLL_TODO_EXPORT(SetEffectObjectType, ReignEngine_SetEffectObjectType), \
+	    HLL_TODO_EXPORT(SetEffectObjectMoveType, ReignEngine_SetEffectObjectMoveType), \
+	    HLL_TODO_EXPORT(SetEffectObjectUpVecType, ReignEngine_SetEffectObjectUpVecType), \
+	    HLL_TODO_EXPORT(SetEffectObjectMoveCurve, ReignEngine_SetEffectObjectMoveCurve), \
+	    HLL_TODO_EXPORT(SetEffectObjectFrame, ReignEngine_SetEffectObjectFrame), \
+	    HLL_TODO_EXPORT(SetEffectObjectStopFrame, ReignEngine_SetEffectObjectStopFrame), \
+	    HLL_TODO_EXPORT(SetEffectObjectPosUnitType, ReignEngine_SetEffectObjectPosUnitType), \
+	    HLL_TODO_EXPORT(SetEffectObjectPosUnitIndex, ReignEngine_SetEffectObjectPosUnitIndex), \
+	    HLL_TODO_EXPORT(SetEffectObjectPosUnitParam, ReignEngine_SetEffectObjectPosUnitParam), \
+	    HLL_TODO_EXPORT(SetEffectObjectPosUnitString, ReignEngine_SetEffectObjectPosUnitString), \
+	    HLL_TODO_EXPORT(SetEffectObjectTexture, ReignEngine_SetEffectObjectTexture), \
+	    HLL_TODO_EXPORT(SetEffectObjectSize, ReignEngine_SetEffectObjectSize), \
+	    HLL_TODO_EXPORT(SetEffectObjectSize2, ReignEngine_SetEffectObjectSize2), \
+	    HLL_TODO_EXPORT(SetEffectObjectSizeX, ReignEngine_SetEffectObjectSizeX), \
+	    HLL_TODO_EXPORT(SetEffectObjectSizeY, ReignEngine_SetEffectObjectSizeY), \
+	    HLL_TODO_EXPORT(SetEffectObjectSizeType, ReignEngine_SetEffectObjectSizeType), \
+	    HLL_TODO_EXPORT(SetEffectObjectSizeXType, ReignEngine_SetEffectObjectSizeXType), \
+	    HLL_TODO_EXPORT(SetEffectObjectSizeYType, ReignEngine_SetEffectObjectSizeYType), \
+	    HLL_TODO_EXPORT(SetEffectObjectBlendType, ReignEngine_SetEffectObjectBlendType), \
+	    HLL_TODO_EXPORT(SetEffectObjectPolygonName, ReignEngine_SetEffectObjectPolygonName), \
+	    HLL_TODO_EXPORT(SetEffectNumofObjectParticle, ReignEngine_SetEffectNumofObjectParticle), \
+	    HLL_TODO_EXPORT(SetEffectObjectAlphaFadeInTime, ReignEngine_SetEffectObjectAlphaFadeInTime), \
+	    HLL_TODO_EXPORT(SetEffectObjectAlphaFadeOutTime, ReignEngine_SetEffectObjectAlphaFadeOutTime), \
+	    HLL_TODO_EXPORT(SetEffectObjectTextureAnimeTime, ReignEngine_SetEffectObjectTextureAnimeTime), \
+	    HLL_TODO_EXPORT(SetEffectObjectAlphaFadeInFrame, ReignEngine_SetEffectObjectAlphaFadeInFrame), \
+	    HLL_TODO_EXPORT(SetEffectObjectAlphaFadeOutFrame, ReignEngine_SetEffectObjectAlphaFadeOutFrame), \
+	    HLL_TODO_EXPORT(SetEffectObjectTextureAnimeFrame, ReignEngine_SetEffectObjectTextureAnimeFrame), \
+	    HLL_TODO_EXPORT(SetEffectObjectFrameReferenceType, ReignEngine_SetEffectObjectFrameReferenceType), \
+	    HLL_TODO_EXPORT(SetEffectObjectFrameReferenceParam, ReignEngine_SetEffectObjectFrameReferenceParam), \
+	    HLL_TODO_EXPORT(SetEffectObjectXRotationAngle, ReignEngine_SetEffectObjectXRotationAngle), \
+	    HLL_TODO_EXPORT(SetEffectObjectYRotationAngle, ReignEngine_SetEffectObjectYRotationAngle), \
+	    HLL_TODO_EXPORT(SetEffectObjectZRotationAngle, ReignEngine_SetEffectObjectZRotationAngle), \
+	    HLL_TODO_EXPORT(SetEffectObjectXRevolutionAngle, ReignEngine_SetEffectObjectXRevolutionAngle), \
+	    HLL_TODO_EXPORT(SetEffectObjectXRevolutionDistance, ReignEngine_SetEffectObjectXRevolutionDistance), \
+	    HLL_TODO_EXPORT(SetEffectObjectYRevolutionAngle, ReignEngine_SetEffectObjectYRevolutionAngle), \
+	    HLL_TODO_EXPORT(SetEffectObjectYRevolutionDistance, ReignEngine_SetEffectObjectYRevolutionDistance), \
+	    HLL_TODO_EXPORT(SetEffectObjectZRevolutionAngle, ReignEngine_SetEffectObjectZRevolutionAngle), \
+	    HLL_TODO_EXPORT(SetEffectObjectZRevolutionDistance, ReignEngine_SetEffectObjectZRevolutionDistance), \
+	    HLL_EXPORT(GetEffectObjectCurveLength, ReignEngine_GetEffectObjectCurveLength), \
+	    HLL_TODO_EXPORT(SetEffectObjectCurveLength, ReignEngine_SetEffectObjectCurveLength), \
+	    HLL_EXPORT(GetEffectObjectChildFrame, ReignEngine_GetEffectObjectChildFrame), \
+	    HLL_EXPORT(GetEffectObjectChildLength, ReignEngine_GetEffectObjectChildLength), \
+	    HLL_EXPORT(GetEffectObjectChildBeginSlope, ReignEngine_GetEffectObjectChildBeginSlope), \
+	    HLL_EXPORT(GetEffectObjectChildEndSlope, ReignEngine_GetEffectObjectChildEndSlope), \
+	    HLL_EXPORT(GetEffectObjectChildCreateBeginFrame, ReignEngine_GetEffectObjectChildCreateBeginFrame), \
+	    HLL_EXPORT(GetEffectObjectChildCreateEndFrame, ReignEngine_GetEffectObjectChildCreateEndFrame), \
+	    HLL_EXPORT(GetEffectObjectChildMoveDirType, ReignEngine_GetEffectObjectChildMoveDirType), \
+	    HLL_TODO_EXPORT(SetEffectObjectChildFrame, ReignEngine_SetEffectObjectChildFrame), \
+	    HLL_TODO_EXPORT(SetEffectObjectChildLength, ReignEngine_SetEffectObjectChildLength), \
+	    HLL_TODO_EXPORT(SetEffectObjectChildBeginSlope, ReignEngine_SetEffectObjectChildBeginSlope), \
+	    HLL_TODO_EXPORT(SetEffectObjectChildEndSlope, ReignEngine_SetEffectObjectChildEndSlope), \
+	    HLL_TODO_EXPORT(SetEffectObjectChildCreateBeginFrame, ReignEngine_SetEffectObjectChildCreateBeginFrame), \
+	    HLL_TODO_EXPORT(SetEffectObjectChildCreateEndFrame, ReignEngine_SetEffectObjectChildCreateEndFrame), \
+	    HLL_TODO_EXPORT(SetEffectObjectChildMoveDirType, ReignEngine_SetEffectObjectChildMoveDirType), \
+	    HLL_EXPORT(GetEffectObjectDirType, ReignEngine_GetEffectObjectDirType), \
+	    HLL_TODO_EXPORT(SetEffectObjectDirType, ReignEngine_SetEffectObjectDirType), \
+	    HLL_EXPORT(GetEffectNumofObjectDamage, ReignEngine_GetEffectNumofObjectDamage), \
+	    HLL_EXPORT(GetEffectObjectDamage, ReignEngine_GetEffectObjectDamage), \
+	    HLL_TODO_EXPORT(SetEffectObjectDamage, ReignEngine_SetEffectObjectDamage), \
+	    HLL_TODO_EXPORT(GetEffectObjectDraw, ReignEngine_GetEffectObjectDraw), \
+	    HLL_TODO_EXPORT(SetEffectObjectDraw, ReignEngine_SetEffectObjectDraw), \
+	    HLL_EXPORT(GetEffectObjectOffsetX, ReignEngine_GetEffectObjectOffsetX), \
+	    HLL_EXPORT(GetEffectObjectOffsetY, ReignEngine_GetEffectObjectOffsetY), \
+	    HLL_TODO_EXPORT(SetEffectObjectOffsetX, ReignEngine_SetEffectObjectOffsetX), \
+	    HLL_TODO_EXPORT(SetEffectObjectOffsetY, ReignEngine_SetEffectObjectOffsetY), \
+	    HLL_EXPORT(GetCameraQuakeEffectFlag, ReignEngine_GetCameraQuakeEffectFlag), \
+	    HLL_EXPORT(SetCameraQuakeEffectFlag, ReignEngine_SetCameraQuakeEffectFlag), \
+	    HLL_EXPORT(SetCameraPos, ReignEngine_SetCameraPos), \
+	    HLL_EXPORT(SetCameraAngle, ReignEngine_SetCameraAngle), \
+	    HLL_EXPORT(SetCameraAngleP, ReignEngine_SetCameraAngleP), \
+	    HLL_EXPORT(SetCameraAngleB, ReignEngine_SetCameraAngleB), \
+	    HLL_TODO_EXPORT(GetShadowBias, ReignEngine_GetShadowBias), \
+	    HLL_TODO_EXPORT(GetShadowTargetDistance, ReignEngine_GetShadowTargetDistance), \
+	    HLL_EXPORT(GetShadowMapResolutionLevel, ReignEngine_GetShadowMapResolutionLevel), \
+	    HLL_TODO_EXPORT(GetShadowSplitDepth, ReignEngine_GetShadowSplitDepth), \
+	    HLL_EXPORT(SetShadowMapType, ReignEngine_SetShadowMapType), \
+	    HLL_EXPORT(SetShadowMapLightLookPos, ReignEngine_SetShadowMapLightLookPos), \
+	    HLL_EXPORT(SetShadowMapLightDir, ReignEngine_SetShadowMapLightDir), \
+	    HLL_EXPORT(SetShadowBox, ReignEngine_SetShadowBox), \
+	    HLL_EXPORT(SetShadowBias, ReignEngine_SetShadowBias), \
+	    HLL_TODO_EXPORT(SetShadowSlopeBias, ReignEngine_SetShadowSlopeBias), \
+	    HLL_TODO_EXPORT(SetShadowFilterMag, ReignEngine_SetShadowFilterMag), \
+	    HLL_TODO_EXPORT(SetShadowTargetDistance, ReignEngine_SetShadowTargetDistance), \
+	    HLL_EXPORT(SetShadowMapResolutionLevel, ReignEngine_SetShadowMapResolutionLevel), \
+	    HLL_TODO_EXPORT(SetShadowSplitDepth, ReignEngine_SetShadowSplitDepth), \
+	    HLL_EXPORT(SetFogType, ReignEngine_SetFogType), \
+	    HLL_EXPORT(SetFogNear, ReignEngine_SetFogNear), \
+	    HLL_EXPORT(SetFogFar, ReignEngine_SetFogFar), \
+	    HLL_EXPORT(SetFogColor, ReignEngine_SetFogColor), \
+	    HLL_EXPORT(GetFogType, ReignEngine_GetFogType), \
+	    HLL_EXPORT(GetFogNear, ReignEngine_GetFogNear), \
+	    HLL_EXPORT(GetFogFar, ReignEngine_GetFogFar), \
+	    HLL_EXPORT(GetFogColor, ReignEngine_GetFogColor), \
+	    HLL_EXPORT(LoadLightScatteringSetting, ReignEngine_LoadLightScatteringSetting), \
+	    HLL_EXPORT(GetLSBetaR, ReignEngine_GetLSBetaR), \
+	    HLL_EXPORT(GetLSBetaM, ReignEngine_GetLSBetaM), \
+	    HLL_EXPORT(GetLSG, ReignEngine_GetLSG), \
+	    HLL_EXPORT(GetLSDistance, ReignEngine_GetLSDistance), \
+	    HLL_EXPORT(GetLSLightDir, ReignEngine_GetLSLightDir), \
+	    HLL_EXPORT(GetLSLightColor, ReignEngine_GetLSLightColor), \
+	    HLL_EXPORT(GetLSSunColor, ReignEngine_GetLSSunColor), \
+	    HLL_EXPORT(SetLSBetaR, ReignEngine_SetLSBetaR), \
+	    HLL_EXPORT(SetLSBetaM, ReignEngine_SetLSBetaM), \
+	    HLL_EXPORT(SetLSG, ReignEngine_SetLSG), \
+	    HLL_EXPORT(SetLSDistance, ReignEngine_SetLSDistance), \
+	    HLL_EXPORT(SetLSLightDir, ReignEngine_SetLSLightDir), \
+	    HLL_EXPORT(SetLSLightColor, ReignEngine_SetLSLightColor), \
+	    HLL_EXPORT(SetLSSunColor, ReignEngine_SetLSSunColor), \
+	    HLL_TODO_EXPORT(SetDrawTextureFog, ReignEngine_SetDrawTextureFog), \
+	    HLL_TODO_EXPORT(GetDrawTextureFog, ReignEngine_GetDrawTextureFog), \
+	    HLL_EXPORT(SetOptionAntiAliasing, ReignEngine_SetOptionAntiAliasing), \
+	    HLL_EXPORT(SetOptionWaitVSync, ReignEngine_SetOptionWaitVSync), \
+	    HLL_EXPORT(GetOptionAntiAliasing, ReignEngine_GetOptionAntiAliasing), \
+	    HLL_EXPORT(GetOptionWaitVSync, ReignEngine_GetOptionWaitVSync), \
+	    HLL_EXPORT(SetViewport, ReignEngine_SetViewport), \
+	    HLL_EXPORT(SetProjection, ReignEngine_SetProjection), \
+	    HLL_TODO_EXPORT(GetBrightness, ReignEngine_GetBrightness), \
+	    HLL_TODO_EXPORT(SetBrightness, ReignEngine_SetBrightness), \
+	    HLL_EXPORT(SetRenderMode, ReignEngine_SetRenderMode), \
+	    HLL_EXPORT(SetShadowMode, ReignEngine_SetShadowMode), \
+	    HLL_EXPORT(SetBumpMode, ReignEngine_SetBumpMode), \
+	    HLL_TODO_EXPORT(SetHDRMode, ReignEngine_SetHDRMode), \
+	    HLL_EXPORT(SetVertexBlendMode, ReignEngine_SetVertexBlendMode), \
+	    HLL_EXPORT(SetFogMode, ReignEngine_SetFogMode), \
+	    HLL_EXPORT(SetSpecularMode, ReignEngine_SetSpecularMode), \
+	    HLL_EXPORT(SetLightMapMode, ReignEngine_SetLightMapMode), \
+	    HLL_EXPORT(SetSoftFogEdgeMode, ReignEngine_SetSoftFogEdgeMode), \
+	    HLL_EXPORT(SetSSAOMode, ReignEngine_SetSSAOMode), \
+	    HLL_EXPORT(SetShaderPrecisionMode, ReignEngine_SetShaderPrecisionMode), \
+	    HLL_TODO_EXPORT(SetShaderDebugMode, ReignEngine_SetShaderDebugMode), \
+	    HLL_EXPORT(GetRenderMode, ReignEngine_GetRenderMode), \
+	    HLL_EXPORT(GetShadowMode, ReignEngine_GetShadowMode), \
+	    HLL_EXPORT(GetBumpMode, ReignEngine_GetBumpMode), \
+	    HLL_TODO_EXPORT(GetHDRMode, ReignEngine_GetHDRMode), \
+	    HLL_EXPORT(GetVertexBlendMode, ReignEngine_GetVertexBlendMode), \
+	    HLL_EXPORT(GetFogMode, ReignEngine_GetFogMode), \
+	    HLL_EXPORT(GetSpecularMode, ReignEngine_GetSpecularMode), \
+	    HLL_EXPORT(GetLightMapMode, ReignEngine_GetLightMapMode), \
+	    HLL_EXPORT(GetSoftFogEdgeMode, ReignEngine_GetSoftFogEdgeMode), \
+	    HLL_EXPORT(GetSSAOMode, ReignEngine_GetSSAOMode), \
+	    HLL_EXPORT(GetShaderPrecisionMode, ReignEngine_GetShaderPrecisionMode), \
+	    HLL_TODO_EXPORT(GetShaderDebugMode, ReignEngine_GetShaderDebugMode), \
+	    HLL_EXPORT(GetTextureResolutionLevel, ReignEngine_GetTextureResolutionLevel), \
+	    HLL_EXPORT(GetTextureFilterMode, ReignEngine_GetTextureFilterMode), \
+	    HLL_EXPORT(SetTextureResolutionLevel, ReignEngine_SetTextureResolutionLevel), \
+	    HLL_EXPORT(SetTextureFilterMode, ReignEngine_SetTextureFilterMode), \
+	    HLL_EXPORT(GetUsePower2Texture, ReignEngine_GetUsePower2Texture), \
+	    HLL_EXPORT(SetUsePower2Texture, ReignEngine_SetUsePower2Texture), \
+	    HLL_EXPORT(GetGlobalAmbient, ReignEngine_GetGlobalAmbient), \
+	    HLL_EXPORT(SetGlobalAmbient, ReignEngine_SetGlobalAmbient), \
+	    HLL_EXPORT(GetBloomMode, ReignEngine_GetBloomMode), \
+	    HLL_EXPORT(SetBloomMode, ReignEngine_SetBloomMode), \
+	    HLL_EXPORT(GetGlareMode, ReignEngine_GetGlareMode), \
+	    HLL_EXPORT(SetGlareMode, ReignEngine_SetGlareMode), \
+	    HLL_EXPORT(GetPostEffectFilterY, ReignEngine_GetPostEffectFilterY), \
+	    HLL_EXPORT(GetPostEffectFilterCb, ReignEngine_GetPostEffectFilterCb), \
+	    HLL_EXPORT(GetPostEffectFilterCr, ReignEngine_GetPostEffectFilterCr), \
+	    HLL_EXPORT(SetPostEffectFilterY, ReignEngine_SetPostEffectFilterY), \
+	    HLL_EXPORT(SetPostEffectFilterCb, ReignEngine_SetPostEffectFilterCb), \
+	    HLL_EXPORT(SetPostEffectFilterCr, ReignEngine_SetPostEffectFilterCr), \
+	    HLL_EXPORT(GetBackCGName, ReignEngine_GetBackCGName), \
+	    HLL_EXPORT(GetBackCGNum, ReignEngine_GetBackCGNum), \
+	    HLL_EXPORT(GetBackCGBlendRate, ReignEngine_GetBackCGBlendRate), \
+	    HLL_EXPORT(GetBackCGDestPosX, ReignEngine_GetBackCGDestPosX), \
+	    HLL_EXPORT(GetBackCGDestPosY, ReignEngine_GetBackCGDestPosY), \
+	    HLL_EXPORT(GetBackCGMag, ReignEngine_GetBackCGMag), \
+	    HLL_TODO_EXPORT(GetBackCGQuakeMag, ReignEngine_GetBackCGQuakeMag), \
+	    HLL_EXPORT(GetBackCGShow, ReignEngine_GetBackCGShow), \
+	    HLL_EXPORT(SetBackCGName, ReignEngine_SetBackCGName), \
+	    HLL_EXPORT(SetBackCGNum, ReignEngine_SetBackCGNum), \
+	    HLL_EXPORT(SetBackCGBlendRate, ReignEngine_SetBackCGBlendRate), \
+	    HLL_EXPORT(SetBackCGDestPos, ReignEngine_SetBackCGDestPos), \
+	    HLL_EXPORT(SetBackCGMag, ReignEngine_SetBackCGMag), \
+	    HLL_TODO_EXPORT(SetBackCGQuakeMag, ReignEngine_SetBackCGQuakeMag), \
+	    HLL_EXPORT(SetBackCGShow, ReignEngine_SetBackCGShow), \
+	    HLL_TODO_EXPORT(GetGlareBrightnessParam, ReignEngine_GetGlareBrightnessParam), \
+	    HLL_EXPORT(SetGlareBrightnessParam, ReignEngine_SetGlareBrightnessParam), \
+	    HLL_TODO_EXPORT(GetSSAOParam, ReignEngine_GetSSAOParam), \
+	    HLL_EXPORT(SetSSAOParam, ReignEngine_SetSSAOParam), \
+	    HLL_TODO_EXPORT(CalcIntersectEyeVec, ReignEngine_CalcIntersectEyeVec), \
+	    HLL_EXPORT(IsLoading, ReignEngine_IsLoading), \
+	    HLL_TODO_EXPORT(GetDebugInfoMode, ReignEngine_GetDebugInfoMode), \
+	    HLL_TODO_EXPORT(SetDebugInfoMode, ReignEngine_SetDebugInfoMode), \
+	    HLL_EXPORT(GetVertexShaderVersion, ReignEngine_GetVertexShaderVersion), \
+	    HLL_EXPORT(GetPixelShaderVersion, ReignEngine_GetPixelShaderVersion), \
+	    HLL_EXPORT(SetInstanceSpecularReflectRate, ReignEngine_SetInstanceSpecularReflectRate), \
+	    HLL_EXPORT(SetInstanceFresnelReflectRate, ReignEngine_SetInstanceFresnelReflectRate), \
+	    HLL_TODO_EXPORT(GetInstanceSpecularReflectRate, ReignEngine_GetInstanceSpecularReflectRate), \
+	    HLL_TODO_EXPORT(GetInstanceFresnelReflectRate, ReignEngine_GetInstanceFresnelReflectRate), \
+	    HLL_TODO_EXPORT(StringToFloat, ReignEngine_StringToFloat), \
 	    HLL_TODO_EXPORT(DrawToMainSurface, ReignEngine_DrawToMainSurface)
-	    );
+
+HLL_LIBRARY(ReignEngine, REIGN_EXPORTS,
+	    HLL_EXPORT(CreatePlugin, ReignEngine_CreatePlugin));
+
+#define TAPIR_EXPORTS \
+	    HLL_EXPORT(CreatePlugin, TapirEngine_CreatePlugin), \
+	    HLL_EXPORT(SetInstanceDrawParam, TapirEngine_SetInstanceDrawParam), \
+	    HLL_TODO_EXPORT(GetInstanceDrawParam, TapirEngine_GetInstanceDrawParam), \
+	    HLL_EXPORT(CalcInstance2DDetectionHeight, TapirEngine_CalcInstance2DDetectionHeight), \
+	    HLL_TODO_EXPORT(CalcInstance2DDetection, TapirEngine_CalcInstance2DDetection), \
+	    HLL_TODO_EXPORT(FindInstancePath, TapirEngine_FindInstancePath), \
+	    HLL_TODO_EXPORT(CalcPathFinderIntersectEyeVec, TapirEngine_CalcPathFinderIntersectEyeVec), \
+	    HLL_TODO_EXPORT(OptimizeInstancePathLine, TapirEngine_OptimizeInstancePathLine), \
+	    HLL_TODO_EXPORT(GetInstancePathLine, TapirEngine_GetInstancePathLine), \
+	    HLL_TODO_EXPORT(CreateInstancePathLineList, TapirEngine_CreateInstancePathLineList), \
+	    HLL_TODO_EXPORT(SetInstanceMeshShow, TapirEngine_SetInstanceMeshShow), \
+	    HLL_EXPORT(SetDrawOption, TapirEngine_SetDrawOption), \
+	    HLL_EXPORT(GetDrawOption, TapirEngine_GetDrawOption), \
+	    HLL_TODO_EXPORT(SetDebugMode, TapirEngine_SetDebugMode), \
+	    HLL_TODO_EXPORT(GetDebugMode, TapirEngine_GetDebugMode), \
+	    HLL_EXPORT(SetThreadLoadingMode, TapirEngine_SetThreadLoadingMode), \
+	    HLL_EXPORT(Suspend, TapirEngine_Suspend), \
+	    HLL_EXPORT(IsSuspend, TapirEngine_IsSuspend), \
+	    HLL_EXPORT(Resume, TapirEngine_Resume), \
+	    HLL_TODO_EXPORT(GetNumofPlugin, TapirEngine_GetNumofPlugin), \
+	    HLL_TODO_EXPORT(IsExistPlugin, TapirEngine_IsExistPlugin), \
+	    HLL_TODO_EXPORT(GetNumofInstance, TapirEngine_GetNumofInstance)
+
+HLL_LIBRARY(TapirEngine, REIGN_EXPORTS, TAPIR_EXPORTS);

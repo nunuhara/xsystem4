@@ -164,6 +164,8 @@ struct RE_renderer {
 	GLuint billboard_vao;
 	GLuint billboard_attr_buffer;
 	struct hash_table *billboard_textures;  // cg_no -> struct billboard_texture*
+
+	uint32_t last_frame_timestamp;
 };
 
 struct billboard_texture {
@@ -188,8 +190,9 @@ struct archive_data *RE_get_aar_entry(struct archive *aar, const char *dir, cons
 
 // renderer.c
 
-struct RE_renderer *RE_renderer_new(struct texture *texture);
+struct RE_renderer *RE_renderer_new(void);
 void RE_renderer_free(struct RE_renderer *r);
+void RE_renderer_set_viewport_size(struct RE_renderer *r, int width, int height);
 bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);
 struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r, struct model *model);
 void RE_renderer_free_height_detector(struct height_detector *hd);

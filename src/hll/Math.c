@@ -59,6 +59,11 @@ static float Math_Sin(float x)
 	return sinf(deg2rad(x));
 }
 
+static float Math_Tan(float x)
+{
+	return tanf(deg2rad(x));
+}
+
 static void Math_SetSeedByCurrentTime(void)
 {
 	srand(time(NULL));
@@ -180,6 +185,7 @@ static bool Math_BezierCurve(struct page **x_array, struct page **y_array, int n
 HLL_LIBRARY(Math,
 	    HLL_EXPORT(Cos, Math_Cos),
 	    HLL_EXPORT(Sin, Math_Sin),
+	    HLL_EXPORT(Tan, Math_Tan),
 	    HLL_EXPORT(Sqrt, sqrtf),
 	    HLL_EXPORT(Atan, atanf),
 	    HLL_EXPORT(Atan2, atan2f),
