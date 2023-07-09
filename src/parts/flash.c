@@ -17,12 +17,15 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cglm/cglm.h>
 #include "system4.h"
 #include "system4/archive.h"
 #include "system4/hashtable.h"
 #include "system4/string.h"
 
 #include "asset_manager.h"
+#include "audio.h"
+#include "little_endian.h"
 #include "swf.h"
 #include "xsystem4.h"
 #include "parts.h"
@@ -58,6 +61,10 @@ void parts_flash_free(struct parts_flash *f)
 		ht_foreach_value(f->bitmaps, free_bitmap);
 		ht_free_int(f->bitmaps);
 	}
+	if (f->sprites) {
+		ht_foreach_value(f->sprites, free);
+		ht_free_int(f->sprites);
+	}
 }
 
 bool parts_flash_load(struct parts *parts, struct parts_flash *f, struct string *filename)
@@ -86,6 +93,7 @@ bool parts_flash_load(struct parts *parts, struct parts_flash *f, struct string 
 	f->current_frame = 0;
 	f->dictionary = ht_create(256);
 	f->bitmaps = ht_create(64);
+	f->sprites = ht_create(64);
 
 	int width = f->swf->frame_size.x_max / 20;
 	int height = f->swf->frame_size.y_max / 20;
@@ -107,6 +115,11 @@ static void define_bits_lossless(struct parts_flash *f, struct swf_tag_define_bi
 static void define_shape(struct parts_flash *f, struct swf_tag_define_shape *tag)
 {
 	ht_put_int(f->dictionary, tag->shape_id, tag);
+}
+
+static void define_sound(struct parts_flash *f, struct swf_tag_define_sound *tag)
+{
+	ht_put_int(f->dictionary, tag->sound_id, tag);
 }
 
 static void do_action(struct parts_flash *f, struct swf_tag_do_action *tag)
@@ -140,17 +153,20 @@ static struct parts_flash_object *update_object(struct parts_flash_object *obj, 
 	}
 	if (tag->flags & PLACE_FLAG_HAS_CHARACTER) {
 		obj->character_id = tag->character_id;
-		obj->matrix = (struct swf_matrix) {
-			.scale_x = 1 << 16,
-			.scale_y = 1 << 16,
-		};
+		glm_mat4_identity(obj->matrix);
 		obj->color_transform = (struct swf_cxform_with_alpha) {
 			.mult_terms = { 256, 256, 256, 256 }
 		};
 	}
 
-	if (tag->flags & PLACE_FLAG_HAS_MATRIX)
-		obj->matrix = tag->matrix;
+	if (tag->flags & PLACE_FLAG_HAS_MATRIX) {
+		obj->matrix[0][0] = fixed32_to_float(tag->matrix.scale_x);
+		obj->matrix[1][1] = fixed32_to_float(tag->matrix.scale_y);
+		obj->matrix[0][1] = fixed32_to_float(tag->matrix.rotate_skew_0);
+		obj->matrix[1][0] = fixed32_to_float(tag->matrix.rotate_skew_1);
+		obj->matrix[3][0] = twips_to_float(tag->matrix.translate_x);
+		obj->matrix[3][1] = twips_to_float(tag->matrix.translate_y);
+	}
 	if (tag->flags & PLACE_FLAG_HAS_COLOR_TRANSFORM)
 		obj->color_transform = tag->color_transform;
 	if (tag->flags & PLACE_FLAG_HAS_BLEND_MODE)
@@ -188,6 +204,93 @@ static void remove_object(struct parts_flash *f, struct swf_tag_remove_object2 *
 	}
 }
 
+static void flash_archive_free_data(struct archive_data *data)
+{
+	free(data->data);
+	free(data);
+}
+
+static struct archive_ops flash_archive_ops = {
+	.free_data = flash_archive_free_data
+};
+
+static struct archive flash_archive = {
+	.mmapped = false,
+	.ops = &flash_archive_ops
+};
+
+static void start_sound(struct parts_flash *f, struct swf_tag_start_sound *tag)
+{
+	if (tag->flags != 0) {
+		ERROR("unsupported StartSound flag 0x%x", tag->flags);
+	}
+	struct swf_tag_define_sound *sound = ht_get_int(f->dictionary, tag->sound_id, NULL);
+	if (!sound || sound->t.type != TAG_DEFINE_SOUND) {
+		WARNING("undefined sound id %d", tag->sound_id);
+		return;
+	}
+	if (sound->format != SWF_SOUND_UNCOMPRESSED_LE) {
+		ERROR("unsupported sound format %d", sound->format);
+	}
+	int bytes_per_sample = sound->spec.sample_size / 8;
+
+	const uint8_t wav_header[] = {
+		'R' , 'I' , 'F' , 'F' , 0x00, 0x00, 0x00, 0x00,
+		'W' , 'A' , 'V' , 'E' , 'f' , 'm' , 't' , ' ' ,
+		0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 'd' , 'a' , 't' , 'a' ,
+		0x00, 0x00, 0x00, 0x00
+	};
+	uint32_t wav_size = sizeof(wav_header) + sound->data_len;
+	uint8_t *wav_buf = xmalloc(wav_size);
+	memcpy(wav_buf, wav_header, sizeof(wav_header));
+	LittleEndian_putDW(wav_buf, 4, wav_size - 8);
+	LittleEndian_putW(wav_buf, 22, sound->spec.channels);
+	LittleEndian_putDW(wav_buf, 24, sound->spec.rate);
+	LittleEndian_putDW(wav_buf, 28, sound->spec.rate * bytes_per_sample * sound->spec.channels);
+	LittleEndian_putW(wav_buf, 32, bytes_per_sample * sound->spec.channels);
+	LittleEndian_putW(wav_buf, 34, sound->spec.sample_size);
+	LittleEndian_putDW(wav_buf, 40, sound->data_len);
+	memcpy(wav_buf + sizeof(wav_header), sound->data, sound->data_len);
+
+	struct archive_data *dfile = xcalloc(1, sizeof(struct archive_data));
+	dfile->size = wav_size;
+	dfile->data = wav_buf;
+	dfile->archive = &flash_archive;
+
+	audio_play_archive_data(dfile);
+}
+
+static void define_sprite(struct parts_flash *f, struct swf_tag_define_sprite *tag)
+{
+	ht_put_int(f->dictionary, tag->sprite_id, tag);
+	struct ht_slot *slot = ht_put_int(f->sprites, tag->sprite_id, NULL);
+	if (slot->value)
+		return;  // already defined.
+	if (tag->frame_count != 1)
+		ERROR("sprites with multiple frames are not supported");
+	struct parts_flash_object *obj = NULL;
+	for (struct swf_tag *t = tag->tags; t && t->type != TAG_END; t = t->next) {
+		switch (t->type) {
+		case TAG_SOUND_STREAM_HEAD2:
+		case TAG_SHOW_FRAME:
+			// ignored.
+			break;
+		case TAG_PLACE_OBJECT2:
+			if (obj)
+				ERROR("sprites with multiple objects are not supported");;
+			obj = update_object(NULL, (struct swf_tag_place_object*)t);
+			break;
+		default:
+			ERROR("unsupported tag %d in sprite", t->type);
+		}
+	}
+	if (!obj)
+		ERROR("sprite has no PlaceObject2 tag");
+	slot->value = obj;
+}
+
 bool parts_flash_seek(struct parts_flash *f, int frame)
 {
 	if (!f->swf || f->current_frame == frame)
@@ -204,6 +307,7 @@ bool parts_flash_seek(struct parts_flash *f, int frame)
 		switch (t->type) {
 		case TAG_FILE_ATTRIBUTES:
 		case TAG_SET_BACKGROUND_COLOR:
+		case TAG_SOUND_STREAM_HEAD2:
 			// Do nothing.
 			break;
 		case TAG_END:
@@ -219,6 +323,12 @@ bool parts_flash_seek(struct parts_flash *f, int frame)
 		case TAG_DEFINE_SHAPE:
 			define_shape(f, (struct swf_tag_define_shape*)t);
 			break;
+		case TAG_DEFINE_SPRITE:
+			define_sprite(f, (struct swf_tag_define_sprite*)t);
+			break;
+		case TAG_DEFINE_SOUND:
+			define_sound(f, (struct swf_tag_define_sound*)t);
+			break;
 		case TAG_DO_ACTION:
 			do_action(f, (struct swf_tag_do_action*)t);
 			break;
@@ -229,8 +339,11 @@ bool parts_flash_seek(struct parts_flash *f, int frame)
 		case TAG_REMOVE_OBJECT2:
 			remove_object(f, (struct swf_tag_remove_object2*)t);
 			break;
+		case TAG_START_SOUND:
+			start_sound(f, (struct swf_tag_start_sound*)t);
+			break;
 		default:
-			ERROR("unknown tag 0x%x", t->type);
+			ERROR("unknown tag %d", t->type);
 		}
 	}
 	f->tag = t;

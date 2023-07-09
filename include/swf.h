@@ -27,6 +27,22 @@ typedef uint16_t fixedu16;
 typedef uint32_t rgb_t;  // 0x00BBGGRR
 typedef uint32_t rgba_t; // 0xAABBGGRR
 
+static inline float twips_to_float(int32_t twips) {
+	return twips / 20.0f;
+}
+
+static inline float fixed32_to_float(fixed32 f32) {
+	return f32 / 65536.0f;
+}
+
+static inline float fixed16_to_float(fixed16 f16) {
+	return f16 / 256.0f;
+}
+
+static inline fixed16 fixed16_mul(fixed16 a, fixed16 b) {
+	return (int32_t)a * (int32_t)b / 256;
+}
+
 struct swf_rect {
 	// in twips (1/20 pixel)
 	int32_t x_min;
@@ -111,6 +127,10 @@ struct swf_tag_define_shape {
 	uint16_t shape_id;
 	struct swf_rect bounds;
 	struct swf_fill_style fill_style;
+};
+
+enum swf_sound_format {
+	SWF_SOUND_UNCOMPRESSED_LE = 3,
 };
 
 struct swf_tag_define_sound {

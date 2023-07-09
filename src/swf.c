@@ -439,7 +439,7 @@ static struct swf_tag_sound_stream_head *parse_sound_stream_head2(struct buffer 
 	read_unsigned_bits(&br, 4);  // reserved
 	parse_swf_sound_spec(&br, &tag->playback_spec);
 	tag->compression = read_unsigned_bits(&br, 4);
-	parse_swf_sound_spec(&br, &tag->playback_spec);
+	parse_swf_sound_spec(&br, &tag->stream_spec);
 	tag->sample_count = buffer_read_u16(r);
 	if (tag->compression == 2)
 		tag->latency_seek = (int16_t)buffer_read_u16(r);

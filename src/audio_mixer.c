@@ -520,6 +520,8 @@ struct channel *channel_open(enum asset_type type, int no)
 			ch->loop_end = clamp(0, ch->info.frames, bgi->loop_end);
 			ch->loop_count = max(0, bgi->loop_count);
 			ch->mixer_no = clamp(0, nr_mixers, bgi->channel);
+		} else {
+			ch->loop_count = 0;
 		}
 	}
 	ch->no = no;
@@ -555,7 +557,7 @@ struct channel *channel_open_archive_data(struct archive_data *dfile)
 	ch->volume = 100;
 	ch->loop_start = 0;
 	ch->loop_end = ch->info.frames;
-	ch->loop_count = 0;
+	ch->loop_count = 1;
 	ch->mixer_no = 0;
 
 	ch->no = -1;
