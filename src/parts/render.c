@@ -122,28 +122,58 @@ static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f,
 	glm_translate(mw_transform, (vec3) { parts->global.pos.x, parts->global.pos.y, 0 });
 	glm_rotate_z(mw_transform, parts->local.rotation.z, mw_transform);
 	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
-	int x = f->common.origin_offset.x + (obj->matrix.translate_x + tag->bounds.x_min) / 20;
-	int y = f->common.origin_offset.y + (obj->matrix.translate_y + tag->bounds.y_min) / 20;
-	int width = (tag->bounds.x_max - tag->bounds.x_min) / 20 * (obj->matrix.scale_x / 65536.0f);
-	int height = (tag->bounds.y_max - tag->bounds.y_min) / 20 * (obj->matrix.scale_y / 65536.0f);
-	// TODO: consider matrix.roate_skew
-	glm_translate(mw_transform, (vec3){ x, y, 0 });
-	glm_scale(mw_transform, (vec3){ width, height, 1.0 });
+	glm_translate(mw_transform, (vec3){ f->common.origin_offset.x, f->common.origin_offset.y, 0 });
 
-	Rectangle r = { 0, 0, width, height };
+	glm_mul(mw_transform, obj->matrix, mw_transform);
 
-	float blend_rate = (parts->global.alpha / 255.0f) * (obj->color_transform.mult_terms[3] / 256.0f);
+	glm_translate(mw_transform, (vec3){
+		twips_to_float(tag->bounds.x_min),
+		twips_to_float(tag->bounds.y_min),
+		0});
+	glm_scale(mw_transform, (vec3){
+		twips_to_float(tag->bounds.x_max - tag->bounds.x_min),
+		twips_to_float(tag->bounds.y_max - tag->bounds.y_min),
+		1.0});
+
+	Rectangle r = { 0, 0, src->w, src->h };
+
+	float blend_rate = (parts->global.alpha / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[3]);
 	vec3 add_color = {
 		(parts->global.add_color.r + obj->color_transform.add_terms[0]) / 255.0f,
 		(parts->global.add_color.g + obj->color_transform.add_terms[1]) / 255.0f,
 		(parts->global.add_color.b + obj->color_transform.add_terms[2]) / 255.0f
 	};
 	vec3 multiply_color = {
-		(parts->global.multiply_color.r / 255.0f) * (obj->color_transform.mult_terms[0] / 256.0f),
-		(parts->global.multiply_color.g / 255.0f) * (obj->color_transform.mult_terms[1] / 256.0f),
-		(parts->global.multiply_color.b / 255.0f) * (obj->color_transform.mult_terms[2] / 256.0f)
+		(parts->global.multiply_color.r / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[0]),
+		(parts->global.multiply_color.g / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[1]),
+		(parts->global.multiply_color.b / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[2])
 	};
 	parts_render_texture(src, mw_transform, &r, blend_rate, add_color, multiply_color);
+}
+
+static void parts_render_flash_sprite(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_sprite *tag)
+{
+	struct parts_flash_object *obj2 = ht_get_int(f->sprites, tag->sprite_id, NULL);
+	if (!obj)
+		ERROR("undefined sprite id %d", tag->sprite_id);
+
+	struct swf_tag *child = ht_get_int(f->dictionary, obj2->character_id, NULL);
+	if (!child)
+		ERROR("character %d is not defined", obj2->character_id);
+	if (child->type != TAG_DEFINE_SHAPE)
+		ERROR("unexpected child type %d", child->type);
+
+	struct parts_flash_object transform;
+	glm_mul(obj->matrix, obj2->matrix, transform.matrix);
+	for (int i = 0; i < 4; i++) {
+		transform.color_transform.add_terms[i] =
+			obj->color_transform.add_terms[i] + obj2->color_transform.add_terms[i];
+	}
+	for (int i = 0; i < 4; i++) {
+		transform.color_transform.mult_terms[i] =
+			fixed16_mul(obj->color_transform.mult_terms[i], obj2->color_transform.mult_terms[i]);
+	}
+	parts_render_flash_shape(parts, f, &transform, (struct swf_tag_define_shape*)child);
 }
 
 static void parts_render_flash(struct parts *parts, struct parts_flash *f)
@@ -157,10 +187,13 @@ static void parts_render_flash(struct parts *parts, struct parts_flash *f)
 		}
 		switch (tag->type) {
 		case TAG_DEFINE_SHAPE:
-			parts_render_flash_shape(parts, f, obj, (struct swf_tag_define_shape *)tag);
+			parts_render_flash_shape(parts, f, obj, (struct swf_tag_define_shape*)tag);
+			break;
+		case TAG_DEFINE_SPRITE:
+			parts_render_flash_sprite(parts, f, obj, (struct swf_tag_define_sprite*)tag);
 			break;
 		default:
-			ERROR("unknown tag 0x%x", tag->type);
+			ERROR("unknown tag %d", tag->type);
 		}
 	}
 }

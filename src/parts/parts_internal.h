@@ -17,6 +17,7 @@
 #ifndef SYSTEM4_PARTS_INTERNAL_H
 #define SYSTEM4_PARTS_INTERNAL_H
 
+#include <cglm/types.h>
 #include "gfx/gfx.h"
 #include "gfx/font.h"
 #include "queue.h"
@@ -217,7 +218,7 @@ struct parts_flash_object {
 	TAILQ_ENTRY(parts_flash_object) entry;
 	uint16_t depth;
 	uint16_t character_id;
-	struct swf_matrix matrix;
+	mat4 matrix;
 	struct swf_cxform_with_alpha color_transform;
 };
 
@@ -232,6 +233,7 @@ struct parts_flash {
 	int current_frame;
 	struct hash_table *dictionary;
 	struct hash_table *bitmaps;  // bitmap character id -> struct texture *
+	struct hash_table *sprites;  // sprite character id -> struct parts_flash_object *
 	TAILQ_HEAD(, parts_flash_object) display_list;
 };
 
