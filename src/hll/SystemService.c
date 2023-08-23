@@ -20,6 +20,7 @@
 #include "system4/string.h"
 
 #include "input.h"
+#include "gfx/gfx.h"
 #include "mixer.h"
 #include "xsystem4.h"
 #include "hll.h"
@@ -97,42 +98,106 @@ static bool SystemService_SetHideMouseCursorByGame(bool hide)
 HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, SetUsePower2Texture, bool use);
 //bool SystemService_GetUsePower2Texture(void);
 
-// XXX: 5 settings in Haru Urare, may be different in other games
-#define NR_WINDOW_SETTINGS 5
-static int window_settings[NR_WINDOW_SETTINGS] = {
-	// defaults based on Haru Urare
-	0,
-	0,
-	0,
-	0,
-	1,
+enum window_settings_asect_ratio {
+	ASPECT_RATIO_NORMAL,
+	ASPECT_RATIO_FIXED
 };
 
-static int get_window_setting(int type)
-{
-	// XXX: only type 1 is non-boolean (Haru Urare)
-	if (type == 1)
-		return window_settings[1];
-	return !!window_settings[type];
-}
+enum window_settings_scaling_type {
+	SCALING_NORMAL,
+	SCALING_BICUBIC,
+};
+
+struct window_settings {
+	enum window_settings_asect_ratio aspect_ratio;
+	enum window_settings_scaling_type scaling_type;
+	bool wait_vsync;
+	bool record_pos_size;
+	bool minimize_by_full_screen_inactive;
+	bool back_to_title_confirm;
+	bool close_game_confirm;
+};
+
+static struct window_settings window_settings = {
+	.aspect_ratio = ASPECT_RATIO_NORMAL,
+	.scaling_type = SCALING_NORMAL,
+	.wait_vsync = false,
+	.record_pos_size = false,
+	.minimize_by_full_screen_inactive = true,
+	.back_to_title_confirm = true,
+	.close_game_confirm = true,
+};
+
+enum window_settings_id {
+	WINDOW_SETTINGS_ASPECT_RATIO = 0,
+	WINDOW_SETTINGS_SCALING_TYPE = 1,
+	WINDOW_SETTINGS_WAIT_VSYNC = 2,
+	WINDOW_SETTINGS_RECORD_POS_SIZE = 3,
+	WINDOW_SETTINGS_MINIMIZE_BY_FULL_SCREEN_INACTIVE = 4,
+	WINDOW_SETTINGS_BACK_TO_TITLE_CONFIRM = 5,
+	WINDOW_SETTINGS_CLOSE_GAME_CONFIRM = 6,
+};
 
 static bool SystemService_SetWindowSetting(int type, int value)
 {
-	if (type < 0 || type >= NR_WINDOW_SETTINGS) {
+	switch (type) {
+	case WINDOW_SETTINGS_ASPECT_RATIO:
+		window_settings.aspect_ratio = value;
+		break;
+	case WINDOW_SETTINGS_SCALING_TYPE:
+		window_settings.scaling_type = value;
+		break;
+	case WINDOW_SETTINGS_WAIT_VSYNC:
+		window_settings.wait_vsync = value;
+		gfx_set_wait_vsync(value);
+		break;
+	case WINDOW_SETTINGS_RECORD_POS_SIZE:
+		window_settings.record_pos_size = value;
+		break;
+	case WINDOW_SETTINGS_MINIMIZE_BY_FULL_SCREEN_INACTIVE:
+		window_settings.minimize_by_full_screen_inactive = value;
+		break;
+	case WINDOW_SETTINGS_BACK_TO_TITLE_CONFIRM:
+		window_settings.back_to_title_confirm = value;
+		break;
+	case WINDOW_SETTINGS_CLOSE_GAME_CONFIRM:
+		window_settings.close_game_confirm = value;
+		break;
+	default:
 		WARNING("Invalid window setting type: %d", type);
 		return false;
 	}
-	window_settings[type] = value;
 	return true;
 }
 
 static bool SystemService_GetWindowSetting(int type, int *value)
 {
-	if (type < 0 || type >= NR_WINDOW_SETTINGS) {
+	switch (type) {
+	case WINDOW_SETTINGS_ASPECT_RATIO:
+		*value = window_settings.aspect_ratio;
+		break;
+	case WINDOW_SETTINGS_SCALING_TYPE:
+		*value = window_settings.scaling_type;
+		break;
+	case WINDOW_SETTINGS_WAIT_VSYNC:
+		*value = window_settings.wait_vsync;
+		break;
+	case WINDOW_SETTINGS_RECORD_POS_SIZE:
+		*value = window_settings.record_pos_size;
+		break;
+	case WINDOW_SETTINGS_MINIMIZE_BY_FULL_SCREEN_INACTIVE:
+		*value = window_settings.minimize_by_full_screen_inactive;
+		break;
+	case WINDOW_SETTINGS_BACK_TO_TITLE_CONFIRM:
+		*value = window_settings.back_to_title_confirm;
+		break;
+	case WINDOW_SETTINGS_CLOSE_GAME_CONFIRM:
+		*value = window_settings.close_game_confirm;
+		break;
+	default:
 		WARNING("Invalid window setting type: %d", type);
 		return false;
 	}
-	*value = get_window_setting(type);
 	return true;
 }
 
