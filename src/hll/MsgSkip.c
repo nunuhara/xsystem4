@@ -60,7 +60,14 @@ static int MsgSkip_Init(struct string *name)
 	nr_flags = ain->nr_messages;
 	flags = xcalloc((nr_flags + 7) / 8, 1);
 
-	save_path = unix_path(name->text);
+	// Most games have system.GetSaveFolderName() prepended to `name`, but some
+	// games pass a constant string "SaveData\\MsgSkip.asd". If you pass it to
+	// savedir_path() as it is, "SaveData/" will be duplicated, so remove it.
+	if (!strncmp(name->text, "SaveData\\", 9)) {
+		save_path = savedir_path(name->text + 9);
+	} else {
+		save_path = savedir_path(name->text);
+	}
 
 	size_t data_size;
 	uint8_t *data = file_read(save_path, &data_size);
