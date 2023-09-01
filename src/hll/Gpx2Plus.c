@@ -372,7 +372,14 @@ static void Gpx2Plus_CopyReverseLR(int destSurface, int dx, int dy, int srcSurfa
 	gfx_copy_reverse_LR(dst, dx, dy, src, sx, sy, width, height);
 }
 
-// void CopyReverseUD(int nDestSurface, int nDx, int nDy, int nSrcSurface, int nSx, int nSy, int nWidth, int nHeight);
+static void Gpx2Plus_CopyReverseUD(int destSurface, int dx, int dy, int srcSurface, int sx, int sy, int width, int height)
+{
+	struct texture *dst = get_texture(destSurface);
+	struct texture *src = get_texture(srcSurface);
+	if (!dst || !src)
+		return;
+	gfx_copy_reverse_UD(dst, dx, dy, src, sx, sy, width, height);
+}
 
 static void Gpx2Plus_CopyReverseAMapLR(int destSurface, int dx, int dy, int srcSurface, int sx, int sy, int width, int height)
 {
@@ -745,7 +752,7 @@ HLL_LIBRARY(Gpx2Plus,
 			HLL_EXPORT(CopyStretchReduce, Gpx2Plus_CopyStretchReduce),
 			HLL_EXPORT(CopyStretchReduceAMap, Gpx2Plus_CopyStretchReduceAMap),
 			HLL_EXPORT(CopyReverseLR, Gpx2Plus_CopyReverseLR),
-			// HLL_EXPORT(CopyReverseUD, Gpx2Plus_CopyReverseUD),
+			HLL_EXPORT(CopyReverseUD, Gpx2Plus_CopyReverseUD),
 			HLL_EXPORT(CopyReverseAMapLR, Gpx2Plus_CopyReverseAMapLR),
 			// HLL_EXPORT(CopyReverseAMapUD, Gpx2Plus_CopyReverseAMapUD),
 			// HLL_EXPORT(BlendScreenWDS, Gpx2Plus_BlendScreenWDS),

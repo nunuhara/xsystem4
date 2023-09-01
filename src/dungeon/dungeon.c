@@ -62,13 +62,12 @@ struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version
 	if (!sp)
 		VM_ERROR("DrawDungeon.Init: invalid surface %d", surface);
 
-	// Dungeon scene will be rendered to this texture.
-	struct texture *texture = sprite_get_texture(sp);
 	sprite_bind_plugin(sp, &ctx->plugin);
 
+	gfx_init_texture_blank(&ctx->texture, sp->rect.w, sp->rect.h);
 	glGenRenderbuffers(1, &ctx->depth_buffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, ctx->depth_buffer);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, texture->w, texture->h);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, sp->rect.w, sp->rect.h);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
 	ctx->map = dungeon_map_create(version);
@@ -91,6 +90,7 @@ void dungeon_context_free(struct dungeon_context *ctx)
 	if (ctx->renderer)
 		dungeon_renderer_free(ctx->renderer);
 
+	gfx_delete_texture(&ctx->texture);
 	glDeleteRenderbuffers(1, &ctx->depth_buffer);
 	if (ctx->map)
 		dungeon_map_free(ctx->map);
@@ -265,10 +265,8 @@ static void dungeon_render(struct sact_sprite *sp)
 	struct dungeon_context *ctx = (struct dungeon_context *)sp->plugin;
 	if (!ctx->loaded || !ctx->draw_enabled)
 		return;
-	sprite_dirty(sp);
-	struct texture *texture = sprite_get_texture(sp);
 
-	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, texture, 0, 0, texture->w, texture->h);
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, &ctx->texture, 0, 0, ctx->texture.w, ctx->texture.h);
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, ctx->depth_buffer);
 	if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		ERROR("Incomplete framebuffer");
@@ -281,14 +279,7 @@ static void dungeon_render(struct sact_sprite *sp)
 	mat4 local_transform, view_transform, proj_transform;
 	glm_mat4_identity(local_transform);
 	model_view_matrix(&ctx->camera, eye, view_transform);
-	glm_perspective(M_PI / 3.0, (float)texture->w / texture->h, 0.5, 100.0, proj_transform);
-
-	// Tweak the projection transform so that the rendering result is vertically
-	// flipped. If we render the scene normally, the resulting image will be
-	// bottom-up (the first pixel is at the bottom-left), but we want a top-down
-	// image (the first pixel is at the top-left).
-	proj_transform[1][1] *= -1;
-	glFrontFace(GL_CW);
+	glm_perspective(M_PI / 3.0, (float)ctx->texture.w / ctx->texture.h, 0.5, 100.0, proj_transform);
 
 	int dgn_x = round(eye[0] / 2.0);
 	int dgn_y = round(eye[1] / 2.0);
@@ -297,11 +288,13 @@ static void dungeon_render(struct sact_sprite *sp)
 	struct dgn_cell **cells = dgn_get_visible_cells(ctx->dgn, dgn_x, dgn_y, dgn_z, &nr_cells);
 	dungeon_renderer_render(ctx->renderer, cells, nr_cells, view_transform, proj_transform);
 
-	glFrontFace(GL_CCW);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+
+	dungeon_renderer_run_post_processing(ctx->renderer, &ctx->texture, sprite_get_texture(sp));
+	sprite_dirty(sp);
 }
 
 static void neighbor_reveal(struct dungeon_context *ctx, int x, int y, int z)

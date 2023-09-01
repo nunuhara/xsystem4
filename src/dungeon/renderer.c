@@ -77,6 +77,12 @@ struct geometry;
 struct material;
 struct object3d;
 
+struct raster_shader {
+	struct shader s;
+	GLint amp;
+	GLint t;
+};
+
 struct dungeon_renderer {
 	struct shader shader;
 	// Uniform variable locations
@@ -108,6 +114,10 @@ struct dungeon_renderer {
 	struct material *polyobj_materials;
 
 	struct skybox *skybox;
+
+	struct raster_shader raster_shader;
+	bool raster_scroll;
+	float raster_amp;
 };
 
 static const struct marker_info *get_marker_info(struct dungeon_renderer *r, int event_type)
@@ -402,6 +412,8 @@ void dungeon_renderer_free(struct dungeon_renderer *r)
 	free(r->polyobj_materials);
 
 	skybox_free(r->skybox);
+	if (r->raster_shader.s.program)
+		glDeleteProgram(r->raster_shader.s.program);
 
 	free(r);
 }
@@ -718,4 +730,64 @@ bool dungeon_renderer_is_floor_opaque(struct dungeon_renderer *r, struct dgn_cel
 		return false;
 	struct material *material = get_material(r, DTX_FLOOR, cell->floor);
 	return material && material->opaque;
+}
+
+static void prepare_raster_shader(struct gfx_render_job *job, void *data)
+{
+	struct dungeon_renderer *r = data;
+	float width = job->world_transform[0];
+	glUniform1f(r->raster_shader.amp, r->raster_amp / width);
+	glUniform1f(r->raster_shader.t, SDL_GetTicks() / 1000.f);
+}
+
+static void load_raster_shader(struct raster_shader *s)
+{
+	gfx_load_shader(&s->s, "shaders/render.v.glsl", "shaders/dungeon_raster.f.glsl");
+	s->amp = glGetUniformLocation(s->s.program, "amp");
+	s->t = glGetUniformLocation(s->s.program, "t");
+	s->s.prepare = prepare_raster_shader;
+}
+
+void dungeon_renderer_run_post_processing(struct dungeon_renderer *r, struct texture *src, struct texture *dst)
+{
+	// This function flips the image upside down, because the image in `src`
+	// (rendered by dungeon_renderer_render) is bottom-up (the first pixel is at
+	// the bottom-left), but sprite textures are top-down (the first pixel is at
+	// the top-left).
+
+	if (r->raster_scroll) {
+		mat4 mw_transform = MAT4(
+			src->w, 0,       0, 0,
+			0,      -src->h, 0, src->h,  // flip vertically
+			0,      0,       1, 0,
+			0,      0,       0, 1);
+		mat4 wv_transform = WV_TRANSFORM(src->w, src->h);
+
+		struct gfx_render_job job = {
+			.shader = &r->raster_shader.s,
+			.shape = GFX_RECTANGLE,
+			.texture = src->handle,
+			.world_transform = mw_transform[0],
+			.view_transform = wv_transform[0],
+			.data = r
+		};
+		GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, 0, 0, dst->w, dst->h);
+		gfx_render(&job);
+		gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	} else {
+		gfx_copy_reverse_UD(dst, 0, 0, src, 0, 0, src->w, src->h);
+	}
+}
+
+void dungeon_renderer_set_raster_scroll(struct dungeon_renderer *r, int type)
+{
+	r->raster_scroll = !!type;
+	if (r->raster_scroll && !r->raster_shader.s.program) {
+		load_raster_shader(&r->raster_shader);
+	}
+}
+
+void dungeon_renderer_set_raster_amp(struct dungeon_renderer *r, float amp)
+{
+	r->raster_amp = amp;
 }

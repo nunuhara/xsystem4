@@ -20,6 +20,7 @@
 #include <cglm/cglm.h>
 #include "gfx/gl.h"
 
+struct texture;
 struct dgn_cell;
 struct dtx;
 struct polyobj;
@@ -31,5 +32,8 @@ void dungeon_renderer_render(struct dungeon_renderer *r, struct dgn_cell **cells
 void dungeon_renderer_enable_event_markers(struct dungeon_renderer *r, bool enable);
 bool dungeon_renderer_event_markers_enabled(struct dungeon_renderer *r);
 bool dungeon_renderer_is_floor_opaque(struct dungeon_renderer *r, struct dgn_cell *cell);
+void dungeon_renderer_run_post_processing(struct dungeon_renderer *r, struct texture *src, struct texture *dst);
+void dungeon_renderer_set_raster_scroll(struct dungeon_renderer *r, int type);
+void dungeon_renderer_set_raster_amp(struct dungeon_renderer *r, float amp);
 
 #endif /* SYSTEM4_DUNGEON_RENDERER_H */
