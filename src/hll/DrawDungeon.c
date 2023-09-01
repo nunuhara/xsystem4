@@ -267,7 +267,8 @@ HLL_QUIET_UNIMPLEMENTED(1, bool, DrawDungeon, IsDrawSettingFile, void);
 HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, DeleteDrawSettingFile, void);
 HLL_QUIET_UNIMPLEMENTED(1, bool, DrawDungeon, IsSSEFlag, void);
 HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, SetSSEFlag, bool flag);
-bool DrawDungeon_IsPVSData(int surface)
+
+static bool DrawDungeon_IsPVSData(int surface)
 {
 	return false;
 }
@@ -408,11 +409,26 @@ HLL_LIBRARY(DrawDungeon,
 	    DRAW_DUNGEON_EXPORTS
 	    );
 
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetRasterScroll, int surface, int type);
-HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetRasterAmp, int nSurface, float fAmp);
+static void DrawDungeon14_SetRasterScroll(int surface, int type)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->renderer)
+		return true;
+	return dungeon_renderer_set_raster_scroll(ctx->renderer, type);
+}
+
+static void DrawDungeon14_SetRasterAmp(int surface, float amp)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->renderer)
+		return true;
+	return dungeon_renderer_set_raster_amp(ctx->renderer, amp);
+}
+
+// unused
 HLL_WARN_UNIMPLEMENTED( , void, DrawDungeon14, SetLapFilter, int surface, int type, int r, int g, int b);
 
-bool DrawDungeon14_GetDrawMapObjectFlag(int surface)
+static bool DrawDungeon14_GetDrawMapObjectFlag(int surface)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx || !ctx->renderer)
@@ -420,7 +436,7 @@ bool DrawDungeon14_GetDrawMapObjectFlag(int surface)
 	return dungeon_renderer_event_markers_enabled(ctx->renderer);
 }
 
-void DrawDungeon14_SetDrawMapObjectFlag(int surface, bool flag)
+static void DrawDungeon14_SetDrawMapObjectFlag(int surface, bool flag)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx || !ctx->renderer)

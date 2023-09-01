@@ -20,7 +20,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "gfx/gl.h"
+#include "gfx/gfx.h"
 #include "plugin.h"
 
 struct page;
@@ -63,6 +63,7 @@ struct dungeon_context {
 	struct dtx *dtx;
 	struct tes *tes;
 	struct dungeon_renderer *renderer;
+	struct texture texture;
 	GLuint depth_buffer;
 };
 
