@@ -37,9 +37,16 @@ struct fmt_spec {
 	enum fmt_type type;
 	int precision;
 	int padding;
-        bool zero_pad;
+	bool zero_pad;
 	bool zenkaku;
 };
+
+static inline bool is_integer_type(enum string_format_type t)
+{
+	return t == STRFMT_INT
+		|| t == STRFMT_BOOL
+		|| t == STRFMT_LONG_INT;
+}
 
 static int read_number(const char **_fmt)
 {
@@ -54,7 +61,7 @@ static int read_number(const char **_fmt)
 	return n;
 }
 
-static bool parse_fmt_spec(const char **_fmt, struct fmt_spec *spec, enum ain_data_type target)
+static bool parse_fmt_spec(const char **_fmt, struct fmt_spec *spec, enum string_format_type target)
 {
 	bool r = false;
 	const char *fmt = (*_fmt) + 1;
@@ -64,33 +71,33 @@ static bool parse_fmt_spec(const char **_fmt, struct fmt_spec *spec, enum ain_da
 		switch (*fmt) {
 		case 'd':
 			spec->type = FMT_INT;
-			r = target == AIN_INT;
+			r = is_integer_type(target);
 			goto end;
 		case 'D':
 			spec->type = FMT_INT;
 			spec->zenkaku = true;
-			r = target == AIN_INT;
+			r = is_integer_type(target);
 			goto end;
 		case 'f':
 			spec->type = FMT_FLOAT;
-			r = target == AIN_FLOAT;
+			r = target == STRFMT_FLOAT;
 			goto end;
 		case 'F':
 			spec->type = FMT_FLOAT;
 			spec->zenkaku = true;
-			r = target == AIN_FLOAT;
+			r = target == STRFMT_FLOAT;
 			goto end;
 		case 's':
 			spec->type = FMT_STRING;
-			r = target == AIN_STRING;
+			r = target == STRFMT_STRING;
 			goto end;
 		case 'c':
 			spec->type = FMT_CHAR;
-			r = target == AIN_INT;
+			r = is_integer_type(target);
 			goto end;
 		case 'b':
 			spec->type = FMT_BOOL;
-			r = target == AIN_INT;
+			r = is_integer_type(target);
 			goto end;
 		case '0':
 			spec->zero_pad = true;
@@ -154,9 +161,8 @@ static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value 
 	}
 }
 
-struct string *string_format(struct string *fmt, union vm_value arg, enum ain_data_type type)
+struct string *string_format(struct string *fmt, union vm_value arg, enum string_format_type type)
 {
-	struct string *out = string_ref(&EMPTY_STRING);
 	for (const char *s = fmt->text; *s; s++) {
 		if (*s != '%')
 			continue;
@@ -164,11 +170,12 @@ struct string *string_format(struct string *fmt, union vm_value arg, enum ain_da
 		size_t size = s - fmt->text;
 		struct fmt_spec spec;
 		if (parse_fmt_spec(&s, &spec, type)) {
+			struct string *out = string_ref(&EMPTY_STRING);
 			string_append_cstr(&out, fmt->text, size);
 			append_fmt(&out, &spec, arg);
 			string_append_cstr(&out, s, strlen(s));
-			break;
+			return out;
 		}
 	}
-	return out;
+	return string_ref(fmt);
 }

@@ -413,7 +413,7 @@ static void DrawDungeon14_SetRasterScroll(int surface, int type)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx || !ctx->renderer)
-		return true;
+		return;
 	return dungeon_renderer_set_raster_scroll(ctx->renderer, type);
 }
 
@@ -421,7 +421,7 @@ static void DrawDungeon14_SetRasterAmp(int surface, float amp)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx || !ctx->renderer)
-		return true;
+		return;
 	return dungeon_renderer_set_raster_amp(ctx->renderer, amp);
 }
 

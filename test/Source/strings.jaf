@@ -5,6 +5,7 @@ void test_strings(void)
 	int i;
 	float f;
 	string s;
+	bool b;
 	test_bool("\"a\" == \"a\"", "a" == "a", true);
 	test_bool("\"a\" != \"b\"", "a" == "b", false);
 	test_bool("\"a\" < \"b\"",  "a" < "b",  true);
@@ -86,8 +87,10 @@ void test_strings(void)
 	// char
 	test_string("abc%cdef % '‚ '", "abc%cdef" % '‚ ', "abc‚ def");
 	// bool
-	test_string("abc%bdef % 1", "abc%bdef" % 1, "abctruedef");
-	test_string("abc%bdef % 0", "abc%bdef" % 0, "abcfalsedef");
+	test_string("abc%bdef % 1", "abc%bdef" % (b = 1), "abctruedef");
+	test_string("abc%bdef % 0", "abc%bdef" % (b = 0), "abcfalsedef");
+	// type mismatch
+	test_string("%s % 42", "%s" % 42, "%s");
 
 	// I_STRING
 	test_bool("(42).String()", (i = 42, i.String() == "42"), true);

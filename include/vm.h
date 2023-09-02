@@ -114,7 +114,16 @@ bool library_function_exists(int libno, int fno);
 void init_libraries(void);
 void exit_libraries(void);
 
-struct string *string_format(struct string *fmt, union vm_value arg, enum ain_data_type type);
+// NOTE: This can probably be merged with ain_data_type, since the values are
+// disjoint.
+enum string_format_type {
+	STRFMT_INT = 2,
+	STRFMT_FLOAT = 3,
+	STRFMT_STRING = 4,
+	STRFMT_BOOL = 48,
+	STRFMT_LONG_INT = 56,
+};
+struct string *string_format(struct string *fmt, union vm_value arg, enum string_format_type type);
 
 void vm_stack_trace(void);
 _Noreturn void _vm_error(const char *fmt, ...);
