@@ -1532,7 +1532,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		union vm_value val = stack_pop();
 		int fmt = stack_pop().i;
 		int dst = heap_alloc_slot(VM_STRING);
-		heap[dst].s = string_format(heap[fmt].s, val, type + 8);
+		heap[dst].s = string_format(heap[fmt].s, val, type);
 		heap_unref(fmt);
 		stack_push(dst);
 		break;
