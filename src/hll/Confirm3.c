@@ -16,13 +16,14 @@
 
 #include "hll.h"
 
-HLL_WARN_UNIMPLEMENTED( , void, Confirm3, Init, void *iMainsystem);
-HLL_WARN_UNIMPLEMENTED(0, int, Confirm3, GetHDDVolumeNumber, void);
-HLL_WARN_UNIMPLEMENTED(5, int, Confirm3, GetDrive, struct string *filename);
-HLL_WARN_UNIMPLEMENTED(0, int, Confirm3, GetRandom, int seed);
-HLL_WARN_UNIMPLEMENTED(true, bool, Confirm3, File_Open, struct string *filename);
-HLL_WARN_UNIMPLEMENTED(true, bool, Confirm3, File_Create, struct string *filename);
-HLL_WARN_UNIMPLEMENTED(true, bool, Confirm3, File_SetPos, int pos);
+HLL_QUIET_UNIMPLEMENTED( , void, Confirm3, Init, void *iMainsystem);
+HLL_QUIET_UNIMPLEMENTED(0, int, Confirm3, Initialize, void);
+HLL_QUIET_UNIMPLEMENTED(0, int, Confirm3, GetHDDVolumeNumber, void);
+HLL_QUIET_UNIMPLEMENTED(5, int, Confirm3, GetDrive, struct string *filename);
+HLL_QUIET_UNIMPLEMENTED(0, int, Confirm3, GetRandom, int seed);
+HLL_QUIET_UNIMPLEMENTED(true, bool, Confirm3, File_Open, struct string *filename);
+HLL_QUIET_UNIMPLEMENTED(true, bool, Confirm3, File_Create, struct string *filename);
+HLL_QUIET_UNIMPLEMENTED(true, bool, Confirm3, File_SetPos, int pos);
 
 static bool Confirm3_File_ReadByte(int *data)
 {
@@ -36,12 +37,13 @@ static bool Confirm3_File_ReadInt(int *data)
 	return true;
 }
 
-HLL_WARN_UNIMPLEMENTED(true, bool, Confirm3, File_WriteInt, int data);
-HLL_WARN_UNIMPLEMENTED(true, bool, Confirm3, File_Close, void);
+HLL_QUIET_UNIMPLEMENTED(true, bool, Confirm3, File_WriteInt, int data);
+HLL_QUIET_UNIMPLEMENTED(true, bool, Confirm3, File_Close, void);
 
 HLL_LIBRARY(Confirm3,
 	    HLL_EXPORT(Init, Confirm3_Init),
 	    HLL_EXPORT(GetHDDVolumeNumber, Confirm3_GetHDDVolumeNumber),
+	    HLL_EXPORT(Initialize, Confirm3_Initialize),
 	    HLL_EXPORT(GetDrive, Confirm3_GetDrive),
 	    HLL_EXPORT(GetRandom, Confirm3_GetRandom),
 	    HLL_EXPORT(File_Open, Confirm3_File_Open),
