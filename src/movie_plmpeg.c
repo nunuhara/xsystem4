@@ -111,6 +111,7 @@ static void update_texture(GLuint unit, GLuint texture, plm_plane_t *plane)
 struct movie_context *movie_load(const char *filename)
 {
 	struct movie_context *mc = xcalloc(1, sizeof(struct movie_context));
+	mc->voice = -1;
 	char *path = gamedir_path(filename);
 	FILE *fp = file_open_utf8(path, "rb");
 	if (!fp) {
@@ -142,7 +143,6 @@ struct movie_context *movie_load(const char *filename)
 
 	mc->decoder_mutex = SDL_CreateMutex();
 	mc->timer_mutex = SDL_CreateMutex();
-	mc->voice = -1;
 	mc->volume = 100;
 	return mc;
 }
