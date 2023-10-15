@@ -209,6 +209,7 @@ static int audio_callback(sts_mixer_sample_t *sample, void *data)
 struct movie_context *movie_load(const char *filename)
 {
 	struct movie_context *mc = xcalloc(1, sizeof(struct movie_context));
+	mc->voice = -1;
 	char *path = gamedir_path(filename);
 	int ret;
 	if ((ret = avformat_open_input(&mc->format_ctx, path, NULL, NULL)) != 0) {
@@ -257,7 +258,6 @@ struct movie_context *movie_load(const char *filename)
 
 	mc->format_mutex = SDL_CreateMutex();
 	mc->timer_mutex = SDL_CreateMutex();
-	mc->voice = -1;
 	mc->volume = 100;
 
 	preload_packets(mc);
