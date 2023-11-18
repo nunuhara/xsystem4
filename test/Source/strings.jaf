@@ -114,4 +114,7 @@ void test_strings(void)
 	test_string("ab‚ ‚¢‚¤[7] = 'c'", (s = "ab‚ ‚¢‚¤", s[7] = 'c', s), "ab‚ ‚¢‚¤");
 	// This throws
 	// test_string("ab‚ ‚¢‚¤[8] = 'c'", (s = "ab‚ ‚¢‚¤", s[8] = 'c', s), "ab‚ ‚¢‚¤");
+	// Assigning 0 to a character truncates the string.
+	test_string("ab‚ ‚¢‚¤[3] = 0", (s = "ab‚ ‚¢‚¤", s[3] = 0, s), "ab‚ ");
+	test_equal("(ab‚ ‚¢‚¤[3] = 0).Length", (s = "ab‚ ‚¢‚¤", s[3] = 0, s.Length()), 3);
 }
