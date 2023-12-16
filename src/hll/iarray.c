@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include "little_endian.h"
 #include "system4.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
@@ -108,7 +109,7 @@ static void iarray_write_value(struct iarray_writer *w, struct ain_type *t, int 
 		iarray_write_string(w, heap_get_string(value));
 		break;
 	case AIN_STRUCT:
-		iarray_write_struct(w, heap_get_page(value));
+		iarray_write_struct(w, heap_get_page(value), false);
 		break;
 	case AIN_ARRAY_INT:
 	case AIN_ARRAY_FLOAT:
@@ -122,12 +123,14 @@ static void iarray_write_value(struct iarray_writer *w, struct ain_type *t, int 
 	}
 }
 
-void iarray_write_struct(struct iarray_writer *w, struct page *page)
+void iarray_write_struct(struct iarray_writer *w, struct page *page, bool with_type)
 {
 	assert(page->type == STRUCT_PAGE);
 	struct ain_struct *s = &ain->structures[page->index];
 	assert(s->nr_members == page->nr_vars);
 	for (int i = 0; i < s->nr_members; i++) {
+		if (with_type)
+			iarray_write(w, s->members[i].type.data);
 		iarray_write_value(w, &s->members[i].type, page->values[i].i);
 	}
 }
@@ -202,6 +205,16 @@ struct page *iarray_to_page(struct iarray_writer *w)
 	return page;
 }
 
+uint8_t *iarray_to_buffer(struct iarray_writer *w, size_t *size_out)
+{
+	*size_out = w->size * 4;
+	uint8_t *buf = xmalloc(*size_out);
+	for (unsigned i = 0; i < w->size; i++) {
+		LittleEndian_putDW(buf, i * 4, w->data[i]);
+	}
+	return buf;
+}
+
 bool iarray_init_reader(struct iarray_reader *r, struct page *a, const char *header)
 {
 	r->data = a->values;
@@ -267,7 +280,7 @@ static int32_t iarray_read_member(struct iarray_reader *r, struct ain_type *t)
 	case AIN_STRING:
 		return heap_alloc_string(iarray_read_string(r));
 	case AIN_STRUCT:
-		return heap_alloc_page(iarray_read_struct(r, t->struc));
+		return heap_alloc_page(iarray_read_struct(r, t->struc, false));
 	case AIN_ARRAY_INT:
 	case AIN_ARRAY_FLOAT:
 	case AIN_ARRAY_STRING:
@@ -279,11 +292,16 @@ static int32_t iarray_read_member(struct iarray_reader *r, struct ain_type *t)
 	}
 }
 
-struct page *iarray_read_struct(struct iarray_reader *r, int struct_type)
+struct page *iarray_read_struct(struct iarray_reader *r, int struct_type, bool with_type)
 {
 	struct ain_struct *s = &ain->structures[struct_type];
 	struct page *page = alloc_page(STRUCT_PAGE, struct_type, s->nr_members);
 	for (int i = 0; i < s->nr_members; i++) {
+		if (with_type) {
+			int type = iarray_read(r);
+			if (type != s->members[i].type.data)
+				VM_ERROR("iarray_read_struct: type mismatch");
+		}
 		page->values[i].i = iarray_read_member(r, &s->members[i].type);
 	}
 	return page;

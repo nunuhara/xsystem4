@@ -314,7 +314,7 @@ bool ADVSceneKeeper_AddADVScene(struct page **page)
 	// serialize
 	struct iarray_writer out;
 	iarray_init_writer(&out, "SCN");
-	iarray_write_struct(&out, *page);
+	iarray_write_struct(&out, *page, false);
 	scenes.data[scenes.n++] = iarray_to_page(&out);
 	iarray_free_writer(&out);
 
@@ -341,7 +341,7 @@ bool ADVSceneKeeper_GetADVScene(int index, struct page **page)
 		free_page(*page);
 	}
 
-	*page = iarray_read_struct(&in, scene_struct_no());
+	*page = iarray_read_struct(&in, scene_struct_no(), false);
 	return !in.error;
 }
 
