@@ -95,10 +95,7 @@ static bool MapLoader_Load(int map_no)
 		free(map_data);
 		map_data = NULL;
 	} else {
-		struct mt19937 mt;
-		mt19937_init(&mt, 12753);
-		for (size_t i = 4; i < map_size; i++)
-			map_data[i] ^= mt19937_genrand(&mt);
+		mt19937_xorcode(map_data + 4, map_size - 4, 12753);
 	}
 	free(path);
 	return !!map_data;
