@@ -95,10 +95,7 @@ static uint8_t *chr_get(int id)
 		free(data);
 		data = NULL;
 	} else {
-		struct mt19937 mt;
-		mt19937_init(&mt, 12753);
-		for (size_t i = 4; i < size; i++)
-			data[i] ^= mt19937_genrand(&mt);
+		mt19937_xorcode(data + 4, size - 4, 12753);
 		slot->value = data;
 	}
 	free(path);

@@ -17,39 +17,101 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <zlib.h>
 
 #include "system4/file.h"
 #include "system4/string.h"
+#include "system4/mt19937int.h"
 
 #include "hll.h"
 #include "audio.h"
+#include "iarray.h"
+#include "little_endian.h"
 #include "savedata.h"
 #include "vm/page.h"
 #include "xsystem4.h"
 
+#define MD11_ENCRYPT_KEY 0x18ec03
+#define MD11_HEADER_SIZE 8
+
+static const uint8_t md11_signature[] = { 'M', 'D', 0x01, 0x01 };
+
 static int BanMisc_SaveStruct(struct page *page, struct string *file_name)
 {
+	// serialize
+	struct iarray_writer out;
+	iarray_init_writer(&out, NULL);
+	iarray_write_struct(&out, page, true);
+	size_t raw_size;
+	uint8_t *raw_buf = iarray_to_buffer(&out, &raw_size);
+	iarray_free_writer(&out);
+
+	// compress
+	unsigned long compressed_size = compressBound(raw_size);
+	uint8_t *buf = xmalloc(MD11_HEADER_SIZE + compressed_size);
+	memcpy(buf, md11_signature, sizeof(md11_signature));
+	LittleEndian_putDW(buf, 4, raw_size);
+	uint8_t *compressed = buf + MD11_HEADER_SIZE;
+	int r = compress2(compressed, &compressed_size, raw_buf, raw_size, Z_DEFAULT_COMPRESSION);
+	free(raw_buf);
+	if (r != Z_OK) {
+		free(buf);
+		return 0;
+	}
+
+	// encrypt
+	mt19937_xorcode(compressed, compressed_size, MD11_ENCRYPT_KEY);
+
+	// write
 	char *path = unix_path(file_name->text);
-	FILE *fp = file_open_utf8(path, "w");
-	if (!fp) {
-		WARNING("Failed to open file '%s': %s", display_utf0(path), strerror(errno));
-		free(path);
-		return 0;
-	}
-	free(path);
-
-	cJSON *json = page_to_json(page);
-	char *str = cJSON_Print(json);
-	cJSON_Delete(json);
-
-	bool ok = fputs(str, fp) != EOF;
-	free(str);
-	fclose(fp);
+	bool ok = file_write(path, buf, MD11_HEADER_SIZE + compressed_size);
 	if (!ok) {
-		WARNING("BanMisc.SaveStruct failed (fputs): %s", strerror(errno));
-		return 0;
+		WARNING("Failed to write file '%s': %s", display_utf0(path), strerror(errno));
 	}
-	return 1;
+	free(buf);
+	free(path);
+	return ok;
+}
+
+static struct page *load_md11(int struct_type, uint8_t *buf, size_t len)
+{
+	if (len < MD11_HEADER_SIZE) {
+		WARNING("BanMisc.LoadStruct file too short");
+		return NULL;
+	}
+	unsigned long raw_size = LittleEndian_getDW(buf, 4);
+	if (raw_size % 4 != 0) {
+		WARNING("BanMisc.LoadStruct invalid file format");
+		return NULL;
+	}
+	buf += MD11_HEADER_SIZE;
+	len -= MD11_HEADER_SIZE;
+
+	// decrypt
+	mt19937_xorcode(buf, len, MD11_ENCRYPT_KEY);
+
+	// decompress
+	uint8_t *raw_buf = xmalloc(raw_size);
+	int r = uncompress(raw_buf, &raw_size, buf, len);
+	if (r != Z_OK) {
+		WARNING("BanMisc.LoadStruct uncompress failed: %d", r);
+		free(raw_buf);
+		return NULL;
+	}
+
+	// deserialize
+	int nr_vars = raw_size / 4;
+	struct page *tmp_page = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, nr_vars);
+	tmp_page->array.rank = 1;
+	for (int i = 0; i < nr_vars; i++) {
+		tmp_page->values[i].i = LittleEndian_getDW(raw_buf, i * 4);
+	}
+	struct iarray_reader in;
+	iarray_init_reader(&in, tmp_page, NULL);
+	struct page *page = iarray_read_struct(&in, struct_type, true);
+	free_page(tmp_page);
+	free(raw_buf);
+	return page;
 }
 
 static int BanMisc_LoadStruct(struct page **_page, struct string *file_name)
@@ -60,31 +122,30 @@ static int BanMisc_LoadStruct(struct page **_page, struct string *file_name)
 	}
 
 	char *path = unix_path(file_name->text);
-	FILE *fp = file_open_utf8(path, "r");
-	if (!fp) {
-		WARNING("Failed to open file '%s': %s", display_utf0(path), strerror(errno));
-		free(path);
-		return 0;
-	}
+	size_t len;
+	uint8_t *buf = file_read(path, &len);
 	free(path);
-
-	fseek(fp, 0, SEEK_END);
-	long len = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-
-	char *buf = xmalloc(len + 1);
-	buf[len] = '\0';
-	if (fread(buf, len, 1, fp) != 1) {
-		WARNING("BanMisc.LoadStruct failed (fread): %s", strerror(errno));
-		free(buf);
+	if (!buf) {
 		return 0;
 	}
-	fclose(fp);
 
-	cJSON *json = cJSON_Parse(buf);
+	if (!memcmp(buf, md11_signature, sizeof(md11_signature))) {
+		page = load_md11(page->index, buf, len);
+		free(buf);
+		if (!page)
+			return 0;
+		if (*_page) {
+			delete_page_vars(*_page);
+			free_page(*_page);
+		}
+		*_page = page;
+		return 1;
+	}
+	// load from JSON (for backward compatibility)
+	cJSON *json = cJSON_Parse((char *)buf);
 	free(buf);
 	if (!json) {
-		WARNING("BanMisc.LoadStruct failed to parse JSON");
+		WARNING("BanMisc.LoadStruct invalid file format");
 		return 0;
 	}
 	if (!cJSON_IsArray(json)) {

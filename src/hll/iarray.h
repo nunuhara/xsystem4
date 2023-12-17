@@ -40,7 +40,7 @@ void iarray_write_at(struct iarray_writer *w, unsigned pos, int data);
 void iarray_write_float(struct iarray_writer *w, float data);
 void iarray_write_string(struct iarray_writer *w, struct string *s);
 void iarray_write_string_or_null(struct iarray_writer *w, struct string *s);
-void iarray_write_struct(struct iarray_writer *w, struct page *page);
+void iarray_write_struct(struct iarray_writer *w, struct page *page, bool with_type);
 void iarray_write_array(struct iarray_writer *w, struct page *page);
 void iarray_write_point(struct iarray_writer *w, Point *p);
 void iarray_write_rectangle(struct iarray_writer *w, Rectangle *r);
@@ -53,6 +53,7 @@ static inline unsigned iarray_writer_pos(struct iarray_writer *w)
 }
 
 struct page *iarray_to_page(struct iarray_writer *w);
+uint8_t *iarray_to_buffer(struct iarray_writer *w, size_t *size_out);
 
 struct iarray_reader {
 	union vm_value *data;
@@ -71,7 +72,7 @@ int iarray_read(struct iarray_reader *r);
 float iarray_read_float(struct iarray_reader *r);
 struct string *iarray_read_string(struct iarray_reader *r);
 struct string *iarray_read_string_or_null(struct iarray_reader *r);
-struct page *iarray_read_struct(struct iarray_reader *r, int struct_type);
+struct page *iarray_read_struct(struct iarray_reader *r, int struct_type, bool with_type);
 struct page *iarray_read_array(struct iarray_reader *r, struct ain_type *t);
 void iarray_read_point(struct iarray_reader *r, Point *p);
 void iarray_read_rectangle(struct iarray_reader *r, Rectangle *rect);
