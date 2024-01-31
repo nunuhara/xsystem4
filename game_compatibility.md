@@ -21,27 +21,27 @@ issues, please let me know or open a pull request to update this table.
 | 魔女の贖罪                                              | Unknown     |       |
 | Rance VI -ゼス崩壊-                                     | Supported   |       |
 | Rance VI -Collapse of Zeth- (EN)                        | Supported   |       |
-| ウルトラ魔法少女まなな Vol.1～Vol.5                     | Unknown     |       |
-| 鈴宮刑務娼館                                            | Unknown     | From ALICEの館7 |
-| しまいま                                                | Unknown     | From ALICEの館7 |
+| ウルトラ魔法少女まなな Vol.1～Vol.5                     | Supported   |       |
+| 鈴宮刑務娼館                                            | Supported   | From ALICEの館7 |
+| しまいま                                                | Supported   | From ALICEの館7 |
 | DUNGEONS & DOLLS                                        | Unsupported | From ALICEの館7 |
-| こすぷれれもん                                          | Unknown     | From ALICEの館7 |
-| エルメイフラワー                                        | Unknown     | From ALICEの館7 |
-| CGは17年ゼミ                                            | Unknown     | From ALICEの館7 |
-| でーぴーえすVer_N                                       | Unknown     | From ALICEの館7 |
-| 大番長外伝                                              | Unknown     | From ALICEの館7 |
-| ZERO                                                    | Unknown     | From ALICEの館7 |
-| ぷろGRX                                                 | Unknown     | From ALICEの館7 |
-| Girls                                                   | Unknown     | From ALICEの館7 |
-| 神武 -カムナガラ-                                       | Unknown     | From ALICEの館7 |
-| オニむス                                                | Unknown     | From ALICEの館7 |
-| 透色                                                    | Unknown     | From ALICEの館7 |
-| DEBUT                                                   | Unknown     | From ALICEの館7 |
-| ランス6その後                                           | Unknown     | From ALICEの館7 |
-| ほいっぷハニー                                          | Unknown     | From ALICEの館7 |
-| Text Jam Session                                        | Unknown     | From ALICEの館7 |
-| 没ロゴの哀しみ                                          | Unknown     | From ALICEの館7 |
-| スタッフコーナー                                        | Unknown     | From ALICEの館7 |
+| こすぷれれもん                                          | Supported   | From ALICEの館7 |
+| エルメイフラワー                                        | Supported   | From ALICEの館7 |
+| CGは17年ゼミ                                            | Supported   | From ALICEの館7 |
+| でーぴーえすVer_N                                       | Supported   | From ALICEの館7 |
+| 大番長外伝                                              | Supported   | From ALICEの館7 |
+| ZERO                                                    | Unsupported | From ALICEの館7 |
+| ぷろGRX                                                 | Supported   | From ALICEの館7 |
+| Girls                                                   | Supported   | From ALICEの館7 |
+| 神武 -カムナガラ-                                       | Supported   | From ALICEの館7 |
+| オニむス                                                | Supported   | From ALICEの館7 |
+| 透色                                                    | Supported   | From ALICEの館7 |
+| DEBUT                                                   | Supported   | From ALICEの館7 |
+| ランス6その後                                           | Supported   | From ALICEの館7 |
+| ほいっぷハニー                                          | Supported   | From ALICEの館7 |
+| Text Jam Session                                        | Supported   | From ALICEの館7 |
+| 没ロゴの哀しみ                                          | Supported   | From ALICEの館7 |
+| スタッフコーナー                                        | Supported   | From ALICEの館7 |
 | ぱすてるチャイムContinue                                | Unsupported |       |
 | GALZOOアイランド                                        | Supported   |       |
 | ぱすちゃC＋＋                                           | Unknown     |       |
@@ -53,7 +53,7 @@ issues, please let me know or open a pull request to update this table.
 | だぶる先生らいふっ                                      | Unknown     |       |
 | お嬢様をいいなりにするゲーム                            | Unknown     |       |
 | 超昂閃忍ハルカ                                          | Unknown     |       |
-| 戦国ランス～三匹が斬ったり突いたり燃やしたり            | Unknown     |       |
+| 戦国ランス～三匹が斬ったり突いたり燃やしたり            | Supported   |       |
 | Sengoku Rance -Three for the Slash! Thrust! Burn!- (EN) | Unknown     |       |
 | AliveZ                                                  | Unknown     |       |
 | エドランゼ ～Come on!水戸姫様～                         | Unknown     |       |
