@@ -254,7 +254,6 @@ static void config_init(void)
 	char *new_save_dir = get_save_path(config.save_dir);
 	free(config.save_dir);
 	config.save_dir = new_save_dir;
-	mkdir_p(new_save_dir);
 }
 
 static bool config_init_with_ini(const char *ini_path)
@@ -526,7 +525,8 @@ int main(int argc, char *argv[])
 			config.joypad = false;
 		else
 			WARNING("Invalid value for 'joypad' option (must be 'on' or 'off')");
-	} if (savedir) {
+	}
+	if (savedir) {
 		free(config.save_dir);
 		config.save_dir = strdup(savedir);
 	}
@@ -541,6 +541,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	mkdir_p(config.save_dir);
 	apply_game_specific_hacks(ain);
 	asset_manager_init();
 	dbg_init();
