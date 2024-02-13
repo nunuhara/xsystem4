@@ -530,10 +530,6 @@ static void system_call(enum syscall_code code)
 		int filename_slot = stack_pop().i;
 		int key_slot = stack_pop().i;
 		vm_load_image(heap_get_string(key_slot)->text, heap_get_string(filename_slot)->text);
-		//heap_unref(stack_pop().i);
-		//heap_unref(stack_pop().i);
-		stack_pop();
-		stack_pop();
 		stack_push(0);
 		break;
 	}
@@ -998,7 +994,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 			sys_message("Assertion failed at %s:%d: %s\n",
 					display_sjis0(heap_get_string(file)->text),
 					line,
-					display_sjis0(heap_get_string(expr)->text));
+					display_sjis1(heap_get_string(expr)->text));
 			vm_exit(1);
 		}
 		heap_unref(file);
