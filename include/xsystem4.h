@@ -43,6 +43,7 @@ struct config {
 	bool echo;
 	float text_x_scale;
 	bool manual_text_x_scale;
+	bool rsm_save;
 };
 
 extern struct config config;
