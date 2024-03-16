@@ -200,12 +200,19 @@ int gfx_init(void)
 #endif
 
 	sdl.format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
+	uint32_t window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+#ifdef __ANDROID__
+	window_flags |= SDL_WINDOW_FULLSCREEN;
+	SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+#else
+	window_flags |= SDL_WINDOW_RESIZABLE;
+#endif
 	sdl.window =  SDL_CreateWindow("XSystem4",
 				       SDL_WINDOWPOS_UNDEFINED,
 				       SDL_WINDOWPOS_UNDEFINED,
 				       config.view_width,
 				       config.view_height,
-				       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+				       window_flags);
 	if (!sdl.window)
 		ERROR("SDL_CreateWindow failed: %s", SDL_GetError());
 
