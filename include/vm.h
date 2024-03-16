@@ -129,8 +129,13 @@ void vm_stack_trace(void);
 _Noreturn void _vm_error(const char *fmt, ...);
 _Noreturn void vm_exit(int code);
 
+#ifdef __ANDROID__
+// Report the error with a message box and exit.
+#define VM_ERROR ERROR
+#else
 #define VM_ERROR(fmt, ...) \
 	_vm_error("*ERROR*(%s:%s:%d): " fmt "\n", __FILE__, __func__, __LINE__, ##__VA_ARGS__)
+#endif
 
 #ifdef VM_PRIVATE
 #include "little_endian.h"

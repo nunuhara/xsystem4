@@ -68,11 +68,11 @@ struct texture main_surface;
 
 static GLchar *read_shader_file(const char *path)
 {
-	GLchar *source = file_read(path, NULL);
+	GLchar *source = SDL_LoadFile(path, NULL);
 	if (!source) {
 		char full_path[PATH_MAX];
 		snprintf(full_path, PATH_MAX, XSYS4_DATA_DIR "/%s", path);
-		source = file_read(full_path, NULL);
+		source = SDL_LoadFile(full_path, NULL);
 		if (!source)
 			ERROR("Failed to load shader file %s", full_path, strerror(errno));
 	}
@@ -98,7 +98,7 @@ GLuint gfx_load_shader_file(const char *path, GLenum type)
 		glGetShaderInfoLog(shader, len, NULL, infolog);
 		ERROR("Failed to compile shader %s: %s", path, infolog);
 	}
-	free((char*)source[1]);
+	SDL_free((char*)source[1]);
 	return shader;
 }
 
@@ -200,12 +200,19 @@ int gfx_init(void)
 #endif
 
 	sdl.format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
+	uint32_t window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+#ifdef __ANDROID__
+	window_flags |= SDL_WINDOW_FULLSCREEN;
+	SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+#else
+	window_flags |= SDL_WINDOW_RESIZABLE;
+#endif
 	sdl.window =  SDL_CreateWindow("XSystem4",
 				       SDL_WINDOWPOS_UNDEFINED,
 				       SDL_WINDOWPOS_UNDEFINED,
 				       config.view_width,
 				       config.view_height,
-				       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+				       window_flags);
 	if (!sdl.window)
 		ERROR("SDL_CreateWindow failed: %s", SDL_GetError());
 

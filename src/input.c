@@ -18,6 +18,7 @@
 #include <time.h>
 #include <SDL.h>
 #include "system4.h"
+#include "queue.h"
 #include "gfx/gfx.h"
 #include "gfx/private.h"
 #include "input.h"
@@ -145,6 +146,30 @@ bool keyboard_focus = true;
 #define MAX_CONTROLLERS 4
 static SDL_GameController *controllers[MAX_CONTROLLERS];
 
+#ifdef __ANDROID__
+struct deferred_keyevent {
+	STAILQ_ENTRY(deferred_keyevent) entry;
+	SDL_Event e;
+};
+static STAILQ_HEAD(deferred_keyevent_queue, deferred_keyevent) deferred_keyevent_queue =
+	STAILQ_HEAD_INITIALIZER(deferred_keyevent_queue);
+static uint32_t last_keyevent_timestamp;
+#define DEFERRED_KEY_DELAY 10
+#endif
+
+// Stores a mouse button event synthesized from a touch event (valid if
+// .timestamp != 0). We defer such events to prevent games from handling
+// button down events before reading the pointer position.
+static SDL_MouseButtonEvent deferred_synthetic_mouse_event;
+#define SYNTHETIC_MOUSE_EVENT_DELAY 50
+
+static uint32_t long_touch_start_timestamp;
+static SDL_FRect long_touch_finger_rect;
+#define LONG_TOUCH_DURATION 1000
+
+static float scroll_gesture_y;
+#define SCROLL_GESTURE_SENSITIVITY 0.02f  // 2% of screen height
+
 static enum sact_keycode sdl_to_sact_button(int button)
 {
 	switch (button) {
@@ -222,6 +247,21 @@ static void mouse_event(SDL_MouseButtonEvent *e)
 	if (e->button == SDL_BUTTON_MIDDLE && e->state == SDL_PRESSED && dbg_start_in_debugger)
 		dbg_repl();
 #endif
+}
+
+static void synthetic_mouse_event(SDL_MouseButtonEvent *e)
+{
+	if (e->state == SDL_PRESSED) {
+		// Touch outside the viewport is treated as right-click.
+		SDL_Point p = { .x = e->x, .y = e->y };
+		if (SDL_PointInRect(&p, &sdl.viewport))
+			key_state[VK_LBUTTON] = true;
+		else
+			key_state[VK_RBUTTON] = true;
+	} else {
+		key_state[VK_LBUTTON] = false;
+		key_state[VK_RBUTTON] = false;
+	}
 }
 
 #define JOYAXIS_DEADZONE 13500
@@ -475,8 +515,47 @@ void clear_editing_handler(void)
 	editing_handler = NULL;
 }
 
+static void fire_deferred_events(void)
+{
+	uint32_t now = SDL_GetTicks();
+
+	// Flush the deferred mouse button event if it's older than 50ms.
+	if (deferred_synthetic_mouse_event.timestamp &&
+		deferred_synthetic_mouse_event.timestamp + SYNTHETIC_MOUSE_EVENT_DELAY < now) {
+		synthetic_mouse_event(&deferred_synthetic_mouse_event);
+		deferred_synthetic_mouse_event.timestamp = 0;
+	}
+	// Long touch emulates pressing the Ctrl key.
+	if (long_touch_start_timestamp && long_touch_start_timestamp + LONG_TOUCH_DURATION < now) {
+		key_state[VK_LBUTTON] = false;
+		key_state[VK_CONTROL] = true;
+	}
+
+#ifdef __ANDROID__
+	// Fire the deferred keyboard and text input events.
+	while (!STAILQ_EMPTY(&deferred_keyevent_queue) && now >= last_keyevent_timestamp + DEFERRED_KEY_DELAY) {
+		struct deferred_keyevent *ev = STAILQ_FIRST(&deferred_keyevent_queue);
+		switch (ev->e.type) {
+		case SDL_TEXTINPUT:
+			if (input_handler)
+				input_handler(ev->e.text.text);
+			break;
+		case SDL_KEYDOWN:
+		case SDL_KEYUP:
+			last_keyevent_timestamp = now;
+			key_event(&ev->e.key, ev->e.type == SDL_KEYDOWN);
+			break;
+		}
+		STAILQ_REMOVE_HEAD(&deferred_keyevent_queue, entry);
+		free(ev);
+	}
+#endif
+}
+
 void handle_events(void)
 {
+	fire_deferred_events();
+
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
@@ -509,18 +588,78 @@ void handle_events(void)
 		case SDL_KEYDOWN:
 			if (e.key.keysym.scancode == SDL_SCANCODE_F9)
 				vm_stack_trace();
-			key_event(&e.key, true);
-			break;
+			// fallthrough
 		case SDL_KEYUP:
-			key_event(&e.key, false);
+#ifdef __ANDROID__
+			if (input_handler && e.key.timestamp < last_keyevent_timestamp + DEFERRED_KEY_DELAY) {
+				// Input from virtual keyboard is sent as consecutive
+				// SDL_KEYDOWN and SDL_KEYUP events. To give the game a chance
+				// to see the previous key event, delay the event.
+				struct deferred_keyevent *ev = xmalloc(sizeof(struct deferred_keyevent));
+				ev->e = e;
+				STAILQ_INSERT_TAIL(&deferred_keyevent_queue, ev, entry);
+			} else {
+				last_keyevent_timestamp = e.key.timestamp;
+				key_event(&e.key, e.type == SDL_KEYDOWN);
+			}
+#else
+			key_event(&e.key, e.type == SDL_KEYDOWN);
+#endif
 			break;
 		case SDL_MOUSEBUTTONUP:
 		case SDL_MOUSEBUTTONDOWN:
-			mouse_event(&e.button);
+			if (e.button.which == SDL_TOUCH_MOUSEID) {
+				if (deferred_synthetic_mouse_event.timestamp)
+					synthetic_mouse_event(&deferred_synthetic_mouse_event);
+				deferred_synthetic_mouse_event = e.button;
+			} else {
+				mouse_event(&e.button);
+			}
 			break;
 		case SDL_MOUSEWHEEL:
 			wheel_dir = e.wheel.y;
 			break;
+		case SDL_FINGERDOWN:
+			if (SDL_GetNumTouchFingers(e.tfinger.touchId) >= 2) {
+				// The user is about to start a multi-touch gesture.
+				key_state[VK_LBUTTON] = false;
+				key_state[VK_RBUTTON] = false;
+				deferred_synthetic_mouse_event.timestamp = 0;
+				long_touch_start_timestamp = 0;
+				scroll_gesture_y = -1.0f;
+				break;
+			}
+			long_touch_start_timestamp = e.tfinger.timestamp;
+			// Movement within this rect (1% of the screen size from the touch
+			// start position) will be ignored.
+			long_touch_finger_rect = (SDL_FRect) {
+				.x = e.tfinger.x - 0.01,
+				.y = e.tfinger.y - 0.01,
+				.w = 0.02,
+				.h = 0.02
+			};
+			break;
+		case SDL_FINGERMOTION:
+			if (SDL_PointInFRect(&(SDL_FPoint){ e.tfinger.x, e.tfinger.y }, &long_touch_finger_rect))
+				break;
+			// Cancel the timer only if Ctrl emulation has not already started.
+			if (!key_state[VK_CONTROL])
+				long_touch_start_timestamp = 0;
+			break;
+		case SDL_FINGERUP:
+			long_touch_start_timestamp = 0;
+			key_state[VK_CONTROL] = false;
+			break;
+		case SDL_MULTIGESTURE:
+			if (e.mgesture.numFingers == 2) {
+				if (scroll_gesture_y < 0.0f)
+					scroll_gesture_y = e.mgesture.y;
+				float dy = scroll_gesture_y - e.mgesture.y;
+				if (dy * dy > SCROLL_GESTURE_SENSITIVITY * SCROLL_GESTURE_SENSITIVITY) {
+					wheel_dir = dy < 0 ? 1 : -1;  // Swipe up to scroll down.
+					scroll_gesture_y = e.mgesture.y;
+				}
+			}
 		case SDL_CONTROLLERDEVICEADDED:
 			if (e.cdevice.which < MAX_CONTROLLERS)
 				controllers[e.cdevice.which] = SDL_GameControllerOpen(e.cdevice.which);
@@ -533,8 +672,18 @@ void handle_events(void)
 			controller_button_event(&e.cbutton);
 			break;
 		case SDL_TEXTINPUT:
-			if (input_handler)
+			if (!input_handler) {
+				break;
+#ifdef __ANDROID__
+			} else if (!STAILQ_EMPTY(&deferred_keyevent_queue)) {
+				// The order of key events and text events must be preserved.
+				struct deferred_keyevent *ev = xmalloc(sizeof(struct deferred_keyevent));
+				ev->e = e;
+				STAILQ_INSERT_TAIL(&deferred_keyevent_queue, ev, entry);
+#endif
+			} else {
 				input_handler(e.text.text);
+			}
 			break;
 		case SDL_TEXTEDITING:
 			if (editing_handler)
