@@ -401,11 +401,22 @@ static void windows_error_handler(const char *msg)
 }
 #endif
 
+#ifdef __ANDROID__
+static void android_error_handler(const char *msg)
+{
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "xsystem4", msg, NULL);
+}
+#endif
+
 int main(int argc, char *argv[])
 {
 #ifdef _WIN32
 	sys_error_handler = windows_error_handler;
 #endif
+#ifdef __ANDROID__
+	sys_error_handler = android_error_handler;
+#endif
+
 	initialize_instructions();
 	char *ainfile;
 	int err = AIN_SUCCESS;
