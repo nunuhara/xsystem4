@@ -151,6 +151,13 @@ static SDL_GameController *controllers[MAX_CONTROLLERS];
 static SDL_MouseButtonEvent deferred_synthetic_mouse_event;
 #define SYNTHETIC_MOUSE_EVENT_DELAY 50
 
+static uint32_t long_touch_start_timestamp;
+static SDL_FRect long_touch_finger_rect;
+#define LONG_TOUCH_DURATION 1000
+
+static float scroll_gesture_y;
+#define SCROLL_GESTURE_SENSITIVITY 0.02f  // 2% of screen height
+
 static enum sact_keycode sdl_to_sact_button(int button)
 {
 	switch (button) {
@@ -228,6 +235,21 @@ static void mouse_event(SDL_MouseButtonEvent *e)
 	if (e->button == SDL_BUTTON_MIDDLE && e->state == SDL_PRESSED && dbg_start_in_debugger)
 		dbg_repl();
 #endif
+}
+
+static void synthetic_mouse_event(SDL_MouseButtonEvent *e)
+{
+	if (e->state == SDL_PRESSED) {
+		// Touch outside the viewport is treated as right-click.
+		SDL_Point p = { .x = e->x, .y = e->y };
+		if (SDL_PointInRect(&p, &sdl.viewport))
+			key_state[VK_LBUTTON] = true;
+		else
+			key_state[VK_RBUTTON] = true;
+	} else {
+		key_state[VK_LBUTTON] = false;
+		key_state[VK_RBUTTON] = false;
+	}
 }
 
 #define JOYAXIS_DEADZONE 13500
@@ -485,8 +507,13 @@ void handle_events(void)
 {
 	// Flush the deferred mouse button event if it's older than 50ms.
 	if (deferred_synthetic_mouse_event.timestamp && deferred_synthetic_mouse_event.timestamp + SYNTHETIC_MOUSE_EVENT_DELAY < SDL_GetTicks()) {
-		mouse_event(&deferred_synthetic_mouse_event);
+		synthetic_mouse_event(&deferred_synthetic_mouse_event);
 		deferred_synthetic_mouse_event.timestamp = 0;
+	}
+	// Long touch emulates pressing the Ctrl key.
+	if (long_touch_start_timestamp && long_touch_start_timestamp + LONG_TOUCH_DURATION < SDL_GetTicks()) {
+		key_state[VK_LBUTTON] = false;
+		key_state[VK_CONTROL] = true;
 	}
 
 	SDL_Event e;
@@ -530,7 +557,7 @@ void handle_events(void)
 		case SDL_MOUSEBUTTONDOWN:
 			if (e.button.which == SDL_TOUCH_MOUSEID) {
 				if (deferred_synthetic_mouse_event.timestamp)
-					mouse_event(&deferred_synthetic_mouse_event);
+					synthetic_mouse_event(&deferred_synthetic_mouse_event);
 				deferred_synthetic_mouse_event = e.button;
 			} else {
 				mouse_event(&e.button);
@@ -539,6 +566,47 @@ void handle_events(void)
 		case SDL_MOUSEWHEEL:
 			wheel_dir = e.wheel.y;
 			break;
+		case SDL_FINGERDOWN:
+			if (SDL_GetNumTouchFingers(e.tfinger.touchId) >= 2) {
+				// The user is about to start a multi-touch gesture.
+				key_state[VK_LBUTTON] = false;
+				key_state[VK_RBUTTON] = false;
+				deferred_synthetic_mouse_event.timestamp = 0;
+				long_touch_start_timestamp = 0;
+				scroll_gesture_y = -1.0f;
+				break;
+			}
+			long_touch_start_timestamp = e.tfinger.timestamp;
+			// Movement within this rect (1% of the screen size from the touch
+			// start position) will be ignored.
+			long_touch_finger_rect = (SDL_FRect) {
+				.x = e.tfinger.x - 0.01,
+				.y = e.tfinger.y - 0.01,
+				.w = 0.02,
+				.h = 0.02
+			};
+			break;
+		case SDL_FINGERMOTION:
+			if (SDL_PointInFRect(&(SDL_FPoint){ e.tfinger.x, e.tfinger.y }, &long_touch_finger_rect))
+				break;
+			// Cancel the timer only if Ctrl emulation has not already started.
+			if (!key_state[VK_CONTROL])
+				long_touch_start_timestamp = 0;
+			break;
+		case SDL_FINGERUP:
+			long_touch_start_timestamp = 0;
+			key_state[VK_CONTROL] = false;
+			break;
+		case SDL_MULTIGESTURE:
+			if (e.mgesture.numFingers == 2) {
+				if (scroll_gesture_y < 0.0f)
+					scroll_gesture_y = e.mgesture.y;
+				float dy = scroll_gesture_y - e.mgesture.y;
+				if (dy * dy > SCROLL_GESTURE_SENSITIVITY * SCROLL_GESTURE_SENSITIVITY) {
+					wheel_dir = dy < 0 ? 1 : -1;  // Swipe up to scroll down.
+					scroll_gesture_y = e.mgesture.y;
+				}
+			}
 		case SDL_CONTROLLERDEVICEADDED:
 			if (e.cdevice.which < MAX_CONTROLLERS)
 				controllers[e.cdevice.which] = SDL_GameControllerOpen(e.cdevice.which);
