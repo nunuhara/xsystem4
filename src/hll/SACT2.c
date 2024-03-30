@@ -111,6 +111,7 @@ int sact_init(possibly_unused int cg_cache_size, bool chipmunk)
 	Texture *t = gfx_main_surface();
 	struct sact_sprite *sp = sact_create_sprite(0, t->w, t->h, 0, 0, 0, 255);
 	sp->texture = *t; // XXX: textures normally shouldn't be copied like this...
+	sprite_set_show(sp, false);
 
 	sprites++;
 
@@ -364,6 +365,8 @@ int sact_SP_SetBlendRate(int sp_no, int rate)
 
 int sact_SP_SetShow(int sp_no, int show)
 {
+	if (sp_no < 0)
+		VM_ERROR("Invalid sprite number: %d", sp_no);
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
 	sprite_set_show(sp, !!show);
