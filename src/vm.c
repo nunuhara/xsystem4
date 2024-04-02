@@ -2383,9 +2383,7 @@ _Noreturn void _vm_error(const char *fmt, ...)
 
 int vm_time(void)
 {
-	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return (ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
+	return SDL_GetTicks();
 }
 
 void vm_sleep(int ms)
