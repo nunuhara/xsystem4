@@ -42,43 +42,6 @@ static int current_global;
 		free(str);						\
 	}
 
-cJSON *page_to_json(struct page *page)
-{
-	if (!page)
-		return cJSON_CreateNull();
-
-	cJSON *values = cJSON_CreateArray();
-	for (int i = 0; i < page->nr_vars; i++) {
-		cJSON_AddItemToArray(values, vm_value_to_json(variable_type(page, i, NULL, NULL), page->values[i]));
-	}
-	return values;
-}
-
-// FIXME: non-page reference types occupy two vm_values
-cJSON *vm_value_to_json(enum ain_data_type type, union vm_value val)
-{
-	switch (type) {
-	case AIN_INT:
-	case AIN_BOOL:
-	case AIN_FUNC_TYPE:
-	case AIN_DELEGATE:
-	case AIN_LONG_INT:
-		return cJSON_CreateNumber(val.i);
-	case AIN_FLOAT:
-		return cJSON_CreateNumber(val.f);
-	case AIN_STRING:
-		return cJSON_CreateString(heap[val.i].s->text);
-	case AIN_STRUCT:
-	case AIN_ARRAY_TYPE:
-		return page_to_json(heap_get_page(val.i));
-	case AIN_REF_TYPE:
-		return cJSON_CreateNumber(-1);
-	default:
-		WARNING("Unhandled type: %d", ain_strtype(ain, type, -1));
-		return cJSON_CreateNull();
-	}
-}
-
 int save_json(const char *filename, cJSON *json)
 {
 	char *path = savedir_path(filename);
@@ -257,7 +220,7 @@ int save_globals(const char *keyname, const char *filename, const char *group_na
 	return error == SAVEFILE_SUCCESS;
 }
 
-union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json);
+static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json);
 
 void get_array_dims(cJSON *json, int rank, union vm_value *dims)
 {
@@ -284,7 +247,7 @@ void json_load_page(struct page *page, cJSON *vars, bool call_dtors)
 	}
 }
 
-union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json)
+static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_type struct_type, int array_rank, cJSON *json)
 {
 	char *str;
 	int slot;

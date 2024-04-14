@@ -20,28 +20,130 @@
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <zlib.h>
 
 #include "system4.h"
+#include "system4/buffer.h"
 #include "system4/file.h"
 #include "system4/string.h"
 
 #include "hll.h"
+#include "little_endian.h"
 #include "savedata.h"
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "xsystem4.h"
 
+enum file_mode {
+	FILE_READ = 1,
+	FILE_WRITE = 2
+};
+
 static FILE *current_file = NULL;
-static char *file_contents = NULL;
-static size_t file_cursor = 0;
+static enum file_mode current_mode;
+// Buffer for reading from / writing to binary format
+static struct buffer contents;
+// Buffer for reading from JSON format
+static char *json_contents = NULL;
+static size_t json_cursor = 0;
+
+static void read_page(struct page *page);
+static void write_page(struct page *page);
+
+static void read_value(union vm_value *v, enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_INT:
+	case AIN_BOOL:
+	case AIN_LONG_INT:
+		v->i = buffer_read_int32(&contents);
+		break;
+	case AIN_FLOAT:
+		v->f = buffer_read_float(&contents);
+		break;
+	case AIN_STRING:
+		variable_fini(*v, type);
+		v->i = heap_alloc_string(buffer_read_string(&contents));
+		break;
+	case AIN_STRUCT:
+	case AIN_ARRAY_TYPE:
+		read_page(heap_get_page(v->i));
+		break;
+	default:
+		VM_ERROR("Unsupported value type %d", type);
+	}
+}
+
+static void read_page(struct page *page)
+{
+	switch (page->type) {
+	case STRUCT_PAGE:
+		struct ain_struct *s = &ain->structures[page->index];
+		for (int i = 0; i < s->nr_members; i++) {
+			read_value(&page->values[i], s->members[i].type.data);
+		}
+		break;
+	case ARRAY_PAGE:
+		enum ain_data_type type = page->array.rank > 1 ? page->a_type : array_type(page->a_type);
+		for (int i = 0; i < page->nr_vars; i++) {
+			read_value(&page->values[i], type);
+		}
+		break;
+	default:
+		VM_ERROR("Unsupported page type %d", page->type);
+	}
+}
+
+static void write_value(union vm_value v, enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_INT:
+	case AIN_BOOL:
+	case AIN_LONG_INT:
+		buffer_write_int32(&contents, v.i);
+		break;
+	case AIN_FLOAT:
+		buffer_write_float(&contents, v.f);
+		break;
+	case AIN_STRING:
+		buffer_write_cstringz(&contents, heap_get_string(v.i)->text);
+		break;
+	case AIN_STRUCT:
+	case AIN_ARRAY_TYPE:
+		write_page(heap_get_page(v.i));
+		break;
+	default:
+		VM_ERROR("Unsupported value type %d", type);
+	}
+}
+
+static void write_page(struct page *page)
+{
+	switch (page->type) {
+	case STRUCT_PAGE:
+		struct ain_struct *s = &ain->structures[page->index];
+		for (int i = 0; i < s->nr_members; i++) {
+			write_value(page->values[i], s->members[i].type.data);
+		}
+		break;
+	case ARRAY_PAGE:
+		enum ain_data_type type = page->array.rank > 1 ? page->a_type : array_type(page->a_type);
+		for (int i = 0; i < page->nr_vars; i++) {
+			write_value(page->values[i], type);
+		}
+		break;
+	default:
+		VM_ERROR("Unsupported page type %d", page->type);
+	}
+}
 
 static int File_Open(struct string *filename, int type)
 {
 	const char *mode;
-	if (type == 1) {
-		mode = "r";
-	} else if (type == 2) {
-		mode = "w";
+	if (type == FILE_READ) {
+		mode = "rb";
+	} else if (type == FILE_WRITE) {
+		mode = "wb";
 	} else {
 		WARNING("Unknown mode in File.Open: %d", type);
 		return 0;
@@ -53,6 +155,7 @@ static int File_Open(struct string *filename, int type)
 
 	char *path = unix_path(filename->text);
 	current_file = file_open_utf8(path, mode);
+	current_mode = type;
 	if (!current_file) {
 		WARNING("Failed to open file '%s': %s", display_utf0(path), strerror(errno));
 	}
@@ -66,12 +169,34 @@ static int File_Close(void)
 	if (!current_file) {
 		VM_ERROR("File.Close called, but no open file");
 	}
-	int r = !fclose(current_file);
+	int r = 1;
+	if (current_mode == FILE_WRITE) {
+		size_t raw_size = contents.index;
+		unsigned long compressed_size = compressBound(raw_size);
+		uint8_t *buf = xmalloc(4 + compressed_size);
+		LittleEndian_putDW(buf, 0, raw_size);
+		int r = compress2(buf + 4, &compressed_size, contents.buf, raw_size, Z_DEFAULT_COMPRESSION);
+		if (r != Z_OK) {
+			WARNING("File.Close: compress2 failed");
+			r = 0;
+		} else {
+			if (fwrite(buf, 4 + compressed_size, 1, current_file) != 1) {
+				WARNING("File.Close: fwrite failed: %s", strerror(errno));
+				r = 0;
+			}
+		}
+		free(buf);
+	}
+	if (fclose(current_file))
+		r = 0;
 	current_file = NULL;
-	if (file_contents)
-		free(file_contents);
-	file_contents = NULL;
-	file_cursor = 0;
+	if (json_contents)
+		free(json_contents);
+	json_contents = NULL;
+	json_cursor = 0;
+	if (contents.buf)
+		free(contents.buf);
+	buffer_init(&contents, NULL, 0);
 	return r;
 }
 
@@ -85,37 +210,61 @@ static int File_Read(struct page **_page)
 	if (!current_file) {
 		VM_ERROR("File.Read called, but no open file");
 	}
+	if (current_mode != FILE_READ) {
+		VM_ERROR("File.Read called, but file wasn't opened for reading");
+	}
 
-	// read file inton memory if needed
-	if (!file_contents) {
+	// read file into memory if needed
+	if (!json_contents && !contents.buf) {
 		fseek(current_file, 0, SEEK_END);
 		size_t file_size = ftell(current_file);
 		fseek(current_file, 0, SEEK_SET);
 
-		file_contents = xmalloc(file_size + 1);
-		if (fread(file_contents, file_size, 1, current_file) != 1) {
+		uint8_t *buf = xmalloc(file_size + 1);
+		if (fread(buf, file_size, 1, current_file) != 1) {
 			WARNING("File.Read failed (fread): %s", strerror(errno));
-			free(file_contents);
+			free(buf);
 			return 0;
 		}
-		file_contents[file_size] = '\0';
+		buf[file_size] = '\0';
+
+		// Check if it's ZLIB compressed
+		if (file_size > 6 && buf[4] == 0x78 && buf[5] == 0x9c) {
+			unsigned long raw_size = LittleEndian_getDW(buf, 0);
+			uint8_t *raw_buf = xmalloc(raw_size);
+			int r = uncompress(raw_buf, &raw_size, buf + 4, file_size);
+			free(buf);
+			if (r != Z_OK) {
+				WARNING("File.Read failed to uncompress");
+				free(raw_buf);
+				return 0;
+			}
+			buffer_init(&contents, raw_buf, raw_size);
+		} else {
+			// JSON format created by old versions of xsystem4
+			json_contents = (char*)buf;
+		}
 	}
 
-	const char *end;
-	cJSON *json = cJSON_ParseWithOpts(file_contents+file_cursor, &end, false);
-	if (!json) {
-		WARNING("File.Read failed to parse JSON");
-		return 0;
-	}
-	if (!cJSON_IsArray(json)) {
-		WARNING("File.Read incorrect type in parsed JSON");
-		return 0;
-	}
+	if (contents.buf) {
+		read_page(page);
+	} else {
+		const char *end;
+		cJSON *json = cJSON_ParseWithOpts(json_contents+json_cursor, &end, false);
+		if (!json) {
+			WARNING("File.Read failed to parse JSON");
+			return 0;
+		}
+		if (!cJSON_IsArray(json)) {
+			WARNING("File.Read incorrect type in parsed JSON");
+			return 0;
+		}
 
-	file_cursor = end - file_contents;
+		json_cursor = end - json_contents;
 
-	json_load_page(page, json, true);
-	cJSON_Delete(json);
+		json_load_page(page, json, true);
+		cJSON_Delete(json);
+	}
 	return 1;
 }
 
@@ -123,21 +272,11 @@ static int File_Write(struct page *page)
 {
 	if (!current_file) {
 		VM_ERROR("File.Write called, but no open file");
-		return 0;
 	}
-
-	cJSON *json = page_to_json(page);
-	char *str = cJSON_Print(json);
-	cJSON_Delete(json);
-
-	if (fwrite(str, strlen(str), 1, current_file) != 1) {
-		WARNING("File.Write failed (fwrite): %s", strerror(errno));
-		free(str);
-		return 0;
+	if (current_mode != FILE_WRITE) {
+		VM_ERROR("File.Write called, but file wasn't opened for writing");
 	}
-	fflush(current_file);
-
-	free(str);
+	write_page(page);
 	return 1;
 }
 
