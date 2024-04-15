@@ -78,15 +78,19 @@ static void read_page(struct page *page)
 {
 	switch (page->type) {
 	case STRUCT_PAGE:
-		struct ain_struct *s = &ain->structures[page->index];
-		for (int i = 0; i < s->nr_members; i++) {
-			read_value(&page->values[i], s->members[i].type.data);
+		{
+			struct ain_struct *s = &ain->structures[page->index];
+			for (int i = 0; i < s->nr_members; i++) {
+				read_value(&page->values[i], s->members[i].type.data);
+			}
 		}
 		break;
 	case ARRAY_PAGE:
-		enum ain_data_type type = page->array.rank > 1 ? page->a_type : array_type(page->a_type);
-		for (int i = 0; i < page->nr_vars; i++) {
-			read_value(&page->values[i], type);
+		{
+			enum ain_data_type type = page->array.rank > 1 ? page->a_type : array_type(page->a_type);
+			for (int i = 0; i < page->nr_vars; i++) {
+				read_value(&page->values[i], type);
+			}
 		}
 		break;
 	default:
@@ -121,15 +125,19 @@ static void write_page(struct page *page)
 {
 	switch (page->type) {
 	case STRUCT_PAGE:
-		struct ain_struct *s = &ain->structures[page->index];
-		for (int i = 0; i < s->nr_members; i++) {
-			write_value(page->values[i], s->members[i].type.data);
+		{
+			struct ain_struct *s = &ain->structures[page->index];
+			for (int i = 0; i < s->nr_members; i++) {
+				write_value(page->values[i], s->members[i].type.data);
+			}
 		}
 		break;
 	case ARRAY_PAGE:
-		enum ain_data_type type = page->array.rank > 1 ? page->a_type : array_type(page->a_type);
-		for (int i = 0; i < page->nr_vars; i++) {
-			write_value(page->values[i], type);
+		{
+			enum ain_data_type type = page->array.rank > 1 ? page->a_type : array_type(page->a_type);
+			for (int i = 0; i < page->nr_vars; i++) {
+				write_value(page->values[i], type);
+			}
 		}
 		break;
 	default:
