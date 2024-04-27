@@ -85,10 +85,6 @@ static void write_register(unsigned handle)
 		return;
 	}
 
-	// Sort the arrays for compatibility with AliceSoft's implementation.
-	qsort(reg->integers, reg->nr_integers, sizeof(int), compare_int);
-	qsort(reg->strings, reg->nr_strings, sizeof(char*), compare_string);
-
 	struct buffer buf;
 	buffer_init(&buf, NULL, 0);
 	buffer_write_int32(&buf, reg->nr_integers);
@@ -210,6 +206,10 @@ static void read_register(unsigned handle, const char *filename)
 		read_register_json(reg, data);
 	}
 	free(data);
+
+	// Make sure the arrays are sorted.
+	qsort(reg->integers, reg->nr_integers, sizeof(int), compare_int);
+	qsort(reg->strings, reg->nr_strings, sizeof(char*), compare_string);
 }
 
 static bool PassRegister_SetFileName(int handle, struct string *filename)
@@ -224,52 +224,46 @@ static bool PassRegister_SetFileName(int handle, struct string *filename)
 	return true;
 }
 
-static bool exist_number(int handle, int n)
+static int *find_number(int handle, int n)
 {
-	// NOTE: this could be improved by sorting the array
 	struct passregister *reg = registers + handle;
-	for (size_t i = 0; i < reg->nr_integers; i++) {
-		if (reg->integers[i] == n)
-			return true;
-	}
-	return false;
+	return bsearch(&n, reg->integers, reg->nr_integers, sizeof(int), compare_int);
 }
 
 static bool PassRegister_RegistNumber(int handle, int n)
 {
 	if (handle < 0 || (size_t)handle >= nr_registers || !registers[handle].filename)
 		return false;
-	if (exist_number(handle, n))
+	if (find_number(handle, n) != NULL)
 		return true;
 
 	struct passregister *reg = registers + handle;
 	reg->integers = xrealloc_array(reg->integers, reg->nr_integers, reg->nr_integers+1, sizeof(int));
+	// NOTE: this could be improved by using O(n) insertion
 	reg->integers[reg->nr_integers++] = n;
+	qsort(reg->integers, reg->nr_integers, sizeof(int), compare_int);
 	write_register(handle);
 	return true;
 }
 
-static bool exist_text(int handle, const char *text)
+static char **find_text(int handle, const char *text)
 {
-	// NOTE: this could be improved by sorting the array
 	struct passregister *reg = registers + handle;
-	for (size_t i = 0; i < reg->nr_strings; i++) {
-		if (!strcmp(reg->strings[i], text))
-			return true;
-	}
-	return false;
+	return bsearch(&text, reg->strings, reg->nr_strings, sizeof(char*), compare_string);
 }
 
 static bool PassRegister_RegistText(int handle, struct string *text)
 {
 	if (handle < 0 || (size_t)handle >= nr_registers || !registers[handle].filename)
 		return false;
-	if (exist_text(handle, text->text))
+	if (find_text(handle, text->text) != NULL)
 		return true;
 
 	struct passregister *reg = registers + handle;
 	reg->strings = xrealloc_array(reg->strings, reg->nr_strings, reg->nr_strings+1, sizeof(char*));
+	// NOTE: this could be improved by using O(n) insertion
 	reg->strings[reg->nr_strings++] = strdup(text->text);
+	qsort(reg->strings, reg->nr_strings, sizeof(char*), compare_string);
 	write_register(handle);
 	return true;
 }
@@ -280,13 +274,11 @@ static bool PassRegister_UnregistNumber(int handle, int n)
 		return false;
 
 	struct passregister *reg = registers + handle;
-	for (size_t i = 0; i < reg->nr_integers; i++) {
-		if (reg->integers[i] != n)
-			continue;
-		for (size_t j = i+1; j < reg->nr_integers; j++) {
-			reg->integers[j-1] = reg->integers[j];
-		}
+	int *found = find_number(handle, n);
+	if (found) {
+		int i = found - reg->integers;
 		reg->nr_integers--;
+		memmove(found, found + 1, (reg->nr_integers - i) * sizeof(int));
 		write_register(handle);
 	}
 	return true;
@@ -298,13 +290,11 @@ static bool PassRegister_UnregistText(int handle, struct string *text)
 		return false;
 
 	struct passregister *reg = registers + handle;
-	for (size_t i = 0; i < reg->nr_strings; i++) {
-		if (strcmp(reg->strings[i], text->text))
-			continue;
-		for (size_t j = 0; j < reg->nr_strings; j++) {
-			reg->strings[j-1] = reg->strings[j];
-		}
+	char **found = find_text(handle, text->text);
+	if (found) {
+		int i = found - reg->strings;
 		reg->nr_strings--;
+		memmove(found, found + 1, (reg->nr_strings - i) * sizeof(char*));
 		write_register(handle);
 	}
 	return true;
@@ -333,14 +323,14 @@ static bool PassRegister_ExistNumber(int handle, int n)
 {
 	if (handle < 0 || (size_t)handle >= nr_registers || !registers[handle].filename)
 		return false;
-	return exist_number(handle, n);
+	return find_number(handle, n) != NULL;
 }
 
 static bool PassRegister_ExistText(int handle, struct string *text)
 {
 	if (handle < 0 || (size_t)handle >= nr_registers || !registers[handle].filename)
 		return false;
-	return exist_text(handle, text->text);
+	return find_text(handle, text->text) != NULL;
 }
 
 static void PassRegister_fini(void)
