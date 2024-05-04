@@ -349,6 +349,7 @@ extern struct static_library lib_MsgSkip;
 extern struct static_library lib_OutputLog;
 extern struct static_library lib_PassRegister;
 extern struct static_library lib_PartsEngine;
+extern struct static_library lib_PixelRestore;
 extern struct static_library lib_PlayDemo;
 extern struct static_library lib_PlayMovie;
 extern struct static_library lib_ReignEngine;
@@ -419,6 +420,7 @@ static struct static_library *static_libraries[] = {
 	&lib_OutputLog,
 	&lib_PassRegister,
 	&lib_PartsEngine,
+	&lib_PixelRestore,
 	&lib_PlayDemo,
 	&lib_PlayMovie,
 	&lib_ReignEngine,

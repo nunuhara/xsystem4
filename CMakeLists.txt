@@ -160,6 +160,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/OutputLog.c
   src/hll/PassRegister.c
   src/hll/PartsEngine.c
+  src/hll/PixelRestore.c
   src/hll/PlayDemo.c
   src/hll/PlayMovie.c
   src/hll/ReignEngine.c
