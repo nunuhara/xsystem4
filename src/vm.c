@@ -287,6 +287,16 @@ static int get_function_by_name(const char *name)
 	return -1;
 }
 
+static int scenario_label_addr(const char *lname)
+{
+	for (int i = 0; i < ain->nr_scenario_labels; i++) {
+		if (!strcmp(ain->scenario_labels[i].name, lname)) {
+			return ain->scenario_labels[i].address;
+		}
+	}
+	VM_ERROR("Invalid scenario label: %s", display_sjis0(lname));
+}
+
 static int alloc_scenario_page(const char *fname)
 {
 	int fno, slot;
@@ -302,6 +312,16 @@ static int alloc_scenario_page(const char *fname)
 		heap[slot].page->values[i] = variable_initval(f->vars[i].type.data);
 	}
 	return slot;
+}
+
+static void scenario_jump(int address)
+{
+	// flush call stack
+	for (int i = call_stack_ptr - 1; i >= 0; i--) {
+		heap_unref(call_stack[i].page_slot);
+	}
+	call_stack_ptr = 0;
+	instr_ptr = address;
 }
 
 static void scenario_call(int slot)
@@ -939,15 +959,23 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case CALLONJUMP: {
 		int str = stack_pop().i;
-		// XXX: I am GUESSING that the VM pre-allocates the scenario function's
-		//      local page here. It certainly pushes what appears to be a page
-		//      index to the stack.
-		stack_push(alloc_scenario_page(heap_get_string(str)->text));
+		if (ain->scenario_labels) {
+			stack_push(scenario_label_addr(heap_get_string(str)->text));
+		} else {
+			// XXX: I am GUESSING that the VM pre-allocates the scenario function's
+			//      local page here. It certainly pushes what appears to be a page
+			//      index to the stack.
+			stack_push(alloc_scenario_page(heap_get_string(str)->text));
+		}
 		heap_unref(str);
 		break;
 	}
 	case SJUMP: {
-		scenario_call(stack_pop().i);
+		if (ain->scenario_labels) {
+			scenario_jump(stack_pop().i);
+		} else {
+			scenario_call(stack_pop().i);
+		}
 		break;
 	}
 	case _MSG: {
