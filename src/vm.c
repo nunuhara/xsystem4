@@ -1435,6 +1435,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_pop();
 		break;
 	}
+	case S_PLUSA:
 	case S_PLUSA2: {
 		int a = stack_peek(1).i;
 		int b = stack_peek(0).i;
