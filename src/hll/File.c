@@ -335,7 +335,7 @@ static int File_GetTime(struct string *filename, struct page **page)
 static int File_Delete(struct string *name)
 {
 	char *path = unix_path(name->text);
-	if (remove(path)) {
+	if (remove_utf8(path)) {
 		WARNING("remove: %s", strerror(errno));
 		return 0;
 	}
