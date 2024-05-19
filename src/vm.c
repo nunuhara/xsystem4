@@ -1620,7 +1620,8 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case SR_ASSIGN: {
-		stack_pop(); // struct type
+		if (ain->version > 1)
+			stack_pop(); // struct type
 		int rval = stack_pop().i;
 		int lval = stack_pop().i;
 		heap_struct_assign(lval, rval);
