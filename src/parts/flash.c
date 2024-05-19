@@ -21,11 +21,11 @@
 #include "system4.h"
 #include "system4/archive.h"
 #include "system4/hashtable.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 
 #include "asset_manager.h"
 #include "audio.h"
-#include "little_endian.h"
 #include "swf.h"
 #include "xsystem4.h"
 #include "parts.h"

@@ -19,7 +19,7 @@
 #include <string.h>
 #include <zlib.h>
 
-#include "little_endian.h"
+#include "system4/little_endian.h"
 #include "system4/buffer.h"
 #include "system4/file.h"
 #include "system4/string.h"

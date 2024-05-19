@@ -25,10 +25,10 @@
 #include "system4.h"
 #include "system4/buffer.h"
 #include "system4/file.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 
 #include "hll.h"
-#include "little_endian.h"
 #include "savedata.h"
 #include "vm/heap.h"
 #include "vm/page.h"

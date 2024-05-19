@@ -16,8 +16,8 @@
 
 #include <stdlib.h>
 #include <assert.h>
-#include "little_endian.h"
 #include "system4.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 #include "vm/heap.h"

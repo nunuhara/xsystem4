@@ -20,10 +20,10 @@
 #include <errno.h>
 
 #include "system4/file.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
-#include "little_endian.h"
 #include "hll.h"
 #include "xsystem4.h"
 

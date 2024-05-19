@@ -28,11 +28,11 @@
 #include "system4/ain.h"
 #include "system4/instructions.h"
 #include "system4/file.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
 #include "debugger.h"
-#include "little_endian.h"
 #include "input.h"
 #include "savedata.h"
 #include "vm.h"

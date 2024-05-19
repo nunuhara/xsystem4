@@ -138,7 +138,7 @@ _Noreturn void vm_exit(int code);
 #endif
 
 #ifdef VM_PRIVATE
-#include "little_endian.h"
+#include "system4/little_endian.h"
 #include "system4/ain.h"
 
 struct function_call {
