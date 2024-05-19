@@ -20,7 +20,7 @@
 #include "system4/cg.h"
 #include "system4/file.h"
 #include "system4/mt19937int.h"
-#include "little_endian.h"
+#include "system4/little_endian.h"
 
 #include "hll.h"
 #include "sact.h"

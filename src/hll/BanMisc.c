@@ -20,13 +20,13 @@
 #include <zlib.h>
 
 #include "system4/file.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 #include "system4/mt19937int.h"
 
 #include "hll.h"
 #include "audio.h"
 #include "iarray.h"
-#include "little_endian.h"
 #include "savedata.h"
 #include "vm/page.h"
 #include "xsystem4.h"

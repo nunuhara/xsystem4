@@ -19,11 +19,11 @@
 
 #include "system4/archive.h"
 #include "system4/buffer.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 
 #include "hll.h"
 #include "asset_manager.h"
-#include "little_endian.h"
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "xsystem4.h"

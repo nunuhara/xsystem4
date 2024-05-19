@@ -23,9 +23,9 @@
 #include "system4/string.h"
 #include "system4/acx.h"
 #include "system4/file.h"
+#include "system4/little_endian.h"
 
 #include "hll.h"
-#include "little_endian.h"
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "xsystem4.h"

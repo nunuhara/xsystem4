@@ -30,6 +30,7 @@
 #include "system4/file.h"
 #include "system4/ini.h"
 #include "system4/instructions.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -38,7 +39,6 @@
 #include "debugger.h"
 #include "gfx/gfx.h"
 #include "gfx/font.h"
-#include "little_endian.h"
 #include "vm.h"
 
 #include "version.h"

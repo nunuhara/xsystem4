@@ -18,9 +18,9 @@
 #include <stdlib.h>
 #include "system4.h"
 #include "system4/file.h"
+#include "system4/little_endian.h"
 
 #include "mixer.h"
-#include "little_endian.h"
 #include "xsystem4.h"
 
 #define BGI_MAX 100

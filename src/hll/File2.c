@@ -22,9 +22,9 @@
 
 #include "system4.h"
 #include "system4/file.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 
-#include "little_endian.h"
 #include "hll.h"
 #include "xsystem4.h"
 
@@ -149,7 +149,7 @@ static struct rea *rea_open(const char *path)
 		goto err;
 	}
 
-	uint32_t mdlf_size = LittleEndian_getDW(header, 28);
+	uint32_t mdlf_size = LittleEndian_getDW((uint8_t*)header, 28);
 	rea->index_stream = inflate_stream_new(rea->fp, mdlf_size);
 	if (!rea->index_stream)
 		goto err;
@@ -164,7 +164,7 @@ static struct rea *rea_open(const char *path)
 		WARNING("%s: cannot find MDCD section", display_utf0(path));
 		goto err;
 	}
-	rea->mdcd_size = LittleEndian_getDW(mdcd_header, 4);
+	rea->mdcd_size = LittleEndian_getDW((uint8_t*)mdcd_header, 4);
 	rea->mdcd_offset = ftell(rea->fp);
 	return rea;
 

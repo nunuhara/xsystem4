@@ -25,7 +25,7 @@
 #include "system4/hashtable.h"
 #include "system4/mt19937int.h"
 #include "system4/string.h"
-#include "little_endian.h"
+#include "system4/little_endian.h"
 
 #include "audio.h"
 #include "sact.h"

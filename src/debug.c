@@ -25,6 +25,7 @@
 
 #include "system4/dasm.h"
 #include "system4/hashtable.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -33,7 +34,6 @@
 #include "vm/page.h"
 
 #include "debugger.h"
-#include "little_endian.h"
 #include "xsystem4.h"
 
 bool dbg_dap = false;

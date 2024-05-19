@@ -26,6 +26,7 @@
 
 #include "system4.h"
 #include "system4/file.h"
+#include "system4/little_endian.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -35,7 +36,6 @@
 
 #include "scene.h"
 #include "debugger.h"
-#include "little_endian.h"
 #include "xsystem4.h"
 
 struct dbg_cmd_node;
