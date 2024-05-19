@@ -568,7 +568,7 @@ int delete_save_file(const char *filename)
 		free(path);
 		return 0;
 	}
-	if (remove(path)) {
+	if (remove_utf8(path)) {
 		WARNING("remove(\"%s\"): %s", display_utf0(path), strerror(errno));
 		free(path);
 		return 0;
