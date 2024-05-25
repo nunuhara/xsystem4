@@ -65,6 +65,7 @@ static struct shader default_shader;
 
 GLuint main_surface_fb;
 struct texture main_surface;
+static GLint max_texture_size;
 
 static GLchar *read_shader_file(const char *path)
 {
@@ -162,6 +163,8 @@ static int gl_initialize(void)
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 	glBindVertexArray(0);
+
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
 
 	return 0;
 }
@@ -480,6 +483,14 @@ void gfx_init_texture_with_cg(struct texture *t, struct cg *cg)
 
 void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color)
 {
+	if (w > max_texture_size) {
+		WARNING("Texture width %d exceeds maximum texture size %d", w, max_texture_size);
+		w = max_texture_size;
+	}
+	if (h > max_texture_size) {
+		WARNING("Texture height %d exceeds maximum texture size %d", h, max_texture_size);
+		h = max_texture_size;
+	}
 	// create pixel data
 	int c = SDL_MapRGBA(sdl.format, color.r, color.g, color.b, color.a);
 	uint32_t *pixels = xmalloc(sizeof(uint32_t) * w * h);
@@ -493,6 +504,14 @@ void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color)
 
 void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color)
 {
+	if (w > max_texture_size) {
+		WARNING("Texture width %d exceeds maximum texture size %d", w, max_texture_size);
+		w = max_texture_size;
+	}
+	if (h > max_texture_size) {
+		WARNING("Texture height %d exceeds maximum texture size %d", h, max_texture_size);
+		h = max_texture_size;
+	}
 	uint8_t *pixels = xmalloc(w*h*3);
 	for (int i = 0; i < w*h; i++) {
 		pixels[i*3+0] = color.r;
