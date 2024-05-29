@@ -347,6 +347,9 @@ static int _function_call(int fno, int return_address)
 	// initialize local variables
 	for (int i = f->nr_args; i < f->nr_vars; i++) {
 		heap[slot].page->values[i] = variable_initval(f->vars[i].type.data);
+		if (ain->version <= 1 && f->vars[i].type.data == AIN_STRUCT) {
+			create_struct(f->vars[i].type.struc, &heap[slot].page->values[i]);
+		}
 	}
 	// jump to function start
 	instr_ptr = ain->functions[fno].address;
