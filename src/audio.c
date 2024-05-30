@@ -43,8 +43,8 @@ void audio_init(void)
 	if (audio_initialized)
 		return;
 
-	id_pool_init(&wav);
-	id_pool_init(&bgm);
+	id_pool_init(&wav, 0);
+	id_pool_init(&bgm, 0);
 
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
 		anonymous_channels[i] = -1;
@@ -56,10 +56,10 @@ void audio_init(void)
 
 void audio_reset(void)
 {
-	for (int i = 0; i < wav.nr_slots; i++) {
+	for (int i = id_pool_get_first(&wav); i >= 0; i = id_pool_get_next(&wav, i)) {
 		wav_unprepare(i);
 	}
-	for (int i = 0; i < bgm.nr_slots; i++) {
+	for (int i = id_pool_get_first(&bgm); i >= 0; i = id_pool_get_next(&bgm, i)) {
 		bgm_unprepare(i);
 	}
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
@@ -136,11 +136,10 @@ int bgm_prepare(int id, int no) { return audio_prepare(&bgm, id, ASSET_BGM, no);
 
 static int audio_unprepare(struct id_pool *pool, int id)
 {
-	struct channel *ch = id_pool_get(pool, id);
+	struct channel *ch = id_pool_release(pool, id);
 	if (!ch)
 		return 0;
 	channel_close(ch);
-	id_pool_release(pool, id);
 	return 1;
 }
 

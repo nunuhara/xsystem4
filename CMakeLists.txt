@@ -149,6 +149,8 @@ target_sources(xsystem4 PRIVATE
   src/hll/LoadCG.c
   src/hll/MainEXFile.c
   src/hll/MainSurface.c
+  src/hll/MamanyoDemo.c
+  src/hll/MamanyoSDemo.c
   src/hll/MarmotModelEngine.c
   src/hll/Math.c
   src/hll/MapLoader.c
@@ -173,6 +175,29 @@ target_sources(xsystem4 PRIVATE
   src/hll/SystemServiceEx.c
   src/hll/Timer.c
   src/hll/Toushin3Loader.c
+  src/hll/vmAnime.c
+  src/hll/vmArray.c
+  src/hll/vmCG.c
+  src/hll/vmChrLoader.c
+  src/hll/vmCursor.c
+  src/hll/vmDialog.c
+  src/hll/vmDrawGauge.c
+  src/hll/vmDrawMsg.c
+  src/hll/vmDrawNumber.c
+  src/hll/vmFile.c
+  src/hll/vmGraph.c
+  src/hll/vmGraphQuake.c
+  src/hll/vmKey.c
+  src/hll/vmMapLoader.c
+  src/hll/vmMsgLog.c
+  src/hll/vmMsgSkip.c
+  src/hll/vmMusic.c
+  src/hll/vmSound.c
+  src/hll/vmSprite.c
+  src/hll/vmString.c
+  src/hll/vmSurface.c
+  src/hll/vmSystem.c
+  src/hll/vmTimer.c
   src/hll/VSFile.c
   )
 
