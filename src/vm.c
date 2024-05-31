@@ -287,6 +287,16 @@ static int get_function_by_name(const char *name)
 	return -1;
 }
 
+static int scenario_label_addr(const char *lname)
+{
+	for (int i = 0; i < ain->nr_scenario_labels; i++) {
+		if (!strcmp(ain->scenario_labels[i].name, lname)) {
+			return ain->scenario_labels[i].address;
+		}
+	}
+	VM_ERROR("Invalid scenario label: %s", display_sjis0(lname));
+}
+
 static int alloc_scenario_page(const char *fname)
 {
 	int fno, slot;
@@ -302,6 +312,16 @@ static int alloc_scenario_page(const char *fname)
 		heap[slot].page->values[i] = variable_initval(f->vars[i].type.data);
 	}
 	return slot;
+}
+
+static void scenario_jump(int address)
+{
+	// flush call stack
+	for (int i = call_stack_ptr - 1; i >= 0; i--) {
+		heap_unref(call_stack[i].page_slot);
+	}
+	call_stack_ptr = 0;
+	instr_ptr = address;
 }
 
 static void scenario_call(int slot)
@@ -347,6 +367,9 @@ static int _function_call(int fno, int return_address)
 	// initialize local variables
 	for (int i = f->nr_args; i < f->nr_vars; i++) {
 		heap[slot].page->values[i] = variable_initval(f->vars[i].type.data);
+		if (ain->version <= 1 && f->vars[i].type.data == AIN_STRUCT) {
+			create_struct(f->vars[i].type.struc, &heap[slot].page->values[i]);
+		}
 	}
 	// jump to function start
 	instr_ptr = ain->functions[fno].address;
@@ -936,15 +959,23 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case CALLONJUMP: {
 		int str = stack_pop().i;
-		// XXX: I am GUESSING that the VM pre-allocates the scenario function's
-		//      local page here. It certainly pushes what appears to be a page
-		//      index to the stack.
-		stack_push(alloc_scenario_page(heap_get_string(str)->text));
+		if (ain->scenario_labels) {
+			stack_push(scenario_label_addr(heap_get_string(str)->text));
+		} else {
+			// XXX: I am GUESSING that the VM pre-allocates the scenario function's
+			//      local page here. It certainly pushes what appears to be a page
+			//      index to the stack.
+			stack_push(alloc_scenario_page(heap_get_string(str)->text));
+		}
 		heap_unref(str);
 		break;
 	}
 	case SJUMP: {
-		scenario_call(stack_pop().i);
+		if (ain->scenario_labels) {
+			scenario_jump(stack_pop().i);
+		} else {
+			scenario_call(stack_pop().i);
+		}
 		break;
 	}
 	case _MSG: {
@@ -1404,6 +1435,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_pop();
 		break;
 	}
+	case S_PLUSA:
 	case S_PLUSA2: {
 		int a = stack_peek(1).i;
 		int b = stack_peek(0).i;
@@ -1588,7 +1620,8 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case SR_ASSIGN: {
-		stack_pop(); // struct type
+		if (ain->version > 1)
+			stack_pop(); // struct type
 		int rval = stack_pop().i;
 		int lval = stack_pop().i;
 		heap_struct_assign(lval, rval);

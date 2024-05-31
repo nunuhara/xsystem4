@@ -279,6 +279,11 @@ void hll_call(int libno, int fno)
 		case AIN_REF_FUNC_TYPE:
 		case AIN_REF_ARRAY_TYPE:
 			break;
+		case AIN_ARRAY_TYPE:
+			// Sys41VM doesn't make a copy when passing an array by value.
+			if (ain->version <= 1)
+				break;
+			// fallthrough
 		default:
 			variable_fini(stack[stack_ptr+j], f->arguments[i].type.data);
 			break;
