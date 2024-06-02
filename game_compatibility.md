@@ -15,7 +15,7 @@ issues, please let me know or open a pull request to update this table.
 |                 Game                                    |   Status    | Notes |
 | ------------------------------------------------------- | ----------- | ----- |
 | DALK外伝                                                | Unsupported |       |
-| ままにょにょ                                            | Unsupported |       |
+| ままにょにょ                                            | Supported   |       |
 | 大番長 -Big Bang Age-                                   | Supported   |       |
 | Daibanchou -Big Bang Age- (EN)                          | Supported   |       |
 | 魔女の贖罪                                              | Unknown     |       |

@@ -15,6 +15,7 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
 
 #include "system4.h"
 #include "id_pool.h"
@@ -26,10 +27,18 @@
 #define ID_POOL_INIT_SLOTS 32
 #define ID_POOL_ALLOC_HEADROOM 256
 
-void id_pool_init(struct id_pool *pool)
+void id_pool_init(struct id_pool *pool, int base)
 {
 	pool->slots = xcalloc(ID_POOL_INIT_SLOTS, sizeof(void*));
 	pool->nr_slots = ID_POOL_INIT_SLOTS;
+	pool->base = base;
+}
+
+void id_pool_delete(struct id_pool *pool)
+{
+	free(pool->slots);
+	pool->slots = NULL;
+	pool->nr_slots = 0;
 }
 
 static void id_pool_realloc(struct id_pool *pool, int new_size)
@@ -38,26 +47,60 @@ static void id_pool_realloc(struct id_pool *pool, int new_size)
 	pool->nr_slots = new_size;
 }
 
-void id_pool_release(struct id_pool *pool, int id)
+void *id_pool_release(struct id_pool *pool, int id)
 {
-	if (pool->slots[id])
-		pool->slots[id] = NULL;
+	id -= pool->base;
+	if (id < 0 || id >= pool->nr_slots)
+		return NULL;
+	void *data = pool->slots[id];
+	pool->slots[id] = NULL;
+	return data;
+}
+
+int id_pool_count(struct id_pool *pool)
+{
+	int count = 0;
+	for (int i = 0; i < pool->nr_slots; i++) {
+		if (pool->slots[i])
+			count++;
+	}
+	return count;
 }
 
 int id_pool_get_unused(struct id_pool *pool)
 {
 	for (int i = 0; i < pool->nr_slots; i++) {
 		if (!pool->slots[i])
-			return i;
+			return pool->base + i;
 	}
 
 	int id = pool->nr_slots;
 	id_pool_realloc(pool, id + ID_POOL_ALLOC_HEADROOM);
-	return id;
+	return pool->base + id;
+}
+
+int id_pool_get_first(struct id_pool *pool)
+{
+	for (int i = 0; i < pool->nr_slots; i++) {
+		if (pool->slots[i])
+			return pool->base + i;
+	}
+	return -1;
+}
+
+int id_pool_get_next(struct id_pool *pool, int id)
+{
+	id -= pool->base;
+	for (int i = id + 1; i < pool->nr_slots; i++) {
+		if (pool->slots[i])
+			return pool->base + i;
+	}
+	return -1;
 }
 
 void *id_pool_get(struct id_pool *pool, int id)
 {
+	id -= pool->base;
 	if (id < 0 || id >= pool->nr_slots)
 		return NULL;
 	return pool->slots[id];
@@ -65,6 +108,7 @@ void *id_pool_get(struct id_pool *pool, int id)
 
 void *id_pool_set(struct id_pool *pool, int id, void *data)
 {
+	id -= pool->base;
 	assert(id >= 0);
 	if (id >= pool->nr_slots)
 		id_pool_realloc(pool, id + ID_POOL_ALLOC_HEADROOM);
