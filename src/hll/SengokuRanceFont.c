@@ -244,8 +244,7 @@ static void SengokuRanceFont_SP_TextClear(int sp_no)
 {
 	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return;
-	gfx_fill_with_alpha(sprite_get_texture(sp), 0, 0, sp->rect.w, sp->rect.h, 0, 0, 0, 0);
-	sprite_dirty(sp);
+	sprite_text_clear(sp);
 }
 
 static void SengokuRanceFont_SP_TextCopy(int dno, int sno)
@@ -256,12 +255,7 @@ static void SengokuRanceFont_SP_TextCopy(int dno, int sno)
 		return;
 
 	// copy texture
-	gfx_delete_texture(&dsp->texture);
-	if (ssp->texture.handle) {
-		struct texture *dtex = sprite_get_texture(dsp);
-		struct texture *stex = sprite_get_texture(ssp);
-		gfx_copy_with_alpha_map(dtex, 0, 0, stex, 0, 0, dsp->rect.w, dsp->rect.h);
-	}
+	sprite_text_copy(dsp, ssp);
 
 	// copy properties
 	struct sr_text_properties *d_prop = get_sp_properties(dno);
@@ -333,7 +327,9 @@ static float sp_text_draw(struct sact_sprite *sp, struct sr_text_properties *tp,
 		tp->ts.size = 8;
 	}
 
-	struct texture *tex = sprite_get_texture(sp);
+	if (!sp->text.texture.handle) {
+		gfx_init_texture_rgba(&sp->text.texture, sp->rect.w, sp->rect.h, COLOR(0, 0, 0, 0));
+	}
 
 	// save last char code
 	int last_char = -1;
@@ -343,7 +339,7 @@ static float sp_text_draw(struct sact_sprite *sp, struct sr_text_properties *tp,
 	tp->last_char = last_char;
 
 	sprite_dirty(sp);
-	return gfx_render_text(tex, x ,y, text->text, &tp->ts, false);
+	return gfx_render_text(&sp->text.texture, x, y, text->text, &tp->ts, false);
 }
 
 static void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)
