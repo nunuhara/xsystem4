@@ -343,7 +343,7 @@ static float sp_text_draw(struct sact_sprite *sp, struct sr_text_properties *tp,
 	tp->last_char = last_char;
 
 	sprite_dirty(sp);
-	return gfx_render_text(tex, x ,y, text->text, &tp->ts);
+	return gfx_render_text(tex, x ,y, text->text, &tp->ts, false);
 }
 
 static void SengokuRanceFont_SP_TextDraw(int sp_no, struct string *text)

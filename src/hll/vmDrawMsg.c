@@ -161,17 +161,17 @@ static int vmDrawMsg_Draw(int handle)
 				struct vm_surface *sf = vm_surface_get(dm->surfaces[SURFACE_DROP_SHADOW]);
 				int x = dm->pos.x + dm->style.drop_shadow;
 				int y = dm->pos.y + dm->style.drop_shadow;
-				gfx_render_text(&sf->texture, x, y, s, &ts);
+				gfx_render_text(&sf->texture, x, y, s, &ts, false);
 			}
 			if (dm->style.bold) {
 				struct text_style ts = dm->style.ts;
 				ts.bold_width = dm->style.bold;
 				ts.color = dm->style.bold_color;
 				struct vm_surface *sf = vm_surface_get(dm->surfaces[SURFACE_BOLD]);
-				gfx_render_text(&sf->texture, dm->pos.x, dm->pos.y, s, &ts);
+				gfx_render_text(&sf->texture, dm->pos.x, dm->pos.y, s, &ts, false);
 			}
 			struct vm_surface *sf = vm_surface_get(dm->surfaces[SURFACE_TEXT]);
-			dm->pos.x += gfx_render_text(&sf->texture, dm->pos.x, dm->pos.y, s, &dm->style.ts);
+			dm->pos.x += gfx_render_text(&sf->texture, dm->pos.x, dm->pos.y, s, &dm->style.ts, false);
 			if (lb)
 				*lb = '<';
 		} else if (sscanf(s, "<C%d,%d,%d>%n", &a1, &a2, &a3, &skiplen) == 3) {

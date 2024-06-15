@@ -16,7 +16,7 @@
 
 uniform sampler2D tex;
 uniform float threshold;
-uniform vec4 color;
+uniform vec4 color;  // .a is the discard threshold
 
 in vec2 tex_coord;
 out vec4 frag_color;
@@ -43,5 +43,7 @@ void main() {
 		}
 	}
 
+	if (a_out < color.a)
+		discard;
 	frag_color = vec4(color.rgb, min(a_out, 1.0));
 }

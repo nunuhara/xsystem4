@@ -181,7 +181,7 @@ static void charsprite_render(struct charsprite *cs)
 
 	sprite_init_color(&cs->sp, w, h, 0, 0, 0, 0);
 	sprite_get_texture(&cs->sp); // XXX: force initialization of texture
-	gfx_render_text(&cs->sp.texture, 0.0f, 0, ch, &cs->ts);
+	gfx_render_text(&cs->sp.texture, 0.0f, 0, ch, &cs->ts, false);
 	sprite_dirty(&cs->sp);
 }
 

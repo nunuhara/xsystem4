@@ -15,12 +15,14 @@
  */
 
 uniform sampler2D tex;
-uniform vec4 color;
+uniform vec4 color;  // .a is the discard threshold
 
 in vec2 tex_coord;
 out vec4 frag_color;
 
 void main() {
-        vec4 texel = texture(tex, tex_coord);
-        frag_color = vec4(color.rgb, texel.r * color.a);
+	vec4 texel = texture(tex, tex_coord);
+	if (texel.r < color.a)
+		discard;
+	frag_color = vec4(color.rgb, texel.r);
 }
