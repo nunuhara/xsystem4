@@ -66,6 +66,7 @@ static struct shader default_shader;
 GLuint main_surface_fb;
 struct texture main_surface;
 static GLint max_texture_size;
+static SDL_Color clear_color = { 0, 0, 0, 255 };
 
 static GLchar *read_shader_file(const char *path)
 {
@@ -129,8 +130,6 @@ void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const c
 static int gl_initialize(void)
 {
 	gfx_load_shader(&default_shader, "shaders/render.v.glsl", "shaders/render.f.glsl");
-
-	glClearColor(0.f, 0.f, 0.f, 1.f);
 
 	GLfloat vertex_data[] = {
 		0.f, 0.f, 0.f, 1.f,
@@ -322,15 +321,15 @@ void gfx_set_wait_vsync(bool wait)
 
 void gfx_set_clear_color(int r, int g, int b, int a)
 {
-	float rf = max(0, min(255, r)) / 255.0;
-	float gf = max(0, min(255, g)) / 255.0;
-	float bf = max(0, min(255, b)) / 255.0;
-	float af = max(0, min(255, a)) / 255.0;
-	glClearColor(rf, gf, bf, af);
+	clear_color.r = max(0, min(255, r));
+	clear_color.g = max(0, min(255, g));
+	clear_color.b = max(0, min(255, b));
+	clear_color.a = max(0, min(255, a));
 }
 
 void gfx_clear(void)
 {
+	glClearColor(clear_color.r / 255.f, clear_color.g / 255.f, clear_color.b / 255.f, clear_color.a / 255.f);
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 
@@ -338,7 +337,7 @@ void gfx_swap(void)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(sdl.viewport.x, sdl.viewport.y, sdl.viewport.w, sdl.viewport.h);
-	glClear(GL_COLOR_BUFFER_BIT);
+	gfx_clear();
 
 	static mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
 	static mat4 wv_transform = MAT4(
@@ -491,15 +490,11 @@ void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color)
 		WARNING("Texture height %d exceeds maximum texture size %d", h, max_texture_size);
 		h = max_texture_size;
 	}
-	// create pixel data
-	int c = SDL_MapRGBA(sdl.format, color.r, color.g, color.b, color.a);
-	uint32_t *pixels = xmalloc(sizeof(uint32_t) * w * h);
-	for (int i = 0; i < w*h; i++) {
-		pixels[i] = c;
-	}
-
-	gfx_init_texture_with_pixels(t, w, h, pixels);
-	free(pixels);
+	gfx_init_texture_blank(t, w, h);
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, t, 0, 0, w, h);
+	glClearColor(color.r / 255.f, color.g / 255.f, color.b / 255.f, color.a / 255.f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 }
 
 void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color)
