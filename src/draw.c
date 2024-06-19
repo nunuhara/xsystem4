@@ -1118,29 +1118,23 @@ void gfx_draw_line_to_amap(Texture *dst, int x0, int y0, int x1, int y1, int a)
 }
 
 // XXX: Not an actual DrawGraph function; used for rendering text
-void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width)
+void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width, bool blend)
 {
+	if (blend) {
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+	} else {
+		glBlendFunc(GL_ONE, GL_ZERO);
+		glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
+	}
+
 	dx = roundf(dx);
-
-	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE);
-	struct copy_data fill_data = COPY_DATA(dx, dy, dx, dy, glyph->w * scale_x, glyph->h);
-	fill_data.r = color.r / 255.0;
-	fill_data.g = color.g / 255.0;
-	fill_data.b = color.b / 255.0;
-	fill_data.a = 0.0;
-	fill_data.threshold = 0.001;
-	run_copy_shader(&fill_amap_under_border_shader.s, dst, dst, &fill_data);
-
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
-
 	struct copy_data data = STRETCH_DATA(
 			dx, dy, glyph->w * scale_x, glyph->h,
 			0,  0,  glyph->w,           glyph->h);
 	data.r = color.r / 255.0;
 	data.g = color.g / 255.0;
 	data.b = color.b / 255.0;
-	data.a = 1.0;
+	data.a = 0.01;  // discard threshold
 
 	if (bold_width < 0.01) {
 		run_copy_shader(&blend_rmap_color_shader.s, dst, glyph, &data);
@@ -1160,7 +1154,7 @@ void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, Rect
 	data.r = color.r / 255.0;
 	data.g = color.g / 255.0;
 	data.b = color.b / 255.0;
-	data.a = 1.0;
+	data.a = 0.01;  // discard threshold
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
 	run_copy_shader(&blend_rmap_color_shader.s, dst, glyph, &data);
 	restore_blend_mode();
@@ -1174,7 +1168,7 @@ void gfx_draw_glyph_to_amap(Texture *dst, float dx, int dy, Texture *glyph, Rect
 	data.r = 1.0;
 	data.g = 1.0;
 	data.b = 1.0;
-	data.a = 1.0;
+	data.a = 0.0;  // discard threshold
 	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
 	run_copy_shader(&blend_rmap_color_shader.s, dst, glyph, &data);
 	restore_blend_mode();

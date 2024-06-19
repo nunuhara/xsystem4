@@ -201,6 +201,7 @@ float gfx_get_actual_font_size_round_down(unsigned face, float size)
 }
 
 enum text_render_mode {
+	RENDER_COPY,
 	RENDER_BLENDED,
 	RENDER_PMAP,
 	RENDER_AMAP,
@@ -237,10 +238,14 @@ static int render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 
 		// render glyph
 		Texture *t = &glyph->t[tm->weight];
-		if (tm->mode == RENDER_BLENDED) {
+		if (tm->mode == RENDER_COPY) {
 			float x = pos_x - glyph->rect.x;
 			int y = pos_y - glyph->rect.y;
-			gfx_draw_glyph(dst, x, y, t, tm->color, config.text_x_scale, tm->edge_width);
+			gfx_draw_glyph(dst, x, y, t, tm->color, config.text_x_scale, tm->edge_width, false);
+		} else if (tm->mode == RENDER_BLENDED) {
+			float x = pos_x - glyph->rect.x;
+			int y = pos_y - glyph->rect.y;
+			gfx_draw_glyph(dst, x, y, t, tm->color, config.text_x_scale, tm->edge_width, true);
 		} else if (tm->mode == RENDER_PMAP) {
 			gfx_draw_glyph_to_pmap(dst, pos_x, pos_y, t, glyph->rect, tm->color, config.text_x_scale);
 		} else if (tm->mode == RENDER_AMAP) {
@@ -271,11 +276,12 @@ static enum font_weight int_to_font_weight(int weight)
 	return (weight % 1000) < 551 ? FONT_WEIGHT_BOLD : FONT_WEIGHT_HEAVY;
 }
 
-int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *ts)
+int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend)
 {
 	enum font_weight weight = int_to_font_weight(ts->weight);
 	struct font_size *font_size = text_style_font_size(ts);
 	float edge_width = text_style_edge_width(ts);
+	enum text_render_mode mode = blend ? RENDER_BLENDED : RENDER_COPY;
 	if (edge_width > 0.01f) {
 		struct text_render_metrics metrics = {
 			.x = x,
@@ -287,10 +293,11 @@ int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *
 			.space_scale_x = ts->space_scale_x,
 			.font_spacing = ts->font_spacing,
 			.edge_spacing = gfx_text_advance_edges ? edge_width : 0.0,
-			.mode = RENDER_BLENDED,
+			.mode = mode,
 			.font_size = font_size,
 		};
 		render_text(dst, msg, &metrics);
+		mode = RENDER_BLENDED;  // core text is blended on top of the edge
 	}
 	struct text_render_metrics metrics = {
 		.x = x,
@@ -302,7 +309,7 @@ int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *
 		.space_scale_x = ts->space_scale_x,
 		.font_spacing = ts->font_spacing,
 		.edge_spacing = gfx_text_advance_edges ? edge_width : 0.0,
-		.mode = RENDER_BLENDED,
+		.mode = mode,
 		.font_size = font_size,
 	};
 	return render_text(dst, msg, &metrics);

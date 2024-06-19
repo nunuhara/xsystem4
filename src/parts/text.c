@@ -83,7 +83,7 @@ static const char *parts_text_append_char(struct parts_text *t, const char *str)
 	int width = text_style_width(&t->ts, ch->ch);
 	int height = text_style_height(&t->ts);
 	gfx_init_texture_rgba(&ch->t, width, height, (SDL_Color){0,0,0,0});
-	ch->advance = gfx_render_text(&ch->t, 0, 0, ch->ch, &t->ts);
+	ch->advance = gfx_render_text(&ch->t, 0, 0, ch->ch, &t->ts, false);
 
 	line->width += width;
 	line->height = max(line->height, height);

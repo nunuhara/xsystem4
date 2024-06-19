@@ -120,7 +120,7 @@ bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 		w /= 2;
 	struct sact_sprite *sp = sact_create_sprite(sp_no, w, h, 0, 0, 0, 0);
 	sprite_get_texture(sp); // XXX: force initialization of texture
-	gfx_render_text(&sp->texture, 0.0f, 0, s, &text_sprite_ts);
+	gfx_render_text(&sp->texture, 0.0f, 0, s, &text_sprite_ts, false);
 	sprite_dirty(sp);
 	return true;
 }
@@ -457,7 +457,7 @@ static bool StoatSpriteEngine_MultiSprite_SetText(int type, int n, struct string
 	int h = ms->ts.size;
 	sprite_init_color(&ms->sp, w, h, 0, 0, 0, 0);
 	sprite_get_texture(&ms->sp); // XXX: force initialization of texture
-	gfx_render_text(&ms->sp.texture, 0.0f, 0, text->text, &ms->ts);
+	gfx_render_text(&ms->sp.texture, 0.0f, 0, text->text, &ms->ts, false);
 	sprite_dirty(&ms->sp);
 
 	ms->cg = 1;

@@ -529,7 +529,7 @@ static void Gpx2Plus_MsgDraw(int surface, int x, int y)
 				skiplen = strlen(s);
 			}
 			pos.y += line_height - ts.size;  // bottom align
-			pos.x += gfx_render_text(dst, pos.x, pos.y, s, &ts);
+			pos.x += gfx_render_text(dst, pos.x, pos.y, s, &ts, true);
 			pos.y -= line_height - ts.size;
 			if (lb)
 				*lb = '<';

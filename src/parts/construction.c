@@ -352,7 +352,7 @@ static void build_copy_cut_cg(struct parts_construction_process *cproc, struct p
 
 static void build_draw_text(struct parts_construction_process *cproc, struct parts_cp_text *op)
 {
-	gfx_render_text(&cproc->common.texture, op->x, op->y, op->text->text, &op->style);
+	gfx_render_text(&cproc->common.texture, op->x, op->y, op->text->text, &op->style, true);
 }
 
 static void build_copy_text(struct parts_construction_process *cproc, struct parts_cp_text *op)
@@ -361,7 +361,7 @@ static void build_copy_text(struct parts_construction_process *cproc, struct par
 	int h = ceilf(op->style.size + op->style.edge_up + op->style.edge_down);
 	gfx_fill_with_alpha(&cproc->common.texture, op->x, op->y, w, h,
 			op->style.edge_color.r, op->style.edge_color.g, op->style.edge_color.b, 0);
-	gfx_render_text(&cproc->common.texture, op->x, op->y, op->text->text, &op->style);
+	gfx_render_text(&cproc->common.texture, op->x, op->y, op->text->text, &op->style, false);
 }
 
 bool parts_build_construction_process(struct parts *parts,

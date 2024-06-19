@@ -372,17 +372,11 @@ void sprite_set_text_pos(struct sact_sprite *sp, int x, int y)
 void sprite_text_draw(struct sact_sprite *sp, struct string *text, struct text_style *ts)
 {
 	if (!sp->text.texture.handle) {
-		SDL_Color c;
-		if (text_style_has_edge(ts))
-			c = ts->edge_color;
-		else
-			c = ts->color;
-		c.a = 0;
-		gfx_init_texture_rgba(&sp->text.texture, sp->rect.w, sp->rect.h, c);
+		gfx_init_texture_rgba(&sp->text.texture, sp->rect.w, sp->rect.h, COLOR(0, 0, 0, 0));
 	}
 
 	ts->font_spacing = sp->text.char_space;
-	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos.x, sp->text.pos.y, text->text, ts);
+	sp->text.pos.x += gfx_render_text(&sp->text.texture, sp->text.pos.x, sp->text.pos.y, text->text, ts, false);
 	if (sp->text.current_line_height < ts->size)
 		sp->text.current_line_height = ts->size;
 	sprite_dirty(sp);
