@@ -20,9 +20,9 @@ png = dependency('libpng', static : static_libs)
 cglm = dependency('cglm', version : '>=0.8.3', fallback : ['cglm', 'cglm_dep'])
 sndfile = dependency('sndfile', static : static_libs)
 
-avcodec = dependency('libavcodec', required: false, static : static_libs)
+avcodec = dependency('libavcodec', version : '>=59.37.100', required: false, static : static_libs)
 avformat = dependency('libavformat', required: false, static : static_libs)
-avutil = dependency('libavutil', required: false, static : static_libs)
+avutil = dependency('libavutil', version : '>=57.28.100', required: false, static : static_libs)
 swscale = dependency('libswscale', required: false, static : static_libs)
 
 gles = dependency('glesv2', version : '>=3', required: get_option('opengles'))

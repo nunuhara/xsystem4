@@ -35,13 +35,13 @@
 #include "sts_mixer.h"
 #include "xsystem4.h"
 
-#define QUEUE_SIZE 10
+#define PRELOAD_PACKETS 10
 
 struct decoder {
 	AVStream *stream;
 	AVCodecContext *ctx;
 	AVFrame *frame;
-	AVFifoBuffer *queue;
+	AVFifo *queue;
 	bool finished;
 };
 
@@ -79,12 +79,12 @@ static void free_decoder(struct decoder *dec)
 	if (dec->frame)
 		av_frame_free(&dec->frame);
 	if (dec->queue) {
-		while (av_fifo_size(dec->queue) > 0) {
+		while (av_fifo_can_read(dec->queue) > 0) {
 			AVPacket *packet;
-			av_fifo_generic_read(dec->queue, &packet, sizeof(AVPacket*), NULL);
+			av_fifo_read(dec->queue, &packet, 1);
 			av_packet_free(&packet);
 		}
-		av_fifo_freep(&dec->queue);
+		av_fifo_freep2(&dec->queue);
 	}
 }
 
@@ -102,7 +102,7 @@ static bool init_decoder(struct decoder *dec, AVStream *stream)
 	if (avcodec_open2(dec->ctx, codec, NULL) != 0)
 		return false;
 	dec->frame = av_frame_alloc();
-	dec->queue = av_fifo_alloc(sizeof(AVPacket*) * QUEUE_SIZE);
+	dec->queue = av_fifo_alloc2(0, sizeof(AVPacket*), AV_FIFO_FLAG_AUTO_GROW);
 	return true;
 }
 
@@ -115,14 +115,10 @@ static void read_packet(struct movie_context *mc)
 
 	while (av_read_frame(mc->format_ctx, packet) == 0) {
 		if (packet->stream_index == mc->video.stream->index) {
-			if (av_fifo_space(mc->video.queue) < (int)sizeof(AVPacket*))
-				av_fifo_grow(mc->video.queue, sizeof(AVPacket*) * QUEUE_SIZE);
-			av_fifo_generic_write(mc->video.queue, &packet, sizeof(AVPacket *), NULL);
+			av_fifo_write(mc->video.queue, &packet, 1);
 			return;
 		} else if (packet->stream_index == mc->audio.stream->index) {
-			if (av_fifo_space(mc->audio.queue) < (int)sizeof(AVPacket*))
-				av_fifo_grow(mc->audio.queue, sizeof(AVPacket*) * QUEUE_SIZE);
-			av_fifo_generic_write(mc->audio.queue, &packet, sizeof(AVPacket *), NULL);
+			av_fifo_write(mc->audio.queue, &packet, 1);
 			return;
 		}
 		av_packet_unref(packet);
@@ -130,14 +126,14 @@ static void read_packet(struct movie_context *mc)
 	av_packet_free(&packet);
 	packet = NULL;
 	mc->format_eof = true;
-	av_fifo_generic_write(mc->video.queue, &packet, sizeof(AVPacket *), NULL);
-	av_fifo_generic_write(mc->audio.queue, &packet, sizeof(AVPacket *), NULL);
+	av_fifo_write(mc->video.queue, &packet, 1);
+	av_fifo_write(mc->audio.queue, &packet, 1);
 }
 
 static void preload_packets(struct movie_context *mc)
 {
 	SDL_LockMutex(mc->format_mutex);
-	while (!mc->format_eof && (av_fifo_size(mc->video.queue) + av_fifo_size(mc->audio.queue) < (int)(QUEUE_SIZE * sizeof(AVPacket*))))
+	while (!mc->format_eof && (av_fifo_can_read(mc->video.queue) + av_fifo_can_read(mc->audio.queue) < PRELOAD_PACKETS))
 		read_packet(mc);
 	SDL_UnlockMutex(mc->format_mutex);
 }
@@ -148,9 +144,9 @@ static bool decode_frame(struct decoder *dec, struct movie_context *mc)
 	while ((ret = avcodec_receive_frame(dec->ctx, dec->frame)) == AVERROR(EAGAIN)) {
 		SDL_LockMutex(mc->format_mutex);
 		AVPacket *packet;
-		while (av_fifo_size(dec->queue) == 0)
+		while (av_fifo_can_read(dec->queue) == 0)
 			read_packet(mc);
-		av_fifo_generic_read(dec->queue, &packet, sizeof(AVPacket*), NULL);
+		av_fifo_read(dec->queue, &packet, 1);
 		SDL_UnlockMutex(mc->format_mutex);
 
 		if ((ret = avcodec_send_packet(dec->ctx, packet)) != 0) {
@@ -187,7 +183,7 @@ static int audio_callback(sts_mixer_sample_t *sample, void *data)
 	}
 	// Interleave.
 	uint8_t *l = mc->audio.frame->data[0];
-	uint8_t *r = mc->audio.frame->data[mc->audio.ctx->channels > 1 ? 1 : 0];
+	uint8_t *r = mc->audio.frame->data[mc->audio.ctx->ch_layout.nb_channels > 1 ? 1 : 0];
 	uint8_t *out = sample->data;
 	for (unsigned i = 0; i < samples; i++) {
 		memcpy(out, l, mc->bytes_per_sample);
@@ -254,7 +250,7 @@ struct movie_context *movie_load(const char *filename)
 	}
 
 	NOTICE("video: %d x %d, %s", mc->video.ctx->width, mc->video.ctx->height, av_get_pix_fmt_name(mc->video.ctx->pix_fmt));
-	NOTICE("audio: %d hz, %d channels, %s", mc->audio.ctx->sample_rate, mc->audio.ctx->channels, av_get_sample_fmt_name(mc->audio.ctx->sample_fmt));
+	NOTICE("audio: %d hz, %d channels, %s", mc->audio.ctx->sample_rate, mc->audio.ctx->ch_layout.nb_channels, av_get_sample_fmt_name(mc->audio.ctx->sample_fmt));
 
 	mc->format_mutex = SDL_CreateMutex();
 	mc->timer_mutex = SDL_CreateMutex();
