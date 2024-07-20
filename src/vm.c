@@ -847,6 +847,10 @@ static enum opcode execute_instruction(enum opcode opcode)
 		stack_push(local_get(get_argument(0)).i);
 		break;
 	}
+	case _EOF: // In Ain v0, opcode 0x62 is not EOF but SH_STRUCTREF
+		if (ain->version != 0)
+			VM_ERROR("Illegal opcode: 0x%04x", opcode);
+		// fallthrough
 	case SH_STRUCTREF: { // VARNO
 		stack_push(member_get(get_argument(0)));
 		break;
@@ -1412,7 +1416,10 @@ static enum opcode execute_instruction(enum opcode opcode)
 	// --- Strings ---
 	//
 	case S_PUSH: {
-		stack_push_string(string_ref(ain->strings[get_argument(0)]));
+		if (ain->version == 0)
+			stack_push_string(string_ref(ain->messages[get_argument(0)]));
+		else
+			stack_push_string(string_ref(ain->strings[get_argument(0)]));
 		break;
 	}
 	case S_POP: {
