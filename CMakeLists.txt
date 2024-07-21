@@ -190,7 +190,6 @@ target_sources(xsystem4 PRIVATE
   src/hll/vmKey.c
   src/hll/vmMapLoader.c
   src/hll/vmMsgLog.c
-  src/hll/vmMsgSkip.c
   src/hll/vmMusic.c
   src/hll/vmSound.c
   src/hll/vmSprite.c
