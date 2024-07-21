@@ -51,6 +51,8 @@ static struct {
 
 static struct gpx_surface *create_surface(int width, int height)
 {
+	if (width <= 0 || height <= 0)
+		return NULL;
 	int sf_no;
 	for (sf_no = 0; surfaces[sf_no]; sf_no++) {
 		if (sf_no + 1 == nr_surfaces) {
@@ -106,7 +108,7 @@ static void Gpx2Plus_Init(possibly_unused void *imainsystem, possibly_unused str
 	// create main surface
 	Texture *t = gfx_main_surface();
 	struct gpx_surface *sf = create_surface(t->w, t->h);
-	assert(sf->no == 0);
+	assert(sf && sf->no == 0);
 
 	msgbuf.cap = 1024;
 	msgbuf.len = 0;
@@ -119,12 +121,16 @@ static void Gpx2Plus_Init(possibly_unused void *imainsystem, possibly_unused str
 static int Gpx2Plus_Create(int width, int height, possibly_unused int bpp)
 {
 	struct gpx_surface *sf = create_surface(width, height);
+	if (!sf)
+		return -1;
 	return sf->no;
 }
 
 static int Gpx2Plus_CreatePixelOnly(int width, int height, possibly_unused int bpp)
 {
 	struct gpx_surface *sf = create_surface(width, height);
+	if (!sf)
+		return -1;
 	sf->has_alpha = false;
 	return sf->no;
 }
