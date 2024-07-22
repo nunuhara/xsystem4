@@ -146,3 +146,40 @@ HLL_LIBRARY(MsgSkip,
 	    HLL_EXPORT(GetFlag, MsgSkip_GetFlag),
 	    HLL_EXPORT(GetNumofMsg, MsgSkip_GetNumofMsg),
 	    HLL_EXPORT(GetNumofFlag, MsgSkip_GetNumofFlag));
+
+HLL_QUIET_UNIMPLEMENTED(, void, vmMsgSkip, Init, void *imainsystem);
+
+static int vmMsgSkip_EnumHandle(void)
+{
+	return flags ? 1 : 0;
+}
+
+static int vmMsgSkip_Open(struct string *fname, possibly_unused int option)
+{
+	return MsgSkip_Init(fname);
+}
+
+static void vmMsgSkip_Close(possibly_unused int handle)
+{
+	msgskip_save();
+}
+
+static int vmMsgSkip_Query(possibly_unused int handle, int msgnum)
+{
+	int r = MsgSkip_GetFlag(msgnum);
+	// vmMsgSkip does not have an explicit set function.
+	MsgSkip_SetFlag(msgnum);
+	return r;
+}
+
+HLL_LIBRARY(vmMsgSkip,
+	    HLL_EXPORT(Init, vmMsgSkip_Init),
+	    HLL_EXPORT(EnumHandle, vmMsgSkip_EnumHandle),
+	    HLL_EXPORT(Open, vmMsgSkip_Open),
+	    HLL_EXPORT(Close, vmMsgSkip_Close),
+	    HLL_EXPORT(Query, vmMsgSkip_Query),
+	    HLL_EXPORT(SetEnable, MsgSkip_SetEnable),
+	    HLL_EXPORT(SetState, MsgSkip_SetState),
+	    HLL_EXPORT(GetEnable, MsgSkip_GetEnable),
+	    HLL_EXPORT(GetState, MsgSkip_GetState)
+	    );
