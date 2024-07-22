@@ -566,11 +566,18 @@ static int current_sort_member;
 
 static int array_compare_member(const void *_a, const void *_b)
 {
-	union vm_value a_slot = *((union vm_value*)_a);
-	union vm_value b_slot = *((union vm_value*)_b);
-	struct page *a = heap_get_page(a_slot.i);
-	struct page *b = heap_get_page(b_slot.i);
+	struct page *a = heap_get_page(((union vm_value*)_a)->i);
+	struct page *b = heap_get_page(((union vm_value*)_b)->i);
 	return a->values[current_sort_member].i - b->values[current_sort_member].i;
+}
+
+static int array_compare_member_string(const void *_a, const void *_b)
+{
+	struct page *a = heap_get_page(((union vm_value*)_a)->i);
+	struct page *b = heap_get_page(((union vm_value*)_b)->i);
+	int32_t a_i = a->values[current_sort_member].i;
+	int32_t b_i = b->values[current_sort_member].i;
+	return strcmp(heap_get_string(a_i)->text, heap_get_string(b_i)->text);
 }
 
 void array_sort_mem(struct page *page, int member_no)
@@ -580,8 +587,15 @@ void array_sort_mem(struct page *page, int member_no)
 	if (page->type != ARRAY_PAGE || array_type(page->a_type) != AIN_STRUCT)
 		VM_ERROR("A_SORT_MEM called on something other than an array of structs");
 
+	struct ain_struct *s = &ain->structures[page->array.struct_type];
+	if (member_no < 0 || member_no >= s->nr_members)
+		VM_ERROR("A_SORT_MEM called with invalid member index");
+
 	current_sort_member = member_no;
-	qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_member);
+	if (s->members[member_no].type.data == AIN_STRING)
+		qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_member_string);
+	else
+		qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_member);
 }
 
 int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno)
