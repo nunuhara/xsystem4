@@ -19,6 +19,9 @@
 #include "hll.h"
 #include "vm/page.h"
 
+static bool is_even(int x) { return !(x & 1); }
+static bool is_odd(int x) { return x & 1; }
+
 static void check_array(struct page *array)
 {
 	if (array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->array.rank != 1)
@@ -548,12 +551,14 @@ static void vmArray_OrRangeNum(struct page *s_array, int index, int min, int max
 static int vmArray_AroundRect(struct page *array, int width, int height, int x, int y, int length, int num, int *out_x, int *out_y)
 {
 	for (int dist = 1;; dist++) {
+		// walk one step north
 		if (--length < 0)
 			return 0;
 		y--;
 		if (0 <= x && x < width && 0 <= y && y < height && array->values[y * width + x].i == num)
 			goto found;
 
+		// walk southeast
 		for (int i = 0; i < dist; i++) {
 			if (--length < 0)
 				return 0;
@@ -562,6 +567,7 @@ static int vmArray_AroundRect(struct page *array, int width, int height, int x, 
 			if (0 <= x && x < width && 0 <= y && y < height && array->values[y * width + x].i == num)
 				goto found;
 		}
+		// walk southwest
 		for (int i = 0; i < dist; i++) {
 			if (--length < 0)
 				return 0;
@@ -570,6 +576,7 @@ static int vmArray_AroundRect(struct page *array, int width, int height, int x, 
 			if (0 <= x && x < width && 0 <= y && y < height && array->values[y * width + x].i == num)
 				goto found;
 		}
+		// walk northwest
 		for (int i = 0; i < dist; i++) {
 			if (--length < 0)
 				return 0;
@@ -578,7 +585,8 @@ static int vmArray_AroundRect(struct page *array, int width, int height, int x, 
 			if (0 <= x && x < width && 0 <= y && y < height && array->values[y * width + x].i == num)
 				goto found;
 		}
-		for (int i = 0; i < dist; i++) {
+		// walk northeast
+		for (int i = 0; i < dist - 1; i++) {
 			if (--length < 0)
 				return 0;
 			x++;
@@ -586,6 +594,8 @@ static int vmArray_AroundRect(struct page *array, int width, int height, int x, 
 			if (0 <= x && x < width && 0 <= y && y < height && array->values[y * width + x].i == num)
 				goto found;
 		}
+		x++;
+		y--;
 	}
  found:
 	*out_x = x;
@@ -593,7 +603,93 @@ static int vmArray_AroundRect(struct page *array, int width, int height, int x, 
 	return 1;
 }
 
-//int vmArray_AroundHexa(struct page *array, int nWidth, int nHeight, int nX, int nY, int nLength, int num, int *pnRX, int *pnRY);
+/* Hex boards are indexed like this (width = 5, height = 3, for example):
+ *
+ *    +--+  +--+  +--+
+ *    | 0|--| 2|--| 4|
+ *    |--| 1|--| 3|--|
+ *    | 5|--| 7|--| 9|
+ *    |--| 6|--| 8|--|
+ *    |10|--|12|--|14|
+ *    +--+  +--+  +--+
+ *
+ * Note that odd-numbered columns are one height lower. Because of this, indices
+ * 11 and 13 are unused.
+*/
+static bool is_valid_hex(int x, int y, int w, int h) {
+	return 0 <= x && x < w && 0 <= y && y < h && !(y == h - 1 && is_odd(x));
+}
+
+// Find num by visiting elements spirally around (x, y).
+static int vmArray_AroundHexa(struct page *array, int width, int height, int x, int y, int length, int num, int *out_x, int *out_y)
+{
+	for (int dist = 1;; dist++) {
+		// walk one step north
+		if (--length < 0)
+			return 0;
+		y--;
+		if (is_valid_hex(x, y, width, height) && array->values[y * width + x].i == num)
+			goto found;
+		// walk southeast
+		for (int i = 0; i < dist; i++) {
+			if (--length < 0)
+				return 0;
+			if (is_even(++x))
+				y++;
+			if (is_valid_hex(x, y, width, height) && array->values[y * width + x].i == num)
+				goto found;
+		}
+		// walk south
+		for (int i = 0; i < dist; i++) {
+			if (--length < 0)
+				return 0;
+			y++;
+			if (is_valid_hex(x, y, width, height) && array->values[y * width + x].i == num)
+				goto found;
+		}
+		// walk southwest
+		for (int i = 0; i < dist; i++) {
+			if (--length < 0)
+				return 0;
+			if (is_even(--x))
+				y++;
+			if (is_valid_hex(x, y, width, height) && array->values[y * width + x].i == num)
+				goto found;
+		}
+		// walk northwest
+		for (int i = 0; i < dist; i++) {
+			if (--length < 0)
+				return 0;
+			if (is_odd(--x))
+				y--;
+			if (is_valid_hex(x, y, width, height) && array->values[y * width + x].i == num)
+				goto found;
+		}
+		// walk north
+		for (int i = 0; i < dist; i++) {
+			if (--length < 0)
+				return 0;
+			y--;
+			if (is_valid_hex(x, y, width, height) && array->values[y * width + x].i == num)
+				goto found;
+		}
+		// walk northeast
+		for (int i = 0; i < dist - 1; i++) {
+			if (--length < 0)
+				return 0;
+			if (is_odd(++x))
+				y--;
+			if (is_valid_hex(x, y, width, height) && array->values[y * width + x].i == num)
+				goto found;
+		}
+		if (is_odd(++x))
+			y--;
+	}
+ found:
+	*out_x = x;
+	*out_y = y;
+	return 1;
+}
 
 static int vmArray_PaintRect(struct page **array_, int width, int height, int x, int y, int length)
 {
@@ -634,7 +730,71 @@ static int vmArray_PaintRect(struct page **array_, int width, int height, int x,
 	return count;
 }
 
-//int vmArray_PaintHexa(struct page **pIVMArray, int nWidth, int nHeight, int nX, int nY, int nLength);
+static int vmArray_PaintHexa(struct page **array_, int width, int height, int cx, int cy, int length)
+{
+	struct page *array = *array_;
+	check_array(array);
+
+	if (width <= 0 || height <= 0 || cx >= width || cy >= height || length < 0)
+		return 0;
+
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			int val = array->values[y * width + x].i < 0 ? -2 : -1;
+			if (y == height - 1 && is_odd(x))
+				val = -2;
+			array->values[y * width + x].i = val;
+		}
+	}
+
+	int count = 0;
+	array->values[width * cy + cx].i = 0;
+	for (int dist = 0; dist < length; dist++) {
+		for (int i = 0; i < width * height; i++) {
+			if (array->values[i].i != dist)
+				continue;
+			int y = i / width;
+			if (y > 0 && array->values[i - width].i == -1) {
+				array->values[i - width].i = dist + 1;
+				count++;
+			}
+			if (y < height - 1 && array->values[i + width].i == -1) {
+				array->values[i + width].i = dist + 1;
+				count++;
+			}
+			int x = i % width;
+			if (x > 0 && array->values[i - 1].i == -1) {
+				array->values[i - 1].i = dist + 1;
+				count++;
+			}
+			if (x < width - 1 && array->values[i + 1].i == -1) {
+				array->values[i + 1].i = dist + 1;
+				count++;
+			}
+			if (is_even(x)) {
+				if (y > 0 && x > 0 && array->values[i - width - 1].i == -1) {
+					array->values[i - width - 1].i = dist + 1;
+					count++;
+				}
+				if (y > 0 && x < width - 1 && array->values[i - width + 1].i == -1) {
+					array->values[i - width + 1].i = dist + 1;
+					count++;
+				}
+			} else {
+				if (y < height - 1 && x > 0 && array->values[i + width - 1].i == -1) {
+					array->values[i + width - 1].i = dist + 1;
+					count++;
+				}
+				if (y < height - 1 && x < width - 1 && array->values[i + width + 1].i == -1) {
+					array->values[i + width + 1].i = dist + 1;
+					count++;
+				}
+			}
+		}
+	}
+	return count;
+}
+
 
 static int vmArray_CopyRectToRect(struct page **d_array_, int dw, int dh, int dx, int dy, struct page *s_array, int sw, int sh, int sx, int sy, int w, int h)
 {
@@ -656,7 +816,41 @@ static int vmArray_CopyRectToRect(struct page **d_array_, int dw, int dh, int dx
 	return 1;
 }
 
-//int vmArray_CopyHexaToHexa(struct page **pIDVMArray, int nDWidth, int nDHeight, int nDx, int nDy, struct page *pISVMArray, int nSWidth, int nSHeight, int nSx, int nSy, int nCWidth, int nCHeight);
+static int vmArray_CopyHexaToHexa(struct page **d_array_, int dw, int dh, int dx, int dy, struct page *s_array, int sw, int sh, int sx, int sy, int cw, int ch)
+{
+	struct page *d_array = *d_array_;
+	check_array(s_array);
+	check_array(d_array);
+
+	if (is_even(sx) == is_even(dx)) {
+		for (int y = 0; y < ch; y++) {
+			for (int x = 0; x < cw; x++) {
+				if (is_valid_hex(sx + x, sy + y, sw, sh) && is_valid_hex(dx + x, dy + y, dw, dh)) {
+					d_array->values[(dy + y) * dw + dx + x] = s_array->values[(sy + y) * sw + sx + x];
+				}
+			}
+		}
+	} else if (is_even(dx)) {  // odd sx, even dx
+		for (int y = 0; y < ch; y++) {
+			for (int x = 0; x < cw; x++) {
+				int syy = is_even(sx + x) ? sy + y + 1 : sy + y;
+				if (is_valid_hex(sx + x, syy, sw, sh) && is_valid_hex(dx + x, dy + y, dw, dh)) {
+					d_array->values[(dy + y) * dw + dx + x] = s_array->values[syy * sw + sx + x];
+				}
+			}
+		}
+	} else {  // even sx, odd dx
+		for (int y = 0; y < ch; y++) {
+			for (int x = 0; x < cw; x++) {
+				int dyy = is_odd(sx + x) ? dy + y + 1 : dy + y;
+				if (is_valid_hex(sx + x, sy + y, sw, sh) && is_valid_hex(dx + x, dyy, dw, dh)) {
+					d_array->values[dyy * dw + dx + x] = s_array->values[(sy + y) * sw + sx + x];
+				}
+			}
+		}
+	}
+	return 1;
+}
 
 // Transpose s_array (as a 2D array of s_width * s_height) into d_array.
 static int vmArray_ConvertRectSide(struct page **d_array_, struct page *s_array, int s_width, int s_height, int side)
@@ -737,10 +931,10 @@ HLL_LIBRARY(vmArray,
 	    HLL_EXPORT(OrHighNum, vmArray_OrHighNum),
 	    HLL_EXPORT(OrRangeNum, vmArray_OrRangeNum),
 	    HLL_EXPORT(AroundRect, vmArray_AroundRect),
-	    HLL_TODO_EXPORT(AroundHexa, vmArray_AroundHexa),
+	    HLL_EXPORT(AroundHexa, vmArray_AroundHexa),
 	    HLL_EXPORT(PaintRect, vmArray_PaintRect),
-	    HLL_TODO_EXPORT(PaintHexa, vmArray_PaintHexa),
+	    HLL_EXPORT(PaintHexa, vmArray_PaintHexa),
 	    HLL_EXPORT(CopyRectToRect, vmArray_CopyRectToRect),
-	    HLL_TODO_EXPORT(CopyHexaToHexa, vmArray_CopyHexaToHexa),
+	    HLL_EXPORT(CopyHexaToHexa, vmArray_CopyHexaToHexa),
 	    HLL_EXPORT(ConvertRectSide, vmArray_ConvertRectSide)
 	    );
