@@ -300,7 +300,7 @@ static void DrawGraph_CopyRotZoomUseAMap(int dst, int src, int sx, int sy, int w
 
 static void DrawGraph_CopyRotZoom2Bilinear(int dst, float cx, float cy, int src, float scx, float scy, float rot, float mag)
 {
-	gfx_copy_root_zoom2(DTEX(dst), cx, cy, STEX(src), scx, scy, rot, mag);
+	gfx_copy_rot_zoom2(DTEX(dst), cx, cy, STEX(src), scx, scy, rot, mag);
 }
 
 static void DrawGraph_CopyRotateY(int write, int dst, int src, int sx, int sy, int w, int h, float rot, float mag)

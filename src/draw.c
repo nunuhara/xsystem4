@@ -775,7 +775,7 @@ void gfx_copy_rot_zoom_use_amap(Texture *dst, Texture *src, int sx, int sy, int 
 	copy_rot_zoom(dst, src, sx, sy, w, h, rotate, mag, &hitbox_shader.s);
 }
 
-void gfx_copy_root_zoom2(Texture *dst, float cx, float cy, Texture *src, float scx, float scy, float rot, float mag)
+void gfx_copy_rot_zoom2(Texture *dst, float cx, float cy, Texture *src, float scx, float scy, float rot, float mag)
 {
 	gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 0);
 

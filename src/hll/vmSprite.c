@@ -470,7 +470,7 @@ static void vmSprite_DrawEffect(int effect, int time)
 
 		gfx_clear();
 		gfx_copy(screen, 0, 0, &base, 0, 0, screen->w, screen->h);
-		gfx_copy_root_zoom2(screen, cx, cy, &src, src.w / 2.0f, src.h / 2.0f, rate * -360, 1.0f - rate);
+		gfx_copy_rot_zoom2(screen, cx, cy, &src, src.w / 2.0f, src.h / 2.0f, rate * -360, 1.0f - rate);
 		gfx_swap();
 
 		uint64_t t2 = SDL_GetTicks64() - start;
