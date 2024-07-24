@@ -19,6 +19,7 @@
 #include <SDL.h>
 #include "effect.h"
 #include "gfx/gfx.h"
+#include "parts.h"
 #include "sact.h"
 #include "system4.h"
 #include "xsystem4.h"
@@ -301,6 +302,7 @@ int sact_TRANS_Begin(int type)
 	effect.on = true;
 	effect.type = type;
 	gfx_copy_main_surface(&effect.old);
+	PE_UpdateComponent(0);
 	scene_render();
 	gfx_copy_main_surface(&effect.new);
 	return 1;
