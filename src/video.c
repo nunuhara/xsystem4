@@ -507,16 +507,12 @@ void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color)
 		WARNING("Texture height %d exceeds maximum texture size %d", h, max_texture_size);
 		h = max_texture_size;
 	}
-	uint8_t *pixels = xmalloc(w*h*3);
-	for (int i = 0; i < w*h; i++) {
-		pixels[i*3+0] = color.r;
-		pixels[i*3+1] = color.g;
-		pixels[i*3+2] = color.b;
-	}
-
 	init_texture(t, w, h);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-	free(pixels);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, t, 0, 0, w, h);
+	glClearColor(color.r / 255.f, color.g / 255.f, color.b / 255.f, 255.f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 }
 
 void gfx_init_texture_amap(struct texture *t, int w, int h, uint8_t *amap, SDL_Color color)

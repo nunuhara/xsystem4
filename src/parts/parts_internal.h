@@ -342,6 +342,7 @@ void parts_render_init(void);
 void parts_engine_dirty(void);
 void parts_dirty(struct parts *parts);
 void parts_render(struct parts *parts);
+void parts_render_family(struct parts *parts);
 
 // motion.c
 void parts_clear_motion(struct parts *parts);
@@ -364,8 +365,9 @@ bool parts_flash_update(struct parts_flash *f, int passed_time);
 bool parts_flash_seek(struct parts_flash *f, int frame);
 
 // debug.c
+struct sprite;
 void parts_debug_init(void);
-cJSON *parts_engine_to_json(bool verbose);
+cJSON *parts_engine_to_json(struct sprite *sp, bool verbose);
 
 static inline bool parts_state_valid(int state)
 {

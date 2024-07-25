@@ -639,7 +639,7 @@ static void cmd_xsystem4_renderEntity(cJSON *args, cJSON *resp)
 
 	// create output texture
 	Texture t;
-	gfx_init_texture_rgba(&t, config.view_width, config.view_height, (SDL_Color){0,0,0,0});
+	gfx_init_texture_rgb(&t, config.view_width, config.view_height, (SDL_Color){0,0,0});
 
 	// render entity to texture
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, &t, 0, 0, t.w, t.h);
@@ -680,9 +680,14 @@ static struct parts *get_parts(cJSON *args, int *id_out)
 {
 	struct parts *parts;
 
-	if (!get_id(args, "partsId", id_out) || !(parts = parts_try_get(*id_out))
-			|| !parts->states[parts->state].common.texture.handle)
+	if (!get_id(args, "partsId", id_out)) {
+		WARNING("get_id failed");
 		return NULL;
+	}
+	if (!(parts = parts_try_get(*id_out))) {
+		WARNING("parts_try_get(%d) failed", *id_out);
+		return NULL;
+	}
 	return parts;
 }
 
@@ -696,14 +701,16 @@ static void cmd_xsystem4_renderParts(cJSON *args, cJSON *resp)
 		return;
 	}
 
-	// create output texture
+	// create output texture, with darkened grayscale main surface as background
 	Texture t;
-	gfx_init_texture_rgba(&t, config.view_width, config.view_height, (SDL_Color){0,0,0,0});
+	gfx_init_texture_rgb(&t, config.view_width, config.view_height, (SDL_Color){0,0,0});
+	gfx_copy_grayscale(&t, 0, 0, gfx_main_surface(), 0, 0, t.w, t.h);
+	gfx_fill_multiply(&t, 0, 0, t.w, t.h, 20, 20, 20);
 
 	// render parts to textre
-	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, &t, 0, 0, t.w, t.h);
-	parts_render(parts);
-	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	GLuint fbo = gfx_set_framebuffer(GL_FRAMEBUFFER, &t, 0, 0, t.w, t.h);
+	parts_render_family(parts);
+	gfx_reset_framebuffer(GL_FRAMEBUFFER, fbo);
 
 	// send response
 	cJSON *body;

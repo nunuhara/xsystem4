@@ -365,16 +365,22 @@ cJSON *parts_to_json(struct parts *parts, bool verbose)
 	return obj;
 }
 
-cJSON *parts_engine_to_json(bool verbose)
+cJSON *parts_engine_to_json(struct sprite *sp, bool verbose)
 {
-	cJSON *a = cJSON_CreateArray();
+	// XXX: only add parts to sprite object in verbose mode
+	cJSON *obj = scene_sprite_to_json(sp, verbose);
+	if (!verbose)
+		return obj;
+
+	cJSON *a;
+	cJSON_AddItemToObjectCS(obj, "parts", a = cJSON_CreateArray());
 
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
 		if (!parts->parent)
 			cJSON_AddItemToArray(a, parts_to_json(parts, verbose));
 	}
-	return a;
+	return obj;
 }
 
 #ifdef DEBUGGER_ENABLED
