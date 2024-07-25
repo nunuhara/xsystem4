@@ -118,6 +118,20 @@ static Point motion_calculate_point(struct parts_motion *m, int t)
 	};
 }
 
+static Point motion_vibration_point(struct parts_motion *m, int t)
+{
+	if (t >= m->end_time)
+		return (Point) { m->end.x, m->end.y };
+
+	const float progress = motion_progress(m, t);
+	const int range_x = m->begin.x * (1.f - progress);
+	const int range_y = m->begin.y * (1.f - progress);
+	return (Point) {
+		m->end.x + (range_x ? (rand() % range_x - range_x / 2) : 0),
+		m->end.y + (range_y ? (rand() % range_y - range_y / 2) : 0),
+	};
+}
+
 static void parts_update_with_motion(struct parts *parts, struct parts_motion *motion)
 {
 	switch (motion->type) {
@@ -161,6 +175,9 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 		*/
 	case PARTS_MOTION_ROTATE_Z:
 		parts_set_rotation_z(parts, motion_calculate_f(motion, motion_t));
+		break;
+	case PARTS_MOTION_VIBRATION_SIZE:
+		parts_set_pos(parts, motion_vibration_point(motion, motion_t));
 		break;
 	default:
 		WARNING("Invalid motion type: %d", motion->type);
@@ -409,6 +426,8 @@ void PE_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin
 	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_VIBRATION_SIZE, begin_t, end_t);
 	motion->begin.x = begin_w;
 	motion->begin.y = begin_h;
+	motion->end.x = parts->local.pos.x;
+	motion->end.y = parts->local.pos.y;
 	parts_add_motion(parts, motion);
 }
 
