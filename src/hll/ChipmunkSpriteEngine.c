@@ -109,8 +109,6 @@ HLL_WARN_UNIMPLEMENTED(0, int,  ChipmunkSpriteEngine, SP_SetBrightness, int sp_n
 
 HLL_WARN_UNIMPLEMENTED(0, int,  ChipmunkSpriteEngine, SP_GetBrightness, int sp_no);
 
-HLL_WARN_UNIMPLEMENTED( , void, ChipmunkSpriteEngine, VIEW_SetOffsetPos, int x, int y);
-
 static bool keep_previous_view = true;
 HLL_WARN_UNIMPLEMENTED((keep_previous_view = on, true), bool, ChipmunkSpriteEngine, KeepPreviousView_SetMode, bool on);
 HLL_WARN_UNIMPLEMENTED(keep_previous_view, bool, ChipmunkSpriteEngine, KeepPreviousView_GetMode);
@@ -306,7 +304,7 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(TRANS_End, sact_TRANS_End),
 	    HLL_EXPORT(VIEW_SetMode, sact_VIEW_SetMode),
 	    HLL_EXPORT(VIEW_GetMode, sact_VIEW_GetMode),
-	    HLL_EXPORT(VIEW_SetOffsetPos, ChipmunkSpriteEngine_VIEW_SetOffsetPos),
+	    HLL_EXPORT(VIEW_SetOffsetPos, gfx_set_view_offset),
 	    HLL_EXPORT(DX_GetUsePower2Texture, sact_DX_GetUsePower2Texture),
 	    HLL_EXPORT(DX_SetUsePower2Texture, sact_DX_SetUsePower2Texture),
 	    HLL_EXPORT(KeepPreviousView_SetMode, ChipmunkSpriteEngine_KeepPreviousView_SetMode),

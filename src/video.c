@@ -333,13 +333,23 @@ void gfx_clear(void)
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 
+static mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
+
+void gfx_set_view_offset(int x, int y)
+{
+	glm_mat4_identity(mw_transform);
+	if (!x && !y)
+		return;
+	vec3 off = { (float)x / config.view_width, (float)y / config.view_height, 0 };
+	glm_translate(mw_transform, off);
+}
+
 void gfx_swap(void)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(sdl.viewport.x, sdl.viewport.y, sdl.viewport.w, sdl.viewport.h);
 	gfx_clear();
 
-	static mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
 	static mat4 wv_transform = MAT4(
 		2,  0, 0, -1,
 		0, -2, 0,  1,
