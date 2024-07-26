@@ -133,6 +133,7 @@ SDL_Color gfx_get_font_color(void);
 void gfx_set_font_name(const char *name);
 
 int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend);
+float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend);
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text);
 void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text);
 float gfx_size_char(struct text_style *ts, const char *ch);

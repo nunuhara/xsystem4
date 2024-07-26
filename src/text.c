@@ -221,7 +221,7 @@ struct text_render_metrics {
 	struct font_size *font_size;
 };
 
-static int render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
+static float render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 {
 	float pos_x = tm->x;
 	int pos_y = tm->y + tm->font_size->y_offset;
@@ -256,7 +256,7 @@ static int render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 		pos_x += glyph->advance * scale_x * config.text_x_scale + tm->font_spacing;
 		pos_x += tm->edge_spacing;
 	}
-	return roundf(pos_x - tm->x);
+	return pos_x - tm->x;
 }
 
 static enum font_weight int_to_font_weight(int weight)
@@ -276,7 +276,7 @@ static enum font_weight int_to_font_weight(int weight)
 	return (weight % 1000) < 551 ? FONT_WEIGHT_BOLD : FONT_WEIGHT_HEAVY;
 }
 
-int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend)
+float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend)
 {
 	enum font_weight weight = int_to_font_weight(ts->weight);
 	struct font_size *font_size = text_style_font_size(ts);
@@ -313,6 +313,11 @@ int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *
 		.font_size = font_size,
 	};
 	return render_text(dst, msg, &metrics);
+}
+
+int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend)
+{
+	return lroundf(gfx_render_textf(dst, x, y, msg, ts, blend));
 }
 
 struct font_metrics {

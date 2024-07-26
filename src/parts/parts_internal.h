@@ -79,7 +79,7 @@ struct sound_motion {
 struct parts_text_char {
 	Texture t;
 	char ch[4];
-	int advance;
+	float advance;
 	Point off;
 };
 
@@ -87,7 +87,7 @@ struct parts_text_line {
 	struct parts_text_char *chars;
 	int nr_chars;
 	unsigned height;
-	unsigned width;
+	float width;
 };
 
 enum parts_type {
@@ -122,7 +122,7 @@ struct parts_text {
 	unsigned nr_lines;
 	struct parts_text_line *lines;
 	unsigned line_space;
-	Point cursor;
+	struct { float x; int y; } cursor;
 	struct text_style ts;
 };
 

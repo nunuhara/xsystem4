@@ -93,7 +93,8 @@ static void load_parts_text(struct iarray_reader *r, struct parts *parts,
 
 	text->nr_lines = 0;
 	text->lines = NULL;
-	text->cursor = (SDL_Point){0,0};
+	text->cursor.x = 0;
+	text->cursor.y = 0;
 
 	int nr_lines = iarray_read(r);
 	for (unsigned i = 0; i < nr_lines; i++) {

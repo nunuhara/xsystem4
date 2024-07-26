@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <math.h>
+
 #include "system4.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
@@ -80,12 +82,12 @@ static const char *parts_text_append_char(struct parts_text *t, const char *str)
 
 	ch->off = text_style_offset(&t->ts);
 	int len = extract_sjis_char(str, ch->ch);
-	int width = text_style_width(&t->ts, ch->ch);
+	int width = ceilf(text_style_width(&t->ts, ch->ch));
 	int height = text_style_height(&t->ts);
 	gfx_init_texture_rgba(&ch->t, width, height, (SDL_Color){0,0,0,0});
-	ch->advance = gfx_render_text(&ch->t, 0, 0, ch->ch, &t->ts, false);
+	ch->advance = gfx_render_textf(&ch->t, 0, 0, ch->ch, &t->ts, false);
 
-	line->width += width;
+	line->width += ch->advance;
 	line->height = max(line->height, height);
 	return str + len;
 }
@@ -103,12 +105,13 @@ void parts_text_append(struct parts *parts, struct parts_text *t, struct string 
 	}
 
 	// calculate required dimensions of texture
-	int width = 0;
+	float f_width = 0;
 	int height = 0;
 	for (int i = 0; i < t->nr_lines; i++) {
-		width = max(width, t->lines[i].width);
+		f_width = max(f_width, t->lines[i].width);
 		height += t->lines[i].height;
 	}
+	int width = ceilf(f_width);
 	if (!width || !height)
 		return;
 
@@ -118,17 +121,19 @@ void parts_text_append(struct parts *parts, struct parts_text *t, struct string 
 	gfx_init_texture_rgba(&t->common.texture, width, height, (SDL_Color){0,0,0,0});
 
 	// copy glyph textures to main texture
-	t->cursor = POINT(0, 0);
+	t->cursor.x = 0;
+	t->cursor.y = 0;
 	for (int i = 0; i < t->nr_lines; i++) {
 		struct parts_text_line *line = &t->lines[i];
 		for (int i = 0; i < line->nr_chars; i++) {
 			struct parts_text_char *ch = &line->chars[i];
 			gfx_copy_with_alpha_map(&t->common.texture,
-					t->cursor.x, t->cursor.y,
+					lroundf(t->cursor.x), t->cursor.y,
 					&ch->t, 0, 0, ch->t.w, ch->t.h);
 			t->cursor.x += ch->advance;
 		}
-		t->cursor = POINT(0, t->cursor.y + line->height);
+		t->cursor.x = 0;
+		t->cursor.y += line->height;
 	}
 	parts_set_dims(parts, &t->common, width, height);
 }

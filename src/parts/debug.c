@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <math.h>
+
 #include "system4.h"
 #include "system4/cg.h"
 #include "system4/string.h"
@@ -52,7 +54,8 @@ static void parts_text_to_json(struct parts_text *text, cJSON *out, bool verbose
 		free_string(s);
 	}
 	cJSON_AddNumberToObject(out, "line_space", text->line_space);
-	cJSON_AddItemToObjectCS(out, "cursor", point_to_json(&text->cursor, verbose));
+	Point cursor = { lroundf(text->cursor.x), text->cursor.y };
+	cJSON_AddItemToObjectCS(out, "cursor", point_to_json(&cursor, verbose));
 	cJSON_AddItemToObjectCS(out, "text_style", text_style_to_json(&text->ts, verbose));
 }
 
