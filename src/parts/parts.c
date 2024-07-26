@@ -837,8 +837,11 @@ void PE_UpdateComponent(possibly_unused int passed_time)
 	}
 }
 
-void PE_Update(int passed_time, possibly_unused bool message_window_show)
+bool parts_message_window_show = true;
+
+void PE_Update(int passed_time, bool message_window_show)
 {
+	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
 	audio_update();
 	parts_update_animation(passed_time);
@@ -846,8 +849,9 @@ void PE_Update(int passed_time, possibly_unused bool message_window_show)
 	parts_engine_dirty();
 }
 
-void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, possibly_unused bool message_window_show)
+void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_window_show)
 {
+	parts_message_window_show = message_window_show;
 	audio_update();
 	parts_update_animation(passed_time);
 	parts_engine_dirty();
@@ -1487,12 +1491,14 @@ void PE_SetParentPartsNumber(int parts_no, int parent_parts_no)
 bool PE_SetPartsGroupNumber(possibly_unused int PartsNumber, possibly_unused int GroupNumber)
 {
 	// TODO
+	WARNING("PE_SetPartsGroupNumber(%d, %d)", PartsNumber, GroupNumber);
 	return true;
 }
 
-void PE_SetPartsMessageWindowShowLink(possibly_unused int parts_no, possibly_unused bool message_window_show_link)
+void PE_SetPartsMessageWindowShowLink(possibly_unused int parts_no, bool message_window_show_link)
 {
-	// TODO
+	struct parts *parts = parts_get(parts_no);
+	parts->message_window = message_window_show_link;
 }
 
 bool PE_GetPartsMessageWindowShowLink(int PartsNumber);

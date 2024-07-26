@@ -349,6 +349,7 @@ cJSON *parts_to_json(struct parts *parts, bool verbose)
 	if (parts->linked_from >= 0)
 		cJSON_AddNumberToObject(obj, "linked_from", parts->linked_from);
 	cJSON_AddNumberToObject(obj, "draw_filter", parts->draw_filter);
+	cJSON_AddBoolToObject(obj, "message_window", parts->message_window);
 
 	cJSON_AddItemToObjectCS(obj, "motions", motions = cJSON_CreateArray());
 	struct parts_motion *motion;

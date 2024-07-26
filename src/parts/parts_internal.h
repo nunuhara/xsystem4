@@ -287,6 +287,7 @@ struct parts {
 	int linked_to;
 	int linked_from;
 	int draw_filter;
+	bool message_window;
 	TAILQ_HEAD(, parts_motion) motion;
 };
 
@@ -315,6 +316,7 @@ void parts_set_state(struct parts *parts, enum parts_state_type state);
 void parts_release(int parts_no);
 void parts_release_all(void);
 void parts_set_surface_area(struct parts *parts, struct parts_common *common, int x, int y, int w, int h);
+extern bool parts_message_window_show;
 
 // for save.c
 void parts_list_resort(struct parts *parts);

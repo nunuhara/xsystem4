@@ -22,6 +22,8 @@
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
+#define CURRENT_SAVE_VERSION 1
+
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
 	iarray_write(w, params->z);
@@ -483,6 +485,7 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	iarray_write(w, parts->linked_to);
 	iarray_write(w, parts->linked_from);
 	iarray_write(w, parts->draw_filter);
+	iarray_write(w, parts->message_window);
 
 	unsigned motion_count_pos = iarray_writer_pos(w);
 	iarray_write(w, 0); // size of motion list
@@ -497,7 +500,7 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	iarray_write_at(w, motion_count_pos, motion_count);
 }
 
-static void load_parts(struct iarray_reader *r)
+static void load_parts(struct iarray_reader *r, int version)
 {
 	int no = iarray_read(r);
 	struct parts *parts = parts_get(no);
@@ -518,6 +521,8 @@ static void load_parts(struct iarray_reader *r)
 	parts->linked_to = iarray_read(r);
 	parts->linked_from = iarray_read(r);
 	parts->draw_filter = iarray_read(r);
+	if (version > 0)
+		parts->message_window = iarray_read(r);
 
 	int motion_count = iarray_read(r);
 	for (int i = 0; i < motion_count; i++) {
@@ -535,7 +540,7 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 
 	struct iarray_writer w;
 	iarray_init_writer(&w, "XPE");
-	iarray_write(&w, 0); // version
+	iarray_write(&w, CURRENT_SAVE_VERSION);
 	// TODO: first_free from GetFreeNumber?
 	unsigned count_pos = iarray_writer_pos(&w);
 	iarray_write(&w, 0); // size of parts list
@@ -583,7 +588,8 @@ bool PE_Load(struct page **buffer)
 		WARNING("unrecognized savedata magic");
 		return false;
 	}
-	if (iarray_read(&r) != 0) {
+	int version = iarray_read(&r);
+	if (version > CURRENT_SAVE_VERSION) {
 		WARNING("unrecognized savedata version");
 		return false;
 	}
@@ -597,7 +603,7 @@ bool PE_Load(struct page **buffer)
 	parts_release_all();
 
 	for (int i = 0; i < nr_parts; i++) {
-		load_parts(&r);
+		load_parts(&r, version);
 	}
 
 	return true;
