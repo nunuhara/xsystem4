@@ -1441,14 +1441,22 @@ int PE_GetPartsUpperLeftPosX(int parts_no, int state)
 {
 	if (!parts_state_valid(--state))
 		return 0;
-	return parts_get(parts_no)->states[state].common.hitbox.x;
+	struct parts *parts = parts_get(parts_no);
+	int x = parts->states[state].common.hitbox.x;
+	if (parts->parent)
+		x += parts->parent->global.pos.x;
+	return x;
 }
 
 int PE_GetPartsUpperLeftPosY(int parts_no, int state)
 {
 	if (!parts_state_valid(--state))
 		return 0;
-	return parts_get(parts_no)->states[state].common.hitbox.y;
+	struct parts *parts = parts_get(parts_no);
+	int y = parts->states[state].common.hitbox.y;
+	if (parts->parent)
+		y += parts->parent->global.pos.y;
+	return y;
 }
 
 int PE_GetPartsZ(int parts_no)

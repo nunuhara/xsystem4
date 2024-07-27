@@ -178,13 +178,11 @@ bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state)
 	if (!parts)
 		return false;
 
-	// TODO: this could be cached
 	Rectangle hitbox = parts->states[state].common.hitbox;
-	for (struct parts *parent = parts->parent; parent; parent = parent->parent) {
-		hitbox.x += parent->local.pos.x;
-		hitbox.y += parent->local.pos.y;
+	if (parts->parent) {
+		hitbox.x += parts->parent->global.pos.x;
+		hitbox.y += parts->parent->global.pos.y;
 	}
-
 	Point mouse_pos = { mouse_x, mouse_y };
 	return SDL_PointInRect(&mouse_pos, &hitbox);
 }
