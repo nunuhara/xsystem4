@@ -180,6 +180,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/vmCG.c
   src/hll/vmChrLoader.c
   src/hll/vmCursor.c
+  src/hll/vmData.c
   src/hll/vmDialog.c
   src/hll/vmDrawGauge.c
   src/hll/vmDrawMsg.c
