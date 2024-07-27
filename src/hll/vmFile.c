@@ -31,7 +31,8 @@
 
 enum vm_file_mode {
 	VM_FILE_READ = 1,
-	VM_FILE_WRITE = 2
+	VM_FILE_WRITE = 2,
+	VM_FILE_READWRITE = 3
 };
 
 struct vm_file {
@@ -155,7 +156,8 @@ static int vmFile_Open(struct string *string, int type)
 	char *path = savedir_path(string->text);
 	vf->path = path;
 
-	if (type == VM_FILE_READ) {
+	if (type == VM_FILE_READ ||
+	    type == VM_FILE_READWRITE /* Used in DALK Gaiden, but only for reading */) {
 		size_t len;
 		uint8_t *data = file_read(path, &len);
 		if (!data) {
@@ -266,37 +268,52 @@ static int vmFile_Decode(int handle, int seed)
 	return 1;
 }
 
-//int vmFile_ReadArrayChar(int handle, struct page **pIVMArray);
-//int vmFile_ReadArrayShort(int handle, struct page **pIVMArray);
-//int vmFile_ReadArrayInt(int handle, struct page **pIVMArray);
-//int vmFile_ReadArrayFloat(int handle, struct page **pIVMArray);
-//int vmFile_ReadArrayString(int handle, struct page **pIVMArray);
-//int vmFile_ReadArrayStruct(int handle, struct page **pIVMArray);
-
-static int vmFile_ReadStruct(int handle, struct page **_page)
+static int vmFile_ReadArrayChar(int handle, struct page **_array)
 {
 	struct vm_file *vf = id_pool_get(&pool, handle);
 	if (!vf)
 		return 0;
 
-	struct page *page = *_page;
-	if (page->type != STRUCT_PAGE) {
-		VM_ERROR("vmFile.ReadStruct of non-struct");
+	struct page *array = *_array;
+	if (array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->array.rank != 1)
+		VM_ERROR("Type error");
+	for (int i = 0; i < array->nr_vars; i++) {
+		array->values[i].i = (int8_t)buffer_read_u8(&vf->buf);
 	}
+	return 1;
+}
 
-	read_page(vf, page);
+//int vmFile_ReadArrayShort(int handle, struct page **pIVMArray);
+
+static int vmFile_ReadPage(int handle, struct page **page)
+{
+	struct vm_file *vf = id_pool_get(&pool, handle);
+	if (!vf)
+		return 0;
+
+	read_page(vf, *page);
 	return 1;
 }
 
 //int vmFile_ReadGlobal(int handle, IMainSystem pIMainSystem);
-//int vmFile_WriteArrayChar(int handle, struct page *pIVMArray);
-//int vmFile_WriteArrayShort(int handle, struct page *pIVMArray);
-//int vmFile_WriteArrayInt(int handle, struct page *pIVMArray);
-//int vmFile_WriteArrayFloat(int handle, struct page *pIVMArray);
-//int vmFile_WriteArrayString(int handle, struct page *pIVMArray);
-//int vmFile_WriteArrayStruct(int handle, struct page *pIVMArray);
 
-static int vmFile_WriteStruct(int handle, struct page *page)
+static int vmFile_WriteArrayChar(int handle, struct page *array)
+{
+	struct vm_file *vf = id_pool_get(&pool, handle);
+	if (!vf)
+		return 0;
+	if (array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->array.rank != 1)
+		VM_ERROR("Type error");
+
+	for (int i = 0; i < array->nr_vars; i++) {
+		buffer_write_int8(&vf->buf, array->values[i].i);
+	}
+	return 1;
+}
+
+//int vmFile_WriteArrayShort(int handle, struct page *pIVMArray);
+
+static int vmFile_WritePage(int handle, struct page *page)
 {
 	struct vm_file *vf = id_pool_get(&pool, handle);
 	if (!vf)
@@ -306,11 +323,35 @@ static int vmFile_WriteStruct(int handle, struct page *page)
 }
 
 //int vmFile_WriteGlobal(int handle, IMainSystem pIMainSystem);
-//int vmFile_SeekChar(int handle, int nPos, int nAbsolute);
-//int vmFile_SeekShort(int handle, int nPos, int nAbsolute);
-//int vmFile_SeekInt(int handle, int nPos, int nAbsolute);
-//int vmFile_SeekFloat(int handle, int nPos, int nAbsolute);
-//int vmFile_SeekString(int handle, int nPos, int nAbsolute);
+
+static int vmFile_SeekChar(int handle, int pos, int absolute)
+{
+	struct vm_file *vf = id_pool_get(&pool, handle);
+	if (!vf)
+		return 0;
+	if (absolute)
+		buffer_seek(&vf->buf, pos);
+	else
+		buffer_skip(&vf->buf, pos);
+	return 1;
+}
+
+static int vmFile_SeekShort(int handle, int pos, int absolute)
+{
+	return vmFile_SeekChar(handle, pos * 2, absolute);
+}
+
+static int vmFile_SeekInt(int handle, int pos, int absolute)
+{
+	return vmFile_SeekChar(handle, pos * 4, absolute);
+}
+
+static int vmFile_SeekFloat(int handle, int pos, int absolute)
+{
+	return vmFile_SeekChar(handle, pos * 4, absolute);
+}
+
+//int vmFile_SeekString(int handle, int pos, int absolute);
 //int vmFile_SizeChar(int handle);
 //int vmFile_SizeShort(int handle);
 //int vmFile_SizeInt(int handle);
@@ -327,8 +368,49 @@ static int vmFile_Delete(struct string *string)
 }
 
 //int vmFile_GetTime(struct string *pIString, struct page **pIVMStruct);
-//int vmFile_Find(struct string *pIWildString, struct string **pIString, int *pnCount);
-//int vmFile_MakeDirectory(struct string *pIString);
+
+// XXX: Supports patterns with only a single '*'
+static bool wildcard_match(const char *pat, const char *s)
+{
+	const char *star = strchr(pat, '*');
+	if (!star)
+		return !strcmp(pat, s);
+	return !strncmp(pat, s, star - pat) && !strcmp(star + 1, s + strlen(s) - strlen(star + 1));
+}
+
+static int vmFile_Find(struct string *wild_string, struct string **fname_out, int *count)
+{
+	int found = 0;
+	char *wild_path = savedir_path(wild_string->text);
+	UDIR *dir = opendir_utf8(path_dirname(wild_path));
+	if (dir) {
+		char *d_name;
+		const char *pattern = path_basename(wild_path);
+		for (int i = 0; !found && (d_name = readdir_utf8(dir)) != NULL; i++) {
+			if (i >= *count) {
+				*count = i;
+				if (wildcard_match(pattern, d_name)) {
+					if (*fname_out)
+						free_string(*fname_out);
+					*fname_out = cstr_to_string(d_name);
+					found = 1;
+				}
+			}
+			free(d_name);
+		}
+		closedir_utf8(dir);
+	}
+	free(wild_path);
+	return found;
+}
+
+static int vmFile_MakeDirectory(struct string *string)
+{
+	char *path = savedir_path(string->text);
+	int r = mkdir_p(path);
+	free(path);
+	return r == 0;
+}
 
 HLL_LIBRARY(vmFile,
 	    HLL_EXPORT(_ModuleInit, vmFile_ModuleInit),
@@ -338,26 +420,26 @@ HLL_LIBRARY(vmFile,
 	    HLL_EXPORT(Close, vmFile_Close),
 	    HLL_EXPORT(Encode, vmFile_Encode),
 	    HLL_EXPORT(Decode, vmFile_Decode),
-	    HLL_TODO_EXPORT(ReadArrayChar, vmFile_ReadArrayChar),
+	    HLL_EXPORT(ReadArrayChar, vmFile_ReadArrayChar),
 	    HLL_TODO_EXPORT(ReadArrayShort, vmFile_ReadArrayShort),
-	    HLL_TODO_EXPORT(ReadArrayInt, vmFile_ReadArrayInt),
-	    HLL_TODO_EXPORT(ReadArrayFloat, vmFile_ReadArrayFloat),
-	    HLL_TODO_EXPORT(ReadArrayString, vmFile_ReadArrayString),
-	    HLL_TODO_EXPORT(ReadArrayStruct, vmFile_ReadArrayStruct),
-	    HLL_EXPORT(ReadStruct, vmFile_ReadStruct),
+	    HLL_EXPORT(ReadArrayInt, vmFile_ReadPage),
+	    HLL_EXPORT(ReadArrayFloat, vmFile_ReadPage),
+	    HLL_EXPORT(ReadArrayString, vmFile_ReadPage),
+	    HLL_EXPORT(ReadArrayStruct, vmFile_ReadPage),
+	    HLL_EXPORT(ReadStruct, vmFile_ReadPage),
 	    HLL_TODO_EXPORT(ReadGlobal, vmFile_ReadGlobal),
-	    HLL_TODO_EXPORT(WriteArrayChar, vmFile_WriteArrayChar),
+	    HLL_EXPORT(WriteArrayChar, vmFile_WriteArrayChar),
 	    HLL_TODO_EXPORT(WriteArrayShort, vmFile_WriteArrayShort),
-	    HLL_TODO_EXPORT(WriteArrayInt, vmFile_WriteArrayInt),
-	    HLL_TODO_EXPORT(WriteArrayFloat, vmFile_WriteArrayFloat),
-	    HLL_TODO_EXPORT(WriteArrayString, vmFile_WriteArrayString),
-	    HLL_TODO_EXPORT(WriteArrayStruct, vmFile_WriteArrayStruct),
-	    HLL_EXPORT(WriteStruct, vmFile_WriteStruct),
+	    HLL_EXPORT(WriteArrayInt, vmFile_WritePage),
+	    HLL_EXPORT(WriteArrayFloat, vmFile_WritePage),
+	    HLL_EXPORT(WriteArrayString, vmFile_WritePage),
+	    HLL_EXPORT(WriteArrayStruct, vmFile_WritePage),
+	    HLL_EXPORT(WriteStruct, vmFile_WritePage),
 	    HLL_TODO_EXPORT(WriteGlobal, vmFile_WriteGlobal),
-	    HLL_TODO_EXPORT(SeekChar, vmFile_SeekChar),
-	    HLL_TODO_EXPORT(SeekShort, vmFile_SeekShort),
-	    HLL_TODO_EXPORT(SeekInt, vmFile_SeekInt),
-	    HLL_TODO_EXPORT(SeekFloat, vmFile_SeekFloat),
+	    HLL_EXPORT(SeekChar, vmFile_SeekChar),
+	    HLL_EXPORT(SeekShort, vmFile_SeekShort),
+	    HLL_EXPORT(SeekInt, vmFile_SeekInt),
+	    HLL_EXPORT(SeekFloat, vmFile_SeekFloat),
 	    HLL_TODO_EXPORT(SeekString, vmFile_SeekString),
 	    HLL_TODO_EXPORT(SizeChar, vmFile_SizeChar),
 	    HLL_TODO_EXPORT(SizeShort, vmFile_SizeShort),
@@ -367,6 +449,6 @@ HLL_LIBRARY(vmFile,
 	    HLL_TODO_EXPORT(Copy, vmFile_Copy),
 	    HLL_EXPORT(Delete, vmFile_Delete),
 	    HLL_TODO_EXPORT(GetTime, vmFile_GetTime),
-	    HLL_TODO_EXPORT(Find, vmFile_Find),
-	    HLL_TODO_EXPORT(MakeDirectory, vmFile_MakeDirectory)
+	    HLL_EXPORT(Find, vmFile_Find),
+	    HLL_EXPORT(MakeDirectory, vmFile_MakeDirectory)
 	    );
