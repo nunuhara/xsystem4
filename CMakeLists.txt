@@ -127,6 +127,8 @@ target_sources(xsystem4 PRIVATE
   src/hll/Confirm3.c
   src/hll/CrayfishLogViewer.c
   src/hll/Cursor.c
+  src/hll/DALKDemo.c
+  src/hll/DALKEDemo.c
   src/hll/Data.c
   src/hll/DataFile.c
   src/hll/DrawDungeon.c
