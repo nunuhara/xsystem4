@@ -75,4 +75,10 @@ enum effect {
 
 extern const char *effect_names[NR_EFFECTS];
 
+int effect_init(enum effect type);
+void effect_record_old(void);
+void effect_record_new(void);
+int effect_update(float rate);
+int effect_fini(void);
+
 #endif /* SYSTEM4_EFFECT_H */

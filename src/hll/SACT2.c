@@ -26,10 +26,12 @@
 #include "hll.h"
 #include "asset_manager.h"
 #include "audio.h"
+#include "effect.h"
 #include "input.h"
 #include "queue.h"
 #include "gfx/gfx.h"
 #include "gfx/font.h"
+#include "parts.h"
 #include "sact.h"
 #include "scene.h"
 #include "vm/page.h"
@@ -172,6 +174,28 @@ int sact_Update(void)
 		gfx_swap();
 		scene_is_dirty = false;
 	}
+	return 1;
+}
+
+int sact_Effect(int type, int time, possibly_unused int key)
+{
+	uint32_t start = SDL_GetTicks();
+	if (!sact_TRANS_Begin(type))
+		return 0;
+
+	uint32_t t = SDL_GetTicks() - start;
+	while (t < time) {
+		sact_TRANS_Update((float)t / (float)time);
+		uint32_t t2 = SDL_GetTicks() - start;
+		if (t2 < t + 16) {
+			SDL_Delay(t + 16 - t2);
+			t += 16;
+		} else {
+			t = t2;
+		}
+	}
+
+	sact_TRANS_End();
 	return 1;
 }
 
@@ -961,6 +985,27 @@ HLL_WARN_UNIMPLEMENTED( , void, SACTDX, SetVolumeMixerBGMGroupNum, int n);
 //static int SACTDX_Music_AnalyzeSampleData(ref array@float l, ref array@float r, ref array@int src, int chns, int bps);
 //static void SACTDX_Key_ClearFlagNoCtrl(void);
 //static void SACTDX_Key_ClearFlagOne(int nKeyCode);
+
+int sact_TRANS_Begin(int type)
+{
+	if (!effect_init(type))
+		return 0;
+	effect_record_old();
+	PE_UpdateComponent(0);
+	scene_render();
+	effect_record_new();
+	return 1;
+}
+
+int sact_TRANS_Update(float rate)
+{
+	return effect_update(rate);
+}
+
+int sact_TRANS_End(void)
+{
+	return effect_fini();
+}
 
 bool sact_VIEW_SetMode(int mode)
 {
