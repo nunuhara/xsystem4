@@ -15,6 +15,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "system4/string.h"
@@ -59,11 +60,20 @@ static struct string *vmString_IntToStringExA(int num, int figure, int zero)
 	return format_int(num, figure, zero, false);
 }
 
-//int vmString_StringToInt(struct string *pIString);
+static int vmString_StringToInt(struct string *string)
+{
+	return atoi(string->text);
+}
+
 //struct string *vmString_FloatToString(float fNum);
 //struct string *vmString_FloatToStringA(float fNum);
 //float vmString_StringToFloat(struct string *pIString);
-//struct string *vmString_GetString(struct string *pIString, int nIndex, int nLength);
+
+static struct string *vmString_GetString(struct string *string, int index, int length)
+{
+	return string_copy(string, index, length);
+}
+
 //struct string *vmString_CutTag(struct string *pIString);
 //void vmString_TransLower(struct string **pIString);
 //void vmString_TransUpper(struct string **pIString);
@@ -76,11 +86,11 @@ HLL_LIBRARY(vmString,
 	    HLL_EXPORT(IntToStringA, vmString_IntToStringA),
 	    HLL_EXPORT(IntToStringEx, vmString_IntToStringEx),
 	    HLL_EXPORT(IntToStringExA, vmString_IntToStringExA),
-	    HLL_TODO_EXPORT(StringToInt, vmString_StringToInt),
+	    HLL_EXPORT(StringToInt, vmString_StringToInt),
 	    HLL_TODO_EXPORT(FloatToString, vmString_FloatToString),
 	    HLL_TODO_EXPORT(FloatToStringA, vmString_FloatToStringA),
 	    HLL_TODO_EXPORT(StringToFloat, vmString_StringToFloat),
-	    HLL_TODO_EXPORT(GetString, vmString_GetString),
+	    HLL_EXPORT(GetString, vmString_GetString),
 	    HLL_TODO_EXPORT(CutTag, vmString_CutTag),
 	    HLL_TODO_EXPORT(TransLower, vmString_TransLower),
 	    HLL_TODO_EXPORT(TransUpper, vmString_TransUpper),
