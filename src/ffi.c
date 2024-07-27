@@ -376,6 +376,7 @@ extern struct static_library lib_vmArray;
 extern struct static_library lib_vmCG;
 extern struct static_library lib_vmChrLoader;
 extern struct static_library lib_vmCursor;
+extern struct static_library lib_vmData;
 extern struct static_library lib_vmDialog;
 extern struct static_library lib_vmDrawGauge;
 extern struct static_library lib_vmDrawMsg;
@@ -472,6 +473,7 @@ static struct static_library *static_libraries[] = {
 	&lib_vmCG,
 	&lib_vmChrLoader,
 	&lib_vmCursor,
+	&lib_vmData,
 	&lib_vmDialog,
 	&lib_vmDrawGauge,
 	&lib_vmDrawMsg,

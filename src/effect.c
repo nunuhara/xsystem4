@@ -19,8 +19,6 @@
 #include <SDL.h>
 #include "effect.h"
 #include "gfx/gfx.h"
-#include "parts.h"
-#include "sact.h"
 #include "system4.h"
 #include "xsystem4.h"
 
@@ -276,7 +274,7 @@ static effect_fun effect_functions[NR_EFFECTS] = {
 	[EFFECT_ZOOM_IN_CROSSFADE] = effect_zoom_in_crossfade,
 };
 
-int sact_TRANS_Begin(int type)
+int effect_init(enum effect type)
 {
 	if (type <= 0 || type >= NR_EFFECTS) {
 		WARNING("Invalid or unknown effect: %d", type);
@@ -301,14 +299,26 @@ int sact_TRANS_Begin(int type)
 
 	effect.on = true;
 	effect.type = type;
-	gfx_copy_main_surface(&effect.old);
-	PE_UpdateComponent(0);
-	scene_render();
-	gfx_copy_main_surface(&effect.new);
 	return 1;
 }
 
-int sact_TRANS_Update(float rate)
+void effect_record_old(void)
+{
+	if (!effect.on) {
+		return;
+	}
+	gfx_copy_main_surface(&effect.old);
+}
+
+void effect_record_new(void)
+{
+	if (!effect.on) {
+		return;
+	}
+	gfx_copy_main_surface(&effect.new);
+}
+
+int effect_update(float rate)
 {
 	if (!effect.on) {
 		return 0;
@@ -323,32 +333,10 @@ int sact_TRANS_Update(float rate)
 	return 1;
 }
 
-int sact_TRANS_End(void)
+int effect_fini(void)
 {
 	effect.on = false;
 	gfx_delete_texture(&effect.old);
 	gfx_delete_texture(&effect.new);
-	return 1;
-}
-
-int sact_Effect(int type, int time, possibly_unused int key)
-{
-	uint32_t start = SDL_GetTicks();
-	if (!sact_TRANS_Begin(type))
-		return 0;
-
-	uint32_t t = SDL_GetTicks() - start;
-	while (t < time) {
-		sact_TRANS_Update((float)t / (float)time);
-		uint32_t t2 = SDL_GetTicks() - start;
-		if (t2 < t + 16) {
-			SDL_Delay(t + 16 - t2);
-			t += 16;
-		} else {
-			t = t2;
-		}
-	}
-
-	sact_TRANS_End();
 	return 1;
 }
