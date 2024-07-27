@@ -49,8 +49,15 @@ void vmSystem_CurrentTime(struct page **page)
 	date[6].i = tm->tm_wday;
 }
 
-//void vmSystem_Reset(void);
-//void vmSystem_Shutdown(void);
+static void vmSystem_Reset(void)
+{
+	vm_reset();
+}
+
+static void vmSystem_Shutdown(void)
+{
+	vm_exit(0);
+}
 
 static int vmSystem_OpenWeb(struct string *url)
 {
@@ -62,8 +69,8 @@ HLL_WARN_UNIMPLEMENTED(0, int, vmSystem, AddURLMenu, struct string *title, struc
 HLL_LIBRARY(vmSystem,
 	    HLL_EXPORT(Init, vmSystem_Init),
 	    HLL_EXPORT(CurrentTime, vmSystem_CurrentTime),
-	    HLL_TODO_EXPORT(Reset, vmSystem_Reset),
-	    HLL_TODO_EXPORT(Shutdown, vmSystem_Shutdown),
+	    HLL_EXPORT(Reset, vmSystem_Reset),
+	    HLL_EXPORT(Shutdown, vmSystem_Shutdown),
 	    HLL_EXPORT(OpenWeb, vmSystem_OpenWeb),
 	    HLL_EXPORT(AddURLMenu, vmSystem_AddURLMenu)
 	    );
