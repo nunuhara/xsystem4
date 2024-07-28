@@ -26,7 +26,8 @@ static void vmSound_Init(possibly_unused void *imainsystem)
 }
 
 //void vmSound_Enable(int nEnable);
-//void vmSound_SetType(int nType);
+
+HLL_QUIET_UNIMPLEMENTED(, void, vmSound, SetType, int type);
 
 static int vmSound_Load(int channel, int num)
 {
@@ -41,9 +42,10 @@ static int vmSound_LoadMemory(int channel, int memory)
 	return wav_prepare_from_archive_data(channel, dfile);
 }
 
-static void vmSound_Unload(int channel, possibly_unused int length)
+static void vmSound_Unload(int channel, int length)
 {
-	wav_unprepare(channel);
+	for (int i = 0; i < length; i++)
+		wav_unprepare(channel + i);
 }
 
 static int vmSound_Play(int channel, possibly_unused int length)
@@ -60,7 +62,16 @@ static int vmSound_RingPlay(int channel, int ring)
 }
 
 //int vmSound_Stop(int channel, int nLength);
-//int vmSound_IsPlay(int channel, int nLength);
+
+static int vmSound_IsPlay(int channel, int length)
+{
+	for (int i = 0; i < length; i++) {
+		if (wav_is_playing(channel + i))
+			return 1;
+	}
+	return 0;
+}
+
 //void vmSound_Wait(int channel, int nLength);
 //int vmSound_Fade(int channel, int nLength, int nTime, int nVolume, int nStopFlag);
 //int vmSound_StopFade(int channel, int nLength);
@@ -70,14 +81,14 @@ static int vmSound_RingPlay(int channel, int ring)
 HLL_LIBRARY(vmSound,
 	    HLL_EXPORT(Init, vmSound_Init),
 	    HLL_TODO_EXPORT(Enable, vmSound_Enable),
-	    HLL_TODO_EXPORT(SetType, vmSound_SetType),
+	    HLL_EXPORT(SetType, vmSound_SetType),
 	    HLL_EXPORT(Load, vmSound_Load),
 	    HLL_EXPORT(LoadMemory, vmSound_LoadMemory),
 	    HLL_EXPORT(Unload, vmSound_Unload),
 	    HLL_EXPORT(Play, vmSound_Play),
 	    HLL_EXPORT(RingPlay, vmSound_RingPlay),
 	    HLL_TODO_EXPORT(Stop, vmSound_Stop),
-	    HLL_TODO_EXPORT(IsPlay, vmSound_IsPlay),
+	    HLL_EXPORT(IsPlay, vmSound_IsPlay),
 	    HLL_TODO_EXPORT(Wait, vmSound_Wait),
 	    HLL_TODO_EXPORT(Fade, vmSound_Fade),
 	    HLL_TODO_EXPORT(StopFade, vmSound_StopFade),
