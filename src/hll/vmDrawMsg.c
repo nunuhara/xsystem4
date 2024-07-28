@@ -146,7 +146,7 @@ static int vmDrawMsg_Draw(int handle)
 	char *s = dm->text->text;
 	const int line_space = 2;
 	while (*s) {
-		int skiplen = 0, a1, a2, a3;
+		int skiplen = 0, a1, a2, a3, a4, a5, a6;
 		if (*s != '<') {
 			char *lb = strchr(s, '<');
 			if (lb) {
@@ -174,6 +174,11 @@ static int vmDrawMsg_Draw(int handle)
 			dm->pos.x += gfx_render_text(&sf->texture, dm->pos.x, dm->pos.y, s, &dm->style.ts, false);
 			if (lb)
 				*lb = '<';
+		} else if (sscanf(s, "<@C%d,%d,%d,%d,%d,%d>%n", &a1, &a2, &a3, &a4, &a5, &a6, &skiplen) == 6) {
+			// FIXME: This tag specifies a vertical gradient from (a1, a2, a3)
+			//        to (a4, a5, a6), but we just use the average color.
+			dm->initial_style.ts.color = dm->style.ts.color =
+				COLOR((a1 + a4) / 2, (a2 + a5) / 2, (a3 + a6) / 2, 255);
 		} else if (sscanf(s, "<C%d,%d,%d>%n", &a1, &a2, &a3, &skiplen) == 3) {
 			dm->style.ts.color = COLOR(a1, a2, a3, 255);
 		} else if (sscanf(s, "<@C%d,%d,%d>%n", &a1, &a2, &a3, &skiplen) == 3) {
@@ -181,6 +186,11 @@ static int vmDrawMsg_Draw(int handle)
 		} else if (!strncmp(s, "</C>", 4)) {
 			skiplen = 4;
 			dm->style.ts.color = dm->initial_style.ts.color;
+		} else if (sscanf(s, "<B%d>%n", &a1, &skiplen) == 1) {
+			dm->style.ts.weight = a1 ? FW_HEAVY : FW_BOLD;
+		} else if (sscanf(s, "<F%d>%n", &a1, &skiplen) == 1) {
+			dm->style.ts.font_size = NULL;
+			dm->style.ts.face = a1 ? FONT_MINCHO : FONT_GOTHIC;
 		} else if (sscanf(s, "<E%d>%n", &a1, &skiplen) == 1) {
 			dm->style.bold = a1;
 		} else if (sscanf(s, "<@E%d>%n", &a1, &skiplen) == 1) {

@@ -128,6 +128,7 @@ struct string *string_format(struct string *fmt, union vm_value arg, enum string
 void vm_stack_trace(void);
 _Noreturn void _vm_error(const char *fmt, ...);
 _Noreturn void vm_exit(int code);
+_Noreturn void vm_reset(void);
 
 #ifdef __ANDROID__
 // Report the error with a message box and exit.

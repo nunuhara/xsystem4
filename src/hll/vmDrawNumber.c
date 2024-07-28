@@ -61,7 +61,7 @@ static int vmDrawNumber_Open(int cg_no, int kind, int figure, int space)
 	if (!cg)
 		return 0;
 
-	int width = cg->metrics.w / 10 * figure;
+	int width = (cg->metrics.w / 10 + space) * figure;
 	int height = cg->metrics.h;
 
 	int handle = id_pool_get_unused(&pool);
@@ -126,7 +126,7 @@ static void vmDrawNumber_Draw(int handle, int num)
 	}
 
 	int dw = dn->digits.w / 10;
-	int w = dw * strlen(buf);
+	int w = (dw + dn->space) * strlen(buf);
 	int h = dn->digits.h;
 	int left;
 
@@ -151,10 +151,10 @@ static void vmDrawNumber_Draw(int handle, int num)
 	for (int i = 0; buf[i]; i++) {
 		switch (buf[i]) {
 		case '-':
-			gfx_copy_with_alpha_map(&sf->texture, left + i * dw, 0, &dn->sign, 0, 0, dw, h);
+			gfx_copy_with_alpha_map(&sf->texture, left + i * (dw + dn->space), 0, &dn->sign, 0, 0, dw, h);
 			break;
 		default:
-			gfx_copy_with_alpha_map(&sf->texture, left + i * dw, 0, &dn->digits, (buf[i] - '0') * dw, 0, dw, h);
+			gfx_copy_with_alpha_map(&sf->texture, left + i * (dw + dn->space), 0, &dn->digits, (buf[i] - '0') * dw, 0, dw, h);
 			break;
 		}
 	}

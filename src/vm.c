@@ -458,8 +458,6 @@ static const SDL_MessageBoxButtonData buttons[] = {
 	{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Cancel" },
 };
 
-static _Noreturn void vm_reset(void);
-
 static struct string *get_func_stack_name(int index)
 {
 	int i = call_stack_ptr - (1 + index);
@@ -2337,7 +2335,7 @@ static void vm_free(void)
 
 static jmp_buf reset_buf;
 
-static _Noreturn void vm_reset(void)
+_Noreturn void vm_reset(void)
 {
 	vm_free();
 	longjmp(reset_buf, 1);

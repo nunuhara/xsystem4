@@ -169,7 +169,7 @@ static int vmMsgSkip_Query(possibly_unused int handle, int msgnum)
 	int r = MsgSkip_GetFlag(msgnum);
 	// vmMsgSkip does not have an explicit set function.
 	MsgSkip_SetFlag(msgnum);
-	return r;
+	return state && r;
 }
 
 HLL_LIBRARY(vmMsgSkip,
