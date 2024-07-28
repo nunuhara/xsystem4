@@ -66,7 +66,7 @@ static struct parts *parts_alloc(void)
 	return parts;
 }
 
-static void parts_component_dirty(struct parts *parts)
+void parts_component_dirty(struct parts *parts)
 {
 	if (parts->dirty)
 		return;
@@ -153,9 +153,6 @@ static void parts_state_free(struct parts_state *state)
 		break;
 	case PARTS_NUMERAL:
 		gfx_delete_texture(&state->common.texture);
-		for (int i = 0; i < 12; i++) {
-			gfx_delete_texture(&state->num.cg[i]);
-		}
 		break;
 	case PARTS_HGAUGE:
 	case PARTS_VGAUGE:
@@ -204,6 +201,7 @@ void parts_state_reset(struct parts_state *state, enum parts_type type)
 		break;
 	case PARTS_NUMERAL:
 		state->num.length = 1;
+		state->num.font_no = -1;
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
 		TAILQ_INIT(&state->cproc.ops);
@@ -330,7 +328,7 @@ static void parts_common_recalculate_hitbox(struct parts *parts, struct parts_co
 	}
 }
 
-static void parts_recalculate_hitbox(struct parts *parts)
+void parts_recalculate_hitbox(struct parts *parts)
 {
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
 		parts_common_recalculate_hitbox(parts, &parts->states[i].common);
@@ -561,10 +559,88 @@ bool parts_cg_set(struct parts *parts, struct parts_cg *parts_cg, struct string 
 	return _parts_cg_set(parts, parts_cg, cg, no, string_dup(cg_name));
 }
 
+struct parts_numeral_font *parts_numeral_fonts = NULL;
+int parts_nr_numeral_fonts = 0;
+
+void parts_numeral_font_init(struct parts_numeral_font *font)
+{
+	if (font->type == PARTS_NUMERAL_FONT_SEPARATE) {
+		for (int i = 0; i < 12; i++) {
+			struct cg *cg = asset_cg_load(font->cg_no + i);
+			if (!cg) {
+				font->cg[i].handle = 0;
+				continue;
+			}
+			gfx_init_texture_with_cg(&font->cg[i], cg);
+			cg_free(cg);
+		}
+	} else if (font->type == PARTS_NUMERAL_FONT_COMBINED) {
+		int x = 0;
+		Texture t = {0};
+		struct cg *cg = asset_cg_load(font->cg_no);
+		gfx_init_texture_with_cg(&t, cg);
+		for (int i = 0; i < 12; i++) {
+			if (font->width[i] <= 0)
+				continue;
+			gfx_init_texture_blank(&font->cg[i], font->width[i], t.h);
+			gfx_copy_with_alpha_map(&font->cg[i], 0, 0, &t, x, 0, font->width[i], t.h);
+			x += font->width[i];
+		}
+		gfx_delete_texture(&t);
+		free(cg);
+	}
+}
+
+static int parts_load_numeral_font_separate(int cg_no)
+{
+	// find existing font
+	for (int i = 0; i < parts_nr_numeral_fonts; i++) {
+		if (parts_numeral_fonts[i].type == PARTS_NUMERAL_FONT_SEPARATE
+				&& parts_numeral_fonts[i].cg_no == cg_no)
+			return i;
+	}
+
+	// load new font
+	int font_no = parts_nr_numeral_fonts++;
+	parts_numeral_fonts = xrealloc_array(parts_numeral_fonts, font_no, font_no + 1,
+			sizeof(struct parts_numeral_font));
+	struct parts_numeral_font *font = &parts_numeral_fonts[font_no];
+	font->cg_no = cg_no;
+	font->type = PARTS_NUMERAL_FONT_SEPARATE;
+	parts_numeral_font_init(font);
+	return font_no;
+}
+
+static int parts_load_numeral_font_combined(struct cg *cg, int cg_no, int w[12])
+{
+	// find existing font
+	for (int i = 0; i < parts_nr_numeral_fonts; i++) {
+		struct parts_numeral_font *font = &parts_numeral_fonts[i];
+		if (font->type != PARTS_NUMERAL_FONT_COMBINED || font->cg_no != cg_no)
+			continue;
+		for (int i = 0; i < 12; i++) {
+			if (w[i] != font->width[i])
+				continue;
+		}
+		return i;
+	}
+
+	// load new font
+	int font_no = parts_nr_numeral_fonts++;
+	parts_numeral_fonts = xrealloc_array(parts_numeral_fonts, font_no, font_no + 1,
+			sizeof(struct parts_numeral_font));
+	struct parts_numeral_font *font = &parts_numeral_fonts[font_no];
+	font->cg_no = cg_no;
+	font->type = PARTS_NUMERAL_FONT_COMBINED;
+	memcpy(font->width, w, sizeof(int) * 12);
+	parts_numeral_font_init(font);
+	return font_no;
+}
+
 static bool parts_numeral_update(struct parts *parts, struct parts_numeral *num)
 {
 	// XXX: don't generate texture if number hasn't been set yet
-	if (!num->have_num)
+	if (!num->have_num || num->font_no < 0)
 		return true;
 	int_least64_t n = num->num;
 	bool negative = n < 0;
@@ -596,26 +672,15 @@ static bool parts_numeral_update(struct parts *parts, struct parts_numeral *num)
 		chars[nr_chars++] = 0;
 	}
 
-	// load any uninitialized textures
-	for (int i = 0; i < nr_chars; i++) {
-		if (num->cg[chars[i]].handle)
-			continue;
-		struct cg *cg = asset_cg_load(num->cg_no + chars[i]);
-		if (!cg) {
-			WARNING("Failed to load numeral cg: %d", num->cg_no + chars[i]);
-			continue;
-		}
-		gfx_init_texture_with_cg(&num->cg[chars[i]], cg);
-		cg_free(cg);
-	}
+	struct parts_numeral_font *font = &parts_numeral_fonts[num->font_no];
 
 	// determine output dimensions
 	int w = 0, h = 0;
 	for (int i = nr_chars-1; i >= 0; i--) {
-		if (!num->cg[chars[i]].handle)
+		if (!font->cg[chars[i]].handle)
 			continue;
-		w += num->cg[chars[i]].w;
-		h = max(h, num->cg[chars[i]].h);
+		w += font->cg[chars[i]].w;
+		h = max(h, font->cg[chars[i]].h);
 	}
 	w += (nr_chars-1) * num->space;
 
@@ -625,7 +690,7 @@ static bool parts_numeral_update(struct parts *parts, struct parts_numeral *num)
 
 	int x = 0;
 	for (int i = nr_chars-1; i>= 0; i--) {
-		Texture *ch = &num->cg[chars[i]];
+		Texture *ch = &font->cg[chars[i]];
 		if (!ch->handle)
 			continue;
 		gfx_copy_with_alpha_map(&num->common.texture, x, 0, ch, 0, 0, ch->w, ch->h);
@@ -735,6 +800,18 @@ void parts_release_all(void)
 		struct parts *parts = TAILQ_FIRST(&parts_list);
 		parts_release(parts->no);
 	}
+
+	for (int i = 0; i < parts_nr_numeral_fonts; i++) {
+		struct parts_numeral_font *font = &parts_numeral_fonts[i];
+		for (int i = 0; i < 12; i++) {
+			if (font->cg[i].handle)
+				gfx_delete_texture(&font->cg[i]);
+		}
+	}
+
+	free(parts_numeral_fonts);
+	parts_numeral_fonts = NULL;
+	parts_nr_numeral_fonts = 0;
 }
 
 static bool parts_engine_initialized = false;
@@ -1206,41 +1283,8 @@ bool PE_SetNumeralCG_by_index(int parts_no, int cg_no, int state)
 		return false;
 
 	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
-	for (int i = 0; i < 12; i++) {
-		gfx_delete_texture(&n->cg[i]);
-	}
-	// NOTE: textures are loaded lazily since not every numeral font loaded
-	//       in this manner is complete (some lack dash or comma glyphs)
-	n->cg_no = cg_no;
+	n->font_no = parts_load_numeral_font_separate(cg_no);
 	return true;
-}
-
-static void set_numeral_linked_cg_number_width_width_list(int parts_no, struct cg *cg,
-		int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8,
-		int w9, int w_minus, int w_comma, int state)
-{
-	// TODO? Create a generic numeral-font object that can be shared between parts.
-	//       In the current implementation, each number stores a complete copy of
-	//       its numeral font.
-
-	int w[12] = { w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w_minus, w_comma };
-	Texture t = {0};
-	gfx_init_texture_with_cg(&t, cg);
-	cg_free(cg);
-
-	int x = 0;
-	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
-	for (int i = 0; i < 12; i++) {
-		gfx_delete_texture(&n->cg[i]);
-		if (w[i] <= 0)
-			continue;
-
-		gfx_init_texture_blank(&n->cg[i], w[i], t.h);
-		gfx_copy_with_alpha_map(&n->cg[i], 0, 0, &t, x, 0, w[i], t.h);
-		x += w[i];
-	}
-
-	gfx_delete_texture(&t);
 }
 
 bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no,
@@ -1254,8 +1298,9 @@ bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no,
 	if (!cg)
 		return false;
 
-	set_numeral_linked_cg_number_width_width_list(parts_no, cg, w0, w1, w2, w3, w4,
-			w5, w6, w7, w8, w9, w_minus, w_comma, state);
+	int w[12] = { w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w_minus, w_comma };
+	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
+	n->font_no = parts_load_numeral_font_combined(cg, cg_no, w);
 	return true;
 }
 
@@ -1271,8 +1316,9 @@ bool PE_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, struct string *cg_n
 	if (!cg)
 		return false;
 
-	set_numeral_linked_cg_number_width_width_list(parts_no, cg, w0, w1, w2, w3, w4,
-			w5, w6, w7, w8, w9, w_minus, w_comma, state);
+	int w[12] = { w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w_minus, w_comma };
+	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
+	n->font_no = parts_load_numeral_font_combined(cg, no, w);
 	return true;
 }
 
@@ -1298,7 +1344,6 @@ bool PE_SetNumeralShowComma(int parts_no, bool show_comma, int state)
 
 	num->show_comma = show_comma;
 	parts_numeral_update(parts, num);
-	//parts_get_numeral(parts_get(parts_no), state)->show_comma = show_comma;
 	return true;
 }
 
@@ -1314,7 +1359,6 @@ bool PE_SetNumeralSpace(int parts_no, int space, int state)
 
 	num->space = space;
 	parts_numeral_update(parts, num);
-	//parts_get_numeral(parts_get(parts_no), state)->space = space;
 	return true;
 }
 
@@ -1331,7 +1375,6 @@ bool PE_SetNumeralLength(int parts_no, int length, int state)
 	num->length = max(1, length);
 	num->have_num = true;
 	parts_numeral_update(parts, num);
-	//parts_get_numeral(parts_get(parts_no), state)->length = length;
 	return true;
 }
 

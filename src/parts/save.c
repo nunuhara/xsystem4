@@ -22,7 +22,7 @@
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 1
+#define CURRENT_SAVE_VERSION 2
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -139,7 +139,7 @@ static void save_parts_numeral(struct iarray_writer *w, struct parts_numeral *nu
 	iarray_write(w, num->space);
 	iarray_write(w, num->show_comma);
 	iarray_write(w, num->length);
-	iarray_write(w, num->cg_no);
+	iarray_write(w, num->font_no);
 }
 
 static void load_parts_numeral(struct iarray_reader *r, struct parts *parts,
@@ -150,7 +150,7 @@ static void load_parts_numeral(struct iarray_reader *r, struct parts *parts,
 	num->space = iarray_read(r);
 	num->show_comma = iarray_read(r);
 	num->length = iarray_read(r);
-	num->cg_no = iarray_read(r);
+	num->font_no = iarray_read(r);
 
 	if (num->have_num)
 		parts_numeral_set_number(parts, num, num->num);
@@ -532,6 +532,36 @@ static void load_parts(struct iarray_reader *r, int version)
 	}
 
 	parts_list_resort(parts);
+	parts_component_dirty(parts);
+	parts_recalculate_hitbox(parts);
+}
+
+static void save_numeral_fonts(struct iarray_writer *w)
+{
+	iarray_write(w, parts_nr_numeral_fonts);
+	for (int i = 0; i < parts_nr_numeral_fonts; i++) {
+		struct parts_numeral_font *font = &parts_numeral_fonts[i];
+		iarray_write(w, font->type);
+		iarray_write(w, font->cg_no);
+		for (int i = 0; i < 12; i++) {
+			iarray_write(w, font->width[i]);
+		}
+	}
+}
+
+static void load_numeral_fonts(struct iarray_reader *r)
+{
+	parts_nr_numeral_fonts = iarray_read(r);
+	parts_numeral_fonts = xcalloc(parts_nr_numeral_fonts, sizeof(struct parts_numeral_font));
+	for (int i = 0; i < parts_nr_numeral_fonts; i++) {
+		struct parts_numeral_font *font = &parts_numeral_fonts[i];
+		font->type = iarray_read(r);
+		font->cg_no = iarray_read(r);
+		for (int i = 0; i < 12; i++) {
+			font->width[i] = iarray_read(r);
+		}
+		parts_numeral_font_init(font);
+	}
 }
 
 static bool parts_engine_save(struct page **buffer, bool save_hidden)
@@ -542,7 +572,9 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 	struct iarray_writer w;
 	iarray_init_writer(&w, "XPE");
 	iarray_write(&w, CURRENT_SAVE_VERSION);
-	// TODO: first_free from GetFreeNumber?
+	if (CURRENT_SAVE_VERSION > 1)
+		save_numeral_fonts(&w);
+
 	unsigned count_pos = iarray_writer_pos(&w);
 	iarray_write(&w, 0); // size of parts list
 
@@ -595,17 +627,22 @@ bool PE_Load(struct page **buffer)
 		return false;
 	}
 
+	parts_release_all();
+
+	if (version > 1)
+		load_numeral_fonts(&r);
+
 	int nr_parts = iarray_read(&r);
 	if (nr_parts < 0) {
 		WARNING("invalid parts count");
 		return false;
 	}
 
-	parts_release_all();
-
 	for (int i = 0; i < nr_parts; i++) {
 		load_parts(&r, version);
 	}
+
+	PE_UpdateComponent(0);
 
 	return true;
 }
