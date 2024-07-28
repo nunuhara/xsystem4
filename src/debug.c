@@ -590,7 +590,7 @@ error:
 static union vm_value dbg_eval_object(struct parse_object *object, struct ain_type *type_out)
 {
 	if (!strcmp(object->ident->text, "this")) {
-		int32_t page_i = call_stack[call_stack_ptr-1].struct_page;
+		int32_t page_i = call_stack[call_stack_ptr- (dbg_current_frame + 1)].struct_page;
 		if (page_i < 0) {
 			DBG_ERROR("'this' used outside of method");
 			goto error;
