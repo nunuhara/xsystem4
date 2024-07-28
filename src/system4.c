@@ -43,6 +43,7 @@
 
 #include "version.h"
 
+void set_msgskip_delay(struct ain *ain, unsigned ms);
 void apply_game_specific_hacks(struct ain *ain);
 
 struct config config = {
@@ -61,6 +62,7 @@ struct config config = {
 	.text_x_scale = 1.0,
 	.manual_text_x_scale = false,
 	.rsm_save = false,
+	.msgskip_delay = 0,
 
 	.bgi_path = NULL,
 	.wai_path = NULL,
@@ -172,6 +174,13 @@ static void read_user_config_file(const char *path)
 			} else {
 				config.manual_text_x_scale = true;
 				config.text_x_scale = f;
+			}
+		} else if (!strcmp(ini[i].name->text, "msgskip-delay")) {
+			config.msgskip_delay = ini_integer(&ini[i]);
+			if (config.msgskip_delay < 0) {
+				WARNING("Invalid value for msgskip-delay in config: \"%s\"",
+						ini_string(&ini[i])->text);
+				config.msgskip_delay = 0;
 			}
 		} else if (!strcmp(ini[i].name->text, "save-folder")) {
 			free(config.save_dir);
@@ -344,20 +353,21 @@ static void ain_audit(FILE *f, struct ain *ain)
 static void usage(void)
 {
 	puts("Usage: xsystem4 [options] [inifile-or-directory]");
-	puts("    -h, --help          Display this message and exit");
-	puts("    -v, --version       Display the version and exit");
-	puts("    -a, --audit         Audit AIN file for xsystem4 compatibility");
-	puts("    -e, --echo-message  Echo in-game messages to standard output");
-	puts("        --font-mincho   Specify the path to the mincho font to use");
-	puts("        --font-gothic   Specify the path to the gothic font to use");
-	puts("        --font-fnl      Specify the path to a .fnl font library to use");
-	puts("        --font-x-scale  Specify the x scale for text rendering (1.0 = default scale)");
-	puts("    -j, --joypad        Enable joypad");
-	puts("        --save-folder   Override save folder location");
-	puts("        --save-format   Specify the resume save file format. json (default) or rsm");
+	puts("    -h, --help           Display this message and exit");
+	puts("    -v, --version        Display the version and exit");
+	puts("    -a, --audit          Audit AIN file for xsystem4 compatibility");
+	puts("    -e, --echo-message   Echo in-game messages to standard output");
+	puts("        --font-mincho    Specify the path to the mincho font to use");
+	puts("        --font-gothic    Specify the path to the gothic font to use");
+	puts("        --font-fnl       Specify the path to a .fnl font library to use");
+	puts("        --font-x-scale   Specify the x scale for text rendering (1.0 = default scale)");
+	puts("    -j, --joypad         Enable joypad");
+	puts("        --msgskip-delay  Specify the delay in ms to add when skipping messages with CTRL");
+	puts("        --save-folder    Override save folder location");
+	puts("        --save-format    Specify the resume save file format. json (default) or rsm");
 #ifdef DEBUGGER_ENABLED
-	puts("        --nodebug       Disable debugger");
-	puts("        --debug         Start in debugger");
+	puts("        --nodebug        Disable debugger");
+	puts("        --debug          Start in debugger");
 #endif
 }
 
@@ -382,6 +392,7 @@ enum {
 	LOPT_FONT_FNL,
 	LOPT_FONT_X_SCALE,
 	LOPT_JOYPAD,
+	LOPT_MSGSKIP_DELAY,
 	LOPT_SAVE_FOLDER,
 	LOPT_SAVE_FORMAT,
 #ifdef DEBUGGER_ENABLED
@@ -430,21 +441,22 @@ int main(int argc, char *argv[])
 
 	while (1) {
 		static struct option long_options[] = {
-			{ "help",         no_argument,       0, LOPT_HELP },
-			{ "version",      no_argument,       0, LOPT_VERSION },
-			{ "audit",        no_argument,       0, LOPT_AUDIT },
-			{ "echo-message", no_argument,       0, LOPT_ECHO_MESSAGE },
-			{ "font-mincho",  required_argument, 0, LOPT_FONT_MINCHO },
-			{ "font-gothic",  required_argument, 0, LOPT_FONT_GOTHIC },
-			{ "font-fnl",     required_argument, 0, LOPT_FONT_FNL },
-			{ "font-x-scale", required_argument, 0, LOPT_FONT_X_SCALE },
-			{ "joypad",       optional_argument, 0, LOPT_JOYPAD },
-			{ "save-folder",  required_argument, 0, LOPT_SAVE_FOLDER },
-			{ "save-format",  required_argument, 0, LOPT_SAVE_FORMAT },
+			{ "help",          no_argument,       0, LOPT_HELP },
+			{ "version",       no_argument,       0, LOPT_VERSION },
+			{ "audit",         no_argument,       0, LOPT_AUDIT },
+			{ "echo-message",  no_argument,       0, LOPT_ECHO_MESSAGE },
+			{ "font-mincho",   required_argument, 0, LOPT_FONT_MINCHO },
+			{ "font-gothic",   required_argument, 0, LOPT_FONT_GOTHIC },
+			{ "font-fnl",      required_argument, 0, LOPT_FONT_FNL },
+			{ "font-x-scale",  required_argument, 0, LOPT_FONT_X_SCALE },
+			{ "joypad",        optional_argument, 0, LOPT_JOYPAD },
+			{ "msgskip-delay", required_argument, 0, LOPT_MSGSKIP_DELAY },
+			{ "save-folder",   required_argument, 0, LOPT_SAVE_FOLDER },
+			{ "save-format",   required_argument, 0, LOPT_SAVE_FORMAT },
 #ifdef DEBUGGER_ENABLED
-			{ "nodebug",      no_argument,       0, LOPT_NODEBUG },
-			{ "debug",        no_argument,       0, LOPT_DEBUG },
-			{ "debug-api",    no_argument,       0, LOPT_DEBUG_API },
+			{ "nodebug",       no_argument,       0, LOPT_NODEBUG },
+			{ "debug",         no_argument,       0, LOPT_DEBUG },
+			{ "debug-api",     no_argument,       0, LOPT_DEBUG_API },
 #endif
 			{ 0 }
 		};
@@ -491,6 +503,13 @@ int main(int argc, char *argv[])
 		case 'j':
 		case LOPT_JOYPAD:
 			joypad = optarg ? optarg : "on";
+			break;
+		case LOPT_MSGSKIP_DELAY:
+			config.msgskip_delay = atoi(optarg);
+			if (config.msgskip_delay <= 0) {
+				WARNING("Invalid value for --msgskip-delay: \"%s\"", optarg);
+				config.msgskip_delay = 0;
+			}
 			break;
 		case LOPT_SAVE_FOLDER:
 			savedir = optarg;
@@ -576,6 +595,8 @@ int main(int argc, char *argv[])
 
 	mkdir_p(config.save_dir);
 	apply_game_specific_hacks(ain);
+	if (config.msgskip_delay)
+		set_msgskip_delay(ain, config.msgskip_delay);
 	asset_manager_init();
 	dbg_init();
 	sys_exit(vm_execute_ain(ain));

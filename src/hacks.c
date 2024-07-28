@@ -27,6 +27,7 @@
 #include "system4/utfsjis.h"
 
 #include "gfx/gfx.h"
+#include "input.h"
 #include "xsystem4.h"
 
 #include "hll/hll.h"
@@ -46,6 +47,42 @@ static void write_instruction1(struct buffer *out, enum opcode op, int32_t arg)
 {
 	buffer_write_int16(out, op);
 	buffer_write_int32(out, arg);
+}
+
+void set_msgskip_delay(struct ain *ain, unsigned ms)
+{
+	int orig_fno = ain_get_function(ain, "A");
+	if (orig_fno <= 0) {
+		WARNING("No 'A' function when applying msgskip delay");
+		return;
+	}
+
+	int new_fno = ain_dup_function(ain, orig_fno);
+	struct ain_function *override_f = &ain->functions[orig_fno];
+
+	// override void A(void) {
+	//     super();
+	//     if (key_is_down(VK_CONTROL))
+	//         System.sleep(ms);
+	// }
+	struct buffer out;
+	buffer_init(&out, NULL, 0);
+	write_instruction1(&out, FUNC, orig_fno);
+	write_instruction1(&out, CALLFUNC, new_fno);
+	write_instruction1(&out, PUSH, VK_CONTROL);
+	write_instruction1(&out, CALLSYS, VM_XSYS_KEY_IS_DOWN);
+	uint32_t ifz_addr = out.index;
+	write_instruction1(&out, IFZ, 0);
+	write_instruction1(&out, PUSH, ms);
+	write_instruction1(&out, CALLSYS, SYS_SLEEP);
+	buffer_write_int32_at(&out, ifz_addr + 2, ain->code_size + out.index);
+	write_instruction0(&out, RETURN);
+	write_instruction1(&out, ENDFUNC, orig_fno);
+
+	override_f->address = ain->code_size + 6;
+	ain->code = xrealloc(ain->code, ain->code_size + out.index);
+	memcpy(ain->code + ain->code_size, out.buf, out.index);
+	ain->code_size += out.index;
 }
 
 // Rance 02 (MangaGamer version)

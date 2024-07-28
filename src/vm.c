@@ -701,7 +701,14 @@ static void system_call(enum syscall_code code)
 		break;
 	}
 	default:
-		VM_ERROR("Unimplemented syscall: 0x%X", code);
+		// xsystem4-specific system calls (used for hacks)
+		switch ((enum vm_extra_syscall)code) {
+		case VM_XSYS_KEY_IS_DOWN:
+			stack_push(key_is_down(stack_pop().i));
+			break;
+		default:
+			VM_ERROR("Unimplemented syscall: 0x%X", code);
+		}
 	}
 }
 

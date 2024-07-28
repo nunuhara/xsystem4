@@ -44,6 +44,7 @@ struct config {
 	float text_x_scale;
 	bool manual_text_x_scale;
 	bool rsm_save;
+	int msgskip_delay;
 };
 
 extern struct config config;
