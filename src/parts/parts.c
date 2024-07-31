@@ -504,6 +504,40 @@ void parts_set_scale_y(struct parts *parts, float mag)
 	parts_dirty(parts);
 }
 
+static void parts_update_global_rotate_x(struct parts *parts, float parent_rot_x)
+{
+	parts->global.rotation.x = parent_rot_x + parts->local.rotation.x;
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_rotate_x(child, parts->global.rotation.x);
+	}
+}
+
+void parts_set_rotation_x(struct parts *parts, float rot)
+{
+	parts->local.rotation.x = rot;
+	parts_update_global_rotate_x(parts, parts->parent ? parts->parent->global.rotation.x : 0.0f);
+	parts_dirty(parts);
+}
+
+static void parts_update_global_rotate_y(struct parts *parts, float parent_rot_y)
+{
+	parts->global.rotation.y = parent_rot_y + parts->local.rotation.y;
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_rotate_y(child, parts->global.rotation.y);
+	}
+}
+
+void parts_set_rotation_y(struct parts *parts, float rot)
+{
+	parts->local.rotation.y = rot;
+	parts_update_global_rotate_y(parts, parts->parent ? parts->parent->global.rotation.y : 0.0f);
+	parts_dirty(parts);
+}
+
 static void parts_update_global_rotate_z(struct parts *parts, float parent_rot_z)
 {
 	parts->global.rotation.z = parent_rot_z + parts->local.rotation.z;
@@ -1233,18 +1267,23 @@ void parts_vgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rat
 	g->rate = rate;
 }
 
-bool PE_SetHGaugeRate(int parts_no, int numerator, int denominator, int state)
+bool PE_SetHGaugeRate(int parts_no, float numerator, float denominator, int state)
 {
 	if (!parts_state_valid(--state))
 		return false;
 
 	struct parts *parts = parts_get(parts_no);
 	struct parts_gauge *g = parts_get_hgauge(parts, state);
-	parts_hgauge_set_rate(parts, g, (float)numerator/(float)denominator);
+	parts_hgauge_set_rate(parts, g, numerator/denominator);
 	return true;
 }
 
-bool PE_SetVGaugeRate(int parts_no, int numerator, int denominator, int state)
+bool PE_SetHGaugeRate_int(int parts_no, int numerator, int denominator, int state)
+{
+	return PE_SetHGaugeRate(parts_no, numerator, denominator, state);
+}
+
+bool PE_SetVGaugeRate(int parts_no, float numerator, float denominator, int state)
 {
 	if (!parts_state_valid(--state))
 		return false;
@@ -1253,6 +1292,11 @@ bool PE_SetVGaugeRate(int parts_no, int numerator, int denominator, int state)
 	struct parts_gauge *g = parts_get_vgauge(parts, state);
 	parts_vgauge_set_rate(parts, g, (float)numerator/(float)denominator);
 	return true;
+}
+
+bool PE_SetVGaugeRate_int(int parts_no, int numerator, int denominator, int state)
+{
+	return PE_SetVGaugeRate(parts_no, numerator, denominator, state);
 }
 
 bool PE_SetHGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
@@ -1389,8 +1433,6 @@ bool PE_SetNumeralSurfaceArea(int parts_no, int x, int y, int w, int h, int stat
 	return true;
 }
 
-bool PE_SetPartsRectangleDetectionSize(int PartsNumber, int Width, int Height, int State);
-
 void PE_ReleaseParts(int parts_no)
 {
 	parts_release(parts_no);
@@ -1430,7 +1472,7 @@ void PE_SetAlpha(int parts_no, int alpha)
 void PE_SetPartsDrawFilter(int parts_no, int draw_filter)
 {
 	if (draw_filter && draw_filter != 1)
-		NOTICE("PE_SetPartsDrawFilter(%d, %d)", parts_no, draw_filter);
+		UNIMPLEMENTED("(%d, %d)", parts_no, draw_filter);
 	parts_get(parts_no)->draw_filter = draw_filter;
 }
 
@@ -1517,8 +1559,26 @@ int PE_GetPartsAlpha(int parts_no)
 	return parts_get(parts_no)->local.alpha;
 }
 
-void PE_GetAddColor(int PartsNumber, int *nR, int *nG, int *nB);
-void PE_GetMultiplyColor(int PartsNumber, int *nR, int *nG, int *nB);
+int PE_GetPartsDrawFilter(int parts_no)
+{
+	return parts_get(parts_no)->draw_filter;
+}
+
+void PE_GetAddColor(int parts_no, int *r, int *g, int *b)
+{
+	struct parts *parts = parts_get(parts_no);
+	*r = parts->local.add_color.r;
+	*g = parts->local.add_color.g;
+	*b = parts->local.add_color.b;
+}
+
+void PE_GetMultiplyColor(int parts_no, int *r, int *g, int *b)
+{
+	struct parts *parts = parts_get(parts_no);
+	*r = parts->local.multiply_color.r;
+	*g = parts->local.multiply_color.g;
+	*b = parts->local.multiply_color.b;
+}
 
 void PE_SetPartsOriginPosMode(int parts_no, int origin_pos_mode)
 {
@@ -1539,10 +1599,17 @@ void PE_SetParentPartsNumber(int parts_no, int parent_parts_no)
 	parts_component_dirty(parts);
 }
 
+int PE_GetParentPartsNumber(int parts_no)
+{
+	struct parts *parts = parts_get(parts_no);
+	if (parts->parent)
+		return parts->parent->no;
+	return -1;
+}
+
 bool PE_SetPartsGroupNumber(possibly_unused int PartsNumber, possibly_unused int GroupNumber)
 {
-	// TODO
-	WARNING("PE_SetPartsGroupNumber(%d, %d)", PartsNumber, GroupNumber);
+	UNIMPLEMENTED("(%d, %d)", PartsNumber, GroupNumber);
 	return true;
 }
 
@@ -1552,12 +1619,20 @@ void PE_SetPartsMessageWindowShowLink(possibly_unused int parts_no, bool message
 	parts->message_window = message_window_show_link;
 }
 
-bool PE_GetPartsMessageWindowShowLink(int PartsNumber);
+bool PE_GetPartsMessageWindowShowLink(int parts_no)
+{
+	return parts_get(parts_no)->message_window;
+}
 
 void PE_SetPartsMagX(int parts_no, float scale_x)
 {
 	struct parts *parts = parts_get(parts_no);
 	parts_set_scale_x(parts, scale_x);
+}
+
+float PE_GetPartsMagX(int parts_no)
+{
+	return parts_get(parts_no)->local.scale.x;
 }
 
 void PE_SetPartsMagY(int parts_no, float scale_y)
@@ -1566,38 +1641,47 @@ void PE_SetPartsMagY(int parts_no, float scale_y)
 	parts_set_scale_y(parts, scale_y);
 }
 
+float PE_GetPartsMagY(int parts_no)
+{
+	return parts_get(parts_no)->local.scale.y;
+}
+
 void PE_SetPartsRotateX(int parts_no, float rot_x)
 {
-	//NOTICE("PE_SetPartsRotateX(%d, %f)", parts_no, rot_x);
+	UNIMPLEMENTED("(%d, %f)", parts_no, rot_x);
+	parts_set_rotation_x(parts_get(parts_no), rot_x);
 }
 
 void PE_SetPartsRotateY(int parts_no, float rot_y)
 {
-	//NOTICE("PE_SetPartsRotateY(%d, %f)", parts_no, rot_y);
+	UNIMPLEMENTED("(%d, %f)", parts_no, rot_y);
+	parts_set_rotation_y(parts_get(parts_no), rot_y);
 }
 
 void PE_SetPartsRotateZ(int parts_no, float rot_z)
 {
-	struct parts *parts = parts_get(parts_no);
-	parts_set_rotation_z(parts, rot_z);
+	parts_set_rotation_z(parts_get(parts_no), rot_z);
 }
 
-void PE_SetPartsAlphaClipperPartsNumber(int PartsNumber, int AlphaClipperPartsNumber);
+float PE_GetPartsRotateZ(int parts_no)
+{
+	return parts_get(parts_no)->local.rotation.z;
+}
 
 void PE_SetPartsPixelDecide(int parts_no, bool pixel_decide)
 {
-	//NOTICE("PE_SetPartsPixelDecide(%d, %s)", parts_no, pixel_decide ? "true" : "false");
+	//UNIMPLEMENTED("(%d, %s)", parts_no, pixel_decide ? "true" : "false");
 }
 
 bool PE_SetThumbnailReductionSize(int reduction_size)
 {
-	NOTICE("PE_SetThumbnailReductionSize(%d)", reduction_size);
+	UNIMPLEMENTED("(%d)", reduction_size);
 	return true;
 }
 
 bool PE_SetThumbnailMode(bool mode)
 {
-	NOTICE("PE_SetThumbnailMode(%s)", mode ? "true" : "false");
+	UNIMPLEMENTED("(%s)", mode ? "true" : "false");
 	return true;
 }
 
@@ -1615,4 +1699,10 @@ int PE_GetFreeNumber(void)
 bool PE_IsExist(int parts_no)
 {
 	return !!ht_get_int(parts_table, parts_no, NULL);
+}
+
+void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate)
+{
+	if (rate != 1)
+		UNIMPLEMENTED("(%d, %d)");
 }

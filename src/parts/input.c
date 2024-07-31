@@ -105,14 +105,14 @@ bool PE_GetPartsClickable(int parts_no)
 	return parts_get(parts_no)->clickable;
 }
 
-void PE_SetPartsGroupDecideOnCursor(possibly_unused int GroupNumber, possibly_unused bool DecideOnCursor)
+void PE_SetPartsGroupDecideOnCursor(possibly_unused int group_no, possibly_unused bool decide_on_cursor)
 {
-	// TODO
+	UNIMPLEMENTED("(%d, %s)", group_no, decide_on_cursor ? "true" : "false");
 }
 
-void PE_SetPartsGroupDecideClick(possibly_unused int GroupNumber, possibly_unused bool DecideClick)
+void PE_SetPartsGroupDecideClick(possibly_unused int group_no, possibly_unused bool decide_click)
 {
-	// TODO
+	UNIMPLEMENTED("(%d, %s)", group_no, decide_click ? "true" : "false");
 }
 
 void PE_SetOnCursorShowLinkPartsNumber(int parts_no, int link_parts_no)
@@ -121,6 +121,11 @@ void PE_SetOnCursorShowLinkPartsNumber(int parts_no, int link_parts_no)
 	struct parts *link_parts = parts_get(link_parts_no);
 	parts->linked_to = link_parts_no;
 	link_parts->linked_from = parts_no;
+}
+
+int PE_GetOnCursorShowLinkPartsNumber(int parts_no)
+{
+	return parts_get(parts_no)->linked_to;
 }
 
 bool PE_SetPartsOnCursorSoundNumber(int parts_no, int sound_no)
@@ -149,7 +154,7 @@ bool PE_SetPartsClickSoundNumber(int parts_no, int sound_no)
 
 bool PE_SetClickMissSoundNumber(possibly_unused int sound_no)
 {
-	// TODO
+	UNIMPLEMENTED("(%d)", sound_no);
 	return true;
 }
 

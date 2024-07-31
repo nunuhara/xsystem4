@@ -27,6 +27,15 @@
 
 #include "parts_internal.h"
 
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
+
+static inline float deg2rad(float deg)
+{
+	return deg * (M_PI / 180.0);
+}
+
 // Goat sprites are integrated into the scene via a single (virtual) sprite
 static struct sprite goat_sprite;
 
@@ -87,7 +96,7 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 	// FIXME: need perspective for 3D rotate
 	//glm_rotate_x(mw_transform, parts->rotation.x, mw_transform);
 	//glm_rotate_y(mw_transform, parts->rotation.y, mw_transform);
-	glm_rotate_z(mw_transform, parts->local.rotation.z, mw_transform);
+	glm_rotate_z(mw_transform, parts->local.rotation.z * (M_PI/180.0), mw_transform);
 	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
 	glm_translate(mw_transform, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
 	glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
