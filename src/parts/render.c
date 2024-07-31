@@ -262,14 +262,35 @@ void parts_engine_render(possibly_unused struct sprite *_)
 	}
 }
 
+static bool pe_dirty = false;
+
+void parts_render_update(int passed_time)
+{
+	// XXX: hack for Rance 01 load issue
+	//      There is a bug in Rance 01 where a single bad frame is displayed after
+	//      loading a save. When this happens, the game passes a negative time delta
+	//      to PE_Update. We fix this issue by ignoring such calls.
+	if (passed_time < 0)
+		return;
+	if (pe_dirty) {
+		scene_sprite_dirty(&goat_sprite);
+		pe_dirty = false;
+	}
+}
+
 void parts_engine_dirty(void)
 {
-	scene_sprite_dirty(&goat_sprite);
+	pe_dirty = true;
+}
+
+void parts_engine_clean(void)
+{
+	pe_dirty = false;
 }
 
 void parts_dirty(possibly_unused struct parts *parts)
 {
-	parts_engine_dirty();
+	pe_dirty = true;
 }
 
 void parts_render_init(void)

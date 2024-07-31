@@ -360,7 +360,9 @@ struct string *parts_text_get(struct parts_text *t);
 
 // render.c
 void parts_render_init(void);
+void parts_render_update(int passed_time);
 void parts_engine_dirty(void);
+void parts_engine_clean(void);
 void parts_dirty(struct parts *parts);
 void parts_render(struct parts *parts);
 void parts_render_family(struct parts *parts);

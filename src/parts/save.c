@@ -642,7 +642,6 @@ bool PE_Load(struct page **buffer)
 		load_parts(&r, version);
 	}
 
-	PE_UpdateComponent(0);
-
+	parts_engine_clean();
 	return true;
 }
