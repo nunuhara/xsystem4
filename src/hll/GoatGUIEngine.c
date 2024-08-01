@@ -23,7 +23,49 @@
 #include "xsystem4.h"
 #include "hll.h"
 
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
+
+static inline float rad2deg(float rad)
+{
+	return rad * (180.0 / M_PI);
+}
+
 static void GoatGUIEngine_PreLink(void);
+
+static void GoatGUIEngine_AddMotionRotateX(int parts_no, float begin, float end,
+		int begin_t, int end_t)
+{
+	PE_AddMotionRotateX(parts_no, rad2deg(begin), rad2deg(end), begin_t, end_t);
+}
+
+static void GoatGUIEngine_AddMotionRotateY(int parts_no, float begin, float end,
+		int begin_t, int end_t)
+{
+	PE_AddMotionRotateY(parts_no, rad2deg(begin), rad2deg(end), begin_t, end_t);
+}
+
+static void GoatGUIEngine_AddMotionRotateZ(int parts_no, float begin, float end,
+		int begin_t, int end_t)
+{
+	PE_AddMotionRotateZ(parts_no, rad2deg(begin), rad2deg(end), begin_t, end_t);
+}
+
+static void GoatGUIEngine_SetPartsRotateX(int parts_no, float rot)
+{
+	PE_SetPartsRotateX(parts_no, rot);
+}
+
+static void GoatGUIEngine_SetPartsRotateY(int parts_no, float rot)
+{
+	PE_SetPartsRotateY(parts_no, rot);
+}
+
+static void GoatGUIEngine_SetPartsRotateZ(int parts_no, float rot)
+{
+	PE_SetPartsRotateZ(parts_no, rot);
+}
 
 HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(_PreLink, GoatGUIEngine_PreLink),
@@ -33,7 +75,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(SetPartsCG, PE_SetPartsCG),
 	    HLL_EXPORT(GetPartsCGNumber, PE_GetPartsCGNumber),
 	    HLL_EXPORT(GetPartsCGName, PE_GetPartsCGName),
-	    HLL_TODO_EXPORT(SetLoopCG, PE_SetLoopCG),
+	    HLL_EXPORT(SetLoopCG, PE_SetLoopCG),
 	    HLL_EXPORT(SetText, PE_SetText),
 	    HLL_EXPORT(AddPartsText, PE_AddPartsText),
 	    HLL_TODO_EXPORT(DeletePartsTopTextLine, PE_DeletePartsTopTextLine),
@@ -68,7 +110,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(SetZ, PE_SetZ),
 	    HLL_EXPORT(SetShow, PE_SetShow),
 	    HLL_EXPORT(SetAlpha, PE_SetAlpha),
-	    HLL_TODO_EXPORT(SetPartsDrawFilter, PE_SetPartsDrawFilter),
+	    HLL_EXPORT(SetPartsDrawFilter, PE_SetPartsDrawFilter),
 	    HLL_EXPORT(SetAddColor, PE_SetAddColor),
 	    HLL_EXPORT(SetMultiplyColor, PE_SetMultiplyColor),
 	    HLL_EXPORT(SetClickable, PE_SetClickable),
@@ -77,8 +119,8 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(GetPartsZ, PE_GetPartsZ),
 	    HLL_EXPORT(GetPartsShow, PE_GetPartsShow),
 	    HLL_EXPORT(GetPartsAlpha, PE_GetPartsAlpha),
-	    HLL_TODO_EXPORT(GetAddColor, PE_GetAddColor),
-	    HLL_TODO_EXPORT(GetMultiplyColor, PE_GetMultiplyColor),
+	    HLL_EXPORT(GetAddColor, PE_GetAddColor),
+	    HLL_EXPORT(GetMultiplyColor, PE_GetMultiplyColor),
 	    HLL_EXPORT(GetPartsClickable, PE_GetPartsClickable),
 	    HLL_EXPORT(SetPartsOriginPosMode, PE_SetPartsOriginPosMode),
 	    HLL_EXPORT(GetPartsOriginPosMode, PE_GetPartsOriginPosMode),
@@ -88,7 +130,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(SetPartsGroupDecideClick, PE_SetPartsGroupDecideClick),
 	    HLL_EXPORT(SetOnCursorShowLinkPartsNumber, PE_SetOnCursorShowLinkPartsNumber),
 	    HLL_EXPORT(SetPartsMessageWindowShowLink, PE_SetPartsMessageWindowShowLink),
-	    HLL_TODO_EXPORT(GetPartsMessageWindowShowLink, PE_GetPartsMessageWindowShowLink),
+	    HLL_EXPORT(GetPartsMessageWindowShowLink, PE_GetPartsMessageWindowShowLink),
 	    HLL_EXPORT(SetPartsOnCursorSoundNumber, PE_SetPartsOnCursorSoundNumber),
 	    HLL_EXPORT(SetPartsClickSoundNumber, PE_SetPartsClickSoundNumber),
 	    HLL_EXPORT(SetClickMissSoundNumber, PE_SetClickMissSoundNumber),
@@ -103,9 +145,9 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(AddMotionNumeralNumber, PE_AddMotionNumeralNumber),
 	    HLL_EXPORT(AddMotionMagX, PE_AddMotionMagX),
 	    HLL_EXPORT(AddMotionMagY, PE_AddMotionMagY),
-	    HLL_EXPORT(AddMotionRotateX, PE_AddMotionRotateX),
-	    HLL_EXPORT(AddMotionRotateY, PE_AddMotionRotateY),
-	    HLL_EXPORT(AddMotionRotateZ, PE_AddMotionRotateZ),
+	    HLL_EXPORT(AddMotionRotateX, GoatGUIEngine_AddMotionRotateX),
+	    HLL_EXPORT(AddMotionRotateY, GoatGUIEngine_AddMotionRotateY),
+	    HLL_EXPORT(AddMotionRotateZ, GoatGUIEngine_AddMotionRotateZ),
 	    HLL_EXPORT(AddMotionVibrationSize, PE_AddMotionVibrationSize),
 	    HLL_TODO_EXPORT(AddWholeMotionVibrationSize, PE_AddWholeMotionVibrationSize),
 	    HLL_EXPORT(AddMotionSound, PE_AddMotionSound),
@@ -116,11 +158,11 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(GetMotionEndTime, PE_GetMotionEndTime),
 	    HLL_EXPORT(SetPartsMagX, PE_SetPartsMagX),
 	    HLL_EXPORT(SetPartsMagY, PE_SetPartsMagY),
-	    HLL_TODO_EXPORT(SetPartsRotateX, PE_SetPartsRotateX),
-	    HLL_TODO_EXPORT(SetPartsRotateY, PE_SetPartsRotateY),
-	    HLL_EXPORT(SetPartsRotateZ, PE_SetPartsRotateZ),
+	    HLL_EXPORT(SetPartsRotateX, GoatGUIEngine_SetPartsRotateX),
+	    HLL_EXPORT(SetPartsRotateY, GoatGUIEngine_SetPartsRotateY),
+	    HLL_EXPORT(SetPartsRotateZ, GoatGUIEngine_SetPartsRotateZ),
 	    HLL_TODO_EXPORT(SetPartsAlphaClipperPartsNumber, PE_SetPartsAlphaClipperPartsNumber),
-	    HLL_TODO_EXPORT(SetPartsPixelDecide, PE_SetPartsPixelDecide),
+	    HLL_EXPORT(SetPartsPixelDecide, PE_SetPartsPixelDecide),
 	    HLL_EXPORT(SetThumbnailReductionSize, PE_SetThumbnailReductionSize),
 	    HLL_EXPORT(SetThumbnailMode, PE_SetThumbnailMode),
 	    HLL_EXPORT(Save, PE_Save),
@@ -132,16 +174,16 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(GoFramePartsFlash, PE_GoFramePartsFlash),
 	    HLL_EXPORT(GetPartsFlashEndFrame, PE_GetPartsFlashEndFrame),
 	    HLL_TODO_EXPORT(ClearPartsConstructionProcess, PE_ClearPartsConstructionProcess),
-	    HLL_TODO_EXPORT(AddCreateToPartsConstructionProcess, PE_AddCreateToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(AddCreatePixelOnlyToPartsConstructionProcess, PE_AddCreatePixelOnlyToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(AddFillToPartsConstructionProcess, PE_AddFillToPartsConstructionProcess),
+	    HLL_EXPORT(AddCreateToPartsConstructionProcess, PE_AddCreateToPartsConstructionProcess),
+	    HLL_EXPORT(AddCreatePixelOnlyToPartsConstructionProcess, PE_AddCreatePixelOnlyToPartsConstructionProcess),
+	    HLL_EXPORT(AddFillToPartsConstructionProcess, PE_AddFillToPartsConstructionProcess),
 	    HLL_EXPORT(AddFillAlphaColorToPartsConstructionProcess, PE_AddFillAlphaColorToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(AddFillAMapToPartsConstructionProcess, PE_AddFillAMapToPartsConstructionProcess),
+	    HLL_EXPORT(AddFillAMapToPartsConstructionProcess, PE_AddFillAMapToPartsConstructionProcess),
 	    HLL_TODO_EXPORT(AddFillWithAlphaToPartsConstructionProcess, PE_AddFillWithAlphaToPartsConstructionProcess),
 	    HLL_TODO_EXPORT(AddFillGradationHorizonToPartsConstructionProcess, PE_AddFillGradationHorizonToPartsConstructionProcess),
 	    HLL_TODO_EXPORT(AddDrawRectToPartsConstructionProcess, PE_AddDrawRectToPartsConstructionProcess),
 	    HLL_EXPORT(BuildPartsConstructionProcess, PE_BuildPartsConstructionProcess),
-	    HLL_TODO_EXPORT(AddDrawTextToPartsConstructionProcess, PE_AddDrawTextToPartsConstructionProcess));
+	    HLL_EXPORT(AddDrawTextToPartsConstructionProcess, PE_AddDrawTextToPartsConstructionProcess));
 
 static struct ain_hll_function *get_fun(int libno, const char *name)
 {
