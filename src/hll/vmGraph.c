@@ -190,9 +190,7 @@ static int vmGraph_EffectCopy(int dx, int dy, int src_surface, int sx, int sy, i
 	uint32_t start = SDL_GetTicks();
 	if (!effect_init(effect))
 		return 0;
-	effect_record_old();
 	vmGraph_Copy(vm_surface_get_main_surface(), dx, dy, src_surface, sx, sy, width, height);
-	effect_record_new();
 
 	uint32_t t = SDL_GetTicks() - start;
 	while (t < total_time) {

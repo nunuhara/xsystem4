@@ -94,12 +94,10 @@ static bool dalkdemo_effect_copy(Texture *tex, int x, int y, int w, int h, enum 
 {
 	if (!effect_init(effect))
 		return true;
-	effect_record_old();
 	if (tex)
 		gfx_copy(gfx_main_surface(), x, y, tex, x, y, w, h);
 	else
 		gfx_clear();
-	effect_record_new();
 
 	bool interrupted = dalkdemo_run_effect(effect_update, time);
 	if (!interrupted)

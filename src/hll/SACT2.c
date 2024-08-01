@@ -180,12 +180,13 @@ int sact_Update(void)
 int sact_Effect(int type, int time, possibly_unused int key)
 {
 	uint32_t start = SDL_GetTicks();
-	if (!sact_TRANS_Begin(type))
+	if (!effect_init(type))
 		return 0;
+	scene_render();
 
 	uint32_t t = SDL_GetTicks() - start;
 	while (t < time) {
-		sact_TRANS_Update((float)t / (float)time);
+		effect_update((float)t / (float)time);
 		uint32_t t2 = SDL_GetTicks() - start;
 		if (t2 < t + 16) {
 			SDL_Delay(t + 16 - t2);
@@ -195,7 +196,7 @@ int sact_Effect(int type, int time, possibly_unused int key)
 		}
 	}
 
-	sact_TRANS_End();
+	effect_fini();
 	return 1;
 }
 
@@ -990,15 +991,13 @@ int sact_TRANS_Begin(int type)
 {
 	if (!effect_init(type))
 		return 0;
-	effect_record_old();
-	PE_UpdateComponent(0);
-	scene_render();
-	effect_record_new();
 	return 1;
 }
 
 int sact_TRANS_Update(float rate)
 {
+	if (scene_is_dirty)
+		scene_render();
 	return effect_update(rate);
 }
 

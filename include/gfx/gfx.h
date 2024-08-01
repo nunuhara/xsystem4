@@ -82,6 +82,8 @@ void gfx_set_clear_color(int r, int g, int b, int a);
 void gfx_set_view_offset(int x, int y);
 void gfx_clear(void);
 void gfx_swap(void);
+void gfx_set_view(struct texture *t);
+void gfx_reset_view(void);
 void gfx_prepare_job(struct gfx_render_job *job);
 void gfx_run_job(struct gfx_render_job *job);
 void gfx_render(struct gfx_render_job *job);

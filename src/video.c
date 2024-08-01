@@ -63,8 +63,9 @@ static mat4 world_view_transform = MAT4(
 
 static struct shader default_shader;
 
-GLuint main_surface_fb;
-struct texture main_surface;
+static GLuint main_surface_fb;
+static struct texture main_surface;
+static struct texture *view = &main_surface;
 static GLint max_texture_size;
 static SDL_Color clear_color = { 0, 0, 0, 255 };
 
@@ -358,16 +359,26 @@ void gfx_swap(void)
 	struct gfx_render_job job = {
 		.shader = &default_shader,
 		.shape = GFX_RECTANGLE,
-		.texture = main_surface.handle,
+		.texture = view->handle,
 		.world_transform = mw_transform[0],
 		.view_transform = wv_transform[0],
-		.data = &main_surface
+		.data = view
 	};
 	gfx_render(&job);
 
 	SDL_GL_SwapWindow(sdl.window);
 	glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);
 	glViewport(0, 0, sdl.w, sdl.h);
+}
+
+void gfx_set_view(struct texture *t)
+{
+	view = t;
+}
+
+void gfx_reset_view(void)
+{
+	view = &main_surface;
 }
 
 /*
