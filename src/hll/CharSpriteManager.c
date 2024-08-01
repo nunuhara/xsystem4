@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <math.h>
 
 #include "system4.h"
 #include "system4/string.h"
@@ -174,11 +175,8 @@ static void charsprite_render(struct charsprite *cs)
 		ch[2] = 0;
 	}
 
-	int w = cs->ts.size;
+	int w = ceilf(gfx_size_char(&cs->ts, ch));
 	int h = cs->ts.size + cs->ts.size/2;
-	if (isascii(ch[0]))
-		w /= 2;
-
 	sprite_init_color(&cs->sp, w, h, 0, 0, 0, 0);
 	sprite_get_texture(&cs->sp); // XXX: force initialization of texture
 	gfx_render_text(&cs->sp.texture, 0.0f, 0, ch, &cs->ts, false);
