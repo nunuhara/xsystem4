@@ -72,4 +72,12 @@ issues, please let me know or open a pull request to update this table.
 | ランス02 -反逆の少女たち-                               | Supported   | From Alice 2010 |
 | Rance 02 -The Rebellious Maidens- (Fan TL)              | Supported   |       |
 | Rance 02 -The Rebellious Maidens- (MangaGamer)          | Supported   |       |
-| All games released after Alice 2010                     | Unsupported |       |
+| しゃーまんず・さんくちゅあり－巫女の聖域－              | Unknown     |       |
+| 大帝国                                                  | Unknown     |       |
+| ランス・クエスト                                        | Unsupported |       |
+| 母娘乱館                                                | Unknown     |       |
+| パステルチャイム3 バインドシーカー                      | Unsupported |       |
+| どらぺこ！ ～おねだりドラゴンとおっぱい勇者～           | Unsupported |       |
+| ランス01 光をもとめて                                   | Supported   |       |
+| Rance 01 - Quest for Hikari (EN)                        | Supported   |       |
+| All games released after Rance 01                       | Unsupported |       |
