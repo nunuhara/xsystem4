@@ -135,6 +135,8 @@ _Noreturn void _vm_error(const char *fmt, ...);
 _Noreturn void vm_exit(int code);
 _Noreturn void vm_reset(void);
 
+extern bool vm_reset_once;
+
 #ifdef __ANDROID__
 // Report the error with a message box and exit.
 #define VM_ERROR ERROR

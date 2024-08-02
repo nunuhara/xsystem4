@@ -122,12 +122,19 @@ static void define_sound(struct parts_flash *f, struct swf_tag_define_sound *tag
 	ht_put_int(f->dictionary, tag->sound_id, tag);
 }
 
-static void do_action(struct parts_flash *f, struct swf_tag_do_action *tag)
+static int do_action(struct parts_flash *f, struct swf_tag_do_action *tag)
 {
+	int seek_frame = -1;
 	for (struct swf_action *a = tag->actions; a->code != ACTION_END; a = a->next) {
 		switch (a->code) {
+		case ACTION_PLAY:
+			f->stopped = false;
+			break;
 		case ACTION_STOP:
 			f->stopped = true;
+			break;
+		case ACTION_GOTO_FRAME:
+			seek_frame = ((struct swf_action_goto_frame*)a)->frame;
 			break;
 		case ACTION_CONSTANT_POOL:
 		case ACTION_PUSH:
@@ -139,6 +146,7 @@ static void do_action(struct parts_flash *f, struct swf_tag_do_action *tag)
 			break;
 		}
 	}
+	return seek_frame;
 }
 
 static struct parts_flash_object *update_object(struct parts_flash_object *obj, struct swf_tag_place_object *tag)
@@ -302,6 +310,7 @@ bool parts_flash_seek(struct parts_flash *f, int frame)
 		clear_display_list(f);
 	}
 
+	int seek_frame;
 	struct swf_tag *t;
 	for (t = f->tag; t && f->current_frame < frame; t = t->next) {
 		switch (t->type) {
@@ -330,7 +339,9 @@ bool parts_flash_seek(struct parts_flash *f, int frame)
 			define_sound(f, (struct swf_tag_define_sound*)t);
 			break;
 		case TAG_DO_ACTION:
-			do_action(f, (struct swf_tag_do_action*)t);
+			if ((seek_frame = do_action(f, (struct swf_tag_do_action*)t)) >= 0)
+				// XXX: ensure one frame is rendered when seeking to start
+				return parts_flash_seek(f, max(1, seek_frame));
 			break;
 		case TAG_PLACE_OBJECT2:
 		case TAG_PLACE_OBJECT3:

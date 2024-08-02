@@ -161,11 +161,7 @@ static void parts_state_free(struct parts_state *state)
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
 		gfx_delete_texture(&state->common.texture);
-		while (!TAILQ_EMPTY(&state->cproc.ops)) {
-			struct parts_cp_op *op = TAILQ_FIRST(&state->cproc.ops);
-			TAILQ_REMOVE(&state->cproc.ops, op, entry);
-			parts_cp_op_free(op);
-		}
+		parts_clear_construction_process(&state->cproc);
 		break;
 	case PARTS_FLASH:
 		parts_flash_free(&state->flash);
@@ -608,6 +604,18 @@ void parts_numeral_font_init(struct parts_numeral_font *font)
 			gfx_init_texture_with_cg(&font->cg[i], cg);
 			cg_free(cg);
 		}
+	} else if (font->type == PARTS_NUMERAL_FONT_SEPARATE2) {
+		for (int i = 0; i < 12; i++) {
+			if (font->width[i] < 0)
+				continue;
+			struct cg *cg = asset_cg_load(font->width[i]);
+			if (!cg) {
+				font->cg[i].handle = 0;
+				continue;
+			}
+			gfx_init_texture_with_cg(&font->cg[i], cg);
+			cg_free(cg);
+		}
 	} else if (font->type == PARTS_NUMERAL_FONT_COMBINED) {
 		int x = 0;
 		Texture t = {0};
@@ -641,6 +649,48 @@ static int parts_load_numeral_font_separate(int cg_no)
 	struct parts_numeral_font *font = &parts_numeral_fonts[font_no];
 	font->cg_no = cg_no;
 	font->type = PARTS_NUMERAL_FONT_SEPARATE;
+	parts_numeral_font_init(font);
+	return font_no;
+}
+
+static int parts_load_numeral_font_separate_string(struct string *cg_name)
+{
+	// convert name to CG indices
+	int indices[12];
+	for (int i = 0; i < 12; i++) {
+		struct string *name = string_format(cg_name, (union vm_value){.i = i}, STRFMT_INT);
+		if (!asset_exists_by_name(ASSET_CG, name->text, &indices[i])) {
+			WARNING("numeral cg doesn't exist: %s", display_sjis0(name->text));
+			indices[i] = -1;
+		}
+		free_string(name);
+	}
+
+	// find existing font
+	for (int i = 0; i < parts_nr_numeral_fonts; i++) {
+		struct parts_numeral_font *font = &parts_numeral_fonts[i];
+		if (font->type != PARTS_NUMERAL_FONT_SEPARATE2)
+			continue;
+		bool not_match = false;
+		for (int d = 0; d < 12; d++) {
+			if (font->width[d] != indices[d]) {
+				not_match = true;
+				break;
+			}
+		}
+		if (not_match)
+			continue;
+		return i;
+	}
+
+	// load new font
+	int font_no = parts_nr_numeral_fonts++;
+	parts_numeral_fonts = xrealloc_array(parts_numeral_fonts, font_no, font_no + 1,
+			sizeof(struct parts_numeral_font));
+	struct parts_numeral_font *font = &parts_numeral_fonts[font_no];
+	font->cg_no = indices[0];
+	font->type = PARTS_NUMERAL_FONT_SEPARATE2;
+	memcpy(font->width, indices, sizeof(int) * 12);
 	parts_numeral_font_init(font);
 	return font_no;
 }
@@ -1321,6 +1371,15 @@ bool PE_SetVGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 	return true;
 }
 
+bool PE_SetNumeralCG(int parts_no, struct string *cg_name, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
+	n->font_no = parts_load_numeral_font_separate_string(cg_name);
+	return true;
+}
+
 bool PE_SetNumeralCG_by_index(int parts_no, int cg_no, int state)
 {
 	if (!parts_state_valid(--state))
@@ -1683,6 +1742,33 @@ bool PE_SetThumbnailMode(bool mode)
 {
 	UNIMPLEMENTED("(%s)", mode ? "true" : "false");
 	return true;
+}
+
+//void parts_set_state(struct parts *parts, enum parts_state_type state)
+void PE_SetInputState(int parts_no, int state)
+{
+	if (!parts_state_valid(--state)) {
+		WARNING("invalid input state: %d", state);
+		return;
+	}
+	parts_set_state(parts_get(parts_no), state);
+}
+
+int PE_GetInputState(int parts_no)
+{
+	return parts_get(parts_no)->state + 1;
+}
+
+bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state)
+{
+	UNIMPLEMENTED("(%d, %d, %d, %d)", parts_no, w, h, state);
+	return false;
+}
+
+bool PE_SetPartsCGDetectionSize(int parts_no, struct string *cg_name, int state)
+{
+	UNIMPLEMENTED("(%d, %s, %d)", parts_no, display_sjis0(cg_name->text), state);
+	return false;
 }
 
 int PE_GetFreeNumber(void)

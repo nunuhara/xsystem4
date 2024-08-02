@@ -416,6 +416,25 @@ bool PE_BuildPartsConstructionProcess(int parts_no, int state)
 	return parts_build_construction_process(parts, cproc);
 }
 
+bool parts_clear_construction_process(struct parts_construction_process *cproc)
+{
+	while (!TAILQ_EMPTY(&cproc->ops)) {
+		struct parts_cp_op *op = TAILQ_FIRST(&cproc->ops);
+		TAILQ_REMOVE(&cproc->ops, op, entry);
+		parts_cp_op_free(op);
+	}
+	return true;
+}
+
+bool PE_ClearPartsConstructionProcess(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_get(parts_no);
+	struct parts_construction_process *cproc = parts_get_construction_process(parts, state);
+	return parts_clear_construction_process(cproc);
+}
+
 bool PE_SetPartsConstructionSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
 {
 	if (!parts_state_valid(--state))

@@ -51,6 +51,7 @@ bool PE_SetVGaugeCG_by_index(int parts_no, int cg_no, int state);
 bool PE_SetVGaugeRate(int parts_no, float numerator, float denominator, int state);
 bool PE_SetVGaugeRate_int(int parts_no, int numerator, int denominator, int state);
 bool PE_SetVGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
+bool PE_SetNumeralCG(int parts_no, struct string *cg_name, int state);
 bool PE_SetNumeralCG_by_index(int parts_no, int cg_no, int state);
 bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no,
 		int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8,
@@ -101,10 +102,13 @@ void PE_SetPartsRotateX(int parts_no, float rot_x);
 void PE_SetPartsRotateY(int parts_no, float rot_y);
 void PE_SetPartsRotateZ(int parts_no, float rot_z);
 float PE_GetPartsRotateZ(int parts_no);
-void PE_SetPartsAlphaClipperPartsNumber(int PartsNumber, int alpha_clipper_parts_no);
 void PE_SetPartsPixelDecide(int PartsNumber, bool pixel_decide);
 bool PE_SetThumbnailReductionSize(int reduction_size);
 bool PE_SetThumbnailMode(bool Mode);
+void PE_SetInputState(int parts_no, int state);
+int PE_GetInputState(int parts_no);
+bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state);
+bool PE_SetPartsCGDetectionSize(int parts_no, struct string *cg_name, int state);
 bool PE_Save(struct page **buffer);
 bool PE_SaveWithoutHideParts(struct page **buffer);
 bool PE_Load(struct page **buffer);
@@ -134,6 +138,7 @@ bool PE_AddDrawTextToPartsConstructionProcess(int parts_no, int x, int y, struct
 		int edge_r, int edge_g, int edge_b, float edge_weight,
 		int char_space, int line_space, int state);
 bool PE_BuildPartsConstructionProcess(int parts_no, int state);
+bool PE_ClearPartsConstructionProcess(int parts_no, int state);
 bool PE_SetPartsConstructionSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
 
 // input.c
@@ -190,6 +195,7 @@ void PE_AddMotionRotateZ_curve(int parts_no, float begin, float end, int begin_t
 		struct string *curve_name);
 void PE_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin_t, int end_t);
 void PE_AddMotionSound(int sound_no, int begin_t);
+void PE_AddWholeMotionVibrationSize(int begin_w, int begin_h, int begin_t, int end_t);
 void PE_BeginMotion(void);
 void PE_EndMotion(void);
 void PE_SetMotionTime(int t);

@@ -103,3 +103,14 @@ HLL_LIBRARY(DrawMovie2,
 	    HLL_EXPORT(IsEnd, DrawMovie_IsEnd),
 	    HLL_EXPORT(GetCount, DrawMovie_GetCount)
 	);
+
+HLL_LIBRARY(DrawMovie3,
+	    HLL_EXPORT(Release, DrawMovie_Release),
+	    HLL_EXPORT(Load, DrawMovie_Load),
+	    HLL_EXPORT(Run, DrawMovie_Run),
+	    HLL_EXPORT(Draw, DrawMovie_Draw),
+	    HLL_EXPORT(SetInnerVolume, DrawMovie_SetVolume),
+	    HLL_EXPORT(UpdateVolume, DrawMovie2_UpdateVolume),
+	    HLL_EXPORT(IsEnd, DrawMovie_IsEnd),
+	    HLL_EXPORT(GetCount, DrawMovie_GetCount)
+	);

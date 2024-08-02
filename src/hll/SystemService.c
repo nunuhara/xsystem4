@@ -15,6 +15,7 @@
  */
 
 #include <string.h>
+#include <assert.h>
 
 #include "system4/ain.h"
 #include "system4/string.h"
@@ -22,6 +23,7 @@
 #include "input.h"
 #include "gfx/gfx.h"
 #include "mixer.h"
+#include "vm.h"
 #include "xsystem4.h"
 #include "hll.h"
 
@@ -240,7 +242,17 @@ static void SystemService_GetTime(int *hour, int *min, int *sec)
 	get_time(hour, min, sec, &ms);
 }
 
-//static bool SystemService_IsResetOnce(void);
+static bool SystemService_IsResetOnce(void)
+{
+	return vm_reset_once;
+}
+
+static bool SystemService_IsResetOnce_Drapeko(struct string **text)
+{
+	*text = cstr_to_string("XXX TTT YYY"); // ???
+	return vm_reset_once;
+}
+
 //static void SystemService_OpenPlayingManual(void);
 //static bool SystemService_IsExistPlayingManual(void);
 //static bool SystemService_IsExistSystemMessage(void);
@@ -256,7 +268,15 @@ static void SystemService_Rance0123456789(struct string **text)
 	*text = cstr_to_string("-RANCE010ECNAR-"); // ???
 }
 
+static void SystemService_Test(struct string **text)
+{
+	*text = cstr_to_string("DELETE ALL 758490275489207548093");
+}
+
+static void SystemService_PreLink(void);
+
 HLL_LIBRARY(SystemService,
+	    HLL_EXPORT(_PreLink, SystemService_PreLink),
 	    HLL_EXPORT(GetMixerNumof, mixer_get_numof),
 	    HLL_EXPORT(GetMixerName, SystemService_GetMixerName),
 	    HLL_EXPORT(GetMixerVolume, mixer_get_volume),
@@ -289,12 +309,32 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(GetGameFolderPath, SystemService_GetGameFolderPath),
 	    HLL_EXPORT(GetDate, get_date),
 	    HLL_EXPORT(GetTime, SystemService_GetTime),
-	    HLL_TODO_EXPORT(IsResetOnce, SystemService_IsResetOnce),
+	    HLL_EXPORT(IsResetOnce, SystemService_IsResetOnce),
 	    HLL_TODO_EXPORT(OpenPlayingManual, SystemService_OpenPlayingManual),
 	    HLL_TODO_EXPORT(IsExistPlayingManual, SystemService_IsExistPlayingManual),
 	    HLL_EXPORT(IsExistSystemMessage, SystemService_IsExistSystemMessage),
 	    HLL_TODO_EXPORT(PopSystemMessage, SystemService_PopSystemMessage),
 	    HLL_EXPORT(RestrainScreensaver, SystemService_RestrainScreensaver),
 	    HLL_TODO_EXPORT(Debug_GetUseVideoMemorySize, SystemService_Debug_GetUseVideoMemorySize),
-	    HLL_EXPORT(Rance0123456789, SystemService_Rance0123456789)
+	    HLL_EXPORT(Rance0123456789, SystemService_Rance0123456789),
+	    HLL_EXPORT(Test, SystemService_Test)
 	);
+
+static struct ain_hll_function *get_fun(int libno, const char *name)
+{
+	int fno = ain_get_library_function(ain, libno, name);
+	return fno >= 0 ? &ain->libraries[libno].functions[fno] : NULL;
+}
+
+static void SystemService_PreLink(void)
+{
+	struct ain_hll_function *fun;
+	int libno = ain_get_library(ain, "SystemService");
+	assert(libno >= 0);
+
+	fun = get_fun(libno, "IsResetOnce");
+	if (fun && fun->nr_arguments == 1) {
+		static_library_replace(&lib_SystemService, "IsResetOnce",
+				SystemService_IsResetOnce_Drapeko);
+	}
+}

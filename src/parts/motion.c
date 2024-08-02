@@ -431,7 +431,10 @@ void PE_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin
 	parts_add_motion(parts, motion);
 }
 
-void PE_AddWholeMotionVibrationSize(int begin_width, int begin_height, int begin_time, int end_time);
+void PE_AddWholeMotionVibrationSize(int begin_w, int begin_h, int begin_t, int end_t)
+{
+	UNIMPLEMENTED("(%d, %d, %d, %d)", begin_w, begin_h, begin_t, end_t);
+}
 
 void PE_AddMotionSound(int sound_no, int begin_t)
 {

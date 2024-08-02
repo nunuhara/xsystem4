@@ -138,10 +138,12 @@ struct parts_animation {
 };
 
 enum parts_numeral_font_type {
-	// each digit has a separate CG
+	// each digit has a separate CG (only first CG number stored in `cg_no` member)
 	PARTS_NUMERAL_FONT_SEPARATE = 0,
 	// digits packed into single CG
 	PARTS_NUMERAL_FONT_COMBINED = 1,
+	// each digit has a separate CG (CG numbers stored in `width` member)
+	PARTS_NUMERAL_FONT_SEPARATE2 = 2,
 };
 
 struct parts_numeral_font {
@@ -380,6 +382,7 @@ void parts_cp_op_free(struct parts_cp_op *op);
 void parts_add_cp_op(struct parts_construction_process *cproc, struct parts_cp_op *op);
 bool parts_build_construction_process(struct parts *parts,
 		struct parts_construction_process *cproc);
+bool parts_clear_construction_process(struct parts_construction_process *cproc);
 
 // flash.c
 void parts_flash_free(struct parts_flash *f);

@@ -71,6 +71,8 @@ int32_t call_stack_ptr = 0;
 struct ain *ain;
 size_t instr_ptr = 0;
 
+bool vm_reset_once = false;
+
 // Read the opcode at ADDR.
 static int16_t get_opcode(size_t addr)
 {
@@ -2338,6 +2340,8 @@ static void vm_free(void)
 	// free globals
 	if (heap_size > 0 && heap[0].ref > 0)
 		exit_unref(0);
+
+	vm_reset_once = true;
 }
 
 static jmp_buf reset_buf;
