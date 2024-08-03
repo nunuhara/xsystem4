@@ -282,15 +282,15 @@ struct parts_flash *parts_get_flash(struct parts *parts, int state)
 static Point calculate_offset(int mode, int w, int h)
 {
 	switch (mode) {
-	case 1:  return (Point) {    0, 0    };
-	case 2:  return (Point) { -w/2, 0    };
-	case 3:  return (Point) {   -w, -h/2 };
-	case 4:  return (Point) {    0, -h/2 };
-	case 5:  return (Point) { -w/2, -h/2 };
-	case 6:  return (Point) {   -w, -h/2 };
-	case 7:  return (Point) {    0, -h   };
-	case 8:  return (Point) { -w/2, -h   };
-	case 9:  return (Point) {   -w, -h   };
+	case 1:  return (Point) {    0, 0    }; // top-left
+	case 2:  return (Point) { -w/2, 0    }; // top-center
+	case 3:  return (Point) {   -w, 0    }; // top-right
+	case 4:  return (Point) {    0, -h/2 }; // middle-left
+	case 5:  return (Point) { -w/2, -h/2 }; // middle-center
+	case 6:  return (Point) {   -w, -h/2 }; // middle-right
+	case 7:  return (Point) {    0, -h   }; // bottom-left
+	case 8:  return (Point) { -w/2, -h   }; // bottom-center
+	case 9:  return (Point) {   -w, -h   }; // bottom-right
 	default: return (Point) { mode, (3*h)/4 }; // why...
 	}
 }
