@@ -36,6 +36,7 @@
 
 #include "scene.h"
 #include "debugger.h"
+#include "input.h"
 #include "xsystem4.h"
 
 struct dbg_cmd_node;
@@ -374,11 +375,19 @@ void dbg_cmd_add_module(const char *name, unsigned nr_commands, struct dbg_cmd *
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
+
+static int cmd_rl_event_hook(void)
+{
+	handle_window_events();
+	return 1;
+}
+
 /*
  * Get a string from the user. The result can be modified but shouldn't be free'd.
  */
 static char *cmd_gets(void)
 {
+	rl_event_hook = cmd_rl_event_hook;
 	static char *line_read = NULL;
 	free(line_read);
 	line_read = readline("dbg(cmd)> ");
@@ -394,6 +403,7 @@ static char *cmd_gets(void)
 {
 	static char line[1024];
 
+	handle_window_events();
 	printf("dbg(cmd)> ");
 	fflush(stdout);
 	fgets(line, 1024, stdin);

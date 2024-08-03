@@ -137,6 +137,7 @@ enum sact_keycode {
 extern bool mouse_focus;
 extern bool keyboard_focus;
 
+void handle_window_events(void);
 void handle_events(void);
 bool key_is_down(enum sact_keycode code);
 void key_clear_flag(void);

@@ -552,6 +552,46 @@ static void fire_deferred_events(void)
 #endif
 }
 
+static void handle_window_event(SDL_Event *e)
+{
+	switch (e->window.event) {
+	case SDL_WINDOWEVENT_EXPOSED:
+		gfx_swap();
+		break;
+	case SDL_WINDOWEVENT_ENTER:
+		mouse_focus = true;
+		break;
+	case SDL_WINDOWEVENT_LEAVE:
+		mouse_focus = false;
+		break;
+	case SDL_WINDOWEVENT_FOCUS_GAINED:
+		keyboard_focus = true;
+		break;
+	case SDL_WINDOWEVENT_FOCUS_LOST:
+		keyboard_focus = false;
+		break;
+	case SDL_WINDOWEVENT_SIZE_CHANGED:
+		gfx_update_screen_scale();
+		gfx_swap();
+		break;
+	}
+}
+
+void handle_window_events(void)
+{
+	SDL_Event e;
+	while (SDL_PollEvent(&e)) {
+		switch (e.type) {
+		case SDL_QUIT:
+			vm_exit(0);
+			break;
+		case SDL_WINDOWEVENT:
+			handle_window_event(&e);
+			break;
+		}
+	}
+}
+
 void handle_events(void)
 {
 	fire_deferred_events();
@@ -563,27 +603,7 @@ void handle_events(void)
 			vm_exit(0);
 			break;
 		case SDL_WINDOWEVENT:
-			switch (e.window.event) {
-			case SDL_WINDOWEVENT_EXPOSED:
-				gfx_swap();
-				break;
-			case SDL_WINDOWEVENT_ENTER:
-				mouse_focus = true;
-				break;
-			case SDL_WINDOWEVENT_LEAVE:
-				mouse_focus = false;
-				break;
-			case SDL_WINDOWEVENT_FOCUS_GAINED:
-				keyboard_focus = true;
-				break;
-			case SDL_WINDOWEVENT_FOCUS_LOST:
-				keyboard_focus = false;
-				break;
-			case SDL_WINDOWEVENT_SIZE_CHANGED:
-				gfx_update_screen_scale();
-				gfx_swap();
-				break;
-			}
+			handle_window_event(&e);
 			break;
 		case SDL_KEYDOWN:
 			if (e.key.keysym.scancode == SDL_SCANCODE_F9)

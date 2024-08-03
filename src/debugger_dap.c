@@ -37,6 +37,7 @@
 #include "cJSON.h"
 #include "debugger.h"
 #include "gfx/gfx.h"
+#include "input.h"
 #include "json.h"
 #include "msgqueue.h"
 #include "parts/parts_internal.h"
@@ -868,9 +869,10 @@ void dbg_dap_repl(void)
 
 	bool continue_repl = true;
 	while (continue_repl) {
-		char *msg = msgq_dequeue(queue);
+		handle_window_events();
+		char *msg = msgq_dequeue_timeout(queue, 50);
 		if (!msg)
-			break;
+			continue;
 		continue_repl = handle_message(msg);
 	}
 }
