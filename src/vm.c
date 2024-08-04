@@ -241,37 +241,15 @@ int vm_copy_page(struct page *page)
 	return slot;
 }
 
-void vm_register_delegate_structs(struct page *dg, int dg_i)
-{
-	for (int i = 0; i < dg->nr_vars; i += 2) {
-		if (dg->values[i].i < 0)
-			continue;
-		struct_register_delegate(dg->values[i].i, dg_i);
-	}
-}
-
-int vm_copy_delegate_page(int dg_i)
-{
-	struct page *page = heap_get_page(dg_i);
-	int slot = vm_copy_page(page);
-
-	if (page) {
-		vm_register_delegate_structs(page, slot);
-	}
-
-	return slot;
-}
-
 union vm_value vm_copy(union vm_value v, enum ain_data_type type)
 {
 	switch (type) {
 	case AIN_STRING:
 		return (union vm_value) { .i = vm_string_ref(heap_get_string(v.i)) };
 	case AIN_STRUCT:
+	case AIN_DELEGATE:
 	case AIN_ARRAY_TYPE:
 		return (union vm_value) { .i = vm_copy_page(heap_get_page(v.i)) };
-	case AIN_DELEGATE:
-		return (union vm_value) { .i = vm_copy_delegate_page(v.i) };
 	case AIN_REF_TYPE:
 		heap_ref(v.i);
 		return v;
@@ -412,7 +390,7 @@ static void delegate_call(int dg_no, int return_address)
 	int dg_index = stack_peek(0).i;
 
 	int obj, fun;
-	delegate_get(dg_page, dg_index, &obj, &fun);
+	delegate_get(heap_get_delegate_page(dg_page), dg_index, &obj, &fun);
 
 	int slot = _function_call(fun, return_address);
 
@@ -2162,14 +2140,15 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int obj = stack_pop().i;
 		int dg_i = stack_pop().i;
 		delete_page(dg_i);
-		delegate_append(dg_i, obj, fun);
+		heap_set_page(dg_i, delegate_new_from_method(obj, fun));
 		break;
 	}
 	case DG_SET: {
 		int fun = stack_pop().i;
 		int obj = stack_pop().i;
 		int dg_i = stack_pop().i;
-		delegate_append(dg_i, obj, fun);
+		struct page *dg = heap_get_delegate_page(dg_i);
+		heap_set_page(dg_i, delegate_append(dg, obj, fun));
 		break;
 	}
 	case DG_CALL: { // DG_TYPE, ADDR
@@ -2181,9 +2160,9 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int return_values = (ain->delegates[dg].return_type.data != AIN_VOID) ? 1 : 0;
 		int dg_page = stack_peek(1 + return_values).i;
 		int dg_index = stack_peek(0 + return_values).i;
-		if (dg_index < delegate_numof(dg_page)) {
+		if (dg_index < delegate_numof(heap_get_page(dg_page))) {
 			int obj, fun;
-			delegate_get(dg_page, dg_index, &obj, &fun);
+			delegate_get(heap_get_delegate_page(dg_page), dg_index, &obj, &fun);
 			// pop previous return value
 			if (ain->delegates[dg].return_type.data != AIN_VOID) {
 				stack_pop();
@@ -2209,32 +2188,32 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case DG_NUMOF: {
 		int dg = stack_pop().i;
-		stack_push(delegate_numof(dg));
+		stack_push(delegate_numof(heap_get_delegate_page(dg)));
 		break;
 	}
 	case DG_EXIST: {
 		int fun = stack_pop().i;
 		int obj = stack_pop().i;
 		int dg_i = stack_pop().i;
-		stack_push(delegate_contains(dg_i, obj, fun));
+		stack_push(delegate_contains(heap_get_delegate_page(dg_i), obj, fun));
 		break;
 	}
 	case DG_ERASE: {
 		int fun = stack_pop().i;
 		int obj = stack_pop().i;
 		int dg_i = stack_pop().i;
-		delegate_erase(dg_i, obj, fun);
+		delegate_erase(heap_get_delegate_page(dg_i), obj, fun);
 		break;
 	}
 	case DG_CLEAR: {
 		int slot = stack_pop().i;
 		if (!slot)
 			break;
-		delegate_clear(slot);
+		heap_set_page(slot, delegate_clear(heap_get_delegate_page(slot)));
 		break;
 	}
 	case DG_COPY: {
-		stack_push(vm_copy_delegate_page(stack_pop().i));
+		stack_push(vm_copy_page(heap_get_delegate_page(stack_pop().i)));
 		break;
 	}
 	case DG_ASSIGN: {
@@ -2244,21 +2223,24 @@ static enum opcode execute_instruction(enum opcode opcode)
 		struct page *new_dg = copy_page(set);
 		delete_page(dst_i);
 		heap_set_page(dst_i, new_dg);
-		vm_register_delegate_structs(new_dg, dst_i);
 		stack_push(set_i);
 		break;
 	}
 	case DG_PLUSA: {
 		int add_i = stack_pop().i;
 		int dst_i = stack_pop().i;
-		delegate_plusa(dst_i, add_i);
+		struct page *add = heap_get_delegate_page(add_i);
+		struct page *dst = heap_get_delegate_page(dst_i);
+		heap_set_page(dst_i, delegate_plusa(dst, add));
 		stack_push(add_i);
 		break;
 	}
 	case DG_MINUSA: {
 		int minus_i = stack_pop().i;
 		int dst_i = stack_pop().i;
-		delegate_minusa(dst_i, minus_i);
+		struct page *minus = heap_get_delegate_page(minus_i);
+		struct page *dst = heap_get_delegate_page(dst_i);
+		heap_set_page(dst_i, delegate_minusa(dst, minus));
 		stack_push(minus_i);
 		break;
 	}
@@ -2269,9 +2251,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case DG_NEW_FROM_METHOD: {
 		int fun = stack_pop().i;
 		int obj = stack_pop().i;
-		int dg_i = heap_alloc_page(NULL);
-		delegate_append(dg_i, obj, fun);
-		stack_push(dg_i);
+		stack_push(heap_alloc_page(delegate_new_from_method(obj, fun)));
 		break;
 	}
 	case DG_CALLBEGIN: { // DG_TYPE

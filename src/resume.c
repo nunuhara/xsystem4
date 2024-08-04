@@ -500,20 +500,8 @@ static void alloc_heap_slot(int slot)
 	heap_free_ptr++;
 }
 
-struct delegate_list {
-	int *slots;
-	int n;
-};
-
-void delegate_list_add(struct delegate_list *list, int slot)
-{
-	list->slots = xrealloc_array(list->slots, list->n, list->n+1, sizeof(int));
-	list->slots[list->n++] = slot;
-}
-
 static void load_json_heap(cJSON *json)
 {
-	struct delegate_list delegates = {0};
 	delete_heap();
 
 	cJSON *item;
@@ -533,8 +521,6 @@ static void load_json_heap(cJSON *json)
 			load_json_string(slot, value);
 		} else if (cJSON_IsObject(value)) {
 			load_json_page(slot, value);
-			if (heap[slot].page->type == DELEGATE_PAGE)
-				delegate_list_add(&delegates, slot);
 		} else if (cJSON_IsNull(value)) {
 			heap[slot].type = VM_PAGE;
 			heap[slot].page = NULL;
@@ -542,13 +528,6 @@ static void load_json_heap(cJSON *json)
 			invalid_save_data("Invalid heap data");
 		}
 	}
-
-	for (int i = 0; i < delegates.n; i++) {
-		int slot = delegates.slots[i];
-		struct page *page = heap_get_delegate_page(slot);
-		vm_register_delegate_structs(page, slot);
-	}
-	free(delegates.slots);
 }
 
 static int resolve_func_symbol(struct rsave_symbol *sym)
@@ -636,8 +615,6 @@ static void load_rsave_struct(int slot, struct rsave_heap_struct *s)
 {
 	int struct_index = resolve_struct_symbol(&s->struct_type);
 	struct page *page = alloc_page(STRUCT_PAGE, struct_index, s->nr_slots);
-	page->struc.delegates = NULL;
-	page->struc.nr_delegates = 0;
 
 	// type check
 	struct ain_struct *as = &ain->structures[struct_index];
