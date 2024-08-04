@@ -171,7 +171,7 @@ static struct rsave_heap_frame *frame_page_to_rsave(struct page *page, int slot)
 		o->func.name = strdup(f->name);
 		assert(page->nr_vars == f->nr_vars);
 		vars = f->vars;
-		// TODO: populate o->struct_ptr
+		o->struct_ptr = page->local.struct_ptr;
 	}
 	o->nr_types = page->nr_vars;
 	o->types = xcalloc(o->nr_types, sizeof(int32_t));
@@ -592,6 +592,7 @@ static void load_rsave_frame(int slot, struct rsave_heap_frame *f)
 		page = alloc_page(LOCAL_PAGE, func, f->nr_slots);
 		nr_vars = ain->functions[func].nr_vars;
 		vars = ain->functions[func].vars;
+		page->local.struct_ptr = f->struct_ptr;
 	}
 
 	// type check

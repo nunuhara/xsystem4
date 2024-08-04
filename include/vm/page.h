@@ -66,11 +66,17 @@ struct page {
 		int index;
 		enum ain_data_type a_type;
 	};
-	// array-specific metadata
-	struct {
-		int struct_type;
-		int rank;
-	} array;
+	union {
+		// local-specific metadata
+		struct {
+			int struct_ptr;
+		} local;
+		// array-specific metadata
+		struct {
+			int struct_type;
+			int rank;
+		} array;
+	};
 	int nr_vars;
 	union vm_value values[];
 };

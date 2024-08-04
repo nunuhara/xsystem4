@@ -334,6 +334,7 @@ static int _function_call(int fno, int return_address)
 	struct ain_function *f = &ain->functions[fno];
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
+	heap[slot].page->local.struct_ptr = -1;
 
 	call_stack[call_stack_ptr++] = (struct function_call) {
 		.fno = fno,
@@ -376,7 +377,9 @@ static void function_call(int fno, int return_address)
 static void method_call(int fno, int return_address)
 {
 	function_call(fno, return_address);
-	call_stack[call_stack_ptr-1].struct_page = stack_pop().i;
+	int struct_page = stack_pop().i;
+	call_stack[call_stack_ptr-1].struct_page = struct_page;
+	heap[call_stack[call_stack_ptr-1].page_slot].page->local.struct_ptr = struct_page;
 }
 
 static void vm_execute(void);
