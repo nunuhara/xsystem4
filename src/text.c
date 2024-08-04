@@ -40,8 +40,9 @@
 #define DEFAULT_FONT_GOTHIC "fonts/VL-Gothic-Regular.ttf"
 #define DEFAULT_FONT_MINCHO "fonts/HanaMinA.ttf"
 
-#define MAX_FONTS 32
-static struct font *fonts[MAX_FONTS] = {0};
+#define MAX_FNL_FONTS 32
+struct font *font_ttf[2] = {0};
+struct font *font_fnl[MAX_FNL_FONTS] = {0};
 
 // Controls whether edge widths are taken into account during text layout.
 bool gfx_text_advance_edges = false;
@@ -76,48 +77,36 @@ void gfx_font_init(void)
 {
 	if (font_initialized)
 		return;
+	ft_font_init();
+	font_ttf[FONT_GOTHIC] = load_font(FONT_GOTHIC);
+	font_ttf[FONT_MINCHO] = load_font(FONT_MINCHO);
+
 	if (config.fnl_path) {
 		struct fnl *fnl = fnl_open(config.fnl_path);
 		if (!fnl)
 			ERROR("Failed to load .fnl font library '%s'", config.fnl_path);
 		if (!fnl->nr_fonts)
 			ERROR("No fonts in .fnl font library '%s'", config.fnl_path);
-		for (unsigned i = 0; i < fnl->nr_fonts && i < MAX_FONTS; i++) {
-			fonts[i] = fnl_font_load(fnl, i);
+		for (unsigned i = 0; i < fnl->nr_fonts && i < MAX_FNL_FONTS; i++) {
+			font_fnl[i] = fnl_font_load(fnl, i);
 		}
-	} else {
-		ft_font_init();
-		fonts[FONT_GOTHIC] = load_font(FONT_GOTHIC);
-		fonts[FONT_MINCHO] = load_font(FONT_MINCHO);
 	}
 	font_initialized = true;
 }
 
-static unsigned get_face(unsigned face)
-{
-	if (game_rance7_mg) {
-		unsigned i = face - 256;
-		if (i >= MAX_FONTS || !fonts[i]) {
-			// XXX: Really not sure why this is how it works...
-			i = face == 1 ? 2 : 1;
-		}
-		face = i;
-	} else if (config.fnl_path) {
-		// TODO: check what actual games do here...
-		//       In Rance01Font.fnl:
-		//         fonts[0] is proportional sans/gothic
-		//         fonts[1] is monospace sans/gothic
-		//         fonts[2] is proportional serif/mincho
-		face += 1;
-	}
-	if (face >= MAX_FONTS || !fonts[face])
-		face = 0;
-	return face;
-}
-
 static struct font *get_font(unsigned face)
 {
-	return fonts[get_face(face)];
+	if (face > 255) {
+		face -= 256;
+		if (face >= MAX_FNL_FONTS || !font_fnl[face]) {
+			WARNING("Invalid fnl face: %u", face);
+			return font_ttf[0];
+		}
+		return font_fnl[face];
+	}
+	if (face > 1)
+		return font_ttf[0];
+	return font_ttf[face];
 }
 
 static struct font_size *font_get_size(unsigned face, float size)
