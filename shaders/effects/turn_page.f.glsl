@@ -50,7 +50,7 @@ void main() {
 	vec2 p = tex_coord * resolution;
 
 	vec2 p1 = resolution;
-	vec2 p2 = vec2((1.0 - progress*2.0) * p1.x, (1.0 - progress*2.0) * p1.y);
+	vec2 p2 = vec2((1.0 - max(progress, 0.01)*2.0) * p1.x, (1.0 - max(progress, 0.01)*2.0) * p1.y);
 	vec2 p3 = vec2(p2.x, resolution.y);
 	vec2 p4 = vec2(resolution.x, p2.y);
 
