@@ -168,7 +168,6 @@ static int audio_callback(sts_mixer_sample_t *sample, void *data)
 	assert(sample == &mc->sts_stream.sample);
 
 	if (!decode_frame(&mc->audio, mc)) {
-		NOTICE("???");
 		free(sample->data);
 		sample->length = 0;
 		sample->data = NULL;
