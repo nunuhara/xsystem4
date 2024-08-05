@@ -229,12 +229,31 @@ struct parts_construction_process {
 	TAILQ_HEAD(, parts_cp_op) ops;
 };
 
+enum parts_flash_blend_mode {
+	PARTS_FLASH_BLEND_NORMAL0    = 0,
+	PARTS_FLASH_BLEND_NORMAL1    = 1,
+	PARTS_FLASH_BLEND_LAYER      = 2,
+	PARTS_FLASH_BLEND_MULTIPLY   = 3,
+	PARTS_FLASH_BLEND_SCREEN     = 4,
+	PARTS_FLASH_BLEND_LIGHTEN    = 5,
+	PARTS_FLASH_BLEND_DARKEN     = 6,
+	PARTS_FLASH_BLEND_DIFFERENCE = 7,
+	PARTS_FLASH_BLEND_ADD        = 8,
+	PARTS_FLASH_BLEND_SUBTRACT   = 9,
+	PARTS_FLASH_BLEND_INVERT     = 10,
+	PARTS_FLASH_BLEND_ALPHA      = 11,
+	PARTS_FLASH_BLEND_ERASE      = 12,
+	PARTS_FLASH_BLEND_OVERLAY    = 13,
+	PARTS_FLASH_BLEND_HARDLIGHT  = 14,
+};
+
 struct parts_flash_object {
 	TAILQ_ENTRY(parts_flash_object) entry;
 	uint16_t depth;
 	uint16_t character_id;
 	mat4 matrix;
 	struct swf_cxform_with_alpha color_transform;
+	enum parts_flash_blend_mode blend_mode;
 };
 
 struct parts_flash {

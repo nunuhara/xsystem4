@@ -177,8 +177,18 @@ static struct parts_flash_object *update_object(struct parts_flash_object *obj, 
 	}
 	if (tag->flags & PLACE_FLAG_HAS_COLOR_TRANSFORM)
 		obj->color_transform = tag->color_transform;
-	if (tag->flags & PLACE_FLAG_HAS_BLEND_MODE)
-		WARNING("PLACE_FLAG_HAS_BLEND_MODE is not supported yet");
+	if (tag->flags & PLACE_FLAG_HAS_BLEND_MODE) {
+		switch ((obj->blend_mode = tag->blend_mode)) {
+		case PARTS_FLASH_BLEND_NORMAL0:
+		case PARTS_FLASH_BLEND_NORMAL1:
+		case PARTS_FLASH_BLEND_MULTIPLY:
+		case PARTS_FLASH_BLEND_SCREEN:
+		case PARTS_FLASH_BLEND_ADD:
+			break;
+		default:
+			WARNING("Unsupported blend mode: %d", obj->blend_mode);
+		}
+	}
 
 	return obj;
 }

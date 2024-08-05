@@ -194,6 +194,21 @@ static void parts_render_flash(struct parts *parts, struct parts_flash *f)
 			WARNING("character %d is not defined", obj->character_id);
 			continue;
 		}
+		// set blend mode
+		switch (obj->blend_mode) {
+		case PARTS_FLASH_BLEND_MULTIPLY:
+			glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
+			break;
+		case PARTS_FLASH_BLEND_SCREEN:
+			glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
+			break;
+		case PARTS_FLASH_BLEND_ADD:
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+			break;
+		default:
+			break;
+		}
+		// render object
 		switch (tag->type) {
 		case TAG_DEFINE_SHAPE:
 			parts_render_flash_shape(parts, f, obj, (struct swf_tag_define_shape*)tag);
@@ -204,6 +219,7 @@ static void parts_render_flash(struct parts *parts, struct parts_flash *f)
 		default:
 			ERROR("unknown tag %d", tag->type);
 		}
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 	}
 }
 
