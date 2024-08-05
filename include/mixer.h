@@ -83,5 +83,6 @@ int channel_seek(struct channel *ch, int pos);
 int channel_reverse_LR(struct channel *ch);
 int channel_get_volume(struct channel *ch);
 int channel_get_time_length(struct channel *ch);
+int channel_get_data_no(struct channel *ch);
 
 #endif /* SYSTEM4_MIXER_H */

@@ -167,10 +167,30 @@ static bool parts_engine_should_trace(struct ain_hll_function *f, union vm_value
 	return true;
 }
 
+static bool sact_should_trace(struct ain_hll_function *f, union vm_value **args)
+{
+	const char *no_trace[] = {
+		"Key_IsDown",
+		"Mouse_ClearWheel",
+		"Mouse_GetPos",
+		"Mouse_GetWheel",
+		"SP_GetWidth",
+		"SP_GetHeight",
+		"SP_ExistAlpha",
+		"Update",
+	};
+	for (unsigned i = 0; i < sizeof(no_trace) / sizeof(*no_trace); i++) {
+		if (!strcmp(f->name, no_trace[i]))
+			return false;
+	}
+	return true;
+}
+
 struct traced_library traced_libraries[] = {
 	{ "ChipmunkSpriteEngine", chipmunk_should_trace },
 	{ "GUIEngine", gui_engine_should_trace },
 	{ "PartsEngine", parts_engine_should_trace },
+	{ "SACTDX", sact_should_trace },
 };
 
 static void print_hll_trace(struct ain_library *lib, struct ain_hll_function *f,
@@ -431,6 +451,7 @@ extern struct static_library lib_MonsterInfo;
 extern struct static_library lib_MsgLogManager;
 extern struct static_library lib_MsgLogViewer;
 extern struct static_library lib_MsgSkip;
+extern struct static_library lib_NewFont;
 extern struct static_library lib_OutputLog;
 extern struct static_library lib_PassRegister;
 extern struct static_library lib_PartsEngine;
@@ -441,6 +462,7 @@ extern struct static_library lib_ReignEngine;
 extern struct static_library lib_SACT2;
 extern struct static_library lib_SACTDX;
 extern struct static_library lib_SengokuRanceFont;
+extern struct static_library lib_Sound2ex;
 extern struct static_library lib_SoundFilePlayer;
 extern struct static_library lib_StoatSpriteEngine;
 extern struct static_library lib_StretchHelper;
@@ -532,6 +554,7 @@ static struct static_library *static_libraries[] = {
 	&lib_MsgLogManager,
 	&lib_MsgLogViewer,
 	&lib_MsgSkip,
+	&lib_NewFont,
 	&lib_OutputLog,
 	&lib_PassRegister,
 	&lib_PartsEngine,
@@ -542,6 +565,7 @@ static struct static_library *static_libraries[] = {
 	&lib_SACT2,
 	&lib_SACTDX,
 	&lib_SengokuRanceFont,
+	&lib_Sound2ex,
 	&lib_SoundFilePlayer,
 	&lib_StoatSpriteEngine,
 	&lib_StretchHelper,

@@ -189,6 +189,12 @@ static float fnl_font_size_char(struct font_size *_size, uint32_t code)
 	return r;
 }
 
+static float fnl_font_size_char_kerning(struct font_size *size, uint32_t code,
+		uint32_t code_next)
+{
+	return fnl_font_size_char(size, code);
+}
+
 struct font *fnl_font_load(struct fnl *lib, unsigned index)
 {
 	if (index >= lib->nr_fonts)
@@ -227,6 +233,7 @@ struct font *fnl_font_load(struct fnl *lib, unsigned index)
 	font->super.get_actual_size_round_down = fnl_font_get_actual_size_round_down;
 	font->super.get_glyph = fnl_font_get_glyph;
 	font->super.size_char = fnl_font_size_char;
+	font->super.size_char_kerning = fnl_font_size_char_kerning;
 
 	if (!game_rance7_mg)
 		gfx_text_advance_edges = true;

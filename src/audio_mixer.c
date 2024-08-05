@@ -438,6 +438,11 @@ int channel_get_time_length(struct channel *ch)
 	return muldiv(ch->info.frames, 1000, ch->info.samplerate);
 }
 
+int channel_get_data_no(struct channel *ch)
+{
+	return ch->dfile ? ch->dfile->no : -1;
+}
+
 static sf_count_t channel_vio_get_filelen(void *data)
 {
 	return ((struct channel*)data)->dfile->size;

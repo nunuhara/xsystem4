@@ -109,7 +109,7 @@ static struct font *get_font(unsigned face)
 	return font_ttf[face];
 }
 
-static struct font_size *font_get_size(unsigned face, float size)
+struct font_size *gfx_font_get_size(unsigned face, float size)
 {
 	struct font *font = get_font(face);
 	return font->get_size(font, size);
@@ -119,7 +119,7 @@ static struct font_size *text_style_font_size(struct text_style *ts)
 {
 	if (ts->font_size)
 		return ts->font_size;
-	return ts->font_size = font_get_size(ts->face, ts->size);
+	return ts->font_size = gfx_font_get_size(ts->face, ts->size);
 }
 
 static struct glyph *font_get_glyph(struct font_size *size, uint32_t code, enum font_weight weight)
@@ -164,6 +164,12 @@ float gfx_size_char(struct text_style *ts, const char *ch)
 	return font_size_char(size, char_to_code(ch, size->font->charmap));
 }
 
+float gfx_size_char_kerning(struct text_style *ts, uint32_t code, uint32_t code_next)
+{
+	struct font_size *size = text_style_font_size(ts);
+	return size->font->size_char_kerning(size, code, code_next);
+}
+
 float gfx_size_text(struct text_style *ts, const char *text)
 {
 	struct font_size *size = text_style_font_size(ts);
@@ -189,28 +195,7 @@ float gfx_get_actual_font_size_round_down(unsigned face, float size)
 	return font->get_actual_size_round_down(font, size);
 }
 
-enum text_render_mode {
-	RENDER_COPY,
-	RENDER_BLENDED,
-	RENDER_PMAP,
-	RENDER_AMAP,
-};
-
-struct text_render_metrics {
-	float x;
-	int y;
-	SDL_Color color;
-	enum font_weight weight;
-	float edge_width;
-	float scale_x;
-	float space_scale_x;
-	float font_spacing;
-	float edge_spacing;
-	enum text_render_mode mode;
-	struct font_size *font_size;
-};
-
-static float render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
+float _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 {
 	float pos_x = tm->x;
 	int pos_y = tm->y + tm->font_size->y_offset;
@@ -248,7 +233,7 @@ static float render_text(Texture *dst, char *msg, struct text_render_metrics *tm
 	return pos_x - tm->x;
 }
 
-static enum font_weight int_to_font_weight(int weight)
+enum font_weight gfx_int_to_font_weight(int weight)
 {
 	// 0 -> 550 = LIGHT
 	if (weight <= 550)
@@ -267,7 +252,7 @@ static enum font_weight int_to_font_weight(int weight)
 
 float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend)
 {
-	enum font_weight weight = int_to_font_weight(ts->weight);
+	enum font_weight weight = gfx_int_to_font_weight(ts->weight);
 	struct font_size *font_size = text_style_font_size(ts);
 	float edge_width = text_style_edge_width(ts);
 	enum text_render_mode mode = blend ? RENDER_BLENDED : RENDER_COPY;
@@ -285,7 +270,7 @@ float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_styl
 			.mode = mode,
 			.font_size = font_size,
 		};
-		render_text(dst, msg, &metrics);
+		_gfx_render_text(dst, msg, &metrics);
 		mode = RENDER_BLENDED;  // core text is blended on top of the edge
 	}
 	struct text_render_metrics metrics = {
@@ -301,7 +286,7 @@ float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_styl
 		.mode = mode,
 		.font_size = font_size,
 	};
-	return render_text(dst, msg, &metrics);
+	return _gfx_render_text(dst, msg, &metrics);
 }
 
 int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend)
@@ -337,12 +322,12 @@ static struct font_metrics font_metrics = {
 
 static void gfx_draw_text(Texture *dst, int x, int y, char *text, enum text_render_mode mode)
 {
-	struct font_size *font_size = font_get_size(font_metrics.face, font_metrics.size);
+	struct font_size *font_size = gfx_font_get_size(font_metrics.face, font_metrics.size);
 	struct text_render_metrics metrics = {
 		.x = x,
 		.y = y,
 		.color = font_metrics.color,
-		.weight = int_to_font_weight(font_metrics.weight),
+		.weight = gfx_int_to_font_weight(font_metrics.weight),
 		.edge_width = 0.0f,
 		.scale_x = 1.0f,
 		.space_scale_x = 1.0f,
@@ -351,7 +336,7 @@ static void gfx_draw_text(Texture *dst, int x, int y, char *text, enum text_rend
 		.font_size = font_size,
 	};
 	// TODO: underline and strikethrough
-	render_text(dst, text, &metrics);
+	_gfx_render_text(dst, text, &metrics);
 }
 
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text)

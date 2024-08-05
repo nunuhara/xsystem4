@@ -18,6 +18,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_BITMAP_H
+#include FT_ADVANCES_H
 #include <SDL.h>
 
 #include "system4.h"
@@ -97,7 +98,7 @@ static float ft_font_get_actual_size(struct font *_, float size)
 static Rectangle init_glyph_texture(Texture *dst, FT_Bitmap *glyph, int bitmap_left, int bitmap_top, int size, bool half_width)
 {
 	// calculate block size and offsets
-	int block_width = (half_width ? size/2 : size);
+	int block_width = max(0, bitmap_left) + glyph->width;
 	int block_height = size + size/2;
 	int width = block_width + GLYPH_BORDER_SIZE*2;
 	int height = block_height + GLYPH_BORDER_SIZE*2;
@@ -186,6 +187,27 @@ static float ft_font_size_char(struct font_size *size, uint32_t code)
 	return is_half_width(code) ? size->size / 2 : size->size;
 }
 
+static float ft_font_size_char_kerning(struct font_size *size, uint32_t code,
+		uint32_t code_next)
+{
+	struct font_ft *font = (struct font_ft*)size->font;
+
+	FT_UInt index = FT_Get_Char_Index(font->font, code);
+	FT_UInt next_index = FT_Get_Char_Index(font->font, code_next);
+
+	FT_Fixed advance;
+	FT_Get_Advance(font->font, index, FT_LOAD_DEFAULT, &advance);
+
+	if (!FT_HAS_KERNING(font->font)) {
+		return advance / 65536.f;
+	}
+
+	FT_Vector delta;
+	FT_Get_Kerning(font->font, index, next_index, FT_KERNING_DEFAULT, &delta);
+
+	return (advance / 65536.f) + (delta.x / 64.f);
+}
+
 struct font *ft_font_load(const char *path)
 {
 	struct font_ft *font = xcalloc(1, sizeof(struct font_ft));
@@ -225,7 +247,6 @@ struct font *ft_font_load(const char *path)
 	font->super.get_actual_size_round_down = ft_font_get_actual_size;
 	font->super.get_glyph = ft_font_get_glyph;
 	font->super.size_char = ft_font_size_char;
+	font->super.size_char_kerning = ft_font_size_char_kerning;
 	return &font->super;
 }
-
-

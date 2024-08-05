@@ -361,7 +361,21 @@ static int audio_get_time_length(struct id_pool *pool, int id)
 int wav_get_time_length(int id) { return audio_get_time_length(&wav, id); }
 int bgm_get_time_length(int id) { return audio_get_time_length(&bgm, id); }
 
-//int wav_get_group_num(int channel);
+static int audio_get_data_no(struct id_pool *pool, int id)
+{
+	struct channel *ch = id_pool_get(pool, id);
+	if (!ch)
+		return -1;
+	return channel_get_data_no(ch);
+}
+
+int wav_get_group_num(int id)
+{
+	int no = audio_get_data_no(&wav, id);
+	if (no < 0)
+		return 0;
+	return wav_get_group_num_from_data_num(no);
+}
 //int bgm_get_group_num(int channel);
 //int wav_prepare_from_file(int channel, char *filename);
 //int bgm_prepare_from_file(int channel, char *filename);

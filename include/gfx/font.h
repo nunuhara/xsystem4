@@ -68,6 +68,7 @@ struct font {
 	float (*get_actual_size_round_down)(struct font *font, float size);
 	bool (*get_glyph)(struct font_size *size, struct glyph *dst, uint32_t code, enum font_weight weight);
 	float (*size_char)(struct font_size *size, uint32_t code);
+	float (*size_char_kerning)(struct font_size *size, uint32_t code, uint32_t code_next);
 };
 
 struct text_style {
@@ -86,6 +87,27 @@ struct text_style {
 	float font_spacing;
 
 	// cached, for SengokuRanceFont
+	struct font_size *font_size;
+};
+
+enum text_render_mode {
+	RENDER_COPY,
+	RENDER_BLENDED,
+	RENDER_PMAP,
+	RENDER_AMAP,
+};
+
+struct text_render_metrics {
+	float x;
+	int y;
+	SDL_Color color;
+	enum font_weight weight;
+	float edge_width;
+	float scale_x;
+	float space_scale_x;
+	float font_spacing;
+	float edge_spacing;
+	enum text_render_mode mode;
 	struct font_size *font_size;
 };
 
@@ -132,11 +154,16 @@ int gfx_get_font_space(void);
 SDL_Color gfx_get_font_color(void);
 void gfx_set_font_name(const char *name);
 
+struct font_size *gfx_font_get_size(unsigned face, float size);
+enum font_weight gfx_int_to_font_weight(int weight);
+float _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm);
+
 int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend);
 float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend);
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text);
 void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text);
 float gfx_size_char(struct text_style *ts, const char *ch);
+float gfx_size_char_kerning(struct text_style *ts, uint32_t code, uint32_t code_next);
 float gfx_size_text(struct text_style *ts, const char *text);
 float gfx_get_actual_font_size(unsigned face, float size);
 float gfx_get_actual_font_size_round_down(unsigned face, float size);

@@ -962,7 +962,7 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_EXPORT(Sound_ReverseLR, wav_reverse_LR), \
 	    HLL_EXPORT(Sound_GetVolume, wav_get_volume), \
 	    HLL_EXPORT(Sound_GetTimeLength, wav_get_time_length), \
-	    HLL_TODO_EXPORT(Sound_GetGroupNum, SACT2_Sound_GetGroupNum), \
+	    HLL_EXPORT(Sound_GetGroupNum, wav_get_group_num), \
 	    HLL_TODO_EXPORT(Sound_PrepareFromFile, SACT2_Sound_PrepareFromFile), \
 	    HLL_EXPORT(System_GetDate, get_date), \
 	    HLL_EXPORT(System_GetTime, get_time), \
