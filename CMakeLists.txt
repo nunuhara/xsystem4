@@ -161,6 +161,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/MsgLogManager.c
   src/hll/MsgLogViewer.c
   src/hll/MsgSkip.c
+  src/hll/NewFont.c
   src/hll/OutputLog.c
   src/hll/PassRegister.c
   src/hll/PartsEngine.c
@@ -171,6 +172,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/SACT2.c
   src/hll/SengokuRanceFont.c
   src/hll/SoundFilePlayer.c
+  src/hll/Sound2ex.c
   src/hll/StoatSpriteEngine.c
   src/hll/StretchHelper.c
   src/hll/SystemService.c
