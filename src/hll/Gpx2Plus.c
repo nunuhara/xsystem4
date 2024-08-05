@@ -661,6 +661,21 @@ static gpx_effect_callback gpx_effects[NR_EFFECTS] = {
 	[EFFECT_OSCILLATE] = gpx_effect_oscillate,
 };
 
+static int fullscreen_effect(int effect, int dst_surf, int src_surf, int ms)
+{
+	Texture *dst = get_texture(0);
+	Texture *old = get_texture(dst_surf);
+	Texture *new = get_texture(src_surf);
+	for (int i = 0; i < ms; i += 16) {
+		effect_update_texture(effect, dst, old, new, (float)i / (float)ms);
+		Gpx2Plus_Update(0, 0, config.view_width, config.view_height);
+		SDL_Delay(16);
+	}
+	effect_update_texture(effect, dst, old, new, 1.0);
+	Gpx2Plus_Update(0, 0, config.view_width, config.view_height);
+	return 1;
+}
+
 static int Gpx2Plus_EffectCopy(int effect, int wx, int wy,
 							   int destSurface, int dx, int dy,
 							   int srcSurface, int sx, int sy,
@@ -686,6 +701,12 @@ static int Gpx2Plus_EffectCopy(int effect, int wx, int wy,
 		WARNING("Invalid or unknown effect: %d", effect);
 		effect = EFFECT_CROSSFADE;
 	}
+
+	if (!wx && !wy && !dx && !dy && !sx && !sy && width == config.view_width
+			&& height == config.view_height) {
+		return fullscreen_effect(effect, destSurface, srcSurface, totalTime);
+	}
+
 	if (!gpx_effects[effect]) {
 		WARNING("Unimplemented effect: %s", effect_names[effect]);
 		effect = EFFECT_CROSSFADE;

@@ -121,7 +121,7 @@ static void load_effect_shader(struct effect_shader *s)
 	s->s.prepare = prepare_effect_shader;
 }
 
-static void render_effect_shader(struct effect_shader *shader, Texture *old, Texture *new, float progress)
+static void render_effect_shader(struct effect_shader *shader, Texture *dst, Texture *old, Texture *new, float progress)
 {
 	struct effect_data data = { .old = old, .new = new, .progress = progress };
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
@@ -133,8 +133,8 @@ static void render_effect_shader(struct effect_shader *shader, Texture *old, Tex
 		.view_transform = wv_transform[0],
 		.data = &data
 	};
-	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, &effect.view, 0, 0,
-			effect.view.w, effect.view.h);
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, 0, 0,
+			dst->w, dst->h);
 	gfx_render(&job);
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 }
@@ -170,63 +170,54 @@ static struct effect_shader *effect_shaders[NR_EFFECTS] = {
 	[EFFECT_BLUR_CROSSFADE] = &blur_crossfade_shader,
 };
 
-static void effect_fadeout(float rate)
+static void effect_fadeout(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	gfx_copy_bright(gfx_main_surface(), 0, 0, &effect.old, 0, 0,
-			effect.old.w, effect.old.h, (1.0f - rate) * 255);
+	gfx_copy_bright(dst, 0, 0, old, 0, 0, old->w, old->h, (1.0f - rate) * 255);
 }
 
-static void effect_fadein(float rate)
+static void effect_fadein(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	Texture *new = gfx_main_surface();
-	gfx_copy_bright(&effect.view, 0, 0, new, 0, 0, new->w, new->h, rate * 255);
+	gfx_copy_bright(dst, 0, 0, new, 0, 0, new->w, new->h, rate * 255);
 }
 
-static void effect_whiteout(float rate)
+static void effect_whiteout(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	Texture *dst = &effect.view;
 	gfx_fill(dst, 0, 0, dst->w, dst->h, 255, 255, 255);
-	gfx_blend(dst, 0, 0, &effect.old, 0, 0, dst->w, dst->h, (1.0f - rate) * 255);
+	gfx_blend(dst, 0, 0, old, 0, 0, dst->w, dst->h, (1.0f - rate) * 255);
 }
 
-static void effect_whitein(float rate)
+static void effect_whitein(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	Texture *dst = &effect.view;
 	gfx_fill(dst, 0, 0, dst->w, dst->h, 255, 255, 255);
-	gfx_blend(dst, 0, 0, gfx_main_surface(), 0, 0, dst->w, dst->h, rate * 255);
+	gfx_blend(dst, 0, 0, new, 0, 0, dst->w, dst->h, rate * 255);
 }
 
-static void effect_zoom_lr(float rate)
+static void effect_zoom_lr(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	Texture *dst = &effect.view;
-	Texture *new = gfx_main_surface();
 	unsigned x_pos = roundf(dst->w * rate);
-	gfx_copy_stretch(dst, x_pos, 0, dst->w-x_pos, dst->h, &effect.old, 0, 0, effect.old.w, effect.old.h);
+	gfx_copy_stretch(dst, x_pos, 0, dst->w-x_pos, dst->h, old, 0, 0, old->w, old->h);
 	gfx_copy_stretch(dst, 0, 0, x_pos, dst->h, new, 0, 0, new->w, new->h);
 }
 
-static void effect_zoom_rl(float rate)
+static void effect_zoom_rl(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	Texture *dst = &effect.view;
-	Texture *new = gfx_main_surface();
 	unsigned x_pos = dst->w - roundf(dst->w * rate);
 	gfx_copy_stretch(dst, x_pos, 0, dst->w-x_pos, dst->h, new, 0, 0, new->w, new->h);
-	gfx_copy_stretch(dst, 0, 0, x_pos, dst->h, &effect.old, 0, 0, effect.old.w, effect.old.h);
+	gfx_copy_stretch(dst, 0, 0, x_pos, dst->h, old, 0, 0, old->w, old->h);
 }
 
-static void effect_oscillate(float rate)
+static void effect_oscillate(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	Texture *dst = &effect.view;
 	int delta_x = (rand() % (dst->w / 10) - (dst->w / 20)) * (1.0f - rate);
 	int delta_y = (rand() % (dst->h / 10) - (dst->h / 20)) * (1.0f - rate);;
 
-	gfx_copy(dst, 0, 0, &effect.old, 0, 0, dst->w, dst->h);
-	gfx_copy(dst, delta_x, delta_y, gfx_main_surface(), 0, 0, dst->w, dst->h);
+	gfx_copy(dst, 0, 0, old, 0, 0, dst->w, dst->h);
+	gfx_copy(dst, delta_x, delta_y, new, 0, 0, dst->w, dst->h);
 }
 
-static void effect_tv_switch(float rate, Texture *src)
+static void effect_tv_switch(Texture *dst, Texture *src, float rate)
 {
-	Texture *dst = gfx_main_surface();
+	gfx_fill(dst, 0, 0, dst->w, dst->h, 0, 0, 0);
 	if (rate < 0.5f) {
 		int h = max(1, (int)(dst->h * (1.0f - rate * 2.0f)));
 		gfx_copy_stretch(dst, 0, dst->h * rate, dst->w, h,
@@ -239,19 +230,18 @@ static void effect_tv_switch(float rate, Texture *src)
 	}
 }
 
-static void effect_tv_switch_off(float rate)
+static void effect_tv_switch_off(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	effect_tv_switch(rate, &effect.old);
+	effect_tv_switch(dst, old, rate);
 }
 
-static void effect_tv_switch_on(float rate)
+static void effect_tv_switch_on(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	effect_tv_switch(1.0f - rate, gfx_main_surface());
+	effect_tv_switch(dst, new, 1.0f - rate);
 }
 
-static void effect_zoom_in_crossfade(float rate)
+static void effect_zoom_in_crossfade(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	Texture *dst = gfx_main_surface();
 	float scale = 1.0f + powf(rate, 4.0f) * 16.0f;
 	int w = roundf(dst->w * scale);
 	int h = roundf(dst->h * scale);
@@ -259,11 +249,11 @@ static void effect_zoom_in_crossfade(float rate)
 	int y = -((h - dst->h)/2);
 	int a = (1.0f - rate) * 255;
 
-	gfx_copy(dst, 0, 0, gfx_main_surface(), 0, 0, dst->w, dst->h);
-	gfx_copy_stretch_blend(dst, x, y, w, h, &effect.old, 0, 0, dst->w, dst->h, a);
+	gfx_copy(dst, 0, 0, new, 0, 0, dst->w, dst->h);
+	gfx_copy_stretch_blend(dst, x, y, w, h, old, 0, 0, dst->w, dst->h, a);
 }
 
-typedef void (*effect_fun)(float rate);
+typedef void (*effect_fun)(Texture *dst, Texture *old, Texture *new, float rate);
 static effect_fun effect_functions[NR_EFFECTS] = {
 	[EFFECT_FADEOUT]           = effect_fadeout,
 	[EFFECT_FADEIN]            = effect_fadein,
@@ -276,6 +266,22 @@ static effect_fun effect_functions[NR_EFFECTS] = {
 	[EFFECT_ZOOM_RL]           = effect_zoom_rl,
 	[EFFECT_ZOOM_IN_CROSSFADE] = effect_zoom_in_crossfade,
 };
+
+void effect_update_texture(int type, Texture *dst, Texture *old, Texture *new, float rate)
+{
+	if (effect_functions[type]) {
+		effect_functions[type](dst, old, new, rate);
+	} else {
+		struct effect_shader *s = effect_shaders[type];
+		if (!s) {
+			WARNING("Unimplemented effect: %s", effect_names[type]);
+			s = effect_shaders[EFFECT_BLUR_CROSSFADE];
+		}
+		if (!s->s.program)
+			load_effect_shader(s);
+		render_effect_shader(s, dst, old, new, rate);
+	}
+}
 
 int effect_init(enum effect type)
 {
@@ -317,11 +323,11 @@ int effect_update(float rate)
 	}
 
 	if (effect_functions[effect.type]) {
-		effect_functions[effect.type](rate);
+		effect_functions[effect.type](&effect.view, &effect.old, gfx_main_surface(), rate);
 	} else {
 		Texture new;
 		gfx_copy_main_surface(&new);
-		render_effect_shader(effect_shaders[effect.type], &effect.old, &new, rate);
+		render_effect_shader(effect_shaders[effect.type], &effect.view, &effect.old, &new, rate);
 		gfx_delete_texture(&new);
 	}
 

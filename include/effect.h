@@ -17,6 +17,8 @@
 #ifndef SYSTEM4_EFFECT_H
 #define SYSTEM4_EFFECT_H
 
+struct texture;
+
 enum effect {
 	EFFECT_CROSSFADE              = 1,
 	EFFECT_FADEOUT                = 2,
@@ -76,6 +78,7 @@ enum effect {
 extern const char *effect_names[NR_EFFECTS];
 
 int effect_init(enum effect type);
+void effect_update_texture(int type, struct texture *dst, struct texture *old, struct texture *new, float rate);
 int effect_update(float rate);
 int effect_fini(void);
 
