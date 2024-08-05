@@ -67,6 +67,7 @@ void log_message(const char *log, const char *fmt, ...);
 
 char *unix_path(const char *path);
 char *gamedir_path(const char *path);
+char *gamedir_path_icase(const char *path);
 char *savedir_path(const char *path);
 
 void get_date(int *year, int *month, int *mday, int *wday);

@@ -23,6 +23,7 @@
 #include <ctype.h>
 
 #include "system4.h"
+#include "system4/file.h"
 #include "system4/utfsjis.h"
 
 #include "xsystem4.h"
@@ -144,6 +145,17 @@ static char *resolve_path(const char *dir, const char *path)
 char *gamedir_path(const char *path)
 {
 	return resolve_path(config.game_dir, path);
+}
+
+char *gamedir_path_icase(const char *path)
+{
+	char *resolved = resolve_path(config.game_dir, path);
+	if (!file_exists(resolved)) {
+		char *tmp = path_get_icase(resolved);
+		free(resolved);
+		resolved = tmp;
+	}
+	return resolved;
 }
 
 char *savedir_path(const char *path)
