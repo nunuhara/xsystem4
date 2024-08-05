@@ -119,8 +119,6 @@ static cJSON *funcall_to_json(struct function_call *call)
 	cJSON_AddNumberToObject(json, "return-address", call->return_address);
 	cJSON_AddNumberToObject(json, "local-page", call->page_slot);
 	cJSON_AddNumberToObject(json, "struct-page", call->struct_page);
-	if (call->delegate >= 0)
-		cJSON_AddNumberToObject(json, "delegate", call->delegate);
 	return json;
 }
 
@@ -674,13 +672,11 @@ static void load_json_call_stack(cJSON *json)
 	cJSON *item;
 	cJSON_ArrayForEach(item, json) {
 		type_check(cJSON_Object, item);
-		cJSON *delegate = cJSON_GetObjectItem(item, "delegate");
 		call_stack[call_stack_ptr++] = (struct function_call) {
 			.fno            = type_check(cJSON_Number, cJSON_GetObjectItem(item, "function"))->valueint,
 			.return_address = type_check(cJSON_Number, cJSON_GetObjectItem(item, "return-address"))->valueint,
 			.page_slot      = type_check(cJSON_Number, cJSON_GetObjectItem(item, "local-page"))->valueint,
 			.struct_page    = type_check(cJSON_Number, cJSON_GetObjectItem(item, "struct-page"))->valueint,
-			.delegate       = delegate ? type_check(cJSON_Number, delegate)->valueint : -1
 		};
 	}
 }
@@ -710,7 +706,6 @@ static void load_rsave_call_stack(struct rsave *save)
 				.return_address = return_address,
 				.page_slot      = save->call_frames[i].local_ptr,
 				.struct_page    = save->call_frames[i].struct_ptr,
-				.delegate       = -1,
 			};
 			// Calculate return address from the function address and offset
 			// to make it robust to ain changes.

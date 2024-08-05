@@ -317,7 +317,6 @@ static void scenario_call(int slot)
 		.return_address = VM_RETURN,
 		.page_slot = slot,
 		.struct_page = -1,
-		.delegate = -1,
 	};
 	call_stack_ptr = 1;
 	instr_ptr = ain->functions[fno].address;
@@ -342,7 +341,6 @@ static int _function_call(int fno, int return_address)
 		.return_address = return_address,
 		.page_slot = slot,
 		.struct_page = -1,
-		.delegate = -1,
 	};
 	// initialize local variables
 	for (int i = f->nr_args; i < f->nr_vars; i++) {
@@ -398,6 +396,8 @@ static void delegate_call(int dg_no, int return_address)
 		if (ain->delegates[dg_no].return_type.data != AIN_VOID) {
 			stack_pop();
 		}
+		// increment dg_index
+		stack[stack_ptr - 1].i++;
 
 		int slot = _function_call(fun, instr_ptr + instruction_width(DG_CALL));
 
@@ -409,7 +409,6 @@ static void delegate_call(int dg_no, int return_address)
 		}
 
 		call_stack[call_stack_ptr-1].struct_page = obj;
-		call_stack[call_stack_ptr-1].delegate = dg_no;
 	} else {
 		// call finished: clean up stack and jump to return address
 		union vm_value r;
@@ -445,14 +444,6 @@ static void function_return(void)
 {
 	heap_unref(call_stack[call_stack_ptr-1].page_slot);
 	instr_ptr = call_stack[call_stack_ptr-1].return_address;
-	if (call_stack[call_stack_ptr-1].delegate >= 0) {
-		const int dg = call_stack[call_stack_ptr-1].delegate;
-		if (ain->delegates[dg].return_type.data != AIN_VOID) {
-			stack[stack_ptr-2].i++;
-		} else {
-			stack[stack_ptr-1].i++;
-		}
-	}
 	call_stack_ptr--;
 }
 
