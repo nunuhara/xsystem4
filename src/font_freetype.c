@@ -98,7 +98,7 @@ static float ft_font_get_actual_size(struct font *_, float size)
 static Rectangle init_glyph_texture(Texture *dst, FT_Bitmap *glyph, int bitmap_left, int bitmap_top, int size, bool half_width)
 {
 	// calculate block size and offsets
-	int block_width = max(0, bitmap_left) + glyph->width;
+	int block_width = max(half_width ? size/2 : size, max(0, bitmap_left) + glyph->width);
 	int block_height = size + size/2;
 	int width = block_width + GLYPH_BORDER_SIZE*2;
 	int height = block_height + GLYPH_BORDER_SIZE*2;
