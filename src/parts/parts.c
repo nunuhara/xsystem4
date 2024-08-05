@@ -797,7 +797,7 @@ bool parts_numeral_set_number(struct parts *parts, struct parts_numeral *num, in
 
 void parts_set_state(struct parts *parts, enum parts_state_type state)
 {
-	if (parts->state != state) {
+	if (parts->state != state && parts->states[state].type != PARTS_UNINITIALIZED) {
 		parts->state = state;
 		parts_dirty(parts);
 	}
@@ -1744,7 +1744,6 @@ bool PE_SetThumbnailMode(bool mode)
 	return true;
 }
 
-//void parts_set_state(struct parts *parts, enum parts_state_type state)
 void PE_SetInputState(int parts_no, int state)
 {
 	if (!parts_state_valid(--state)) {
