@@ -116,7 +116,14 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, ChipmunkSpriteEngine, KeepPreviousView);
 
 static void ChipmunkSpriteEngine_Sleep(void)
 {
-	SDL_Delay(16);
+	static int prev_time = 0;
+	int this_time = vm_time();
+	int delta = this_time - prev_time;
+	prev_time = this_time;
+
+	if (delta >= 12)
+		return;
+	SDL_Delay(12 - delta);
 }
 
 //static bool ChipmunkSpriteEngine_SP_SetCutCG(int sp_no, int cg_no, int cut_x, int cut_y, int cut_w, int cut_h);
