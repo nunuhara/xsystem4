@@ -54,7 +54,7 @@ issues, please let me know or open a pull request to update this table.
 | お嬢様をいいなりにするゲーム                            | Unknown     |       |
 | 超昂閃忍ハルカ                                          | Unknown     |       |
 | 戦国ランス～三匹が斬ったり突いたり燃やしたり            | Supported   |       |
-| Sengoku Rance -Three for the Slash! Thrust! Burn!- (EN) | Unknown     |       |
+| Sengoku Rance -Three for the Slash! Thrust! Burn!- (EN) | Supported   |       |
 | AliveZ                                                  | Unknown     |       |
 | エドランゼ ～Come on!水戸姫様～                         | Unknown     |       |
 | 闘神都市III                                             | Supported   |       |
