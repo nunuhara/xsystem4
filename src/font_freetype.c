@@ -191,6 +191,7 @@ static float ft_font_size_char_kerning(struct font_size *size, uint32_t code,
 		uint32_t code_next)
 {
 	struct font_ft *font = (struct font_ft*)size->font;
+	ft_font_set_size(font, size->size);
 
 	FT_UInt index = FT_Get_Char_Index(font->font, code);
 	FT_UInt next_index = FT_Get_Char_Index(font->font, code_next);
