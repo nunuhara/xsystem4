@@ -101,6 +101,9 @@ static cJSON *heap_item_to_json(int i, possibly_unused void *_)
 		cJSON_AddItemToArray(item, cJSON_CreateString(heap[i].s->text));
 		break;
 	}
+	if (ain->nr_delegates > 0) {
+		cJSON_AddItemToArray(item, cJSON_CreateNumber(heap[i].seq));
+	}
 	return item;
 }
 
@@ -147,6 +150,9 @@ static cJSON *vm_image_to_json(const char *key)
 	cJSON_AddItemToObject(image, "call-stack", call_stack_to_json());
 	cJSON_AddItemToObject(image, "stack", stack_to_json());
 	cJSON_AddNumberToObject(image, "ip", instr_ptr);
+	if (ain->nr_delegates > 0) {
+		cJSON_AddNumberToObject(image, "next_seq", heap_next_seq);
+	}
 	return image;
 }
 
@@ -507,15 +513,19 @@ static void load_json_heap(cJSON *json)
 	cJSON *item;
 	cJSON_ArrayForEach(item, json) {
 		type_check(cJSON_Array, item);
-		if (cJSON_GetArraySize(item) != 3)
+		if (cJSON_GetArraySize(item) < 3)
 			invalid_save_data("Invalid heap data");
 
 		int slot = type_check(cJSON_Number, cJSON_GetArrayItem(item, 0))->valueint;
 		int ref  = type_check(cJSON_Number, cJSON_GetArrayItem(item, 1))->valueint;
 		cJSON *value = cJSON_GetArrayItem(item, 2);
+		int seq = ain->nr_delegates > 0
+			? type_check(cJSON_Number, cJSON_GetArrayItem(item, 3))->valueint
+			: slot;
 
 		alloc_heap_slot(slot);
 		heap[slot].ref = ref;
+		heap[slot].seq = seq;
 
 		if (cJSON_IsString(value)) {
 			load_json_string(slot, value);
@@ -770,6 +780,12 @@ static void load_json_image(const char *key, const char *path)
 	load_json_call_stack(type_check(cJSON_Array, cJSON_GetObjectItem(save, "call-stack")));
 	load_json_stack(type_check(cJSON_Array, cJSON_GetObjectItem(save, "stack")));
 	instr_ptr = ip->valueint;
+	if (ain->nr_delegates > 0) {
+		cJSON *next_seq = type_check(cJSON_Number, cJSON_GetObjectItem(save, "next_seq"));
+		heap_next_seq = next_seq->valueint;
+	} else {
+		heap_next_seq = heap_size;
+	}
 	cJSON_Delete(save);
 }
 

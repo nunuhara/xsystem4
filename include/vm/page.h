@@ -50,8 +50,8 @@ enum page_type {
  * Multi-dimensional arrays are implemented as a tree of pages (meaning the
  * whole array is NOT contiguous in memory).
  *
- * Delegates: each delegate object is backed by a page storing object/function
- * pairs.
+ * Delegates: each delegate object is backed by a page storing (object,
+ * function, seq) triples.
  */
 struct page {
 	enum page_type type;
@@ -139,6 +139,6 @@ struct page *delegate_append(struct page *dst, int obj, int fun);
 struct page *delegate_plusa(struct page *dst, struct page *add);
 struct page *delegate_minusa(struct page *dst, struct page *minus);
 struct page *delegate_clear(struct page *page);
-void delegate_get(struct page *page, int i, int *obj_out, int *fun_out);
+bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out);
 
 #endif /* SYSTEM4_PAGE_H */

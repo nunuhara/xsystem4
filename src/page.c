@@ -176,13 +176,8 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 			*array_rank = page->array.rank - 1;
 		return page->array.rank > 1 ? page->a_type : array_type(page->a_type);
 	case DELEGATE_PAGE:
-		if (varno % 2 == 0) {
-			if (struct_type && page->values[varno].i >= 0)
-				*struct_type = heap_get_page(page->values[varno].i)->index;
-			if (array_rank)
-				*array_rank = -1;
-			return AIN_REF_STRUCT;
-		}
+		// XXX: we return void here because objects in a delegate page aren't
+		//      reference counted
 		return AIN_VOID;
 	}
 	return AIN_VOID;
@@ -629,12 +624,10 @@ void array_reverse(struct page *page)
 
 struct page *delegate_new_from_method(int obj, int fun)
 {
-	struct page *page = alloc_page(DELEGATE_PAGE, 0, 2);
+	struct page *page = alloc_page(DELEGATE_PAGE, 0, 3);
 	page->values[0].i = obj;
 	page->values[1].i = fun;
-	if (obj >= 0) {
-		heap_ref(obj);
-	}
+	page->values[2].i = heap_get_seq(obj);
 	return page;
 }
 
@@ -642,8 +635,10 @@ bool delegate_contains(struct page *dst, int obj, int fun)
 {
 	if (!dst)
 		return false;
-	for (int i = 0; i < dst->nr_vars; i += 2) {
-		if (dst->values[i].i == obj && dst->values[i+1].i == fun)
+	for (int i = 0; i < dst->nr_vars; i += 3) {
+		if (dst->values[i].i == obj &&
+		    dst->values[i+1].i == fun &&
+		    dst->values[i+2].i == heap_get_seq(obj))
 			return true;
 	}
 	return false;
@@ -658,12 +653,11 @@ struct page *delegate_append(struct page *dst, int obj, int fun)
 	if (delegate_contains(dst, obj, fun))
 		return dst;
 
-	dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * (dst->nr_vars + 2));
+	dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * (dst->nr_vars + 3));
 	dst->values[dst->nr_vars+0].i = obj;
 	dst->values[dst->nr_vars+1].i = fun;
-	dst->nr_vars += 2;
-	if (obj >= 0)
-		heap_ref(obj);
+	dst->values[dst->nr_vars+2].i = heap_get_seq(obj);
+	dst->nr_vars += 3;
 	return dst;
 }
 
@@ -673,7 +667,20 @@ int delegate_numof(struct page *page)
 		return 0;
 	if (page->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
-	return page->nr_vars / 2;
+
+	// garbage collection
+	for (int i = 0; i < page->nr_vars; i += 3) {
+		if (heap_get_seq(page->values[i].i) != page->values[i+2].i) {
+			for (int j = i+3; j < page->nr_vars; j += 3) {
+				page->values[j-3].i = page->values[j+0].i;
+				page->values[j-2].i = page->values[j+1].i;
+				page->values[j-1].i = page->values[j+2].i;
+			}
+			page->nr_vars -= 3;
+			i -= 3;
+		}
+	}
+	return page->nr_vars / 3;
 }
 
 void delegate_erase(struct page *page, int obj, int fun)
@@ -682,15 +689,14 @@ void delegate_erase(struct page *page, int obj, int fun)
 		return;
 	if (page->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
-	for (int i = 0; i < page->nr_vars; i+= 2) {
+	for (int i = 0; i < page->nr_vars; i += 3) {
 		if (page->values[i].i == obj && page->values[i+1].i == fun) {
-			if (page->values[i].i >= 0)
-				heap_unref(page->values[i].i);
-			for (int j = i+2; j < page->nr_vars; j += 2) {
-				page->values[j-2].i = page->values[j+0].i;
-				page->values[j-1].i = page->values[j+1].i;
+			for (int j = i+3; j < page->nr_vars; j += 3) {
+				page->values[j-3].i = page->values[j+0].i;
+				page->values[j-2].i = page->values[j+1].i;
+				page->values[j-1].i = page->values[j+2].i;
 			}
-			page->nr_vars -= 2;
+			page->nr_vars -= 3;
 			break;
 		}
 	}
@@ -703,8 +709,9 @@ struct page *delegate_plusa(struct page *dst, struct page *add)
 	if ((dst && dst->type != DELEGATE_PAGE) || add->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
 
-	for (int i = 0; i < add->nr_vars; i += 2) {
-		dst = delegate_append(dst, add->values[i].i, add->values[i+1].i);
+	for (int i = 0; i < add->nr_vars; i += 3) {
+		if (heap_get_seq(add->values[i].i) == add->values[i+2].i)
+			dst = delegate_append(dst, add->values[i].i, add->values[i+1].i);
 	}
 	return dst;
 }
@@ -718,8 +725,9 @@ struct page *delegate_minusa(struct page *dst, struct page *minus)
 	if (dst->type != DELEGATE_PAGE || minus->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
 
-	for (int i = 0; i < minus->nr_vars; i += 2) {
-		delegate_erase(dst, minus->values[i].i, minus->values[i+1].i);
+	for (int i = 0; i < minus->nr_vars; i += 3) {
+		if (heap_get_seq(minus->values[i].i) == minus->values[i+2].i)
+			delegate_erase(dst, minus->values[i].i, minus->values[i+1].i);
 	}
 
 	return dst;
@@ -731,23 +739,34 @@ struct page *delegate_clear(struct page *page)
 		return NULL;
 	if (page->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
-	for (int i = 0; i < page->nr_vars; i += 2) {
-		if (page->values[i].i >= 0)
-			heap_unref(page->values[i].i);
+	for (int i = 0; i < page->nr_vars; i += 3) {
 		page->values[i].i = -1;
 		page->values[i+1].i = -1;
+		page->values[i+2].i = 0;
 	}
 	page->index = 0;
 	page->nr_vars = 0;
 	return page;
 }
 
-void delegate_get(struct page *page, int i, int *obj_out, int *fun_out)
+bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out)
 {
+	if (!page)
+		return false;
 	if (page->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
-	if (i*2 >= page->nr_vars)
-		VM_ERROR("Invalid delegate index: %d", i);
-	*obj_out = page->values[i*2].i;
-	*fun_out = page->values[i*2+1].i;
+	while (i*3 < page->nr_vars) {
+		if (heap_get_seq(page->values[i*3].i) == page->values[i*3+2].i) {
+			*obj_out = page->values[i*3].i;
+			*fun_out = page->values[i*3+1].i;
+			return true;
+		}
+		for (int j = (i + 1) * 3; j < page->nr_vars; j += 3) {
+			page->values[j-3].i = page->values[j+0].i;
+			page->values[j-2].i = page->values[j+1].i;
+			page->values[j-1].i = page->values[j+2].i;
+		}
+		page->nr_vars -= 3;
+	}
+	return false;
 }

@@ -385,24 +385,47 @@ static void vm_execute(void);
 
 static void delegate_call(int dg_no, int return_address)
 {
-	// stack: [arg0, ..., dg_page, dg_index]
-	int dg_page = stack_peek(1).i;
-	int dg_index = stack_peek(0).i;
+	if (dg_no < 0 || dg_no >= ain->nr_delegates)
+		VM_ERROR("Invalid delegate index");
 
+	// stack: [arg0, ..., dg_page, dg_index, [return_value]]
+	int return_values = (ain->delegates[dg_no].return_type.data != AIN_VOID) ? 1 : 0;
+	int dg_page = stack_peek(1 + return_values).i;
+	int dg_index = stack_peek(0 + return_values).i;
 	int obj, fun;
-	delegate_get(heap_get_delegate_page(dg_page), dg_index, &obj, &fun);
+	if (delegate_get(heap_get_delegate_page(dg_page), dg_index, &obj, &fun)) {
+		// pop previous return value
+		if (ain->delegates[dg_no].return_type.data != AIN_VOID) {
+			stack_pop();
+		}
 
-	int slot = _function_call(fun, return_address);
+		int slot = _function_call(fun, instr_ptr + instruction_width(DG_CALL));
 
-	// copy arguments into local page
-	struct ain_function_type *dg = &ain->delegates[dg_no];
-	for (int i = 0; i < dg->nr_arguments; i++) {
-		union vm_value arg = stack_peek((dg->nr_arguments + 1) - i);
-		heap[slot].page->values[i] = vm_copy(arg, dg->variables[i].type.data);
+		// copy arguments into local page
+		struct ain_function_type *dg = &ain->delegates[dg_no];
+		for (int i = 0; i < dg->nr_arguments; i++) {
+			union vm_value arg = stack_peek((dg->nr_arguments + 1) - i);
+			heap[slot].page->values[i] = vm_copy(arg, dg->variables[i].type.data);
+		}
+
+		call_stack[call_stack_ptr-1].struct_page = obj;
+		call_stack[call_stack_ptr-1].delegate = dg_no;
+	} else {
+		// call finished: clean up stack and jump to return address
+		union vm_value r;
+		if (return_values) {
+			r = stack_pop();
+		}
+		stack_pop(); // dg_index
+		stack_pop(); // dg_page
+		for (int i = ain->delegates[dg_no].nr_variables - 1; i >= 0; i--) {
+			variable_fini(stack_pop(), ain->delegates[dg_no].variables[i].type.data);
+		}
+		if (return_values) {
+			stack_push(r);
+		}
+		instr_ptr = get_argument(1);
 	}
-
-	call_stack[call_stack_ptr-1].struct_page = obj;
-	call_stack[call_stack_ptr-1].delegate = dg_no;
 }
 
 void vm_call(int fno, int struct_page)
@@ -2152,38 +2175,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case DG_CALL: { // DG_TYPE, ADDR
-		int dg = get_argument(0);
-		if (dg < 0 || dg >= ain->nr_delegates)
-			VM_ERROR("Invalid delegate index");
-
-		// stack: [arg0, ..., dg_page, dg_index, [return_value]]
-		int return_values = (ain->delegates[dg].return_type.data != AIN_VOID) ? 1 : 0;
-		int dg_page = stack_peek(1 + return_values).i;
-		int dg_index = stack_peek(0 + return_values).i;
-		if (dg_index < delegate_numof(heap_get_page(dg_page))) {
-			int obj, fun;
-			delegate_get(heap_get_delegate_page(dg_page), dg_index, &obj, &fun);
-			// pop previous return value
-			if (ain->delegates[dg].return_type.data != AIN_VOID) {
-				stack_pop();
-			}
-			delegate_call(dg, instr_ptr + instruction_width(DG_CALL));
-		} else {
-			// call finished: clean up stack and jump to return address
-			union vm_value r;
-			if (return_values) {
-				r = stack_pop();
-			}
-			stack_pop(); // dg_index
-			stack_pop(); // dg_page
-			for (int i = ain->delegates[dg].nr_variables - 1; i >= 0; i--) {
-				variable_fini(stack_pop(), ain->delegates[dg].variables[i].type.data);
-			}
-			if (return_values) {
-				stack_push(r);
-			}
-			instr_ptr = get_argument(1);
-		}
+		delegate_call(get_argument(0), get_argument(1));
 		break;
 	}
 	case DG_NUMOF: {
@@ -2350,6 +2342,7 @@ int vm_execute_ain(struct ain *program)
 
 	// Initialize globals
 	heap[0].ref = 1;
+	heap[0].seq = heap_next_seq++;
 	heap_set_page(0, alloc_page(GLOBAL_PAGE, 0, ain->nr_globals));
 	for (int i = 0; i < ain->nr_globals; i++) {
 		if (ain->globals[i].type.data == AIN_STRUCT) {

@@ -33,6 +33,7 @@ enum vm_pointer_type {
 // Heap-backed objects. Reference counted.
 struct vm_pointer {
 	int ref;
+	uint32_t seq;
 	enum vm_pointer_type type;
 	union {
 		struct string *s;
@@ -60,6 +61,8 @@ void heap_ref(int slot);
 void heap_unref(int slot);
 void exit_unref(int slot);
 
+uint32_t heap_get_seq(int slot);
+
 bool heap_index_valid(int index);
 bool page_index_valid(int index);
 bool string_index_valid(int index);
@@ -86,6 +89,7 @@ void heap_guarantee(unsigned headroom);
 
 #ifdef VM_PRIVATE
 
+extern uint32_t heap_next_seq;
 extern int32_t *heap_free_stack;
 extern size_t heap_free_ptr;
 
