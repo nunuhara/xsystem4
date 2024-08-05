@@ -30,6 +30,7 @@
 
 struct vm_pointer *heap = NULL;
 size_t heap_size = 0;
+uint32_t heap_next_seq;
 
 // Heap free list
 // This is a list of unused indices into the 'heap' array.
@@ -86,6 +87,7 @@ void heap_init(void)
 		heap_free_stack[i] = i;
 	}
 	heap_free_ptr = 1; // global page at index 0
+	heap_next_seq = 1;
 }
 
 int32_t heap_alloc_slot(enum vm_pointer_type type)
@@ -96,6 +98,7 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 
 	int32_t slot = heap_free_stack[heap_free_ptr++];
 	heap[slot].ref = 1;
+	heap[slot].seq = heap_next_seq++;
 	heap[slot].type = type;
 #ifdef DEBUG_HEAP
 	heap[slot].alloc_addr = instr_ptr;
@@ -110,6 +113,7 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 
 static void heap_free_slot(int32_t slot)
 {
+	heap[slot].seq = 0;
 	heap_free_stack[--heap_free_ptr] = slot;
 }
 
@@ -212,6 +216,11 @@ void exit_unref(int slot)
 	heap_free_slot(slot);
 }
 
+uint32_t heap_get_seq(int slot)
+{
+	return heap_index_valid(slot) ? heap[slot].seq : 0;
+}
+
 bool heap_index_valid(int index)
 {
 	return index >= 0 && (size_t)index < heap_size && heap[index].ref > 0;
@@ -239,14 +248,6 @@ struct string *heap_get_string(int index)
 	if (unlikely(!string_index_valid(index)))
 		VM_ERROR("Invalid string index: %d", index);
 	return heap[index].s;
-}
-
-struct page *heap_get_struct_page(int index)
-{
-	struct page *page = heap_get_page(index);
-	if (unlikely(!page || page->type != STRUCT_PAGE))
-		VM_ERROR("Not a struct page: %d", index);
-	return page;
 }
 
 struct page *heap_get_delegate_page(int index)
