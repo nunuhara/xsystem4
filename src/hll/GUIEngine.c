@@ -47,8 +47,17 @@ bool GUIEngine_Load(struct page **buffer)
 }
 
 //static void GUIEngine_Release(int PartsNumber);
-//static void GUIEngine_ReleaseAll(ref array<int> EraseNumberList);
-//static void GUIEngine_ReleaseAllWithoutSystem(ref array<int> EraseNumberList);
+
+static void GUIEngine_ReleaseAll(possibly_unused struct page **erase_number_list)
+{
+	PE_ReleaseAllParts();
+}
+
+static void GUIEngine_ReleaseAllWithoutSystem(possibly_unused struct page **erase_number_list)
+{
+	PE_ReleaseAllPartsWithoutSystem();
+}
+
 //static void GUIEngine_SetDelegateIndex(int PartsNumber, int DelegateIndex);
 //static int GUIEngine_GetFreeNumber(void)
 //static bool GUIEngine_IsExist(int PartsNumber);
@@ -447,7 +456,12 @@ HLL_QUIET_UNIMPLEMENTED(0, int, GUIEngine, GetMessageType);
 //static void GUIEngine_Parts_SetOnCursorShowLinkPartsNumber(int PartsNumber, int LinkPartsNumber);
 //static void GUIEngine_Parts_SetPartsMessageWindowShowLink(int PartsNumber, bool MessageWindowShowLink);
 //static void GUIEngine_Parts_SetSoundNumber(int PartsNumber, int SoundNumber, int State);
-//static void GUIEngine_Parts_SetClickMissSoundNumber(int SoundNumber);
+
+static void GUIEngine_Parts_SetClickMissSoundNumber(int sound_number)
+{
+	PE_SetClickMissSoundNumber(sound_number);
+}
+
 //static void GUIEngine_Parts_SetPartsMagX(int PartsNumber, float MagX);
 //static void GUIEngine_Parts_SetPartsMagY(int PartsNumber, float MagY);
 //static void GUIEngine_Parts_SetPartsRotateX(int PartsNumber, float RotateX);
@@ -520,8 +534,8 @@ HLL_LIBRARY(GUIEngine,
 	    HLL_EXPORT(_ModuleFini, GUIEngine_ModuleFini),
 	    HLL_EXPORT(Init, PE_Init),
 	    HLL_EXPORT(Release, PE_ReleaseParts),
-	    HLL_EXPORT(ReleaseAll, PE_ReleaseAllParts),
-	    HLL_EXPORT(ReleaseAllWithoutSystem, PE_ReleaseAllPartsWithoutSystem),
+	    HLL_EXPORT(ReleaseAll, GUIEngine_ReleaseAll),
+	    HLL_EXPORT(ReleaseAllWithoutSystem, GUIEngine_ReleaseAllWithoutSystem),
 	    HLL_EXPORT(SetDelegateIndex, PE_SetDelegateIndex),
 	    HLL_EXPORT(GetFreeNumber, PE_GetFreeNumber),
 	    HLL_EXPORT(IsExist, PE_IsExist),
@@ -917,7 +931,7 @@ HLL_LIBRARY(GUIEngine,
 	    HLL_EXPORT(Parts_SetOnCursorShowLinkPartsNumber, PE_SetOnCursorShowLinkPartsNumber),
 	    HLL_EXPORT(Parts_SetPartsMessageWindowShowLink, PE_SetPartsMessageWindowShowLink),
 	    HLL_TODO_EXPORT(Parts_SetSoundNumber, GUIEngine_Parts_SetSoundNumber),
-	    HLL_EXPORT(Parts_SetClickMissSoundNumber, PE_SetClickMissSoundNumber),
+	    HLL_EXPORT(Parts_SetClickMissSoundNumber, GUIEngine_Parts_SetClickMissSoundNumber),
 	    HLL_EXPORT(Parts_SetPartsMagX, PE_SetPartsMagX),
 	    HLL_EXPORT(Parts_SetPartsMagY, PE_SetPartsMagY),
 	    HLL_EXPORT(Parts_SetPartsRotateX, PE_SetPartsRotateX),

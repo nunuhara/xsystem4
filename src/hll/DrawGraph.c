@@ -263,9 +263,34 @@ static void DrawGraph_DrawTextToAMap(int dst, int x, int y, struct string *s)
 	gfx_draw_text_to_amap(DTEX(dst), x, y, s->text);
 }
 
+static void DrawGraph_SetFontSize(int size)
+{
+	gfx_set_font_size(size);
+}
+
 static void DrawGraph_SetFontName(struct string *text)
 {
 	gfx_set_font_name(text->text);
+}
+
+static void DrawGraph_SetFontWeight(int weight)
+{
+	gfx_set_font_weight(weight);
+}
+
+static void DrawGraph_SetFontUnderline(int flag)
+{
+	gfx_set_font_underline(flag);
+}
+
+static void DrawGraph_SetFontStrikeOut(int flag)
+{
+	gfx_set_font_strikeout(flag);
+}
+
+static void DrawGraph_SetFontSpace(int space)
+{
+	gfx_set_font_space(space);
 }
 
 HLL_WARN_UNIMPLEMENTED(string_ref(&EMPTY_STRING), struct string*, DrawGraph, GetFontName, void);
@@ -467,12 +492,12 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(CopyReduceAMap, DrawGraph_CopyStretchAMap),
 	    HLL_EXPORT(DrawTextToPMap, DrawGraph_DrawTextToPMap),
 	    HLL_EXPORT(DrawTextToAMap, DrawGraph_DrawTextToAMap),
-	    HLL_EXPORT(SetFontSize, gfx_set_font_size),
+	    HLL_EXPORT(SetFontSize, DrawGraph_SetFontSize),
 	    HLL_EXPORT(SetFontName, DrawGraph_SetFontName),
-	    HLL_EXPORT(SetFontWeight, gfx_set_font_weight),
-	    HLL_EXPORT(SetFontUnderline, gfx_set_font_underline),
-	    HLL_EXPORT(SetFontStrikeOut, gfx_set_font_strikeout),
-	    HLL_EXPORT(SetFontSpace, gfx_set_font_space),
+	    HLL_EXPORT(SetFontWeight, DrawGraph_SetFontWeight),
+	    HLL_EXPORT(SetFontUnderline, DrawGraph_SetFontUnderline),
+	    HLL_EXPORT(SetFontStrikeOut, DrawGraph_SetFontStrikeOut),
+	    HLL_EXPORT(SetFontSpace, DrawGraph_SetFontSpace),
 	    HLL_EXPORT(SetFontColor, DrawGraph_SetFontColor),
 	    HLL_EXPORT(GetFontSize, gfx_get_font_size),
 	    HLL_EXPORT(GetFontName, DrawGraph_GetFontName),

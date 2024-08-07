@@ -286,18 +286,18 @@ void PE_AddMotionCG_by_index(int parts_no, int begin_cg_no, int nr_cg, int begin
 	parts_add_motion(parts, motion);
 }
 
-void PE_AddMotionHGaugeRate(int parts_no, int begin_numerator, int begin_denominator,
-			    int end_numerator, int end_denominator, int begin_t, int end_t)
+void PE_AddMotionHGaugeRate(int parts_no, float begin_numerator, float begin_denominator,
+			    float end_numerator, float end_denominator, int begin_t, int end_t)
 {
 	struct parts *parts = parts_get(parts_no);
 	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_HGAUGE_RATE, begin_t, end_t);
-	motion->begin.f = (float)begin_numerator / (float)begin_denominator;
-	motion->end.f = (float)end_numerator / (float)end_denominator;
+	motion->begin.f = begin_numerator / begin_denominator;
+	motion->end.f = end_numerator / end_denominator;
 	parts_add_motion(parts, motion);
 }
 
-void PE_AddMotionHGaugeRate_curve(int parts_no, int begin_numerator, int begin_denominator,
-			    int end_numerator, int end_denominator, int begin_t, int end_t,
+void PE_AddMotionHGaugeRate_curve(int parts_no, float begin_numerator, float begin_denominator,
+			    float end_numerator, float end_denominator, int begin_t, int end_t,
 			    struct string *curve_name)
 {
 	// TODO: use curve
@@ -305,18 +305,18 @@ void PE_AddMotionHGaugeRate_curve(int parts_no, int begin_numerator, int begin_d
 			end_numerator, end_denominator, begin_t, end_t);
 }
 
-void PE_AddMotionVGaugeRate(int parts_no, int begin_numerator, int begin_denominator,
-			    int end_numerator, int end_denominator, int begin_t, int end_t)
+void PE_AddMotionVGaugeRate(int parts_no, float begin_numerator, float begin_denominator,
+			    float end_numerator, float end_denominator, int begin_t, int end_t)
 {
 	struct parts *parts = parts_get(parts_no);
 	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_VGAUGE_RATE, begin_t, end_t);
-	motion->begin.f = (float)begin_numerator / (float)begin_denominator;
-	motion->end.f = (float)end_numerator / (float)end_denominator;
+	motion->begin.f = begin_numerator / begin_denominator;
+	motion->end.f = end_numerator / end_denominator;
 	parts_add_motion(parts, motion);
 }
 
-void PE_AddMotionVGaugeRate_curve(int parts_no, int begin_numerator, int begin_denominator,
-			    int end_numerator, int end_denominator, int begin_t, int end_t,
+void PE_AddMotionVGaugeRate_curve(int parts_no, float begin_numerator, float begin_denominator,
+			    float end_numerator, float end_denominator, int begin_t, int end_t,
 			    struct string *curve_name)
 {
 	// TODO: use curve

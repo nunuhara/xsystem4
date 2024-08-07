@@ -428,6 +428,11 @@ static void Gpx2Plus_DrawTextToAMap(int surface, int x, int y, struct string *te
 	gfx_draw_text_to_amap(dst, x, y, text->text);
 }
 
+static void Gpx2Plus_SetFontSize(int size)
+{
+	gfx_set_font_size(size);
+}
+
 static void Gpx2Plus_SetFontName(struct string *name)
 {
 	char *u = sjis2utf(name->text, name->size);
@@ -438,6 +443,26 @@ static void Gpx2Plus_SetFontName(struct string *name)
 	else
 		WARNING("Unknown font name '%s'", display_utf0(u));
 	free(u);
+}
+
+static void Gpx2Plus_SetFontWeight(int weight)
+{
+	gfx_set_font_weight(weight);
+}
+
+static void Gpx2Plus_SetFontUnderline(int flag)
+{
+	gfx_set_font_underline(flag);
+}
+
+static void Gpx2Plus_SetFontStrikeOut(int flag)
+{
+	gfx_set_font_strikeout(flag);
+}
+
+static void Gpx2Plus_SetFontSpace(int space)
+{
+	gfx_set_font_space(space);
 }
 
 static void Gpx2Plus_SetFontColor(int r, int g, int b)
@@ -788,12 +813,12 @@ HLL_LIBRARY(Gpx2Plus,
 			HLL_EXPORT(Update, Gpx2Plus_Update),
 			HLL_EXPORT(DrawText, Gpx2Plus_DrawText),
 			HLL_EXPORT(DrawTextToAMap, Gpx2Plus_DrawTextToAMap),
-			HLL_EXPORT(SetFontSize, gfx_set_font_size),
+			HLL_EXPORT(SetFontSize, Gpx2Plus_SetFontSize),
 			HLL_EXPORT(SetFontName, Gpx2Plus_SetFontName),
-			HLL_EXPORT(SetFontWeight, gfx_set_font_weight),
-			HLL_EXPORT(SetFontUnderline, gfx_set_font_underline),
-			HLL_EXPORT(SetFontStrikeOut, gfx_set_font_strikeout),
-			HLL_EXPORT(SetFontSpace, gfx_set_font_space),
+			HLL_EXPORT(SetFontWeight, Gpx2Plus_SetFontWeight),
+			HLL_EXPORT(SetFontUnderline, Gpx2Plus_SetFontUnderline),
+			HLL_EXPORT(SetFontStrikeOut, Gpx2Plus_SetFontStrikeOut),
+			HLL_EXPORT(SetFontSpace, Gpx2Plus_SetFontSpace),
 			HLL_EXPORT(SetFontColor, Gpx2Plus_SetFontColor),
 			HLL_EXPORT(GetFontSize, gfx_get_font_size),
 			// HLL_EXPORT(GetFontName, Gpx2Plus_GetFontName),
