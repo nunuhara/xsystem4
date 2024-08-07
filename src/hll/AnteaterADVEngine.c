@@ -43,6 +43,8 @@ static bool enabled = true;
 static unsigned nr_logs = 0;
 struct adv_log *logs = NULL;
 
+static void AnteaterADVEngine_PreLink(void);
+
 static void init_log(struct adv_log *log)
 {
 	log->lines = malloc(sizeof(struct string*));
@@ -415,7 +417,13 @@ static void AnteaterADVEngine_ModuleFini(void)
 	ADVSceneKeeper_Clear();
 }
 
+static void AnteaterADVEngine_ADVLogList_AddText_with_window(struct string **text, possibly_unused int window_no)
+{
+	ADVLogList_AddText(text);
+}
+
 HLL_LIBRARY(AnteaterADVEngine,
+	    HLL_EXPORT(_PreLink, AnteaterADVEngine_PreLink),
 	    HLL_EXPORT(_ModuleFini, AnteaterADVEngine_ModuleFini),
 	    HLL_EXPORT(ADVLogList_Clear, ADVLogList_Clear),
 	    HLL_EXPORT(ADVLogList_AddText, ADVLogList_AddText),
@@ -438,3 +446,21 @@ HLL_LIBRARY(AnteaterADVEngine,
 	    HLL_EXPORT(ADVSceneKeeper_Save, ADVSceneKeeper_Save),
 	    HLL_EXPORT(ADVSceneKeeper_Load, ADVSceneKeeper_Load)
 	);
+
+static struct ain_hll_function *get_fun(int libno, const char *name)
+{
+	int fno = ain_get_library_function(ain, libno, name);
+	return fno >= 0 ? &ain->libraries[libno].functions[fno] : NULL;
+}
+
+static void AnteaterADVEngine_PreLink(void)
+{
+	struct ain_hll_function *fun;
+	int libno = ain_get_library(ain, "AnteaterADVEngine");
+	assert(libno >= 0);
+
+	fun = get_fun(libno, "ADVLogList_AddText");
+	if (fun && fun->nr_arguments == 2) {
+		static_library_replace(&lib_AnteaterADVEngine, "ADVLogList_AddText", AnteaterADVEngine_ADVLogList_AddText_with_window);
+	}
+}

@@ -34,6 +34,16 @@ static inline float rad2deg(float rad)
 
 static void GoatGUIEngine_PreLink(void);
 
+static void GoatGUIEngine_AddMotionHGaugeRate(int parts_no, int begin_numerator, int begin_denominator, int end_numerator, int end_denominator, int begin_t, int end_t)
+{
+	PE_AddMotionHGaugeRate(parts_no, (float)begin_numerator, (float)begin_denominator, (float)end_numerator, (float)end_denominator, begin_t, end_t);
+}
+
+static void GoatGUIEngine_AddMotionVGaugeRate(int parts_no, int begin_numerator, int begin_denominator, int end_numerator, int end_denominator, int begin_t, int end_t)
+{
+	PE_AddMotionVGaugeRate(parts_no, (float)begin_numerator, (float)begin_denominator, (float)end_numerator, (float)end_denominator, begin_t, end_t);
+}
+
 static void GoatGUIEngine_AddMotionRotateX(int parts_no, float begin, float end,
 		int begin_t, int end_t)
 {
@@ -140,8 +150,8 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(AddMotionPos, PE_AddMotionPos),
 	    HLL_EXPORT(AddMotionAlpha, PE_AddMotionAlpha),
 	    HLL_TODO_EXPORT(AddMotionCG, PE_AddMotionCG),
-	    HLL_EXPORT(AddMotionHGaugeRate, PE_AddMotionHGaugeRate),
-	    HLL_EXPORT(AddMotionVGaugeRate, PE_AddMotionVGaugeRate),
+	    HLL_EXPORT(AddMotionHGaugeRate, GoatGUIEngine_AddMotionHGaugeRate),
+	    HLL_EXPORT(AddMotionVGaugeRate, GoatGUIEngine_AddMotionVGaugeRate),
 	    HLL_EXPORT(AddMotionNumeralNumber, PE_AddMotionNumeralNumber),
 	    HLL_EXPORT(AddMotionMagX, PE_AddMotionMagX),
 	    HLL_EXPORT(AddMotionMagY, PE_AddMotionMagY),

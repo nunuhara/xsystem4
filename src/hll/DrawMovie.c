@@ -77,10 +77,17 @@ static int DrawMovie_GetCount(void)
 	return movie_get_position(mc);
 }
 
+static void DrawMovie2_SetInnerVolume(int inner_volume)
+{
+	DrawMovie_SetVolume(inner_volume);
+}
+
 static void DrawMovie2_UpdateVolume(void)
 {
 	// Do nothing, as SetInnerVolume immediately takes effect.
 }
+
+HLL_QUIET_UNIMPLEMENTED(, void, DrawMovie3, UpdateVolume, bool IsMuteByInactiveWindow);
 
 HLL_LIBRARY(DrawMovie,
 	    HLL_EXPORT(Release, DrawMovie_Release),
@@ -98,7 +105,7 @@ HLL_LIBRARY(DrawMovie2,
 	    HLL_EXPORT(Run, DrawMovie_Run),
 	    HLL_EXPORT(Draw, DrawMovie_Draw),
 	    HLL_EXPORT(SetVolume, DrawMovie_SetVolume),
-	    HLL_EXPORT(SetInnerVolume, DrawMovie_SetVolume),
+	    HLL_EXPORT(SetInnerVolume, DrawMovie2_SetInnerVolume),
 	    HLL_EXPORT(UpdateVolume, DrawMovie2_UpdateVolume),
 	    HLL_EXPORT(IsEnd, DrawMovie_IsEnd),
 	    HLL_EXPORT(GetCount, DrawMovie_GetCount)
@@ -109,8 +116,8 @@ HLL_LIBRARY(DrawMovie3,
 	    HLL_EXPORT(Load, DrawMovie_Load),
 	    HLL_EXPORT(Run, DrawMovie_Run),
 	    HLL_EXPORT(Draw, DrawMovie_Draw),
-	    HLL_EXPORT(SetInnerVolume, DrawMovie_SetVolume),
-	    HLL_EXPORT(UpdateVolume, DrawMovie2_UpdateVolume),
+	    HLL_EXPORT(SetInnerVolume, DrawMovie2_SetInnerVolume),
+	    HLL_EXPORT(UpdateVolume, DrawMovie3_UpdateVolume),
 	    HLL_EXPORT(IsEnd, DrawMovie_IsEnd),
 	    HLL_EXPORT(GetCount, DrawMovie_GetCount)
 	);

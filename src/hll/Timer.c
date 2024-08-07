@@ -19,7 +19,7 @@
 #include "hll.h"
 #include "vm.h"
 
-HLL_WARN_UNIMPLEMENTED(1, int, Timer, Init, void *imainsystem);
+HLL_WARN_UNIMPLEMENTED(, void, Timer, Init, void *imainsystem);
 
 static int Timer_Get(void)
 {
