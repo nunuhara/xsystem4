@@ -71,8 +71,6 @@ static bool get_file_list(struct string *folder_name, struct page **out, bool fo
 		}
 
 		char *utf8_path = path_join(dir_name, d_name);
-		char *sjis_path = utf2sjis(utf8_path, 0);
-
 		ustat s;
 		if (stat_utf8(utf8_path, &s) < 0) {
 			WARNING("stat(\"%s\"): %s", display_utf0(utf8_path), strerror(errno));
@@ -85,15 +83,13 @@ static bool get_file_list(struct string *folder_name, struct page **out, bool fo
 			if (!S_ISREG(s.st_mode))
 				goto loop_next;
 		}
-		if (!S_ISDIR(s.st_mode)) {
-			goto loop_next;
-		}
 
+		char *sjis_name = utf2sjis(d_name, 0);
 		names = xrealloc_array(names, nr_names, nr_names+1, sizeof(struct string*));
-		names[nr_names++] = make_string(sjis_path, strlen(sjis_path));
+		names[nr_names++] = cstr_to_string(sjis_name);
+		free(sjis_name);
 	loop_next:
 		free(utf8_path);
-		free(sjis_path);
 		free(d_name);
 	}
 	closedir_utf8(d);
@@ -104,6 +100,7 @@ static bool get_file_list(struct string *folder_name, struct page **out, bool fo
 	for (int i = 0; i < nr_names; i++) {
 		page->values[i].i = heap_alloc_string(names[i]);
 	}
+	free(names);
 
 	if (*out) {
 		delete_page_vars(*out);
