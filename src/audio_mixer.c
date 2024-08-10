@@ -22,6 +22,7 @@
 
 #include "system4.h"
 #include "system4/archive.h"
+#include "system4/utfsjis.h"
 
 #include "asset_manager.h"
 #include "audio.h"
@@ -534,20 +535,15 @@ struct channel *channel_open(enum asset_type type, int no)
 	return ch;
 }
 
-struct channel *channel_open_archive_data(struct archive_data *dfile)
+static bool init_channel(struct channel *ch)
 {
-	struct channel *ch = xcalloc(1, sizeof(struct channel));
-	ch->dfile = dfile;
-
-	// open file
-	ch->file = sf_open_virtual(&channel_vio, SFM_READ, &ch->info, ch);
 	if (sf_error(ch->file) != SF_ERR_NO_ERROR) {
 		WARNING("sf_open_virtual failed: %s", sf_strerror(ch->file));
-		goto error;
+		return false;
 	}
 	if (ch->info.channels > 2) {
 		WARNING("Audio file has more than 2 channels");
-		goto error;
+		return false;
 	}
 
 	// create stream
@@ -566,19 +562,53 @@ struct channel *channel_open_archive_data(struct archive_data *dfile)
 	ch->mixer_no = 0;
 
 	ch->no = -1;
-	return ch;
+	return true;
+}
 
-error:
-	archive_free_data(dfile);
-	free(ch);
-	return NULL;
+struct channel *channel_open_archive_data(struct archive_data *dfile)
+{
+	struct channel *ch = xcalloc(1, sizeof(struct channel));
+	ch->dfile = dfile;
+
+	// open file
+	ch->file = sf_open_virtual(&channel_vio, SFM_READ, &ch->info, ch);
+
+	if (!init_channel(ch)) {
+		archive_free_data(dfile);
+		if (ch->file)
+			sf_close(ch->file);
+		free(ch);
+		return NULL;
+	}
+	return ch;
+}
+
+struct channel *channel_open_file(const char *path)
+{
+	struct channel *ch = xcalloc(1, sizeof(struct channel));
+#ifdef _WIN32
+	wchar_t *wpath = utf8_to_wchar(path);
+	ch->file = sf_wchar_open(wpath, SFM_READ, &ch->info);
+	free(wpath);
+#else
+	ch->file = sf_open(path, SFM_READ, &ch->info);
+#endif
+
+	if (!init_channel(ch)) {
+		if (ch->file)
+			sf_close(ch->file);
+		free(ch);
+		return NULL;
+	}
+	return ch;
 }
 
 void channel_close(struct channel *ch)
 {
 	channel_stop(ch);
 	sf_close(ch->file);
-	archive_free_data(ch->dfile);
+	if (ch->dfile)
+		archive_free_data(ch->dfile);
 	free(ch);
 }
 
