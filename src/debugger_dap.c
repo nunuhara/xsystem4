@@ -709,6 +709,14 @@ static struct parts *get_parts(cJSON *args, int *id_out)
 	return parts;
 }
 
+static void draw_rectangle(Texture *t, Color c, Rectangle r)
+{
+	gfx_draw_line(t, r.x, r.y, r.x + r.w, r.y, c.r, c.g, c.b);
+	gfx_draw_line(t, r.x, r.y + r.h, r.x + r.w, r.y + r.h, c.r, c.g, c.b);
+	gfx_draw_line(t, r.x, r.y, r.x, r.y + r.h, c.r, c.g, c.b);
+	gfx_draw_line(t, r.x + r.w, r.y, r.x + r.w, r.y + r.h, c.r, c.g, c.b);
+}
+
 // render a parts object
 static void cmd_xsystem4_renderParts(cJSON *args, cJSON *resp)
 {
@@ -729,6 +737,22 @@ static void cmd_xsystem4_renderParts(cJSON *args, cJSON *resp)
 	GLuint fbo = gfx_set_framebuffer(GL_FRAMEBUFFER, &t, 0, 0, t.w, t.h);
 	parts_render_family(parts);
 	gfx_reset_framebuffer(GL_FRAMEBUFFER, fbo);
+
+	struct parts_common *state = &parts->states[parts->state].common;
+	// draw bounds
+	draw_rectangle(&t, (Color){255,0,0}, (Rectangle) {
+		parts->global.pos.x + state->origin_offset.x,
+		parts->global.pos.y + state->origin_offset.y,
+		state->w,
+		state->h
+	});
+	// draw origin
+	draw_rectangle(&t, (Color){0,255,0}, (Rectangle) {
+		parts->global.pos.x - 1,
+		parts->global.pos.y - 1,
+		3,
+		3
+	});
 
 	// send response
 	cJSON *body;
