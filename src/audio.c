@@ -377,8 +377,20 @@ int wav_get_group_num(int id)
 	return wav_get_group_num_from_data_num(no);
 }
 //int bgm_get_group_num(int channel);
-//int wav_prepare_from_file(int channel, char *filename);
-//int bgm_prepare_from_file(int channel, char *filename);
+
+static int audio_prepare_from_file(struct id_pool *pool, int id, char *filename)
+{
+	if (id < 0)
+		return 0;
+	struct channel *ch = channel_open_file(filename);
+	struct channel *old = id_pool_set(pool, id, ch);
+	if (old)
+		channel_close(old);
+	return !!ch;
+}
+
+int wav_prepare_from_file(int id, char *filename) { return audio_prepare_from_file(&wav, id, filename); }
+int bgm_prepare_from_file(int id, char *filename) { return audio_prepare_from_file(&bgm, id, filename); }
 
 static int audio_prepare_from_archive_data(struct id_pool *pool, int id, struct archive_data *dfile)
 {
