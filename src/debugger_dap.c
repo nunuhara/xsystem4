@@ -105,11 +105,28 @@ static void emit_terminated_event(void)
 	emit_event("terminated", NULL);
 }
 
-static void emit_stopped_event(void)
+static void emit_stopped_event(struct dbg_stop *stop)
 {
 	cJSON *body = cJSON_CreateObject();
-	// TODO: specify correct reason
-	cJSON_AddStringToObject(body, "reason", "pause");
+	switch (stop->type) {
+	case DBG_STOP_PAUSE:
+		cJSON_AddStringToObject(body, "reason", "pause");
+		cJSON_AddStringToObject(body, "description", "Paused by user");
+		break;
+	case DBG_STOP_ERROR:
+		cJSON_AddStringToObject(body, "reason", "exception");
+		cJSON_AddStringToObject(body, "description", "Paused on error");
+		break;
+	case DBG_STOP_BREAKPOINT:
+		cJSON_AddStringToObject(body, "reason", "breakpoint");
+		cJSON_AddStringToObject(body, "description", "Paused on breakpoint");
+		break;
+	case DBG_STOP_STEP:
+		cJSON_AddStringToObject(body, "reason", "step");
+		cJSON_AddStringToObject(body, "description", "Paused by step action");
+	}
+	if (stop->message)
+		cJSON_AddStringToObject(body, "text", stop->message);
 	emit_event("stopped", body);
 }
 
@@ -551,7 +568,7 @@ static void cmd_pause(cJSON *args, cJSON *resp)
 	send_json(resp);
 
 	if (dap_state != DAP_STOPPED) {
-		dbg_repl();
+		dbg_repl(DBG_STOP_PAUSE, NULL);
 	}
 }
 
@@ -862,9 +879,9 @@ void dbg_dap_quit(void)
 	emit_terminated_event();
 }
 
-void dbg_dap_repl(void)
+void dbg_dap_repl(struct dbg_stop *stop)
 {
-	emit_stopped_event();
+	emit_stopped_event(stop);
 	dap_state = DAP_STOPPED;
 
 	bool continue_repl = true;

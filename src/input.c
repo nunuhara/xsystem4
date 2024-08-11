@@ -246,7 +246,7 @@ static void mouse_event(SDL_MouseButtonEvent *e)
 #ifdef DEBUGGER_ENABLED
 	if (e->button == SDL_BUTTON_MIDDLE && e->state == SDL_PRESSED
 			&& (dbg_start_in_debugger || dbg_dap))
-		dbg_repl();
+		dbg_repl(DBG_STOP_PAUSE, NULL);
 #endif
 }
 

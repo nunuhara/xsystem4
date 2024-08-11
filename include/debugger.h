@@ -29,6 +29,18 @@
 
 struct ain_variable;
 
+enum dbg_stop_type {
+	DBG_STOP_PAUSE,
+	DBG_STOP_ERROR,
+	DBG_STOP_BREAKPOINT,
+	DBG_STOP_STEP,
+};
+
+struct dbg_stop {
+	enum dbg_stop_type type;
+	const char *message;
+};
+
 struct breakpoint {
 	enum opcode restore_op;
 	void *data;
@@ -54,7 +66,7 @@ extern unsigned dbg_current_frame;
 
 void dbg_init(void);
 void dbg_fini(void);
-void dbg_repl(void);
+void dbg_repl(enum dbg_stop_type, const char *msg);
 
 void dbg_log(const char *log, const char *fmt, va_list ap);
 
@@ -80,7 +92,7 @@ struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, 
 
 void dbg_dap_init(void);
 void dbg_dap_quit(void);
-void dbg_dap_repl(void);
+void dbg_dap_repl(struct dbg_stop *stop);
 void dbg_dap_handle_messages(void);
 void dbg_dap_log(const char *log, const char *fmt, va_list ap);
 

@@ -73,19 +73,25 @@ void dbg_start(void(*fun)(void*), void *data)
 	fun(data);
 }
 
-static void _dbg_repl(void *_)
+static void _dbg_repl(void *stop)
 {
 	if (dbg_dap)
-		dbg_dap_repl();
+		dbg_dap_repl(stop);
 	else
 		dbg_cmd_repl();
 }
 
-void dbg_repl(void)
+void dbg_repl(enum dbg_stop_type type, const char *msg)
 {
 	if (!dbg_enabled)
 		return;
-	dbg_start(_dbg_repl, NULL);
+
+	struct dbg_stop stop = {
+		.type = type,
+		.message = msg,
+	};
+
+	dbg_start(_dbg_repl, &stop);
 }
 
 void dbg_init(void)
@@ -97,8 +103,9 @@ void dbg_init(void)
 #ifdef HAVE_SCHEME
 	dbg_scm_init();
 #endif
-	if (!dbg_dap && dbg_start_in_debugger)
-		dbg_repl();
+	if (!dbg_dap && dbg_start_in_debugger) {
+		dbg_repl(DBG_STOP_PAUSE, "");
+	}
 }
 
 void dbg_fini(void)
@@ -216,7 +223,8 @@ static void dbg_step_breakpoint_cb(struct breakpoint *bp)
 	if ((intptr_t)bp->data != call_stack_ptr)
 		return;
 	delete_breakpoint(instr_ptr, bp);
-	_dbg_repl(NULL);
+	struct dbg_stop stop = { DBG_STOP_STEP, NULL };
+	_dbg_repl(&stop);
 }
 
 static void dbg_set_step_breakpoint(int32_t address, int call_index)
@@ -405,7 +413,8 @@ static void _dbg_handle_breakpoint(void *data)
 		bp->cb(bp);
 	} else {
 		log_message("debug", "%s\n", bp->message);
-		_dbg_repl(NULL);
+		struct dbg_stop stop = { DBG_STOP_BREAKPOINT, NULL };
+		_dbg_repl(&stop);
 	}
 }
 

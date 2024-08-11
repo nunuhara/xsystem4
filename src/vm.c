@@ -2393,7 +2393,13 @@ _Noreturn void _vm_error(const char *fmt, ...)
 	va_end(ap);
 	sys_warning("at %s (0x%X) in:\n", current_instruction_name(), instr_ptr);
 	vm_stack_trace();
-	dbg_repl();
+
+	char msg[1024];
+	va_start(ap, fmt);
+	vsnprintf(msg, 1024, fmt, ap);
+	va_end(ap);
+
+	dbg_repl(DBG_STOP_ERROR, msg);
 	sys_exit(1);
 }
 
