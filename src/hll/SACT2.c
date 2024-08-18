@@ -213,8 +213,8 @@ void sact_QuakeScreen(int amp_x, int amp_y, int time, int key)
 
 	for (int i = 0; i < time; i+= 16) {
 		float rate = 1.0f - ((float)i / (float)time);
-		int delta_x = (rand() % amp_x - amp_x/2) * rate;
-		int delta_y = (rand() % amp_y - amp_y/2) * rate;
+		int delta_x = amp_x ? (rand() % amp_x - amp_x/2) * rate : 0;
+		int delta_y = amp_y ? (rand() % amp_y - amp_y/2) * rate : 0;
 		gfx_clear();
 		gfx_copy(dst, delta_x, delta_y, &tex, 0, 0, dst->w, dst->h);
 		gfx_swap();
