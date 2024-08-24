@@ -103,7 +103,7 @@ void dbg_scm_repl(void);
 #endif /* HAVE_SCHEME */
 #else  /* DEBUGGER ENABLED */
 #define dbg_init()
-#define dbg_repl()
+#define dbg_repl(type, msg)
 #define dbg_dap 0
 #define dbg_dap_handle_messages()
 #define dbg_dap_log(log, fmt, ap)
