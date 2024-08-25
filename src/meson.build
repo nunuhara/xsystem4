@@ -1,4 +1,4 @@
-version_h = vcs_tag(command : ['git', 'rev-parse', '--short', 'HEAD'],
+version_h = vcs_tag(command : ['git', 'describe', 'HEAD'],
                     fallback : 'unknown version',
                     input : 'version.h.in',
                     output : 'version.h')

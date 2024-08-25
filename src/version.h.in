@@ -1,1 +1,1 @@
-#define XSYSTEM4_VERSION "@VCS_TAG@-git"
+#define XSYSTEM4_VERSION "@VCS_TAG@"
