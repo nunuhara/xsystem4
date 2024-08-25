@@ -4,6 +4,10 @@ project('system4', 'c',
 add_project_arguments('-D_DEFAULT_SOURCE', language : 'c')
 add_project_arguments('-DXSYS4_DATA_DIR="' + get_option('prefix') / get_option('datadir') / 'xsystem4"', language : 'c')
 
+if get_option('buildtype').startswith('release')
+    add_project_arguments('-DRELEASE', language : 'c')
+endif
+
 static_libs = false
 if host_machine.system() == 'windows'
     static_libs = true

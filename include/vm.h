@@ -137,7 +137,7 @@ _Noreturn void vm_reset(void);
 
 extern bool vm_reset_once;
 
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(RELEASE)
 // Report the error with a message box and exit.
 #define VM_ERROR ERROR
 #else
