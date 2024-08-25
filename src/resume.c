@@ -835,7 +835,7 @@ static enum savefile_error load_rsave_image(const char *key, const char *path)
 {
 	char *full_path = savedir_path(path);
 	enum savefile_error error;
-	struct rsave *save = rsave_read(full_path, &error);
+	struct rsave *save = rsave_read(full_path, RSAVE_READ_ALL, &error);
 	free(full_path);
 	if (error != SAVEFILE_SUCCESS)
 		return error;
@@ -904,7 +904,7 @@ static struct page *load_json_image_comments(const char *key, const char *path, 
 static struct page *load_rsave_image_comments(const char *key, const char *path, enum savefile_error *error)
 {
 	char *full_path = savedir_path(path);
-	struct rsave *save = rsave_read(full_path, error);
+	struct rsave *save = rsave_read(full_path, RSAVE_READ_COMMENTS, error);
 	free(full_path);
 	if (*error != SAVEFILE_SUCCESS)
 		return NULL;
@@ -951,7 +951,7 @@ static int write_rsave_image_comments(const char *key, const char *path, struct 
 {
 	char *full_path = savedir_path(path);
 	enum savefile_error error;
-	struct rsave *save = rsave_read(full_path, &error);
+	struct rsave *save = rsave_read(full_path, RSAVE_READ_ALL, &error);
 	switch (error) {
 	case SAVEFILE_SUCCESS:
 		if (strcmp(key, save->key))
