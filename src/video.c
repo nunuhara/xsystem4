@@ -181,6 +181,39 @@ static void set_window_title(void)
 
 static bool gfx_initialized = false;
 
+/*
+ * Reduce window size if the display resolution is smaller than the game
+ * resolution.
+ */
+static void init_window_size(void)
+{
+#ifndef __ANDROID__
+	int display_id = SDL_GetWindowDisplayIndex(sdl.window);
+	if (display_id < 0)
+		return;
+
+	SDL_Rect bounds;
+	if (SDL_GetDisplayUsableBounds(display_id, &bounds) < 0)
+		return;
+
+	int w, h;
+	SDL_GetWindowSize(sdl.window, &w, &h);
+	if (bounds.w > w && bounds.h > h)
+		return;
+
+	int border_top, border_bot;
+	if (SDL_GetWindowBordersSize(sdl.window, &border_top, NULL, &border_bot, NULL) < 0)
+		return;
+
+	int scaled_h = bounds.h - (border_top + border_bot);
+	int scaled_w = ((float)scaled_h / h) * w;
+	int scaled_x = bounds.w / 2 - scaled_w / 2;
+
+	SDL_SetWindowSize(sdl.window, scaled_w, scaled_h);
+	SDL_SetWindowPosition(sdl.window, bounds.x + scaled_x, bounds.y + border_top);
+#endif
+}
+
 int gfx_init(void)
 {
 	if (gfx_initialized)
@@ -236,6 +269,7 @@ int gfx_init(void)
 	gl_initialize();
 	gfx_draw_init();
 	gfx_set_window_logical_size(config.view_width, config.view_height);
+	init_window_size();
 	atexit(gfx_fini);
 	gfx_clear();
 	gfx_initialized = true;
