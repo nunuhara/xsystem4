@@ -1084,7 +1084,10 @@ bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_no,
 	}
 
 	struct parts_cg *cg = parts_get_cg(parts, state);
-	return parts_cg_set_by_index(parts, cg, atoi(cg_no->text));
+	if (!parts_cg_set_by_index(parts, cg, atoi(cg_no->text)))
+		return false;
+	cg->name = string_ref(cg_no);
+	return true;
 }
 
 void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state)
