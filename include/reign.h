@@ -195,6 +195,8 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version);
 void RE_plugin_free(struct RE_plugin *plugin);
 bool RE_plugin_bind(struct RE_plugin *plugin, int sprite);
 bool RE_plugin_unbind(struct RE_plugin *plugin);
+bool RE_plugin_suspend(struct RE_plugin *plugin);
+bool RE_plugin_resume(struct RE_plugin *plugin);
 bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms);
 bool RE_set_viewport(struct RE_plugin *plugin, int x, int y, int width, int height);
 bool RE_set_projection(struct RE_plugin *plugin, float width, float height, float near, float far, float deg);

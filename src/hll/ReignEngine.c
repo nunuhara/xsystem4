@@ -1865,11 +1865,7 @@ HLL_WARN_UNIMPLEMENTED(false, bool, TapirEngine, SetThreadLoadingMode, int plugi
 
 static bool TapirEngine_Suspend(int plugin_number)
 {
-	struct RE_plugin *p = get_plugin(plugin_number);
-	if (!p)
-		return false;
-	p->suspended = true;
-	return true;
+	return RE_plugin_suspend(get_plugin(plugin_number));
 }
 
 static bool TapirEngine_IsSuspend(int plugin_number)
@@ -1880,11 +1876,7 @@ static bool TapirEngine_IsSuspend(int plugin_number)
 
 static bool TapirEngine_Resume(int plugin_number)
 {
-	struct RE_plugin *p = get_plugin(plugin_number);
-	if (!p)
-		return false;
-	p->suspended = false;
-	return true;
+	return RE_plugin_resume(get_plugin(plugin_number));
 }
 
 //int TapirEngine_GetNumofPlugin(void);
