@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <SDL.h>
 
 #include "system4.h"
 #include "system4/ain.h"
@@ -49,8 +50,18 @@ static void msgskip_save(void)
 	fwrite(header, sizeof(header), 1, f);
 	fwrite(flags, (nr_flags + 7) / 8, 1, f);
 	fclose(f);
-	free(flags);
 }
+
+#ifdef __ANDROID__
+static int msgskip_event_handler(possibly_unused void *user_data, SDL_Event *e) {
+	switch (e->type) {
+	case SDL_APP_WILLENTERBACKGROUND:
+		msgskip_save();
+		break;
+	}
+	return 0;
+}
+#endif
 
 static int MsgSkip_Init(struct string *name)
 {
@@ -93,6 +104,9 @@ static int MsgSkip_Init(struct string *name)
 		}
 		free(data);
 	}
+#ifdef __ANDROID__
+	SDL_AddEventWatch(msgskip_event_handler, NULL);
+#endif
 	atexit(msgskip_save);
 	return 1;
 }
@@ -162,6 +176,8 @@ static int vmMsgSkip_Open(struct string *fname, possibly_unused int option)
 static void vmMsgSkip_Close(possibly_unused int handle)
 {
 	msgskip_save();
+	free(flags);
+	flags = NULL;
 }
 
 static int vmMsgSkip_Query(possibly_unused int handle, int msgnum)
