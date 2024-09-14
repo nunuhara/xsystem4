@@ -36,9 +36,6 @@ static inline float deg2rad(float deg)
 	return deg * (M_PI / 180.0);
 }
 
-// Goat sprites are integrated into the scene via a single (virtual) sprite
-static struct sprite goat_sprite;
-
 static struct {
 	struct shader shader;
 	GLint blend_rate;
@@ -278,6 +275,11 @@ void parts_engine_render(possibly_unused struct sprite *_)
 	}
 }
 
+void parts_sprite_render(struct sprite *sp)
+{
+	parts_render((struct parts*)sp);
+}
+
 static bool pe_dirty = false;
 
 void parts_render_update(int passed_time)
@@ -289,7 +291,10 @@ void parts_render_update(int passed_time)
 	if (passed_time < 0)
 		return;
 	if (pe_dirty) {
-		scene_sprite_dirty(&goat_sprite);
+		struct parts *p;
+		PARTS_LIST_FOREACH(p) {
+			scene_sprite_dirty(&p->sp);
+		}
 		pe_dirty = false;
 	}
 }
@@ -311,14 +316,6 @@ void parts_dirty(possibly_unused struct parts *parts)
 
 void parts_render_init(void)
 {
-	goat_sprite.z = 0;
-	goat_sprite.z2 = INT_MAX;
-	goat_sprite.has_pixel = true;
-	goat_sprite.has_alpha = true;
-	goat_sprite.render = parts_engine_render;
-	goat_sprite.to_json = parts_engine_to_json;
-	scene_register_sprite(&goat_sprite);
-
 	gfx_load_shader(&parts_shader.shader, "shaders/render.v.glsl", "shaders/parts.f.glsl");
 	parts_shader.blend_rate = glGetUniformLocation(parts_shader.shader.program, "blend_rate");
 	parts_shader.bot_left = glGetUniformLocation(parts_shader.shader.program, "bot_left");

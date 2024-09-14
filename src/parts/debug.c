@@ -326,7 +326,7 @@ static cJSON *parts_motion_to_json(struct parts_motion *motion)
 	return obj;
 }
 
-cJSON *parts_to_json(struct parts *parts, bool verbose)
+cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 {
 	static const char *state_names[PARTS_NR_STATES] = {
 		[PARTS_STATE_DEFAULT] = "default",
@@ -370,13 +370,23 @@ cJSON *parts_to_json(struct parts *parts, bool verbose)
 		cJSON_AddItemToArray(motions, parts_motion_to_json(motion));
 	}
 
+	if (!recursive)
+		return obj;
+
 	cJSON_AddItemToObjectCS(obj, "children", children = cJSON_CreateArray());
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
-		cJSON_AddItemToArray(children, parts_to_json(child, verbose));
+		cJSON_AddItemToArray(children, parts_to_json(child, true, verbose));
 	}
 
 	return obj;
+}
+
+cJSON *parts_sprite_to_json(struct sprite *sp, bool verbose)
+{
+	cJSON *ent = scene_sprite_to_json(sp, verbose);
+	cJSON_AddItemToObjectCS(ent, "parts", parts_to_json((struct parts*)sp, false, verbose));
+	return ent;
 }
 
 cJSON *parts_engine_to_json(struct sprite *sp, bool verbose)
@@ -392,7 +402,7 @@ cJSON *parts_engine_to_json(struct sprite *sp, bool verbose)
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
 		if (!parts->parent)
-			cJSON_AddItemToArray(a, parts_to_json(parts, verbose));
+			cJSON_AddItemToArray(a, parts_to_json(parts, true, verbose));
 	}
 	return obj;
 }
@@ -415,7 +425,7 @@ static void parts_cmd_parts(unsigned nr_args, char **args)
 	if (!parts)
 		return;
 
-	cJSON *json = parts_to_json(parts, true);
+	cJSON *json = parts_to_json(parts, true, true);
 	char *text = cJSON_Print(json);
 
 	sys_message("%s\n", text);

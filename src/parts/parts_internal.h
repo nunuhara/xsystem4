@@ -21,6 +21,7 @@
 #include "gfx/gfx.h"
 #include "gfx/font.h"
 #include "queue.h"
+#include "scene.h"
 #include "swf.h"
 
 typedef struct cJSON cJSON;
@@ -299,7 +300,7 @@ struct parts_params {
 };
 
 struct parts {
-	//struct sprite sp;
+	struct sprite sp;
 	enum parts_state_type state;
 	struct parts_state states[PARTS_NR_STATES];
 	TAILQ_ENTRY(parts) parts_list_entry;
@@ -385,6 +386,7 @@ void parts_render_update(int passed_time);
 void parts_engine_dirty(void);
 void parts_engine_clean(void);
 void parts_dirty(struct parts *parts);
+void parts_sprite_render(struct sprite *sp);
 void parts_render(struct parts *parts);
 void parts_render_family(struct parts *parts);
 
@@ -413,6 +415,7 @@ bool parts_flash_seek(struct parts_flash *f, int frame);
 struct sprite;
 void parts_debug_init(void);
 cJSON *parts_engine_to_json(struct sprite *sp, bool verbose);
+cJSON *parts_sprite_to_json(struct sprite *sp, bool verbose);
 
 static inline bool parts_state_valid(int state)
 {
