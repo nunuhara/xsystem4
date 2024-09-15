@@ -49,6 +49,7 @@ void apply_game_specific_hacks(struct ain *ain);
 struct config config = {
 	.game_name = NULL,
 	.ain_filename = NULL,
+	.vm_name = NULL,
 	.game_dir = NULL,
 	.save_dir = NULL,
 	.home_dir = NULL,
@@ -133,6 +134,8 @@ static bool read_config(const char *path)
 			config.game_name = strdup(ini_string(&ini[i])->text);
 		} else if (!strcmp(ini[i].name->text, "CodeName")) {
 			config.ain_filename = strdup(ini_string(&ini[i])->text);
+		} else if (!strcmp(ini[i].name->text, "MainVM")) {
+			config.vm_name = strdup(ini_string(&ini[i])->text);
 		} else if (!strcmp(ini[i].name->text, "SaveFolder")) {
 			config.save_dir = strdup(ini_string(&ini[i])->text);
 		} else if (!strcmp(ini[i].name->text, "ViewWidth")) {

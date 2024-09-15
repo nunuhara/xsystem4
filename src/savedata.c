@@ -88,10 +88,11 @@ static struct gsave_flat_array *collect_flat_arrays(struct page *page, struct gs
 			fa = collect_flat_arrays(heap_get_page(page->values[i].i), fa, save);
 		return fa;
 	}
+	enum ain_data_type type = variable_type(page, 0, NULL, NULL);
 	fa->nr_values = page->nr_vars;
+	fa->type = type;
 	fa->values = xcalloc(fa->nr_values, sizeof(struct gsave_array_value));
 	for (int i = 0; i < page->nr_vars; i++) {
-		enum ain_data_type type = variable_type(page, i, NULL, NULL);
 		fa->values[i].type = type;
 		fa->values[i].value = add_value_to_gsave(type, page->values[i], save);
 	}
@@ -123,6 +124,11 @@ static int32_t add_value_to_gsave(enum ain_data_type type, union vm_value val, s
 				.nr_indices = st->nr_members,
 				.indices = xcalloc(st->nr_members, sizeof(int32_t)),
 			};
+			if (save->version >= 7) {
+				rec.struct_index = gsave_get_struct_def(save, st->name);
+				if (rec.struct_index < 0)
+					rec.struct_index = gsave_add_struct_def(save, st);
+			}
 			for (int i = 0; i < page->nr_vars; i++) {
 				enum ain_data_type type = st->members[i].type.data;
 				int32_t value = add_value_to_gsave(type, page->values[i], save);
@@ -166,6 +172,14 @@ static int32_t add_value_to_gsave(enum ain_data_type type, union vm_value val, s
 	}
 }
 
+static int get_gsave_version(void)
+{
+	if (AIN_VERSION_GTE(ain, 6, 0)) {
+		return config.vm_name ? 5 : 7;
+	}
+	return AIN_VERSION_GTE(ain, 5, 0) ? 5 : 4;
+}
+
 int save_globals(const char *keyname, const char *filename, const char *group_name, int *n_out)
 {
 	int group = -1;
@@ -184,8 +198,7 @@ int save_globals(const char *keyname, const char *filename, const char *group_na
 		nr_vars = ain->nr_globals;
 	}
 
-	int gsave_version = AIN_VERSION_GTE(ain, 5, 0) ? 5 : 4;
-	struct gsave *save = gsave_create(gsave_version, keyname, ain->nr_globals, group_name);
+	struct gsave *save = gsave_create(get_gsave_version(), keyname, ain->nr_globals, group_name);
 	gsave_add_globals_record(save, nr_vars);
 
 	struct gsave_global *global = save->globals;
@@ -450,27 +463,32 @@ static union vm_value gsave_to_vm_value(struct gsave *save, enum ain_data_type t
 	case AIN_STRING:
 		{
 			int slot = heap_alloc_slot(VM_STRING);
-			heap[slot].s = string_ref(save->strings[value]);
+			heap[slot].s = string_ref(value == GSAVE7_EMPTY_STRING ? &EMPTY_STRING : save->strings[value]);
 			return vm_int(slot);
 		}
 	case AIN_STRUCT:
 		{
 			struct gsave_record *rec = &save->records[value];
 			struct ain_struct *st = &ain->structures[struct_type];
-			if (strcmp(rec->struct_name, st->name))
+			struct gsave_struct_def *sd =
+				save->version >= 7 ? &save->struct_defs[rec->struct_index] : NULL;
+			const char *struct_name = sd ? sd->name : rec->struct_name;
+			if (strcmp(struct_name, st->name))
 				VM_ERROR("Bad save file: structure name mismatch");
 			int slot = alloc_struct(struct_type);
 			struct page *page = heap[slot].page;
 			for (int i = 0; i < rec->nr_indices; i++) {
 				struct gsave_keyval *kv = &save->keyvals[rec->indices[i]];
-				int index = struct_member_index(st, kv->name);
+				const char *field_name = sd ? sd->fields[i].name : kv->name;
+				enum ain_data_type field_type = sd ? sd->fields[i].type : kv->type;
+				int index = struct_member_index(st, field_name);
 				if (index < 0) {
-					WARNING("structure %s has no member named %s", display_sjis0(rec->struct_name), display_sjis1(kv->name));
+					WARNING("structure %s has no member named %s", display_sjis0(struct_name), display_sjis1(field_name));
 					continue;
 				}
 				int struct_type, array_rank;
 				enum ain_data_type data_type = variable_type(page, index, &struct_type, &array_rank);
-				if (data_type != kv->type)
+				if (data_type != field_type)
 					VM_ERROR("Bad save file: structure member type mismatch");
 				union vm_value val = gsave_to_vm_value(save, data_type, struct_type, array_rank, kv->value);
 				page->values[index] = val;
