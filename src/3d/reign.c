@@ -277,6 +277,28 @@ bool RE_plugin_unbind(struct RE_plugin *plugin)
 	return true;
 }
 
+bool RE_plugin_suspend(struct RE_plugin *plugin)
+{
+	if (!plugin)
+		return false;
+	plugin->suspended = true;
+	struct sact_sprite *sp = sact_try_get_sprite(plugin->sprite);
+	if (sp)
+		sprite_set_show(sp, false);
+	return true;
+}
+
+bool RE_plugin_resume(struct RE_plugin *plugin)
+{
+	if (!plugin)
+		return false;
+	plugin->suspended = false;
+	struct sact_sprite *sp = sact_try_get_sprite(plugin->sprite);
+	if (sp)
+		sprite_set_show(sp, true);
+	return true;
+}
+
 bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 {
 	if (!plugin)
