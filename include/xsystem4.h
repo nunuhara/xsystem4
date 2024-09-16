@@ -23,6 +23,7 @@
 struct config {
 	char *game_name;
 	char *ain_filename;
+	char *vm_name;
 	char *game_dir;
 	char *save_dir;
 	char *home_dir;
