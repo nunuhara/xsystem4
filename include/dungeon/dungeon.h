@@ -73,6 +73,7 @@ bool dungeon_load(struct dungeon_context *ctx, int num);
 void dungeon_set_camera(int surface, float x, float y, float z, float angle, float angle_p);
 void dungeon_set_walked(int surface, int x, int y, int z, int flag);
 int dungeon_get_walked(int surface, int x, int y, int z);
+void dungeon_set_walked_all(int surface);
 int dungeon_calc_conquer(int surface);
 bool dungeon_load_walk_data(int surface, int map, struct page **page);
 bool dungeon_save_walk_data(int surface, int map, struct page **page);

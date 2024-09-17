@@ -326,6 +326,18 @@ void dungeon_set_walked(int surface, int x, int y, int z, int flag)
 	}
 }
 
+void dungeon_set_walked_all(int surface)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx)
+		return;
+	int nr_cells = dgn_nr_cells(ctx->dgn);
+	for (struct dgn_cell *c = ctx->dgn->cells; c < ctx->dgn->cells + nr_cells; c++) {
+		c->walked = 1;
+		dungeon_map_reveal(ctx, c->x, c->y, c->z, false);
+	}
+}
+
 int dungeon_get_walked(int surface, int x, int y, int z)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
