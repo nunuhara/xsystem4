@@ -294,6 +294,27 @@ int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *
 	return lroundf(gfx_render_textf(dst, x, y, msg, ts, blend));
 }
 
+void gfx_render_dash_text(Texture *dst, struct text_style *ts)
+{
+	Texture glyph;
+	gfx_init_texture_rgba(&glyph, dst->w, dst->h, COLOR(0, 0, 0, 0));
+
+	// draw a horizontal line
+	int x = lroundf(ts->size * 0.12f);
+	int w = dst->w - x * 2;
+	int h = max(1, lroundf(ts->size * 0.06f));
+	int y = (ts->size - h) / 2;
+	gfx_fill(&glyph, x, y, w, h, 255, 255, 255);
+
+	float edge_width = text_style_edge_width(ts);
+	if (edge_width > 0.01f) {
+		gfx_draw_glyph(dst, 0, 0, &glyph, ts->edge_color, 1.f, edge_width, false);
+	}
+	gfx_draw_glyph(dst, 0, 0, &glyph, ts->color, 1.f, ts->bold_width, false);
+
+	gfx_delete_texture(&glyph);
+}
+
 struct font_metrics {
 	int size;
 	enum font_face face;

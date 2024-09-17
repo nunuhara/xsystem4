@@ -162,8 +162,10 @@ void StoatSpriteEngine_SP_SetTextSpriteEdgeColor(int r, int g, int b)
 
 bool StoatSpriteEngine_SP_SetDashTextSprite(int sp_no, int width, int height)
 {
-	// TODO: This function just draws a horizontal line on the sprite texture
-	NOTICE("StoatSpriteEngine.SP_SetDashTextSprite(%d, %d, %d)", sp_no, width, height);
+	struct sact_sprite *sp = sact_create_sprite(sp_no, width, height, 0, 0, 0, 0);
+	sprite_get_texture(sp); // XXX: force initialization of texture
+	gfx_render_dash_text(&sp->texture, &text_sprite_ts);
+	sprite_dirty(sp);
 	return true;
 }
 
