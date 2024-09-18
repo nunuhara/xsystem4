@@ -44,6 +44,7 @@ struct model {
 	struct hash_table *bone_map;  // bone id in POL/MOT -> struct bone *
 	struct hash_table *bone_name_map;  // bone name -> (struct bone * | NULL)
 	struct hash_table *mot_cache;  // name -> struct mot *
+	struct collider *collider;
 	vec3 aabb[2];  // axis-aligned bounding box
 	bool has_transparent_material;
 };
@@ -508,5 +509,21 @@ void mot_free(struct mot *mot);
 struct amt *amt_parse(uint8_t *data, size_t size);
 void amt_free(struct amt *amt);
 struct amt_material *amt_find_material(struct amt *amt, const char *name);
+
+// collision.c
+
+struct collider {
+	struct collider_triangle *triangles;
+	uint32_t nr_triangles;
+};
+
+struct collider_triangle {
+	vec3 vertices[3];
+	vec3 aabb[2];
+};
+
+struct collider *collider_create(struct pol *pol);
+void collider_free(struct collider *collider);
+bool check_collision(struct collider *collider, vec3 p0, vec3 p1, float radius, vec3 out);
 
 #endif /* SYSTEM4_3D_3D_INTERNAL_H */

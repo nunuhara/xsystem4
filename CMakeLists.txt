@@ -81,6 +81,7 @@ target_sources(xsystem4 PRIVATE
   src/video.c
   src/vm.c
 
+  src/3d/collision.c
   src/3d/debug.c
   src/3d/model.c
   src/3d/parser.c

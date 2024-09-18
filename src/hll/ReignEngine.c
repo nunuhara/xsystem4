@@ -1826,7 +1826,12 @@ static int TapirEngine_CreatePlugin(void)
 HLL_WARN_UNIMPLEMENTED(false, bool, TapirEngine, SetInstanceDrawParam, int plugin_number, int instance_number, int draw_param, int value);
 //bool TapirEngine_GetInstanceDrawParam(int PluginNumber, int InstanceNumber, int DrawParam, int *Value);
 HLL_WARN_UNIMPLEMENTED(0.0f, float, TapirEngine, CalcInstance2DDetectionHeight, int plugin_number, int instance_number, float x, float z);
-//bool TapirEngine_CalcInstance2DDetection(int PluginNumber, int InstanceNumber, float X0, float Y0, float Z0, float X1, float Y1, float Z1, float *X2, float *Y2, float *Z2, float Radius);
+
+static bool TapirEngine_CalcInstance2DDetection(int plugin, int instance, float x0, float y0, float z0, float x1, float y1, float z1, float *x2, float *y2, float *z2, float radius)
+{
+	return RE_instance_calc_2d_detection(get_instance(plugin, instance), x0, y0, z0, x1, y1, z1, x2, y2, z2, radius);
+}
+
 //bool TapirEngine_FindInstancePath(int PluginNumber, int InstanceNumber, float StartX, float StartY, float StartZ, float GoalX, float GoalY, float GoalZ);
 //bool TapirEngine_CalcPathFinderIntersectEyeVec(int nPlugin, int nInstance, int nMouseX, int nMouseY, float *pfX, float *pfY, float *pfZ);
 //bool TapirEngine_OptimizeInstancePathLine(int PluginNumber, int InstanceNumber);
@@ -2238,7 +2243,7 @@ HLL_LIBRARY(ReignEngine, REIGN_EXPORTS,
 	    HLL_EXPORT(SetInstanceDrawParam, TapirEngine_SetInstanceDrawParam), \
 	    HLL_TODO_EXPORT(GetInstanceDrawParam, TapirEngine_GetInstanceDrawParam), \
 	    HLL_EXPORT(CalcInstance2DDetectionHeight, TapirEngine_CalcInstance2DDetectionHeight), \
-	    HLL_TODO_EXPORT(CalcInstance2DDetection, TapirEngine_CalcInstance2DDetection), \
+	    HLL_EXPORT(CalcInstance2DDetection, TapirEngine_CalcInstance2DDetection), \
 	    HLL_TODO_EXPORT(FindInstancePath, TapirEngine_FindInstancePath), \
 	    HLL_TODO_EXPORT(CalcPathFinderIntersectEyeVec, TapirEngine_CalcPathFinderIntersectEyeVec), \
 	    HLL_TODO_EXPORT(OptimizeInstancePathLine, TapirEngine_OptimizeInstancePathLine), \

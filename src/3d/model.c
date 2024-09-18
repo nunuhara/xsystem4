@@ -474,6 +474,10 @@ struct model *model_load(struct archive *aar, const char *path)
 		}
 	}
 
+	// Collision detection is only required for maps.
+	if (strstr(path, "Map\\"))
+		model->collider = collider_create(pol);
+
 	pol_compute_aabb(pol, model->aabb);
 
 	free(material_offsets);
@@ -485,6 +489,9 @@ struct model *model_load(struct archive *aar, const char *path)
 
 void model_free(struct model *model)
 {
+	if (model->collider)
+		collider_free(model->collider);
+
 	for (int i = 0; i < model->nr_meshes; i++)
 		destroy_mesh(&model->meshes[i]);
 	free(model->meshes);
