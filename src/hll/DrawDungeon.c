@@ -255,7 +255,6 @@ CELL_SETTER(DrawDungeon_SetTexDoorE, int, cell->east_door, true);
 
 HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, SetDrawHalfFlag, int surface, int flag);
 HLL_QUIET_UNIMPLEMENTED(0, int,  DrawDungeon, GetDrawHalfFlag, int surface);
-//void DrawDungeon_SetWalkedAll(int surface);
 //int DrawDungeon_CalcNumofFloor(int surface);
 //int DrawDungeon_CalcNumofWalk(int surface);
 //int DrawDungeon_CalcNumofWalk2(int surface);
@@ -384,7 +383,7 @@ HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, RestartTimer, void);
 	HLL_EXPORT(SetDrawHalfFlag, DrawDungeon_SetDrawHalfFlag), \
 	HLL_EXPORT(GetDrawHalfFlag, DrawDungeon_GetDrawHalfFlag), \
 	HLL_EXPORT(SetWalked, dungeon_set_walked), \
-	HLL_TODO_EXPORT(SetWalkedAll, DrawDungeon_SetWalkedAll), \
+	HLL_EXPORT(SetWalkedAll, dungeon_set_walked_all), \
 	HLL_TODO_EXPORT(CalcNumofFloor, DrawDungeon_CalcNumofFloor), \
 	HLL_TODO_EXPORT(CalcNumofWalk, DrawDungeon_CalcNumofWalk), \
 	HLL_TODO_EXPORT(CalcNumofWalk2, DrawDungeon_CalcNumofWalk2), \
