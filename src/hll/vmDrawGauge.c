@@ -103,8 +103,10 @@ static void vmDrawGauge_Draw(int handle, int now, int max)
 		return;
 
 	gfx_fill_with_alpha(&sf->texture, 0, 0, sf->texture.w, sf->texture.h, 255, 0, 255, 0);
-	int w = sf->texture.w * now / max;
-	gfx_copy_with_alpha_map(&sf->texture, 0, 0, &dg->tex, 0, 0, w, sf->texture.h);
+	if (max > 0) {
+		int w = sf->texture.w * now / max;
+		gfx_copy_with_alpha_map(&sf->texture, 0, 0, &dg->tex, 0, 0, w, sf->texture.h);
+	}
 }
 
 HLL_LIBRARY(vmDrawGauge,
