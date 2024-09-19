@@ -24,7 +24,7 @@ const float PI = 3.14159265;
 in vec2 tex_coord;
 out vec4 frag_color;
 
-vec4 sample(float offset_x) {
+vec4 sample_texture(float offset_x) {
 	return texture(tex, vec2(tex_coord.x + offset_x, tex_coord.y));
 }
 
@@ -35,5 +35,5 @@ void main() {
 	float offset1 = cos(p1 * 2.0 * PI) * a;
 	float offset2 = cos(p2 * 2.0 * PI) * a;
 
-	frag_color = mix(sample(offset1), sample(offset2), 0.5);
+	frag_color = mix(sample_texture(offset1), sample_texture(offset2), 0.5);
 }
