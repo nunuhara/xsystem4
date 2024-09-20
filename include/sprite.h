@@ -60,6 +60,8 @@ struct sact_sprite {
 	int no;
 	// The CG number attached to the sprite.
 	int cg_no;
+	// The sprite is suspended. The exact meaning of this is unknown.
+	bool suspended;
 	// (optional) Draw plugin bound to this sprite.
 	struct draw_plugin *plugin;
 };
