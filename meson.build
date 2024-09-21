@@ -21,7 +21,7 @@ ffi = dependency('libffi', static : static_libs)
 tj = dependency('libturbojpeg', static : static_libs)
 webp = dependency('libwebp', static : static_libs)
 png = dependency('libpng', static : static_libs)
-cglm = dependency('cglm', version : '>=0.8.3', fallback : ['cglm', 'cglm_dep'])
+cglm = dependency('cglm', version : '>=0.9.2', fallback : ['cglm', 'cglm_dep'])
 sndfile = dependency('sndfile', static : static_libs)
 
 avcodec = dependency('libavcodec', version : '>=59.37.100', required: false, static : static_libs)

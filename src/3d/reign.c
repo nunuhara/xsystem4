@@ -549,19 +549,29 @@ float RE_instance_calc_height(struct RE_instance *instance, float x, float z)
 	return cnt ? total / cnt : 0.0f;
 }
 
+float RE_instance_calc_2d_detection_height(struct RE_instance *instance, float x, float z)
+{
+	if (!instance || !instance->model->collider)
+		return false;
+	vec2 xz = { x, -z };
+	float h;
+	if (collider_height(instance->model->collider, xz, &h))
+		return h;
+	return 0.f;
+}
+
 bool RE_instance_calc_2d_detection(struct RE_instance *instance, float x0, float y0, float z0, float x1, float y1, float z1, float *x2, float *y2, float *z2, float radius)
 {
 	if (!instance || !instance->model->collider)
 		return false;
-	vec3 p0 = { x0, y0, -z0 };
-	vec3 p1 = { x1, y1, -z1 };
-	vec3 p2;
+	vec2 p0 = { x0, -z0 };
+	vec2 p1 = { x1, -z1 };
+	vec2 p2;
 	if (!check_collision(instance->model->collider, p0, p1, radius, p2))
 		return false;
 	*x2 = p2[0];
-	*y2 = p2[1];
-	*z2 = -p2[2];
-	return true;
+	*z2 = -p2[1];
+	return collider_height(instance->model->collider, p2, y2);
 }
 
 bool RE_instance_set_debug_draw_shadow_volume(struct RE_instance *inst, bool draw)
