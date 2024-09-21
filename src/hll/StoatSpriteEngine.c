@@ -367,6 +367,18 @@ static void multisprite_update(struct multisprite *ms)
 	multisprite_update_pos(ms);
 }
 
+static int StoatSpriteEngine_SP_GetMaxZ(void)
+{
+	int max_z = sact_SP_GetMaxZ();
+	for (int t = 0; t < NR_SP_TYPES; t++) {
+		for (int i = 0; i < sp_types[t].nr_sprites; i++) {
+			if (sp_types[t].sprites[i] && max_z < sp_types[t].sprites[i]->sp.sp.z)
+				max_z = sp_types[t].sprites[i]->sp.sp.z;
+		}
+	}
+	return max_z;
+}
+
 static bool StoatSpriteEngine_MultiSprite_SetCG(int type, int n, int cg_no)
 {
 	if (cg_no && !sact_CG_IsExist(cg_no)) {
@@ -937,7 +949,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(SP_GetUnuseNum, sact_SP_GetUnuseNum),
 	    HLL_EXPORT(SP_Count, sact_SP_Count),
 	    HLL_EXPORT(SP_Enum, sact_SP_Enum),
-	    HLL_EXPORT(SP_GetMaxZ, sact_SP_GetMaxZ),
+	    HLL_EXPORT(SP_GetMaxZ, StoatSpriteEngine_SP_GetMaxZ),
 	    HLL_EXPORT(SP_SetCG, sact_SP_SetCG),
 	    HLL_EXPORT(SP_SetCGFromFile, sact_SP_SetCGFromFile),
 	    HLL_EXPORT(SP_SaveCG, sact_SP_SaveCG),
