@@ -160,6 +160,7 @@ float _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm);
 
 int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend);
 float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend);
+void gfx_render_dash_text(Texture *dst, struct text_style *ts);
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text);
 void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text);
 float gfx_size_char(struct text_style *ts, const char *ch);
