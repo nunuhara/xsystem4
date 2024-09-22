@@ -51,12 +51,12 @@ issues, please let me know or open a pull request to update this table.
 | Sengoku Rance (EN FanTL)                                | Supported   |       |
 | Sengoku Rance (MangaGamer)                              | Supported   |       |
 | だぶる先生らいふっ                                      | Unknown     |       |
-| お嬢様をいいなりにするゲーム                            | Unknown     |       |
+| お嬢様をいいなりにするゲーム                            | Supported   |       |
 | 超昂閃忍ハルカ                                          | Unknown     |       |
 | 戦国ランス～三匹が斬ったり突いたり燃やしたり            | Supported   |       |
 | Sengoku Rance -Three for the Slash! Thrust! Burn!- (EN) | Supported   |       |
 | AliveZ                                                  | Unknown     |       |
-| エドランゼ ～Come on!水戸姫様～                         | Unknown     |       |
+| エドランゼ ～Come on!水戸姫様～                         | Supported   |       |
 | 闘神都市III                                             | Supported   |       |
 | ばにしゅ！～おっぱいの消えた王国～                      | Unknown     |       |
 | 僕だけの保健室                                          | Unknown     |       |
