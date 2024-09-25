@@ -171,12 +171,54 @@ void test_array_insert(void)
 	test_bool("array.Insert()", ar.Numof() == 3 && ar[0] == 0 && ar[1] == 1 && ar[2] == 2, true);
 }
 
+void test_array_sort_int(void)
+{
+	int i;
+	bool failed = false;
+	array@int ar[2];
+	ar[0] = 0x7fffffff;
+	ar[1] = -0x80000000;
+	ar.Sort();
+	failed = (ar[0] != -0x80000000 || ar[1] != 0x7fffffff);
+	test_bool("array@int.Sort()", !failed, true);
+}
+
+void test_array_sort_float(void)
+{
+	int i;
+	bool failed = false;
+	array@float ar[8];
+	for (i = 0; i < 8; i++) {
+		ar[i] = (7 - i) * 0.1;
+	}
+	ar.Sort();
+	for (i = 0; i < 8 && !failed; i++) {
+		failed = ar[i] != i * 0.1;
+	}
+	test_bool("array@float.Sort()", !failed, true);
+}
+
+void test_array_sort_string(void)
+{
+	int i;
+	bool failed = false;
+	array@string ar[8];
+	for (i = 0; i < 8; i++) {
+		ar[i] = string(7 - i);
+	}
+	ar.Sort();
+	for (i = 0; i < 8 && !failed; i++) {
+		failed = ar[i] != string(i);
+	}
+	test_bool("array@string.Sort()", !failed, true);
+}
+
 int compare_int(int a, int b)
 {
 	return a - b;
 }
 
-void test_array_sort(void)
+void test_array_sort_custom(void)
 {
 	int i;
 	bool failed = false;
@@ -239,7 +281,10 @@ void test_arrays(void)
 	test_array_empty();
 	test_array_erase();
 	test_array_insert();
-	test_array_sort();
+	test_array_sort_int();
+	test_array_sort_float();
+	test_array_sort_string();
+	test_array_sort_custom();
 	test_array_constructors();
 	test_array_push_struct_with_ref();
 }
