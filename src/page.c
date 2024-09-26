@@ -514,15 +514,33 @@ struct page *array_insert(struct page *page, int i, union vm_value v, enum ain_d
 	return page;
 }
 
-static int current_sort_function;
-
-static int array_compare(const void *_a, const void *_b)
+static int array_compare_int(const void *_a, const void *_b)
 {
 	union vm_value a = *((union vm_value*)_a);
 	union vm_value b = *((union vm_value*)_b);
-	if (!current_sort_function) {
-		return a.i - b.i;
-	}
+	return (a.i > b.i) - (a.i < b.i);
+}
+
+static int array_compare_float(const void *_a, const void *_b)
+{
+	union vm_value a = *((union vm_value*)_a);
+	union vm_value b = *((union vm_value*)_b);
+	return (a.f > b.f) - (a.f < b.f);
+}
+
+static int array_compare_string(const void *_a, const void *_b)
+{
+	union vm_value a = *((union vm_value*)_a);
+	union vm_value b = *((union vm_value*)_b);
+	return strcmp(heap_get_string(a.i)->text, heap_get_string(b.i)->text);
+}
+
+static int current_sort_function;
+
+static int array_compare_custom(const void *_a, const void *_b)
+{
+	union vm_value a = *((union vm_value*)_a);
+	union vm_value b = *((union vm_value*)_b);
 	stack_push(a);
 	stack_push(b);
 	vm_call(current_sort_function, -1);
@@ -534,8 +552,25 @@ void array_sort(struct page *page, int compare_fno)
 	if (!page)
 		return;
 
-	current_sort_function = compare_fno;
-	qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare);
+	if (compare_fno) {
+		current_sort_function = compare_fno;
+		qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_custom);
+	} else {
+		switch (page->a_type) {
+		case AIN_ARRAY_INT:
+		case AIN_ARRAY_LONG_INT:
+			qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_int);
+			break;
+		case AIN_ARRAY_FLOAT:
+			qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_float);
+			break;
+		case AIN_ARRAY_STRING:
+			qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_string);
+			break;
+		default:
+			VM_ERROR("A_SORT(&NULL) called on ain_data_type %d", page->a_type);
+		}
+	}
 }
 
 static int current_sort_member;
