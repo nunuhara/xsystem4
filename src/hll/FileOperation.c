@@ -32,7 +32,17 @@
 
 //bool FileOperation_ExistFile(string FileName);
 //bool FileOperation_DeleteFile(string FileName);
-//bool FileOperation_CopyFile(string DestFileName, string SrcFileName);
+
+static bool FileOperation_CopyFile(struct string *dest_file_name, struct string *src_file_name)
+{
+	char *dest = unix_path(dest_file_name->text);
+	char *src = unix_path(src_file_name->text);
+	bool result = file_copy(src, dest);
+	free(src);
+	free(dest);
+	return result;
+}
+
 //bool FileOperation_GetFileCreationTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
 //bool FileOperation_GetFileLastAccessTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
 //bool FileOperation_GetFileLastWriteTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
@@ -46,8 +56,67 @@ static bool FileOperation_ExistFolder(struct string *folder_name)
 	return result;
 }
 
-//bool FileOperation_CreateFolder(string FolderName);
-//bool FileOperation_DeleteFolder(string FolderName);
+static bool FileOperation_CreateFolder(struct string *folder_name)
+{
+	char *path = unix_path(folder_name->text);
+	bool result = mkdir_p(path) == 0;
+	if (!result)
+		WARNING("mkdir_p(%s): %s", path, strerror(errno));
+	free(path);
+	return result;
+}
+
+static bool rmtree(const char *path)
+{
+	UDIR *d = opendir_utf8(path);
+	if (!d) {
+		WARNING("opendir(\"%s\"): %s", display_utf0(path), strerror(errno));
+		return false;
+	}
+	bool ok = true;
+	char *d_name;
+	while (ok && (d_name = readdir_utf8(d)) != NULL) {
+		if (d_name[0] == '.' && (d_name[1] == '\0' || (d_name[1] == '.' && d_name[2] == '\0'))) {
+			free(d_name);
+			continue;
+		}
+
+		char *utf8_path = path_join(path, d_name);
+		ustat s;
+		if (stat_utf8(utf8_path, &s) < 0) {
+			WARNING("stat(\"%s\"): %s", display_utf0(utf8_path), strerror(errno));
+			ok = false;
+		} else {
+			if (S_ISDIR(s.st_mode)) {
+				if (!rmtree(utf8_path))
+					ok = false;
+			} else {
+				if (remove_utf8(utf8_path) < 0) {
+					WARNING("remove(\"%s\"): %s", display_utf0(utf8_path), strerror(errno));
+					ok = false;
+				}
+			}
+		}
+		free(utf8_path);
+		free(d_name);
+	}
+	closedir_utf8(d);
+	if (ok) {
+		if (rmdir_utf8(path) < 0) {
+			WARNING("rmdir(\"%s\"): %s", display_utf0(path), strerror(errno));
+			ok = false;
+		}
+	}
+	return ok;
+}
+
+static bool FileOperation_DeleteFolder(struct string *folder_name)
+{
+	char *path = unix_path(folder_name->text);
+	bool result = rmtree(path);
+	free(path);
+	return result;
+}
 
 static bool get_file_list(struct string *folder_name, struct page **out, bool folders)
 {
@@ -123,13 +192,13 @@ static bool FileOperation_GetFolderList(struct string *folder_name, struct page 
 HLL_LIBRARY(FileOperation,
 	    HLL_TODO_EXPORT(ExistFile, FileOperation_ExistFile),
 	    HLL_TODO_EXPORT(DeleteFile, FileOperation_DeleteFile),
-	    HLL_TODO_EXPORT(CopyFile, FileOperation_CopyFile),
+	    HLL_EXPORT(CopyFile, FileOperation_CopyFile),
 	    HLL_TODO_EXPORT(GetFileCreationTime, FileOperation_GetFileCreationTime),
 	    HLL_TODO_EXPORT(GetFileLastAccessTime, FileOperation_GetFileLastAccessTime),
 	    HLL_TODO_EXPORT(GetFileLastWriteTime, FileOperation_GetFileLastWriteTime),
 	    HLL_TODO_EXPORT(GetFileSize, FileOperation_GetFileSize),
 	    HLL_EXPORT(ExistFolder, FileOperation_ExistFolder),
-	    HLL_TODO_EXPORT(CreateFolder, FileOperation_CreateFolder),
-	    HLL_TODO_EXPORT(DeleteFolder, FileOperation_DeleteFolder),
+	    HLL_EXPORT(CreateFolder, FileOperation_CreateFolder),
+	    HLL_EXPORT(DeleteFolder, FileOperation_DeleteFolder),
 	    HLL_EXPORT(GetFileList, FileOperation_GetFileList),
 	    HLL_EXPORT(GetFolderList, FileOperation_GetFolderList));
