@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <cglm/cglm.h>
 
@@ -21,52 +22,194 @@
 
 #include "3d_internal.h"
 
-struct collider *collider_create(struct pol *pol)
+void init_triangles(struct collider *collider, struct pol_mesh *mesh)
 {
-	struct collider *collider = xcalloc(1, sizeof(struct collider));
-
-	int nr_triangles = 0;
-	for (int i = 0; i < pol->nr_meshes; i++) {
-		nr_triangles += pol->meshes[i]->nr_triangles;
-	}
-
-	collider->nr_triangles = nr_triangles;
-	collider->triangles = xcalloc(nr_triangles, sizeof(struct collider_triangle));
+	collider->nr_triangles = mesh->nr_triangles;
+	collider->triangles = xcalloc(mesh->nr_triangles, sizeof(struct collider_triangle));
 	struct collider_triangle *t = collider->triangles;
-	for (int mesh_i = 0; mesh_i < pol->nr_meshes; mesh_i++) {
-		struct pol_mesh *mesh = pol->meshes[mesh_i];
-		for (int tri_i = 0; tri_i < mesh->nr_triangles; tri_i++) {
-			glm_aabb_invalidate(t->aabb);
-			for (int i = 0; i < 3; i++) {
-				glm_vec3_copy(mesh->vertices[mesh->triangles[tri_i].vert_index[i]].pos, t->vertices[i]);
-				glm_vec3_minv(t->vertices[i], t->aabb[0], t->aabb[0]);
-				glm_vec3_maxv(t->vertices[i], t->aabb[1], t->aabb[1]);
+	for (int tri_i = 0; tri_i < mesh->nr_triangles; tri_i++, t++) {
+		vec3 vertices[3];
+		glm_aabb2d_invalidate(t->aabb);
+		for (int i = 0; i < 3; i++) {
+			glm_vec3_copy(mesh->vertices[mesh->triangles[tri_i].vert_index[i]].pos, vertices[i]);
+			t->vertices[i][0] = vertices[i][0];
+			t->vertices[i][1] = vertices[i][2];
+			glm_vec2_minv(t->vertices[i], t->aabb[0], t->aabb[0]);
+			glm_vec2_maxv(t->vertices[i], t->aabb[1], t->aabb[1]);
+		}
+		// Do some precomputation so that we can calculate height(x, z) quickly.
+		vec3 v1, v2, normal;
+		glm_vec3_sub(vertices[1], vertices[0], v1);
+		glm_vec3_sub(vertices[2], vertices[0], v2);
+		glm_vec3_cross(v1, v2, normal);
+		t->slope[0] = -normal[0] / normal[1];
+		t->slope[1] = -normal[2] / normal[1];
+		t->intercept = glm_vec3_dot(normal, vertices[0]) / normal[1];
+	}
+}
+
+void init_edges(struct collider *collider, struct pol_mesh *mesh)
+{
+	// Find boundary edges, i.e., edges that belong to only one triangle.
+	const int nv = mesh->nr_vertices;
+	const int bv_size = (nv * nv + 31) / 32;
+	uint32_t *bv = xcalloc(bv_size, 4);
+	int nr_edges = 0;
+	for (int i = 0; i < mesh->nr_triangles; i++) {
+		for (int j = 0; j < 3; j++) {
+			int v1 = mesh->triangles[i].vert_index[j];
+			int v2 = mesh->triangles[i].vert_index[(j + 1) % 3];
+			int b = v2 * nv + v1;
+			if (bv[b >> 5] & 1U << (b & 31)) {
+				bv[b >> 5] &= ~(1U << (b & 31));
+				nr_edges--;
+			} else {
+				b = v1 * nv + v2;
+				bv[b >> 5] |= 1U << (b & 31);
+				nr_edges++;
 			}
-			t++;
 		}
 	}
+	collider->nr_edges = nr_edges;
+	collider->edges = xcalloc(nr_edges, sizeof(struct collider_edge));
+	struct collider_edge* edge = collider->edges;
+	for (int i = 0; i < bv_size; i++) {
+		if (!bv[i]) continue;
+		for (int j = 0; j < 32; j++) {
+			if (!(bv[i] & 1U << j)) continue;
+			int b = i << 5 | j;
+			int v1 = b / nv;
+			int v2 = b % nv;
+			edge->vertices[0][0] = mesh->vertices[v1].pos[0];
+			edge->vertices[0][1] = mesh->vertices[v1].pos[2];
+			edge->vertices[1][0] = mesh->vertices[v2].pos[0];
+			edge->vertices[1][1] = mesh->vertices[v2].pos[2];
+			glm_vec2_minv(edge->vertices[0], edge->vertices[1], edge->aabb[0]);
+			glm_vec2_maxv(edge->vertices[0], edge->vertices[1], edge->aabb[1]);
+			edge++;
+		}
+	}
+	assert(edge == collider->edges + nr_edges);
+	free(bv);
+}
 
+struct collider *collider_create(struct pol_mesh *mesh)
+{
+	struct collider *collider = xcalloc(1, sizeof(struct collider));
+	init_triangles(collider, mesh);
+	init_edges(collider, mesh);
+	NOTICE("collider: %d triangles %d edges", collider->nr_triangles, collider->nr_edges);
 	return collider;
 }
 
 void collider_free(struct collider *collider)
 {
 	free(collider->triangles);
+	free(collider->edges);
 	free(collider);
 }
 
-// When a sphere of radius `radius` moves from `p0` to `p1`, return the point
-// where it collides with `collider` in `out`. If no collision is detected,
-// return `p1` in `out`.
-bool check_collision(struct collider *collider, vec3 p0, vec3 p1, float radius, vec3 out)
+static bool in_triangle(struct collider_triangle* t, vec2 xz)
 {
-	// XXX: Very rough collision detection; just check if p1 is inside any triangle's AABB.
-	for (int i = 0; i < collider->nr_triangles; i++) {
-		if (glm_aabb_point(collider->triangles[i].aabb, p1)) {
-			glm_vec3_copy(p0, out);
-			return true;
+	for (int i = 0; i < 3; i++) {
+		vec2 a, b;
+		glm_vec2_sub(t->vertices[(i + 1) % 3], t->vertices[i], a);
+		glm_vec2_sub(xz, t->vertices[i], b);
+		if (glm_vec2_cross(a, b) > 0.f)
+			return false;
+	}
+	return true;
+}
+
+static struct collider_triangle* find_triangle(struct collider *collider, vec2 xz)
+{
+	struct collider_triangle* t = collider->triangles;
+	for (; t < collider->triangles + collider->nr_triangles; t++) {
+		if (!glm_aabb2d_point(t->aabb, xz))
+			continue;
+		if (in_triangle(t, xz))
+			return t;
+	}
+	return NULL;
+}
+
+bool collider_height(struct collider *collider, vec2 xz, float *h_out)
+{
+	struct collider_triangle* t = find_triangle(collider, xz);
+	if (!t)
+		return false;
+	*h_out = glm_vec2_dot(t->slope, xz) + t->intercept;
+	return true;
+}
+
+static float distance_point_to_edge(vec2 p, struct collider_edge *e, vec2 closest_point_out)
+{
+	vec2 v, w;
+	glm_vec2_sub(e->vertices[1], e->vertices[0], v);
+	glm_vec2_sub(p, e->vertices[0], w);
+
+	float c1 = glm_vec2_dot(w, v);
+	if (c1 < 0.f) {
+		glm_vec2_copy(e->vertices[0], closest_point_out);
+		return glm_vec2_distance(p, e->vertices[0]);
+	}
+	float c2 = glm_vec2_norm2(v);
+	if (c2 <= c1) {
+		glm_vec2_copy(e->vertices[1], closest_point_out);
+		return glm_vec2_distance(p, e->vertices[1]);
+	}
+	float t = c1 / c2;
+	glm_vec2_copy(e->vertices[0], closest_point_out);
+	glm_vec2_muladds(v, t, closest_point_out);
+	return glm_vec2_distance(p, closest_point_out);
+}
+
+bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out)
+{
+	if (find_triangle(collider, p1)) {
+		glm_vec2_copy(p1, out);
+	} else {
+		if (!find_triangle(collider, p0))
+			return false;
+		// Find a point on the "collision" mesh, using binary search.
+		vec2 good, bad;
+		glm_vec2_copy(p0, good);
+		glm_vec2_copy(p1, bad);
+		float w = glm_vec2_distance(good, bad);
+		while (w > radius) {
+			vec2 mid;
+			glm_vec2_center(good, bad, mid);
+			if (find_triangle(collider, mid)) {
+				glm_vec2_copy(mid, good);
+			} else {
+				glm_vec2_copy(mid, bad);
+			}
+			w /= 2.f;
+		}
+		glm_vec2_copy(good, out);
+	}
+
+	// Ensure that `out` is at least `radius` away from any boundary edge.
+	vec2 aabb[2];
+	glm_vec2_subs(out, radius, aabb[0]);
+	glm_vec2_adds(out, radius, aabb[1]);
+	for (int i = 0; i < collider->nr_edges; i++) {
+		struct collider_edge *e = &collider->edges[i];
+		if (!glm_aabb2d_aabb(e->aabb, aabb))
+			continue;
+		vec2 q;
+		float distance = distance_point_to_edge(out, e, q);
+		if (distance < radius) {
+			// out = q + normalize(out - q) * radius
+			vec2 v;
+			glm_vec2_sub(out, q, v);
+			glm_vec2_normalize(v);
+			glm_vec2_copy(q, out);
+			glm_vec2_muladds(v, radius, out);
+			// update AABB
+			glm_vec2_subs(out, radius, aabb[0]);
+			glm_vec2_adds(out, radius, aabb[1]);
 		}
 	}
-	glm_vec3_copy(p1, out);
 	return true;
 }

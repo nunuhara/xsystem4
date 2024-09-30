@@ -515,15 +515,25 @@ struct amt_material *amt_find_material(struct amt *amt, const char *name);
 struct collider {
 	struct collider_triangle *triangles;
 	uint32_t nr_triangles;
+	struct collider_edge *edges;  // boundary edges
+	uint32_t nr_edges;
 };
 
 struct collider_triangle {
-	vec3 vertices[3];
-	vec3 aabb[2];
+	vec2 vertices[3];  // xz coordinates
+	vec2 aabb[2];
+	vec2 slope;
+	float intercept;
 };
 
-struct collider *collider_create(struct pol *pol);
+struct collider_edge {
+	vec2 vertices[2];  // xz coordinates
+	vec2 aabb[2];
+};
+
+struct collider *collider_create(struct pol_mesh *mesh);
 void collider_free(struct collider *collider);
-bool check_collision(struct collider *collider, vec3 p0, vec3 p1, float radius, vec3 out);
+bool collider_height(struct collider *collider, vec2 xz, float *h_out);
+bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out);
 
 #endif /* SYSTEM4_3D_3D_INTERNAL_H */

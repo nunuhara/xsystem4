@@ -463,6 +463,13 @@ struct model *model_load(struct archive *aar, const char *path)
 	for (uint32_t i = 0; i < pol->nr_meshes; i++) {
 		if (!pol->meshes[i])
 			continue;
+		if (!strcmp(pol->meshes[i]->name, "collision")) {
+			if (model->collider)
+				WARNING("multiple collision meshes");
+			else
+				model->collider = collider_create(pol->meshes[i]);
+			continue;
+		}
 		struct pol_material_group *mg = &pol->materials[pol->meshes[i]->material];
 		int m_off = material_offsets[pol->meshes[i]->material];
 		if (mg->nr_children == 0) {
@@ -473,10 +480,6 @@ struct model *model_load(struct archive *aar, const char *path)
 			add_mesh(model, pol->meshes[i], j, m_off + j);
 		}
 	}
-
-	// Collision detection is only required for maps.
-	if (strstr(path, "Map\\"))
-		model->collider = collider_create(pol);
 
 	pol_compute_aabb(pol, model->aabb);
 

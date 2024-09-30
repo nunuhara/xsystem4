@@ -1825,7 +1825,11 @@ static int TapirEngine_CreatePlugin(void)
 
 HLL_WARN_UNIMPLEMENTED(false, bool, TapirEngine, SetInstanceDrawParam, int plugin_number, int instance_number, int draw_param, int value);
 //bool TapirEngine_GetInstanceDrawParam(int PluginNumber, int InstanceNumber, int DrawParam, int *Value);
-HLL_WARN_UNIMPLEMENTED(0.0f, float, TapirEngine, CalcInstance2DDetectionHeight, int plugin_number, int instance_number, float x, float z);
+
+static float TapirEngine_CalcInstance2DDetectionHeight(int plugin, int instance, float x, float z)
+{
+	return RE_instance_calc_2d_detection_height(get_instance(plugin, instance), x, z);
+}
 
 static bool TapirEngine_CalcInstance2DDetection(int plugin, int instance, float x0, float y0, float z0, float x1, float y1, float z1, float *x2, float *y2, float *z2, float radius)
 {
