@@ -32,14 +32,7 @@ bool IbisInputEngine_Mouse_HideCursorByGame(bool hide)
 //bool Mouse_IsHideCursorByGame(void);
 //void Mouse_HideByStepMessage(void);
 HLL_QUIET_UNIMPLEMENTED(, void, IbisInputEngine, Mouse_HideByStepMessage);
-//void MouseWheel_ClearCount(void);
-HLL_QUIET_UNIMPLEMENTED(, void, IbisInputEngine, MouseWheel_ClearCount);
 
-static void IbisInputEngine_MouseWheel_GetCount(int *forward, int *back)
-{
-	*forward = 0;
-	*back = 0;
-}
 static void IbisInputEngine_Joystick_ClearCaptureFlag(void)
 {
 	// TODO
@@ -63,8 +56,8 @@ HLL_LIBRARY(IbisInputEngine,
 	    HLL_EXPORT(Mouse_HideCursorByGame, IbisInputEngine_Mouse_HideCursorByGame),
 	    HLL_TODO_EXPORT(Mouse_IsHideCursorByGame, IbisInputEngine_Mouse_IsHideCursorByGame),
 	    HLL_EXPORT(Mouse_HideByStepMessage, IbisInputEngine_Mouse_HideByStepMessage),
-	    HLL_EXPORT(MouseWheel_ClearCount, IbisInputEngine_MouseWheel_ClearCount),
-	    HLL_EXPORT(MouseWheel_GetCount, IbisInputEngine_MouseWheel_GetCount),
+	    HLL_EXPORT(MouseWheel_ClearCount, mouse_clear_wheel),
+	    HLL_EXPORT(MouseWheel_GetCount, mouse_get_wheel),
 	    HLL_EXPORT(Key_IsDown, sact_Key_IsDown),
 	    HLL_EXPORT(Joystick_ClearCaptureFlag, IbisInputEngine_Joystick_ClearCaptureFlag),
 	    HLL_EXPORT(Joystick_GetNumofDevice, IbisInputEngine_Joystick_GetNumofDevice),
