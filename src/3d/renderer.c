@@ -74,6 +74,7 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 	glBindAttribLocation(program, VATTR_BONE_INDEX, "vertex_bone_index");
 	glBindAttribLocation(program, VATTR_BONE_WEIGHT, "vertex_bone_weight");
 	glBindAttribLocation(program, VATTR_LIGHT_UV, "vertex_light_uv");
+	glBindAttribLocation(program, VATTR_COLOR, "vertex_color");
 	glBindAttribLocation(program, VATTR_TANGENT, "vertex_tangent");
 
 	glLinkProgram(program);
@@ -144,6 +145,8 @@ static void init_billboard_mesh(struct RE_renderer *r)
 	glVertexAttribPointer(VATTR_UV, 2, GL_FLOAT, GL_FALSE, 20, (const void *)12);
 	glDisableVertexAttribArray(VATTR_LIGHT_UV);
 	glVertexAttrib2f(VATTR_LIGHT_UV, 0.0, 0.0);
+	glDisableVertexAttribArray(VATTR_COLOR);
+	glVertexAttrib3f(VATTR_COLOR, 1.0, 1.0, 1.0);
 	glDisableVertexAttribArray(VATTR_NORMAL);
 	glVertexAttrib3f(VATTR_NORMAL, 0.0, 0.0, 1.0);
 	glDisableVertexAttribArray(VATTR_TANGENT);
