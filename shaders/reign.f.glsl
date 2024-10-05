@@ -62,6 +62,7 @@ uniform int alpha_mode;
 
 in vec2 tex_coord;
 in vec2 light_tex_coord;
+in vec3 color_mod;
 in vec3 frag_pos;
 in vec4 shadow_frag_pos;
 in float dist;
@@ -103,7 +104,7 @@ void main() {
 			if (diffuse_type == DIFFUSE_LIGHT_MAP) {
 				diffuse *= texture(light_texture, light_tex_coord).rgb;
 			}
-			frag_rgb += texel.rgb * diffuse;
+			frag_rgb += texel.rgb * diffuse * color_mod;
 		}
 	}
 

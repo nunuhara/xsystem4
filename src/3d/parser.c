@@ -148,6 +148,9 @@ static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle
 		t->light_uv_index[1] = buffer_read_int32(r) - mesh->nr_uvs;
 		t->light_uv_index[2] = buffer_read_int32(r) - mesh->nr_uvs;
 	}
+	t->color_index[0] = buffer_read_int32(r);
+	t->color_index[1] = buffer_read_int32(r);
+	t->color_index[2] = buffer_read_int32(r);
 
 	buffer_skip(r, unknowns_length);
 
@@ -214,13 +217,25 @@ static struct pol_mesh *parse_mesh(struct buffer *r, const struct pol *pol)
 		}
 	}
 
-	int triangle_unknowns_length = 12;
-	if (pol->version == 1) {
-		int nr_unknown_vecs = buffer_read_int32(r);
-		buffer_skip(r, nr_unknown_vecs * 12);
-	} else {
-		int nr_unknown_ints = buffer_read_int32(r);
-		buffer_skip(r, nr_unknown_ints * 4);
+	mesh->nr_colors = buffer_read_int32(r);
+	if (mesh->nr_colors > 0) {
+		mesh->colors = xcalloc(mesh->nr_colors, sizeof(vec3));
+		for (uint32_t i = 0; i < mesh->nr_colors; i++) {
+			if (pol->version == 1) {
+				mesh->colors[i][0] = buffer_read_float(r);
+				mesh->colors[i][1] = buffer_read_float(r);
+				mesh->colors[i][2] = buffer_read_float(r);
+			} else {
+				mesh->colors[i][0] = buffer_read_u8(r) / 255.f;
+				mesh->colors[i][1] = buffer_read_u8(r) / 255.f;
+				mesh->colors[i][2] = buffer_read_u8(r) / 255.f;
+				buffer_skip(r, 1);
+			}
+		}
+	}
+
+	int triangle_unknowns_length = 0;
+	if (pol->version >= 2) {
 		int nr_unknown_bytes = buffer_read_int32(r);
 		if (nr_unknown_bytes) {
 			buffer_skip(r, nr_unknown_bytes);
@@ -254,6 +269,7 @@ static void free_mesh(struct pol_mesh *mesh)
 	free(mesh->vertices);
 	free(mesh->uvs);
 	free(mesh->light_uvs);
+	free(mesh->colors);
 	free(mesh->triangles);
 	free(mesh);
 }

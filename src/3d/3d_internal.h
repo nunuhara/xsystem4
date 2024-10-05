@@ -98,6 +98,7 @@ enum RE_attribute_location {
 	VATTR_BONE_INDEX,
 	VATTR_BONE_WEIGHT,
 	VATTR_LIGHT_UV,
+	VATTR_COLOR,
 	VATTR_TANGENT,
 };
 
@@ -425,6 +426,8 @@ struct pol_mesh {
 	vec2 *uvs;
 	uint32_t nr_light_uvs;
 	vec2 *light_uvs;
+	uint32_t nr_colors;
+	vec3 *colors;
 	uint32_t nr_triangles;
 	struct pol_triangle *triangles;
 };
@@ -444,6 +447,7 @@ struct pol_triangle {
 	uint32_t vert_index[3];
 	uint32_t uv_index[3];
 	uint32_t light_uv_index[3];
+	uint32_t color_index[3];
 	vec3 normals[3];
 	uint32_t material_group_index;
 };
