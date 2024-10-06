@@ -107,8 +107,13 @@ static bool init_material(struct material *material, const struct pol_material *
 
 	if (m->textures[SPECULAR_MAP])
 		material->specular_map = load_texture(aar, path, m->textures[SPECULAR_MAP], NULL);
-	if (m->textures[ALPHA_MAP])
-		material->alpha_map = load_texture(aar, path, m->textures[ALPHA_MAP], NULL);
+	if (m->textures[ALPHA_MAP]) {
+		if (has_alpha && !strcmp(m->textures[COLOR_MAP], m->textures[ALPHA_MAP])) {
+			// Do nothing; the alpha channel of the color map is used.
+		} else {
+			material->alpha_map = load_texture(aar, path, m->textures[ALPHA_MAP], NULL);
+		}
+	}
 	if (m->textures[LIGHT_MAP])
 		material->light_map = load_texture(aar, path, m->textures[LIGHT_MAP], NULL);
 	if (m->textures[NORMAL_MAP])
