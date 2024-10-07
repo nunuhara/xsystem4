@@ -128,6 +128,30 @@ static void destroy_shadow_renderer(struct shadow_renderer *sr)
 	glDeleteProgram(sr->program);
 }
 
+static void init_outline_renderer(struct outline_renderer *or, enum RE_plugin_version version)
+{
+	if (version < RE_TAPIR_PLUGIN) {
+		or->program = 0;
+		return;
+	}
+	or->program = load_shader("shaders/reign_outline.v.glsl", "shaders/reign_outline.f.glsl");
+	or->local_transform = glGetUniformLocation(or->program, "local_transform");
+	or->view_transform = glGetUniformLocation(or->program, "view_transform");
+	or->proj_transform = glGetUniformLocation(or->program, "proj_transform");
+	or->normal_transform = glGetUniformLocation(or->program, "normal_transform");
+	or->has_bones = glGetUniformLocation(or->program, "has_bones");
+	GLuint bone_transforms = glGetUniformBlockIndex(or->program, "BoneTransforms");
+	glUniformBlockBinding(or->program, bone_transforms, BONE_TRANSFORMS_BINDING);
+	or->outline_color = glGetUniformLocation(or->program, "outline_color");
+	or->outline_thickness = glGetUniformLocation(or->program, "outline_thickness");
+}
+
+static void destroy_outline_renderer(struct outline_renderer *or)
+{
+	if (or->program)
+		glDeleteProgram(or->program);
+}
+
 static void init_billboard_mesh(struct RE_renderer *r)
 {
 	static const GLfloat vertices[] = {
@@ -171,7 +195,7 @@ static void destroy_billboard_mesh(struct RE_renderer *r)
 	glDeleteBuffers(1, &r->billboard_attr_buffer);
 }
 
-struct RE_renderer *RE_renderer_new(void)
+struct RE_renderer *RE_renderer_new(enum RE_plugin_version version)
 {
 	struct RE_renderer *r = xcalloc(1, sizeof(struct RE_renderer));
 
@@ -225,6 +249,7 @@ struct RE_renderer *RE_renderer_new(void)
 	glGenRenderbuffers(1, &r->depth_buffer);
 
 	init_shadow_renderer(&r->shadow);
+	init_outline_renderer(&r->outline, version);
 	init_billboard_mesh(r);
 	r->billboard_textures = ht_create(256);
 	r->last_frame_timestamp = SDL_GetTicks();
@@ -279,6 +304,7 @@ void RE_renderer_free(struct RE_renderer *r)
 	ht_free_int(r->billboard_textures);
 	destroy_billboard_mesh(r);
 	destroy_shadow_renderer(&r->shadow);
+	destroy_outline_renderer(&r->outline);
 	free(r);
 }
 
@@ -744,6 +770,49 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 	glViewport(orig_viewport[0], orig_viewport[1], orig_viewport[2], orig_viewport[3]);
 }
 
+static void render_outlines(struct RE_plugin *plugin, mat4 view_transform)
+{
+	enum RE_draw_edge_mode mode = plugin->draw_options[RE_DRAW_OPTION_EDGE];
+	if (mode == RE_DRAW_EDGE_NONE)
+		return;
+	struct outline_renderer *or = &plugin->renderer->outline;
+	if (!or->program)
+		return;
+	glUseProgram(or->program);
+	glUniformMatrix4fv(or->view_transform, 1, GL_FALSE, view_transform[0]);
+	glUniformMatrix4fv(or->proj_transform, 1, GL_FALSE, plugin->proj_transform[0]);
+
+	glCullFace(GL_FRONT);
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = plugin->instances[i];
+		if (!inst || !inst->draw)
+			continue;
+		if (mode == RE_DRAW_EDGE_CHARACTERS_ONLY && inst->type != RE_ITYPE_SKINNED)
+			continue;
+		struct model *model = inst->model;
+		if (inst->model && model->nr_bones > 0) {
+			glUniform1i(or->has_bones, GL_TRUE);
+			glBindBufferBase(GL_UNIFORM_BUFFER, BONE_TRANSFORMS_BINDING, inst->bone_transforms_ubo);
+		} else {
+			glUniform1i(or->has_bones, GL_FALSE);
+		}
+		glUniformMatrix4fv(or->local_transform, 1, GL_FALSE, inst->local_transform[0]);
+		glUniformMatrix3fv(or->normal_transform, 1, GL_FALSE, inst->normal_transform[0]);
+		for (int j = 0; j < model->nr_meshes; j++) {
+			struct mesh *mesh = &model->meshes[j];
+			if (mesh->flags & MESH_NO_EDGE)
+				continue;
+			glUniform3fv(or->outline_color, 1, mesh->outline_color);
+			glUniform1f(or->outline_thickness, mesh->outline_thickness);
+			glBindVertexArray(mesh->vao);
+			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+		}
+		glBindVertexArray(0);
+	}
+	glCullFace(GL_BACK);
+	glUseProgram(plugin->renderer->program);
+}
+
 static void render_back_cg(struct texture *dst, struct RE_back_cg *bcg, struct RE_renderer *r)
 {
 	if (!bcg->show || !bcg->texture.handle)
@@ -911,6 +980,10 @@ void RE_render(struct sact_sprite *sp)
 			continue;
 		render_instance(inst, r, view_transform, DRAW_OPAQUE);
 	}
+
+	// Render outlines.
+	render_outlines(plugin, view_transform);
+
 	// Render transparent instances, from farthest to nearest.
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = sorted_instances[i];

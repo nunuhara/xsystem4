@@ -63,8 +63,14 @@ enum RE_draw_type {
 };
 
 enum RE_draw_options {
-	RE_DRAW_OPTION_UNKNOWN,
+	RE_DRAW_OPTION_EDGE = 0,
 	RE_DRAW_OPTION_MAX
+};
+
+enum RE_draw_edge_mode {
+	RE_DRAW_EDGE_NONE = 0,
+	RE_DRAW_EDGE_CHARACTERS_ONLY = 1,
+	RE_DRAW_EDGE_ALL = 2,
 };
 
 struct RE_options {

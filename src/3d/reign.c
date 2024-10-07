@@ -260,7 +260,7 @@ bool RE_plugin_bind(struct RE_plugin *plugin, int sprite)
 	struct sact_sprite *sp = sact_try_get_sprite(sprite);
 	if (!sp)
 		return false;
-	plugin->renderer = RE_renderer_new();
+	plugin->renderer = RE_renderer_new(plugin->version);
 	plugin->sprite = sprite;
 	sprite_bind_plugin(sp, &plugin->plugin);
 	struct texture *texture = sprite_get_texture(sp);
