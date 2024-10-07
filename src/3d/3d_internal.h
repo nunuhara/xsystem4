@@ -108,7 +108,7 @@ struct shadow_renderer {
 	GLuint texture;
 
 	// Uniform variable locations
-	GLint world_transform;
+	GLint local_transform;
 	GLint view_transform;
 	GLint has_bones;
 };
@@ -119,7 +119,6 @@ struct RE_renderer {
 	struct shadow_renderer shadow;
 
 	// Uniform variable locations
-	GLint world_transform;
 	GLint view_transform;
 	GLint texture;
 	GLint local_transform;

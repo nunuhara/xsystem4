@@ -99,7 +99,7 @@ static void init_shadow_renderer(struct shadow_renderer *sr)
 	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &orig_fbo);
 
 	sr->program = load_shader("shaders/reign_shadow.v.glsl", "shaders/reign_shadow.f.glsl");
-	sr->world_transform = glGetUniformLocation(sr->program, "world_transform");
+	sr->local_transform = glGetUniformLocation(sr->program, "local_transform");
 	sr->view_transform = glGetUniformLocation(sr->program, "view_transform");
 	sr->has_bones = glGetUniformLocation(sr->program, "has_bones");
 	GLuint bone_transforms = glGetUniformBlockIndex(sr->program, "BoneTransforms");
@@ -176,7 +176,6 @@ struct RE_renderer *RE_renderer_new(void)
 	struct RE_renderer *r = xcalloc(1, sizeof(struct RE_renderer));
 
 	r->program = load_shader("shaders/reign.v.glsl", "shaders/reign.f.glsl");
-	r->world_transform = glGetUniformLocation(r->program, "world_transform");
 	r->view_transform = glGetUniformLocation(r->program, "view_transform");
 	r->texture = glGetUniformLocation(r->program, "tex");
 	r->local_transform = glGetUniformLocation(r->program, "local_transform");
@@ -729,7 +728,7 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 		} else {
 			glUniform1i(r->shadow.has_bones, GL_FALSE);
 		}
-		glUniformMatrix4fv(r->shadow.world_transform, 1, GL_FALSE, inst->local_transform[0]);
+		glUniformMatrix4fv(r->shadow.local_transform, 1, GL_FALSE, inst->local_transform[0]);
 		for (int j = 0; j < model->nr_meshes; j++) {
 			struct mesh *mesh = &model->meshes[j];
 			if (mesh->flags & MESH_NOMAKESHADOW)
@@ -975,7 +974,7 @@ struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glUseProgram(r->shadow.program);
-	glUniformMatrix4fv(r->shadow.world_transform, 1, GL_FALSE, view_matrix[0]);
+	glUniformMatrix4fv(r->shadow.local_transform, 1, GL_FALSE, view_matrix[0]);
 	glUniformMatrix4fv(r->shadow.view_transform, 1, GL_FALSE, proj_matrix[0]);
 	glUniform1i(r->shadow.has_bones, GL_FALSE);
 

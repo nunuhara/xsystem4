@@ -14,7 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-uniform mat4 world_transform;
+uniform mat4 local_transform;
 uniform mat4 view_transform;
 
 const int MAX_BONES = 308;  // see 3d_internal.h
@@ -29,7 +29,7 @@ in ivec4 vertex_bone_index;
 in vec4 vertex_bone_weight;
 
 void main() {
-	mat4 world_bone_transform = world_transform;
+	mat4 local_bone_transform = local_transform;
 	if (has_bones) {
 		mat4 bone_transform = mat4(0.f);
 		for (int i = 0; i < NR_WEIGHTS; i++) {
@@ -37,8 +37,8 @@ void main() {
 				bone_transform += bone_matrices[vertex_bone_index[i]] * vertex_bone_weight[i];
 			}
 		}
-		world_bone_transform *= bone_transform;
+		local_bone_transform *= bone_transform;
 	}
 
-	gl_Position = view_transform * world_bone_transform * vec4(vertex_pos, 1.0);
+	gl_Position = view_transform * local_bone_transform * vec4(vertex_pos, 1.0);
 }
