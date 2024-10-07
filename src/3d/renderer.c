@@ -645,6 +645,26 @@ static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat
 	}
 }
 
+static void merge_spheres(vec4 s1, vec4 s2, vec4 dest)
+{
+	// glm_sphere_merge() doesn't make the smallest possible sphere, so do it manually.
+	float distance = glm_vec3_distance(s1, s2);
+	float r1 = s1[3];
+	float r2 = s2[3];
+	if (distance + r2 <= r1) {
+		glm_vec4_copy(s1, dest);
+	} else if (distance + r1 <= r2) {
+		glm_vec4_copy(s2, dest);
+	} else {
+		float radius = (distance + r1 + r2) / 2.f;
+		vec3 v12;
+		glm_vec3_sub(s2, s1, v12);
+		glm_vec3_copy(s1, dest);
+		glm_vec3_muladds(v12, (radius - r1) / distance, dest);
+		dest[3] = radius;
+	}
+}
+
 static bool calc_shadow_light_transform(struct RE_plugin *plugin, mat4 dest)
 {
 	// Compute a bounding sphere of shadow casters.
@@ -654,7 +674,7 @@ static bool calc_shadow_light_transform(struct RE_plugin *plugin, mat4 dest)
 		if (!inst || !inst->draw || !inst->make_shadow || !inst->model)
 			continue;
 		if (bounding_sphere[3] > 0.0f)
-			glm_sphere_merge(inst->bounding_sphere, bounding_sphere, inst->bounding_sphere);
+			merge_spheres(inst->bounding_sphere, bounding_sphere, bounding_sphere);
 		else
 			glm_vec4_copy(inst->bounding_sphere, bounding_sphere);
 	}
@@ -665,7 +685,7 @@ static bool calc_shadow_light_transform(struct RE_plugin *plugin, mat4 dest)
 
 	// Create a orthographic frustum that contains the bounding sphere.
 	mat4 view_matrix;
-	glm_look(bounding_sphere, plugin->shadow_map_light_dir, GLM_YUP, view_matrix);
+	glm_look_anyup(bounding_sphere, plugin->shadow_map_light_dir, view_matrix);
 	mat4 proj_matrix;
 	glm_ortho(-radius, radius, -radius, radius, -radius, radius, proj_matrix);
 	glm_mat4_mul(proj_matrix, view_matrix, dest);
