@@ -440,6 +440,13 @@ struct model *model_load(struct archive *aar, const char *path)
 	struct model *model = xcalloc(1, sizeof(struct model));
 	model->path = strdup(path);
 
+	// Load .opr file, if any
+	struct archive_data *opr_file = RE_get_aar_entry(aar, path, basename, ".opr");
+	if (opr_file) {
+		opr_load(opr_file->data, opr_file->size, pol);
+		archive_free_data(opr_file);
+	}
+
 	// Bones
 	if (pol->nr_bones > 0) {
 		if (pol->nr_bones > MAX_BONES)
