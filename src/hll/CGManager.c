@@ -15,7 +15,6 @@
  */
 
 #include "system4/string.h"
-#include "system4/utfsjis.h"
 #include "asset_manager.h"
 #include "xsystem4.h"
 #include "hll.h"
@@ -27,7 +26,7 @@ static bool CGManager_Init(void *imain_system, int cg_cache_size)
 
 static bool CGManager_LoadArchive(struct string *archive_name)
 {
-	char *name = sjis2utf(archive_name->text, 0);
+	char *name = gamedir_path(archive_name->text);
 	bool r = asset_manager_load_archive(ASSET_CG, name);
 	free(name);
 	return r;
