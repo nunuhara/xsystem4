@@ -26,7 +26,7 @@
 #include "reign.h"
 
 #define NR_DIR_LIGHTS 3
-#define MAX_BONES 211  // Maximum in TT3
+#define MAX_BONES 308  // Maximum in Rance Quest
 
 typedef struct vec3_range {
 	vec3 begin;
@@ -111,7 +111,6 @@ struct shadow_renderer {
 	GLint world_transform;
 	GLint view_transform;
 	GLint has_bones;
-	GLint bone_matrices;
 };
 
 struct RE_renderer {
@@ -128,7 +127,6 @@ struct RE_renderer {
 	GLint normal_transform;
 	GLint alpha_mod;
 	GLint has_bones;
-	GLint bone_matrices;
 	GLint ambient;
 	struct {
 		GLint dir;
