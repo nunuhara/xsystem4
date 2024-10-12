@@ -26,6 +26,8 @@
 #include "reign.h"
 #include "sact.h"
 
+#define BONE_TRANSFORMS_BINDING 0
+
 // TODO: Respect RE_plugin.shadow_map_resolution_level
 #define SHADOW_WIDTH 512
 #define SHADOW_HEIGHT 512
@@ -100,7 +102,8 @@ static void init_shadow_renderer(struct shadow_renderer *sr)
 	sr->world_transform = glGetUniformLocation(sr->program, "world_transform");
 	sr->view_transform = glGetUniformLocation(sr->program, "view_transform");
 	sr->has_bones = glGetUniformLocation(sr->program, "has_bones");
-	sr->bone_matrices = glGetUniformLocation(sr->program, "bone_matrices");
+	GLuint bone_transforms = glGetUniformBlockIndex(sr->program, "BoneTransforms");
+	glUniformBlockBinding(sr->program, bone_transforms, BONE_TRANSFORMS_BINDING);
 
 	glGenFramebuffers(1, &sr->fbo);
 	glGenTextures(1, &sr->texture);
@@ -181,7 +184,8 @@ struct RE_renderer *RE_renderer_new(void)
 	r->normal_transform = glGetUniformLocation(r->program, "normal_transform");
 	r->alpha_mod = glGetUniformLocation(r->program, "alpha_mod");
 	r->has_bones = glGetUniformLocation(r->program, "has_bones");
-	r->bone_matrices = glGetUniformLocation(r->program, "bone_matrices");
+	GLuint bone_transforms = glGetUniformBlockIndex(r->program, "BoneTransforms");
+	glUniformBlockBinding(r->program, bone_transforms, BONE_TRANSFORMS_BINDING);
 	r->ambient = glGetUniformLocation(r->program, "ambient");
 	for (int i = 0; i < NR_DIR_LIGHTS; i++) {
 		char buf[64];
@@ -423,7 +427,7 @@ static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r
 
 	if (model->nr_bones > 0 && inst->motion) {
 		glUniform1i(r->has_bones, GL_TRUE);
-		glUniformMatrix4fv(r->bone_matrices, model->nr_bones, GL_FALSE, inst->bone_transforms[0][0]);
+		glBindBufferBase(GL_UNIFORM_BUFFER, BONE_TRANSFORMS_BINDING, inst->bone_transforms_ubo);
 	} else {
 		glUniform1i(r->has_bones, GL_FALSE);
 	}
@@ -721,7 +725,7 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 		struct model *model = inst->model;
 		if (model->nr_bones > 0) {
 			glUniform1i(r->shadow.has_bones, GL_TRUE);
-			glUniformMatrix4fv(r->shadow.bone_matrices, model->nr_bones, GL_FALSE, inst->bone_transforms[0][0]);
+			glBindBufferBase(GL_UNIFORM_BUFFER, BONE_TRANSFORMS_BINDING, inst->bone_transforms_ubo);
 		} else {
 			glUniform1i(r->shadow.has_bones, GL_FALSE);
 		}
@@ -975,6 +979,14 @@ struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r
 	glUniformMatrix4fv(r->shadow.view_transform, 1, GL_FALSE, proj_matrix[0]);
 	glUniform1i(r->shadow.has_bones, GL_FALSE);
 
+	// Bone transforms are not used, but we still need to bind a UBO.
+	GLuint bone_transforms_ubo;
+	glGenBuffers(1, &bone_transforms_ubo);
+	glBindBuffer(GL_UNIFORM_BUFFER, bone_transforms_ubo);
+	glBufferData(GL_UNIFORM_BUFFER, MAX_BONES * sizeof(mat4), NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, BONE_TRANSFORMS_BINDING, bone_transforms_ubo);
+
 	glEnable(GL_DEPTH_TEST);
 
 	// Render the model.
@@ -996,6 +1008,7 @@ struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r
 	glBindFramebuffer(GL_FRAMEBUFFER, orig_fbo);
 	glViewport(orig_viewport[0], orig_viewport[1], orig_viewport[2], orig_viewport[3]);
 
+	glDeleteBuffers(1, &bone_transforms_ubo);
 	glDeleteTextures(1, &color_texture);
 	return hd;
 }

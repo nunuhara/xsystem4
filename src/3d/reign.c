@@ -75,6 +75,7 @@ static void unload_instance(struct RE_instance *instance)
 		instance->effect = NULL;
 	}
 	if (instance->bone_transforms) {
+		glDeleteBuffers(1, &instance->bone_transforms_ubo);
 		free(instance->bone_transforms);
 		instance->bone_transforms = NULL;
 	}
@@ -182,6 +183,9 @@ static void update_bones(struct RE_instance *inst)
 		glm_vec3_minv(aabb[0], bone_transform[3], aabb[0]);
 		glm_vec3_maxv(aabb[1], bone_transform[3], aabb[1]);
 	}
+	glBindBuffer(GL_UNIFORM_BUFFER, inst->bone_transforms_ubo);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, inst->model->nr_bones * sizeof(mat4), inst->bone_transforms);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	// Update inst->bounding_sphere.
 	vec3 center;
@@ -435,8 +439,13 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 			if (instance->model)
 				ht_put(instance->plugin->model_cache, name, instance->model);
 		}
-		if (instance->model && instance->model->nr_bones > 0)
+		if (instance->model && instance->model->nr_bones > 0) {
 			instance->bone_transforms = xcalloc(instance->model->nr_bones, sizeof(mat4));
+			glGenBuffers(1, &instance->bone_transforms_ubo);
+			glBindBuffer(GL_UNIFORM_BUFFER, instance->bone_transforms_ubo);
+			glBufferData(GL_UNIFORM_BUFFER, MAX_BONES * sizeof(mat4), NULL, GL_DYNAMIC_DRAW);
+			glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		}
 		return !!instance->model;
 	case RE_ITYPE_PARTICLE_EFFECT:
 		pae = ht_get(instance->plugin->pae_cache, name, NULL);

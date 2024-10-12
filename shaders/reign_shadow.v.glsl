@@ -17,10 +17,12 @@
 uniform mat4 world_transform;
 uniform mat4 view_transform;
 
-const int MAX_BONES = 211;  // see 3d_internal.h
+const int MAX_BONES = 308;  // see 3d_internal.h
 const int NR_WEIGHTS = 4;
 uniform bool has_bones;
-uniform mat4 bone_matrices[MAX_BONES];
+layout(std140) uniform BoneTransforms {
+	mat4 bone_matrices[MAX_BONES];
+};
 
 in vec3 vertex_pos;
 in ivec4 vertex_bone_index;
