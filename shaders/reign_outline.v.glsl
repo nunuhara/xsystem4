@@ -1,4 +1,4 @@
-/* Copyright (C) 2022 kichikuou <KichikuouChrome@gmail.com>
+/* Copyright (C) 2024 kichikuou <KichikuouChrome@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
 
 uniform mat4 local_transform;
 uniform mat4 view_transform;
+uniform mat4 proj_transform;
+uniform mat3 normal_transform;
 
 const int MAX_BONES = 308;  // see 3d_internal.h
 const int NR_WEIGHTS = 4;
@@ -23,13 +25,16 @@ uniform bool has_bones;
 layout(std140) uniform BoneTransforms {
 	mat4 bone_matrices[MAX_BONES];
 };
+uniform float outline_thickness;
 
 in vec3 vertex_pos;
+in vec3 vertex_normal;
 in ivec4 vertex_bone_index;
 in vec4 vertex_bone_weight;
 
 void main() {
 	mat4 local_bone_transform = local_transform;
+	mat3 normal_bone_transform = normal_transform;
 	if (has_bones) {
 		mat4 bone_transform = mat4(0.f);
 		for (int i = 0; i < NR_WEIGHTS; i++) {
@@ -38,7 +43,11 @@ void main() {
 			}
 		}
 		local_bone_transform *= bone_transform;
+		normal_bone_transform *= mat3(bone_transform);
 	}
 
-	gl_Position = view_transform * local_bone_transform * vec4(vertex_pos, 1.0);
+	vec4 pos = local_bone_transform * vec4(vertex_pos, 1.0);
+	vec3 normal = normalize(normal_bone_transform * vertex_normal);
+
+	gl_Position = proj_transform * view_transform * (pos + vec4(normal, 0.0) * outline_thickness);
 }

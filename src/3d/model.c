@@ -29,6 +29,7 @@
 
 #define FP16_MIN 6.103516e-5f
 #define NR_WEIGHTS 4
+#define DEFAULT_OUTLINE_THICKNESS 0.003
 
 struct vertex_common {
 	GLfloat pos[3];
@@ -298,6 +299,11 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 	struct mesh *mesh = &model->meshes[model->nr_meshes++];
 	mesh->flags = m->flags;
 	mesh->material = material;
+	mesh->outline_color[0] = m->edge_color.r / 255.f;
+	mesh->outline_color[1] = m->edge_color.g / 255.f;
+	mesh->outline_color[2] = m->edge_color.b / 255.f;
+	mesh->outline_thickness = m->edge_size ? m->edge_size : DEFAULT_OUTLINE_THICKNESS;
+	glm_vec2_copy(m->uv_scroll, mesh->uv_scroll);
 	mesh->nr_vertices = nr_vertices;
 
 	glGenVertexArrays(1, &mesh->vao);
@@ -439,6 +445,13 @@ struct model *model_load(struct archive *aar, const char *path)
 
 	struct model *model = xcalloc(1, sizeof(struct model));
 	model->path = strdup(path);
+
+	// Load .opr file, if any
+	struct archive_data *opr_file = RE_get_aar_entry(aar, path, basename, ".opr");
+	if (opr_file) {
+		opr_load(opr_file->data, opr_file->size, pol);
+		archive_free_data(opr_file);
+	}
 
 	// Bones
 	if (pol->nr_bones > 0) {

@@ -473,3 +473,64 @@ struct amt_material *amt_find_material(struct amt *amt, const char *name)
 	}
 	return NULL;
 }
+
+void opr_load(uint8_t *data, size_t size, struct pol *pol)
+{
+	struct pol_mesh *current_mesh = NULL;
+	while (size > 0) {
+		char line[200];
+		uint8_t *nl = memchr(data, '\n', size);
+		if (nl)
+			nl++;
+		else
+			nl = data + size;
+		int copylen = min(nl - data, sizeof(line) - 1);
+		memcpy(line, (char *)data, copylen);
+		line[copylen] = '\0';
+		size -= nl - data;
+		data = nl;
+
+		char s[200];
+		if (sscanf(line, "Mesh = \"%[^\"]\"", s) == 1 ||
+			sscanf(line, "MeshPart = \"%[^\"]\"", s) == 1) {
+			current_mesh = NULL;
+			for (int i = 0; i < pol->nr_meshes; i++) {
+				if (pol->meshes[i] && !strcmp(pol->meshes[i]->name, s)) {
+					current_mesh = pol->meshes[i];
+					break;
+				}
+			}
+			continue;
+		}
+		if (!current_mesh)
+			continue;
+
+		int i1, i2, i3;
+		float f1, f2;
+		if (sscanf(line, "BlendMode = %s", s) == 1) {
+			if (!strcmp(s, "Add"))
+				current_mesh->flags |= MESH_BLEND_ADDITIVE;
+			else
+				WARNING("unknown BlendMode: %s", s);
+		} else if (sscanf(line, "Edge = %d", &i1) == 1) {
+			if (i1 == 0)
+				current_mesh->flags |= MESH_NO_EDGE;
+			else
+				WARNING("invalid Edge value: %d", i1);
+		} else if (sscanf(line, "EdgeColor = ( %d , %d , %d )", &i1, &i2, &i3) == 3) {
+			current_mesh->edge_color = COLOR(i1, i2, i3, 255);
+		} else if (sscanf(line, "EdgeSize = %f", &f1) == 1) {
+			current_mesh->edge_size = f1;
+		} else if (sscanf(line, "HeightDetection = %s", s) == 1) {
+			if (!strcmp(s, "false"))
+				current_mesh->flags |= MESH_NO_HEIGHT_DETECTION;
+			else
+				WARNING("invalid HeightDetection: %s", s);
+		} else if (sscanf(line, "UVScroll = ( %f , %f )", &f1, &f2) == 2) {
+			current_mesh->uv_scroll[0] = f1;
+			current_mesh->uv_scroll[1] = f2;
+		} else if (strchr(line, '=')) {
+			WARNING("unknown field: %s", line);
+		}
+	}
+}

@@ -57,6 +57,9 @@ struct mesh {
 	int nr_vertices;
 	int nr_indices;
 	int material;
+	vec3 outline_color;
+	float outline_thickness;
+	vec2 uv_scroll;
 };
 
 struct material {
@@ -108,18 +111,31 @@ struct shadow_renderer {
 	GLuint texture;
 
 	// Uniform variable locations
-	GLint world_transform;
+	GLint local_transform;
 	GLint view_transform;
 	GLint has_bones;
+};
+
+struct outline_renderer {
+	GLuint program;
+
+	// Uniform variable locations
+	GLint local_transform;
+	GLint view_transform;
+	GLint proj_transform;
+	GLint normal_transform;
+	GLint has_bones;
+	GLint outline_color;
+	GLint outline_thickness;
 };
 
 struct RE_renderer {
 	GLuint program;
 	GLuint depth_buffer;
 	struct shadow_renderer shadow;
+	struct outline_renderer outline;
 
 	// Uniform variable locations
-	GLint world_transform;
 	GLint view_transform;
 	GLint texture;
 	GLint local_transform;
@@ -190,7 +206,7 @@ struct archive_data *RE_get_aar_entry(struct archive *aar, const char *dir, cons
 
 // renderer.c
 
-struct RE_renderer *RE_renderer_new(void);
+struct RE_renderer *RE_renderer_new(enum RE_plugin_version version);
 void RE_renderer_free(struct RE_renderer *r);
 void RE_renderer_set_viewport_size(struct RE_renderer *r, int width, int height);
 bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);
@@ -407,11 +423,14 @@ struct pol_material_group {
 };
 
 enum mesh_flags {
-	MESH_NOLIGHTING   = 1 << 0,
-	MESH_NOMAKESHADOW = 1 << 1,
-	MESH_ENVMAP       = 1 << 2,
-	MESH_BOTH         = 1 << 3,
-	MESH_SPRITE       = 1 << 4,
+	MESH_NOLIGHTING          = 1 << 0,
+	MESH_NOMAKESHADOW        = 1 << 1,
+	MESH_ENVMAP              = 1 << 2,
+	MESH_BOTH                = 1 << 3,
+	MESH_SPRITE              = 1 << 4,
+	MESH_BLEND_ADDITIVE      = 1 << 5,
+	MESH_NO_EDGE             = 1 << 6,
+	MESH_NO_HEIGHT_DETECTION = 1 << 7,
 };
 
 struct pol_mesh {
@@ -428,6 +447,10 @@ struct pol_mesh {
 	vec3 *colors;
 	uint32_t nr_triangles;
 	struct pol_triangle *triangles;
+	// Parameters in .opr file.
+	Color edge_color;
+	float edge_size;
+	vec2 uv_scroll;
 };
 
 struct pol_vertex {
@@ -511,6 +534,8 @@ void mot_free(struct mot *mot);
 struct amt *amt_parse(uint8_t *data, size_t size);
 void amt_free(struct amt *amt);
 struct amt_material *amt_find_material(struct amt *amt, const char *name);
+
+void opr_load(uint8_t *data, size_t size, struct pol *pol);
 
 // collision.c
 
