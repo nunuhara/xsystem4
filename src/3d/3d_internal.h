@@ -177,6 +177,7 @@ struct RE_renderer {
 	GLint ls_sun_color;
 	GLint alpha_mode;
 	GLint alpha_texture;
+	GLint uv_scroll;
 
 	GLuint billboard_vao;
 	GLuint billboard_attr_buffer;

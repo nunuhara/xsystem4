@@ -254,6 +254,7 @@ struct RE_renderer *RE_renderer_new(enum RE_plugin_version version)
 	r->ls_sun_color = glGetUniformLocation(r->program, "ls_sun_color");
 	r->alpha_mode = glGetUniformLocation(r->program, "alpha_mode");
 	r->alpha_texture = glGetUniformLocation(r->program, "alpha_texture");
+	r->uv_scroll = glGetUniformLocation(r->program, "uv_scroll");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 
@@ -428,6 +429,10 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		} else {
 			glUniform1i(r->alpha_mode, ALPHA_BLEND);
 		}
+
+		vec2 uv_scroll;
+		glm_vec2_scale(mesh->uv_scroll, r->last_frame_timestamp / 1000.f, uv_scroll);
+		glUniform2fv(r->uv_scroll, 1, uv_scroll);
 
 		glBindVertexArray(mesh->vao);
 

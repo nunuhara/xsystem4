@@ -39,6 +39,12 @@ out vec3 specular_dir;
 out vec3 ls_ex;
 out vec3 ls_in;
 
+const vec2 uv_scroll = vec2(0.0);
+
+#else // ENGINE == REIGN_ENGINE
+
+uniform vec2 uv_scroll;
+
 #endif // ENGINE == REIGN_ENGINE
 
 uniform mat4 local_transform;
@@ -104,8 +110,8 @@ void main() {
 	vec4 view_pos = view_transform * world_pos;
 	gl_Position = proj_transform * view_pos;
 
-	tex_coord = vertex_uv;
-	light_tex_coord = vertex_light_uv;
+	tex_coord = vertex_uv + uv_scroll;
+	light_tex_coord = vertex_light_uv + uv_scroll;
 	color_mod = vertex_color;
 	dist = -view_pos.z;
 	shadow_frag_pos = shadow_transform * world_pos;
