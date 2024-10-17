@@ -73,6 +73,7 @@ Texture *gfx_main_surface(void);
 void gfx_set_window_logical_size(int w, int h);
 void gfx_update_screen_scale(void);
 void gfx_set_wait_vsync(bool wait);
+float gfx_get_frame_rate(void);
 
 void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const char *fragment_shader_path);
 GLuint gfx_load_shader_file(const char *path, GLenum type);
