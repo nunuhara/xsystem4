@@ -68,6 +68,7 @@ static struct texture main_surface;
 static struct texture *view = &main_surface;
 static GLint max_texture_size;
 static SDL_Color clear_color = { 0, 0, 0, 255 };
+static float frame_rate;
 
 static GLchar *read_shader_file(const char *path)
 {
@@ -379,6 +380,25 @@ void gfx_set_view_offset(int x, int y)
 	glm_translate(mw_transform, off);
 }
 
+float gfx_get_frame_rate(void)
+{
+	return frame_rate;
+}
+
+static void gfx_update_frame_rate_counter(void)
+{
+	static uint64_t timestamp;
+	static int frame_count;
+
+	frame_count++;
+	uint64_t current_time = SDL_GetTicks64();
+	if (current_time > timestamp + 1000) {
+		frame_rate = frame_count * 1000.f / (current_time - timestamp);
+		timestamp = current_time;
+		frame_count = 0;
+	}
+}
+
 void gfx_swap(void)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -403,6 +423,8 @@ void gfx_swap(void)
 	SDL_GL_SwapWindow(sdl.window);
 	glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);
 	glViewport(0, 0, sdl.w, sdl.h);
+
+	gfx_update_frame_rate_counter();
 }
 
 void gfx_set_view(struct texture *t)
