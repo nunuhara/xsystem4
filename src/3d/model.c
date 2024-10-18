@@ -42,7 +42,7 @@ struct vertex_light_uv {
 };
 
 struct vertex_color {
-	GLfloat color[3];
+	GLfloat color[4];
 };
 
 struct vertex_tangent {
@@ -227,7 +227,7 @@ static void *buf_alloc(uint8_t **ptr, int size)
 static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_group_index, int material)
 {
 	bool has_light_map = m->light_uvs && model->materials[material].light_map;
-	bool has_vertex_colors = m->nr_colors > 0;
+	bool has_vertex_colors = m->nr_colors > 0 || m->nr_alphas > 0;
 	bool has_normal_map = model->materials[material].normal_map != 0;
 	bool has_bones = !!model->bone_map;
 
@@ -264,7 +264,11 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 			}
 			if (has_vertex_colors) {
 				struct vertex_color *v_color = buf_alloc(&ptr, sizeof(struct vertex_color));
-				glm_vec3_copy(m->colors[t->color_index[j]], v_color->color);
+				if (m->nr_colors > 0)
+					glm_vec3_copy(m->colors[t->color_index[j]], v_color->color);
+				else
+					glm_vec3_one(v_color->color);
+				v_color->color[3] = m->nr_alphas > 0 ? m->alphas[t->alpha_index[j]] : 1.f;
 			}
 			if (has_normal_map) {
 				struct vertex_tangent *v_tangent = buf_alloc(&ptr, sizeof(struct vertex_tangent));
@@ -329,11 +333,11 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 	}
 	if (has_vertex_colors) {
 		glEnableVertexAttribArray(VATTR_COLOR);
-		glVertexAttribPointer(VATTR_COLOR, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_color, color));
+		glVertexAttribPointer(VATTR_COLOR, 4, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_color, color));
 		base += sizeof(struct vertex_color);
 	} else {
 		glDisableVertexAttribArray(VATTR_COLOR);
-		glVertexAttrib3f(VATTR_COLOR, 1.0, 1.0, 1.0);
+		glVertexAttrib4f(VATTR_COLOR, 1.0, 1.0, 1.0, 1.0);
 	}
 	if (has_normal_map) {
 		glEnableVertexAttribArray(VATTR_TANGENT);

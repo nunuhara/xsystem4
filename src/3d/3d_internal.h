@@ -447,6 +447,8 @@ struct pol_mesh {
 	vec2 *light_uvs;
 	uint32_t nr_colors;
 	vec3 *colors;
+	uint32_t nr_alphas;
+	float *alphas;
 	uint32_t nr_triangles;
 	struct pol_triangle *triangles;
 	// Parameters in .opr file.
@@ -471,6 +473,7 @@ struct pol_triangle {
 	uint32_t uv_index[3];
 	uint32_t light_uv_index[3];
 	uint32_t color_index[3];
+	uint32_t alpha_index[3];
 	vec3 normals[3];
 	uint32_t material_group_index;
 };

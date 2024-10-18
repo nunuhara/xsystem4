@@ -68,14 +68,14 @@ in vec3 vertex_pos;
 in vec3 vertex_normal;
 in vec2 vertex_uv;
 in vec2 vertex_light_uv;
-in vec3 vertex_color;
+in vec4 vertex_color;
 in vec4 vertex_tangent;
 in ivec4 vertex_bone_index;
 in vec4 vertex_bone_weight;
 
 out vec2 tex_coord;
 out vec2 light_tex_coord;
-out vec3 color_mod;
+out vec4 color_mod;
 out vec3 frag_pos;
 out vec4 shadow_frag_pos;
 out float dist;

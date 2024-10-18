@@ -181,7 +181,7 @@ static void init_billboard_mesh(struct RE_renderer *r)
 	glDisableVertexAttribArray(VATTR_LIGHT_UV);
 	glVertexAttrib2f(VATTR_LIGHT_UV, 0.0, 0.0);
 	glDisableVertexAttribArray(VATTR_COLOR);
-	glVertexAttrib3f(VATTR_COLOR, 1.0, 1.0, 1.0);
+	glVertexAttrib4f(VATTR_COLOR, 1.0, 1.0, 1.0, 1.0);
 	glDisableVertexAttribArray(VATTR_NORMAL);
 	glVertexAttrib3f(VATTR_NORMAL, 0.0, 0.0, 1.0);
 	glDisableVertexAttribArray(VATTR_TANGENT);
