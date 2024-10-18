@@ -191,7 +191,7 @@ struct RE_instance {
 	bool local_transform_needs_update;
 	mat4 local_transform;
 	mat3 normal_transform;
-	mat4 *bone_transforms;  // model->nr_bones elements
+	mat3x4 *bone_transforms;  // row-major, model->nr_bones elements
 	GLuint bone_transforms_ubo;
 	vec4 bounding_sphere;
 	struct RE_instance *shadow_volume_instance;
