@@ -143,7 +143,8 @@ struct RE_renderer {
 	GLint normal_transform;
 	GLint alpha_mod;
 	GLint has_bones;
-	GLint ambient;
+	GLint global_ambient;
+	GLint instance_ambient;
 	struct {
 		GLint dir;
 		GLint diffuse;
