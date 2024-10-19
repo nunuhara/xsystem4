@@ -14,16 +14,32 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+const float PI = 3.14159265358979323846;
+
+#if ENGINE == REIGN_ENGINE
+
 #define NR_DIR_LIGHTS 3
 #define FOG_LIGHT_SCATTERING 2
-
-const float PI = 3.14159265358979323846;
 
 struct dir_light {
 	vec3 dir;
 	vec3 diffuse;
 	vec3 globe_diffuse;
 };
+
+uniform dir_light dir_lights[NR_DIR_LIGHTS];
+uniform vec3 specular_light_dir;
+uniform int fog_type;
+uniform vec4 ls_params;  // (beta_r, beta_m, g, distance)
+uniform vec3 ls_light_dir;
+uniform vec3 ls_light_color;
+uniform vec3 ls_sun_color;
+out vec3 light_dir[NR_DIR_LIGHTS];
+out vec3 specular_dir;
+out vec3 ls_ex;
+out vec3 ls_in;
+
+#endif // ENGINE == REIGN_ENGINE
 
 uniform mat4 local_transform;
 uniform mat4 view_transform;
@@ -40,14 +56,7 @@ layout(std140) uniform BoneTransforms {
 uniform bool use_normal_map;
 
 uniform vec3 camera_pos;
-uniform dir_light dir_lights[NR_DIR_LIGHTS];
-uniform vec3 specular_light_dir;
 uniform mat4 shadow_transform;
-uniform int fog_type;
-uniform vec4 ls_params;  // (beta_r, beta_m, g, distance)
-uniform vec3 ls_light_dir;
-uniform vec3 ls_light_color;
-uniform vec3 ls_sun_color;
 
 in vec3 vertex_pos;
 in vec3 vertex_normal;
@@ -66,10 +75,6 @@ out vec4 shadow_frag_pos;
 out float dist;
 out vec3 eye;
 out vec3 normal;
-out vec3 light_dir[NR_DIR_LIGHTS];
-out vec3 specular_dir;
-out vec3 ls_ex;
-out vec3 ls_in;
 
 void main() {
 	mat4 local_bone_transform = local_transform;
@@ -109,6 +114,8 @@ void main() {
 	// otherwise.
 	frag_pos = TBN * vec3(world_pos);
 	eye = TBN * camera_pos;
+
+#if ENGINE == REIGN_ENGINE
 	light_dir[0] = TBN * dir_lights[0].dir;
 	light_dir[1] = TBN * dir_lights[1].dir;
 	light_dir[2] = TBN * dir_lights[2].dir;
@@ -132,4 +139,5 @@ void main() {
 		ls_in = (phase_r * beta_r + phase_m * beta_m) / (beta_r + beta_m) * (1.0 - f_ex) * ls_sun_color;
 		ls_ex = ls_light_color * f_ex;
 	}
+#endif
 }

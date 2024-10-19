@@ -14,19 +14,20 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#define NR_DIR_LIGHTS 3
-
 #define DIFFUSE_EMISSIVE 0
 #define DIFFUSE_NORMAL 1
 #define DIFFUSE_LIGHT_MAP 2
 #define DIFFUSE_ENV_MAP 3
 
-#define FOG_LINEAR 1
-#define FOG_LIGHT_SCATTERING 2
-
 #define ALPHA_BLEND 0
 #define ALPHA_TEST 1
 #define ALPHA_MAP_BLEND 2
+
+#if ENGINE == REIGN_ENGINE
+
+#define NR_DIR_LIGHTS 3
+#define FOG_LINEAR 1
+#define FOG_LIGHT_SCATTERING 2
 
 struct dir_light {
 	vec3 dir;
@@ -34,8 +35,46 @@ struct dir_light {
 	vec3 globe_diffuse;
 };
 
-uniform sampler2D tex;
 uniform sampler2D specular_texture;
+uniform dir_light dir_lights[NR_DIR_LIGHTS];
+uniform float specular_strength;
+uniform float specular_shininess;
+uniform bool use_specular_map;
+uniform float rim_exponent;
+uniform vec3 rim_color;
+uniform int fog_type;
+uniform float fog_near;
+uniform float fog_far;
+uniform vec3 fog_color;
+in vec3 light_dir[NR_DIR_LIGHTS];
+in vec3 specular_dir;
+in vec3 ls_ex;
+in vec3 ls_in;
+
+uniform vec3 global_ambient;
+
+vec3 dir_lights_diffuse(vec3 norm)
+{
+	vec3 diffuse = vec3(0.0);
+	for (int i = 0; i < NR_DIR_LIGHTS; i++) {
+		float half_lambert = dot(norm, -light_dir[i]) * 0.5 + 0.5;
+		diffuse += mix(dir_lights[i].globe_diffuse, dir_lights[i].diffuse, half_lambert);
+	}
+	return diffuse;
+}
+
+#else // ENGINE == REIGN_ENGINE
+
+const vec3 global_ambient = vec3(0.0);
+
+vec3 dir_lights_diffuse(vec3 norm)
+{
+	return vec3(1.0);
+}
+
+#endif // ENGINE == REIGN_ENGINE
+
+uniform sampler2D tex;
 uniform sampler2D alpha_texture;
 uniform sampler2D light_texture;
 uniform sampler2D shadow_texture;
@@ -44,20 +83,10 @@ uniform float alpha_mod;
 uniform bool use_normal_map;
 uniform sampler2D normal_texture;
 
-uniform vec3 ambient;
-uniform dir_light dir_lights[NR_DIR_LIGHTS];
-uniform float specular_strength;
-uniform float specular_shininess;
-uniform bool use_specular_map;
-uniform float rim_exponent;
-uniform vec3 rim_color;
+uniform vec3 instance_ambient;
 uniform int diffuse_type;
 uniform float shadow_darkness;
 uniform float shadow_bias;
-uniform int fog_type;
-uniform float fog_near;
-uniform float fog_far;
-uniform vec3 fog_color;
 uniform int alpha_mode;
 
 in vec2 tex_coord;
@@ -68,10 +97,6 @@ in vec4 shadow_frag_pos;
 in float dist;
 in vec3 eye;
 in vec3 normal;
-in vec3 light_dir[NR_DIR_LIGHTS];
-in vec3 specular_dir;
-in vec3 ls_ex;
-in vec3 ls_in;
 out vec4 frag_color;
 
 void main() {
@@ -84,7 +109,7 @@ void main() {
 	}
 
 	vec3 view_dir = normalize(eye - frag_pos);
-	vec3 frag_rgb = ambient;
+	vec3 frag_rgb = global_ambient + instance_ambient;
 
 	// Diffuse lighting
 	vec4 texel;
@@ -96,11 +121,7 @@ void main() {
 		if (diffuse_type == DIFFUSE_EMISSIVE) {
 			frag_rgb = texel.rgb;
 		} else {
-			vec3 diffuse = vec3(0.0);
-			for (int i = 0; i < NR_DIR_LIGHTS; i++) {
-				float half_lambert = dot(norm, -light_dir[i]) * 0.5 + 0.5;
-				diffuse += mix(dir_lights[i].globe_diffuse, dir_lights[i].diffuse, half_lambert);
-			}
+			vec3 diffuse = dir_lights_diffuse(norm);
 			if (diffuse_type == DIFFUSE_LIGHT_MAP) {
 				diffuse *= texture(light_texture, light_tex_coord).rgb;
 			}
@@ -108,6 +129,7 @@ void main() {
 		}
 	}
 
+#if ENGINE == REIGN_ENGINE
 	// Specular lighting
 	if (specular_strength > 0.0) {
 		vec3 reflect_dir = reflect(specular_dir, norm);
@@ -132,6 +154,7 @@ void main() {
 	} else if (fog_type == FOG_LIGHT_SCATTERING) {
 		frag_rgb = frag_rgb * ls_ex + ls_in;
 	}
+#endif
 
 	// Shadow mapping
 	if (shadow_darkness > 0.0) {

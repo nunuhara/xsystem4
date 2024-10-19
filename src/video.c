@@ -83,16 +83,17 @@ static GLchar *read_shader_file(const char *path)
 	return source;
 }
 
-GLuint gfx_load_shader_file(const char *path, GLenum type)
+GLuint gfx_load_shader_file(const char *path, GLenum type, const char *defines)
 {
 	GLint shader_compiled;
 	GLuint shader;
-	const GLchar *source[2] = {
+	const GLchar *source[3] = {
 		glsl_preamble,
+		defines ? defines : "",
 		read_shader_file(path)
 	};
 	shader = glCreateShader(type);
-	glShaderSource(shader, 2, source, NULL);
+	glShaderSource(shader, 3, source, NULL);
 	glCompileShader(shader);
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &shader_compiled);
 	if (!shader_compiled) {
@@ -102,15 +103,15 @@ GLuint gfx_load_shader_file(const char *path, GLenum type)
 		glGetShaderInfoLog(shader, len, NULL, infolog);
 		ERROR("Failed to compile shader %s: %s", path, infolog);
 	}
-	SDL_free((char*)source[1]);
+	SDL_free((char*)source[2]);
 	return shader;
 }
 
 void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const char *fragment_shader_path)
 {
 	GLuint program = glCreateProgram();
-	GLuint vertex_shader = gfx_load_shader_file(vertex_shader_path, GL_VERTEX_SHADER);
-	GLuint fragment_shader = gfx_load_shader_file(fragment_shader_path, GL_FRAGMENT_SHADER);
+	GLuint vertex_shader = gfx_load_shader_file(vertex_shader_path, GL_VERTEX_SHADER, NULL);
+	GLuint fragment_shader = gfx_load_shader_file(fragment_shader_path, GL_FRAGMENT_SHADER, NULL);
 
 	glAttachShader(program, vertex_shader);
 	glAttachShader(program, fragment_shader);

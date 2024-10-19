@@ -76,7 +76,7 @@ void gfx_set_wait_vsync(bool wait);
 float gfx_get_frame_rate(void);
 
 void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const char *fragment_shader_path);
-GLuint gfx_load_shader_file(const char *path, GLenum type);
+GLuint gfx_load_shader_file(const char *path, GLenum type, const char *defines);
 
 // rendering
 void gfx_set_clear_color(int r, int g, int b, int a);
