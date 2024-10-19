@@ -98,7 +98,6 @@ struct RE_back_cg {
 
 struct RE_plugin {
 	struct draw_plugin plugin;
-	enum RE_plugin_version version;
 	int sprite;
 	int nr_instances;
 	struct RE_instance **instances;

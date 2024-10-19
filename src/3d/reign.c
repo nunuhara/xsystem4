@@ -34,6 +34,8 @@
 #include "vm.h"
 #include "xsystem4.h"
 
+enum RE_plugin_version re_plugin_version;
+
 static struct RE_instance *create_instance(struct RE_plugin *plugin)
 {
 	struct RE_instance *instance = xcalloc(1, sizeof(struct RE_instance));
@@ -207,6 +209,8 @@ static void update_bones(struct RE_instance *inst)
 
 struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 {
+	re_plugin_version = version;
+
 	char *aar_path = gamedir_path("Data/ReignData.red");
 	int error = ARCHIVE_SUCCESS;
 	struct archive *aar = (struct archive *)aar_open(aar_path, MMAP_IF_64BIT, &error);
@@ -220,7 +224,6 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 		return NULL;
 
 	struct RE_plugin *plugin = xcalloc(1, sizeof(struct RE_plugin));
-	plugin->version = version;
 	plugin->plugin.name = "ReignEngine";
 	plugin->plugin.update = RE_render;
 	plugin->plugin.to_json = RE_to_json;
@@ -262,7 +265,7 @@ bool RE_plugin_bind(struct RE_plugin *plugin, int sprite)
 	struct sact_sprite *sp = sact_try_get_sprite(sprite);
 	if (!sp)
 		return false;
-	plugin->renderer = RE_renderer_new(plugin->version);
+	plugin->renderer = RE_renderer_new();
 	plugin->sprite = sprite;
 	sprite_bind_plugin(sp, &plugin->plugin);
 	struct texture *texture = sprite_get_texture(sp);

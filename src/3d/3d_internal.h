@@ -193,6 +193,8 @@ struct billboard_texture {
 
 // reign.c
 
+extern enum RE_plugin_version re_plugin_version;
+
 void RE_instance_update_local_transform(struct RE_instance *inst);
 
 // model.c
@@ -208,7 +210,7 @@ struct archive_data *RE_get_aar_entry(struct archive *aar, const char *dir, cons
 
 // renderer.c
 
-struct RE_renderer *RE_renderer_new(enum RE_plugin_version version);
+struct RE_renderer *RE_renderer_new(void);
 void RE_renderer_free(struct RE_renderer *r);
 void RE_renderer_set_viewport_size(struct RE_renderer *r, int width, int height);
 bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);

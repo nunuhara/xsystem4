@@ -59,7 +59,7 @@ enum draw_phase {
 	DRAW_TRANSPARENT,
 };
 
-static GLuint load_shader(const char *vertex_shader_path, const char *fragment_shader_path, enum RE_plugin_version version)
+static GLuint load_shader(const char *vertex_shader_path, const char *fragment_shader_path)
 {
 	char defines[256];
 	snprintf(defines, sizeof(defines),
@@ -68,7 +68,7 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 			 "#define ENGINE %d",
 			 RE_REIGN_PLUGIN,
 			 RE_TAPIR_PLUGIN,
-			 version);
+			 re_plugin_version);
 	GLuint program = glCreateProgram();
 	GLuint vertex_shader = gfx_load_shader_file(vertex_shader_path, GL_VERTEX_SHADER, defines);
 	GLuint fragment_shader = gfx_load_shader_file(fragment_shader_path, GL_FRAGMENT_SHADER, defines);
@@ -101,12 +101,12 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 	return program;
 }
 
-static void init_shadow_renderer(struct shadow_renderer *sr, enum RE_plugin_version version)
+static void init_shadow_renderer(struct shadow_renderer *sr)
 {
 	GLint orig_fbo;
 	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &orig_fbo);
 
-	sr->program = load_shader("shaders/reign_shadow.v.glsl", "shaders/reign_shadow.f.glsl", version);
+	sr->program = load_shader("shaders/reign_shadow.v.glsl", "shaders/reign_shadow.f.glsl");
 	sr->local_transform = glGetUniformLocation(sr->program, "local_transform");
 	sr->view_transform = glGetUniformLocation(sr->program, "view_transform");
 	sr->has_bones = glGetUniformLocation(sr->program, "has_bones");
@@ -136,13 +136,13 @@ static void destroy_shadow_renderer(struct shadow_renderer *sr)
 	glDeleteProgram(sr->program);
 }
 
-static void init_outline_renderer(struct outline_renderer *or, enum RE_plugin_version version)
+static void init_outline_renderer(struct outline_renderer *or)
 {
-	if (version < RE_TAPIR_PLUGIN) {
+	if (re_plugin_version < RE_TAPIR_PLUGIN) {
 		or->program = 0;
 		return;
 	}
-	or->program = load_shader("shaders/reign_outline.v.glsl", "shaders/reign_outline.f.glsl", version);
+	or->program = load_shader("shaders/reign_outline.v.glsl", "shaders/reign_outline.f.glsl");
 	or->local_transform = glGetUniformLocation(or->program, "local_transform");
 	or->view_transform = glGetUniformLocation(or->program, "view_transform");
 	or->proj_transform = glGetUniformLocation(or->program, "proj_transform");
@@ -203,11 +203,11 @@ static void destroy_billboard_mesh(struct RE_renderer *r)
 	glDeleteBuffers(1, &r->billboard_attr_buffer);
 }
 
-struct RE_renderer *RE_renderer_new(enum RE_plugin_version version)
+struct RE_renderer *RE_renderer_new(void)
 {
 	struct RE_renderer *r = xcalloc(1, sizeof(struct RE_renderer));
 
-	r->program = load_shader("shaders/reign.v.glsl", "shaders/reign.f.glsl", version);
+	r->program = load_shader("shaders/reign.v.glsl", "shaders/reign.f.glsl");
 	r->view_transform = glGetUniformLocation(r->program, "view_transform");
 	r->texture = glGetUniformLocation(r->program, "tex");
 	r->local_transform = glGetUniformLocation(r->program, "local_transform");
@@ -258,8 +258,8 @@ struct RE_renderer *RE_renderer_new(enum RE_plugin_version version)
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 
-	init_shadow_renderer(&r->shadow, version);
-	init_outline_renderer(&r->outline, version);
+	init_shadow_renderer(&r->shadow);
+	init_outline_renderer(&r->outline);
 	init_billboard_mesh(r);
 	r->billboard_textures = ht_create(256);
 	r->last_frame_timestamp = SDL_GetTicks();
@@ -913,7 +913,7 @@ void RE_render(struct sact_sprite *sp)
 	if (!r || plugin->suspended)
 		return;
 
-	if (plugin->version == RE_TAPIR_PLUGIN) {
+	if (re_plugin_version == RE_TAPIR_PLUGIN) {
 		uint32_t timestamp = SDL_GetTicks();
 		RE_build_model(plugin, timestamp - r->last_frame_timestamp);
 		r->last_frame_timestamp = timestamp;
