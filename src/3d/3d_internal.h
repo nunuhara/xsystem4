@@ -46,11 +46,12 @@ struct model {
 	struct hash_table *mot_cache;  // name -> struct mot *
 	struct collider *collider;
 	vec3 aabb[2];  // axis-aligned bounding box
-	bool has_transparent_material;
+	bool has_transparent_mesh;
 };
 
 struct mesh {
 	uint32_t flags;
+	bool is_transparent;
 	GLuint vao;
 	GLuint attr_buffer;
 	GLuint index_buffer;
@@ -412,6 +413,7 @@ enum pol_texture_type {
 
 enum material_flags {
 	MATERIAL_SPRITE = 1 << 0,
+	MATERIAL_ALPHA  = 1 << 1,
 };
 
 struct pol_material {
@@ -435,6 +437,7 @@ enum mesh_flags {
 	MESH_BLEND_ADDITIVE      = 1 << 5,
 	MESH_NO_EDGE             = 1 << 6,
 	MESH_NO_HEIGHT_DETECTION = 1 << 7,
+	MESH_ALPHA               = 1 << 8,
 };
 
 struct pol_mesh {

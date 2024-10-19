@@ -338,7 +338,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 	if (!inst->model)
 		return;
 	bool all_transparent = inst->alpha < 1.0f;
-	bool all_opaque = !model->has_transparent_material && inst->alpha >= 1.0f;
+	bool all_opaque = !model->has_transparent_mesh && inst->alpha >= 1.0f;
 	if ((phase == DRAW_OPAQUE && all_transparent) || (phase == DRAW_TRANSPARENT && all_opaque))
 		return;
 
@@ -362,7 +362,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
 		struct material *material = &model->materials[mesh->material];
-		bool is_transparent = (material->is_transparent && !(mesh->flags & MESH_SPRITE)) || inst->alpha < 1.0f;
+		bool is_transparent = mesh->is_transparent || inst->alpha < 1.0f;
 		if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
 			continue;
 
@@ -424,10 +424,8 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 			glActiveTexture(GL_TEXTURE0 + ALPHA_TEXTURE_UNIT);
 			glBindTexture(GL_TEXTURE_2D, material->alpha_map);
 			glUniform1i(r->alpha_texture, ALPHA_TEXTURE_UNIT);
-		} else if (material->flags & MATERIAL_SPRITE || mesh->flags & MESH_SPRITE) {
-			glUniform1i(r->alpha_mode, ALPHA_TEST);
 		} else {
-			glUniform1i(r->alpha_mode, ALPHA_BLEND);
+			glUniform1i(r->alpha_mode, mesh->is_transparent ? ALPHA_BLEND : ALPHA_TEST);
 		}
 
 		vec2 uv_scroll;
