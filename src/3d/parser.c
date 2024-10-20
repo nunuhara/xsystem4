@@ -134,7 +134,7 @@ static void destroy_vertex(struct pol_vertex *v)
 		free(v->weights);
 }
 
-static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle_index, int unknowns_length, const struct pol_material_group *mg)
+static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle_index, const struct pol_material_group *mg)
 {
 	struct pol_triangle *t = &mesh->triangles[triangle_index];
 	t->vert_index[0] = buffer_read_int32(r);
@@ -148,11 +148,15 @@ static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle
 		t->light_uv_index[1] = buffer_read_int32(r) - mesh->nr_uvs;
 		t->light_uv_index[2] = buffer_read_int32(r) - mesh->nr_uvs;
 	}
+
 	t->color_index[0] = buffer_read_int32(r);
 	t->color_index[1] = buffer_read_int32(r);
 	t->color_index[2] = buffer_read_int32(r);
-
-	buffer_skip(r, unknowns_length);
+	if (mesh->alphas) {
+		t->alpha_index[0] = buffer_read_int32(r);
+		t->alpha_index[1] = buffer_read_int32(r);
+		t->alpha_index[2] = buffer_read_int32(r);
+	}
 
 	read_direction(r, t->normals[0]);
 	read_direction(r, t->normals[1]);
@@ -234,19 +238,20 @@ static struct pol_mesh *parse_mesh(struct buffer *r, const struct pol *pol)
 		}
 	}
 
-	int triangle_unknowns_length = 0;
 	if (pol->version >= 2) {
-		int nr_unknown_bytes = buffer_read_int32(r);
-		if (nr_unknown_bytes) {
-			buffer_skip(r, nr_unknown_bytes);
-			triangle_unknowns_length += 12;
+		mesh->nr_alphas = buffer_read_int32(r);
+		if (mesh->nr_alphas > 0) {
+			mesh->alphas = xcalloc(mesh->nr_alphas, sizeof(float));
+			for (uint32_t i = 0; i < mesh->nr_alphas; i++) {
+				mesh->alphas[i] = buffer_read_u8(r) / 255.f;
+			}
 		}
 	}
 
 	mesh->nr_triangles = buffer_read_int32(r);
 	mesh->triangles = xcalloc(mesh->nr_triangles, sizeof(struct pol_triangle));
 	for (uint32_t i = 0; i < mesh->nr_triangles; i++) {
-		parse_triangle(r, mesh, i, triangle_unknowns_length, &pol->materials[mesh->material]);
+		parse_triangle(r, mesh, i, &pol->materials[mesh->material]);
 	}
 
 	if (pol->version == 1) {
@@ -270,6 +275,7 @@ static void free_mesh(struct pol_mesh *mesh)
 	free(mesh->uvs);
 	free(mesh->light_uvs);
 	free(mesh->colors);
+	free(mesh->alphas);
 	free(mesh->triangles);
 	free(mesh);
 }

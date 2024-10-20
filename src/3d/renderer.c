@@ -181,7 +181,7 @@ static void init_billboard_mesh(struct RE_renderer *r)
 	glDisableVertexAttribArray(VATTR_LIGHT_UV);
 	glVertexAttrib2f(VATTR_LIGHT_UV, 0.0, 0.0);
 	glDisableVertexAttribArray(VATTR_COLOR);
-	glVertexAttrib3f(VATTR_COLOR, 1.0, 1.0, 1.0);
+	glVertexAttrib4f(VATTR_COLOR, 1.0, 1.0, 1.0, 1.0);
 	glDisableVertexAttribArray(VATTR_NORMAL);
 	glVertexAttrib3f(VATTR_NORMAL, 0.0, 0.0, 1.0);
 	glDisableVertexAttribArray(VATTR_TANGENT);
@@ -254,6 +254,7 @@ struct RE_renderer *RE_renderer_new(enum RE_plugin_version version)
 	r->ls_sun_color = glGetUniformLocation(r->program, "ls_sun_color");
 	r->alpha_mode = glGetUniformLocation(r->program, "alpha_mode");
 	r->alpha_texture = glGetUniformLocation(r->program, "alpha_texture");
+	r->uv_scroll = glGetUniformLocation(r->program, "uv_scroll");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 
@@ -429,13 +430,22 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 			glUniform1i(r->alpha_mode, ALPHA_BLEND);
 		}
 
+		vec2 uv_scroll;
+		glm_vec2_scale(mesh->uv_scroll, r->last_frame_timestamp / 1000.f, uv_scroll);
+		glUniform2fv(r->uv_scroll, 1, uv_scroll);
+
 		glBindVertexArray(mesh->vao);
+
+		if (mesh->flags & MESH_BOTH)
+			glDisable(GL_CULL_FACE);
 
 		if (mesh->nr_indices)
 			glDrawElements(GL_TRIANGLES, mesh->nr_indices, GL_UNSIGNED_SHORT, NULL);
 		else
 			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 
+		if (mesh->flags & MESH_BOTH)
+			glEnable(GL_CULL_FACE);
 		glBindVertexArray(0);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
@@ -1059,7 +1069,7 @@ struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r
 	GLuint bone_transforms_ubo;
 	glGenBuffers(1, &bone_transforms_ubo);
 	glBindBuffer(GL_UNIFORM_BUFFER, bone_transforms_ubo);
-	glBufferData(GL_UNIFORM_BUFFER, MAX_BONES * sizeof(mat4), NULL, GL_STATIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, MAX_BONES * sizeof(mat3x4), NULL, GL_STATIC_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, BONE_TRANSFORMS_BINDING, bone_transforms_ubo);
 

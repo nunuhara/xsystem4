@@ -39,6 +39,12 @@ out vec3 specular_dir;
 out vec3 ls_ex;
 out vec3 ls_in;
 
+const vec2 uv_scroll = vec2(0.0);
+
+#else // ENGINE == REIGN_ENGINE
+
+uniform vec2 uv_scroll;
+
 #endif // ENGINE == REIGN_ENGINE
 
 uniform mat4 local_transform;
@@ -49,8 +55,8 @@ uniform mat3 normal_transform;
 const int MAX_BONES = 308;  // see 3d_internal.h
 const int NR_WEIGHTS = 4;
 uniform bool has_bones;
-layout(std140) uniform BoneTransforms {
-	mat4 bone_matrices[MAX_BONES];
+layout(std140, row_major) uniform BoneTransforms {
+	mat4x3 bone_matrices[MAX_BONES];
 };
 
 uniform bool use_normal_map;
@@ -62,14 +68,14 @@ in vec3 vertex_pos;
 in vec3 vertex_normal;
 in vec2 vertex_uv;
 in vec2 vertex_light_uv;
-in vec3 vertex_color;
+in vec4 vertex_color;
 in vec4 vertex_tangent;
 in ivec4 vertex_bone_index;
 in vec4 vertex_bone_weight;
 
 out vec2 tex_coord;
 out vec2 light_tex_coord;
-out vec3 color_mod;
+out vec4 color_mod;
 out vec3 frag_pos;
 out vec4 shadow_frag_pos;
 out float dist;
@@ -80,13 +86,17 @@ void main() {
 	mat4 local_bone_transform = local_transform;
 	mat3 normal_bone_transform = normal_transform;
 	if (has_bones) {
-		mat4 bone_transform = mat4(0.f);
+		mat4x3 bone_transform = mat4x3(0.0);
 		for (int i = 0; i < NR_WEIGHTS; i++) {
 			if (vertex_bone_index[i] >= 0) {
 				bone_transform += bone_matrices[vertex_bone_index[i]] * vertex_bone_weight[i];
 			}
 		}
-		local_bone_transform *= bone_transform;
+		local_bone_transform *= mat4(
+			vec4(bone_transform[0], 0.0),
+			vec4(bone_transform[1], 0.0),
+			vec4(bone_transform[2], 0.0),
+			vec4(bone_transform[3], 1.0));
 		normal_bone_transform *= mat3(bone_transform);
 	}
 
@@ -104,8 +114,8 @@ void main() {
 	vec4 view_pos = view_transform * world_pos;
 	gl_Position = proj_transform * view_pos;
 
-	tex_coord = vertex_uv;
-	light_tex_coord = vertex_light_uv;
+	tex_coord = vertex_uv + uv_scroll;
+	light_tex_coord = vertex_light_uv + uv_scroll;
 	color_mod = vertex_color;
 	dist = -view_pos.z;
 	shadow_frag_pos = shadow_transform * world_pos;
