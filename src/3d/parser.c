@@ -64,6 +64,8 @@ static uint32_t parse_material_attributes(const char *name)
 	uint32_t flags = 0;
 	if (strstr(name, "(sprite)"))
 		flags |= MATERIAL_SPRITE;
+	if (strstr(name, "(alpha)"))
+		flags |= MATERIAL_ALPHA;
 	return flags;
 }
 
@@ -179,6 +181,8 @@ static uint32_t parse_mesh_attributes(const char *name)
 		flags |= MESH_BOTH;
 	if (strstr(name, "(sprite)"))
 		flags |= MESH_SPRITE;
+	if (strstr(name, "(alpha)"))
+		flags |= MESH_ALPHA;
 	return flags;
 }
 

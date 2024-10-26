@@ -46,11 +46,12 @@ struct model {
 	struct hash_table *mot_cache;  // name -> struct mot *
 	struct collider *collider;
 	vec3 aabb[2];  // axis-aligned bounding box
-	bool has_transparent_material;
+	bool has_transparent_mesh;
 };
 
 struct mesh {
 	uint32_t flags;
+	bool is_transparent;
 	GLuint vao;
 	GLuint attr_buffer;
 	GLuint index_buffer;
@@ -193,6 +194,8 @@ struct billboard_texture {
 
 // reign.c
 
+extern enum RE_plugin_version re_plugin_version;
+
 void RE_instance_update_local_transform(struct RE_instance *inst);
 
 // model.c
@@ -208,7 +211,7 @@ struct archive_data *RE_get_aar_entry(struct archive *aar, const char *dir, cons
 
 // renderer.c
 
-struct RE_renderer *RE_renderer_new(enum RE_plugin_version version);
+struct RE_renderer *RE_renderer_new(void);
 void RE_renderer_free(struct RE_renderer *r);
 void RE_renderer_set_viewport_size(struct RE_renderer *r, int width, int height);
 bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no);
@@ -410,6 +413,7 @@ enum pol_texture_type {
 
 enum material_flags {
 	MATERIAL_SPRITE = 1 << 0,
+	MATERIAL_ALPHA  = 1 << 1,
 };
 
 struct pol_material {
@@ -433,6 +437,7 @@ enum mesh_flags {
 	MESH_BLEND_ADDITIVE      = 1 << 5,
 	MESH_NO_EDGE             = 1 << 6,
 	MESH_NO_HEIGHT_DETECTION = 1 << 7,
+	MESH_ALPHA               = 1 << 8,
 };
 
 struct pol_mesh {
