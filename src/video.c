@@ -569,6 +569,8 @@ void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color)
 		h = max_texture_size;
 	}
 	gfx_init_texture_blank(t, w, h);
+	if (w <= 0 || h <= 0)
+		return;
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, t, 0, 0, w, h);
 	glClearColor(color.r / 255.f, color.g / 255.f, color.b / 255.f, color.a / 255.f);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -587,6 +589,8 @@ void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color)
 	}
 	init_texture(t, w, h);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	if (w <= 0 || h <= 0)
+		return;
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, t, 0, 0, w, h);
 	glClearColor(color.r / 255.f, color.g / 255.f, color.b / 255.f, 255.f);
 	glClear(GL_COLOR_BUFFER_BIT);
