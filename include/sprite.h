@@ -91,6 +91,7 @@ int sprite_set_cg_from_file(struct sact_sprite *sp, const char *path);
 int sprite_save_cg(struct sact_sprite *sp, const char *path);
 void sprite_init(struct sact_sprite *sp);
 void sprite_init_color(struct sact_sprite *sp, int w, int h, int r, int g, int b, int a);
+void sprite_init_custom(struct sact_sprite *sp);
 void sprite_set_pos(struct sact_sprite *sp, int x, int y);
 void sprite_set_x(struct sact_sprite *sp, int x);
 void sprite_set_y(struct sact_sprite *sp, int y);

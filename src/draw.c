@@ -707,6 +707,16 @@ void gfx_copy_stretch_blend(struct texture *dst, int dx, int dy, int dw, int dh,
 	restore_blend_mode();
 }
 
+void gfx_copy_stretch_blend_screen(struct texture *dst, int dx, int dy, int dw, int dh, struct texture *src, int sx, int sy, int sw, int sh)
+{
+	glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
+
+	struct copy_data data = STRETCH_DATA(dx, dy, dw, dh, sx, sy, sw, sh);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
 void gfx_copy_stretch_blend_amap(struct texture *dst, int dx, int dy, int dw, int dh, struct texture *src, int sx, int sy, int sw, int sh)
 {
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

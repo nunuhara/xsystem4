@@ -170,6 +170,13 @@ static void sprite_render(struct sprite *_sp)
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
+static void sprite_custom_render(struct sprite *_sp)
+{
+	struct sact_sprite *sp = (struct sact_sprite*)_sp;
+	if (sp->plugin && sp->plugin->render)
+		sp->plugin->render(sp);
+}
+
 struct texture *sprite_get_texture(struct sact_sprite *sp)
 {
 	sprite_init_texture(sp);
@@ -286,6 +293,12 @@ void sprite_init_color(struct sact_sprite *sp, int w, int h, int r, int g, int b
 	sp->sp.render = sprite_render;
 	sp->sp.to_json = _sprite_to_json;
 	sprite_dirty(sp);
+}
+
+void sprite_init_custom(struct sact_sprite *sp)
+{
+	sp->sp.render = sprite_custom_render;
+	sp->sp.to_json = _sprite_to_json;
 }
 
 void sprite_set_pos(struct sact_sprite *sp, int x, int y)
