@@ -426,6 +426,7 @@ extern struct static_library lib_DrawMovie;
 extern struct static_library lib_DrawMovie2;
 extern struct static_library lib_DrawMovie3;
 extern struct static_library lib_DrawPluginManager;
+extern struct static_library lib_DrawRain;
 extern struct static_library lib_DrawSimpleText;
 extern struct static_library lib_DrawSnow;
 extern struct static_library lib_File;
@@ -530,6 +531,7 @@ static struct static_library *static_libraries[] = {
 	&lib_DrawMovie2,
 	&lib_DrawMovie3,
 	&lib_DrawPluginManager,
+	&lib_DrawRain,
 	&lib_DrawSimpleText,
 	&lib_DrawSnow,
 	&lib_File,
