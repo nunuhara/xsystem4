@@ -136,7 +136,10 @@ target_sources(xsystem4 PRIVATE
   src/hll/DrawGraph.c
   src/hll/DrawMovie.c
   src/hll/DrawPluginManager.c
+  src/hll/DrawRain.c
+  src/hll/DrawRipple.c
   src/hll/DrawSimpleText.c
+  src/hll/DrawSnow.c
   src/hll/File.c
   src/hll/File2.c
   src/hll/FileOperation.c
