@@ -59,12 +59,15 @@ struct dbg_cmd {
 	void (*run)(unsigned nr_args, char **args);
 };
 
+struct dbg_info;
+
 extern bool dbg_dap;
 extern bool dbg_enabled;
 extern bool dbg_start_in_debugger;
 extern unsigned dbg_current_frame;
+extern struct dbg_info *dbg_info;
 
-void dbg_init(void);
+void dbg_init(const char *debug_info_path);
 void dbg_fini(void);
 void dbg_repl(enum dbg_stop_type, const char *msg);
 
@@ -87,6 +90,7 @@ void dbg_print_frame(unsigned no);
 void dbg_print_stack_trace(void);
 void dbg_print_stack(void);
 void dbg_print_vm_state(void);
+void dbg_print_current_line(void);
 union vm_value dbg_eval_string(const char *str, struct ain_type *type_out);
 struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, int recursive);
 
@@ -96,13 +100,21 @@ void dbg_dap_repl(struct dbg_stop *stop);
 void dbg_dap_handle_messages(void);
 void dbg_dap_log(const char *log, const char *fmt, va_list ap);
 
+struct dbg_info *dbg_info_load(const char *path);
+const char *dbg_info_source_name(const struct dbg_info *info, int file);
+char *dbg_info_source_path(const struct dbg_info *info, int file);
+const char *dbg_info_source_line(const struct dbg_info *info, int file, int line);
+int dbg_info_find_file(const struct dbg_info *info, const char *filename);
+bool dbg_info_addr2line(const struct dbg_info *info, int addr, int *file, int *line);
+int dbg_info_line2addr(const struct dbg_info *info, int file, int line);
+
 #ifdef HAVE_SCHEME
 void dbg_scm_init(void);
 void dbg_scm_fini(void);
 void dbg_scm_repl(void);
 #endif /* HAVE_SCHEME */
 #else  /* DEBUGGER ENABLED */
-#define dbg_init()
+#define dbg_init(debug_info_path)
 #define dbg_repl(type, msg)
 #define dbg_dap 0
 #define dbg_dap_handle_messages()

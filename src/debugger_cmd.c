@@ -40,7 +40,14 @@
 #include "xsystem4.h"
 
 struct dbg_cmd_node;
-static bool stepping = false;
+static enum {
+	NOT_STEPPING = 0,
+	STEPPING_INTO,
+	STEPPING_OVER,
+	STEPPING_FINISH
+} stepping = NOT_STEPPING;
+static int stepping_file = 0;
+static int stepping_line = 0;
 
 struct dbg_cmd_list {
 	unsigned nr_commands;
@@ -67,17 +74,33 @@ static void dbg_cmd_backtrace(unsigned nr_args, char **args)
 
 static void dbg_cmd_breakpoint(unsigned nr_args, char **args)
 {
-	int addr = strtol(args[0], NULL, 0);
-	if (addr > 0) {
+	if (nr_args == 1) {
+		int addr = strtol(args[0], NULL, 0);
+		if (addr > 0) {
+			dbg_set_address_breakpoint(addr, NULL, NULL);
+		} else {
+			dbg_set_function_breakpoint(args[0], NULL, NULL);
+		}
+	} else if (nr_args == 2 && dbg_info) {
+		int file = dbg_info_find_file(dbg_info, args[0]);
+		if (file < 0) {
+			DBG_ERROR("No such file: %s", args[0]);
+			return;
+		}
+		int line = atoi(args[1]);
+		int addr = dbg_info_line2addr(dbg_info, file, line);
+		if (addr < 0) {
+			DBG_ERROR("No such line: %s:%d", args[0], line);
+			return;
+		}
 		dbg_set_address_breakpoint(addr, NULL, NULL);
 	} else {
-		dbg_set_function_breakpoint(args[0], NULL, NULL);
+		DBG_ERROR("Invalid breakpoint command");
 	}
 }
 
 static void dbg_cmd_continue(unsigned nr_args, char **args)
 {
-	stepping = false;
 	dbg_continue();
 }
 
@@ -184,21 +207,29 @@ static void dbg_cmd_scene(unsigned nr_args, char **args)
 
 static void dbg_cmd_next(unsigned nr_args, char **args)
 {
+	stepping_file = stepping_line = 0;
+	if (dbg_info)
+		dbg_info_addr2line(dbg_info, instr_ptr, &stepping_file, &stepping_line);
+
 	if (!dbg_set_step_over_breakpoint()) {
 		DBG_ERROR("Can't step over this instruction");
 		return;
 	}
-	stepping = true;
+	stepping = STEPPING_OVER;
 	dbg_continue();
 }
 
 static void dbg_cmd_step(unsigned nr_args, char **args)
 {
+	stepping_file = stepping_line = 0;
+	if (dbg_info)
+		dbg_info_addr2line(dbg_info, instr_ptr, &stepping_file, &stepping_line);
+
 	if (!dbg_set_step_into_breakpoint()) {
 		DBG_ERROR("Can't step into this instruction");
 		return;
 	}
-	stepping = true;
+	stepping = STEPPING_INTO;
 	dbg_continue();
 }
 
@@ -208,7 +239,7 @@ static void dbg_cmd_finish(unsigned nr_args, char **args)
 		DBG_ERROR("Can't set finish breakpoint from this location");
 		return;
 	}
-	stepping = true;
+	stepping = STEPPING_FINISH;
 	dbg_continue();
 }
 
@@ -226,7 +257,7 @@ static void dbg_cmd_vm_state(unsigned nr_args, char **args)
 
 static struct dbg_cmd dbg_default_commands[] = {
 	{ "backtrace", "bt", NULL, "Display stack trace", 0, 0, dbg_cmd_backtrace },
-	{ "breakpoint", "bp", "<function-or-address>", "Set breakpoint at a function or address", 1, 1, dbg_cmd_breakpoint },
+	{ "breakpoint", "bp", "<function> | <address> | <file> <line>", "Set breakpoint", 1, 2, dbg_cmd_breakpoint },
 	{ "continue", "c", NULL, "Resume execution", 0, 0, dbg_cmd_continue },
 	{ "finish", "fin", NULL, "Execute until the current function returns", 0, 0, dbg_cmd_finish },
 	{ "frame", "f", "<frame-number>", "Set the current frame", 1, 1, dbg_cmd_frame },
@@ -477,10 +508,27 @@ static void execute_line(char *line)
 
 void dbg_cmd_repl(void)
 {
-	if (stepping)
-		dbg_print_vm_state();
-	else
+	if (stepping) {
+		if (stepping_line) {
+			int file, line;
+			dbg_info_addr2line(dbg_info, instr_ptr, &file, &line);
+			if (file == stepping_file && line == stepping_line) {
+				if (stepping == STEPPING_INTO)
+					dbg_set_step_into_breakpoint();
+				else if (stepping == STEPPING_OVER)
+					dbg_set_step_over_breakpoint();
+				dbg_continue();
+			}
+		}
+		stepping = NOT_STEPPING;
+		stepping_file = stepping_line = 0;
+		if (dbg_info)
+			dbg_print_current_line();
+		else
+			dbg_print_vm_state();
+	} else {
 		puts("Entering the debugger REPL. Type 'help' for a list of commands.");
+	}
 	while (1) {
 		char *line = cmd_gets();
 		if (line)
