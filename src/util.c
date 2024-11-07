@@ -117,7 +117,7 @@ char *unix_path(const char *path)
 	return utf;
 }
 
-static bool is_absolute_path(const char *path)
+bool is_absolute_path(const char *path)
 {
 #if (defined(_WIN32) || defined(__WIN32__))
 	int i = (isalpha(path[0]) && path[1] == ':') ? 2 : 0;
