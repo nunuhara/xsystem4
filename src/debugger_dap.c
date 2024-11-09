@@ -162,6 +162,7 @@ static void cmd_initialize(cJSON *args, cJSON *resp)
 	//cJSON_AddBoolToObject(body, "supportsSetExpression", true);
 	//cJSON_AddBoolToObject(body, "supportsTerminateRequest", true);
 	cJSON_AddBoolToObject(body, "supportsInstructionBreakpoints", true);
+	cJSON_AddBoolToObject(body, "supportsSteppingGranularity", true);
 	send_response(resp, true);
 
 	emit_initialized_event();
@@ -665,10 +666,28 @@ static void cmd_pause(cJSON *args, cJSON *resp)
 	}
 }
 
+enum stepping_granularity {
+	STEPPING_GRANULARITY_STATEMENT,
+	STEPPING_GRANULARITY_LINE,
+	STEPPING_GRANULARITY_INSTRUCTION,
+};
+
+static enum stepping_granularity get_granularity(cJSON *args)
+{
+	cJSON *g = cJSON_GetObjectItemCaseSensitive(args, "granularity");
+	if (cJSON_IsString(g)) {
+		if (!strcmp(g->valuestring, "line"))
+			return STEPPING_GRANULARITY_LINE;
+		if (!strcmp(g->valuestring, "instruction"))
+			return STEPPING_GRANULARITY_INSTRUCTION;
+	}
+	return STEPPING_GRANULARITY_STATEMENT;
+}
+
 static void cmd_stepIn(cJSON *args, cJSON *resp)
 {
 	stepping_file = stepping_line = 0;
-	if (dbg_info)
+	if (dbg_info && get_granularity(args) != STEPPING_GRANULARITY_INSTRUCTION)
 		dbg_info_addr2line(dbg_info, instr_ptr, &stepping_file, &stepping_line);
 
 	dbg_set_step_into_breakpoint();
@@ -692,7 +711,7 @@ static void cmd_stepOut(cJSON *args, cJSON *resp)
 static void cmd_next(cJSON *args, cJSON *resp)
 {
 	stepping_file = stepping_line = 0;
-	if (dbg_info)
+	if (dbg_info && get_granularity(args) != STEPPING_GRANULARITY_INSTRUCTION)
 		dbg_info_addr2line(dbg_info, instr_ptr, &stepping_file, &stepping_line);
 
 	dbg_set_step_over_breakpoint();
