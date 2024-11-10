@@ -24,6 +24,7 @@
 #include <assert.h>
 
 #include "system4/dasm.h"
+#include "system4/file.h"
 #include "system4/hashtable.h"
 #include "system4/little_endian.h"
 #include "system4/string.h"
@@ -39,6 +40,7 @@
 bool dbg_dap = false;
 bool dbg_enabled = true;
 bool dbg_start_in_debugger = false;
+struct dbg_info *dbg_info = NULL;
 unsigned dbg_current_frame = 0;
 static jmp_buf dbg_continuation;
 
@@ -94,8 +96,19 @@ void dbg_repl(enum dbg_stop_type type, const char *msg)
 	dbg_start(_dbg_repl, &stop);
 }
 
-void dbg_init(void)
+void dbg_init(const char *debug_info_path)
 {
+	if (debug_info_path) {
+		dbg_info = dbg_info_load(debug_info_path);
+	} else {
+		// Try to load from the default location
+		char *path = gamedir_path("src/debug_info.json");
+		if (file_exists(path)) {
+			dbg_info = dbg_info_load(path);
+		}
+		free(path);
+	}
+
 	if (dbg_dap)
 		dbg_dap_init();
 	else
@@ -437,8 +450,14 @@ void dbg_print_frame(unsigned no)
 	unsigned cs_no = call_stack_ptr - (1 + no);
 	struct ain_function *f = &ain->functions[call_stack[cs_no].fno];
 	uint32_t addr = no ? call_stack[cs_no+1].call_address : instr_ptr;
-	sys_message("%c #%d 0x%08x in %s\n", no == dbg_current_frame ? '*' : ' ',
+	sys_message("%c #%d 0x%08x in %s", no == dbg_current_frame ? '*' : ' ',
 			no, addr, display_sjis0(f->name));
+	int file, line;
+	if (dbg_info && dbg_info_addr2line(dbg_info, addr, &file, &line)) {
+		sys_message(" at %s:%d\n", display_utf0(dbg_info_source_name(dbg_info, file)), line);
+	} else {
+		sys_message("\n");
+	}
 }
 
 void dbg_print_stack_trace(void)
@@ -1093,4 +1112,30 @@ void dbg_print_vm_state(void)
 
 		putchar('\n');
 	}
+}
+
+void dbg_print_current_line(void)
+{
+	if (call_stack_ptr < 1) {
+		DBG_ERROR("VM not running");
+		return;
+	}
+	if (!dbg_info) {
+		DBG_ERROR("No debug information available");
+		return;
+	}
+
+	int file, line;
+	if (!dbg_info_addr2line(dbg_info, instr_ptr, &file, &line)) {
+		DBG_ERROR("No line number information for address: 0x%08x", instr_ptr);
+		return;
+	}
+
+	const char *src_line = dbg_info_source_line(dbg_info, file, line);
+	if (!src_line) {
+		DBG_ERROR("No source text for %s:%d", display_utf0(dbg_info_source_name(dbg_info, file)), line);
+		return;
+	}
+
+	printf("%s:%d\t%s\n", display_utf0(dbg_info_source_name(dbg_info, file)), line, display_utf1(src_line));
 }

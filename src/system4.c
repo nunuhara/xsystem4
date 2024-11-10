@@ -371,6 +371,7 @@ static void usage(void)
 #ifdef DEBUGGER_ENABLED
 	puts("        --nodebug        Disable debugger");
 	puts("        --debug          Start in debugger");
+	puts("        --debug-info     Specify the path to the debug information file");
 #endif
 }
 
@@ -402,6 +403,7 @@ enum {
 	LOPT_NODEBUG,
 	LOPT_DEBUG,
 	LOPT_DEBUG_API,
+	LOPT_DEBUG_INFO,
 #endif
 };
 
@@ -424,6 +426,7 @@ int main(int argc, char *argv[])
 	char *font_fnl = NULL;
 	char *joypad = NULL;
 	char *savedir = NULL;
+	char *debug_info_path = NULL;
 
 	while (1) {
 		static struct option long_options[] = {
@@ -443,6 +446,7 @@ int main(int argc, char *argv[])
 			{ "nodebug",       no_argument,       0, LOPT_NODEBUG },
 			{ "debug",         no_argument,       0, LOPT_DEBUG },
 			{ "debug-api",     no_argument,       0, LOPT_DEBUG_API },
+			{ "debug-info",    required_argument, 0, LOPT_DEBUG_INFO },
 #endif
 			{ 0 }
 		};
@@ -520,6 +524,9 @@ int main(int argc, char *argv[])
 			dbg_dap = true;
 			sys_silent = true;
 			break;
+		case LOPT_DEBUG_INFO:
+			debug_info_path = optarg;
+			break;
 #endif
 		}
 	}
@@ -584,6 +591,6 @@ int main(int argc, char *argv[])
 	if (config.msgskip_delay)
 		set_msgskip_delay(ain, config.msgskip_delay);
 	asset_manager_init();
-	dbg_init();
+	dbg_init(debug_info_path);
 	sys_exit(vm_execute_ain(ain));
 }
