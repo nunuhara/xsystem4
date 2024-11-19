@@ -13,8 +13,8 @@ FetchContent_Declare(
 )
 FetchContent_Declare(
   SDL
-  URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.7/SDL2-2.30.7.tar.gz
-  URL_HASH SHA1=fc1119fad88d21d1b4945dfd69d8a49f39155a6d
+  URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.9/SDL2-2.30.9.tar.gz
+  URL_HASH SHA1=9403df0573d47f62f2de074b582b87576bb4abbc
 )
 FetchContent_Declare(
   freetype
