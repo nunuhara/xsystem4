@@ -127,6 +127,7 @@ static void emit_stopped_event(struct dbg_stop *stop)
 	}
 	if (stop->message)
 		cJSON_AddStringToObject(body, "text", stop->message);
+	cJSON_AddBoolToObject(body, "allThreadsStopped", true);
 	emit_event("stopped", body);
 }
 
@@ -182,7 +183,7 @@ static void cmd_stackTrace(cJSON *args, cJSON *resp)
 	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());
 	cJSON_AddNumberToObject(body, "totalFrames", call_stack_ptr);
 	cJSON_AddItemToObjectCS(body, "stackFrames", stack_frames = cJSON_CreateArray());
-	for (int i = 0; i < call_stack_ptr; i++) {
+	for (int i = call_stack_ptr - 1; i >= 0; i--) {
 		cJSON_AddItemToArray(stack_frames, frame = cJSON_CreateObject());
 		cJSON_AddNumberToObject(frame, "id", i);
 		// this *shouldn't* happen, but since we're in the debugger...
@@ -196,7 +197,7 @@ static void cmd_stackTrace(cJSON *args, cJSON *resp)
 		if (i == call_stack_ptr - 1) {
 			snprintf(ip, 9, "%x", (unsigned)instr_ptr);
 		} else {
-			snprintf(ip, 9, "%x", call_stack[i].call_address);
+			snprintf(ip, 9, "%x", call_stack[i+1].call_address);
 		}
 		cJSON_AddStringToObject(frame, "instructionPointerReference", ip);
 		cJSON_AddNumberToObject(frame, "line", 0);
