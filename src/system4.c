@@ -62,7 +62,7 @@ struct config config = {
 	.echo = false,
 	.text_x_scale = 1.0,
 	.manual_text_x_scale = false,
-	.rsm_save = false,
+	.save_format = SAVE_FORMAT_RSM,
 	.msgskip_delay = 0,
 
 	.bgi_path = NULL,
@@ -190,9 +190,9 @@ static void read_user_config_file(const char *path)
 			config.save_dir = xstrdup(ini_string(&ini[i])->text);
 		} else if (!strcmp(ini[i].name->text, "save-format")) {
 			if (!strcmp(ini_string(&ini[i])->text, "json")) {
-				config.rsm_save = false;
+				config.save_format = SAVE_FORMAT_JSON;
 			} else if (!strcmp(ini_string(&ini[i])->text, "rsm")) {
-				config.rsm_save = true;
+				config.save_format = SAVE_FORMAT_RSM;
 			} else {
 				WARNING("Invalid value for save-format in config: \"%s\"",
 						ini_string(&ini[i])->text);
@@ -506,9 +506,9 @@ int main(int argc, char *argv[])
 			break;
 		case LOPT_SAVE_FORMAT:
 			if (!strcmp(optarg, "json")) {
-				config.rsm_save = false;
+				config.save_format = SAVE_FORMAT_JSON;
 			} else if (!strcmp(optarg, "rsm")) {
-				config.rsm_save = true;
+				config.save_format = SAVE_FORMAT_RSM;
 			} else {
 				WARNING("Invalid value for --save-format option: \"%s\"", optarg);
 			}
