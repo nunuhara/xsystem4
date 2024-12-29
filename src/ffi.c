@@ -421,6 +421,7 @@ extern struct static_library lib_Data;
 extern struct static_library lib_DataFile;
 extern struct static_library lib_DrawDungeon;
 extern struct static_library lib_DrawDungeon14;
+extern struct static_library lib_DrawEffect;
 extern struct static_library lib_DrawGraph;
 extern struct static_library lib_DrawMovie;
 extern struct static_library lib_DrawMovie2;
@@ -527,6 +528,7 @@ static struct static_library *static_libraries[] = {
 	&lib_DataFile,
 	&lib_DrawDungeon,
 	&lib_DrawDungeon14,
+	&lib_DrawEffect,
 	&lib_DrawGraph,
 	&lib_DrawMovie,
 	&lib_DrawMovie2,
