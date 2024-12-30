@@ -133,6 +133,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/Data.c
   src/hll/DataFile.c
   src/hll/DrawDungeon.c
+  src/hll/DrawEffect.c
   src/hll/DrawGraph.c
   src/hll/DrawMovie.c
   src/hll/DrawPluginManager.c
