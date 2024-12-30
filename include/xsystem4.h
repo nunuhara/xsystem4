@@ -20,6 +20,11 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+enum resume_save_format {
+	SAVE_FORMAT_JSON,
+	SAVE_FORMAT_RSM,
+};
+
 struct config {
 	char *game_name;
 	char *ain_filename;
@@ -44,7 +49,7 @@ struct config {
 	bool echo;
 	float text_x_scale;
 	bool manual_text_x_scale;
-	bool rsm_save;
+	enum resume_save_format save_format;
 	int msgskip_delay;
 };
 
