@@ -19,6 +19,7 @@
 
 #include "system4/ain.h"
 #include "system4/string.h"
+#include "system4/utfsjis.h"
 
 #include "cJSON.h"
 #include "input.h"
@@ -257,7 +258,9 @@ static bool SystemService_GetMouseCursorConfig(int type, int *value)
 
 void SystemService_GetGameFolderPath(struct string **folder_path)
 {
-	*folder_path = make_string(config.game_dir, strlen(config.game_dir));
+	char *sjis = utf2sjis(config.game_dir, 0);
+	*folder_path = make_string(sjis, strlen(sjis));
+	free(sjis);
 }
 
 static void SystemService_GetTime(int *hour, int *min, int *sec)
