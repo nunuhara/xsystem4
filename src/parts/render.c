@@ -45,15 +45,26 @@ static struct {
 	GLint multiply_color;
 } parts_shader;
 
-static void parts_render_text(struct parts *parts, struct parts_common *common)
+static void parts_render_text(struct parts *parts, struct parts_text *t)
 {
-	Rectangle rect = {
-		.x = parts->global.pos.x + common->origin_offset.x,
-		.y = parts->global.pos.y + common->origin_offset.y,
-		.w = common->w,
-		.h = common->h
-	};
-	gfx_render_texture(&parts->states[parts->state].common.texture, &rect);
+	int x = parts->global.pos.x + t->common.origin_offset.x;
+	int y = parts->global.pos.y + t->common.origin_offset.y;
+	for (int i = 0; i < t->nr_lines; i++) {
+		struct parts_text_line *line = &t->lines[i];
+		for (int j = 0; j < line->nr_chars; j++) {
+			struct parts_text_char *ch = &line->chars[j];
+			Rectangle rect = {
+				.x = x,
+				.y = y,
+				.w = ch->t.w,
+				.h = ch->t.h
+			};
+			gfx_render_texture(&ch->t, &rect);
+			x += ch->advance;
+		}
+		x = parts->global.pos.x + t->common.origin_offset.x;
+		y += line->height;
+	}
 }
 
 static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rectangle *rect, float blend_rate, vec3 add_color, vec3 multiply_color)
@@ -248,8 +259,7 @@ void parts_render(struct parts *parts)
 			parts_render_cg(parts, &state->common);
 		break;
 	case PARTS_TEXT:
-		if (state->common.texture.handle)
-			parts_render_text(parts, &state->common);
+		parts_render_text(parts, &state->text);
 		break;
 	case PARTS_FLASH:
 		parts_render_flash(parts, &state->flash);
