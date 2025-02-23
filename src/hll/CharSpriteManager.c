@@ -108,6 +108,7 @@ int CharSpriteManager_CreateHandle(void)
 	assert(!chars.sprites[handle]);
 	chars.sprites[handle] = xcalloc(1, sizeof(struct charsprite));
 	sprite_init(&chars.sprites[handle]->sp);
+	chars.sprites[handle]->ts.scale_x = 1.0f;
 	return handle;
 }
 
@@ -175,7 +176,7 @@ static void charsprite_render(struct charsprite *cs)
 		ch[2] = 0;
 	}
 
-	int w = ceilf(gfx_size_char(&cs->ts, ch));
+	int w = ceilf(text_style_width(&cs->ts, ch));
 	int h = cs->ts.size + cs->ts.size/2;
 	sprite_init_color(&cs->sp, w, h, 0, 0, 0, 0);
 	sprite_get_texture(&cs->sp); // XXX: force initialization of texture
