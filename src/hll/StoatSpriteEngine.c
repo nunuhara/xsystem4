@@ -113,13 +113,11 @@ bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 
 	char s[3];
 	extract_sjis_char(text->text, s);
-	int w = text_sprite_ts.size;
+	int w = ceilf(text_style_width(&text_sprite_ts, s));
 	int h = text_sprite_ts.size;
 	// XXX: System40.exe lies about the height of half-width characters.
 	//      E.g. a size 64 letter "H" is reported as 32 pixels tall.
 	//      Probably doesn't matter...?
-	if (isascii(s[0]))
-		w /= 2;
 	struct sact_sprite *sp = sact_create_sprite(sp_no, w, h, 0, 0, 0, 0);
 	sprite_get_texture(sp); // XXX: force initialization of texture
 	gfx_render_text(&sp->texture, 0.0f, 0, s, &text_sprite_ts, false);
