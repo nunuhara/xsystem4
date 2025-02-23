@@ -23,6 +23,7 @@
 void json_load_page(struct page *page, cJSON *vars, bool call_dtors);
 
 int save_json(const char *filename, cJSON *json);
+cJSON *load_json(const char *filename);
 int save_globals(const char *keyname, const char *filename, const char *group_name, int *n);
 int load_globals(const char *keyname, const char *filename, const char *group_name, int *n);
 int delete_save_file(const char *filename);

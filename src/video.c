@@ -69,6 +69,7 @@ static struct texture *view = &main_surface;
 static GLint max_texture_size;
 static SDL_Color clear_color = { 0, 0, 0, 255 };
 static float frame_rate;
+static bool wait_vsync = false;
 
 static GLchar *read_shader_file(const char *path)
 {
@@ -267,7 +268,7 @@ int gfx_init(void)
 		ERROR("glewInit failed");
 #endif
 
-	SDL_GL_SetSwapInterval(0);
+	SDL_GL_SetSwapInterval(wait_vsync ? 1 : 0);
 	gl_initialize();
 	gfx_draw_init();
 	gfx_set_window_logical_size(config.view_width, config.view_height);
@@ -353,7 +354,9 @@ void gfx_update_screen_scale(void)
 
 void gfx_set_wait_vsync(bool wait)
 {
-	SDL_GL_SetSwapInterval(wait);
+	wait_vsync = wait;
+	if (gfx_initialized)
+		SDL_GL_SetSwapInterval(wait ? 1 : 0);
 }
 
 void gfx_set_clear_color(int r, int g, int b, int a)

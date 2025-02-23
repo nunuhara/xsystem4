@@ -67,7 +67,18 @@ int save_json(const char *filename, cJSON *json)
 	}
 	free(str);
 	return 1;
+}
 
+cJSON *load_json(const char *filename)
+{
+	char *path = savedir_path(filename);
+	char *json = file_read(path, NULL);
+	free(path);
+	if (!json)
+		return NULL;
+	cJSON *root = cJSON_Parse(json);
+	free(json);
+	return root;
 }
 
 static int get_group_index(const char *name)
