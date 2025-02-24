@@ -104,7 +104,7 @@ void parts_text_append(struct parts *parts, struct parts_text *t, struct string 
 		msgp = parts_text_append_char(t, msgp);
 	}
 
-	// calculate required dimensions of texture
+	// calculate dimensions of the text
 	float f_width = 0;
 	int height = 0;
 	for (int i = 0; i < t->nr_lines; i++) {
@@ -115,26 +115,6 @@ void parts_text_append(struct parts *parts, struct parts_text *t, struct string 
 	if (!width || !height)
 		return;
 
-	// initialize texture
-	if (t->common.texture.handle)
-		gfx_delete_texture(&t->common.texture);
-	gfx_init_texture_rgba(&t->common.texture, width, height, (SDL_Color){0,0,0,0});
-
-	// copy glyph textures to main texture
-	t->cursor.x = 0;
-	t->cursor.y = 0;
-	for (int i = 0; i < t->nr_lines; i++) {
-		struct parts_text_line *line = &t->lines[i];
-		for (int i = 0; i < line->nr_chars; i++) {
-			struct parts_text_char *ch = &line->chars[i];
-			gfx_copy_with_alpha_map(&t->common.texture,
-					lroundf(t->cursor.x), t->cursor.y,
-					&ch->t, 0, 0, ch->t.w, ch->t.h);
-			t->cursor.x += ch->advance;
-		}
-		t->cursor.x = 0;
-		t->cursor.y += line->height;
-	}
 	parts_set_dims(parts, &t->common, width, height);
 }
 
