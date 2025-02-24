@@ -20,9 +20,11 @@
 #include "system4/ain.h"
 #include "system4/string.h"
 
+#include "cJSON.h"
 #include "input.h"
 #include "gfx/gfx.h"
 #include "mixer.h"
+#include "savedata.h"
 #include "vm.h"
 #include "xsystem4.h"
 #include "hll.h"
@@ -140,6 +142,27 @@ enum window_settings_id {
 	WINDOW_SETTINGS_CLOSE_GAME_CONFIRM = 6,
 };
 
+static void save_window_settings(void)
+{
+	cJSON *root = cJSON_CreateObject();
+	cJSON_AddBoolToObject(root, "wait_vsync", window_settings.wait_vsync);
+	save_json("WindowSetting.json", root);
+	cJSON_Delete(root);
+}
+
+static void load_window_settings(void)
+{
+	cJSON *root = load_json("WindowSetting.json");
+	if (!root)
+		return;
+	cJSON *v;
+	if ((v = cJSON_GetObjectItem(root, "wait_vsync"))) {
+		window_settings.wait_vsync = cJSON_IsTrue(v);
+		gfx_set_wait_vsync(window_settings.wait_vsync);
+	}
+	cJSON_Delete(root);
+}
+
 static bool SystemService_SetWindowSetting(int type, int value)
 {
 	switch (type) {
@@ -169,6 +192,7 @@ static bool SystemService_SetWindowSetting(int type, int value)
 		WARNING("Invalid window setting type: %d", type);
 		return false;
 	}
+	save_window_settings();
 	return true;
 }
 
@@ -275,8 +299,14 @@ static void SystemService_Test(struct string **text)
 
 static void SystemService_PreLink(void);
 
+static void SystemService_ModuleInit(void)
+{
+	load_window_settings();
+}
+
 HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(_PreLink, SystemService_PreLink),
+	    HLL_EXPORT(_ModuleInit, SystemService_ModuleInit),
 	    HLL_EXPORT(GetMixerNumof, mixer_get_numof),
 	    HLL_EXPORT(GetMixerName, SystemService_GetMixerName),
 	    HLL_EXPORT(GetMixerVolume, mixer_get_volume),
