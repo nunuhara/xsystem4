@@ -419,6 +419,29 @@ static bool DrawGraph_GetAlphaColor(int surface, int x, int y, int *a)
 
 //void DrawGraph_DrawPolygon(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2);
 //void DrawGraph_DrawColorPolygon(int dst, int tex, float x0, float y0, float z0, int r0, int g0, int b0, int a0, float x1, float y1, float z1, int r1, int g1, int b1, int a1, float x2, float y2, float z2, int r2, int g2, int b2, int a2);
+//void DrawGraph_DrawDeformedSprite(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3);
+//void DrawGraph_BlendDeformedSprite(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3, int rate);
+//void DrawGraph_BlendAMapDeformedSprite(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3);
+//void DrawGraph_BlendAMapAlphaDeformedSprite(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3, int rate);
+
+static void DrawGraph_DrawDeformedSpriteBilinear(int dst, int tex,
+	float x0, float y0, float z0, float u0, float v0,
+	float x1, float y1, float z1, float u1, float v1,
+	float x2, float y2, float z2, float u2, float v2,
+	float x3, float y3, float z3, float u3, float v3)
+{
+	if (x0 == x2 && x1 == x3 && x0 <= x1 &&
+		y0 == y1 && y2 == y3 && y0 <= y2 &&
+		z0 == 0.f && z1 == 0.f && z2 == 0.f && z3 == 0.f &&
+		u0 == u2 && u1 == u3 && u0 <= u1 &&
+		v0 == v1 && v2 == v3 && v0 <= v2) {
+		gfx_copy_stretch(DTEX(dst), x0, y0, x3 - x0, y3 - y0, STEX(tex), u0, v0, u3 - u0, v3 - v0);
+	} else {
+		WARNING("DrawGraph.DrawDeformedSpriteBilinear: Non-rectangular deformation is not implemented");
+	}
+}
+
+//void DrawGraph_BlendAMapDeformedSpriteBilinear(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3);
 
 static void DrawGraph_CopyWithAlphaMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
@@ -536,6 +559,12 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(GetAlphaColor, DrawGraph_GetAlphaColor),
 	    //HLL_EXPORT(DrawPolygon, DrawGraph_DrawPolygon),
 	    //HLL_EXPORT(DrawColorPolygon, DrawGraph_DrawColorPolygon)
+	    HLL_TODO_EXPORT(DrawDeformedSprite, DrawGraph_DrawDeformedSprite),
+	    HLL_TODO_EXPORT(BlendDeformedSprite, DrawGraph_BlendDeformedSprite),
+	    HLL_TODO_EXPORT(BlendAMapDeformedSprite, DrawGraph_BlendAMapDeformedSprite),
+	    HLL_TODO_EXPORT(BlendAMapAlphaDeformedSprite, DrawGraph_BlendAMapAlphaDeformedSprite),
+	    HLL_EXPORT(DrawDeformedSpriteBilinear, DrawGraph_DrawDeformedSpriteBilinear),
+	    HLL_TODO_EXPORT(BlendAMapDeformedSpriteBilinear, DrawGraph_BlendAMapDeformedSpriteBilinear),
 	    HLL_EXPORT(CopyWithAlphaMap, DrawGraph_CopyWithAlphaMap),
 	    HLL_EXPORT(FillWithAlpha, DrawGraph_FillWithAlpha),
 	    HLL_EXPORT(CopyStretchWithAlphaMap, DrawGraph_CopyStretchWithAlphaMap),
