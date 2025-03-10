@@ -2152,7 +2152,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		array_sort_mem(heap[array].page, mno);
 		break;
 	}
-	case DG_ADD: {
+	case DG_SET: {
 		int fun = stack_pop().i;
 		int obj = stack_pop().i;
 		int dg_i = stack_pop().i;
@@ -2160,7 +2160,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		heap_set_page(dg_i, delegate_new_from_method(obj, fun));
 		break;
 	}
-	case DG_SET: {
+	case DG_ADD: {
 		int fun = stack_pop().i;
 		int obj = stack_pop().i;
 		int dg_i = stack_pop().i;
