@@ -59,7 +59,7 @@ issues, please let me know or open a pull request to update this table.
 | エドランゼ ～Come on!水戸姫様～                         | Supported   |       |
 | 闘神都市III                                             | Supported   |       |
 | ばにしゅ！～おっぱいの消えた王国～                      | Unknown     |       |
-| 僕だけの保健室                                          | Unknown     |       |
+| 僕だけの保健室                                          | Supported   |       |
 | ももいろガーディアン                                    | Unknown     |       |
 | 超昂閃忍ハルカ ハルカVSエスカレイヤー                   | Unknown     | From Alice 2010 |
 | 超昂閃忍ハルカ ―疾風！？忍者大作戦―                     | Unknown     | From Alice 2010 |
