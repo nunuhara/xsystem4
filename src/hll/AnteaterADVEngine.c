@@ -40,8 +40,12 @@ struct adv_log {
 };
 
 static bool enabled = true;
-static unsigned nr_logs = 0;
-struct adv_log *logs = NULL;
+
+// A circular buffer of logs.
+#define LOG_BUFFER_SIZE 1000
+static struct adv_log *logs = NULL;
+static unsigned log_first;
+static unsigned log_last;
 
 static void AnteaterADVEngine_PreLink(void);
 
@@ -52,20 +56,33 @@ static void init_log(struct adv_log *log)
 	log->nr_lines = 1;
 }
 
+static void free_log(struct adv_log *log)
+{
+	for (unsigned i = 0; i < log->nr_lines; i++) {
+		free_string(log->lines[i]);
+	}
+	free(log->lines);
+	free(log->voices);
+	log->nr_lines = 0;
+	log->lines = NULL;
+	log->nr_voices = 0;
+	log->voices = NULL;
+}
+
 // Ensure there is at least one log allocated
 static void ensure_log(void)
 {
-	if (!nr_logs) {
-		logs = xcalloc(1, sizeof(struct adv_log));
+	if (!logs) {
+		logs = xcalloc(LOG_BUFFER_SIZE, sizeof(struct adv_log));
 		init_log(&logs[0]);
-		nr_logs = 1;
+		log_first = log_last = 0;
 	}
 }
 
 static struct adv_log *current_log()
 {
 	ensure_log();
-	return &logs[nr_logs-1];
+	return &logs[log_last];
 }
 
 static struct string **current_line(struct adv_log *log)
@@ -77,17 +94,14 @@ static struct string **current_line(struct adv_log *log)
 void ADVLogList_Clear(void)
 {
 	// XXX: this function works even if logging is disabled
-	for (unsigned i = 0; i < nr_logs; i++) {
-		struct adv_log *log = &logs[i];
-		for (unsigned i = 0; i < log->nr_lines; i++) {
-			free_string(log->lines[i]);
-		}
-		free(log->lines);
-		free(log->voices);
+	if (!logs) return;
+	for (unsigned i = log_first;; i = (i + 1) % LOG_BUFFER_SIZE) {
+		free_log(&logs[i]);
+		if (i == log_last)
+			break;
 	}
 	free(logs);
 	logs = NULL;
-	nr_logs = 0;
 }
 
 void ADVLogList_AddText(struct string **text)
@@ -108,8 +122,12 @@ void ADVLogList_AddNewLine(void)
 void ADVLogList_AddNewPage(void)
 {
 	if (!enabled) return;
-	logs = xrealloc_array(logs, nr_logs, nr_logs + 1, sizeof(struct adv_log));
-	init_log(&logs[nr_logs++]);
+	log_last = (log_last + 1) % LOG_BUFFER_SIZE;
+	if (log_last == log_first) {
+		free_log(&logs[log_first]);
+		log_first = (log_first + 1) % LOG_BUFFER_SIZE;
+	}
+	init_log(&logs[log_last]);
 }
 
 void ADVLogList_AddVoice(int voice_no)
@@ -132,55 +150,55 @@ bool ADVLogList_IsEnable(void)
 
 int ADVLogList_GetNumofADVLog(void)
 {
-	return nr_logs ? nr_logs : 1;
+	if (!logs) return 1;
+	return (log_last - log_first + LOG_BUFFER_SIZE) % LOG_BUFFER_SIZE + 1;
 }
 
-static void check_log_nr(int log_no)
+static struct adv_log *log_entry(int log_no)
 {
 	// NOTE: AnteaterADVEngine.dll segfaults on invalid index
 	ensure_log();
-	if (log_no < 0 || (unsigned)log_no >= nr_logs)
+	if (log_no < 0 || (unsigned)log_no >= ADVLogList_GetNumofADVLog())
 		VM_ERROR("Invalid log number: %d", log_no);
+	return &logs[(log_first + log_no) % LOG_BUFFER_SIZE];
 }
 
 int ADVLogList_GetNumofADVLogText(int log_no)
 {
-	check_log_nr(log_no);
-	return logs[log_no].nr_lines;
+	return log_entry(log_no)->nr_lines;
 }
 
 void ADVLogList_GetADVLogText(int log_no, int line_no, struct string **text)
 {
-	check_log_nr(log_no);
+	struct adv_log *log = log_entry(log_no);
 	// NOTE: AnteaterADVEngine.dll segfaults on invalid index
-	if (line_no < 0 || (unsigned)line_no >= logs[log_no].nr_lines)
+	if (line_no < 0 || (unsigned)line_no >= log->nr_lines)
 		VM_ERROR("Invalid line number: %d", line_no);
 
-	*text = string_ref(logs[log_no].lines[line_no]);
+	*text = string_ref(log->lines[line_no]);
 }
 
 int ADVLogList_GetNumofADVLogVoice(int log_no)
 {
-	check_log_nr(log_no);
-	return logs[log_no].nr_voices;
+	return log_entry(log_no)->nr_voices;
 }
 
 int ADVLogList_GetADVLogVoice(int log_no, int voice_no)
 {
-	check_log_nr(log_no);
-	if (voice_no < 0 || (unsigned)voice_no >= logs[log_no].nr_voices)
+	struct adv_log *log = log_entry(log_no);
+	if (voice_no < 0 || (unsigned)voice_no >= log->nr_voices)
 		VM_ERROR("Invalid voice number: %d", voice_no);
 
-	return logs[log_no].voices[voice_no];
+	return log->voices[voice_no];
 }
 
 int ADVLogList_GetADVLogVoiceLast(int log_no)
 {
-	check_log_nr(log_no);
-	unsigned nr_voices = logs[log_no].nr_voices;
+	struct adv_log *log = log_entry(log_no);
+	unsigned nr_voices = log->nr_voices;
 	if (!nr_voices)
 		return 0;
-	return logs[log_no].voices[nr_voices - 1];
+	return log->voices[nr_voices - 1];
 }
 
 bool ADVLogList_Save(struct page **iarray)
@@ -202,9 +220,10 @@ bool ADVLogList_Save(struct page **iarray)
 	struct iarray_writer b;
 	iarray_init_writer(&b, "ADL");
 	iarray_write(&b, 0);
+	int nr_logs = ADVLogList_GetNumofADVLog();
 	iarray_write(&b, nr_logs);
 	for (unsigned i = 0; i < nr_logs; i++) {
-		struct adv_log *log = &logs[i];
+		struct adv_log *log = &logs[(log_first + i) % LOG_BUFFER_SIZE];
 		iarray_write(&b, log->nr_lines);
 		for (unsigned i = 0; i < log->nr_lines; i++) {
 			iarray_write_string(&b, log->lines[i]);
@@ -243,14 +262,14 @@ bool ADVLogList_Load(struct page **data)
 		goto error;
 	}
 
-	logs = xcalloc(nr_pages + 1, sizeof(struct adv_log));
 	// XXX: For whatever reason this function always creates a blank page 0,
 	//      and then loads the input pages after that. So a consecutive save
 	//      and load will increase all page numbers by 1.
-	init_log(&logs[0]);
+	ensure_log();
 
 	for (int i = 1; i < nr_pages + 1; i++) {
-		struct adv_log *log = &logs[i];
+		ADVLogList_AddNewPage();
+		struct adv_log *log = current_log();
 		int nr_lines = iarray_read(&r);
 		if (nr_lines <= 0 || nr_lines > 10000) {
 			WARNING("Invalid value for nr_lines[%d]: %d", i, nr_lines);
@@ -275,7 +294,6 @@ bool ADVLogList_Load(struct page **data)
 		}
 		log->nr_voices = nr_voices;
 	}
-	nr_logs = nr_pages + 1;
 
 	if (iarray_read(&r) != 1 || r.error)
 		goto error;
