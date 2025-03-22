@@ -75,6 +75,7 @@ const char *effect_names[NR_EFFECTS] = {
 	[EFFECT_BLUR_FADEOUT]           = "EFFECT_BLUR_FADEOUT",
 	[EFFECT_BLUR_CROSSFADE]         = "EFFECT_BLUR_CROSSFADE",
 	[EFFECT_2ROT_ZOOM_BLEND_BLUR]   = "EFFECT_2ROT_ZOOM_BLEND_BLUR",
+	[EFFECT_VWAVE_CROSSFADE]        = "EFFECT_VWAVE_CROSSFADE",
 };
 
 struct effect_shader {
@@ -153,6 +154,7 @@ static struct effect_shader turn_page_shader = EFFECT_SHADER("shaders/effects/tu
 static struct effect_shader sepia_noise_crossfade_shader = EFFECT_SHADER("shaders/effects/sepia_noise_crossfade.f.glsl");
 static struct effect_shader blur_fadeout_shader = EFFECT_SHADER("shaders/effects/blur_fadeout.f.glsl");
 static struct effect_shader blur_crossfade_shader = EFFECT_SHADER("shaders/effects/blur_crossfade.f.glsl");
+static struct effect_shader vwave_crossfade_shader = EFFECT_SHADER("shaders/effects/vwave_crossfade.f.glsl");
 
 static struct effect_shader *effect_shaders[NR_EFFECTS] = {
 	[EFFECT_CROSSFADE] = &crossfade_shader,
@@ -168,6 +170,7 @@ static struct effect_shader *effect_shaders[NR_EFFECTS] = {
 	[EFFECT_SEPIA_NOISE_CROSSFADE] = &sepia_noise_crossfade_shader,
 	[EFFECT_BLUR_FADEOUT] = &blur_fadeout_shader,
 	[EFFECT_BLUR_CROSSFADE] = &blur_crossfade_shader,
+	[EFFECT_VWAVE_CROSSFADE] = &vwave_crossfade_shader,
 };
 
 static void effect_fadeout(Texture *dst, Texture *old, Texture *new, float rate)
@@ -274,7 +277,10 @@ void effect_update_texture(int type, Texture *dst, Texture *old, Texture *new, f
 	} else {
 		struct effect_shader *s = effect_shaders[type];
 		if (!s) {
-			WARNING("Unimplemented effect: %s", effect_names[type]);
+			if (effect_names[type])
+				WARNING("Unimplemented effect: %s", effect_names[type]);
+			else
+				WARNING("Unimplemented effect: %d", type);
 			s = effect_shaders[EFFECT_BLUR_CROSSFADE];
 		}
 		if (!s->s.program)
@@ -296,7 +302,10 @@ int effect_init(enum effect type)
 	else {
 		struct effect_shader *s = effect_shaders[type];
 		if (!s) {
-			WARNING("Unimplemented effect: %s", effect_names[type]);
+			if (effect_names[type])
+				WARNING("Unimplemented effect: %s", effect_names[type]);
+			else
+				WARNING("Unimplemented effect: %d", type);
 			type = EFFECT_BLUR_CROSSFADE;
 			s = effect_shaders[type];
 		}
