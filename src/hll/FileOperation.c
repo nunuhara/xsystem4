@@ -30,7 +30,15 @@
 #include "vm/page.h"
 #include "hll.h"
 
-//bool FileOperation_ExistFile(string FileName);
+static bool FileOperation_ExistFile(struct string *file_name)
+{
+	char *path = unix_path(file_name->text);
+	ustat s;
+	bool result = stat_utf8(path, &s) == 0 && S_ISREG(s.st_mode);
+	free(path);
+	return result;
+}
+
 //bool FileOperation_DeleteFile(string FileName);
 
 static bool FileOperation_CopyFile(struct string *dest_file_name, struct string *src_file_name)
@@ -46,7 +54,25 @@ static bool FileOperation_CopyFile(struct string *dest_file_name, struct string 
 //bool FileOperation_GetFileCreationTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
 //bool FileOperation_GetFileLastAccessTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
 //bool FileOperation_GetFileLastWriteTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
-//bool FileOperation_GetFileSize(string FileName, ref int nSize);
+
+static bool FileOperation_GetFileSize(struct string *file_name, int *size)
+{
+	char *path = unix_path(file_name->text);
+	ustat s;
+	if (stat_utf8(path, &s) < 0) {
+		WARNING("stat(\"%s\"): %s", display_utf0(path), strerror(errno));
+		free(path);
+		return false;
+	}
+	if (!S_ISREG(s.st_mode)) {
+		WARNING("stat(\"%s\"): not a regular file", display_utf0(path));
+		free(path);
+		return false;
+	}
+	*size = s.st_size;
+	free(path);
+	return true;
+}
 
 static bool FileOperation_ExistFolder(struct string *folder_name)
 {
@@ -190,13 +216,13 @@ static bool FileOperation_GetFolderList(struct string *folder_name, struct page 
 }
 
 HLL_LIBRARY(FileOperation,
-	    HLL_TODO_EXPORT(ExistFile, FileOperation_ExistFile),
+	    HLL_EXPORT(ExistFile, FileOperation_ExistFile),
 	    HLL_TODO_EXPORT(DeleteFile, FileOperation_DeleteFile),
 	    HLL_EXPORT(CopyFile, FileOperation_CopyFile),
 	    HLL_TODO_EXPORT(GetFileCreationTime, FileOperation_GetFileCreationTime),
 	    HLL_TODO_EXPORT(GetFileLastAccessTime, FileOperation_GetFileLastAccessTime),
 	    HLL_TODO_EXPORT(GetFileLastWriteTime, FileOperation_GetFileLastWriteTime),
-	    HLL_TODO_EXPORT(GetFileSize, FileOperation_GetFileSize),
+	    HLL_EXPORT(GetFileSize, FileOperation_GetFileSize),
 	    HLL_EXPORT(ExistFolder, FileOperation_ExistFolder),
 	    HLL_EXPORT(CreateFolder, FileOperation_CreateFolder),
 	    HLL_EXPORT(DeleteFolder, FileOperation_DeleteFolder),
