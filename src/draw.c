@@ -935,6 +935,23 @@ void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx
 	restore_blend_mode();
 }
 
+void gfx_copy_reverse_LR_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	mat4 mw_transform = MAT4(
+	     -src->w, 0,      0, sx + w,
+	     0,       src->h, 0, -sy,
+	     0,       0,      1, 0,
+	     0,       0,      0, 1);
+	mat4 wv_transform = WV_TRANSFORM(w, h);
+
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_draw_shader(&copy_shader.s, dst, src, mw_transform, wv_transform, &data);
+
+	restore_blend_mode();
+}
+
 void gfx_copy_width_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur)
 {
 	GLfloat f_rate = 1.0 / (blur * 2 + 1);
