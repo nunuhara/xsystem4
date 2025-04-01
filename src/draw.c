@@ -788,6 +788,7 @@ void gfx_copy_rot_zoom_use_amap(Texture *dst, Texture *src, int sx, int sy, int 
 void gfx_copy_rot_zoom2(Texture *dst, float cx, float cy, Texture *src, float scx, float scy, float rot, float mag)
 {
 	gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 0);
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
 
 	// 1. scale src vertices to texture size
 	// 2. translate so that center point of copy region is at origin
@@ -805,7 +806,8 @@ void gfx_copy_rot_zoom2(Texture *dst, float cx, float cy, Texture *src, float sc
 	mat4 wv_transform = WV_TRANSFORM(dst->w, dst->h);
 
 	struct copy_data data = ROTATE_DATA(dst, 0, 0, src->w, src->h);
-	run_draw_shader(&hitbox_noblend_shader.s, dst, src, mw_transform, wv_transform, &data);
+	run_draw_shader(&hitbox_shader.s, dst, src, mw_transform, wv_transform, &data);
+	restore_blend_mode();
 }
 
 static void copy_rotate_y(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag, Shader *shader)
