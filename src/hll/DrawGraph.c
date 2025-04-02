@@ -375,6 +375,13 @@ static void DrawGraph_CopyReverseAMapLR(int dst, int dx, int dy, int src, int sx
 
 //void DrawGraph_CopyReverseAMapUD(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
 
+static void DrawGraph_CopyReverseLRWithAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_reverse_LR_with_alpha_map(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
+
+//void DrawGraph_CopyReverseUDWithAMap(int nDest, int nDx, int nDy, int nSrc, int nSx, int nSy, int nWidth, int nHeight);
+
 static void DrawGraph_CopyWidthBlur(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int blur)
 {
 	gfx_copy_width_blur(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h, blur);
@@ -549,6 +556,8 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(CopyReverseUD, DrawGraph_CopyReverseUD),
 	    HLL_EXPORT(CopyReverseAMapLR, DrawGraph_CopyReverseAMapLR),
 	    //HLL_EXPORT(CopyReverseAMapUD, DrawGraph_CopyReverseAMapUD),
+	    HLL_EXPORT(CopyReverseLRWithAMap, DrawGraph_CopyReverseLRWithAMap),
+	    HLL_TODO_EXPORT(CopyReverseUDWithAMap, DrawGraph_CopyReverseUDWithAMap),
 	    HLL_EXPORT(CopyWidthBlur, DrawGraph_CopyWidthBlur),
 	    HLL_EXPORT(CopyHeightBlur, DrawGraph_CopyHeightBlur),
 	    HLL_EXPORT(CopyAMapWidthBlur, DrawGraph_CopyAMapWidthBlur),

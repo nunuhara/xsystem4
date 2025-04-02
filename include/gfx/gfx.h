@@ -161,6 +161,7 @@ void gfx_copy_rot_zoom2(Texture *dst, float cx, float cy, Texture *src, float sc
 void gfx_copy_reverse_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_copy_reverse_UD(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
+void gfx_copy_reverse_LR_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_copy_rotate_y(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag);
 void gfx_copy_rotate_y_use_amap(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag);
 void gfx_copy_rotate_x(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag);

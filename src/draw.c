@@ -788,6 +788,7 @@ void gfx_copy_rot_zoom_use_amap(Texture *dst, Texture *src, int sx, int sy, int 
 void gfx_copy_rot_zoom2(Texture *dst, float cx, float cy, Texture *src, float scx, float scy, float rot, float mag)
 {
 	gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 0);
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
 
 	// 1. scale src vertices to texture size
 	// 2. translate so that center point of copy region is at origin
@@ -805,7 +806,8 @@ void gfx_copy_rot_zoom2(Texture *dst, float cx, float cy, Texture *src, float sc
 	mat4 wv_transform = WV_TRANSFORM(dst->w, dst->h);
 
 	struct copy_data data = ROTATE_DATA(dst, 0, 0, src->w, src->h);
-	run_draw_shader(&hitbox_noblend_shader.s, dst, src, mw_transform, wv_transform, &data);
+	run_draw_shader(&hitbox_shader.s, dst, src, mw_transform, wv_transform, &data);
+	restore_blend_mode();
 }
 
 static void copy_rotate_y(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag, Shader *shader)
@@ -928,6 +930,23 @@ void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx
 	mat4 wv_transform = WV_TRANSFORM(w, h);
 
 	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_draw_shader(&copy_shader.s, dst, src, mw_transform, wv_transform, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_copy_reverse_LR_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	mat4 mw_transform = MAT4(
+	     -src->w, 0,      0, sx + w,
+	     0,       src->h, 0, -sy,
+	     0,       0,      1, 0,
+	     0,       0,      0, 1);
+	mat4 wv_transform = WV_TRANSFORM(w, h);
+
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
 
 	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
 	run_draw_shader(&copy_shader.s, dst, src, mw_transform, wv_transform, &data);

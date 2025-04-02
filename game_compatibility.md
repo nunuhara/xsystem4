@@ -73,7 +73,7 @@ issues, please let me know or open a pull request to update this table.
 | Rance 02 -The Rebellious Maidens- (Fan TL)              | Supported   |       |
 | Rance 02 -The Rebellious Maidens- (MangaGamer)          | Supported   |       |
 | しゃーまんず・さんくちゅあり－巫女の聖域－              | Unknown     |       |
-| 大帝国                                                  | Unknown     |       |
+| 大帝国                                                  | Supported   |       |
 | ランス・クエスト                                        | Unsupported |       |
 | 母娘乱館                                                | Unknown     |       |
 | パステルチャイム3 バインドシーカー                      | Unsupported |       |
