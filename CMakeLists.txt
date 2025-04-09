@@ -11,24 +11,17 @@ FetchContent_Declare(
   URL https://github.com/recp/cglm/archive/refs/tags/v0.9.2.tar.gz
   URL_HASH SHA1=cb8472aa8c2ab67b66378dbaf10c2c7368d4e4c3
 )
-FetchContent_Declare(
-  SDL
-  URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.9/SDL2-2.30.9.tar.gz
-  URL_HASH SHA1=9403df0573d47f62f2de074b582b87576bb4abbc
-)
-FetchContent_Declare(
-  freetype
-  GIT_REPOSITORY https://github.com/freetype/freetype.git
-  GIT_TAG VER-2-13-2
-)
-FetchContent_MakeAvailable(cglm SDL freetype)
+FetchContent_MakeAvailable(cglm)
 
 add_library(ffi STATIC IMPORTED)
 set_target_properties(ffi PROPERTIES
   IMPORTED_LOCATION ${CMAKE_STAGING_PREFIX}/lib/libffi.a
   INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_STAGING_PREFIX}/include)
 
+find_package(Freetype REQUIRED)
+find_package(SDL2 REQUIRED)
 find_package(SndFile REQUIRED)
+find_package(ZLIB REQUIRED)
 
 add_subdirectory(subprojects/libsys4)
 
@@ -212,8 +205,8 @@ target_sources(xsystem4 PRIVATE
   )
 
 target_link_libraries(xsystem4 PRIVATE
-  m z SDL2 freetype ffi GLESv3 cglm SndFile::sndfile sys4)
+  m ZLIB::ZLIB SDL2::SDL2 Freetype::Freetype ffi GLESv3 cglm SndFile::sndfile sys4)
 
 target_compile_options(xsystem4 PRIVATE -Wno-unused-parameter)
 
-install(TARGETS xsystem4 SDL2 freetype)
+install(TARGETS xsystem4)
