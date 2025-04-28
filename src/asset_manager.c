@@ -334,7 +334,7 @@ void asset_manager_init(void)
 	// get ALD filenames
 	while ((d_name = readdir_utf8(dir))) {
 		// archive filename must begin with ain filename
-		if (strncmp(base, d_name, base_len))
+		if (strncasecmp(base, d_name, base_len))
 			goto loop_next;
 		const char *ext = file_extension(d_name);
 		if (!ext)
