@@ -38,16 +38,18 @@
 #include "dungeon/dungeon.h"
 #include "xsystem4.h"
 
+static enum sprite_engine_type engine_type = UNINITIALIZED_SPRITE_ENGINE;
 static struct sact_sprite **sprites = NULL;
 static int nr_sprites = 0;
 static int view_mode;
 static bool use_power2_texture;
+static int next_z2 = 0;
 
 static struct sact_sprite *sact_alloc_sprite(int sp)
 {
 	sprites[sp] = xcalloc(1, sizeof(struct sact_sprite));
 	sprites[sp]->no = sp;
-	sprites[sp]->sp.z2 = sp;
+	sprites[sp]->sp.z2 = engine_type == SACT2_SPRITE_ENGINE ? sp : ++next_z2;
 	sprite_init(sprites[sp]);
 	sprite_dirty(sprites[sp]);
 	return sprites[sp];
@@ -95,11 +97,15 @@ struct sact_sprite *sact_try_get_sprite(int sp)
 	return sprites[sp];
 }
 
-int sact_init(possibly_unused int cg_cache_size, bool chipmunk)
+int sact_init(possibly_unused int cg_cache_size, enum sprite_engine_type engine)
 {
-	// already initialized
-	if (sprites)
+	if (engine_type != UNINITIALIZED_SPRITE_ENGINE) {
+		if (engine_type != engine)
+			VM_ERROR("sact_init() called with different engine type: %d != %d", engine_type, engine);
+		// already initialized
 		return 1;
+	}
+	engine_type = engine;
 
 	gfx_init();
 	gfx_font_init();
@@ -118,7 +124,7 @@ int sact_init(possibly_unused int cg_cache_size, bool chipmunk)
 	sprites++;
 
 	// initialize sprite renderer
-	if (chipmunk)
+	if (engine == CHIPMUNK_SPRITE_ENGINE)
 		sprite_init_chipmunk();
 	else
 		sprite_init_sact();
@@ -126,9 +132,14 @@ int sact_init(possibly_unused int cg_cache_size, bool chipmunk)
 	return 1;
 }
 
-static int sact_Init(possibly_unused void *imain_system, int cg_cache_size)
+static int SACT2_Init(possibly_unused void *imain_system, int cg_cache_size)
 {
-	return sact_init(cg_cache_size, false);
+	return sact_init(cg_cache_size, SACT2_SPRITE_ENGINE);
+}
+
+static int SACTDX_Init(possibly_unused void *imain_system, int cg_cache_size)
+{
+	return sact_init(cg_cache_size, SACTDX_SPRITE_ENGINE);
 }
 
 void sact_ModuleFini(void)
@@ -344,6 +355,7 @@ int sact_SP_DeleteAll(void)
 			sact_free_sprite(sprites[i]);
 		}
 	}
+	next_z2 = 0;
 	return 1;
 }
 
@@ -838,7 +850,6 @@ int SACT2_SP_GetBrightness(int sp_no)
 
 #define SACT_EXPORTS \
 	    HLL_EXPORT(_ModuleFini, sact_ModuleFini), \
-	    HLL_EXPORT(Init, sact_Init), \
 	    HLL_TODO_EXPORT(Error, SACT2_Error), \
 	    HLL_EXPORT(SetWP, sact_SetWP), \
 	    HLL_EXPORT(SetWP_Color, sact_SetWP_Color), \
@@ -1033,7 +1044,11 @@ void sact_DX_SetUsePower2Texture(bool use)
 	use_power2_texture = use;
 }
 
+#define SACT2_EXPORTS \
+	HLL_EXPORT(Init, SACT2_Init)
+
 #define SACTDX_EXPORTS \
+	HLL_EXPORT(Init, SACTDX_Init), \
 	HLL_EXPORT(SetVolumeMixerMasterGroupNum, SACTDX_SetVolumeMixerMasterGroupNum), \
 	HLL_EXPORT(SetVolumeMixerSEGroupNum, SACTDX_SetVolumeMixerSEGroupNum), \
 	HLL_EXPORT(SetVolumeMixerBGMGroupNum, SACTDX_SetVolumeMixerBGMGroupNum), \
@@ -1055,5 +1070,5 @@ void sact_DX_SetUsePower2Texture(bool use)
 	HLL_EXPORT(DX_GetUsePower2Texture, sact_DX_GetUsePower2Texture),	\
 	HLL_EXPORT(DX_SetUsePower2Texture, sact_DX_SetUsePower2Texture)
 
-HLL_LIBRARY(SACT2, SACT_EXPORTS);
+HLL_LIBRARY(SACT2, SACT_EXPORTS, SACT2_EXPORTS);
 HLL_LIBRARY(SACTDX, SACT_EXPORTS, SACTDX_EXPORTS);

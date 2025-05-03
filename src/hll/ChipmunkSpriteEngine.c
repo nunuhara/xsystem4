@@ -40,12 +40,12 @@ static void ChipmunkSpriteEngine_ModuleFini(void)
 
 static int ChipmunkSpriteEngine_Init(possibly_unused void *imain_system)
 {
-	return sact_init(16, true);
+	return sact_init(16, CHIPMUNK_SPRITE_ENGINE);
 }
 
 static int ChipmunkSpriteEngine_Init_with_size(possibly_unused void *imain_system, int cg_cache_size)
 {
-	return sact_init(cg_cache_size, true);
+	return sact_init(cg_cache_size, CHIPMUNK_SPRITE_ENGINE);
 }
 
 static int ChipmunkSpriteEngine_SP_SetCG(int sp_no, struct string *cg_name)

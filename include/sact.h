@@ -20,11 +20,19 @@
 #include <stdbool.h>
 #include "sprite.h"
 
+enum sprite_engine_type {
+	UNINITIALIZED_SPRITE_ENGINE,
+	SACT2_SPRITE_ENGINE,
+	SACTDX_SPRITE_ENGINE,
+	STOAT_SPRITE_ENGINE,
+	CHIPMUNK_SPRITE_ENGINE,
+};
+
 struct sact_sprite *sact_get_sprite(int sp);
 struct sact_sprite *sact_try_get_sprite(int sp);
 struct sact_sprite *sact_create_sprite(int sp_no, int width, int height, int r, int g, int b, int a);
 void sact_ModuleFini(void);
-int sact_init(int cg_cache_size, bool chipmunk);
+int sact_init(int cg_cache_size, enum sprite_engine_type engine);
 #define sact_SetWP scene_set_wp
 #define sact_SetWP_Color scene_set_wp_color
 int sact_GetScreenWidth(void);
