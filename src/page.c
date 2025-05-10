@@ -535,16 +535,23 @@ static int array_compare_string(const void *_a, const void *_b)
 	return strcmp(heap_get_string(a.i)->text, heap_get_string(b.i)->text);
 }
 
+// Used for stable sorting arrays with qsort()
+struct sortable {
+	union vm_value v;
+	int index;
+};
+
 static int current_sort_function;
 
 static int array_compare_custom(const void *_a, const void *_b)
 {
-	union vm_value a = *((union vm_value*)_a);
-	union vm_value b = *((union vm_value*)_b);
-	stack_push(a);
-	stack_push(b);
+	const struct sortable *a = _a;
+	const struct sortable *b = _b;
+	stack_push(a->v);
+	stack_push(b->v);
 	vm_call(current_sort_function, -1);
-	return stack_pop().i;
+	int d = stack_pop().i;
+	return d ? d : a->index - b->index;
 }
 
 void array_sort(struct page *page, int compare_fno)
@@ -553,8 +560,17 @@ void array_sort(struct page *page, int compare_fno)
 		return;
 
 	if (compare_fno) {
+		struct sortable *values = xcalloc(page->nr_vars, sizeof(struct sortable));
+		for (int i = 0; i < page->nr_vars; i++) {
+			values[i].v = page->values[i];
+			values[i].index = i;
+		}
 		current_sort_function = compare_fno;
-		qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_custom);
+		qsort(values, page->nr_vars, sizeof(struct sortable), array_compare_custom);
+		for (int i = 0; i < page->nr_vars; i++) {
+			page->values[i] = values[i].v;
+		}
+		free(values);
 	} else {
 		switch (page->a_type) {
 		case AIN_ARRAY_INT:
@@ -577,18 +593,22 @@ static int current_sort_member;
 
 static int array_compare_member(const void *_a, const void *_b)
 {
-	struct page *a = heap_get_page(((union vm_value*)_a)->i);
-	struct page *b = heap_get_page(((union vm_value*)_b)->i);
-	return a->values[current_sort_member].i - b->values[current_sort_member].i;
+	const struct sortable *a = _a;
+	const struct sortable *b = _b;
+	int32_t a_i = heap_get_page(a->v.i)->values[current_sort_member].i;
+	int32_t b_i = heap_get_page(b->v.i)->values[current_sort_member].i;
+	int d = (a_i > b_i) - (a_i < b_i);
+	return d ? d : a->index - b->index;
 }
 
 static int array_compare_member_string(const void *_a, const void *_b)
 {
-	struct page *a = heap_get_page(((union vm_value*)_a)->i);
-	struct page *b = heap_get_page(((union vm_value*)_b)->i);
-	int32_t a_i = a->values[current_sort_member].i;
-	int32_t b_i = b->values[current_sort_member].i;
-	return strcmp(heap_get_string(a_i)->text, heap_get_string(b_i)->text);
+	const struct sortable *a = _a;
+	const struct sortable *b = _b;
+	int32_t a_i = heap_get_page(a->v.i)->values[current_sort_member].i;
+	int32_t b_i = heap_get_page(b->v.i)->values[current_sort_member].i;
+	int d = strcmp(heap_get_string(a_i)->text, heap_get_string(b_i)->text);
+	return d ? d : a->index - b->index;
 }
 
 void array_sort_mem(struct page *page, int member_no)
@@ -602,11 +622,20 @@ void array_sort_mem(struct page *page, int member_no)
 	if (member_no < 0 || member_no >= s->nr_members)
 		VM_ERROR("A_SORT_MEM called with invalid member index");
 
+	struct sortable *values = xcalloc(page->nr_vars, sizeof(struct sortable));
+	for (int i = 0; i < page->nr_vars; i++) {
+		values[i].v = page->values[i];
+		values[i].index = i;
+	}
 	current_sort_member = member_no;
 	if (s->members[member_no].type.data == AIN_STRING)
-		qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_member_string);
+		qsort(values, page->nr_vars, sizeof(struct sortable), array_compare_member_string);
 	else
-		qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_member);
+		qsort(values, page->nr_vars, sizeof(struct sortable), array_compare_member);
+	for (int i = 0; i < page->nr_vars; i++) {
+		page->values[i] = values[i].v;
+	}
+	free(values);
 }
 
 int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno)
