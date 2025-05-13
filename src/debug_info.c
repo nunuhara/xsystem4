@@ -150,9 +150,28 @@ const char *dbg_info_source_line(const struct dbg_info *info, int file, int line
 
 int dbg_info_find_file(const struct dbg_info *info, const char *filename)
 {
-	for (int i = 0; i < info->nr_sources; i++) {
-		if (!strcmp(info->sources[i], filename) || !strcmp(path_basename(info->sources[i]), filename))
-			return i;
+	if (is_absolute_path(filename)) {
+		char *target = realpath_utf8(filename);  // Convert '\\' to '/' on Windows
+		char *prefix = realpath_utf8(info->src_root);
+		for (int i = 0; i < info->nr_sources; i++) {
+			char *path = path_join(prefix, info->sources[i]);
+			if (!strcasecmp(path, target)) {
+				free(path);
+				free(prefix);
+				free(target);
+				return i;
+			}
+			free(path);
+		}
+		free(prefix);
+		free(target);
+	} else {
+		for (int i = 0; i < info->nr_sources; i++) {
+			if (!strcasecmp(info->sources[i], filename) ||
+			    !strcasecmp(path_basename(info->sources[i]), filename)) {
+				return i;
+			}
+		}
 	}
 	return -1;
 }

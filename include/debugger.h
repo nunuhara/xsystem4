@@ -81,6 +81,7 @@ void dbg_cmd_repl(void);
 void dbg_cmd_add_module(const char *name, unsigned nr_commands, struct dbg_cmd *commands);
 void dbg_handle_breakpoint(void);
 bool dbg_clear_breakpoint(uint32_t addr, void(*free_data)(void*));
+void dbg_foreach_breakpoint(void (*fun)(int addr, struct breakpoint*, void *data), void *data);
 bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*), void *data);
 bool dbg_set_address_breakpoint(uint32_t address, void(*cb)(struct breakpoint*), void *data);
 bool dbg_set_step_over_breakpoint(void);
