@@ -147,6 +147,11 @@ void sprite_init_chipmunk(void)
 static void sprite_render(struct sprite *_sp)
 {
 	struct sact_sprite *sp = (struct sact_sprite*)_sp;
+	if (sp->plugin && sp->plugin->render) {
+		sp->plugin->render(sp);
+		return;
+	}
+
 	sprite_init_texture(sp);
 
 	switch (sp->draw_method) {
@@ -170,13 +175,6 @@ static void sprite_render(struct sprite *_sp)
 
 	if (sp->draw_method != DRAW_METHOD_NORMAL)
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
-}
-
-static void sprite_custom_render(struct sprite *_sp)
-{
-	struct sact_sprite *sp = (struct sact_sprite*)_sp;
-	if (sp->plugin && sp->plugin->render)
-		sp->plugin->render(sp);
 }
 
 struct texture *sprite_get_texture(struct sact_sprite *sp)
@@ -299,7 +297,7 @@ void sprite_init_color(struct sact_sprite *sp, int w, int h, int r, int g, int b
 
 void sprite_init_custom(struct sact_sprite *sp)
 {
-	sp->sp.render = sprite_custom_render;
+	sp->sp.render = sprite_render;
 	sp->sp.to_json = _sprite_to_json;
 }
 
@@ -481,6 +479,7 @@ void sprite_call_plugins(void)
 {
 	struct sact_sprite *sp;
 	LIST_FOREACH(sp, &sprites_with_plugins, entry) {
-		sp->plugin->update(sp);
+		if (sp->plugin->update)
+			sp->plugin->update(sp);
 	}
 }
