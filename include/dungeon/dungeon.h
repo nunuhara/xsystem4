@@ -67,8 +67,7 @@ struct dungeon_context {
 	GLuint depth_buffer;
 };
 
-struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int surface);
-void dungeon_context_free(struct dungeon_context *ctx);
+struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int width, int height);
 bool dungeon_load(struct dungeon_context *ctx, int num);
 void dungeon_set_camera(int surface, float x, float y, float z, float angle, float angle_p);
 void dungeon_set_walked(int surface, int x, int y, int z, int flag);

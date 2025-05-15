@@ -54,8 +54,10 @@ void sprite_free(struct sact_sprite *sp)
 	scene_unregister_sprite(&sp->sp);
 	gfx_delete_texture(&sp->texture);
 	gfx_delete_texture(&sp->text.texture);
-	if (sp->plugin)
+	if (sp->plugin && sp->plugin->free) {
+		sp->plugin->free(sp->plugin);
 		LIST_REMOVE(sp, entry);
+	}
 	// restore to initial state
 	memset(sp, 0, sizeof(struct sact_sprite));
 	sprite_init(sp);
@@ -470,6 +472,8 @@ void sprite_bind_plugin(struct sact_sprite *sp, struct draw_plugin *plugin)
 		LIST_INSERT_HEAD(&sprites_with_plugins, sp, entry);
 	else if (sp->plugin && !plugin)
 		LIST_REMOVE(sp, entry);
+	if (sp->plugin != plugin && sp->plugin && sp->plugin->free)
+		sp->plugin->free(sp->plugin);
 	sp->plugin = plugin;
 }
 

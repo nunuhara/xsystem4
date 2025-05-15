@@ -70,6 +70,13 @@ static struct draw_snow_plugin *get_draw_snow_plugin(int sprite)
 	return (struct draw_snow_plugin *)sp->plugin;
 }
 
+static void DrawSnow_free(struct draw_plugin *_plugin)
+{
+	struct draw_snow_plugin *plugin = (struct draw_snow_plugin *)_plugin;
+	free(plugin->particles);
+	free(plugin);
+}
+
 static void DrawSnow_update(struct sact_sprite *sp)
 {
 	struct draw_snow_plugin *plugin = (struct draw_snow_plugin *)sp->plugin;
@@ -131,6 +138,7 @@ static void DrawSnow_Init(int sprite, int width, int height)
 {
 	struct draw_snow_plugin *plugin = xcalloc(1, sizeof(struct draw_snow_plugin));
 	plugin->p.name = plugin_name;
+	plugin->p.free = DrawSnow_free;
 	plugin->p.update = DrawSnow_update;
 	plugin->p.render = DrawSnow_render;
 	plugin->p.to_json = DrawSnow_to_json;
@@ -147,12 +155,9 @@ static void DrawSnow_Init(int sprite, int width, int height)
 
 static void DrawSnow_Release(int sprite)
 {
-	struct draw_snow_plugin *plugin = get_draw_snow_plugin(sprite);
-	if (!plugin)
+	if (!get_draw_snow_plugin(sprite))
 		return;
 	sprite_bind_plugin(sact_get_sprite(sprite), NULL);
-	free(plugin->particles);
-	free(plugin);
 }
 
 static void DrawSnow_Start(int sprite)
