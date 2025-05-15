@@ -89,8 +89,6 @@ struct dungeon_renderer {
 	GLint local_transform;
 	GLint proj_transform;
 	GLuint alpha_mod;
-	// Attribute variable locations
-	GLint vertex_uv;
 
 	struct geometry *wall_geometry;
 	struct geometry *door_left_geometry;
@@ -221,10 +219,10 @@ static struct geometry *geometry_create(struct dungeon_renderer *r, const struct
 	glGenBuffers(1, &g->attr_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, g->attr_buffer);
 
-	glEnableVertexAttribArray(r->shader.vertex);
-	glVertexAttribPointer(r->shader.vertex, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)0);
-	glEnableVertexAttribArray(r->vertex_uv);
-	glVertexAttribPointer(r->vertex_uv, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(r->shader.vertex_pos);
+	glVertexAttribPointer(r->shader.vertex_pos, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)0);
+	glEnableVertexAttribArray(r->shader.vertex_uv);
+	glVertexAttribPointer(r->shader.vertex_uv, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), (const void *)(3 * sizeof(GLfloat)));
 	glBufferData(GL_ARRAY_BUFFER, size, vertices, GL_STATIC_DRAW);
 
 	glBindVertexArray(0);
@@ -350,7 +348,6 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 	r->local_transform = glGetUniformLocation(r->shader.program, "local_transform");
 	r->proj_transform = glGetUniformLocation(r->shader.program, "proj_transform");
 	r->alpha_mod = glGetUniformLocation(r->shader.program, "alpha_mod");
-	r->vertex_uv = glGetAttribLocation(r->shader.program, "vertex_uv");
 
 	r->wall_geometry = geometry_create(r, wall_vertices, sizeof(wall_vertices), GL_TRIANGLE_STRIP);
 	r->door_left_geometry = geometry_create(r, door_left_vertices, sizeof(door_left_vertices), GL_TRIANGLE_STRIP);
