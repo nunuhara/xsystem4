@@ -24,8 +24,9 @@ struct sact_sprite;
 
 struct draw_plugin {
 	const char *name;
+	void (*free)(struct draw_plugin *);
 	void (*update)(struct sact_sprite *);
-	void (*render)(struct sact_sprite *);  // for custom sprites
+	void (*render)(struct sact_sprite *);
 	cJSON *(*to_json)(struct sact_sprite *, bool);
 };
 

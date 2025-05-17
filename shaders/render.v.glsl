@@ -18,9 +18,10 @@ uniform mat4 world_transform;
 uniform mat4 view_transform;
 
 in vec4 vertex_pos;
+in vec2 vertex_uv;
 out vec2 tex_coord;
 
 void main() {
         gl_Position = view_transform * world_transform * vertex_pos;
-        tex_coord = vertex_pos.xy;
+        tex_coord = vertex_uv;
 }

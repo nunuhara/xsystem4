@@ -25,25 +25,18 @@
 #include "dungeon/map.h"
 #include "dungeon/renderer.h"
 #include "dungeon/tes.h"
+#include "sact.h"
 #include "hll.h"
-
-static struct dungeon_context *current_context = NULL;
 
 static int dungeon_init(enum draw_dungeon_version version, int surface)
 {
-	if (current_context)
-		VM_ERROR("Dungeon is already associated with surface %d", current_context->surface);
-	if (surface < 0)
+	struct sact_sprite *sp = sact_get_sprite(surface);
+	if (!sp)
 		return 0;
-	current_context = dungeon_context_create(version, surface);
-	return 1;
-}
 
-struct dungeon_context *dungeon_get_context(int surface)
-{
-	if (!current_context || surface != current_context->surface)
-		return NULL;
-	return current_context;
+	struct dungeon_context *ctx = dungeon_context_create(version, sp->rect.w, sp->rect.h);
+	sprite_bind_plugin(sp, &ctx->plugin);
+	return 1;
 }
 
 static struct dgn_cell *dungeon_get_cell(int surface, int x, int y, int z)
@@ -52,14 +45,6 @@ static struct dgn_cell *dungeon_get_cell(int surface, int x, int y, int z)
 	if (!ctx || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z))
 		return NULL;
 	return dgn_cell_at(ctx->dgn, x, y, z);
-}
-
-static void DrawDungeon_ModuleFini(void)
-{
-	if (current_context) {
-		dungeon_context_free(current_context);
-		current_context = NULL;
-	}
 }
 
 static int DrawDungeon_Init(int surface)
@@ -74,11 +59,9 @@ static int DrawDungeon14_Init(int surface)
 
 static void DrawDungeon_Release(int surface)
 {
-	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
+	if (!dungeon_get_context(surface))
 		return;
-	dungeon_context_free(ctx);
-	current_context = NULL;
+	sprite_bind_plugin(sact_get_sprite(surface), NULL);
 }
 
 static void DrawDungeon_SetDrawFlag(int surface, int flag)
@@ -284,7 +267,6 @@ HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, StopTimer, void);
 HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, RestartTimer, void);
 
 #define DRAW_DUNGEON_EXPORTS \
-	HLL_EXPORT(_ModuleFini, DrawDungeon_ModuleFini), \
 	HLL_EXPORT(Release, DrawDungeon_Release), \
 	HLL_EXPORT(SetDrawFlag, DrawDungeon_SetDrawFlag), \
 	HLL_EXPORT(BeginLoad, DrawDungeon_BeginLoad), \

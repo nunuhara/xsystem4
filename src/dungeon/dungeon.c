@@ -47,39 +47,42 @@
 #define M_PI (3.14159265358979323846)
 #endif
 
+static const char plugin_name[] = "DrawDungeon";
+
 static void dungeon_render(struct sact_sprite *sp);
 static cJSON *dungeon_to_json(struct sact_sprite *sp, bool verbose);
+static void dungeon_context_free(struct draw_plugin *plugin);
 
-struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int surface)
+struct dungeon_context *dungeon_get_context(int surface)
+{
+	struct sact_sprite *sp = sact_try_get_sprite(surface);
+	if (!sp || !sp->plugin || sp->plugin->name != plugin_name)
+		return NULL;
+	return (struct dungeon_context *)sp->plugin;
+}
+
+struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int width, int height)
 {
 	struct dungeon_context *ctx = xcalloc(1, sizeof(struct dungeon_context));
-	ctx->plugin.name = "DrawDungeon";
+	ctx->plugin.name = plugin_name;
+	ctx->plugin.free = dungeon_context_free;
 	ctx->plugin.update = dungeon_render;
 	ctx->plugin.to_json = dungeon_to_json;
 	ctx->version = version;
-	ctx->surface = surface;
-	struct sact_sprite *sp = sact_get_sprite(ctx->surface);
-	if (!sp)
-		VM_ERROR("DrawDungeon.Init: invalid surface %d", surface);
 
-	sprite_bind_plugin(sp, &ctx->plugin);
-
-	gfx_init_texture_blank(&ctx->texture, sp->rect.w, sp->rect.h);
+	gfx_init_texture_blank(&ctx->texture, width, height);
 	glGenRenderbuffers(1, &ctx->depth_buffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, ctx->depth_buffer);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, sp->rect.w, sp->rect.h);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
 	ctx->map = dungeon_map_create(version);
 	return ctx;
 }
 
-void dungeon_context_free(struct dungeon_context *ctx)
+static void dungeon_context_free(struct draw_plugin *plugin)
 {
-	struct sact_sprite *sp = sact_try_get_sprite(ctx->surface);
-	if (sp)
-		sprite_bind_plugin(sp, NULL);
-
+	struct dungeon_context *ctx = (struct dungeon_context *)plugin;
 	if (ctx->dgn)
 		dgn_free(ctx->dgn);
 	if (ctx->dtx)

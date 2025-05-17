@@ -45,6 +45,11 @@ static struct draw_rain_plugin *get_draw_rain_plugin(int surface)
 	return (struct draw_rain_plugin *)sp->plugin;
 }
 
+static void DrawRain_free(struct draw_plugin *plugin)
+{
+	free(plugin);
+}
+
 static void DrawRain_update(struct sact_sprite *sp)
 {
 	struct draw_rain_plugin *plugin = (struct draw_rain_plugin *)sp->plugin;
@@ -95,6 +100,7 @@ static int DrawRain_Init(int surface)
 	}
 	struct draw_rain_plugin *plugin = xcalloc(1, sizeof(struct draw_rain_plugin));
 	plugin->p.name = plugin_name;
+	plugin->p.free = DrawRain_free;
 	plugin->p.update = DrawRain_update;
 	plugin->p.to_json = DrawRain_to_json;
 	plugin->nr_lines = 1000;
@@ -107,11 +113,9 @@ static int DrawRain_Init(int surface)
 
 static void DrawRain_Release(int surface)
 {
-	struct draw_rain_plugin *plugin = get_draw_rain_plugin(surface);
-	if (!plugin)
+	if (!get_draw_rain_plugin(surface))
 		return;
 	sprite_bind_plugin(sact_get_sprite(surface), NULL);
-	free(plugin);
 }
 
 static void DrawRain_SetNumofLine(int surface, int line)

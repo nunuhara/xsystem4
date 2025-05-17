@@ -31,6 +31,7 @@ struct sdl_private {
 		SDL_GLContext context;
 		GLuint vao;
 		GLuint vbo;
+		GLuint quad_vbo;
 		GLuint rect_ibo;
 		GLuint line_ibo;
 	} gl;

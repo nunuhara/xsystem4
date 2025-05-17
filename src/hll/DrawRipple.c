@@ -52,6 +52,13 @@ static struct draw_ripple_plugin *get_draw_ripple_plugin(int surface)
 	return (struct draw_ripple_plugin *)sp->plugin;
 }
 
+static void DrawRipple_free(struct draw_plugin *_plugin)
+{
+	struct draw_ripple_plugin *plugin = (struct draw_ripple_plugin *)_plugin;
+	free(plugin->ripples);
+	free(plugin);
+}
+
 static void draw_point(uint32_t *pixels, int w, int h, int x, int y)
 {
 	if (x < 0 || x >= w || y < 0 || y >= h)
@@ -163,6 +170,7 @@ static int DrawRipple_Init(int surface)
 	}
 	struct draw_ripple_plugin *plugin = xcalloc(1, sizeof(struct draw_ripple_plugin));
 	plugin->p.name = plugin_name;
+	plugin->p.free = DrawRipple_free;
 	plugin->p.update = DrawRipple_update;
 	plugin->p.to_json = DrawRipple_to_json;
 	plugin->width = 6;
@@ -175,12 +183,9 @@ static int DrawRipple_Init(int surface)
 
 static void DrawRipple_Release(int surface)
 {
-	struct draw_ripple_plugin *plugin = get_draw_ripple_plugin(surface);
-	if (!plugin)
+	if (!get_draw_ripple_plugin(surface))
 		return;
 	sprite_bind_plugin(sact_get_sprite(surface), NULL);
-	free(plugin->ripples);
-	free(plugin);
 }
 
 static void DrawRipple_SetNumof(int surface, int numof)

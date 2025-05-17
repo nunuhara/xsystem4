@@ -437,15 +437,13 @@ static void DrawGraph_DrawDeformedSpriteBilinear(int dst, int tex,
 	float x2, float y2, float z2, float u2, float v2,
 	float x3, float y3, float z3, float u3, float v3)
 {
-	if (x0 == x2 && x1 == x3 && x0 <= x1 &&
-		y0 == y1 && y2 == y3 && y0 <= y2 &&
-		z0 == 0.f && z1 == 0.f && z2 == 0.f && z3 == 0.f &&
-		u0 == u2 && u1 == u3 && u0 <= u1 &&
-		v0 == v1 && v2 == v3 && v0 <= v2) {
-		gfx_copy_stretch(DTEX(dst), x0, y0, x3 - x0, y3 - y0, STEX(tex), u0, v0, u3 - u0, v3 - v0);
-	} else {
-		WARNING("DrawGraph.DrawDeformedSpriteBilinear: Non-rectangular deformation is not implemented");
-	}
+	struct gfx_vertex vertices[4] = {
+		{x0, y0, z0, 1.f, u0, v0},
+		{x1, y1, z1, 1.f, u1, v1},
+		{x2, y2, z2, 1.f, u2, v2},
+		{x3, y3, z3, 1.f, u3, v3}
+	};
+	gfx_draw_quadrilateral(DTEX(dst), STEX(tex), vertices);
 }
 
 //void DrawGraph_BlendAMapDeformedSpriteBilinear(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3);

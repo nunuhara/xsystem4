@@ -29,6 +29,7 @@
 #include "CharSpriteManager.h"
 #include "xsystem4.h"
 #include "hll.h"
+#include "plugin.h"
 
 static void ChipmunkSpriteEngine_PreLink(void);
 
@@ -163,8 +164,68 @@ static bool ChipmunkSpriteEngine_SP_GetSurfaceArea(int sp_no, int *x, int *y, in
 	return true;
 }
 
-//static bool ChipmunkSpriteEngine_SP_SetSpriteTransformMode(int sp_no, int transform_mode);
-//static bool ChipmunkSpriteEngine_SP_SetSpriteTransformPos(int sp_no, float x0, float y0, float z0, float w0, float u0, float v0, float x1, float y1, float z1, float w1, float u1, float v1, float x2, float y2, float z2, float w2, float u2, float v2, float x3, float y3, float z3, float w3, float u3, float v3);
+static const char transform_plugin_name[] = "ChipmunkSpriteEngine_Transform";
+
+struct transform_plugin {
+	struct draw_plugin p;
+	struct gfx_vertex vertices[4];
+};
+
+static struct transform_plugin *get_transform_plugin(int sp_no)
+{
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	if (!sp || !sp->plugin || sp->plugin->name != transform_plugin_name)
+		return NULL;
+	return (struct transform_plugin *)sp->plugin;
+}
+
+static void transform_plugin_free(struct draw_plugin *plugin)
+{
+	free(plugin);
+}
+
+static void transform_plugin_render(struct sact_sprite *sp)
+{
+	struct transform_plugin *plugin = (struct transform_plugin *)sp->plugin;
+	gfx_render_quadrilateral(&sp->texture, plugin->vertices);
+}
+
+static bool ChipmunkSpriteEngine_SP_SetSpriteTransformMode(int sp_no, int transform_mode)
+{
+	struct sact_sprite *sp = sact_get_sprite(sp_no);
+	if (!sp)
+		return false;
+	bool current_mode = sp->plugin && sp->plugin->name == transform_plugin_name;
+	if (current_mode && !transform_mode) {
+		sprite_bind_plugin(sp, NULL);
+	} else if (!current_mode && transform_mode) {
+		struct transform_plugin *plugin = xcalloc(1, sizeof(struct transform_plugin));
+		plugin->p.name = transform_plugin_name;
+		plugin->p.free = transform_plugin_free;
+		plugin->p.render = transform_plugin_render;
+		sprite_bind_plugin(sp, &plugin->p);
+	}
+	return true;
+}
+
+static bool ChipmunkSpriteEngine_SP_SetSpriteTransformPos(
+	int sp_no,
+	float x0, float y0, float z0, float w0, float u0, float v0,
+	float x1, float y1, float z1, float w1, float u1, float v1,
+	float x2, float y2, float z2, float w2, float u2, float v2,
+	float x3, float y3, float z3, float w3, float u3, float v3)
+{
+	struct transform_plugin *plugin = get_transform_plugin(sp_no);
+	if (!plugin)
+		return false;
+	plugin->vertices[0] = (struct gfx_vertex){x0, y0, z0, w0, u0, v0};
+	plugin->vertices[1] = (struct gfx_vertex){x1, y1, z1, w1, u1, v1};
+	plugin->vertices[2] = (struct gfx_vertex){x2, y2, z2, w2, u2, v2};
+	plugin->vertices[3] = (struct gfx_vertex){x3, y3, z3, w3, u3, v3};
+	sprite_dirty(sact_try_get_sprite(sp_no));
+	return true;
+}
+
 //static bool ChipmunkSpriteEngine_Sprite_SetTextureFilerType(int sp_no, int texture_filter_type);
 //static int ChipmunkSpriteEngine_Sprite_GetTextureFilterType(int sp_no);
 
@@ -237,8 +298,8 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SP_SetDrawMethod, sact_SP_SetDrawMethod),
 	    HLL_EXPORT(SP_SetSurfaceArea, ChipmunkSpriteEngine_SP_SetSurfaceArea),
 	    HLL_EXPORT(SP_GetSurfaceArea, ChipmunkSpriteEngine_SP_GetSurfaceArea),
-	    HLL_TODO_EXPORT(SP_SetSpriteTransformMode, ChipmunkSpriteEngine_SP_SetSpriteTransformMode),
-	    HLL_TODO_EXPORT(SP_SetSpriteTransformPos, ChipmunkSpriteEngine_SP_SetSpriteTransformPos),
+	    HLL_EXPORT(SP_SetSpriteTransformMode, ChipmunkSpriteEngine_SP_SetSpriteTransformMode),
+	    HLL_EXPORT(SP_SetSpriteTransformPos, ChipmunkSpriteEngine_SP_SetSpriteTransformPos),
 	    HLL_TODO_EXPORT(Sprite_SetTextureFilerType, ChipmunkSpriteEngine_Sprite_SetTextureFilerType),
 	    HLL_TODO_EXPORT(Sprite_GetTextureFilterType, ChipmunkSpriteEngine_Sprite_GetTextureFilterType),
 	    HLL_EXPORT(SP_IsUsing, sact_SP_IsUsing),

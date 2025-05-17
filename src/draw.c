@@ -1146,6 +1146,15 @@ void gfx_draw_line_to_amap(Texture *dst, int x0, int y0, int x1, int y1, int a)
 	restore_blend_mode();
 }
 
+void gfx_draw_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertices[4])
+{
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE);
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, 0, 0, dst->w, dst->h);
+	gfx_render_quadrilateral(src, vertices);
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	restore_blend_mode();
+}
+
 // XXX: Not an actual DrawGraph function; used for rendering text
 void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width, bool blend)
 {
