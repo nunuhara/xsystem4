@@ -127,6 +127,8 @@ bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 
 void StoatSpriteEngine_SP_SetTextSpriteType(int type)
 {
+	if (text_sprite_ts.face != type)
+		text_sprite_ts.font_size = NULL;
 	text_sprite_ts.face = type;
 }
 
