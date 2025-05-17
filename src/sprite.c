@@ -54,8 +54,9 @@ void sprite_free(struct sact_sprite *sp)
 	scene_unregister_sprite(&sp->sp);
 	gfx_delete_texture(&sp->texture);
 	gfx_delete_texture(&sp->text.texture);
-	if (sp->plugin && sp->plugin->free) {
-		sp->plugin->free(sp->plugin);
+	if (sp->plugin) {
+		if (sp->plugin->free)
+			sp->plugin->free(sp->plugin);
 		LIST_REMOVE(sp, entry);
 	}
 	// restore to initial state
