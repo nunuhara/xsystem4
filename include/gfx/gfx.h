@@ -48,13 +48,15 @@ typedef struct shader {
 	GLuint world_transform;
 	GLuint view_transform;
 	GLuint texture;
-	GLuint vertex;
+	GLuint vertex_pos;
+	GLuint vertex_uv;
 	void (*prepare)(struct gfx_render_job *, void *);
 } Shader;
 
 enum gfx_shape {
 	GFX_RECTANGLE,
 	GFX_LINE,
+	GFX_QUADRILATERAL,
 };
 
 struct gfx_render_job {
@@ -64,6 +66,11 @@ struct gfx_render_job {
 	GLfloat *world_transform;
 	GLfloat *view_transform;
 	void *data;
+};
+
+struct gfx_vertex {
+	GLfloat x, y, z, w;
+	GLfloat u, v;
 };
 
 int gfx_init(void);
@@ -90,6 +97,7 @@ void gfx_run_job(struct gfx_render_job *job);
 void gfx_render(struct gfx_render_job *job);
 void _gfx_render_texture(struct shader *s, struct texture *t, Rectangle *r, void *data);
 void gfx_render_texture(struct texture *t, Rectangle *r);
+void gfx_render_quadrilateral(struct texture *t, struct gfx_vertex vertices[4]);
 
 // texture management
 void gfx_init_texture_blank(struct texture *t, int w, int h);
@@ -179,5 +187,6 @@ void gfx_draw_line_to_amap(Texture *dst, int x0, int y0, int x1, int y1, int a);
 void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width, bool blend);
 void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, Rectangle glyph_pos, SDL_Color color, float scale_x);
 void gfx_draw_glyph_to_amap(Texture *dst, float dx, int dy, Texture *glyph, Rectangle glyph_pos, float scale_x);
+void gfx_draw_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertices[4]);
 
 #endif /* SYSTEM4_SDL_CORE_H */

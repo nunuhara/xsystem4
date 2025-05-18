@@ -127,7 +127,8 @@ void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const c
 	dst->world_transform = glGetUniformLocation(program, "world_transform");
 	dst->view_transform = glGetUniformLocation(program, "view_transform");
 	dst->texture = glGetUniformLocation(program, "tex");
-	dst->vertex = glGetAttribLocation(program, "vertex_pos");
+	dst->vertex_pos = glGetAttribLocation(program, "vertex_pos");
+	dst->vertex_uv = glGetAttribLocation(program, "vertex_uv");
 	dst->prepare = NULL;
 }
 
@@ -135,22 +136,24 @@ static int gl_initialize(void)
 {
 	gfx_load_shader(&default_shader, "shaders/render.v.glsl", "shaders/render.f.glsl");
 
-	GLfloat vertex_data[] = {
-		0.f, 0.f, 0.f, 1.f,
-		1.f, 0.f, 0.f, 1.f,
-		1.f, 1.f, 0.f, 1.f,
-		0.f, 1.f, 0.f, 1.f
+	const struct gfx_vertex vertex_data[] = {
+		//  x,   y,   z,   w,   u,   v
+		{ 0.f, 0.f, 0.f, 1.f, 0.f, 0.f },
+		{ 1.f, 0.f, 0.f, 1.f, 1.f, 0.f },
+		{ 0.f, 1.f, 0.f, 1.f, 0.f, 1.f },
+		{ 1.f, 1.f, 0.f, 1.f, 1.f, 1.f }
 	};
 
-	GLuint rect_index_data[] = { 0, 1, 2, 3 };
-	GLuint line_index_data[] = { 0, 2 };
+	const GLuint rect_index_data[] = { 0, 1, 3, 2 };
+	const GLuint line_index_data[] = { 0, 3 };
 
 	glGenVertexArrays(1, &sdl.gl.vao);
 	glBindVertexArray(sdl.gl.vao);
 
 	glGenBuffers(1, &sdl.gl.vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, sdl.gl.vbo);
-	glBufferData(GL_ARRAY_BUFFER, 4 * 4 * sizeof(GLfloat), vertex_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data), vertex_data, GL_STATIC_DRAW);
+	glGenBuffers(1, &sdl.gl.quad_vbo);
 
 	glGenBuffers(1, &sdl.gl.rect_ibo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sdl.gl.rect_ibo);
@@ -465,13 +468,16 @@ void gfx_prepare_job(struct gfx_render_job *job)
 void gfx_run_job(struct gfx_render_job *job)
 {
 	glBindVertexArray(sdl.gl.vao);
-	glEnableVertexAttribArray(job->shader->vertex);
+	glEnableVertexAttribArray(job->shader->vertex_pos);
+	glEnableVertexAttribArray(job->shader->vertex_uv);
 
-	glBindBuffer(GL_ARRAY_BUFFER, sdl.gl.vbo);
-	glVertexAttribPointer(job->shader->vertex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), NULL);
+	glBindBuffer(GL_ARRAY_BUFFER, job->shape == GFX_QUADRILATERAL ? sdl.gl.quad_vbo : sdl.gl.vbo);
+	glVertexAttribPointer(job->shader->vertex_pos, 4, GL_FLOAT, GL_FALSE, sizeof(struct gfx_vertex), NULL);
+	glVertexAttribPointer(job->shader->vertex_uv, 2, GL_FLOAT, GL_FALSE, sizeof(struct gfx_vertex), (void*)offsetof(struct gfx_vertex, u));
 
 	switch (job->shape) {
 	case GFX_RECTANGLE:
+	case GFX_QUADRILATERAL:
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sdl.gl.rect_ibo);
 		glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL);
 		break;
@@ -481,7 +487,8 @@ void gfx_run_job(struct gfx_render_job *job)
 		break;
 	}
 
-	glDisableVertexAttribArray(job->shader->vertex);
+	glDisableVertexAttribArray(job->shader->vertex_pos);
+	glDisableVertexAttribArray(job->shader->vertex_uv);
 	glBindVertexArray(0);
 	glUseProgram(0);
 }
@@ -523,6 +530,36 @@ void _gfx_render_texture(struct shader *s, struct texture *t, Rectangle *r, void
 void gfx_render_texture(struct texture *t, Rectangle *r)
 {
 	_gfx_render_texture(&default_shader, t, r, t);
+}
+
+void gfx_render_quadrilateral(struct texture *t, struct gfx_vertex vertices[4])
+{
+	if (!t->handle) {
+		WARNING("Attempted to render uninitialized texture");
+		return;
+	}
+
+	// Normalize the texture coordinates to [0, 1]
+	struct gfx_vertex buf[4];
+	memcpy(buf, vertices, sizeof(struct gfx_vertex) * 4);
+	for (int i = 0; i < 4; i++) {
+		buf[i].u /= t->w;
+		buf[i].v /= t->h;
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, sdl.gl.quad_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(buf), buf, GL_DYNAMIC_DRAW);
+
+	mat4 world_transform = GLM_MAT4_IDENTITY_INIT;
+	struct gfx_render_job job = {
+		.shader = &default_shader,
+		.shape = GFX_QUADRILATERAL,
+		.texture = t->handle,
+		.world_transform = world_transform[0],
+		.view_transform = world_view_transform[0],
+		.data = t
+	};
+	gfx_render(&job);
 }
 
 static void init_texture(struct texture *t, int w, int h)
