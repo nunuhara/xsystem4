@@ -513,14 +513,13 @@ void _gfx_render_texture(struct shader *s, struct texture *t, Rectangle *r, void
 		return;
 	}
 
-	t->world_transform[3][0] = r ? r->x : 0;
-	t->world_transform[3][1] = r ? r->y : 0;
+	mat4 world_transform = WORLD_TRANSFORM(t->w, t->h, r ? r->x : 0, r ? r->y : 0);
 
 	struct gfx_render_job job = {
 		.shader = s,
 		.shape = GFX_RECTANGLE,
 		.texture = t->handle,
-		.world_transform = t->world_transform[0],
+		.world_transform = world_transform[0],
 		.view_transform = world_view_transform[0],
 		.data = data
 	};
@@ -570,12 +569,6 @@ static void init_texture(struct texture *t, int w, int h)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	memset(t->world_transform, 0, sizeof(GLfloat)*16);
-	t->world_transform[0][0] = w;
-	t->world_transform[1][1] = h;
-	t->world_transform[2][2] = 1;
-	t->world_transform[3][3] = 1;
 
 	t->w = w;
 	t->h = h;
