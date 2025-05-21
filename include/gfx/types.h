@@ -56,4 +56,10 @@ typedef SDL_Rect Rectangle;
 	     0,       0,       1, -1,		\
 	     0,       0,       0,  1)
 
+#define WORLD_TRANSFORM(w, h, x, y)	\
+	MAT4(w, 0, 0, x,		\
+	     0, h, 0, y,		\
+	     0, 0, 1, 0,		\
+	     0, 0, 0, 1)
+
 #endif /* SYSTEM4_GRAPHICS_H */

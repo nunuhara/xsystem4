@@ -222,11 +222,7 @@ bool movie_draw(struct movie_context *mc, struct sact_sprite *sprite)
 		gfx_clear();
 	}
 
-	mat4 world_transform = MAT4(
-	     w, 0, 0, 0,
-	     0, h, 0, 0,
-	     0, 0, 1, 0,
-	     0, 0, 0, 1);
+	mat4 world_transform = WORLD_TRANSFORM(w, h, 0, 0);
 	mat4 wv_transform = WV_TRANSFORM(w, h);
 
 	struct gfx_render_job job = {

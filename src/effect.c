@@ -125,12 +125,13 @@ static void load_effect_shader(struct effect_shader *s)
 static void render_effect_shader(struct effect_shader *shader, Texture *dst, Texture *old, Texture *new, float progress)
 {
 	struct effect_data data = { .old = old, .new = new, .progress = progress };
+	mat4 world_transform = WORLD_TRANSFORM(new->w, new->h, 0, 0);
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
 	struct gfx_render_job job = {
 		.shader = &shader->s,
 		.shape = GFX_RECTANGLE,
 		.texture = new->handle,
-		.world_transform = new->world_transform[0],
+		.world_transform = world_transform[0],
 		.view_transform = wv_transform[0],
 		.data = &data
 	};
