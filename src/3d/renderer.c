@@ -401,7 +401,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 			glUniform1i(r->diffuse_type, DIFFUSE_ENV_MAP);
 		} else if (mesh->flags & MESH_NOLIGHTING) {
 			glUniform1i(r->diffuse_type, DIFFUSE_EMISSIVE);
-		} else if (material->light_map && inst->plugin->light_map_mode) {
+		} else if (material->light_map && mesh->flags & MESH_HAS_LIGHT_UV && inst->plugin->light_map_mode) {
 			glUniform1i(r->diffuse_type, DIFFUSE_LIGHT_MAP);
 			glActiveTexture(GL_TEXTURE0 + LIGHT_TEXTURE_UNIT);
 			glBindTexture(GL_TEXTURE_2D, material->light_map);

@@ -218,6 +218,7 @@ static struct pol_mesh *parse_mesh(struct buffer *r, const struct pol *pol)
 
 	mesh->nr_light_uvs = buffer_read_int32(r);
 	if (mesh->nr_light_uvs > 0) {
+		mesh->flags |= MESH_HAS_LIGHT_UV;
 		mesh->light_uvs = xcalloc(mesh->nr_light_uvs, sizeof(vec2));
 		for (uint32_t i = 0; i < mesh->nr_light_uvs; i++) {
 			mesh->light_uvs[i][0] = buffer_read_float(r);

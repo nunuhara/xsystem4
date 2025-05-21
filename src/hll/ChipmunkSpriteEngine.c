@@ -259,9 +259,28 @@ static bool ChipmunkSpriteEngine_SP_GetFontWidth(struct string *text, int *width
 //static int CG_GetFormat_by_index(int cg_no);
 //static int CG_GetFormat(struct string *cg_name);
 
-HLL_WARN_UNIMPLEMENTED(false, bool, ChipmunkSpriteEngine, SP_Suspend, int sp_no);
-//static bool ChipmunkSpriteEngine_SP_Resume(int sp_no);
-//static bool ChipmunkSpriteEngine_SP_IsSuspend(int sp_no);
+static bool ChipmunkSpriteEngine_SP_Suspend(int sp_no)
+{
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	if (!sp) return false;
+	sp->suspended = true;
+	return true;
+}
+
+static bool ChipmunkSpriteEngine_SP_Resume(int sp_no)
+{
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	if (!sp) return false;
+	sp->suspended = false;
+	return true;
+}
+
+static bool ChipmunkSpriteEngine_SP_IsSuspend(int sp_no)
+{
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	return sp && sp->suspended;
+}
+
 //static bool ChipmunkSpriteEngine_Debug_GetVideoMemoryInfo(int *max_size, int *use_size, int *use_max_size);
 //static void ChipmunkSpriteEngine_CombineTexture(void);
 //static void ChipmunkSpriteEngine_ReleaseCombinedTexture(void);
@@ -315,13 +334,6 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SP_RenderView, ChipmunkSpriteEngine_SP_RenderView),
 	    HLL_EXPORT(SP_IsPtIn, sact_SP_IsPtIn),
 	    HLL_EXPORT(SP_IsPtInRect, sact_SP_IsPtInRect),
-	    HLL_EXPORT(SP_SetTextSprite, StoatSpriteEngine_SP_SetTextSprite),
-	    HLL_EXPORT(SP_SetTextSpriteType, StoatSpriteEngine_SP_SetTextSpriteType),
-	    HLL_EXPORT(SP_SetTextSpriteSize, StoatSpriteEngine_SP_SetTextSpriteSize),
-	    HLL_EXPORT(SP_SetTextSpriteColor, StoatSpriteEngine_SP_SetTextSpriteColor),
-	    HLL_EXPORT(SP_SetTextSpriteBoldWeight, StoatSpriteEngine_SP_SetTextSpriteBoldWeight),
-	    HLL_EXPORT(SP_SetTextSpriteEdgeWeight, StoatSpriteEngine_SP_SetTextSpriteEdgeWeight),
-	    HLL_EXPORT(SP_SetTextSpriteEdgeColor, StoatSpriteEngine_SP_SetTextSpriteEdgeColor),
 	    HLL_EXPORT(SP_SetTextSprite, StoatSpriteEngine_SP_SetTextSprite),
 	    HLL_EXPORT(SP_SetTextSpriteType, StoatSpriteEngine_SP_SetTextSpriteType),
 	    HLL_EXPORT(SP_SetTextSpriteSize, StoatSpriteEngine_SP_SetTextSpriteSize),
@@ -407,8 +419,8 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_TODO_EXPORT(Debug_GetFillRate, StoatSpriteEngine_Debug_GetFillRate),
 	    HLL_TODO_EXPORT(MUSIC_ReloadParam, StoatSpriteEngine_MUSIC_ReloadParam),
 	    HLL_EXPORT(SP_Suspend, ChipmunkSpriteEngine_SP_Suspend),
-	    HLL_TODO_EXPORT(SP_Resume, ChipmunkSpriteEngine_SP_Resume),
-	    HLL_TODO_EXPORT(SP_IsSuspend, ChipmunkSpriteEngine_SP_IsSuspend),
+	    HLL_EXPORT(SP_Resume, ChipmunkSpriteEngine_SP_Resume),
+	    HLL_EXPORT(SP_IsSuspend, ChipmunkSpriteEngine_SP_IsSuspend),
 	    HLL_TODO_EXPORT(Debug_GetVideoMemoryInfo, ChipmunkSpriteEngine_Debug_GetVideoMemoryInfo),
 	    HLL_TODO_EXPORT(CombineTexture, ChipmunkSpriteEngine_CombineTexture),
 	    HLL_TODO_EXPORT(ReleaseCombinedTexture, ChipmunkSpriteEngine_ReleaseCombinedTexture));
