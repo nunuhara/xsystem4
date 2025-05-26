@@ -604,6 +604,24 @@ bool RE_instance_set_debug_draw_shadow_volume(struct RE_instance *inst, bool dra
 	return true;
 }
 
+bool RE_instance_find_path(struct RE_instance *inst, vec3 start, vec3 goal)
+{
+	if (!inst || !inst->model->collider)
+		return false;
+	mat4 vp_transform;
+	RE_calc_view_matrix(&inst->plugin->camera, GLM_YUP, vp_transform);
+	glm_mat4_mul(inst->plugin->proj_transform, vp_transform, vp_transform);
+	return collider_find_path(inst->model->collider, start, goal, vp_transform);
+}
+
+const vec3 *RE_instance_get_path_line(struct RE_instance *inst, int *nr_path_points)
+{
+	if (!inst || !inst->model->collider)
+		return NULL;
+	*nr_path_points = inst->model->collider->nr_path_points;
+	return inst->model->collider->path_points;
+}
+
 bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *inst, int mouse_x, int mouse_y, vec3 out)
 {
 	if (!inst || !inst->model->collider)

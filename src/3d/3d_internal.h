@@ -560,6 +560,8 @@ struct collider {
 	uint32_t nr_triangles;
 	struct collider_edge *edges;  // boundary edges
 	uint32_t nr_edges;
+	vec3 *path_points;
+	uint32_t nr_path_points;
 };
 
 struct collider *collider_create(struct pol_mesh *mesh);
@@ -567,5 +569,6 @@ void collider_free(struct collider *collider);
 bool collider_height(struct collider *collider, vec2 xz, float *h_out);
 bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out);
 bool collider_raycast(struct collider *collider, vec3 origin, vec3 direction, vec3 out);
+bool collider_find_path(struct collider *collider, vec3 start, vec3 goal, mat4 vp_transform);
 
 #endif /* SYSTEM4_3D_3D_INTERNAL_H */

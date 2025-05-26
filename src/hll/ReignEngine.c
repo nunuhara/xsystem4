@@ -23,6 +23,7 @@
 
 #include "hll.h"
 #include "reign.h"
+#include "vm/page.h"
 
 #define RE_MAX_PLUGINS 2
 
@@ -1836,7 +1837,12 @@ static bool TapirEngine_CalcInstance2DDetection(int plugin, int instance, float 
 	return RE_instance_calc_2d_detection(get_instance(plugin, instance), x0, y0, z0, x1, y1, z1, x2, y2, z2, radius);
 }
 
-//bool TapirEngine_FindInstancePath(int PluginNumber, int InstanceNumber, float StartX, float StartY, float StartZ, float GoalX, float GoalY, float GoalZ);
+static bool TapirEngine_FindInstancePath(int plugin, int instance, float start_x, float start_y, float start_z, float goal_x, float goal_y, float goal_z)
+{
+	vec3 start = { start_x, start_y, -start_z };
+	vec3 goal = { goal_x, goal_y, -goal_z };
+	return RE_instance_find_path(get_instance(plugin, instance), start, goal);
+}
 
 static bool TapirEngine_CalcPathFinderIntersectEyeVec(int plugin, int instance, int mouse_x, int mouse_y, float *x_out, float *y_out, float *z_out)
 {
@@ -1850,7 +1856,37 @@ static bool TapirEngine_CalcPathFinderIntersectEyeVec(int plugin, int instance, 
 }
 
 //bool TapirEngine_OptimizeInstancePathLine(int PluginNumber, int InstanceNumber);
-//bool TapirEngine_GetInstancePathLine(int PluginNumber, int InstanceNumber, struct page **pIXArray, struct page **pIYArray, struct page **pIZArray);
+
+static bool TapirEngine_GetInstancePathLine(int plugin, int instance, struct page **x_array, struct page **y_array, struct page **z_array)
+{
+	int nr_path_points;
+	const vec3 *path_points = RE_instance_get_path_line(get_instance(plugin, instance), &nr_path_points);
+	if (!path_points)
+		return false;
+	if (*x_array) {
+		delete_page_vars(*x_array);
+		free_page(*x_array);
+	}
+	if (*y_array) {
+		delete_page_vars(*y_array);
+		free_page(*y_array);
+	}
+	if (*z_array) {
+		delete_page_vars(*z_array);
+		free_page(*z_array);
+	}
+	union vm_value dim = { .i = nr_path_points };
+	*x_array = alloc_array(1, &dim, AIN_ARRAY_FLOAT, 0, false);
+	*y_array = alloc_array(1, &dim, AIN_ARRAY_FLOAT, 0, false);
+	*z_array = alloc_array(1, &dim, AIN_ARRAY_FLOAT, 0, false);
+	for (int i = 0; i < nr_path_points; i++) {
+		(*x_array)->values[i].f = path_points[i][0];
+		(*y_array)->values[i].f = path_points[i][1];
+		(*z_array)->values[i].f = -path_points[i][2];
+	}
+	return true;
+}
+
 //bool TapirEngine_CreateInstancePathLineList(int PluginNumber, int InstanceNumber, int PathInstanceNumber);
 //bool TapirEngine_SetInstanceMeshShow(int PluginNumber, int InstanceNumber, struct string *pIMeshName, bool Show);
 
@@ -2259,10 +2295,10 @@ HLL_LIBRARY(ReignEngine, REIGN_EXPORTS,
 	    HLL_TODO_EXPORT(GetInstanceDrawParam, TapirEngine_GetInstanceDrawParam), \
 	    HLL_EXPORT(CalcInstance2DDetectionHeight, TapirEngine_CalcInstance2DDetectionHeight), \
 	    HLL_EXPORT(CalcInstance2DDetection, TapirEngine_CalcInstance2DDetection), \
-	    HLL_TODO_EXPORT(FindInstancePath, TapirEngine_FindInstancePath), \
+	    HLL_EXPORT(FindInstancePath, TapirEngine_FindInstancePath), \
 	    HLL_EXPORT(CalcPathFinderIntersectEyeVec, TapirEngine_CalcPathFinderIntersectEyeVec), \
 	    HLL_TODO_EXPORT(OptimizeInstancePathLine, TapirEngine_OptimizeInstancePathLine), \
-	    HLL_TODO_EXPORT(GetInstancePathLine, TapirEngine_GetInstancePathLine), \
+	    HLL_EXPORT(GetInstancePathLine, TapirEngine_GetInstancePathLine), \
 	    HLL_TODO_EXPORT(CreateInstancePathLineList, TapirEngine_CreateInstancePathLineList), \
 	    HLL_TODO_EXPORT(SetInstanceMeshShow, TapirEngine_SetInstanceMeshShow), \
 	    HLL_EXPORT(SetDrawOption, TapirEngine_SetDrawOption), \

@@ -221,6 +221,8 @@ float RE_instance_calc_height(struct RE_instance *instance, float x, float z);
 float RE_instance_calc_2d_detection_height(struct RE_instance *instance, float x, float z);
 bool RE_instance_calc_2d_detection(struct RE_instance *instance, float x0, float y0, float z0, float x1, float y1, float z1, float *x2, float *y2, float *z2, float radius);
 bool RE_instance_set_debug_draw_shadow_volume(struct RE_instance *instance, bool draw);
+bool RE_instance_find_path(struct RE_instance *instance, vec3 start, vec3 goal);
+const vec3 *RE_instance_get_path_line(struct RE_instance *instance, int *nr_path_points);
 bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *instance, int mouse_x, int mouse_y, vec3 out);
 
 int RE_motion_get_state(struct motion *motion);
