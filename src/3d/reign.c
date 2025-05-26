@@ -604,6 +604,34 @@ bool RE_instance_set_debug_draw_shadow_volume(struct RE_instance *inst, bool dra
 	return true;
 }
 
+bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *inst, int mouse_x, int mouse_y, vec3 out)
+{
+	if (!inst || !inst->model->collider)
+		return false;
+
+	float ndc_x = 2.f * mouse_x / inst->plugin->renderer->viewport_width - 1.f;
+	float ndc_y = 1.f - 2.f * mouse_y / inst->plugin->renderer->viewport_height;
+	vec4 near = { ndc_x, ndc_y, -1.f, 1.f };
+	vec4 far  = { ndc_x, ndc_y,  1.f, 1.f };
+
+	mat4 inv_vp;
+	RE_calc_view_matrix(&inst->plugin->camera, GLM_YUP, inv_vp);
+	glm_mat4_mul(inst->plugin->proj_transform, inv_vp, inv_vp);
+	glm_mat4_inv(inv_vp, inv_vp);
+
+	glm_mat4_mulv(inv_vp, near, near);
+	glm_mat4_mulv(inv_vp, far, far);
+	glm_vec3_divs(near, near[3], near);
+	glm_vec3_divs(far, far[3], far);
+
+	vec3 origin, direction;
+	glm_vec3_copy(near, origin);
+	glm_vec3_sub(far, near, direction);
+	glm_vec3_normalize(direction);
+
+	return collider_raycast(inst->model->collider, origin, direction, out);
+}
+
 void RE_instance_update_local_transform(struct RE_instance *inst)
 {
 	vec3 euler = {

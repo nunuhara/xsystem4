@@ -22,33 +22,43 @@
 
 #include "3d_internal.h"
 
-void init_triangles(struct collider *collider, struct pol_mesh *mesh)
+struct collider_triangle {
+	vec3 vertices[3];
+	vec2 aabb[2];  // xz coordinates
+	vec2 slope;
+	float intercept;
+};
+
+struct collider_edge {
+	vec2 vertices[2];  // xz coordinates
+	vec2 aabb[2];
+};
+
+static void init_triangles(struct collider *collider, struct pol_mesh *mesh)
 {
 	collider->nr_triangles = mesh->nr_triangles;
 	collider->triangles = xcalloc(mesh->nr_triangles, sizeof(struct collider_triangle));
 	struct collider_triangle *t = collider->triangles;
 	for (int tri_i = 0; tri_i < mesh->nr_triangles; tri_i++, t++) {
-		vec3 vertices[3];
 		glm_aabb2d_invalidate(t->aabb);
 		for (int i = 0; i < 3; i++) {
-			glm_vec3_copy(mesh->vertices[mesh->triangles[tri_i].vert_index[i]].pos, vertices[i]);
-			t->vertices[i][0] = vertices[i][0];
-			t->vertices[i][1] = vertices[i][2];
-			glm_vec2_minv(t->vertices[i], t->aabb[0], t->aabb[0]);
-			glm_vec2_maxv(t->vertices[i], t->aabb[1], t->aabb[1]);
+			glm_vec3_copy(mesh->vertices[mesh->triangles[tri_i].vert_index[i]].pos, t->vertices[i]);
+			vec2 xz = { t->vertices[i][0], t->vertices[i][2] };
+			glm_vec2_minv(xz, t->aabb[0], t->aabb[0]);
+			glm_vec2_maxv(xz, t->aabb[1], t->aabb[1]);
 		}
 		// Do some precomputation so that we can calculate height(x, z) quickly.
 		vec3 v1, v2, normal;
-		glm_vec3_sub(vertices[1], vertices[0], v1);
-		glm_vec3_sub(vertices[2], vertices[0], v2);
+		glm_vec3_sub(t->vertices[1], t->vertices[0], v1);
+		glm_vec3_sub(t->vertices[2], t->vertices[0], v2);
 		glm_vec3_cross(v1, v2, normal);
 		t->slope[0] = -normal[0] / normal[1];
 		t->slope[1] = -normal[2] / normal[1];
-		t->intercept = glm_vec3_dot(normal, vertices[0]) / normal[1];
+		t->intercept = glm_vec3_dot(normal, t->vertices[0]) / normal[1];
 	}
 }
 
-void init_edges(struct collider *collider, struct pol_mesh *mesh)
+static void init_edges(struct collider *collider, struct pol_mesh *mesh)
 {
 	// Find boundary edges, i.e., edges that belong to only one triangle.
 	const int nv = mesh->nr_vertices;
@@ -111,10 +121,15 @@ void collider_free(struct collider *collider)
 
 static bool in_triangle(struct collider_triangle* t, vec2 xz)
 {
+	vec2 v[3];
+	for (int i = 0; i < 3; i++) {
+		v[i][0] = t->vertices[i][0];
+		v[i][1] = t->vertices[i][2];
+	}
 	for (int i = 0; i < 3; i++) {
 		vec2 a, b;
-		glm_vec2_sub(t->vertices[(i + 1) % 3], t->vertices[i], a);
-		glm_vec2_sub(xz, t->vertices[i], b);
+		glm_vec2_sub(v[(i + 1) % 3], v[i], a);
+		glm_vec2_sub(xz, v[i], b);
 		if (glm_vec2_cross(a, b) > 0.f)
 			return false;
 	}
@@ -212,4 +227,18 @@ bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, 
 		}
 	}
 	return true;
+}
+
+bool collider_raycast(struct collider *collider, vec3 origin, vec3 direction, vec3 out)
+{
+	struct collider_triangle* t = collider->triangles;
+	for (; t < collider->triangles + collider->nr_triangles; t++) {
+		float d;
+		if (glm_ray_triangle(origin, direction, t->vertices[0], t->vertices[1], t->vertices[2], &d)) {
+			glm_vec3_scale(direction, d, out);
+			glm_vec3_add(origin, out, out);
+			return true;
+		}
+	}
+	return false;
 }

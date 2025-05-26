@@ -1837,7 +1837,18 @@ static bool TapirEngine_CalcInstance2DDetection(int plugin, int instance, float 
 }
 
 //bool TapirEngine_FindInstancePath(int PluginNumber, int InstanceNumber, float StartX, float StartY, float StartZ, float GoalX, float GoalY, float GoalZ);
-//bool TapirEngine_CalcPathFinderIntersectEyeVec(int nPlugin, int nInstance, int nMouseX, int nMouseY, float *pfX, float *pfY, float *pfZ);
+
+static bool TapirEngine_CalcPathFinderIntersectEyeVec(int plugin, int instance, int mouse_x, int mouse_y, float *x_out, float *y_out, float *z_out)
+{
+	vec3 result;
+	if (!RE_instance_calc_path_finder_intersect_eye_vec(get_instance(plugin, instance), mouse_x, mouse_y, result))
+		return false;
+	*x_out = result[0];
+	*y_out = result[1];
+	*z_out = -result[2];
+	return true;
+}
+
 //bool TapirEngine_OptimizeInstancePathLine(int PluginNumber, int InstanceNumber);
 //bool TapirEngine_GetInstancePathLine(int PluginNumber, int InstanceNumber, struct page **pIXArray, struct page **pIYArray, struct page **pIZArray);
 //bool TapirEngine_CreateInstancePathLineList(int PluginNumber, int InstanceNumber, int PathInstanceNumber);
@@ -2249,7 +2260,7 @@ HLL_LIBRARY(ReignEngine, REIGN_EXPORTS,
 	    HLL_EXPORT(CalcInstance2DDetectionHeight, TapirEngine_CalcInstance2DDetectionHeight), \
 	    HLL_EXPORT(CalcInstance2DDetection, TapirEngine_CalcInstance2DDetection), \
 	    HLL_TODO_EXPORT(FindInstancePath, TapirEngine_FindInstancePath), \
-	    HLL_TODO_EXPORT(CalcPathFinderIntersectEyeVec, TapirEngine_CalcPathFinderIntersectEyeVec), \
+	    HLL_EXPORT(CalcPathFinderIntersectEyeVec, TapirEngine_CalcPathFinderIntersectEyeVec), \
 	    HLL_TODO_EXPORT(OptimizeInstancePathLine, TapirEngine_OptimizeInstancePathLine), \
 	    HLL_TODO_EXPORT(GetInstancePathLine, TapirEngine_GetInstancePathLine), \
 	    HLL_TODO_EXPORT(CreateInstancePathLineList, TapirEngine_CreateInstancePathLineList), \
