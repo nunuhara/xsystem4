@@ -359,14 +359,18 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glUniform1i(r->shadow_texture, SHADOW_TEXTURE_UNIT);
 	}
 
-	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
 		struct material *material = &model->materials[mesh->material];
 		bool is_transparent = mesh->is_transparent || inst->alpha < 1.0f;
 		if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
 			continue;
+
+		if (mesh->flags & MESH_BLEND_ADDITIVE) {
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+		} else {
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+		}
 
 		glUniform1i(r->fog_type, (inst->plugin->fog_mode && !(mesh->flags & MESH_NOLIGHTING))
 			? inst->plugin->fog_type : 0);
