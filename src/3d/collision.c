@@ -183,26 +183,44 @@ bool collider_height(struct collider *collider, vec2 xz, float *h_out)
 	return true;
 }
 
-static float distance_point_to_edge(vec2 p, struct collider_edge *e, vec2 closest_point_out)
+// Calculates the squared distance from a point to a line segment in 2D space.
+static float distance2_point_to_segment(vec2 p, vec2 a, vec2 b, vec2 closest_point_out)
 {
 	vec2 v, w;
-	glm_vec2_sub(e->vertices[1], e->vertices[0], v);
-	glm_vec2_sub(p, e->vertices[0], w);
+	glm_vec2_sub(b, a, v);
+	glm_vec2_sub(p, a, w);
 
 	float c1 = glm_vec2_dot(w, v);
 	if (c1 < 0.f) {
-		glm_vec2_copy(e->vertices[0], closest_point_out);
-		return glm_vec2_distance(p, e->vertices[0]);
+		glm_vec2_copy(a, closest_point_out);
+		return glm_vec2_distance2(p, a);
 	}
 	float c2 = glm_vec2_norm2(v);
 	if (c2 <= c1) {
-		glm_vec2_copy(e->vertices[1], closest_point_out);
-		return glm_vec2_distance(p, e->vertices[1]);
+		glm_vec2_copy(b, closest_point_out);
+		return glm_vec2_distance2(p, b);
 	}
 	float t = c1 / c2;
-	glm_vec2_copy(e->vertices[0], closest_point_out);
+	glm_vec2_copy(a, closest_point_out);
 	glm_vec2_muladds(v, t, closest_point_out);
-	return glm_vec2_distance(p, closest_point_out);
+	return glm_vec2_distance2(p, closest_point_out);
+}
+
+static bool segments_intersect(vec2 p0, vec2 p1, vec2 q0, vec2 q1)
+{
+	vec2 r, s;
+	glm_vec2_sub(p1, p0, r);
+	glm_vec2_sub(q1, q0, s);
+	float r_cross_s = glm_vec2_cross(r, s);
+	if (r_cross_s == 0.f) {
+		// The segments are collinear.
+		return false;
+	}
+	vec2 q0_p0;
+	glm_vec2_sub(q0, p0, q0_p0);
+	float t = glm_vec2_cross(q0_p0, s) / r_cross_s;
+	float u = glm_vec2_cross(q0_p0, r) / r_cross_s;
+	return (t >= 0.f && t <= 1.f && u >= 0.f && u <= 1.f);
 }
 
 bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out)
@@ -239,8 +257,8 @@ bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, 
 		if (!glm_aabb2d_aabb(e->aabb, aabb))
 			continue;
 		vec2 q;
-		float distance = distance_point_to_edge(out, e, q);
-		if (distance < radius) {
+		float sq_distance = distance2_point_to_segment(out, e->vertices[0], e->vertices[1], q);
+		if (sq_distance < radius * radius) {
 			// out = q + normalize(out - q) * radius
 			vec2 v;
 			glm_vec2_sub(out, q, v);
@@ -422,4 +440,70 @@ bool collider_find_path(struct collider *collider, vec3 start, vec3 goal, mat4 v
 	free(pf.nodes);
 	free(pf.frontiers);
 	return !!collider->path_points;
+}
+
+// determines if a segment intersects with any collider edges, or is close enough to them.
+static bool test_segment(struct collider *collider, vec2 p0, vec2 p1, float threshold)
+{
+	vec2 aabb[2];
+	glm_vec2_minv(p0, p1, aabb[0]);
+	glm_vec2_maxv(p0, p1, aabb[1]);
+	aabb[0][0] -= threshold;
+	aabb[0][1] -= threshold;
+	aabb[1][0] += threshold;
+	aabb[1][1] += threshold;
+	float threshold2 = threshold * threshold;
+	for (int i = 0; i < collider->nr_edges; i++) {
+		struct collider_edge *e = &collider->edges[i];
+		if (!glm_aabb2d_aabb(e->aabb, aabb))
+			continue;
+		if (segments_intersect(p0, p1, e->vertices[0], e->vertices[1]))
+			return true;
+		vec2 closest_point;
+		float distance2 = distance2_point_to_segment(p0, e->vertices[0], e->vertices[1], closest_point);
+		if (distance2 < threshold2)
+			return true;
+		distance2 = distance2_point_to_segment(p1, e->vertices[0], e->vertices[1], closest_point);
+		if (distance2 < threshold2)
+			return true;
+		distance2 = distance2_point_to_segment(p0, p1, e->vertices[0], closest_point);
+		if (distance2 < threshold2)
+			return true;
+		distance2 = distance2_point_to_segment(p0, p1, e->vertices[1], closest_point);
+		if (distance2 < threshold2)
+			return true;
+	}
+	return false;
+}
+
+static void optimize_path_rec(struct collider *collider, vec3 *points, int start, int end)
+{
+	if (end - start >= 2) {
+		// If the segment (points[start], points[end]) does not intersect any
+		// collider edges, we can skip all points in between.
+		vec2 p0 = { points[start][0], points[start][2] };
+		vec2 p1 = { points[end][0], points[end][2] };
+		if (test_segment(collider, p0, p1, 0.5f)) {
+			int mid = (start + end) / 2;
+			optimize_path_rec(collider, points, start, mid);
+			optimize_path_rec(collider, points, mid, end);
+			return;
+		}
+	}
+	glm_vec3_copy(points[start], collider->path_points[collider->nr_path_points++]);
+}
+
+bool collider_optimize_path(struct collider *collider)
+{
+	if (collider->nr_path_points < 3)
+		return collider->nr_path_points > 0;  // nothing to optimize
+
+	int nr_points = collider->nr_path_points;
+	vec3 *points = xmalloc(nr_points * sizeof(vec3));
+	memcpy(points, collider->path_points, nr_points * sizeof(vec3));
+	collider->nr_path_points = 0;
+	optimize_path_rec(collider, points, 0, nr_points - 1);
+	glm_vec3_copy(points[nr_points - 1], collider->path_points[collider->nr_path_points++]);
+	free(points);
+	return true;
 }

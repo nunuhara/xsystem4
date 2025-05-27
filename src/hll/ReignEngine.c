@@ -1855,7 +1855,10 @@ static bool TapirEngine_CalcPathFinderIntersectEyeVec(int plugin, int instance, 
 	return true;
 }
 
-//bool TapirEngine_OptimizeInstancePathLine(int PluginNumber, int InstanceNumber);
+static bool TapirEngine_OptimizeInstancePathLine(int plugin, int instance)
+{
+	return RE_instance_optimize_path_line(get_instance(plugin, instance));
+}
 
 static bool TapirEngine_GetInstancePathLine(int plugin, int instance, struct page **x_array, struct page **y_array, struct page **z_array)
 {
@@ -2297,7 +2300,7 @@ HLL_LIBRARY(ReignEngine, REIGN_EXPORTS,
 	    HLL_EXPORT(CalcInstance2DDetection, TapirEngine_CalcInstance2DDetection), \
 	    HLL_EXPORT(FindInstancePath, TapirEngine_FindInstancePath), \
 	    HLL_EXPORT(CalcPathFinderIntersectEyeVec, TapirEngine_CalcPathFinderIntersectEyeVec), \
-	    HLL_TODO_EXPORT(OptimizeInstancePathLine, TapirEngine_OptimizeInstancePathLine), \
+	    HLL_EXPORT(OptimizeInstancePathLine, TapirEngine_OptimizeInstancePathLine), \
 	    HLL_EXPORT(GetInstancePathLine, TapirEngine_GetInstancePathLine), \
 	    HLL_TODO_EXPORT(CreateInstancePathLineList, TapirEngine_CreateInstancePathLineList), \
 	    HLL_TODO_EXPORT(SetInstanceMeshShow, TapirEngine_SetInstanceMeshShow), \

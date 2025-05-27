@@ -622,6 +622,13 @@ const vec3 *RE_instance_get_path_line(struct RE_instance *inst, int *nr_path_poi
 	return inst->model->collider->path_points;
 }
 
+bool RE_instance_optimize_path_line(struct RE_instance *inst)
+{
+	if (!inst || !inst->model->collider)
+		return false;
+	return collider_optimize_path(inst->model->collider);
+}
+
 bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *inst, int mouse_x, int mouse_y, vec3 out)
 {
 	if (!inst || !inst->model->collider)
