@@ -131,6 +131,8 @@ struct outline_renderer {
 };
 
 struct RE_renderer {
+	int viewport_width;
+	int viewport_height;
 	GLuint program;
 	GLuint depth_buffer;
 	struct shadow_renderer shadow;
@@ -550,28 +552,24 @@ void opr_load(uint8_t *data, size_t size, struct pol *pol);
 
 // collision.c
 
+struct collider_triangle;
+struct collider_edge;
+
 struct collider {
 	struct collider_triangle *triangles;
 	uint32_t nr_triangles;
 	struct collider_edge *edges;  // boundary edges
 	uint32_t nr_edges;
-};
-
-struct collider_triangle {
-	vec2 vertices[3];  // xz coordinates
-	vec2 aabb[2];
-	vec2 slope;
-	float intercept;
-};
-
-struct collider_edge {
-	vec2 vertices[2];  // xz coordinates
-	vec2 aabb[2];
+	vec3 *path_points;
+	uint32_t nr_path_points;
 };
 
 struct collider *collider_create(struct pol_mesh *mesh);
 void collider_free(struct collider *collider);
 bool collider_height(struct collider *collider, vec2 xz, float *h_out);
 bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out);
+bool collider_raycast(struct collider *collider, vec3 origin, vec3 direction, vec3 out);
+bool collider_find_path(struct collider *collider, vec3 start, vec3 goal, mat4 vp_transform);
+bool collider_optimize_path(struct collider *collider);
 
 #endif /* SYSTEM4_3D_3D_INTERNAL_H */

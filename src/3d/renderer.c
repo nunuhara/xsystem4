@@ -268,6 +268,8 @@ struct RE_renderer *RE_renderer_new(void)
 
 void RE_renderer_set_viewport_size(struct RE_renderer *r, int width, int height)
 {
+	r->viewport_width = width;
+	r->viewport_height = height;
 	glBindRenderbuffer(GL_RENDERBUFFER, r->depth_buffer);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);

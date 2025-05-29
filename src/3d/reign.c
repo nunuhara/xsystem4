@@ -604,6 +604,59 @@ bool RE_instance_set_debug_draw_shadow_volume(struct RE_instance *inst, bool dra
 	return true;
 }
 
+bool RE_instance_find_path(struct RE_instance *inst, vec3 start, vec3 goal)
+{
+	if (!inst || !inst->model->collider)
+		return false;
+	mat4 vp_transform;
+	RE_calc_view_matrix(&inst->plugin->camera, GLM_YUP, vp_transform);
+	glm_mat4_mul(inst->plugin->proj_transform, vp_transform, vp_transform);
+	return collider_find_path(inst->model->collider, start, goal, vp_transform);
+}
+
+const vec3 *RE_instance_get_path_line(struct RE_instance *inst, int *nr_path_points)
+{
+	if (!inst || !inst->model->collider)
+		return NULL;
+	*nr_path_points = inst->model->collider->nr_path_points;
+	return inst->model->collider->path_points;
+}
+
+bool RE_instance_optimize_path_line(struct RE_instance *inst)
+{
+	if (!inst || !inst->model->collider)
+		return false;
+	return collider_optimize_path(inst->model->collider);
+}
+
+bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *inst, int mouse_x, int mouse_y, vec3 out)
+{
+	if (!inst || !inst->model->collider)
+		return false;
+
+	float ndc_x = 2.f * mouse_x / inst->plugin->renderer->viewport_width - 1.f;
+	float ndc_y = 1.f - 2.f * mouse_y / inst->plugin->renderer->viewport_height;
+	vec4 near = { ndc_x, ndc_y, -1.f, 1.f };
+	vec4 far  = { ndc_x, ndc_y,  1.f, 1.f };
+
+	mat4 inv_vp;
+	RE_calc_view_matrix(&inst->plugin->camera, GLM_YUP, inv_vp);
+	glm_mat4_mul(inst->plugin->proj_transform, inv_vp, inv_vp);
+	glm_mat4_inv(inv_vp, inv_vp);
+
+	glm_mat4_mulv(inv_vp, near, near);
+	glm_mat4_mulv(inv_vp, far, far);
+	glm_vec3_divs(near, near[3], near);
+	glm_vec3_divs(far, far[3], far);
+
+	vec3 origin, direction;
+	glm_vec3_copy(near, origin);
+	glm_vec3_sub(far, near, direction);
+	glm_vec3_normalize(direction);
+
+	return collider_raycast(inst->model->collider, origin, direction, out);
+}
+
 void RE_instance_update_local_transform(struct RE_instance *inst)
 {
 	vec3 euler = {
