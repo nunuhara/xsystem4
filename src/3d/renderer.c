@@ -52,6 +52,7 @@ enum {
 	ALPHA_BLEND = 0,
 	ALPHA_TEST = 1,
 	ALPHA_MAP_BLEND = 2,
+	ALPHA_MAP_TEST = 3,
 };
 
 enum draw_phase {
@@ -426,7 +427,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		}
 
 		if (material->alpha_map) {
-			glUniform1i(r->alpha_mode, ALPHA_MAP_BLEND);
+			glUniform1i(r->alpha_mode, mesh->is_transparent ? ALPHA_MAP_BLEND : ALPHA_MAP_TEST);
 			glActiveTexture(GL_TEXTURE0 + ALPHA_TEXTURE_UNIT);
 			glBindTexture(GL_TEXTURE_2D, material->alpha_map);
 			glUniform1i(r->alpha_texture, ALPHA_TEXTURE_UNIT);
