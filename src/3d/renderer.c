@@ -1000,9 +1000,6 @@ void RE_render(struct sact_sprite *sp)
 		render_instance(inst, r, view_transform, DRAW_OPAQUE);
 	}
 
-	// Render outlines.
-	render_outlines(plugin, view_transform);
-
 	// Render transparent instances, from farthest to nearest.
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = sorted_instances[i];
@@ -1010,6 +1007,9 @@ void RE_render(struct sact_sprite *sp)
 			continue;
 		render_instance(inst, r, view_transform, DRAW_TRANSPARENT);
 	}
+
+	// Render outlines.
+	render_outlines(plugin, view_transform);
 
 	free(sorted_instances);
 
