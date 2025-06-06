@@ -32,6 +32,7 @@
 struct parts_list parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
 static struct parts_list dirty_list = TAILQ_HEAD_INITIALIZER(dirty_list);
 static struct hash_table *parts_table = NULL;
+static Point root_pos = { 0, 0 };
 
 #define PARTS_PARAMS_INITIALIZER (struct parts_params) { \
 	.z = 1, \
@@ -357,8 +358,18 @@ void parts_set_pos(struct parts *parts, Point pos)
 	parts->local.pos.x = pos.x;
 	parts->local.pos.y = pos.y;
 	parts_recalculate_hitbox(parts);
-	parts_update_global_pos(parts, parts->parent ? parts->parent->global.pos : (Point){0,0});
+	parts_update_global_pos(parts, parts->parent ? parts->parent->global.pos : root_pos);
 	parts_dirty(parts);
+}
+
+void parts_set_global_pos(Point pos)
+{
+	root_pos = pos;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		parts_update_global_pos(parts, root_pos);
+	}
+	parts_engine_dirty();
 }
 
 static void parts_update_global_z(struct parts *parts, int parent_z)
