@@ -52,6 +52,7 @@ enum {
 	ALPHA_BLEND = 0,
 	ALPHA_TEST = 1,
 	ALPHA_MAP_BLEND = 2,
+	ALPHA_MAP_TEST = 3,
 };
 
 enum draw_phase {
@@ -359,14 +360,18 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glUniform1i(r->shadow_texture, SHADOW_TEXTURE_UNIT);
 	}
 
-	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
 		struct material *material = &model->materials[mesh->material];
 		bool is_transparent = mesh->is_transparent || inst->alpha < 1.0f;
 		if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
 			continue;
+
+		if (mesh->flags & MESH_BLEND_ADDITIVE) {
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+		} else {
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+		}
 
 		glUniform1i(r->fog_type, (inst->plugin->fog_mode && !(mesh->flags & MESH_NOLIGHTING))
 			? inst->plugin->fog_type : 0);
@@ -422,7 +427,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		}
 
 		if (material->alpha_map) {
-			glUniform1i(r->alpha_mode, ALPHA_MAP_BLEND);
+			glUniform1i(r->alpha_mode, mesh->is_transparent ? ALPHA_MAP_BLEND : ALPHA_MAP_TEST);
 			glActiveTexture(GL_TEXTURE0 + ALPHA_TEXTURE_UNIT);
 			glBindTexture(GL_TEXTURE_2D, material->alpha_map);
 			glUniform1i(r->alpha_texture, ALPHA_TEXTURE_UNIT);
@@ -995,9 +1000,6 @@ void RE_render(struct sact_sprite *sp)
 		render_instance(inst, r, view_transform, DRAW_OPAQUE);
 	}
 
-	// Render outlines.
-	render_outlines(plugin, view_transform);
-
 	// Render transparent instances, from farthest to nearest.
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = sorted_instances[i];
@@ -1005,6 +1007,9 @@ void RE_render(struct sact_sprite *sp)
 			continue;
 		render_instance(inst, r, view_transform, DRAW_TRANSPARENT);
 	}
+
+	// Render outlines.
+	render_outlines(plugin, view_transform);
 
 	free(sorted_instances);
 

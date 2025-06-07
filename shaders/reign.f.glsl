@@ -22,6 +22,7 @@
 #define ALPHA_BLEND 0
 #define ALPHA_TEST 1
 #define ALPHA_MAP_BLEND 2
+#define ALPHA_MAP_TEST 3
 
 #if ENGINE == REIGN_ENGINE
 
@@ -180,6 +181,9 @@ void main() {
 			discard;
 	} else if (alpha_mode == ALPHA_MAP_BLEND) {
 		alpha *= texture(alpha_texture, tex_coord).r;
+	} else if (alpha_mode == ALPHA_MAP_TEST) {
+		if (texture(alpha_texture, tex_coord).r < 0.8)
+			discard;
 	}
 
 	frag_color = vec4(frag_rgb, alpha);
