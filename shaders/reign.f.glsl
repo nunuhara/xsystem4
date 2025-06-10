@@ -177,12 +177,12 @@ void main() {
 	// Alpha mapping
 	float alpha = texel.a * color_mod.a * alpha_mod;
 	if (alpha_mode == ALPHA_TEST) {
-		if (alpha < 0.8)
+		if (alpha < 0.75)
 			discard;
 	} else if (alpha_mode == ALPHA_MAP_BLEND) {
 		alpha *= texture(alpha_texture, tex_coord).r;
 	} else if (alpha_mode == ALPHA_MAP_TEST) {
-		if (texture(alpha_texture, tex_coord).r < 0.8)
+		if (texture(alpha_texture, tex_coord).r < 0.1)
 			discard;
 	}
 
