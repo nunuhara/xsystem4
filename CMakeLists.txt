@@ -111,6 +111,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/AnteaterADVEngine.c
   src/hll/BanMisc.c
   src/hll/Bitarray.c
+  src/hll/CalcTable.c
   src/hll/CGManager.c
   src/hll/CharSpriteManager.c
   src/hll/ChipmunkSpriteEngine.c
