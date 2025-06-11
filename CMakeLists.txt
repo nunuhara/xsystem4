@@ -109,6 +109,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/AliceLogo4.c
   src/hll/AliceLogo5.c
   src/hll/AnteaterADVEngine.c
+  src/hll/Array.c
   src/hll/BanMisc.c
   src/hll/Bitarray.c
   src/hll/CalcTable.c
