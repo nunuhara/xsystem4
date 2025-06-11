@@ -52,6 +52,11 @@ static int DrawDungeon_Init(int surface)
 	return dungeon_init(DRAW_DUNGEON_1, surface);
 }
 
+static int DrawDungeon2_Init(int surface)
+{
+	return dungeon_init(DRAW_DUNGEON_2, surface);
+}
+
 static int DrawDungeon14_Init(int surface)
 {
 	return dungeon_init(DRAW_DUNGEON_14, surface);
@@ -388,6 +393,36 @@ HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, RestartTimer, void);
 HLL_LIBRARY(DrawDungeon,
 	    HLL_EXPORT(Init, DrawDungeon_Init),
 	    DRAW_DUNGEON_EXPORTS
+	    );
+
+static void DrawDungeon2_GetPlayerStartPos(int surface, int *x, int *y)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->dgn)
+		return;
+	*x = ctx->dgn->start_x;
+	*y = ctx->dgn->start_y;
+}
+
+static void DrawDungeon2_GetExitPos(int surface, int *x, int *y)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->dgn)
+		return;
+	*x = ctx->dgn->exit_x;
+	*y = ctx->dgn->exit_y;
+}
+
+//void DrawDungeon2_PaintStep(int nSurface, int nX, int nY, int nZ);
+//int DrawDungeon2_GetMapStep(int nSurface, int nX, int nY, int nZ);
+
+HLL_LIBRARY(DrawDungeon2,
+	    HLL_EXPORT(Init, DrawDungeon2_Init),
+	    DRAW_DUNGEON_EXPORTS,
+	    HLL_EXPORT(GetPlayerStartPos, DrawDungeon2_GetPlayerStartPos),
+	    HLL_EXPORT(GetExitPos, DrawDungeon2_GetExitPos),
+	    HLL_TODO_EXPORT(PaintStep, DrawDungeon2_PaintStep),
+	    HLL_TODO_EXPORT(GetMapStep, DrawDungeon2_GetMapStep)
 	    );
 
 static void DrawDungeon14_SetRasterScroll(int surface, int type)

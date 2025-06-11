@@ -100,27 +100,33 @@ void dungeon_map_init(struct dungeon_context *ctx)
 
 	map->textures = xcalloc(dgn->size_y, sizeof(struct texture));
 	map->nr_textures = dgn->size_y;
-	// Calculate the bounding box on the XZ plane so that map is drawn in the
-	// center of the texture.
-	uint32_t min_x = dgn->size_x;
-	uint32_t min_y = dgn->size_z;
-	uint32_t max_x = 0;
-	uint32_t max_y = 0;
-	for (uint32_t y = 0; y < dgn->size_y; y++) {
-		for (uint32_t z = 0; z < dgn->size_z; z++) {
-			uint32_t map_y = ctx->dgn->size_z - z - 1;
-			for (uint32_t x = 0; x < dgn->size_x; x++) {
-				if (dgn_cell_at(ctx->dgn, x, y, z)->floor < 0)
-					continue;
-				min_x = min(min_x, x);
-				min_y = min(min_y, map_y);
-				max_x = max(max_x, x);
-				max_y = max(max_y, map_y);
+
+	if (ctx->version == DRAW_DUNGEON_1) {
+		// Calculate the bounding box on the XZ plane so that map is drawn in the
+		// center of the texture.
+		uint32_t min_x = dgn->size_x;
+		uint32_t min_y = dgn->size_z;
+		uint32_t max_x = 0;
+		uint32_t max_y = 0;
+		for (uint32_t y = 0; y < dgn->size_y; y++) {
+			for (uint32_t z = 0; z < dgn->size_z; z++) {
+				uint32_t map_y = ctx->dgn->size_z - z - 1;
+				for (uint32_t x = 0; x < dgn->size_x; x++) {
+					if (dgn_cell_at(ctx->dgn, x, y, z)->floor < 0)
+						continue;
+					min_x = min(min_x, x);
+					min_y = min(min_y, map_y);
+					max_x = max(max_x, x);
+					max_y = max(max_y, map_y);
+				}
 			}
 		}
+		map->offset_x = (LMAP_WIDTH - (max_x - min_x + 1)) / 2 - min_x;
+		map->offset_y = (LMAP_HEIGHT - (max_y - min_y)) / 2 - min_y;
+	} else {
+		map->offset_x = 0;
+		map->offset_y = 0;
 	}
-	map->offset_x = (LMAP_WIDTH - (max_x - min_x + 1)) / 2 - min_x;
-	map->offset_y = (LMAP_HEIGHT - (max_y - min_y)) / 2 - min_y;
 
 	// Initial draw
 	for (uint32_t y = 0; y < dgn->size_y; y++) {
@@ -155,7 +161,7 @@ static void draw_vline(struct texture *dst, int x, int y, int h, SDL_Color col)
 static void draw_symbol(struct dungeon_map *map, struct texture *dst, int x, int y, int type)
 {
 	struct sact_sprite *sp = sact_get_sprite(map->symbol_sprites[type]);
-	if (!sp || sp->rect.w != CS - 2 || sp->rect.h != CS - 2)
+	if (!sp)
 		VM_ERROR("Invalid map cg %d", map->symbol_sprites[type]);
 	struct texture *src = sprite_get_texture(sp);
 	gfx_copy(dst, x, y, src, 0, 0, src->w, src->h);

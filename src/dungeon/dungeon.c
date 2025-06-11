@@ -178,6 +178,16 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 			archive_free_data(tes);
 		}
 		archive_free(dlf);
+	} else if (ctx->version == DRAW_DUNGEON_2) {
+		ctx->dgn = dgn_generate_drawdungeon2(num);
+		char *path = gamedir_path("Data/map01.dtx");
+		size_t len;
+		uint8_t *dtx = file_read(path, &len);
+		if (dtx) {
+			ctx->dtx = dtx_parse(dtx, len);
+			free(dtx);
+		}
+		free(path);
 	} else if (ctx->version == DRAW_DUNGEON_14) {
 		char buf[100];
 		sprintf(buf, "Data/map%02d.dgn", num);

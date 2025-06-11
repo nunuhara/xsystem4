@@ -42,6 +42,9 @@ enum floor_marker {
 	// Rance VI
 	R6_MAGIC_CIRCLE = 1,
 	R6_RED_OCTAGRAM = 63,
+	// Dungeons & Dolls
+	DD_MAGIC_CIRCLE = 40,
+	DD_WHITE_OCTAGRAM = 42,
 	// GALZOO Island
 	GZ_MAGIC_CIRCLE = 0,
 };
@@ -58,6 +61,12 @@ static const struct marker_info rance6_marker_info[] = {
 	{0},
 };
 
+static const struct marker_info dolls_marker_info[] = {
+	{11, 43,  3, DD_WHITE_OCTAGRAM}, // treasure chest
+	{17,  0, 20, DD_MAGIC_CIRCLE},   // goal
+	{0},
+};
+
 static const struct marker_info galzoo_marker_info[] = {
 	{11, 1, 0, GZ_MAGIC_CIRCLE},  // item
 	{12, 2, 0, GZ_MAGIC_CIRCLE},  // enemy
@@ -70,6 +79,7 @@ static const struct marker_info galzoo_marker_info[] = {
 
 static const struct marker_info *marker_tables[] = {
 	[DRAW_DUNGEON_1] = rance6_marker_info,
+	[DRAW_DUNGEON_2] = dolls_marker_info,
 	[DRAW_DUNGEON_14] = galzoo_marker_info
 };
 

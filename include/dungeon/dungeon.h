@@ -32,7 +32,7 @@ struct dungeon_map;
 
 enum draw_dungeon_version {
 	DRAW_DUNGEON_1,    // Rance VI
-	// DRAW_DUNGEON_2, // Dungeons & Dolls
+	DRAW_DUNGEON_2,    // Dungeons & Dolls
 	DRAW_DUNGEON_14    // GALZOO Island
 };
 
