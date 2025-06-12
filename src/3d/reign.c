@@ -502,6 +502,19 @@ bool RE_instance_free_next_motion(struct RE_instance *instance)
 	return true;
 }
 
+bool RE_instance_set_mesh_show(struct RE_instance *instance, const char *mesh_name, bool show)
+{
+	if (!instance || !instance->model)
+		return false;
+	for (int i = 0; i < instance->model->nr_meshes; i++) {
+		if (!strcmp(instance->model->meshes[i].name, mesh_name)) {
+			instance->model->meshes[i].hidden = !show;
+			return true;
+		}
+	}
+	return false;
+}
+
 bool RE_instance_set_vertex_pos(struct RE_instance *instance, int index, float x, float y, float z)
 {
 	if (!instance)

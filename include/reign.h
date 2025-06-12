@@ -214,6 +214,7 @@ bool RE_instance_load(struct RE_instance *instance, const char *name);
 bool RE_instance_load_motion(struct RE_instance *instance, const char *name);
 bool RE_instance_load_next_motion(struct RE_instance *instance, const char *name);
 bool RE_instance_free_next_motion(struct RE_instance *instance);
+bool RE_instance_set_mesh_show(struct RE_instance *instance, const char *mesh_name, bool show);
 bool RE_instance_set_vertex_pos(struct RE_instance *instance, int index, float x, float y, float z);
 int RE_instance_get_bone_index(struct RE_instance *instance, const char *name);
 bool RE_instance_trans_local_pos_to_world_pos_by_bone(struct RE_instance *instance, int bone, vec3 offset, vec3 out);

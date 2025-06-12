@@ -362,6 +362,8 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
+		if (mesh->hidden)
+			continue;
 		struct material *material = &model->materials[mesh->material];
 		bool is_transparent = mesh->is_transparent || inst->alpha < 1.0f;
 		if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))

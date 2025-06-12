@@ -317,6 +317,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 	}
 	model->meshes = xrealloc_array(model->meshes, model->nr_meshes, model->nr_meshes + 1, sizeof(struct mesh));
 	struct mesh *mesh = &model->meshes[model->nr_meshes++];
+	mesh->name = xstrdup(m->name);
 	mesh->flags = m->flags;
 	mesh->material = material;
 	if (re_plugin_version == RE_REIGN_PLUGIN)
@@ -393,6 +394,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 
 static void destroy_mesh(struct mesh *mesh)
 {
+	free(mesh->name);
 	glDeleteVertexArrays(1, &mesh->vao);
 	glDeleteBuffers(1, &mesh->attr_buffer);
 	if (mesh->index_buffer)

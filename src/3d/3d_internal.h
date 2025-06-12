@@ -50,8 +50,10 @@ struct model {
 };
 
 struct mesh {
+	char *name;
 	uint32_t flags;
 	bool is_transparent;
+	bool hidden;
 	GLuint vao;
 	GLuint attr_buffer;
 	GLuint index_buffer;
