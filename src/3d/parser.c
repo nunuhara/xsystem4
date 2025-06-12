@@ -487,7 +487,10 @@ struct amt_material *amt_find_material(struct amt *amt, const char *name)
 
 void opr_load(uint8_t *data, size_t size, struct pol *pol)
 {
-	bool *selected = xcalloc(pol->nr_meshes, sizeof(bool));
+	bool *selected = xmalloc(pol->nr_meshes * sizeof(bool));
+	for (int i = 0; i < pol->nr_meshes; i++) {
+		selected[i] = !!pol->meshes[i];
+	}
 	while (size > 0) {
 		char line[200];
 		uint8_t *nl = memchr(data, '\n', size);
