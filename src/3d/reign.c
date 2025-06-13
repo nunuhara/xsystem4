@@ -131,7 +131,9 @@ static void update_motion(struct motion *m, float delta_frame)
 		}
 		break;
 	case RE_MOTION_STATE_LOOP:
-		if (m->current_frame > m->loop_frame_end)
+		if (m->loop_frame_begin == m->loop_frame_end)
+			m->current_frame = m->loop_frame_begin;
+		else if (m->current_frame > m->loop_frame_end)
 			m->current_frame = m->loop_frame_begin + fmodf(m->current_frame - m->loop_frame_begin, m->loop_frame_end - m->loop_frame_begin);
 		break;
 	default:
