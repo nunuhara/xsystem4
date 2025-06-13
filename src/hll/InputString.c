@@ -28,6 +28,7 @@
 static int font_size;
 static int font_weight;
 static Point pos;
+static bool has_editing_text;
 
 static struct string *result;
 
@@ -72,27 +73,41 @@ static void handle_input(const char *text)
 	char *u = utf2sjis(text, 0);
 	string_append_cstr(&result, u, strlen(u));
 	free(u);
+	has_editing_text = false;
 }
 
 // TODO: This function has to draw the text at the given coordinates/size/weight.
 //       Need some kind of interface for creating textures that are always rendered
 //       on top of the scene. Should ideally be independent of SACT.
-//static void handle_editing(const char *text, int start, int length)
-//{
-//}
+static void handle_editing(const char *text, int start, int length)
+{
+	has_editing_text = *text != '\0';
+}
 
 static void InputString_OpenIME(void)
 {
 	register_input_handler(handle_input);
-//	register_editing_handler(handle_editing);
+	register_editing_handler(handle_editing);
+	has_editing_text = false;
 	SDL_StartTextInput();
 }
 
 static void InputString_CloseIME(void)
 {
 	SDL_StopTextInput();
+	has_editing_text = false;
 	clear_input_handler();
 	clear_editing_handler();
+}
+
+static bool InputString_Inputs(void)
+{
+	return has_editing_text;
+}
+
+static bool InputString_Converts(void)
+{
+	return has_editing_text;
 }
 
 HLL_LIBRARY(InputString,
@@ -103,4 +118,6 @@ HLL_LIBRARY(InputString,
 	    HLL_EXPORT(OpenIME, InputString_OpenIME),
 	    HLL_EXPORT(CloseIME, InputString_CloseIME),
 	    HLL_EXPORT(GetResultString, InputString_GetResultString),
-	    HLL_EXPORT(ClearResultString, InputString_ClearResultString));
+	    HLL_EXPORT(ClearResultString, InputString_ClearResultString),
+	    HLL_EXPORT(Inputs, InputString_Inputs),
+	    HLL_EXPORT(Converts, InputString_Converts));
