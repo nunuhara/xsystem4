@@ -110,6 +110,7 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		[PARTS_CP_FILL] = "fill",
 		[PARTS_CP_FILL_ALPHA_COLOR] = "fill_alpha_color",
 		[PARTS_CP_FILL_AMAP] = "fill_amap",
+		[PARTS_CP_DRAW_RECT] = "draw_rect",
 		[PARTS_CP_DRAW_CUT_CG] = "draw_cut_cg",
 		[PARTS_CP_COPY_CUT_CG] = "copy_cut_cg",
 		[PARTS_CP_DRAW_TEXT] = "draw_text",
@@ -142,6 +143,7 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		case PARTS_CP_FILL:
 		case PARTS_CP_FILL_ALPHA_COLOR:
 		case PARTS_CP_FILL_AMAP:
+		case PARTS_CP_DRAW_RECT:
 			cJSON_AddItemToObjectCS(obj, "rect", tmp = cJSON_CreateObject());
 			cJSON_AddNumberToObject(tmp, "x", op->fill.x);
 			cJSON_AddNumberToObject(tmp, "y", op->fill.y);
@@ -486,6 +488,9 @@ static void parts_list_print(struct parts *parts, int indent)
 				break;
 			case PARTS_CP_FILL_AMAP:
 				sys_message(" fill-amap");
+				break;
+			case PARTS_CP_DRAW_RECT:
+				sys_message(" draw-rect");
 				break;
 			case PARTS_CP_DRAW_CUT_CG:
 				sys_message(" draw-cut-cg");
