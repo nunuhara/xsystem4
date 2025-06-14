@@ -33,6 +33,9 @@ static inline float deg2rad(float deg)
 static TAILQ_HEAD(sound_motion_list, sound_motion) sound_motion_list =
 	TAILQ_HEAD_INITIALIZER(sound_motion_list);
 
+static struct parts_motion_list global_motion_list =
+	TAILQ_HEAD_INITIALIZER(global_motion_list);
+
 // true after call to BeginMotion until the motion ends or EndMotion is called
 static bool is_motion = false;
 // the elapsed time of the current motion
@@ -54,29 +57,39 @@ static void parts_motion_free(struct parts_motion *motion)
 	free(motion);
 }
 
-void parts_clear_motion(struct parts *parts)
+static void parts_motion_list_clear(struct parts_motion_list *motion_list)
 {
-	while (!TAILQ_EMPTY(&parts->motion)) {
-		struct parts_motion *motion = TAILQ_FIRST(&parts->motion);
-		TAILQ_REMOVE(&parts->motion, motion, entry);
+	while (!TAILQ_EMPTY(motion_list)) {
+		struct parts_motion *motion = TAILQ_FIRST(motion_list);
+		TAILQ_REMOVE(motion_list, motion, entry);
 		parts_motion_free(motion);
 	}
 }
 
-void parts_add_motion(struct parts *parts, struct parts_motion *motion)
+static void parts_motion_list_add(struct parts_motion_list *motion_list, struct parts_motion *motion)
 {
 	struct parts_motion *p;
-	TAILQ_FOREACH(p, &parts->motion, entry) {
+	TAILQ_FOREACH(p, motion_list, entry) {
 		if (p->begin_time > motion->begin_time) {
 			TAILQ_INSERT_BEFORE(p, motion, entry);
 			return;
 		}
 	}
-	TAILQ_INSERT_TAIL(&parts->motion, motion, entry);
+	TAILQ_INSERT_TAIL(motion_list, motion, entry);
 	if (motion->end_time > motion_end_t)
 		motion_end_t = motion->end_time;
 	// FIXME? What happens if we add a motion while is_motion=true?
 	//        Should we call parts_update_motion here?
+}
+
+void parts_clear_motion(struct parts *parts)
+{
+	parts_motion_list_clear(&parts->motion);
+}
+
+void parts_add_motion(struct parts *parts, struct parts_motion *motion)
+{
+	parts_motion_list_add(&parts->motion, motion);
 }
 
 static inline float motion_progress(struct parts_motion *m, int t)
@@ -184,6 +197,20 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 	}
 }
 
+static void parts_update_global_motion(void)
+{
+	struct parts_motion *motion;
+	TAILQ_FOREACH(motion, &global_motion_list, entry) {
+		switch (motion->type) {
+		case PARTS_MOTION_VIBRATION_SIZE:
+			parts_set_global_pos(motion_vibration_point(motion, motion_t));
+			break;
+		default:
+			WARNING("Invalid global motion type: %d", motion->type);
+		}
+	}
+}
+
 static void parts_update_all_motion(void)
 {
 	struct parts *parts;
@@ -198,6 +225,7 @@ static void parts_update_all_motion(void)
 			parts_update_with_motion(parts, motion);
 		}
 	}
+	parts_update_global_motion();
 
 	struct sound_motion *sound;
 	TAILQ_FOREACH(sound, &sound_motion_list, entry) {
@@ -227,6 +255,7 @@ static void parts_init_all_motion(void)
 			}
 		}
 	}
+	parts_update_global_motion();
 }
 
 static void parts_fini_all_motion(void)
@@ -235,6 +264,8 @@ static void parts_fini_all_motion(void)
 	PARTS_LIST_FOREACH(parts) {
 		parts_clear_motion(parts);
 	}
+
+	parts_motion_list_clear(&global_motion_list);
 
 	while (!TAILQ_EMPTY(&sound_motion_list)) {
 		struct sound_motion *motion = TAILQ_FIRST(&sound_motion_list);
@@ -433,7 +464,12 @@ void PE_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin
 
 void PE_AddWholeMotionVibrationSize(int begin_w, int begin_h, int begin_t, int end_t)
 {
-	UNIMPLEMENTED("(%d, %d, %d, %d)", begin_w, begin_h, begin_t, end_t);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_VIBRATION_SIZE, begin_t, end_t);
+	motion->begin.x = begin_w;
+	motion->begin.y = begin_h;
+	motion->end.x = 0;
+	motion->end.y = 0;
+	parts_motion_list_add(&global_motion_list, motion);
 }
 
 void PE_AddMotionSound(int sound_no, int begin_t)

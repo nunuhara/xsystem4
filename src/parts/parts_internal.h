@@ -70,6 +70,8 @@ struct parts_motion {
 	int end_time;
 };
 
+TAILQ_HEAD(parts_motion_list, parts_motion);
+
 struct sound_motion {
 	TAILQ_ENTRY(sound_motion) entry;
 	int begin_time;
@@ -323,7 +325,7 @@ struct parts {
 	int linked_from;
 	int draw_filter;
 	bool message_window;
-	TAILQ_HEAD(, parts_motion) motion;
+	struct parts_motion_list motion;
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
@@ -342,6 +344,7 @@ struct parts_gauge *parts_get_vgauge(struct parts *parts, int state);
 struct parts_construction_process *parts_get_construction_process(struct parts *parts, int state);
 struct parts_flash *parts_get_flash(struct parts *parts, int state);
 void parts_set_pos(struct parts *parts, Point pos);
+void parts_set_global_pos(Point pos);
 void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h);
 void parts_set_scale_x(struct parts *parts, float mag);
 void parts_set_scale_y(struct parts *parts, float mag);
