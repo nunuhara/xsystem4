@@ -335,6 +335,12 @@ void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out)
 	glm_look(camera->pos, front, up, out);
 }
 
+static bool should_draw_shadow(struct mesh *mesh, struct material *material)
+{
+	return !(mesh->flags & (MESH_ALPHA | MESH_BOTH | MESH_SPRITE))
+	    && !(material->flags & (MATERIAL_ALPHA | MATERIAL_SPRITE));
+}
+
 static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum draw_phase phase)
 {
 	struct model *model = inst->model;
@@ -401,7 +407,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glBindTexture(GL_TEXTURE_2D, material->color_map);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
-		if (draw_shadow && !(mesh->flags & MESH_BOTH))
+		if (draw_shadow && should_draw_shadow(mesh, material))
 			glUniform1f(r->shadow_darkness, material->shadow_darkness);
 		else
 			glUniform1f(r->shadow_darkness, 0.0f);
