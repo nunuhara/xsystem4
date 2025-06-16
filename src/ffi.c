@@ -385,14 +385,21 @@ void hll_call(int libno, int fno)
 		}
 	}
 
-	if (f->return_type.data != AIN_VOID) {
-		if (f->return_type.data == AIN_STRING) {
-			int slot = heap_alloc_slot(VM_STRING);
-			heap[slot].s = r.ref;
-			stack_push(slot);
-		} else {
-			stack_push(r);
-		}
+	int slot;
+	switch (f->return_type.data) {
+	case AIN_VOID:
+		break;
+	case AIN_STRING:
+		slot = heap_alloc_slot(VM_STRING);
+		heap[slot].s = r.ref;
+		stack_push(slot);
+		break;
+	case AIN_BOOL:
+		stack_push(*(bool*)&r);
+		break;
+	default:
+		stack_push(r);
+		break;
 	}
 }
 
