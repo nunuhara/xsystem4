@@ -1081,24 +1081,34 @@ bool PE_SetPartsCG_by_index(int parts_no, int cg_no, possibly_unused int sprite_
 }
 
 // XXX: Rance Quest
-bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_no,
+bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_name,
 		possibly_unused int sprite_deform, int state)
 {
 	if (!parts_state_valid(--state))
 		return false;
 
 	struct parts *parts = parts_get(parts_no);
-	if (!cg_no) {
+	if (!cg_name) {
 		parts_state_reset(&parts->states[state], PARTS_CG);
 		parts_dirty(parts);
 		return true;
 	}
 
 	struct parts_cg *cg = parts_get_cg(parts, state);
-	if (!parts_cg_set_by_index(parts, cg, atoi(cg_no->text)))
-		return false;
-	cg->name = string_ref(cg_no);
-	return true;
+	int cg_no = atoi(cg_name->text);
+	if (cg_no) {
+		if (!parts_cg_set_by_index(parts, cg, atoi(cg_name->text)))
+			return false;
+		cg->name = string_ref(cg_name);
+		return true;
+	} else if (!memcmp(cg_name->text, "<save>SaveData\\", 15)) {
+		char *path = savedir_path(cg_name->text + 15);
+		bool result = _parts_cg_set(parts, cg, cg_load_file(path), 0, string_ref(cg_name));
+		free(path);
+		return result;
+	} else {
+		VM_ERROR("Invalid CG name: %s", display_sjis0(cg_name->text));
+	}
 }
 
 void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state)
