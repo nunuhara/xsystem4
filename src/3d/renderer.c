@@ -335,6 +335,12 @@ void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out)
 	glm_look(camera->pos, front, up, out);
 }
 
+static bool should_draw_shadow(struct mesh *mesh, struct material *material)
+{
+	return !(mesh->flags & (MESH_ALPHA | MESH_BOTH | MESH_SPRITE))
+	    && !(material->flags & (MATERIAL_ALPHA | MATERIAL_SPRITE));
+}
+
 static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum draw_phase phase)
 {
 	struct model *model = inst->model;
@@ -362,6 +368,8 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
+		if (mesh->hidden)
+			continue;
 		struct material *material = &model->materials[mesh->material];
 		bool is_transparent = mesh->is_transparent || inst->alpha < 1.0f;
 		if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
@@ -396,10 +404,12 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glUniform3fv(r->rim_color, 1, material->rim_color);
 
 		glActiveTexture(GL_TEXTURE0 + COLOR_TEXTURE_UNIT);
-		glBindTexture(GL_TEXTURE_2D, material->color_map);
+		int animation_index = inst->texture_animation_index < material->nr_color_maps
+			? inst->texture_animation_index : 0;
+		glBindTexture(GL_TEXTURE_2D, material->color_maps[animation_index]);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
-		if (draw_shadow && !(mesh->flags & MESH_BOTH))
+		if (draw_shadow && should_draw_shadow(mesh, material))
 			glUniform1f(r->shadow_darkness, material->shadow_darkness);
 		else
 			glUniform1f(r->shadow_darkness, 0.0f);
@@ -614,7 +624,7 @@ static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *
 			struct material *material = &model->materials[mesh->material];
 
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, material->color_map);
+			glBindTexture(GL_TEXTURE_2D, material->color_maps[0]);
 			glUniform1i(r->texture, 0);
 
 			glBindVertexArray(mesh->vao);

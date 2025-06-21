@@ -131,12 +131,18 @@ static void update_motion(struct motion *m, float delta_frame)
 		}
 		break;
 	case RE_MOTION_STATE_LOOP:
-		if (m->current_frame > m->loop_frame_end)
+		if (m->loop_frame_begin == m->loop_frame_end)
+			m->current_frame = m->loop_frame_begin;
+		else if (m->current_frame > m->loop_frame_end)
 			m->current_frame = m->loop_frame_begin + fmodf(m->current_frame - m->loop_frame_begin, m->loop_frame_end - m->loop_frame_begin);
 		break;
 	default:
 		VM_ERROR("Invalid motion state %d", m->state);
 	}
+
+	uint32_t anim_frame = m->current_frame - m->frame_begin;
+	m->texture_index = (m->mot && anim_frame < m->mot->nr_texture_indices)
+		? m->mot->texture_indices[anim_frame] : 0;
 }
 
 static void calc_motion_frame(struct motion *m, int bone, struct mot_frame *out)
@@ -326,6 +332,7 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 
 		if (inst->type == RE_ITYPE_SKINNED)
 			update_bones(inst);
+		inst->texture_animation_index = inst->motion ? inst->motion->texture_index : 0;
 	}
 
 	// Update particle effects in a second pass, because it uses the results of
@@ -500,6 +507,19 @@ bool RE_instance_free_next_motion(struct RE_instance *instance)
 	motion_free(instance->next_motion);
 	instance->next_motion = NULL;
 	return true;
+}
+
+bool RE_instance_set_mesh_show(struct RE_instance *instance, const char *mesh_name, bool show)
+{
+	if (!instance || !instance->model)
+		return false;
+	for (int i = 0; i < instance->model->nr_meshes; i++) {
+		if (!strcmp(instance->model->meshes[i].name, mesh_name)) {
+			instance->model->meshes[i].hidden = !show;
+			return true;
+		}
+	}
+	return false;
 }
 
 bool RE_instance_set_vertex_pos(struct RE_instance *instance, int index, float x, float y, float z)
