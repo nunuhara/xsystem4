@@ -404,7 +404,9 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glUniform3fv(r->rim_color, 1, material->rim_color);
 
 		glActiveTexture(GL_TEXTURE0 + COLOR_TEXTURE_UNIT);
-		glBindTexture(GL_TEXTURE_2D, material->color_map);
+		int animation_index = inst->texture_animation_index < material->nr_color_maps
+			? inst->texture_animation_index : 0;
+		glBindTexture(GL_TEXTURE_2D, material->color_maps[animation_index]);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
 		if (draw_shadow && should_draw_shadow(mesh, material))
@@ -622,7 +624,7 @@ static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *
 			struct material *material = &model->materials[mesh->material];
 
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, material->color_map);
+			glBindTexture(GL_TEXTURE_2D, material->color_maps[0]);
 			glUniform1i(r->texture, 0);
 
 			glBindVertexArray(mesh->vao);

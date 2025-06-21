@@ -83,7 +83,6 @@ static GLuint load_texture(struct archive *aar, const char *path, const char *na
 {
 	struct archive_data *dfile = RE_get_aar_entry(aar, path, name, "");
 	if (!dfile) {
-		WARNING("cannot load texture %s\\%s", path, name);
 		return 0;
 	}
 	struct cg *cg = cg_load_data(dfile);
@@ -110,6 +109,35 @@ static GLuint load_texture(struct archive *aar, const char *path, const char *na
 	return texture;
 }
 
+static GLuint *load_texture_list(struct archive *aar, const char *path, const char *name, int *nr_textures_out, bool *has_alpha_out)
+{
+	// Load the base texture (e.g. face.png)
+	GLuint tex = load_texture(aar, path, name, has_alpha_out);
+	if (!tex)
+		return NULL;
+	GLuint *textures = xmalloc(10 * sizeof(GLuint));
+	int nr_textures = 0;
+	textures[nr_textures++] = tex;
+
+	// Try to load additional textures (e.g. face[1].png, face[2].png, etc.)
+	const char *ext = strrchr(name, '.');
+	if (ext) {
+		for (;;) {
+			char next_name[100];
+			snprintf(next_name, sizeof(next_name), "%.*s[%d]%s", (int)(ext - name), name, nr_textures, ext);
+			tex = load_texture(aar, path, next_name, NULL);
+			if (!tex)
+				break;
+			textures[nr_textures++] = tex;
+			if (nr_textures % 10 == 0) {
+				textures = xrealloc(textures, (nr_textures + 10) * sizeof(GLuint));
+			}
+		}
+	}
+	*nr_textures_out = nr_textures;
+	return textures;
+}
+
 static bool init_material(struct material *material, const struct pol_material *m, struct amt *amt, struct archive *aar, const char *path)
 {
 	material->flags = m->flags;
@@ -118,8 +146,8 @@ static bool init_material(struct material *material, const struct pol_material *
 		return false;
 	}
 	bool has_alpha;
-	material->color_map = load_texture(aar, path, m->textures[COLOR_MAP], &has_alpha);
-	if (!material->color_map)
+	material->color_maps = load_texture_list(aar, path, m->textures[COLOR_MAP], &material->nr_color_maps, &has_alpha);
+	if (!material->color_maps)
 		return false;
 
 	if (m->textures[SPECULAR_MAP])
@@ -162,8 +190,10 @@ static bool init_material(struct material *material, const struct pol_material *
 
 static void destroy_material(struct material *material)
 {
-	if (material->color_map)
-		glDeleteTextures(1, &material->color_map);
+	if (material->color_maps) {
+		glDeleteTextures(material->nr_color_maps, material->color_maps);
+		free(material->color_maps);
+	}
 	if (material->specular_map)
 		glDeleteTextures(1, &material->specular_map);
 	if (material->alpha_map)
@@ -663,8 +693,10 @@ struct model *model_create_sphere(int r, int g, int b, int a)
 	model->materials = xcalloc(1, sizeof(struct material));
 	struct material *material = &model->materials[0];
 	material->is_transparent = true;
-	glGenTextures(1, &material->color_map);
-	glBindTexture(GL_TEXTURE_2D, material->color_map);
+	material->color_maps = xmalloc(sizeof(GLuint));
+	material->nr_color_maps = 1;
+	glGenTextures(1, material->color_maps);
+	glBindTexture(GL_TEXTURE_2D, material->color_maps[0]);
 	uint8_t pixel[4] = {r, g, b, a};
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -680,18 +712,18 @@ static int cmp_motions_by_bone_id(const void *lhs, const void *rhs)
 
 static struct mot *mot_load(const char *name, struct model *model, struct archive *aar)
 {
-	struct archive_data *dfile = RE_get_aar_entry(aar, model->path, name, ".MOT");
-	if (!dfile) {
+	struct archive_data *mot_file = RE_get_aar_entry(aar, model->path, name, ".MOT");
+	if (!mot_file) {
 		WARNING("%s\\%s.MOT: not found", model->path, name);
 		return NULL;
 	}
-	struct mot *mot = mot_parse(dfile->data, dfile->size, name);
+	struct mot *mot = mot_parse(mot_file->data, mot_file->size, name);
 	if (!mot) {
-		WARNING("%s: parse error", dfile->name);
-		archive_free_data(dfile);
+		WARNING("%s: parse error", mot_file->name);
+		archive_free_data(mot_file);
 		return NULL;
 	}
-	archive_free_data(dfile);
+	archive_free_data(mot_file);
 
 	if (model->nr_bones != (int)mot->nr_bones)
 		ERROR("%s: wrong number of bones. Expected %d but got %d", name, model->nr_bones, mot->nr_bones);
@@ -709,6 +741,13 @@ static struct mot *mot_load(const char *name, struct model *model, struct archiv
 		mot->motions[i]->id = bone->index;
 	}
 	qsort(mot->motions, mot->nr_bones, sizeof(struct mot_bone *), cmp_motions_by_bone_id);
+
+	// Load optional .txa file.
+	struct archive_data *txa_file = RE_get_aar_entry(aar, model->path, name, ".txa");
+	if (txa_file) {
+		txa_load(txa_file->data, txa_file->size, mot);
+		archive_free_data(txa_file);
+	}
 
 	return mot;
 }

@@ -139,6 +139,10 @@ static void update_motion(struct motion *m, float delta_frame)
 	default:
 		VM_ERROR("Invalid motion state %d", m->state);
 	}
+
+	uint32_t anim_frame = m->current_frame - m->frame_begin;
+	m->texture_index = (m->mot && anim_frame < m->mot->nr_texture_indices)
+		? m->mot->texture_indices[anim_frame] : 0;
 }
 
 static void calc_motion_frame(struct motion *m, int bone, struct mot_frame *out)
@@ -328,6 +332,7 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 
 		if (inst->type == RE_ITYPE_SKINNED)
 			update_bones(inst);
+		inst->texture_animation_index = inst->motion ? inst->motion->texture_index : 0;
 	}
 
 	// Update particle effects in a second pass, because it uses the results of

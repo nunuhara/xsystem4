@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <cglm/cglm.h>
@@ -424,6 +425,9 @@ void mot_free(struct mot *mot)
 		free(mot->motions[i]->name);
 		free(mot->motions[i]);
 	}
+	if (mot->texture_indices) {
+		free(mot->texture_indices);
+	}
 	free(mot);
 }
 
@@ -563,4 +567,31 @@ void opr_load(uint8_t *data, size_t size, struct pol *pol)
 		}
 	}
 	free(selected);
+}
+
+void txa_load(uint8_t *data, size_t size, struct mot *mot)
+{
+	uint32_t count = 0;
+	uint32_t *indices = xmalloc(100 * sizeof(uint32_t));
+	const char *p = (const char *)data;
+	while (p < (const char *)data + size) {
+		if (isdigit(*p)) {
+			uint32_t n = 0;
+			while (p < (const char *)data + size && isdigit(*p)) {
+				n = n * 10 + (*p - '0');
+				p++;
+			}
+			indices[count++] = n;
+			if (count % 100 == 0) {
+				indices = xrealloc(indices, (count + 100) * sizeof(uint32_t));
+			}
+		} else if (isspace(*p)) {
+			p++;
+		} else {
+			WARNING("invalid character in txa file: '%c'", *p);
+			p++;
+		}
+	}
+	mot->nr_texture_indices = count;
+	mot->texture_indices = indices;
 }

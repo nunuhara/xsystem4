@@ -68,7 +68,8 @@ struct mesh {
 struct material {
 	uint32_t flags;
 	bool is_transparent;
-	GLuint color_map;
+	int nr_color_maps;
+	GLuint *color_maps;
 	GLuint specular_map;
 	GLuint alpha_map;
 	GLuint light_map;
@@ -94,6 +95,7 @@ struct motion {
 	float current_frame;
 	float frame_begin, frame_end;
 	float loop_frame_begin, loop_frame_end;
+	int texture_index;
 };
 
 // Attribute variable locations
@@ -500,6 +502,8 @@ struct mot {
 	char *name;
 	uint32_t nr_frames;
 	uint32_t nr_bones;
+	uint32_t nr_texture_indices;
+	uint32_t *texture_indices;  // texture index for each frame
 	struct mot_bone *motions[];
 };
 
@@ -551,6 +555,7 @@ void amt_free(struct amt *amt);
 struct amt_material *amt_find_material(struct amt *amt, const char *name);
 
 void opr_load(uint8_t *data, size_t size, struct pol *pol);
+void txa_load(uint8_t *data, size_t size, struct mot *mot);
 
 // collision.c
 

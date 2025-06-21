@@ -195,6 +195,7 @@ struct RE_instance {
 	vec4 bounding_sphere;
 	struct RE_instance *shadow_volume_instance;
 	float z_from_camera;
+	int texture_animation_index;
 };
 
 struct RE_plugin *RE_plugin_new(enum RE_plugin_version version);
