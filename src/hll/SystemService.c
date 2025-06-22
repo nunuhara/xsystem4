@@ -29,6 +29,7 @@
 #include "vm.h"
 #include "xsystem4.h"
 #include "hll.h"
+#include "system4/file.h"
 
 static int SystemService_GetMixerName(int n, struct string **name)
 {
@@ -280,8 +281,52 @@ static bool SystemService_IsResetOnce_Drapeko(struct string **text)
 	return vm_reset_once;
 }
 
-//static void SystemService_OpenPlayingManual(void);
-//static bool SystemService_IsExistPlayingManual(void);
+static char* get_manual_filename(void) {
+	char* manual_path = path_join("Manual", "index.html");
+	char* file_path = path_join(config.game_dir, manual_path);
+	free(manual_path);
+	return file_path;
+}
+
+static bool SystemService_IsExistPlayingManual(void) {
+	char *filename = get_manual_filename();
+	const bool exists = file_exists(filename);
+	free(filename);
+	return exists;
+}
+
+static void SystemService_OpenPlayingManual(void) {
+	if (!SystemService_IsExistPlayingManual()) {
+		return;
+	}
+
+	char *filename = get_manual_filename();
+	if (!filename) {
+		return;
+	}
+
+	char *real_path = realpath_utf8(filename);
+	free(filename);
+	if (!real_path) {
+		return;
+	}
+
+
+	const char *prefix = "file:///";
+	char *url = xmalloc(strlen(prefix) + strlen(real_path) + 1);
+	strcpy(url, prefix);
+	strcat(url, real_path);
+
+	const int result = SDL_OpenURL(url);
+
+	if (result != 0) {
+		WARNING("Failed to open manual: %s", SDL_GetError());
+	}
+
+	free(url);
+	free(real_path);
+}
+
 //static bool SystemService_IsExistSystemMessage(void);
 HLL_QUIET_UNIMPLEMENTED(false, bool, SystemService, IsExistSystemMessage);
 //static bool SystemService_PopSystemMessage(int *message);
@@ -353,8 +398,8 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(GetDate, get_date),
 	    HLL_EXPORT(GetTime, SystemService_GetTime),
 	    HLL_EXPORT(IsResetOnce, SystemService_IsResetOnce),
-	    HLL_TODO_EXPORT(OpenPlayingManual, SystemService_OpenPlayingManual),
-	    HLL_TODO_EXPORT(IsExistPlayingManual, SystemService_IsExistPlayingManual),
+	    HLL_EXPORT(OpenPlayingManual, SystemService_OpenPlayingManual),
+	    HLL_EXPORT(IsExistPlayingManual, SystemService_IsExistPlayingManual),
 	    HLL_EXPORT(IsExistSystemMessage, SystemService_IsExistSystemMessage),
 	    HLL_TODO_EXPORT(PopSystemMessage, SystemService_PopSystemMessage),
 	    HLL_EXPORT(RestrainScreensaver, SystemService_RestrainScreensaver),
