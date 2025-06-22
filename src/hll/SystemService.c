@@ -31,6 +31,9 @@
 #include "hll.h"
 #include "system4/file.h"
 
+
+
+
 static int SystemService_GetMixerName(int n, struct string **name)
 {
 	const char *r = mixer_get_name(n);
@@ -311,16 +314,17 @@ static void SystemService_OpenPlayingManual(void) {
 		return;
 	}
 
-
+#ifdef _WIN32
 	const char *prefix = "file:///";
+#else
+	const char *prefix = "file://";
+#endif
 	char *url = xmalloc(strlen(prefix) + strlen(real_path) + 1);
 	strcpy(url, prefix);
 	strcat(url, real_path);
 
-	const int result = SDL_OpenURL(url);
-
-	if (result != 0) {
-		WARNING("Failed to open manual: %s", SDL_GetError());
+	if (SDL_OpenURL(url) < 0) {
+		WARNING("Failed to open manual at '%s': %s", real_path, SDL_GetError());
 	}
 
 	free(url);
