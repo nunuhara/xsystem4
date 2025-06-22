@@ -58,7 +58,7 @@ static void read_value(struct vm_file *vf, union vm_value *v, enum ain_data_type
 		v->f = buffer_read_float(&vf->buf);
 		break;
 	case AIN_STRING:
-		variable_fini(*v, type);
+		variable_fini(*v, type, true);
 		v->i = heap_alloc_string(buffer_read_string(&vf->buf));
 		break;
 	case AIN_STRUCT:

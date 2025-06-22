@@ -98,7 +98,7 @@ union vm_value variable_initval(enum ain_data_type type)
 	}
 }
 
-void variable_fini(union vm_value v, enum ain_data_type type)
+void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor)
 {
 	switch (type) {
 	case AIN_STRING:
@@ -108,7 +108,10 @@ void variable_fini(union vm_value v, enum ain_data_type type)
 	case AIN_REF_TYPE:
 		if (v.i == -1)
 			break;
-		heap_unref(v.i);
+		if (call_dtor)
+			heap_unref(v.i);
+		else
+			exit_unref(v.i);
 		break;
 	default:
 		break;
@@ -185,14 +188,14 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 
 void variable_set(struct page *page, int varno, enum ain_data_type type, union vm_value val)
 {
-	variable_fini(page->values[varno], type);
+	variable_fini(page->values[varno], type, true);
 	page->values[varno] = val;
 }
 
 void delete_page_vars(struct page *page)
 {
 	for (int i = 0; i < page->nr_vars; i++) {
-		variable_fini(page->values[i], variable_type(page, i, NULL, NULL));
+		variable_fini(page->values[i], variable_type(page, i, NULL, NULL), true);
 	}
 }
 
@@ -330,7 +333,7 @@ struct page *realloc_array(struct page *src, int rank, union vm_value *dimension
 	// if shrinking array, unref orphaned children
 	if (dimensions->i < src->nr_vars) {
 		for (int i = dimensions->i; i < src->nr_vars; i++) {
-			variable_fini(src->values[i], variable_type(src, i, NULL, NULL));
+			variable_fini(src->values[i], variable_type(src, i, NULL, NULL), true);
 		}
 	}
 
@@ -419,7 +422,7 @@ int array_fill(struct page *dst, int dst_i, int n, union vm_value v)
 	for (int i = 0; i < n; i++) {
 		variable_set(dst, dst_i+i, type, vm_copy(v, type));
 	}
-	variable_fini(v, type);
+	variable_fini(v, type, true);
 	return n;
 }
 
@@ -478,7 +481,7 @@ struct page *array_erase(struct page *page, int i, bool *success)
 	}
 
 	// delete variable, shift subsequent variables, then realloc page
-	variable_fini(page->values[i], array_type(page->a_type));
+	variable_fini(page->values[i], array_type(page->a_type), true);
 	for (int j = i + 1; j < page->nr_vars; j++) {
 		page->values[j-1] = page->values[j];
 	}
