@@ -31,9 +31,6 @@
 #include "hll.h"
 #include "system4/file.h"
 
-
-
-
 static int SystemService_GetMixerName(int n, struct string **name)
 {
 	const char *r = mixer_get_name(n);
@@ -298,15 +295,36 @@ static bool SystemService_IsExistPlayingManual(void) {
 	return exists;
 }
 
+static char *percent_encode(const char *str) {
+	const char *hex = "0123456789ABCDEF";
+	// Worst case all characters are percent-encoded
+	char *encoded = xmalloc(strlen(str) * 3 + 1);
+
+	char *p = encoded;
+	while (*str) {
+		const unsigned char c = *str++;
+		if ((c >= 'a' && c <= 'z') ||
+			(c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') ||
+			c == '-' || c == '_' || c == '.' || c == '~' || c == '/') {
+			*p++ = (char)c;
+		} else {
+			*p++ = '%';
+			*p++ = hex[c >> 4];
+			*p++ = hex[c & 15];
+		}
+	}
+
+	*p = '\0';
+	return encoded;
+}
+
 static void SystemService_OpenPlayingManual(void) {
 	if (!SystemService_IsExistPlayingManual()) {
 		return;
 	}
 
 	char *filename = get_manual_filename();
-	if (!filename) {
-		return;
-	}
 
 	char *real_path = realpath_utf8(filename);
 	free(filename);
@@ -314,21 +332,24 @@ static void SystemService_OpenPlayingManual(void) {
 		return;
 	}
 
+	char *encoded_path = percent_encode(real_path);
+	free(real_path);
+
 #ifdef _WIN32
 	const char *prefix = "file:///";
 #else
 	const char *prefix = "file://";
 #endif
-	char *url = xmalloc(strlen(prefix) + strlen(real_path) + 1);
+	char *url = xmalloc(strlen(prefix) + strlen(encoded_path) + 1);
 	strcpy(url, prefix);
-	strcat(url, real_path);
+	strcat(url, encoded_path);
 
 	if (SDL_OpenURL(url) < 0) {
-		WARNING("Failed to open manual at '%s': %s", real_path, SDL_GetError());
+		WARNING("Failed to open manual at '%s': %s", encoded_path, SDL_GetError());
 	}
 
 	free(url);
-	free(real_path);
+	free(encoded_path);
 }
 
 //static bool SystemService_IsExistSystemMessage(void);
