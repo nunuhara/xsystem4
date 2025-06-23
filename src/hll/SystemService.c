@@ -295,6 +295,7 @@ static bool SystemService_IsExistPlayingManual(void) {
 	return exists;
 }
 
+#ifndef _WIN32
 static char *percent_encode(const char *str) {
 	const char *hex = "0123456789ABCDEF";
 	// Worst case all characters are percent-encoded
@@ -318,6 +319,7 @@ static char *percent_encode(const char *str) {
 	*p = '\0';
 	return encoded;
 }
+#endif
 
 static void SystemService_OpenPlayingManual(void) {
 	if (!SystemService_IsExistPlayingManual()) {
@@ -331,7 +333,6 @@ static void SystemService_OpenPlayingManual(void) {
 	if (!real_path) {
 		return;
 	}
-
 
 #ifdef _WIN32
 	const char *prefix = "file:///";
