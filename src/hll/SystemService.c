@@ -281,9 +281,9 @@ static bool SystemService_IsResetOnce_Drapeko(struct string **text)
 	return vm_reset_once;
 }
 
-static char* get_manual_filename(void) {
-	char* manual_path = path_join("Manual", "index.html");
-	char* file_path = path_join(config.game_dir, manual_path);
+static char *get_manual_filename(void) {
+	char *manual_path = path_join("Manual", "index.html");
+	char *file_path = path_join(config.game_dir, manual_path);
 	free(manual_path);
 	return file_path;
 }
@@ -332,24 +332,25 @@ static void SystemService_OpenPlayingManual(void) {
 		return;
 	}
 
-	char *encoded_path = percent_encode(real_path);
-	free(real_path);
 
 #ifdef _WIN32
 	const char *prefix = "file:///";
+	char *path_component = real_path;
 #else
 	const char *prefix = "file://";
+	char *path_component = percent_encode(real_path);
+	free(real_path);
 #endif
-	char *url = xmalloc(strlen(prefix) + strlen(encoded_path) + 1);
+	char *url = xmalloc(strlen(prefix) + strlen(path_component) + 1);
 	strcpy(url, prefix);
-	strcat(url, encoded_path);
+	strcat(url, path_component);
 
 	if (SDL_OpenURL(url) < 0) {
-		WARNING("Failed to open manual at '%s': %s", encoded_path, SDL_GetError());
+		WARNING("Failed to open manual at '%s': %s", url, SDL_GetError());
 	}
 
 	free(url);
-	free(encoded_path);
+	free(path_component);
 }
 
 //static bool SystemService_IsExistSystemMessage(void);
