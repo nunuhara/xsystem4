@@ -417,6 +417,7 @@ int vm_save_image(const char *key, const char *path)
 	case SAVE_FORMAT_JSON:
 		return save_json_image(key, path);
 	}
+	return 0;
 }
 
 #define _invalid_save_data(file, func, line, fmt, ...)	\
@@ -1028,4 +1029,5 @@ int vm_write_image_comments(const char *key, const char *path, struct page *comm
 	case SAVE_FORMAT_JSON:
 		return write_json_image_comments(key, path, comments);
 	}
+	return 0;
 }

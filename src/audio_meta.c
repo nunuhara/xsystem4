@@ -31,7 +31,7 @@ static struct bgi bgi_data[BGI_MAX];
 static char *bgi_gets(char *buf, int n, FILE *fp)
 {
 	char *s = buf;
-	int c;
+	int c = EOF;
 	while (--n > 0 && (c = fgetc(fp)) != EOF) {
 		c = c >> 4 | (c & 0xf) << 4;  // decrypt
 		*s++ = c;

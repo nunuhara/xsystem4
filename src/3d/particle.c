@@ -943,7 +943,7 @@ void particle_object_calc_local_transform(struct RE_instance *inst, struct parti
 	struct pae_object *pae_obj = po->pae_obj;
 	float t = glm_percent(pi->begin_frame, pi->end_frame, frame);
 
-	vec3 pos, up_vector;
+	vec3 pos = {0}, up_vector;
 	calc_pos_and_up_vector(po, pi, t, pos, up_vector);
 
 	float rel_frame = frame - pi->begin_frame;

@@ -395,7 +395,10 @@ void hll_call(int libno, int fno)
 		stack_push(slot);
 		break;
 	case AIN_BOOL:
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
 		stack_push(*(bool*)&r);
+#pragma GCC diagnostic pop
 		break;
 	default:
 		stack_push(r);

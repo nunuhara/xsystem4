@@ -15,6 +15,7 @@
  */
 
 #include <stdint.h>
+#include <limits.h>
 
 #include "hll.h"
 #include "vm/page.h"
@@ -408,7 +409,7 @@ static int vmArray_GrepLowOrder(struct page *s_array, int index, struct page **d
 	if (index < 0)
 		VM_ERROR("not implemented");
 
-	int min_index = -1, min_value;
+	int min_index = -1, min_value = INT_MAX;
 	for (int i = index; i < s_array->nr_vars; i++) {
 		if (d_array->values[i].i)
 			continue;
@@ -434,7 +435,7 @@ static int vmArray_GrepHighOrder(struct page *s_array, int index, struct page **
 	if (index < 0)
 		VM_ERROR("not implemented");
 
-	int max_index = -1, max_value;
+	int max_index = -1, max_value = INT_MIN;
 	for (int i = index; i < s_array->nr_vars; i++) {
 		if (d_array->values[i].i)
 			continue;
