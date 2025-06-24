@@ -66,7 +66,7 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 	snprintf(defines, sizeof(defines),
 			 "#define REIGN_ENGINE %d\n"
 			 "#define TAPIR_ENGINE %d\n"
-			 "#define ENGINE %d",
+			 "#define ENGINE %d\n",
 			 RE_REIGN_PLUGIN,
 			 RE_TAPIR_PLUGIN,
 			 re_plugin_version);
