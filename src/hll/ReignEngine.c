@@ -1891,7 +1891,11 @@ static bool TapirEngine_GetInstancePathLine(int plugin, int instance, struct pag
 }
 
 //bool TapirEngine_CreateInstancePathLineList(int PluginNumber, int InstanceNumber, int PathInstanceNumber);
-//bool TapirEngine_SetInstanceMeshShow(int PluginNumber, int InstanceNumber, struct string *pIMeshName, bool Show);
+
+static bool TapirEngine_SetInstanceMeshShow(int plugin, int instance, struct string *mesh_name, bool show)
+{
+	return RE_instance_set_mesh_show(get_instance(plugin, instance), mesh_name->text, show);
+}
 
 static bool TapirEngine_SetDrawOption(int plugin_number, int draw_option, int param)
 {
@@ -2303,7 +2307,7 @@ HLL_LIBRARY(ReignEngine, REIGN_EXPORTS,
 	    HLL_EXPORT(OptimizeInstancePathLine, TapirEngine_OptimizeInstancePathLine), \
 	    HLL_EXPORT(GetInstancePathLine, TapirEngine_GetInstancePathLine), \
 	    HLL_TODO_EXPORT(CreateInstancePathLineList, TapirEngine_CreateInstancePathLineList), \
-	    HLL_TODO_EXPORT(SetInstanceMeshShow, TapirEngine_SetInstanceMeshShow), \
+	    HLL_EXPORT(SetInstanceMeshShow, TapirEngine_SetInstanceMeshShow), \
 	    HLL_EXPORT(SetDrawOption, TapirEngine_SetDrawOption), \
 	    HLL_EXPORT(GetDrawOption, TapirEngine_GetDrawOption), \
 	    HLL_TODO_EXPORT(SetDebugMode, TapirEngine_SetDebugMode), \
