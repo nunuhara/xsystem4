@@ -20,8 +20,8 @@ uniform mat4 view_transform;
 const int MAX_BONES = 308;  // see 3d_internal.h
 const int NR_WEIGHTS = 4;
 uniform bool has_bones;
-layout(std140, row_major) uniform BoneTransforms {
-	mat4x3 bone_matrices[MAX_BONES];
+layout(std140) uniform BoneTransforms {
+	mat3x4 bone_matrices[MAX_BONES];  // transposed
 };
 
 in vec3 vertex_pos;
@@ -31,17 +31,17 @@ in vec4 vertex_bone_weight;
 void main() {
 	mat4 local_bone_transform = local_transform;
 	if (has_bones) {
-		mat4x3 bone_transform = mat4x3(0.0);
+		mat3x4 bone_transform = mat3x4(0.0);
 		for (int i = 0; i < NR_WEIGHTS; i++) {
 			if (vertex_bone_index[i] >= 0) {
 				bone_transform += bone_matrices[vertex_bone_index[i]] * vertex_bone_weight[i];
 			}
 		}
 		local_bone_transform *= mat4(
-			vec4(bone_transform[0], 0.0),
-			vec4(bone_transform[1], 0.0),
-			vec4(bone_transform[2], 0.0),
-			vec4(bone_transform[3], 1.0));
+			vec4(bone_transform[0].x, bone_transform[1].x, bone_transform[2].x, 0.0),
+			vec4(bone_transform[0].y, bone_transform[1].y, bone_transform[2].y, 0.0),
+			vec4(bone_transform[0].z, bone_transform[1].z, bone_transform[2].z, 0.0),
+			vec4(bone_transform[0].w, bone_transform[1].w, bone_transform[2].w, 1.0));
 	}
 
 	gl_Position = view_transform * local_bone_transform * vec4(vertex_pos, 1.0);
