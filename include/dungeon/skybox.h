@@ -19,10 +19,11 @@
 
 #include <cglm/types.h>
 
+enum draw_dungeon_version;
 struct dtx;
 struct skybox;
 
-struct skybox *skybox_create(struct dtx *dtx);
+struct skybox *skybox_create(enum draw_dungeon_version version, struct dtx *dtx);
 void skybox_free(struct skybox *s);
 void skybox_render(struct skybox *s, const mat4 view_transform, const mat4 proj_transform);
 

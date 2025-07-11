@@ -388,7 +388,7 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 	if (po)
 		init_polyobjs(r, po);
 
-	r->skybox = skybox_create(dtx);
+	r->skybox = skybox_create(version, dtx);
 
 	return r;
 }

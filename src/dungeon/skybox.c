@@ -20,6 +20,7 @@
 #include "system4/cg.h"
 
 #include "dungeon/dtx.h"
+#include "dungeon/dungeon.h"
 #include "dungeon/skybox.h"
 #include "gfx/gfx.h"
 
@@ -33,8 +34,13 @@ struct skybox {
 	int nr_indices;
 };
 
-struct skybox *skybox_create(struct dtx *dtx)
+struct skybox *skybox_create(enum draw_dungeon_version version, struct dtx *dtx)
 {
+	if (version == DRAW_DUNGEON_2) {
+		// Skybox is not used in Dungeons & Dolls.
+		return NULL;
+	};
+
 	struct skybox *s = xcalloc(1, sizeof(struct skybox));
 	gfx_load_shader(&s->shader, "shaders/dungeon_skybox.v.glsl", "shaders/dungeon_skybox.f.glsl");
 	s->proj_transform = glGetUniformLocation(s->shader.program, "proj_transform");
@@ -103,6 +109,8 @@ struct skybox *skybox_create(struct dtx *dtx)
 
 void skybox_free(struct skybox *s)
 {
+	if (!s)
+		return;
 	glDeleteVertexArrays(1, &s->vao);
 	glDeleteBuffers(1, &s->attr_buffer);
 	glDeleteBuffers(1, &s->index_buffer);
@@ -113,6 +121,8 @@ void skybox_free(struct skybox *s)
 
 void skybox_render(struct skybox *s, const mat4 view_transform, const mat4 proj_transform)
 {
+	if (!s)
+		return;
 	glDepthFunc(GL_LEQUAL);
 	glUseProgram(s->shader.program);
 
