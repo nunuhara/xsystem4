@@ -450,9 +450,14 @@ static void function_return(void)
 	call_stack_ptr--;
 }
 
-static const SDL_MessageBoxButtonData buttons[] = {
+static const SDL_MessageBoxButtonData ok_cancel_buttons[] = {
 	{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "OK" },
 	{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Cancel" },
+};
+
+static const SDL_MessageBoxButtonData stop_continue_buttons[] = {
+	{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Stop" },
+	{ 0, 0, "Continue" },
 };
 
 static struct string *get_func_stack_name(int index)
@@ -522,8 +527,8 @@ static void system_call(enum syscall_code code)
 			NULL,
 			"xsystem4",
 			utf,
-			SDL_arraysize(buttons),
-			buttons,
+			SDL_arraysize(ok_cancel_buttons),
+			ok_cancel_buttons,
 			NULL
 		};
 		if (SDL_ShowMessageBox(&mbox, &result)) {
@@ -590,8 +595,27 @@ static void system_call(enum syscall_code code)
 		break;
 	}
 	case SYS_ERROR: {// system.Error(string szText)
+		int result = 0;
 		struct string *str = stack_peek_string(0);
-		sys_warning("*GAME ERROR*: %s\n", display_sjis0(str->text));
+		char *utf = sjis2utf(str->text, str->size);
+		sys_warning("*GAME ERROR*: %s\n", utf);
+		const SDL_MessageBoxData mbox = {
+			SDL_MESSAGEBOX_ERROR,
+			NULL,
+			"Game Error - xsystem4",
+			utf,
+			SDL_arraysize(stop_continue_buttons),
+			stop_continue_buttons,
+			NULL
+		};
+		if (SDL_ShowMessageBox(&mbox, &result)) {
+			WARNING("Error displaying message box");
+		}
+		free(utf);
+		if (result == 1) {
+			// stop execution
+			vm_exit(1);
+		}
 		// XXX: caller S_POPs
 		break;
 	}
