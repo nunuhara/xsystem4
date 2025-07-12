@@ -37,6 +37,7 @@ bool game_rance02_mg = false;
 bool game_rance6_mg = false;
 bool game_rance7_mg = false;
 bool game_rance8 = false;
+bool game_dungeons_and_dolls = false;
 
 static void write_instruction0(struct buffer *out, enum opcode op)
 {
@@ -205,6 +206,8 @@ void apply_game_specific_hacks(struct ain *ain)
 		apply_rance7_hacks(ain);
 	} else if (!strcmp(game_name, "ランス・クエスト") || !strcmp(game_name, "Rance Quest")) {
 		game_rance8 = true;
+	} else if (!strcmp(game_name, "ＤＵＮＧＥＯＮＳ＆ＤＯＬＬＳ")) {
+		game_dungeons_and_dolls = true;
 	}
 	free(game_name);
 }
