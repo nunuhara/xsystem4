@@ -380,7 +380,7 @@ void hll_call(int libno, int fno)
 				break;
 			// fallthrough
 		default:
-			variable_fini(stack[stack_ptr+j], f->arguments[i].type.data);
+			variable_fini(stack[stack_ptr+j], f->arguments[i].type.data, false);
 			break;
 		}
 	}

@@ -421,7 +421,7 @@ static void delegate_call(int dg_no, int return_address)
 		stack_pop(); // dg_index
 		stack_pop(); // dg_page
 		for (int i = ain->delegates[dg_no].nr_variables - 1; i >= 0; i--) {
-			variable_fini(stack_pop(), ain->delegates[dg_no].variables[i].type.data);
+			variable_fini(stack_pop(), ain->delegates[dg_no].variables[i].type.data, true);
 		}
 		if (return_values) {
 			stack_push(r);
