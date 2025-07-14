@@ -559,6 +559,7 @@ struct dgn *dgn_generate_drawdungeon2(int level)
 			cell->roof_orientation = -1;
 			cell->roof_texture = -1;
 			cell->roof_underside_texture = -1;
+			cell->pathfinding_cost = -1;
 
 			if (map[x][z] == '#') {
 				continue;
@@ -592,4 +593,63 @@ struct dgn *dgn_generate_drawdungeon2(int level)
 		}
 	}
 	return dgn;
+}
+
+// Set pathfinding_cost for each cell on the shortest path to the exit cell
+void dgn_paint_step(struct dgn *dgn, int start_x, int start_y)
+{
+	int nr_cells = dgn_nr_cells(dgn);
+	for (int i = 0; i < nr_cells; i++) {
+		dgn->cells[i].pathfinding_cost = -1;
+	}
+
+	// BFS.
+	short dist[DD2_MAP_WIDTH][DD2_MAP_HEIGHT] = {0};
+	struct { int8_t x, y; } prev[DD2_MAP_WIDTH][DD2_MAP_HEIGHT];
+	struct point_list queue = {0};
+	int queue_ptr = 0;
+
+	dist[start_x][start_y] = 1;
+	point_list_add(&queue, start_x, start_y);
+
+	while (queue_ptr < queue.size) {
+		int cx = queue.p[queue_ptr].x;
+		int cy = queue.p[queue_ptr].y;
+		if (cx == dgn->exit_x && cy == dgn->exit_y)
+			break;
+		queue_ptr++;
+
+		// Add adjacent cells to the queue
+		const int dx_offsets[] = {0, 0, -1, 1};
+		const int dy_offsets[] = {-1, 1, 0, 0};
+		for (int i = 0; i < 4; i++) {
+			int nx = cx + dx_offsets[i];
+			int ny = cy + dy_offsets[i];
+			if (nx >= 0 && nx < DD2_MAP_WIDTH && ny >= 0 && ny < DD2_MAP_HEIGHT &&
+			    !dist[nx][ny] && dgn->cells[dgn_cell_index(dgn, nx, 0, ny)].floor >= 0) {
+				dist[nx][ny] = dist[cx][cy] + 1;
+				prev[nx][ny].x = cx;
+				prev[nx][ny].y = cy;
+				point_list_add(&queue, nx, ny);
+			}
+		}
+	}
+	if (queue_ptr >= queue.size) {
+		// The exit is not reachable from the start (should not happen)
+		return;
+	}
+
+	// Backtrack from the exit to the start to paint the path
+	int x = dgn->exit_x;
+	int y = dgn->exit_y;
+	for (;;) {
+		struct dgn_cell *cell = &dgn->cells[dgn_cell_index(dgn, x, 0, y)];
+		cell->pathfinding_cost = dist[x][y] - 1;  // -1 to make the start cell 0
+		if (x == start_x && y == start_y)
+			break;
+		int px = prev[x][y].x;
+		int py = prev[x][y].y;
+		x = px;
+		y = py;
+	}
 }

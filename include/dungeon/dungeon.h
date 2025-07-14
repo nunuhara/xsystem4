@@ -76,6 +76,7 @@ void dungeon_set_walked_all(int surface);
 int dungeon_calc_conquer(int surface);
 bool dungeon_load_walk_data(int surface, int map, struct page **page);
 bool dungeon_save_walk_data(int surface, int map, struct page **page);
+void dungeon_paint_step(int surface, int x, int y, int z);
 
 struct dungeon_context *dungeon_get_context(int surface);
 

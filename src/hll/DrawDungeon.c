@@ -413,16 +413,15 @@ static void DrawDungeon2_GetExitPos(int surface, int *x, int *y)
 	*y = ctx->dgn->exit_y;
 }
 
-//void DrawDungeon2_PaintStep(int nSurface, int nX, int nY, int nZ);
-//int DrawDungeon2_GetMapStep(int nSurface, int nX, int nY, int nZ);
+CELL_GETTER(DrawDungeon2_GetMapStep, -1, cell->pathfinding_cost);
 
 HLL_LIBRARY(DrawDungeon2,
 	    HLL_EXPORT(Init, DrawDungeon2_Init),
 	    DRAW_DUNGEON_EXPORTS,
 	    HLL_EXPORT(GetPlayerStartPos, DrawDungeon2_GetPlayerStartPos),
 	    HLL_EXPORT(GetExitPos, DrawDungeon2_GetExitPos),
-	    HLL_TODO_EXPORT(PaintStep, DrawDungeon2_PaintStep),
-	    HLL_TODO_EXPORT(GetMapStep, DrawDungeon2_GetMapStep)
+	    HLL_EXPORT(PaintStep, dungeon_paint_step),
+	    HLL_EXPORT(GetMapStep, DrawDungeon2_GetMapStep)
 	    );
 
 static void DrawDungeon14_SetRasterScroll(int surface, int type)

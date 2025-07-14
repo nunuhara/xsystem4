@@ -567,6 +567,14 @@ bool dungeon_save_walk_data(int surface, int map, struct page **page)
 	}
 }
 
+void dungeon_paint_step(int surface, int x, int y, int z)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->dgn)
+		return;
+	dgn_paint_step(ctx->dgn, x, z);
+}
+
 static cJSON *dungeon_to_json(struct sact_sprite *sp, bool verbose)
 {
 	cJSON *obj, *cam;
