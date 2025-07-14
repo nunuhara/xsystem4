@@ -44,6 +44,7 @@ enum floor_marker {
 	R6_RED_OCTAGRAM = 63,
 	// Dungeons & Dolls
 	DD_MAGIC_CIRCLE = 40,
+	DD_RED_OCTAGRAM = 41,
 	DD_WHITE_OCTAGRAM = 42,
 	// GALZOO Island
 	GZ_MAGIC_CIRCLE = 0,
@@ -64,6 +65,12 @@ static const struct marker_info rance6_marker_info[] = {
 static const struct marker_info dolls_marker_info[] = {
 	{11, 43,  3, DD_WHITE_OCTAGRAM}, // treasure chest
 	{17,  0, 20, DD_MAGIC_CIRCLE},   // goal
+	{0},
+};
+
+static const struct marker_info dolls_boss_marker_info[] = {
+	{11, 43,  3, DD_WHITE_OCTAGRAM}, // treasure chest
+	{17, 20, 20, DD_RED_OCTAGRAM},   // boss
 	{0},
 };
 
@@ -350,7 +357,29 @@ static void init_polyobjs(struct dungeon_renderer *r, struct polyobj *po)
 	}
 }
 
-struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version version, struct dtx *dtx, GLuint *event_textures, int nr_event_textures, struct polyobj *po)
+static bool is_dolls_boss_floor(int num)
+{
+	switch (num) {
+	case 20:
+	case 40:
+	case 60:
+	case 80:
+	case 100:
+	case 120:
+	case 140:
+	case 150:
+	case 160:
+	case 180:
+	case 200:
+	case 300:
+	case 500:
+		return true;
+	default:
+		return false;
+	}
+}
+
+struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version version, int num, struct dtx *dtx, GLuint *event_textures, int nr_event_textures, struct polyobj *po)
 {
 	struct dungeon_renderer *r = xcalloc(1, sizeof(struct dungeon_renderer));
 
@@ -382,8 +411,14 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 
 	r->event_textures = event_textures;
 	r->nr_event_textures = nr_event_textures;
-	r->marker_table = marker_tables[version];
 	r->draw_event_markers = true;
+
+	if (version == DRAW_DUNGEON_2 && is_dolls_boss_floor(num)) {
+		// Use special marker table for Dungeons & Dolls boss floor
+		r->marker_table = dolls_boss_marker_info;
+	} else {
+		r->marker_table = marker_tables[version];
+	}
 
 	if (po)
 		init_polyobjs(r, po);

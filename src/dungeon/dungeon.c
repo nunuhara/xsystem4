@@ -231,7 +231,7 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 	if (!event_textures)
 		return false;
 
-	ctx->renderer = dungeon_renderer_create(ctx->version, ctx->dtx, event_textures, nr_event_textures, polyobj);
+	ctx->renderer = dungeon_renderer_create(ctx->version, num, ctx->dtx, event_textures, nr_event_textures, polyobj);
 
 	if (polyobj)
 		polyobj_free(polyobj);
