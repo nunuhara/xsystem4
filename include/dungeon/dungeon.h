@@ -32,7 +32,7 @@ struct dungeon_map;
 
 enum draw_dungeon_version {
 	DRAW_DUNGEON_1,    // Rance VI
-	// DRAW_DUNGEON_2, // Dungeons & Dolls
+	DRAW_DUNGEON_2,    // Dungeons & Dolls
 	DRAW_DUNGEON_14    // GALZOO Island
 };
 
@@ -76,6 +76,7 @@ void dungeon_set_walked_all(int surface);
 int dungeon_calc_conquer(int surface);
 bool dungeon_load_walk_data(int surface, int map, struct page **page);
 bool dungeon_save_walk_data(int surface, int map, struct page **page);
+void dungeon_paint_step(int surface, int x, int y, int z);
 
 struct dungeon_context *dungeon_get_context(int surface);
 

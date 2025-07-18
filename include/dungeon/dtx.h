@@ -46,5 +46,6 @@ struct dtx {
 struct dtx *dtx_parse(uint8_t *data, size_t size);
 void dtx_free(struct dtx *dtx);
 struct cg *dtx_create_cg(struct dtx *dtx, int type, int index);
+struct dtx *dtx_load_from_dtl(const char *path, uint32_t seed);
 
 #endif /* SYSTEM4_DTX_H */

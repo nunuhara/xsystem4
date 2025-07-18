@@ -91,6 +91,7 @@ struct dgn_cell {
 	int32_t south_event2;
 	int32_t east_event2;
 	int32_t west_event2;
+	int pathfinding_cost;
 	struct dgn_cell **visible_cells;
 };
 
@@ -113,6 +114,9 @@ struct dgn {
 	// uint32_t unknown[10];
 	struct dgn_cell *cells;
 	struct packed_pvs *pvs;
+
+	int start_x, start_y; // DrawDungeon2
+	int exit_x, exit_y; // DrawDungeon2
 };
 
 struct dgn *dgn_parse(uint8_t *data, size_t size);
@@ -134,5 +138,8 @@ static inline bool dgn_is_in_map(struct dgn *dgn, uint32_t x, uint32_t y, uint32
 
 // Returns a list of cells visible from (x, y, z), sorted by distance from (x, y, z).
 struct dgn_cell **dgn_get_visible_cells(struct dgn *dgn, int x, int y, int z, int *nr_cells_out);
+
+struct dgn *dgn_generate_drawdungeon2(int level);
+void dgn_paint_step(struct dgn *dgn, int x, int y);
 
 #endif /* SYSTEM4_DGN_H */

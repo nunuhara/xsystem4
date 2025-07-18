@@ -14,13 +14,18 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include "system4.h"
 #include "system4/buffer.h"
 #include "system4/cg.h"
+#include "system4/file.h"
+#include "system4/little_endian.h"
 
+#include "xsystem4.h"
 #include "dungeon/dtx.h"
+#include "dungeon/mtrand43.h"
 
 struct dtx *dtx_parse(uint8_t *data, size_t size)
 {
@@ -76,4 +81,77 @@ struct cg *dtx_create_cg(struct dtx *dtx, int type, int index)
 	if (!entry->data)
 		return NULL;
 	return cg_load_buffer(entry->data, entry->size);
+}
+
+struct dtx *dtx_load_from_dtl(const char *path, uint32_t seed)
+{
+	uint8_t *index_buf = NULL;
+	struct dtx *dtx = NULL;
+	FILE *fp = file_open_utf8(path, "rb");
+	if (!fp) {
+		WARNING("Failed to open DTL file '%s': %s", display_utf0(path), strerror(errno));
+		goto err;
+	}
+	char header[12];
+	if (fread(header, sizeof(header), 1, fp) != 1 || strcmp(header, "DTL"))
+		goto err;
+	uint32_t version = LittleEndian_getDW((uint8_t*)header, 4);
+	uint32_t index_size = LittleEndian_getDW((uint8_t*)header, 8);
+	if (version != 0 || index_size <= 1 || index_size > 1000)
+		goto err;
+	index_buf = xmalloc(index_size * 4);
+	if (fread(index_buf, index_size * 4, 1, fp) != 1)
+		goto err;
+
+	// Randomly select an index based on the seed.
+	struct mtrand43 mt;
+	mtrand43_init(&mt, seed);
+	for (;;) {
+		int index = mtrand43_genrand(&mt) % (index_size - 1) + 1;
+		uint32_t offset = LittleEndian_getDW(index_buf, index * 4);
+		if (offset) {
+			if (fseek(fp, offset, SEEK_SET))
+				goto err;
+			break;
+		}
+	}
+
+	dtx = xcalloc(1, sizeof(struct dtx));
+	dtx->nr_rows = 3;
+	dtx->nr_columns = 8;
+	dtx->entries = xcalloc(dtx->nr_rows * dtx->nr_columns, sizeof(struct dtx_entry));
+	uint8_t buf[4];
+	for (int row = 0; row < dtx->nr_rows; row++) {
+		if (fread(buf, sizeof(buf), 1, fp) != 1)
+			goto err;
+		uint32_t nr_items = LittleEndian_getDW(buf, 0);
+		for (int col = 0; col < nr_items; col++) {
+			if (fread(buf, sizeof(buf), 1, fp) != 1)
+				goto err;
+			uint32_t texture_size = LittleEndian_getDW(buf, 0);
+			if (col >= dtx->nr_columns) {
+				// skip the rest of the row
+				if (fseek(fp, texture_size, SEEK_CUR))
+					goto err;
+				continue;
+			}
+			struct dtx_entry *entry = &dtx->entries[row * dtx->nr_columns + col];
+			entry->size = texture_size;
+			entry->data = xmalloc(texture_size);
+			if (fread(entry->data, texture_size, 1, fp) != 1)
+				goto err;
+		}
+	}
+	free(index_buf);
+	fclose(fp);
+	return dtx;
+
+err:
+	if (dtx)
+		dtx_free(dtx);
+	if (index_buf)
+		free(index_buf);
+	if (fp)
+		fclose(fp);
+	return NULL;
 }
