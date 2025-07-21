@@ -178,6 +178,11 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 			archive_free_data(tes);
 		}
 		archive_free(dlf);
+	} else if (ctx->version == DRAW_DUNGEON_2) {
+		ctx->dgn = dgn_generate_drawdungeon2(num);
+		char *dtl_path = gamedir_path("Data/Texture.dtl");
+		ctx->dtx = dtx_load_from_dtl(dtl_path, (num * 25) | 1);
+		free(dtl_path);
 	} else if (ctx->version == DRAW_DUNGEON_14) {
 		char buf[100];
 		sprintf(buf, "Data/map%02d.dgn", num);
@@ -226,7 +231,7 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 	if (!event_textures)
 		return false;
 
-	ctx->renderer = dungeon_renderer_create(ctx->version, ctx->dtx, event_textures, nr_event_textures, polyobj);
+	ctx->renderer = dungeon_renderer_create(ctx->version, num, ctx->dtx, event_textures, nr_event_textures, polyobj);
 
 	if (polyobj)
 		polyobj_free(polyobj);
@@ -304,9 +309,22 @@ static void dungeon_render(struct sact_sprite *sp)
 static void neighbor_reveal(struct dungeon_context *ctx, int x, int y, int z)
 {
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z);
-	if (cell->floor < 0) {
-		cell->walked = 1;
-		dungeon_map_reveal(ctx, x, y, z, false);
+	switch (ctx->version) {
+	case DRAW_DUNGEON_1:
+		if (cell->floor < 0) {
+			cell->walked = 1;
+			dungeon_map_reveal(ctx, x, y, z, false);
+		}
+		break;
+	case DRAW_DUNGEON_2:
+		if (cell->floor >= 0) {
+			cell->walked |= 2;
+			dungeon_map_reveal(ctx, x, y, z, false);
+		}
+		break;
+	case DRAW_DUNGEON_14:
+		// do nothing
+		break;
 	}
 }
 
@@ -315,18 +333,16 @@ void dungeon_set_walked(int surface, int x, int y, int z, int flag)
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx)
 		return;
-	dgn_cell_at(ctx->dgn, x, y, z)->walked = 1;
+	dgn_cell_at(ctx->dgn, x, y, z)->walked = ctx->version == DRAW_DUNGEON_2 ? 3 : 1;
 	dungeon_map_reveal(ctx, x, y, z, false);
-	if (ctx->version == DRAW_DUNGEON_1) {
-		if (x > 0)
-			neighbor_reveal(ctx, x - 1, y, z);
-		if (x + 1u < ctx->dgn->size_x)
-			neighbor_reveal(ctx, x + 1, y, z);
-		if (z > 0)
-			neighbor_reveal(ctx, x, y, z - 1);
-		if (z + 1u < ctx->dgn->size_z)
-			neighbor_reveal(ctx, x, y, z + 1);
-	}
+	if (x > 0)
+		neighbor_reveal(ctx, x - 1, y, z);
+	if (x + 1u < ctx->dgn->size_x)
+		neighbor_reveal(ctx, x + 1, y, z);
+	if (z > 0)
+		neighbor_reveal(ctx, x, y, z - 1);
+	if (z + 1u < ctx->dgn->size_z)
+		neighbor_reveal(ctx, x, y, z + 1);
 }
 
 void dungeon_set_walked_all(int surface)
@@ -336,8 +352,15 @@ void dungeon_set_walked_all(int surface)
 		return;
 	int nr_cells = dgn_nr_cells(ctx->dgn);
 	for (struct dgn_cell *c = ctx->dgn->cells; c < ctx->dgn->cells + nr_cells; c++) {
-		c->walked = 1;
-		dungeon_map_reveal(ctx, c->x, c->y, c->z, false);
+		if (ctx->version == DRAW_DUNGEON_2) {
+			if (c->floor >= 0) {
+				c->walked = 3;
+				dungeon_map_reveal(ctx, c->x, c->y, c->z, false);
+			}
+		} else {
+			c->walked = 1;
+			dungeon_map_reveal(ctx, c->x, c->y, c->z, false);
+		}
 	}
 }
 
@@ -360,7 +383,7 @@ int dungeon_calc_conquer(int surface)
 /*
  * WalkData serialization format:
  *
- * struct WalkData {
+ * struct DrawDungeon1_WalkData {
  *     int version;  // zero
  *     int nr_maps;
  *     struct {
@@ -369,14 +392,23 @@ int dungeon_calc_conquer(int surface)
  *         int cells[size_x * size_y * size_z];
  *     } maps[nr_maps];
  * };
+ *
+ * struct DrawDungeon2_WalkData {
+ *     int magic;     // 1977
+ *     int reserved;  // zero
+ *     int size_x, size_y, size_z;
+ *     int cells[size_x * size_y * size_z];
+ * };
  */
+
+#define DD2_WALKDATA_MAGIC 1977
 
 enum {
 	WALK_DATA_NOT_FOUND = -1,
 	WALK_DATA_BROKEN = -2,
 };
 
-static int find_walk_data(struct page *array, int map_no, struct dgn *dgn)
+static int dd1_find_walk_data(struct page *array, int map_no, struct dgn *dgn)
 {
 	if (!array)
 		return WALK_DATA_BROKEN;
@@ -408,14 +440,11 @@ static int find_walk_data(struct page *array, int map_no, struct dgn *dgn)
 	return WALK_DATA_NOT_FOUND;
 }
 
-bool dungeon_load_walk_data(int surface, int map, struct page **page)
+static bool dd1_load_walk_data(struct dungeon_context *ctx, int map, struct page **page)
 {
-	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || !ctx->dgn)
-		return false;
 	struct page *array = *page;
 
-	int offset = find_walk_data(array, map, ctx->dgn);
+	int offset = dd1_find_walk_data(array, map, ctx->dgn);
 	if (offset < 0)
 		return false;
 
@@ -430,15 +459,55 @@ bool dungeon_load_walk_data(int surface, int map, struct page **page)
 	return true;
 }
 
-bool dungeon_save_walk_data(int surface, int map, struct page **page)
+static bool dd2_load_walk_data(struct dungeon_context *ctx, struct page **page)
+{
+	int nr_cells = dgn_nr_cells(ctx->dgn);
+	struct page *array = *page;
+	if (!array || array->nr_vars != 5 + nr_cells) {
+		WARNING("DrawDungeon2.LoadWalkData: invalid array size");
+		return false;
+	}
+
+	int ptr = 0;
+	if (array->values[ptr++].i != DD2_WALKDATA_MAGIC)
+		return false;
+	if (array->values[ptr++].i != 0)
+		return false;
+	uint32_t size_x = array->values[ptr++].i;
+	uint32_t size_y = array->values[ptr++].i;
+	uint32_t size_z = array->values[ptr++].i;
+	if (size_x != ctx->dgn->size_x || size_y != ctx->dgn->size_y || size_z != ctx->dgn->size_z)
+		return false;
+
+	for (struct dgn_cell *c = ctx->dgn->cells; c < ctx->dgn->cells + nr_cells; c++) {
+		c->walked = array->values[ptr++].i;
+		if (c->walked)
+			dungeon_map_reveal(ctx, c->x, c->y, c->z, false);
+	}
+	return true;
+}
+
+bool dungeon_load_walk_data(int surface, int map, struct page **page)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx || !ctx->dgn)
 		return false;
+	switch (ctx->version) {
+	case DRAW_DUNGEON_1:
+		return dd1_load_walk_data(ctx, map, page);
+	case DRAW_DUNGEON_2:
+		return dd2_load_walk_data(ctx, page);
+	default:
+		return false;
+	}
+}
+
+static bool dd1_save_walk_data(struct dungeon_context *ctx, int map, struct page **page)
+{
 	struct page *array = *page;
 	int nr_cells = dgn_nr_cells(ctx->dgn);
 
-	int offset = find_walk_data(array, map, ctx->dgn);
+	int offset = dd1_find_walk_data(array, map, ctx->dgn);
 	if (offset == WALK_DATA_NOT_FOUND) {
 		offset = array->nr_vars;
 		array->values[1].i += 1;
@@ -460,6 +529,50 @@ bool dungeon_save_walk_data(int surface, int map, struct page **page)
 	for (int i = 0; i < nr_cells; i++)
 		array->values[offset++].i = ctx->dgn->cells[i].walked;
 	return true;
+}
+
+static bool dd2_save_walk_data(struct dungeon_context *ctx, struct page **page)
+{
+	struct page *array = *page;
+	int nr_cells = dgn_nr_cells(ctx->dgn);
+
+	if (!array || array->nr_vars != 5 + nr_cells) {
+		WARNING("DrawDungeon2.SaveWalkData: invalid array size");
+		return false;
+	}
+
+	int ptr = 0;
+	array->values[ptr++].i = DD2_WALKDATA_MAGIC;
+	array->values[ptr++].i = 0;
+	array->values[ptr++].i = ctx->dgn->size_x;
+	array->values[ptr++].i = ctx->dgn->size_y;
+	array->values[ptr++].i = ctx->dgn->size_z;
+	for (int i = 0; i < nr_cells; i++)
+		array->values[ptr++].i = ctx->dgn->cells[i].walked;
+	return true;
+}
+
+bool dungeon_save_walk_data(int surface, int map, struct page **page)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->dgn)
+		return false;
+	switch (ctx->version) {
+	case DRAW_DUNGEON_1:
+		return dd1_save_walk_data(ctx, map, page);
+	case DRAW_DUNGEON_2:
+		return dd2_save_walk_data(ctx, page);
+	default:
+		return false;
+	}
+}
+
+void dungeon_paint_step(int surface, int x, int y, int z)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->dgn)
+		return;
+	dgn_paint_step(ctx->dgn, x, z);
 }
 
 static cJSON *dungeon_to_json(struct sact_sprite *sp, bool verbose)
