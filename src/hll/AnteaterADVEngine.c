@@ -303,10 +303,11 @@ error:
 	return false;
 }
 
-static struct {
-	unsigned n;
-	struct page **data;
-} scenes = {0};
+#define SCENE_BUFFER_SIZE 500  // Maximum in Rance 02
+static struct page **scenes = NULL;
+static unsigned scene_first = 0;
+static unsigned scene_last = 0;
+
 
 static int scene_struct_no(void)
 {
@@ -329,13 +330,25 @@ bool ADVSceneKeeper_AddADVScene(struct page **page)
 		WARNING("Invalid struct type: %d", (*page)->index);
 		return false;
 	}
-	scenes.data = xrealloc_array(scenes.data, scenes.n, scenes.n+1, sizeof(struct page*));
+
+	if (!scenes) {
+		scenes = xcalloc(SCENE_BUFFER_SIZE, sizeof(struct page*));
+		scene_first = 0;
+		scene_last = 0;
+	} else {
+		scene_last = (scene_last + 1) % SCENE_BUFFER_SIZE;
+		if (scene_last == scene_first) {
+			free_page(scenes[scene_first]);
+			scenes[scene_first] = NULL;
+			scene_first = (scene_first + 1) % SCENE_BUFFER_SIZE;
+		}
+	}
 
 	// serialize
 	struct iarray_writer out;
 	iarray_init_writer(&out, "SCN");
 	iarray_write_struct(&out, *page, false);
-	scenes.data[scenes.n++] = iarray_to_page(&out);
+	scenes[scene_last] = iarray_to_page(&out);
 	iarray_free_writer(&out);
 
 	return true;
@@ -343,17 +356,21 @@ bool ADVSceneKeeper_AddADVScene(struct page **page)
 
 int ADVSceneKeeper_GetNumofADVScene(void)
 {
-	return scenes.n;
+	if (!scenes)
+		return 0;
+	return (scene_last - scene_first + SCENE_BUFFER_SIZE) % SCENE_BUFFER_SIZE + 1;
 }
 
 bool ADVSceneKeeper_GetADVScene(int index, struct page **page)
 {
-	if (index < 0 || (unsigned)index >= scenes.n)
+	if (!scenes || index < 0 || (unsigned)index >= ADVSceneKeeper_GetNumofADVScene())
 		return false;
+
+	unsigned i = (scene_first + index) % SCENE_BUFFER_SIZE;
 
 	// deserialize
 	struct iarray_reader in;
-	if (!iarray_init_reader(&in, scenes.data[index], "SCN"))
+	if (!iarray_init_reader(&in, scenes[i], "SCN"))
 		return false;
 
 	if (*page) {
@@ -367,12 +384,16 @@ bool ADVSceneKeeper_GetADVScene(int index, struct page **page)
 
 void ADVSceneKeeper_Clear(void)
 {
-	for (unsigned i = 0; i < scenes.n; i++) {
-		free_page(scenes.data[i]);
+	if (!scenes)
+		return;
+	for (unsigned i = scene_first;; i = (i + 1) % SCENE_BUFFER_SIZE) {
+		if (scenes[i])
+			free_page(scenes[i]);
+		if (i == scene_last)
+			break;
 	}
-	free(scenes.data);
-	scenes.data = NULL;
-	scenes.n = 0;
+	free(scenes);
+	scenes = NULL;
 }
 
 bool ADVSceneKeeper_Save(struct page **iarray)
@@ -387,9 +408,11 @@ bool ADVSceneKeeper_Save(struct page **iarray)
 	struct iarray_writer w;
 	iarray_init_writer(&w, "SCS");
 	iarray_write(&w, 0); // version
-	iarray_write(&w, scenes.n);
-	for (unsigned i = 0; i < scenes.n; i++) {
-		iarray_write_array(&w, scenes.data[i]);
+	int nr_scenes = ADVSceneKeeper_GetNumofADVScene();
+	iarray_write(&w, nr_scenes);
+	for (int i = 0; i < nr_scenes; i++) {
+		unsigned idx = (scene_first + i) % SCENE_BUFFER_SIZE;
+		iarray_write_array(&w, scenes[idx]);
 	}
 	*iarray = iarray_to_page(&w);
 	iarray_free_writer(&w);
@@ -415,15 +438,35 @@ bool ADVSceneKeeper_Load(struct page **iarray)
 	if (nr_scenes < 0 || nr_scenes > 10000)
 		goto error;
 
-	scenes.n = 0;
-	scenes.data = xcalloc(nr_scenes, sizeof(struct page*));
+	if (nr_scenes == 0)
+		return true;
 
-	for (int i = 0; i < nr_scenes; i++) {
-		struct ain_type type = { .data = AIN_ARRAY_INT, .struc = 0, .rank = 0 };
-		scenes.data[scenes.n++] = iarray_read_array(&r, &type);
+	int start_offset = 0;
+	if (nr_scenes > SCENE_BUFFER_SIZE) {
+		start_offset = nr_scenes - SCENE_BUFFER_SIZE;
+	}
+
+	struct ain_type type = { .data = AIN_ARRAY_INT, .struc = 0, .rank = 0 };
+	for (int i = 0; i < start_offset; i++) {
+		struct page *p = iarray_read_array(&r, &type);
 		if (r.error)
 			goto error;
+		free_page(p);
 	}
+
+	int scenes_to_load = nr_scenes - start_offset;
+	if (scenes_to_load > 0) {
+		scenes = xcalloc(SCENE_BUFFER_SIZE, sizeof(struct page*));
+		scene_first = 0;
+		scene_last = scenes_to_load - 1;
+
+		for (int i = 0; i < scenes_to_load; i++) {
+			scenes[i] = iarray_read_array(&r, &type);
+			if (r.error)
+				goto error;
+		}
+	}
+
 	return true;
 error:
 	ADVSceneKeeper_Clear();
