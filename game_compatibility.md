@@ -24,7 +24,7 @@ issues, please let me know or open a pull request to update this table.
 | ウルトラ魔法少女まなな Vol.1～Vol.5                     | Supported   |       |
 | 鈴宮刑務娼館                                            | Supported   | From ALICEの館7 |
 | しまいま                                                | Supported   | From ALICEの館7 |
-| DUNGEONS & DOLLS                                        | Unsupported | From ALICEの館7 |
+| DUNGEONS & DOLLS                                        | Supported   | From ALICEの館7 |
 | こすぷれれもん                                          | Supported   | From ALICEの館7 |
 | エルメイフラワー                                        | Supported   | From ALICEの館7 |
 | CGは17年ゼミ                                            | Supported   | From ALICEの館7 |
