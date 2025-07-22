@@ -2319,8 +2319,28 @@ static void vm_execute(void)
 	}
 }
 
+static void call_global_destructors(void)
+{
+	if (heap_size <= 0 || heap[0].ref <= 0)
+		return;
+	struct page *global_page = heap_get_page(0);
+	// Call global variable destructors, but do not unref them because the
+	// destructors may reference other global variables.
+	for (int i = global_page->nr_vars - 1; i >= 0; i--) {
+		if (variable_type(global_page, i, NULL, NULL) != AIN_STRUCT)
+			continue;
+		int slot = global_page->values[i].i;
+		delete_struct(heap_get_page(slot)->index, slot);
+	}
+}
+
 static void vm_free(void)
 {
+	if (game_dungeons_and_dolls) {
+		// Dungeons & Dolls saves the game state in destructors of global variables
+		call_global_destructors();
+	}
+
 	// call library exit routines
 	exit_libraries();
 	// flush call stack
