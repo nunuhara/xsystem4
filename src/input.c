@@ -188,9 +188,11 @@ bool key_is_down(enum sact_keycode code)
 	return key_state[code];
 }
 
-void key_clear_flag(void)
+void key_clear_flag(bool no_ctrl)
 {
 	for (int i = 0; i < VK_NR_KEYCODES; i++) {
+		if (no_ctrl && i == VK_CONTROL)
+			continue;
 		key_state[i] = false;
 	}
 }

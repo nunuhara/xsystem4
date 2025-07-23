@@ -794,8 +794,13 @@ bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *righ
 
 int sact_Key_ClearFlag(void)
 {
-	key_clear_flag();
+	key_clear_flag(false);
 	return 1;
+}
+
+void sact_Key_ClearFlagNoCtrl(void)
+{
+	key_clear_flag(true);
 }
 
 int sact_Key_IsDown(int keycode)
@@ -1001,7 +1006,6 @@ HLL_WARN_UNIMPLEMENTED( , void, SACTDX, SetVolumeMixerBGMGroupNum, int n);
 //static void SACTDX_FFT_rdft(ref array@float a);
 //static void SACTDX_FFT_hanning_window(ref array@float a);
 //static int SACTDX_Music_AnalyzeSampleData(ref array@float l, ref array@float r, ref array@int src, int chns, int bps);
-//static void SACTDX_Key_ClearFlagNoCtrl(void);
 //static void SACTDX_Key_ClearFlagOne(int nKeyCode);
 
 int sact_TRANS_Begin(int type)
@@ -1045,7 +1049,8 @@ void sact_DX_SetUsePower2Texture(bool use)
 }
 
 #define SACT2_EXPORTS \
-	HLL_EXPORT(Init, SACT2_Init)
+	HLL_EXPORT(Init, SACT2_Init), \
+	HLL_EXPORT(Key_ClearFlagNoCtrl, sact_Key_ClearFlagNoCtrl)
 
 #define SACTDX_EXPORTS \
 	HLL_EXPORT(Init, SACTDX_Init), \
@@ -1060,7 +1065,7 @@ void sact_DX_SetUsePower2Texture(bool use)
 	HLL_TODO_EXPORT(FFT_rdft, SACTDX_FFT_rdft),		\
 	HLL_TODO_EXPORT(FFT_hanning_window, SACTDX_FFT_hanning_window),	\
 	HLL_TODO_EXPORT(Music_AnalyzeSampleData, SACTDX_Music_AnalyzeSampleData), \
-	HLL_TODO_EXPORT(Key_ClearFlagNoCtrl, SACTDX_Key_ClearFlagNoCtrl), \
+	HLL_EXPORT(Key_ClearFlagNoCtrl, sact_Key_ClearFlagNoCtrl), \
 	HLL_TODO_EXPORT(Key_ClearFlagOne, SACTDX_Key_ClearFlagOne), \
 	HLL_EXPORT(TRANS_Begin, sact_TRANS_Begin),	    \
 	HLL_EXPORT(TRANS_Update, sact_TRANS_Update),	    \
