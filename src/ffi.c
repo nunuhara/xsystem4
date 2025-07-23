@@ -468,6 +468,7 @@ extern struct static_library lib_MonsterInfo;
 extern struct static_library lib_MsgLogManager;
 extern struct static_library lib_MsgLogViewer;
 extern struct static_library lib_MsgSkip;
+extern struct static_library lib_MusicSystem;
 extern struct static_library lib_NewFont;
 extern struct static_library lib_OutputLog;
 extern struct static_library lib_PassRegister;
@@ -578,6 +579,7 @@ static struct static_library *static_libraries[] = {
 	&lib_MsgLogManager,
 	&lib_MsgLogViewer,
 	&lib_MsgSkip,
+	&lib_MusicSystem,
 	&lib_NewFont,
 	&lib_OutputLog,
 	&lib_PassRegister,

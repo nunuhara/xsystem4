@@ -162,6 +162,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/MsgLogManager.c
   src/hll/MsgLogViewer.c
   src/hll/MsgSkip.c
+  src/hll/MusicSystem.c
   src/hll/NewFont.c
   src/hll/OutputLog.c
   src/hll/PassRegister.c
