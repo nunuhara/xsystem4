@@ -30,7 +30,7 @@
 #include "vm/page.h"
 #include "xsystem4.h"
 
-struct acx *acx = NULL;
+static struct acx *acx = NULL;
 
 static bool ACXLoader_Load(struct string *filename)
 {
@@ -131,3 +131,50 @@ HLL_LIBRARY(ACXLoader,
 	    HLL_EXPORT(GetDataInt, ACXLoader_GetDataInt),
 	    HLL_EXPORT(GetDataString, ACXLoader_GetDataString),
 	    HLL_EXPORT(GetDataStruct, ACXLoader_GetDataStruct));
+
+HLL_WARN_UNIMPLEMENTED(, void, ACXLoaderP2, GetError, int *nError, struct string **szErrorString);
+
+static bool ACXLoaderP2_GetDataIntByKey(int key, int col, int *ptr)
+{
+	if (!acx)
+		return false;
+	if (col < 0 || col >= acx->nr_columns)
+		return false;
+	for (int line = 0; line < acx->nr_lines; line++) {
+		if (key == acx_get_int(acx, line, 0)) {
+			*ptr = acx_get_int(acx, line, col);
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool ACXLoaderP2_GetDataStringByKey(int key, int col, struct string **ptr)
+{
+	if (!acx)
+		return false;
+	if (col < 0 || col >= acx->nr_columns)
+		return false;
+	for (int line = 0; line < acx->nr_lines; line++) {
+		if (key == acx_get_int(acx, line, 0)) {
+			if (*ptr)
+				free_string(*ptr);
+			*ptr = string_ref(acx_get_string(acx, line, col));
+			return true;
+		}
+	}
+	return false;
+}
+
+HLL_LIBRARY(ACXLoaderP2,
+	    HLL_EXPORT(Load, ACXLoader_Load),
+	    HLL_EXPORT(Release, ACXLoader_Release),
+	    HLL_EXPORT(GetNumofLine, ACXLoader_GetNumofLine),
+	    HLL_EXPORT(GetNumofColumn, ACXLoader_GetNumofColumn),
+	    HLL_EXPORT(GetDataInt, ACXLoader_GetDataInt),
+	    HLL_EXPORT(GetDataString, ACXLoader_GetDataString),
+	    HLL_EXPORT(GetDataStruct, ACXLoader_GetDataStruct),
+	    HLL_EXPORT(GetError, ACXLoaderP2_GetError),
+	    HLL_EXPORT(GetDataIntByKey, ACXLoaderP2_GetDataIntByKey),
+	    HLL_EXPORT(GetDataStringByKey, ACXLoaderP2_GetDataStringByKey)
+	    );
