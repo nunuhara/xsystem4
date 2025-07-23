@@ -748,6 +748,38 @@ void dungeon_set_chara_show(int surface, int num, bool show)
 	ctx->characters[num].show = show;
 }
 
+bool dungeon_project_world_to_screen(struct dungeon_context *ctx, vec3 world_pos, Point *screen_pos)
+{
+	mat4 view_transform;
+	model_view_matrix(ctx, view_transform);
+	mat4 mvp;
+	glm_mat4_mul(ctx->proj_transform, view_transform, mvp);
+
+	vec4 world_pos_h = {
+		world_pos[0],
+		world_pos[1],
+		-world_pos[2],  // Z is negated to match coordinate system
+		1.f
+	};
+
+	vec4 clip_coords;
+	glm_mat4_mulv(mvp, world_pos_h, clip_coords);
+
+	if (clip_coords[3] <= 0.f) {
+		return false;  // point is behind the near clipping plane
+	}
+
+	vec3 ndc;
+	ndc[0] = clip_coords[0] / clip_coords[3];
+	ndc[1] = clip_coords[1] / clip_coords[3];
+	ndc[2] = clip_coords[2] / clip_coords[3];
+
+	screen_pos->x = roundf(((ndc[0] + 1.f) / 2.f) * ctx->texture.w);
+	// Y is inverted from NDC to screen space (NDC is bottom-up, screen is top-down)
+	screen_pos->y = roundf(((1.f - ndc[1]) / 2.f) * ctx->texture.h);
+	return true;
+}
+
 static cJSON *dungeon_to_json(struct sact_sprite *sp, bool verbose)
 {
 	cJSON *obj, *cam;

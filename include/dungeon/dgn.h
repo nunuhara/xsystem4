@@ -118,7 +118,6 @@ struct packed_pvs {
 };
 
 struct dgn {
-	uint32_t version;
 	uint32_t size_x;
 	uint32_t size_y;
 	uint32_t size_z;
@@ -139,6 +138,7 @@ struct dgn {
 	int32_t back_color_b;
 };
 
+struct dgn *dgn_new(uint32_t size_x, uint32_t size_y, uint32_t size_z);
 struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field);
 void dgn_free(struct dgn *dgn);
 

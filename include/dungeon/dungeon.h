@@ -94,6 +94,7 @@ void dungeon_set_chara_pos(int surface, int num, float x, float y, float z);
 void dungeon_set_chara_cg(int surface, int num, int cg);
 void dungeon_set_chara_cg_info(int surface, int num, int num_chara_x, int num_chara_y);
 void dungeon_set_chara_show(int surface, int num, bool show);
+bool dungeon_project_world_to_screen(struct dungeon_context *ctx, vec3 world_pos, Point *screen_pos);
 
 struct dungeon_context *dungeon_get_context(int surface);
 
