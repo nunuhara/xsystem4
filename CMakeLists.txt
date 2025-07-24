@@ -132,6 +132,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/DrawEffect.c
   src/hll/DrawGraph.c
   src/hll/DrawMovie.c
+  src/hll/DrawNumeral.c
   src/hll/DrawPluginManager.c
   src/hll/DrawRain.c
   src/hll/DrawRipple.c
