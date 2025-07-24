@@ -24,7 +24,7 @@
 #include "dungeon/mtrand43.h"
 #include "vm.h"
 
-struct dgn *dgn_parse(uint8_t *data, size_t size)
+struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 {
 	struct buffer r;
 	buffer_init(&r, data, size);
@@ -34,11 +34,6 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 
 	struct dgn *dgn = xcalloc(1, sizeof(struct dgn));
 	dgn->version = buffer_read_int32(&r);
-	if (dgn->version != DGN_VER_RANCE6 && dgn->version != DGN_VER_GALZOO) {
-		WARNING("unknown DGN version: %d", dgn->version);
-		free(dgn);
-		return NULL;
-	}
 	dgn->size_x = buffer_read_int32(&r);
 	dgn->size_y = buffer_read_int32(&r);
 	dgn->size_z = buffer_read_int32(&r);
@@ -79,7 +74,7 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 		cell->lightmap_south = buffer_read_int32(&r);
 		cell->lightmap_east = buffer_read_int32(&r);
 		cell->lightmap_west = buffer_read_int32(&r);
-		buffer_skip(&r, 7 * 4);
+		buffer_skip(&r, 7 * 4);  // lightmap parameters for doors / stairs, 2 unknowns
 		cell->enterable = buffer_read_int32(&r);
 		cell->enterable_north = buffer_read_int32(&r);
 		cell->enterable_south = buffer_read_int32(&r);
@@ -95,63 +90,101 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 			buffer_skip(&r, 4);
 			buffer_skip(&r, strlen(buffer_strdata(&r)) + 1);
 		}
-		buffer_skip(&r, 4);
-		cell->battle_background = buffer_read_int32(&r);
-		if (dgn->version != DGN_VER_GALZOO) {
-			cell->polyobj_index = -1;
-			cell->roof_orientation = -1;
-			cell->roof_texture = -1;
-			cell->roof_underside_texture = -1;
-			continue;
+		cell->polyobj_index = -1;
+		cell->roof_orientation = -1;
+		cell->roof_texture = -1;
+		cell->roof_underside_texture = -1;
+		if (for_draw_field) {
+			if (dgn->version >= 9) {
+				cell->north_door_lock = buffer_read_int32(&r);
+				cell->west_door_lock = buffer_read_int32(&r);
+				cell->south_door_lock = buffer_read_int32(&r);
+				cell->east_door_lock = buffer_read_int32(&r);
+				cell->north_door_angle = buffer_read_float(&r);
+				cell->west_door_angle = buffer_read_float(&r);
+				cell->south_door_angle = buffer_read_float(&r);
+				cell->east_door_angle = buffer_read_float(&r);
+				cell->walked = buffer_read_int32(&r);
+			}
+			if (dgn->version >= 11) {
+				cell->polyobj_index = buffer_read_int32(&r);
+				cell->polyobj_scale = buffer_read_float(&r);
+				cell->polyobj_rotation_y = buffer_read_float(&r);
+				cell->polyobj_rotation_z = buffer_read_float(&r);
+				cell->polyobj_rotation_x = buffer_read_float(&r);
+				cell->polyobj_position_x = buffer_read_float(&r);
+				cell->polyobj_position_y = buffer_read_float(&r);
+				cell->polyobj_position_z = buffer_read_float(&r);
+			}
+		} else {
+			buffer_skip(&r, 4);  // unknown
+			cell->battle_background = buffer_read_int32(&r);
+			if (dgn->version != DGN_VER_GALZOO) {
+				continue;
+			}
+			cell->polyobj_index = buffer_read_int32(&r);
+			cell->polyobj_scale = buffer_read_float(&r);
+			cell->polyobj_rotation_y = buffer_read_float(&r);
+			cell->polyobj_rotation_z = buffer_read_float(&r);
+			cell->polyobj_rotation_x = buffer_read_float(&r);
+			cell->polyobj_position_x = buffer_read_float(&r);
+			cell->polyobj_position_y = buffer_read_float(&r);
+			cell->polyobj_position_z = buffer_read_float(&r);
+			cell->roof_orientation = buffer_read_int32(&r);
+			cell->roof_texture = buffer_read_int32(&r);
+			buffer_skip(&r, 4);  // unknown
+			cell->roof_underside_texture = buffer_read_int32(&r);
+			buffer_skip(&r, 4);  // unknown
 		}
-		cell->polyobj_index = buffer_read_int32(&r);
-		cell->polyobj_scale = buffer_read_float(&r);
-		cell->polyobj_rotation_y = buffer_read_float(&r);
-		cell->polyobj_rotation_z = buffer_read_float(&r);
-		cell->polyobj_rotation_x = buffer_read_float(&r);
-		cell->polyobj_position_x = buffer_read_float(&r);
-		cell->polyobj_position_y = buffer_read_float(&r);
-		cell->polyobj_position_z = buffer_read_float(&r);
-		cell->roof_orientation = buffer_read_int32(&r);
-		cell->roof_texture = buffer_read_int32(&r);
-		buffer_skip(&r, 4);
-		cell->roof_underside_texture = buffer_read_int32(&r);
-		buffer_skip(&r, 4);
 	}
-	if (buffer_read_u8(&r) != 0 || buffer_read_int32(&r) != 1) {
+	if (buffer_read_u8(&r) != 0) {
 		dgn_free(dgn);
 		return NULL;
 	}
-	dgn->pvs = xcalloc(nr_cells, sizeof(struct packed_pvs));
-	for (int i = 0; i < nr_cells; i++) {
-		struct packed_pvs *pvs = &dgn->pvs[i];
-		int32_t len = buffer_read_int32(&r);
-		if (len % 8 != 4) {
-			WARNING("dgn_parse: unexpected PVS length");
-			dgn_free(dgn);
-			return NULL;
+	int has_pvs = buffer_read_int32(&r);
+	if (has_pvs) {
+		dgn->pvs = xcalloc(nr_cells, sizeof(struct packed_pvs));
+		for (int i = 0; i < nr_cells; i++) {
+			struct packed_pvs *pvs = &dgn->pvs[i];
+			int32_t len = buffer_read_int32(&r);
+			if (len % 8 != 4) {
+				WARNING("dgn_parse: unexpected PVS length");
+				dgn_free(dgn);
+				return NULL;
+			}
+			if (buffer_read_int32(&r) != nr_cells) {
+				WARNING("dgn_parse: bad PVS");
+				dgn_free(dgn);
+				return NULL;
+			}
+			pvs->nr_run_lengths = (len - 4) / 8;
+			pvs->run_lengths = xmalloc(pvs->nr_run_lengths * sizeof(struct pvs_run_lengths));
+			int32_t total = 0;
+			for (int j = 0; j < pvs->nr_run_lengths; j++) {
+				int32_t invisible = buffer_read_int32(&r);
+				int32_t visible = buffer_read_int32(&r);
+				pvs->run_lengths[j].invisible_cells = invisible;
+				pvs->run_lengths[j].visible_cells = visible;
+				pvs->nr_visible_cells += visible;
+				total += invisible + visible;
+			}
+			if (total != nr_cells) {
+				WARNING("dgn_parse: bad PVS");
+				dgn_free(dgn);
+				return NULL;
+			}
 		}
-		if (buffer_read_int32(&r) != nr_cells) {
-			WARNING("dgn_parse: bad PVS");
-			dgn_free(dgn);
-			return NULL;
-		}
-		pvs->nr_run_lengths = (len - 4) / 8;
-		pvs->run_lengths = xmalloc(pvs->nr_run_lengths * sizeof(struct pvs_run_lengths));
-		int32_t total = 0;
-		for (int j = 0; j < pvs->nr_run_lengths; j++) {
-			int32_t invisible = buffer_read_int32(&r);
-			int32_t visible = buffer_read_int32(&r);
-			pvs->run_lengths[j].invisible_cells = invisible;
-			pvs->run_lengths[j].visible_cells = visible;
-			pvs->nr_visible_cells += visible;
-			total += invisible + visible;
-		}
-		if (total != nr_cells) {
-			WARNING("dgn_parse: bad PVS");
-			dgn_free(dgn);
-			return NULL;
-		}
+	}
+	dgn->sphere_theta[0] = buffer_read_float(&r);
+	dgn->sphere_theta[1] = buffer_read_float(&r);
+	dgn->sphere_theta[2] = buffer_read_float(&r);
+	dgn->sphere_color_top = buffer_read_float(&r);
+	dgn->sphere_color_bottom = buffer_read_float(&r);
+	buffer_skip(&r, 4);  // unknown
+	if (for_draw_field && dgn->version >= 10) {
+		dgn->back_color_r = buffer_read_int32(&r);
+		dgn->back_color_g = buffer_read_int32(&r);
+		dgn->back_color_b = buffer_read_int32(&r);
 	}
 	return dgn;
 }

@@ -32,6 +32,7 @@ void dungeon_map_set_all_view(int surface, int flag);
 void dungeon_map_set_cg(int surface, int index, int sprite);
 void dungeon_map_set_small_map_floor(int surface, int floor);
 void dungeon_map_set_large_map_floor(int surface, int floor);
-void dungeon_map_reveal(struct dungeon_context *ctx, int x, int y, int z, bool transparent);
+void dungeon_map_reveal(struct dungeon_context *ctx, int x, int y, int z, bool from_walk_data);
+void dungeon_map_hide(struct dungeon_context *ctx, int x, int y, int z);
 
 #endif /* SYSTEM4_DUNGEON_MAP_H */

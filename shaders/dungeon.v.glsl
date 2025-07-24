@@ -17,6 +17,8 @@
 uniform mat4 local_transform;
 uniform mat4 view_transform;
 uniform mat4 proj_transform;
+uniform vec2 uv_offset;
+uniform vec2 uv_scale;
 
 in vec3 vertex_pos;
 in vec2 vertex_uv;
@@ -27,5 +29,5 @@ void main() {
         vec4 pos = view_transform * local_transform * vec4(vertex_pos, 1.0);
         dist = abs(pos.z);
         gl_Position = proj_transform * pos;
-        tex_coord = vertex_uv;
+        tex_coord = vertex_uv * uv_scale + uv_offset;
 }

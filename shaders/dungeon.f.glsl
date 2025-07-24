@@ -18,6 +18,7 @@ uniform sampler2D tex;
 uniform sampler2D light_texture;
 uniform bool use_lightmap;
 uniform float alpha_mod;
+uniform bool use_fog;
 
 in float dist;
 in vec2 tex_coord;
@@ -32,7 +33,14 @@ void main() {
         if (use_lightmap) {
                 light_factor = texture(light_texture, tex_coord).a;
         }
-        float fog_factor = (FOG_MAX_DIST - dist) / FOG_MAX_DIST;
-        fog_factor = clamp(fog_factor, 0.3, 1.0);
-        frag_color = vec4(mix(FOG_COLOR, texel.rgb * light_factor, fog_factor), texel.a * alpha_mod);
+        if (use_fog) {
+                float fog_factor = (FOG_MAX_DIST - dist) / FOG_MAX_DIST;
+                fog_factor = clamp(fog_factor, 0.3, 1.0);
+                frag_color = vec4(mix(FOG_COLOR, texel.rgb * light_factor, fog_factor), texel.a * alpha_mod);
+        } else {
+                if (texel.a < 0.01) {
+                        discard;
+                }
+                frag_color = vec4(texel.rgb * light_factor, texel.a * alpha_mod);
+        }
 }

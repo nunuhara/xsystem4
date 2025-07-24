@@ -43,10 +43,6 @@
 #include "vm/page.h"
 #include "xsystem4.h"
 
-#ifndef M_PI
-#define M_PI (3.14159265358979323846)
-#endif
-
 static const char plugin_name[] = "DrawDungeon";
 
 static void dungeon_render(struct sact_sprite *sp);
@@ -75,8 +71,13 @@ struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version
 	glBindRenderbuffer(GL_RENDERBUFFER, ctx->depth_buffer);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	glm_perspective(GLM_PIf / 3.f, (float)width / height, 0.5f, 100.f, ctx->proj_transform);
 
 	ctx->map = dungeon_map_create(version);
+
+	if (version == DRAW_FIELD) {
+		ctx->characters = xcalloc(DRAWFIELD_NR_CHARACTERS, sizeof(struct drawfield_character));
+	}
 	return ctx;
 }
 
@@ -89,6 +90,8 @@ static void dungeon_context_free(struct draw_plugin *plugin)
 		dtx_free(ctx->dtx);
 	if (ctx->tes)
 		tes_free(ctx->tes);
+	if (ctx->characters)
+		free(ctx->characters);
 
 	if (ctx->renderer)
 		dungeon_renderer_free(ctx->renderer);
@@ -164,7 +167,7 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 
 		struct archive_data *dgn = archive_get(dlf, num * 3);
 		if (dgn) {
-			ctx->dgn = dgn_parse(dgn->data, dgn->size);
+			ctx->dgn = dgn_parse(dgn->data, dgn->size, false);
 			archive_free_data(dgn);
 		}
 		struct archive_data *dtx = archive_get(dlf, num * 3 + 1);
@@ -191,7 +194,7 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 		size_t len;
 		uint8_t *dgn = file_read(path, &len);
 		if (dgn) {
-			ctx->dgn = dgn_parse(dgn, len);
+			ctx->dgn = dgn_parse(dgn, len, false);
 			free(dgn);
 		}
 
@@ -242,6 +245,79 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 	return true;
 }
 
+static void dungeon_finalize_loading(struct dungeon_context *ctx)
+{
+	ctx->renderer = dungeon_renderer_create(ctx->version, 0, ctx->dtx, NULL, 0, NULL);
+	dungeon_map_init(ctx);
+	ctx->loaded = true;
+}
+
+bool dungeon_load_dungeon(struct dungeon_context *ctx, const char *filename, int num)
+{
+	char *path = gamedir_path(filename);
+	size_t len;
+	uint8_t *dgn = file_read(path, &len);
+	if (!dgn) {
+		WARNING("Cannot load %s", path);
+		free(path);
+		return false;
+	}
+	free(path);
+	if (ctx->dgn)
+		dgn_free(ctx->dgn);
+	ctx->dgn = dgn_parse(dgn, len, ctx->version == DRAW_FIELD);
+	free(dgn);
+	if (!ctx->dgn)
+		return false;
+
+	if (ctx->dgn && ctx->dtx) {
+		dungeon_finalize_loading(ctx);
+	}
+	return true;
+}
+
+bool dungeon_load_texture(struct dungeon_context *ctx, const char *filename)
+{
+	// load .dtx
+	char *path = gamedir_path(filename);
+	size_t dtx_len;
+	uint8_t *dtx = file_read(path, &dtx_len);
+	if (!dtx) {
+		WARNING("Cannot load %s", path);
+		free(path);
+		return false;
+	}
+	if (ctx->dtx)
+		dtx_free(ctx->dtx);
+	ctx->dtx = dtx_parse(dtx, dtx_len);
+	free(dtx);
+	if (!ctx->dtx) {
+		free(path);
+		return false;
+	}
+
+	// load .tes
+	if (ctx->tes)
+		tes_free(ctx->tes);
+	ctx->tes = NULL;
+	size_t path_len = strlen(path);
+	if (path_len > 4 && path[path_len - 4] == '.') {
+		strcpy(path + path_len - 4, ".tes");  // .dtx -> .tes
+		size_t tes_len;
+		uint8_t *tes = file_read(path, &tes_len);
+		if (tes) {
+			ctx->tes = tes_parse(tes, tes_len);
+			free(tes);
+		}
+	}
+
+	if (ctx->dgn && ctx->dtx) {
+		dungeon_finalize_loading(ctx);
+	}
+	free(path);
+	return true;
+}
+
 void dungeon_set_camera(int surface, float x, float y, float z, float angle, float angle_p)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
@@ -250,22 +326,59 @@ void dungeon_set_camera(int surface, float x, float y, float z, float angle, flo
 	ctx->camera.pos[0] = x;
 	ctx->camera.pos[1] = y;
 	ctx->camera.pos[2] = -z;
-	ctx->camera.angle = -angle * M_PI / 180;
-	ctx->camera.angle_p = angle_p * M_PI / 180;
+	ctx->camera.angle = -glm_rad(angle);
+	ctx->camera.angle_p = glm_rad(angle_p);
+
+	if (ctx->version != DRAW_FIELD) {
+		ctx->player_pos[0] = roundf(x / 2.f);
+		ctx->player_pos[1] = roundf(y / 2.f);
+		ctx->player_pos[2] = roundf(z / 2.f);
+	}
 }
 
-static void model_view_matrix(struct camera *camera, vec3 eye_out, mat4 mv_out)
+void dungeon_set_perspective(int surface, int width, int height, float near, float far, float deg)
 {
-	// The actual camera position is slightly behind camera->pos.
-	float dist = 0.9;
-	vec3 d = {
-		dist * sin(camera->angle) * cos(camera->angle_p),
-		dist * sin(camera->angle_p),
-		dist * -cos(camera->angle) * cos(camera->angle_p),
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx)
+		return;
+
+	float aspect = (float)width / height;
+	// XXX: Pastel Chime Continue sets unnecessarily small near (0.1) and large
+	//      far (10000), which degrades depth buffer precision.
+	near = max(near, 0.4f);
+	far = min(far, 500.f);
+	glm_perspective(glm_rad(deg), aspect, near, far, ctx->proj_transform);
+}
+
+void dungeon_set_player_pos(int surface, int x, int y, int z)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx)
+		return;
+	ctx->player_pos[0] = x;
+	ctx->player_pos[1] = y;
+	ctx->player_pos[2] = z;
+}
+
+static void model_view_matrix(struct dungeon_context *ctx, mat4 mv_out)
+{
+	struct camera *camera = &ctx->camera;
+	float dist = 0.9f;
+	vec3 front = {
+		dist * sinf(camera->angle) * cosf(camera->angle_p),
+		dist * sinf(camera->angle_p),
+		dist * -cosf(camera->angle) * cosf(camera->angle_p),
 	};
-	glm_vec3_sub(camera->pos, d, eye_out);
-	vec3 up = {0.0, 1.0, 0.0};
-	glm_lookat(eye_out, camera->pos, up, mv_out);
+	if (ctx->version != DRAW_FIELD) {
+		// The actual camera position is slightly behind camera->pos.
+		vec3 eye;
+		glm_vec3_sub(camera->pos, front, eye);
+		glm_lookat(eye, camera->pos, GLM_YUP, mv_out);
+	} else {
+		vec3 target;
+		glm_vec3_add(camera->pos, front, target);
+		glm_lookat(camera->pos, target, GLM_YUP, mv_out);
+	}
 }
 
 static void dungeon_render(struct sact_sprite *sp)
@@ -279,23 +392,28 @@ static void dungeon_render(struct sact_sprite *sp)
 	if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		ERROR("Incomplete framebuffer");
 
-	glClearColor(0.f, 0.f, 0.f, 1.f);
+	glClearColor(ctx->dgn->back_color_r / 255.f, ctx->dgn->back_color_g / 255.f, ctx->dgn->back_color_b / 255.f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.f, 0.f, 0.f, 1.f);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
-	vec3 eye;
-	mat4 local_transform, view_transform, proj_transform;
-	glm_mat4_identity(local_transform);
-	model_view_matrix(&ctx->camera, eye, view_transform);
-	glm_perspective(M_PI / 3.0, (float)ctx->texture.w / ctx->texture.h, 0.5, 100.0, proj_transform);
+	mat4 view_transform;
+	model_view_matrix(ctx, view_transform);
 
-	int dgn_x = round(eye[0] / 2.0);
-	int dgn_y = round(eye[1] / 2.0);
-	int dgn_z = round(eye[2] / -2.0);
+	int dgn_x, dgn_y, dgn_z;
+	if (ctx->version == DRAW_FIELD) {
+		dgn_x = 0;
+		dgn_y = ctx->dgn->size_y - 1;
+		dgn_z = 0;
+	} else {
+		dgn_x = ctx->player_pos[0];
+		dgn_y = ctx->player_pos[1];
+		dgn_z = ctx->player_pos[2];
+	}
 	int nr_cells;
 	struct dgn_cell **cells = dgn_get_visible_cells(ctx->dgn, dgn_x, dgn_y, dgn_z, &nr_cells);
-	dungeon_renderer_render(ctx->renderer, cells, nr_cells, view_transform, proj_transform);
+	dungeon_renderer_render(ctx->renderer, cells, nr_cells, ctx->characters, view_transform, ctx->proj_transform);
 
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
@@ -323,6 +441,7 @@ static void neighbor_reveal(struct dungeon_context *ctx, int x, int y, int z)
 		}
 		break;
 	case DRAW_DUNGEON_14:
+	case DRAW_FIELD:
 		// do nothing
 		break;
 	}
@@ -333,16 +452,23 @@ void dungeon_set_walked(int surface, int x, int y, int z, int flag)
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx)
 		return;
-	dgn_cell_at(ctx->dgn, x, y, z)->walked = ctx->version == DRAW_DUNGEON_2 ? 3 : 1;
-	dungeon_map_reveal(ctx, x, y, z, false);
-	if (x > 0)
-		neighbor_reveal(ctx, x - 1, y, z);
-	if (x + 1u < ctx->dgn->size_x)
-		neighbor_reveal(ctx, x + 1, y, z);
-	if (z > 0)
-		neighbor_reveal(ctx, x, y, z - 1);
-	if (z + 1u < ctx->dgn->size_z)
-		neighbor_reveal(ctx, x, y, z + 1);
+	if (x < 0 || y < 0 || z < 0)
+		return;  // avoid VM_ERROR in Pastel Chime Continue
+	if (flag) {
+		dgn_cell_at(ctx->dgn, x, y, z)->walked = ctx->version == DRAW_DUNGEON_2 ? 3 : 1;
+		dungeon_map_reveal(ctx, x, y, z, false);
+		if (x > 0)
+			neighbor_reveal(ctx, x - 1, y, z);
+		if (x + 1u < ctx->dgn->size_x)
+			neighbor_reveal(ctx, x + 1, y, z);
+		if (z > 0)
+			neighbor_reveal(ctx, x, y, z - 1);
+		if (z + 1u < ctx->dgn->size_z)
+			neighbor_reveal(ctx, x, y, z + 1);
+	} else {
+		dgn_cell_at(ctx->dgn, x, y, z)->walked = 0;
+		dungeon_map_hide(ctx, x, y, z);
+	}
 }
 
 void dungeon_set_walked_all(int surface)
@@ -482,7 +608,7 @@ static bool dd2_load_walk_data(struct dungeon_context *ctx, struct page **page)
 	for (struct dgn_cell *c = ctx->dgn->cells; c < ctx->dgn->cells + nr_cells; c++) {
 		c->walked = array->values[ptr++].i;
 		if (c->walked)
-			dungeon_map_reveal(ctx, c->x, c->y, c->z, false);
+			dungeon_map_reveal(ctx, c->x, c->y, c->z, true);
 	}
 	return true;
 }
@@ -498,6 +624,8 @@ bool dungeon_load_walk_data(int surface, int map, struct page **page)
 		return dd1_load_walk_data(ctx, map, page);
 	case DRAW_DUNGEON_2:
 		return dd2_load_walk_data(ctx, page);
+	case DRAW_FIELD:
+		break;  // DrawField does not export LoadWalkData
 	}
 	return false;
 }
@@ -563,6 +691,8 @@ bool dungeon_save_walk_data(int surface, int map, struct page **page)
 		return dd1_save_walk_data(ctx, map, page);
 	case DRAW_DUNGEON_2:
 		return dd2_save_walk_data(ctx, page);
+	case DRAW_FIELD:
+		break;  // DrawField does not export SaveWalkData
 	}
 	return false;
 }
@@ -573,6 +703,49 @@ void dungeon_paint_step(int surface, int x, int y, int z)
 	if (!ctx || !ctx->dgn)
 		return;
 	dgn_paint_step(ctx->dgn, x, z);
+}
+
+void dungeon_set_chara_sprite(int surface, int num, int sprite)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->characters || num < 0 || num >= DRAWFIELD_NR_CHARACTERS)
+		return;
+	ctx->characters[num].sprite = sprite;
+}
+
+void dungeon_set_chara_pos(int surface, int num, float x, float y, float z)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->characters || num < 0 || num >= DRAWFIELD_NR_CHARACTERS)
+		return;
+	ctx->characters[num].pos[0] = x;
+	ctx->characters[num].pos[1] = y;
+	ctx->characters[num].pos[2] = -z;
+}
+
+void dungeon_set_chara_cg(int surface, int num, int cg)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->characters || num < 0 || num >= DRAWFIELD_NR_CHARACTERS)
+		return;
+	ctx->characters[num].cg_index = cg;
+}
+
+void dungeon_set_chara_cg_info(int surface, int num, int num_chara_x, int num_chara_y)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->characters || num < 0 || num >= DRAWFIELD_NR_CHARACTERS)
+		return;
+	ctx->characters[num].rows = num_chara_y;
+	ctx->characters[num].cols = num_chara_x;
+}
+
+void dungeon_set_chara_show(int surface, int num, bool show)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->characters || num < 0 || num >= DRAWFIELD_NR_CHARACTERS)
+		return;
+	ctx->characters[num].show = show;
 }
 
 static cJSON *dungeon_to_json(struct sact_sprite *sp, bool verbose)
