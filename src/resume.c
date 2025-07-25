@@ -969,6 +969,11 @@ static int write_rsave_image_comments(const char *key, const char *path, struct 
 		return 0;
 	}
 
+	// Comments were added in RSM v7, so if the save is older, upgrade it.
+	if (save->version <= 6) {
+		save->version = 7;
+	}
+
 	for (int i = 0; i < save->nr_comments; i++) {
 		free(save->comments[i]);
 	}
