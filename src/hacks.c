@@ -174,13 +174,6 @@ static void apply_rance6_hacks(struct ain *ain)
 	game_rance6_mg = true;
 }
 
-static void apply_rance7_hacks(struct ain *ain)
-{
-	if (ain_get_library(ain, "SengokuRanceFont") < 0)
-		return;
-	game_rance7_mg = true;
-}
-
 // Daibanchou (English fan translation)
 // ------------------------------------
 // Gpx2Plus.CopyStretchReduceAMap behaves differently in order to work around
@@ -202,12 +195,14 @@ void apply_game_specific_hacks(struct ain *ain)
 		apply_rance02_hacks(ain);
 	} else if (!strcmp(game_name, "Rance6")) {
 		apply_rance6_hacks(ain);
-	} else if (!strcmp(game_name, "Sengoku Rance")) {
-		apply_rance7_hacks(ain);
 	} else if (!strcmp(game_name, "ランス・クエスト") || !strcmp(game_name, "Rance Quest")) {
 		game_rance8 = true;
 	} else if (!strcmp(game_name, "ＤＵＮＧＥＯＮＳ＆ＤＯＬＬＳ")) {
 		game_dungeons_and_dolls = true;
 	}
 	free(game_name);
+
+	// XXX: we don't rely on game_name because mods change it
+	if (ain_get_library(ain, "SengokuRanceFont") >= 0)
+		game_rance7_mg = true;
 }
