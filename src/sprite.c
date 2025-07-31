@@ -378,8 +378,9 @@ void sprite_set_text_char_space(struct sact_sprite *sp, int px)
 
 void sprite_set_text_pos(struct sact_sprite *sp, int x, int y)
 {
+	if (sp->text.pos.y != y)
+		sp->text.current_line_height = 0;
 	sp->text.pos = (Point) { .x = x, .y = y };
-	sp->text.current_line_height = 0;
 	sprite_dirty(sp);
 }
 
