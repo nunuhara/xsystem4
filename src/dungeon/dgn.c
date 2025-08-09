@@ -73,7 +73,13 @@ struct dgn *dgn_parse(uint8_t *data, size_t size)
 		cell->west_door = buffer_read_int32(&r);
 		cell->stairs_texture = buffer_read_int32(&r);
 		cell->stairs_orientation = buffer_read_int32(&r);
-		buffer_skip(&r, 13 * 4);
+		cell->lightmap_floor = buffer_read_int32(&r);
+		cell->lightmap_ceiling = buffer_read_int32(&r);
+		cell->lightmap_north = buffer_read_int32(&r);
+		cell->lightmap_south = buffer_read_int32(&r);
+		cell->lightmap_east = buffer_read_int32(&r);
+		cell->lightmap_west = buffer_read_int32(&r);
+		buffer_skip(&r, 7 * 4);
 		cell->enterable = buffer_read_int32(&r);
 		cell->enterable_north = buffer_read_int32(&r);
 		cell->enterable_south = buffer_read_int32(&r);
@@ -544,6 +550,12 @@ struct dgn *dgn_generate_drawdungeon2(int level)
 			cell->west_door = -1;
 			cell->stairs_texture = -1;
 			cell->stairs_orientation = -1;
+			cell->lightmap_floor = -1;
+			cell->lightmap_ceiling = -1;
+			cell->lightmap_north = -1;
+			cell->lightmap_south = -1;
+			cell->lightmap_east = -1;
+			cell->lightmap_west = -1;
 			cell->enterable = 0;
 			cell->enterable_north = 0;
 			cell->enterable_south = 0;

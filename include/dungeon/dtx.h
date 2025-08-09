@@ -23,13 +23,18 @@
 struct cg;
 
 enum dtx_texture_type {
-	DTX_WALL = 0,
-	DTX_FLOOR = 1,
-	DTX_CEILING = 2,
-	DTX_STAIRS = 3,
-	DTX_DOOR = 4,
-	DTX_SKYBOX = 5,
+	// cell textures
+	DTX_WALL,
+	DTX_FLOOR,
+	DTX_CEILING,
+	DTX_STAIRS,
+	DTX_DOOR,
+	DTX_LIGHTMAP,
+	// skybox textures
+	DTX_SKYBOX,
 };
+
+#define DTX_NR_CELL_TEXTURE_TYPES (DTX_LIGHTMAP + 1)
 
 struct dtx_entry {
 	uint32_t size;
@@ -45,7 +50,7 @@ struct dtx {
 
 struct dtx *dtx_parse(uint8_t *data, size_t size);
 void dtx_free(struct dtx *dtx);
-struct cg *dtx_create_cg(struct dtx *dtx, int type, int index);
+struct cg *dtx_create_cg(struct dtx *dtx, enum dtx_texture_type type, int index);
 struct dtx *dtx_load_from_dtl(const char *path, uint32_t seed);
 
 #endif /* SYSTEM4_DTX_H */
