@@ -73,11 +73,23 @@ void dtx_free(struct dtx *dtx)
 	free(dtx);
 }
 
-struct cg *dtx_create_cg(struct dtx *dtx, int type, int index)
+struct cg *dtx_create_cg(struct dtx *dtx, enum dtx_texture_type type, int index)
 {
-	if (type < 0 || type >= dtx->nr_rows || index < 0 || index >= dtx->nr_columns)
+	int row;
+	switch (type) {
+	case DTX_WALL:     row = 0; break;
+	case DTX_FLOOR:    row = 1; break;
+	case DTX_CEILING:  row = 2; break;
+	case DTX_STAIRS:   row = 3; break;
+	case DTX_DOOR:     row = 4; break;
+	case DTX_SKYBOX:   row = 5; break;
+	case DTX_LIGHTMAP: row = dtx->version == 0 ? 6 : 7; break;
+	default:
 		return NULL;
-	struct dtx_entry *entry = &dtx->entries[type * dtx->nr_columns + index];
+	}
+	if (index < 0 || index >= dtx->nr_columns)
+		return NULL;
+	struct dtx_entry *entry = &dtx->entries[row * dtx->nr_columns + index];
 	if (!entry->data)
 		return NULL;
 	return cg_load_buffer(entry->data, entry->size);

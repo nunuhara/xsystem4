@@ -45,7 +45,13 @@ struct dgn_cell {
 	int32_t west_door;
 	int32_t stairs_texture;
 	int32_t stairs_orientation;
-	// int32_t unknown[13];
+	int32_t lightmap_floor;
+	int32_t lightmap_ceiling;
+	int32_t lightmap_north;
+	int32_t lightmap_south;
+	int32_t lightmap_east;
+	int32_t lightmap_west;
+	// int32_t unknown[7];
 	int32_t enterable;
 	int32_t enterable_north;
 	int32_t enterable_south;
