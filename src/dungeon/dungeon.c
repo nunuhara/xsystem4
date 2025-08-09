@@ -411,7 +411,7 @@ enum {
 static int dd1_find_walk_data(struct page *array, int map_no, struct dgn *dgn)
 {
 	if (!array)
-		return WALK_DATA_BROKEN;
+		return WALK_DATA_NOT_FOUND;
 	if (array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->array.rank != 1)
 		VM_ERROR("Not a flat integer array");
 
@@ -446,7 +446,7 @@ static bool dd1_load_walk_data(struct dungeon_context *ctx, int map, struct page
 
 	int offset = dd1_find_walk_data(array, map, ctx->dgn);
 	if (offset < 0)
-		return false;
+		return offset != WALK_DATA_BROKEN;
 
 	offset += 4;
 	int nr_cells = dgn_nr_cells(ctx->dgn);
@@ -494,12 +494,12 @@ bool dungeon_load_walk_data(int surface, int map, struct page **page)
 		return false;
 	switch (ctx->version) {
 	case DRAW_DUNGEON_1:
+	case DRAW_DUNGEON_14:
 		return dd1_load_walk_data(ctx, map, page);
 	case DRAW_DUNGEON_2:
 		return dd2_load_walk_data(ctx, page);
-	default:
-		return false;
 	}
+	return false;
 }
 
 static bool dd1_save_walk_data(struct dungeon_context *ctx, int map, struct page **page)
@@ -559,12 +559,12 @@ bool dungeon_save_walk_data(int surface, int map, struct page **page)
 		return false;
 	switch (ctx->version) {
 	case DRAW_DUNGEON_1:
+	case DRAW_DUNGEON_14:
 		return dd1_save_walk_data(ctx, map, page);
 	case DRAW_DUNGEON_2:
 		return dd2_save_walk_data(ctx, page);
-	default:
-		return false;
 	}
+	return false;
 }
 
 void dungeon_paint_step(int surface, int x, int y, int z)
