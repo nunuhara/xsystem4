@@ -31,6 +31,11 @@
 #include "dungeon/skybox.h"
 #include "gfx/gfx.h"
 
+enum {
+	COLOR_TEXTURE_UNIT,
+	LIGHT_TEXTURE_UNIT,
+};
+
 struct marker_info {
 	int event_type;
 	int texture_index;
@@ -105,7 +110,9 @@ struct dungeon_renderer {
 	// Uniform variable locations
 	GLint local_transform;
 	GLint proj_transform;
-	GLuint alpha_mod;
+	GLint alpha_mod;
+	GLint use_lightmap;
+	GLint light_texture;
 
 	struct geometry *wall_geometry;
 	struct geometry *door_left_geometry;
@@ -387,6 +394,8 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 	r->local_transform = glGetUniformLocation(r->shader.program, "local_transform");
 	r->proj_transform = glGetUniformLocation(r->shader.program, "proj_transform");
 	r->alpha_mod = glGetUniformLocation(r->shader.program, "alpha_mod");
+	r->use_lightmap = glGetUniformLocation(r->shader.program, "use_lightmap");
+	r->light_texture = glGetUniformLocation(r->shader.program, "light_texture");
 
 	r->wall_geometry = geometry_create(r, wall_vertices, sizeof(wall_vertices), GL_TRIANGLE_STRIP);
 	r->door_left_geometry = geometry_create(r, door_left_vertices, sizeof(door_left_vertices), GL_TRIANGLE_STRIP);
@@ -395,9 +404,8 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 	r->stairs_geometry = geometry_create(r, stairs_vertices, sizeof(stairs_vertices), GL_TRIANGLE_STRIP);
 	r->floating_marker_geometry = geometry_create(r, floating_marker_vertices, sizeof(floating_marker_vertices), GL_TRIANGLE_STRIP);
 
-	const int nr_types = DTX_DOOR + 1;
-	r->materials = xcalloc(nr_types * dtx->nr_columns, sizeof(struct material));
-	for (int type = 0; type < nr_types; type++) {
+	r->materials = xcalloc(DTX_NR_CELL_TEXTURE_TYPES * dtx->nr_columns, sizeof(struct material));
+	for (int type = 0; type < DTX_NR_CELL_TEXTURE_TYPES; type++) {
 		for (int i = 0; i < dtx->nr_columns; i++) {
 			struct cg *cg = dtx_create_cg(dtx, type, i);
 			if (!cg)
@@ -407,7 +415,7 @@ struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version versi
 		}
 	}
 	r->nr_dtx_columns = dtx->nr_columns;
-	r->nr_materials = nr_types * dtx->nr_columns;
+	r->nr_materials = DTX_NR_CELL_TEXTURE_TYPES * dtx->nr_columns;
 
 	r->event_textures = event_textures;
 	r->nr_event_textures = nr_event_textures;
@@ -460,14 +468,25 @@ void dungeon_renderer_free(struct dungeon_renderer *r)
 	free(r);
 }
 
+static void set_lightmap_texture(struct dungeon_renderer *r, int texture_index)
+{
+	struct material *material = texture_index >= 0 ? get_material(r, DTX_LIGHTMAP, texture_index) : NULL;
+	glUniform1i(r->use_lightmap, !!material);
+	if (material) {
+		glActiveTexture(GL_TEXTURE0 + LIGHT_TEXTURE_UNIT);
+		glBindTexture(GL_TEXTURE_2D, material->texture);
+		glUniform1i(r->light_texture, LIGHT_TEXTURE_UNIT);
+	}
+}
+
 static void draw(struct dungeon_renderer *r, struct geometry *geometry, GLuint texture, mat4 transform)
 {
 	glUseProgram(r->shader.program);
 	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, transform[0]);
 
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0 + COLOR_TEXTURE_UNIT);
 	glBindTexture(GL_TEXTURE_2D, texture);
-	glUniform1i(r->shader.texture, 0);
+	glUniform1i(r->shader.texture, COLOR_TEXTURE_UNIT);
 
 	glBindVertexArray(geometry->vao);
 	glDrawArrays(geometry->mode, 0, geometry->nr_vertices);
@@ -583,7 +602,9 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 				0,  0,  1,  y-1,
 				0, -1,  0,  z,
 				0,  0,  0,  1);
+			set_lightmap_texture(r, cell->lightmap_floor);
 			draw(r, r->wall_geometry, material->texture, m);
+			set_lightmap_texture(r, -1);
 		}
 	}
 	if (cell->ceiling >= 0) {
@@ -594,7 +615,9 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 				 0,  0, -1,  y+1,
 				 0, -1,  0,  z,
 				 0,  0,  0,  1);
+			set_lightmap_texture(r, cell->lightmap_ceiling);
 			draw(r, r->wall_geometry, material->texture, m);
+			set_lightmap_texture(r, -1);
 		}
 	}
 	if (cell->north_wall >= 0) {
@@ -605,7 +628,9 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 				 0,  1,  0,  y,
 				 0,  0,  1,  z-1,
 				 0,  0,  0,  1);
+			set_lightmap_texture(r, cell->lightmap_north);
 			draw(r, r->wall_geometry, material->texture, m);
+			set_lightmap_texture(r, -1);
 		}
 	}
 	if (cell->south_wall >= 0) {
@@ -616,7 +641,9 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 				 0,  1,  0,  y,
 				 0,  0, -1,  z+1,
 				 0,  0,  0,  1);
+			set_lightmap_texture(r, cell->lightmap_south);
 			draw(r, r->wall_geometry, material->texture, m);
+			set_lightmap_texture(r, -1);
 		}
 	}
 	if (cell->east_wall >= 0) {
@@ -627,7 +654,9 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 				 0,  1,  0,  y,
 				 1,  0,  0,  z,
 				 0,  0,  0,  1);
+			set_lightmap_texture(r, cell->lightmap_east);
 			draw(r, r->wall_geometry, material->texture, m);
+			set_lightmap_texture(r, -1);
 		}
 	}
 	if (cell->west_wall >= 0) {
@@ -638,7 +667,9 @@ static void draw_cell(struct dungeon_renderer *r, struct dgn_cell *cell, bool re
 				 0,  1,  0,  y,
 				-1,  0,  0,  z,
 				 0,  0,  0,  1);
+			set_lightmap_texture(r, cell->lightmap_west);
 			draw(r, r->wall_geometry, material->texture, m);
+			set_lightmap_texture(r, -1);
 		}
 	}
 	if (cell->north_door >= 0) {
@@ -737,6 +768,7 @@ void dungeon_renderer_render(struct dungeon_renderer *r, struct dgn_cell **cells
 	glUniformMatrix4fv(r->shader.view_transform, 1, GL_FALSE, view_transform[0]);
 	glUniformMatrix4fv(r->proj_transform, 1, GL_FALSE, proj_transform[0]);
 	glUniform1f(r->alpha_mod, 1.0);
+	glUniform1i(r->use_lightmap, 0);
 
 	// Render opaque objects, from near to far.
 	glDisable(GL_BLEND);
