@@ -281,6 +281,289 @@ struct dgn_cell **dgn_get_visible_cells(struct dgn *dgn, int x, int y, int z, in
 		return dgn_get_visible_cells_nopvs(dgn, x, y, z, nr_cells_out);
 }
 
+#define LM_N (1 << 0)
+#define LM_S (1 << 1)
+#define LM_W (1 << 2)
+#define LM_E (1 << 3)
+#define LM_NW (1 << 4)
+#define LM_NE (1 << 5)
+#define LM_SW (1 << 6)
+#define LM_SE (1 << 7)
+
+static int lightmap_texture_index(uint8_t flags)
+{
+	if (flags & LM_N || flags & LM_W) flags &= ~LM_NW;
+	if (flags & LM_N || flags & LM_E) flags &= ~LM_NE;
+	if (flags & LM_S || flags & LM_W) flags &= ~LM_SW;
+	if (flags & LM_S || flags & LM_E) flags &= ~LM_SE;
+
+	switch (flags) {
+	case LM_N | LM_W | LM_E: return 0;
+	case LM_W | LM_E: return 1;
+	case LM_S | LM_W | LM_E: return 2;
+	case LM_N | LM_S | LM_W: return 3;
+	case LM_N | LM_S: return 4;
+	case LM_N | LM_S | LM_E: return 5;
+	case LM_N | LM_W: return 6;
+	case LM_N: return 7;
+	case LM_N | LM_E: return 8;
+	case LM_W: return 9;
+	case LM_E: return 10;
+	case LM_S | LM_W: return 11;
+	case LM_S: return 12;
+	case LM_S | LM_E: return 13;
+	case LM_N | LM_S | LM_W | LM_E: return 14;
+	case LM_W | LM_NE | LM_SE: return 15;
+	case LM_N | LM_SW | LM_SE: return 16;
+	case LM_E | LM_NW | LM_SW: return 17;
+	case LM_S | LM_NW | LM_NE: return 18;
+	case LM_NW | LM_NE | LM_SW | LM_SE: return 19;
+	case LM_W | LM_NE: return 20;
+	case LM_N | LM_SE: return 21;
+	case LM_E | LM_SW: return 22;
+	case LM_S | LM_NW: return 23;
+	case LM_NE: return 24;
+	case LM_W | LM_SE: return 25;
+	case LM_N | LM_SW: return 26;
+	case LM_E | LM_NW: return 27;
+	case LM_S | LM_NE: return 28;
+	case LM_SE: return 29;
+	case LM_NE | LM_SE: return 30;
+	case LM_SW | LM_SE: return 31;
+	case LM_NW | LM_SW: return 32;
+	case LM_NW | LM_NE: return 33;
+	case LM_SW: return 34;
+	case LM_NW: return 35;
+	case LM_N | LM_W | LM_SE: return 36;
+	case LM_N | LM_E | LM_SW: return 37;
+	case LM_S | LM_E | LM_NW: return 38;
+	case LM_S | LM_W | LM_NE: return 39;
+	case LM_NW | LM_NE | LM_SW: return 40;
+	case LM_NW | LM_NE | LM_SE: return 41;
+	case LM_NE | LM_SW | LM_SE: return 42;
+	case LM_NW | LM_SW | LM_SE: return 43;
+	case LM_NE | LM_SW: return 44;
+	case LM_NW | LM_SE: return 45;
+	default: return -1;
+	};
+}
+
+static int calc_floor_lightmap(struct dgn *dgn, struct dgn_cell *cell,
+	struct dgn_cell *north_cell, struct dgn_cell *south_cell,
+	struct dgn_cell *west_cell, struct dgn_cell *east_cell)
+{
+	if (cell->floor == -1)
+		return -1;
+
+	uint8_t flags = 0;
+	if (cell->north_wall != -1 || cell->north_door != -1 ||
+		(north_cell && north_cell->stairs_texture != -1 && north_cell->stairs_orientation == 0))
+		flags |= LM_N;
+	if (cell->south_wall != -1 || cell->south_door != -1 ||
+		(south_cell && south_cell->stairs_texture != -1 && south_cell->stairs_orientation == 2))
+		flags |= LM_S;
+	if (cell->west_wall != -1 || cell->west_door != -1 ||
+		(west_cell && west_cell->stairs_texture != -1 && west_cell->stairs_orientation == 1))
+		flags |= LM_W;
+	if (cell->east_wall != -1 || cell->east_door != -1 ||
+		(east_cell && east_cell->stairs_texture != -1 && east_cell->stairs_orientation == 3))
+		flags |= LM_E;
+	if ((north_cell && (north_cell->west_wall != -1 || north_cell->west_door != -1)) ||
+		(west_cell && (west_cell->north_wall != -1 || west_cell->north_door != -1)))
+		flags |= LM_NW;
+	if ((north_cell && (north_cell->east_wall != -1 || north_cell->east_door != -1)) ||
+		(east_cell && (east_cell->north_wall != -1 || east_cell->north_door != -1)))
+		flags |= LM_NE;
+	if ((south_cell && (south_cell->west_wall != -1 || south_cell->west_door != -1)) ||
+		(west_cell && (west_cell->south_wall != -1 || west_cell->south_door != -1)))
+		flags |= LM_SW;
+	if ((south_cell && (south_cell->east_wall != -1 || south_cell->east_door != -1)) ||
+		(east_cell && (east_cell->south_wall != -1 || east_cell->south_door != -1)))
+		flags |= LM_SE;
+	return lightmap_texture_index(flags);
+}
+
+static int calc_ceiling_lightmap(struct dgn *dgn, struct dgn_cell *cell,
+	struct dgn_cell *north_cell, struct dgn_cell *south_cell,
+	struct dgn_cell *west_cell, struct dgn_cell *east_cell)
+{
+	if (cell->ceiling == -1)
+		return -1;
+
+	uint8_t flags = 0;
+	if (cell->north_wall != -1 || cell->north_door != -1)
+		flags |= LM_N;
+	if (cell->south_wall != -1 || cell->south_door != -1)
+		flags |= LM_S;
+	if (cell->west_wall != -1 || cell->west_door != -1)
+		flags |= LM_E;
+	if (cell->east_wall != -1 || cell->east_door != -1)
+		flags |= LM_W;
+	if ((north_cell && (north_cell->east_wall != -1 || north_cell->east_door != -1)) ||
+		(east_cell && (east_cell->north_wall != -1 || east_cell->north_door != -1)))
+		flags |= LM_NW;
+	if ((north_cell && (north_cell->west_wall != -1 || north_cell->west_door != -1)) ||
+		(west_cell && (west_cell->north_wall != -1 || west_cell->north_door != -1)))
+		flags |= LM_NE;
+	if ((south_cell && (south_cell->east_wall != -1 || south_cell->east_door != -1)) ||
+		(east_cell && (east_cell->south_wall != -1 || east_cell->south_door != -1)))
+		flags |= LM_SW;
+	if ((south_cell && (south_cell->west_wall != -1 || south_cell->west_door != -1)) ||
+		(west_cell && (west_cell->south_wall != -1 || west_cell->south_door != -1)))
+		flags |= LM_SE;
+	return lightmap_texture_index(flags);
+}
+
+static int calc_north_lightmap(struct dgn *dgn, struct dgn_cell *cell,
+	struct dgn_cell *up_cell, struct dgn_cell *down_cell,
+	struct dgn_cell *west_cell, struct dgn_cell *east_cell)
+{
+	if (cell->north_wall == -1)
+		return -1;
+
+	uint8_t flags = 0;
+	if (cell->ceiling != -1)
+		flags |= LM_N;
+	if (cell->floor != -1)
+		flags |= LM_S;
+	if (cell->west_wall != -1 || cell->west_door != -1)
+		flags |= LM_W;
+	if (cell->east_wall != -1 || cell->east_door != -1)
+		flags |= LM_E;
+	if ((up_cell && (up_cell->west_wall != -1 || up_cell->west_door != -1)) ||
+		(west_cell && (west_cell->ceiling != -1)))
+		flags |= LM_NW;
+	if ((up_cell && (up_cell->east_wall != -1 || up_cell->east_door != -1)) ||
+		(east_cell && (east_cell->ceiling != -1)))
+		flags |= LM_NE;
+	if ((down_cell && (down_cell->west_wall != -1 || down_cell->west_door != -1)) ||
+		(west_cell && (west_cell->floor != -1)))
+		flags |= LM_SW;
+	if ((down_cell && (down_cell->east_wall != -1 || down_cell->east_door != -1)) ||
+		(east_cell && (east_cell->floor != -1)))
+		flags |= LM_SE;
+	return lightmap_texture_index(flags);
+}
+
+static int calc_south_lightmap(struct dgn *dgn, struct dgn_cell *cell,
+	struct dgn_cell *up_cell, struct dgn_cell *down_cell,
+	struct dgn_cell *west_cell, struct dgn_cell *east_cell)
+{
+	if (cell->south_wall == -1)
+		return -1;
+
+	uint8_t flags = 0;
+	if (cell->ceiling != -1)
+		flags |= LM_N;
+	if (cell->floor != -1)
+		flags |= LM_S;
+	if (cell->east_wall != -1 || cell->east_door != -1)
+		flags |= LM_W;
+	if (cell->west_wall != -1 || cell->west_door != -1)
+		flags |= LM_E;
+	if ((up_cell && (up_cell->east_wall != -1 || up_cell->east_door != -1)) ||
+		(east_cell && (east_cell->ceiling != -1)))
+		flags |= LM_NW;
+	if ((up_cell && (up_cell->west_wall != -1 || up_cell->west_door != -1)) ||
+		(west_cell && (west_cell->ceiling != -1)))
+		flags |= LM_NE;
+	if ((down_cell && (down_cell->east_wall != -1 || down_cell->east_door != -1)) ||
+		(east_cell && (east_cell->floor != -1)))
+		flags |= LM_SW;
+	if ((down_cell && (down_cell->west_wall != -1 || down_cell->west_door != -1)) ||
+		(west_cell && (west_cell->floor != -1)))
+		flags |= LM_SE;
+	return lightmap_texture_index(flags);
+}
+
+static int calc_west_lightmap(struct dgn *dgn, struct dgn_cell *cell,
+	struct dgn_cell *up_cell, struct dgn_cell *down_cell,
+	struct dgn_cell *north_cell, struct dgn_cell *south_cell)
+{
+	if (cell->west_wall == -1)
+		return -1;
+
+	uint8_t flags = 0;
+	if (cell->ceiling != -1)
+		flags |= LM_N;
+	if (cell->floor != -1)
+		flags |= LM_S;
+	if (cell->south_wall != -1 || cell->south_door != -1)
+		flags |= LM_W;
+	if (cell->north_wall != -1 || cell->north_door != -1)
+		flags |= LM_E;
+	if ((up_cell && (up_cell->south_wall != -1 || up_cell->south_door != -1)) ||
+		(south_cell && (south_cell->ceiling != -1)))
+		flags |= LM_NW;
+	if ((up_cell && (up_cell->north_wall != -1 || up_cell->north_door != -1)) ||
+		(north_cell && (north_cell->ceiling != -1)))
+		flags |= LM_NE;
+	if ((down_cell && (down_cell->south_wall != -1 || down_cell->south_door != -1)) ||
+		(south_cell && (south_cell->floor != -1)))
+		flags |= LM_SW;
+	if ((down_cell && (down_cell->north_wall != -1 || down_cell->north_door != -1)) ||
+		(north_cell && (north_cell->floor != -1)))
+		flags |= LM_SE;
+	return lightmap_texture_index(flags);
+}
+
+static int calc_east_lightmap(struct dgn *dgn, struct dgn_cell *cell,
+	struct dgn_cell *up_cell, struct dgn_cell *down_cell,
+	struct dgn_cell *north_cell, struct dgn_cell *south_cell)
+{
+	if (cell->east_wall == -1)
+		return -1;
+
+	uint8_t flags = 0;
+	if (cell->ceiling != -1)
+		flags |= LM_N;
+	if (cell->floor != -1)
+		flags |= LM_S;
+	if (cell->north_wall != -1 || cell->north_door != -1)
+		flags |= LM_W;
+	if (cell->south_wall != -1 || cell->south_door != -1)
+		flags |= LM_E;
+	if ((up_cell && (up_cell->north_wall != -1 || up_cell->north_door != -1)) ||
+		(north_cell && (north_cell->ceiling != -1)))
+		flags |= LM_NW;
+	if ((up_cell && (up_cell->south_wall != -1 || up_cell->south_door != -1)) ||
+		(south_cell && (south_cell->ceiling != -1)))
+		flags |= LM_NE;
+	if ((down_cell && (down_cell->north_wall != -1 || down_cell->north_door != -1)) ||
+		(north_cell && (north_cell->floor != -1)))
+		flags |= LM_SW;
+	if ((down_cell && (down_cell->south_wall != -1 || down_cell->south_door != -1)) ||
+		(south_cell && (south_cell->floor != -1)))
+		flags |= LM_SE;
+	return lightmap_texture_index(flags);
+}
+
+void dgn_calc_lightmap(struct dgn *dgn)
+{
+	int nr_cells = dgn_nr_cells(dgn);
+	for (int i = 0; i < nr_cells; i++) {
+		struct dgn_cell *cell = &dgn->cells[i];
+		struct dgn_cell *north = cell->z + 1 < dgn->size_z
+			? dgn_cell_at(dgn, cell->x, cell->y, cell->z + 1) : NULL;
+		struct dgn_cell *south = cell->z > 0
+			? dgn_cell_at(dgn, cell->x, cell->y, cell->z - 1) : NULL;
+		struct dgn_cell *west = cell->x > 0
+			? dgn_cell_at(dgn, cell->x - 1, cell->y, cell->z) : NULL;
+		struct dgn_cell *east = cell->x + 1 < dgn->size_x
+			? dgn_cell_at(dgn, cell->x + 1, cell->y, cell->z) : NULL;
+		struct dgn_cell *up = cell->y + 1 < dgn->size_y
+			? dgn_cell_at(dgn, cell->x, cell->y + 1, cell->z) : NULL;
+		struct dgn_cell *down = cell->y > 0
+			? dgn_cell_at(dgn, cell->x, cell->y - 1, cell->z) : NULL;
+		cell->lightmap_floor = calc_floor_lightmap(dgn, cell, north, south, west, east);
+		cell->lightmap_ceiling = calc_ceiling_lightmap(dgn, cell, north, south, west, east);
+		cell->lightmap_north = calc_north_lightmap(dgn, cell, up, down, west, east);
+		cell->lightmap_south = calc_south_lightmap(dgn, cell, up, down, west, east);
+		cell->lightmap_west = calc_west_lightmap(dgn, cell, up, down, north, south);
+		cell->lightmap_east = calc_east_lightmap(dgn, cell, up, down, north, south);
+	}
+}
+
 #define DD2_MAP_WIDTH 18
 #define DD2_MAP_HEIGHT 18
 typedef char dd2_map[DD2_MAP_WIDTH+1][DD2_MAP_HEIGHT+1];  // +1 to prevent OOB access
@@ -604,6 +887,7 @@ struct dgn *dgn_generate_drawdungeon2(int level)
 				cell->north_wall = wall_texture(map[x - 1][z + 1], map[x + 1][z + 1], x, z, 1);
 		}
 	}
+	dgn_calc_lightmap(dgn);
 	return dgn;
 }
 

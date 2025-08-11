@@ -144,6 +144,7 @@ static inline bool dgn_is_in_map(struct dgn *dgn, uint32_t x, uint32_t y, uint32
 
 // Returns a list of cells visible from (x, y, z), sorted by distance from (x, y, z).
 struct dgn_cell **dgn_get_visible_cells(struct dgn *dgn, int x, int y, int z, int *nr_cells_out);
+void dgn_calc_lightmap(struct dgn *dgn);
 
 struct dgn *dgn_generate_drawdungeon2(int level);
 void dgn_paint_step(struct dgn *dgn, int x, int y);

@@ -27,6 +27,8 @@
 #include "dungeon/dtx.h"
 #include "dungeon/mtrand43.h"
 
+#define DTX_VERSION_DTL 0xffffffff
+
 struct dtx *dtx_parse(uint8_t *data, size_t size)
 {
 	struct buffer r;
@@ -76,18 +78,42 @@ void dtx_free(struct dtx *dtx)
 struct cg *dtx_create_cg(struct dtx *dtx, enum dtx_texture_type type, int index)
 {
 	int row;
-	switch (type) {
-	case DTX_WALL:     row = 0; break;
-	case DTX_FLOOR:    row = 1; break;
-	case DTX_CEILING:  row = 2; break;
-	case DTX_STAIRS:   row = 3; break;
-	case DTX_DOOR:     row = 4; break;
-	case DTX_SKYBOX:   row = 5; break;
-	case DTX_LIGHTMAP: row = dtx->version == 0 ? 6 : 7; break;
-	default:
-		return NULL;
+	switch (dtx->version) {
+	case 0:
+		switch (type) {
+		case DTX_WALL:     row = 0; break;
+		case DTX_FLOOR:    row = 1; break;
+		case DTX_CEILING:  row = 2; break;
+		case DTX_STAIRS:   row = 3; break;
+		case DTX_DOOR:     row = 4; break;
+		case DTX_SKYBOX:   row = 5; break;
+		case DTX_LIGHTMAP: row = 6; break;
+		default: return NULL;
+		}
+		break;
+	case 1:
+		switch (type) {
+		case DTX_WALL:     row = 0; break;
+		case DTX_FLOOR:    row = 1; break;
+		case DTX_CEILING:  row = 2; break;
+		case DTX_STAIRS:   row = 3; break;
+		case DTX_DOOR:     row = 4; break;
+		case DTX_SKYBOX:   row = 5; break;
+		case DTX_LIGHTMAP: row = 7; break;
+		default: return NULL;
+		}
+		break;
+	case DTX_VERSION_DTL:
+		switch (type) {
+		case DTX_WALL:     row = 0; break;
+		case DTX_FLOOR:    row = 1; break;
+		case DTX_CEILING:  row = 2; break;
+		case DTX_LIGHTMAP: row = 3; break;
+		default: return NULL;
+		}
+		break;
 	}
-	if (index < 0 || index >= dtx->nr_columns)
+	if (row >= dtx->nr_rows || index < 0 || index >= dtx->nr_columns)
 		return NULL;
 	struct dtx_entry *entry = &dtx->entries[row * dtx->nr_columns + index];
 	if (!entry->data)
@@ -129,8 +155,9 @@ struct dtx *dtx_load_from_dtl(const char *path, uint32_t seed)
 	}
 
 	dtx = xcalloc(1, sizeof(struct dtx));
-	dtx->nr_rows = 3;
-	dtx->nr_columns = 8;
+	dtx->version = DTX_VERSION_DTL;
+	dtx->nr_rows = 4;
+	dtx->nr_columns = 46;  // number of lightmap textures
 	dtx->entries = xcalloc(dtx->nr_rows * dtx->nr_columns, sizeof(struct dtx_entry));
 	uint8_t buf[4];
 	for (int row = 0; row < dtx->nr_rows; row++) {
