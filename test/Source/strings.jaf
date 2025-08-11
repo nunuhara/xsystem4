@@ -84,6 +84,7 @@ void test_strings(void)
 	test_string("abc%8.2Fdef % 12.3", "abc%8.2Fdef" % 12.3, "abcÅ@Å@Å@ÇPÇQÅDÇRÇOFdef");
 	// string
 	test_string("abc%sdef % \"Ç†Ç¢Ç§\"", "abc%sdef" % "Ç†Ç¢Ç§", "abcÇ†Ç¢Ç§def");
+	test_string("(%8s) % \"Ç†b\"", "(%8s)" % "Ç†b", "(     Ç†b)");
 	// char
 	test_string("abc%cdef % 'Ç†'", "abc%cdef" % 'Ç†', "abcÇ†def");
 	// bool
