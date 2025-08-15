@@ -145,10 +145,18 @@ static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value 
 		len = float_to_cstr(buf, DIGIT_MAX, arg.f, spec->padding, spec->zero_pad, spec->precision, spec->zenkaku);
 		string_append_cstr(s, buf, len);
 		break;
-	case FMT_STRING:
-		string_append(s, heap_get_string(arg.i));
+	case FMT_STRING: {
+		struct string *val = heap_get_string(arg.i);
+		int pad_len = spec->padding - val->size;
+		if (pad_len > 0) {
+			for (int i = 0; i < pad_len; i++) {
+				string_push_back(s, ' ');
+			}
+		}
+		string_append(s, val);
 		heap_unref(arg.i);
 		break;
+	}
 	case FMT_CHAR:
 		string_push_back(s, arg.i);
 		break;
