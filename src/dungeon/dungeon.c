@@ -30,6 +30,7 @@
 #include "dungeon/dgn.h"
 #include "dungeon/dtx.h"
 #include "dungeon/dungeon.h"
+#include "dungeon/generator.h"
 #include "dungeon/map.h"
 #include "dungeon/polyobj.h"
 #include "dungeon/renderer.h"

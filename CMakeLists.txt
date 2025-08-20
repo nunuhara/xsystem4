@@ -86,6 +86,7 @@ target_sources(xsystem4 PRIVATE
   src/dungeon/dgn.c
   src/dungeon/dtx.c
   src/dungeon/dungeon.c
+  src/dungeon/generator.c
   src/dungeon/map.c
   src/dungeon/mtrand43.c
   src/dungeon/polyobj.c
