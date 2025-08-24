@@ -101,6 +101,7 @@ int sact_Joypad_IsKeyDown(int num, int key);
 bool sact_Joypad_GetAnalogStickStatus(int num, int type, float *degree, float *power);
 bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *right, bool *up, bool *down);
 int sact_Key_ClearFlag(void);
+void sact_Key_ClearFlagNoCtrl(void);
 int sact_Key_IsDown(int keycode);
 int sact_CG_IsExist(int cg_no);
 void sact_System_GetDate(int *year, int *month, int *mday, int *wday);

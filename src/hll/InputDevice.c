@@ -36,7 +36,7 @@ HLL_WARN_UNIMPLEMENTED( , void, InputDevice, Init, void *imainsystem);
 
 void InputDevice_ClearKeyDownFlag(void)
 {
-	key_clear_flag();
+	key_clear_flag(false);
 }
 
 static int InputDevice_IsKeyDown(int key)
