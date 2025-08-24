@@ -407,6 +407,7 @@ void hll_call(int libno, int fno)
 }
 
 extern struct static_library lib_ACXLoader;
+extern struct static_library lib_ACXLoaderP2;
 extern struct static_library lib_ADVSYS;
 extern struct static_library lib_AliceLogo;
 extern struct static_library lib_AliceLogo2;
@@ -439,6 +440,7 @@ extern struct static_library lib_DrawGraph;
 extern struct static_library lib_DrawMovie;
 extern struct static_library lib_DrawMovie2;
 extern struct static_library lib_DrawMovie3;
+extern struct static_library lib_DrawNumeral;
 extern struct static_library lib_DrawPluginManager;
 extern struct static_library lib_DrawRain;
 extern struct static_library lib_DrawRipple;
@@ -468,6 +470,7 @@ extern struct static_library lib_MonsterInfo;
 extern struct static_library lib_MsgLogManager;
 extern struct static_library lib_MsgLogViewer;
 extern struct static_library lib_MsgSkip;
+extern struct static_library lib_MusicSystem;
 extern struct static_library lib_NewFont;
 extern struct static_library lib_OutputLog;
 extern struct static_library lib_PassRegister;
@@ -517,6 +520,7 @@ extern struct static_library lib_VSFile;
 
 static struct static_library *static_libraries[] = {
 	&lib_ACXLoader,
+	&lib_ACXLoaderP2,
 	&lib_ADVSYS,
 	&lib_AliceLogo,
 	&lib_AliceLogo2,
@@ -549,6 +553,7 @@ static struct static_library *static_libraries[] = {
 	&lib_DrawMovie,
 	&lib_DrawMovie2,
 	&lib_DrawMovie3,
+	&lib_DrawNumeral,
 	&lib_DrawPluginManager,
 	&lib_DrawRain,
 	&lib_DrawRipple,
@@ -578,6 +583,7 @@ static struct static_library *static_libraries[] = {
 	&lib_MsgLogManager,
 	&lib_MsgLogViewer,
 	&lib_MsgSkip,
+	&lib_MusicSystem,
 	&lib_NewFont,
 	&lib_OutputLog,
 	&lib_PassRegister,

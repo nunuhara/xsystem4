@@ -132,6 +132,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/DrawEffect.c
   src/hll/DrawGraph.c
   src/hll/DrawMovie.c
+  src/hll/DrawNumeral.c
   src/hll/DrawPluginManager.c
   src/hll/DrawRain.c
   src/hll/DrawRipple.c
@@ -162,6 +163,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/MsgLogManager.c
   src/hll/MsgLogViewer.c
   src/hll/MsgSkip.c
+  src/hll/MusicSystem.c
   src/hll/NewFont.c
   src/hll/OutputLog.c
   src/hll/PassRegister.c
