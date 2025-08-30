@@ -109,8 +109,9 @@ static void prepare_chipmunk_shader(struct gfx_render_job *job, void *data)
 		r = (Rectangle) { 0, 0, sp->rect.w, sp->rect.h };
 	}
 
-	glUniform2f(s->bot_left, r.x, r.y);
-	glUniform2f(s->top_right, r.x + r.w, r.y + r.h);
+	int sy_bottom = sp->rect.h - (r.y + r.h);
+	glUniform2f(s->bot_left,  r.x, sy_bottom);
+	glUniform2f(s->top_right, r.x + r.w, sy_bottom + r.h);
 }
 
 void sprite_init_sact(void)
