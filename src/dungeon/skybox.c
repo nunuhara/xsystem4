@@ -36,8 +36,8 @@ struct skybox {
 
 struct skybox *skybox_create(enum draw_dungeon_version version, struct dtx *dtx)
 {
-	if (version == DRAW_DUNGEON_2) {
-		// Skybox is not used in Dungeons & Dolls.
+	if (version == DRAW_DUNGEON_2 || version == DRAW_FIELD) {
+		// Skybox is not used in these games.
 		return NULL;
 	};
 

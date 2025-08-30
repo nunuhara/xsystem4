@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <cglm/cglm.h>
 
 /*
  * Dungeon data is a collection of cells indexed by three integers (x, y, z).
@@ -92,6 +93,10 @@ struct dgn_cell {
 	float south_door_angle;
 	float east_door_angle;
 	float west_door_angle;
+	int north_door_lock;
+	int south_door_lock;
+	int east_door_lock;
+	int west_door_lock;
 	int32_t floor_event2;
 	int32_t north_event2;
 	int32_t south_event2;
@@ -113,19 +118,28 @@ struct packed_pvs {
 };
 
 struct dgn {
-	uint32_t version; // 10: Rance VI, 13: GALZOO Island
+	uint32_t version;
 	uint32_t size_x;
 	uint32_t size_y;
 	uint32_t size_z;
 	// uint32_t unknown[10];
 	struct dgn_cell *cells;
 	struct packed_pvs *pvs;
+	vec3 sphere_theta;
+	float sphere_color_top;
+	float sphere_color_bottom;
 
-	int start_x, start_y; // DrawDungeon2
-	int exit_x, exit_y; // DrawDungeon2
+	// DrawDungeon2
+	int start_x, start_y;
+	int exit_x, exit_y;
+
+	// DrawField
+	int32_t back_color_r;
+	int32_t back_color_g;
+	int32_t back_color_b;
 };
 
-struct dgn *dgn_parse(uint8_t *data, size_t size);
+struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field);
 void dgn_free(struct dgn *dgn);
 
 int dgn_cell_index(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z);
