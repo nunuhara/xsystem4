@@ -169,9 +169,15 @@ static void sprite_render(struct sprite *_sp)
 		break;
 	}
 
-	_gfx_render_texture(&sprite_shader.s, &sp->texture, &sp->rect, sp);
+	Rectangle r = sp->rect;
+	if (sp->surface_area.x || sp->surface_area.y) {
+		r.x -= sp->surface_area.x;
+		r.y -= sp->surface_area.y;
+	}
+
+	_gfx_render_texture(&sprite_shader.s, &sp->texture, &r, sp);
 	if (sp->text.texture.handle) {
-		_gfx_render_texture(&sprite_shader.s, &sp->text.texture, &sp->rect, sp);
+		_gfx_render_texture(&sprite_shader.s, &sp->text.texture, &r, sp);
 	}
 
 	if (sp->draw_method != DRAW_METHOD_NORMAL)
