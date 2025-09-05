@@ -78,15 +78,6 @@ int32_t heap_alloc_string(struct string *s);
 
 void heap_describe_slot(int slot);
 
-/*
- * Guarantee `headroom` free slots are available on the heap.
- *
- * XXX: this is a hack to fix an issue with HLL calls where a pointer into the
- *      heap can be made invalid by a heap reallocation triggered within the
- *      body of the HLL function.
- */
-void heap_guarantee(unsigned headroom);
-
 #ifdef VM_PRIVATE
 
 extern uint32_t heap_next_seq;

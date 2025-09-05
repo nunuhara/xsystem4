@@ -303,13 +303,13 @@ void hll_call(int libno, int fno)
 	if (!fun->fun)
 		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
 
-	// XXX: Try to prevent the heap from being reallocated mid-call.
-	//      This only works to the extent that HLL functions can guarantee
-	//      no more than 64 heap allocations occur within the call...
-	heap_guarantee(64);
-
 	void *args[HLL_MAX_ARGS];
 	void *ptrs[HLL_MAX_ARGS];
+	// Copy reference arguments to the stack to protect against heap
+	// reallocation during HLL calls.
+	void *heap_ptrs[HLL_MAX_ARGS];
+	int heap_slots[HLL_MAX_ARGS];
+
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
 		switch (f->arguments[i].type.data) {
 		case AIN_REF_INT:
@@ -330,7 +330,9 @@ void hll_call(int libno, int fno)
 			break;
 		case AIN_REF_STRING:
 			stack_ptr--;
-			ptrs[i] = &heap[stack[stack_ptr].i].s;
+			heap_slots[i] = stack[stack_ptr].i;
+			heap_ptrs[i] = heap[stack[stack_ptr].i].s;
+			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
 			break;
 		case AIN_STRUCT:
@@ -341,7 +343,9 @@ void hll_call(int libno, int fno)
 		case AIN_REF_STRUCT:
 		case AIN_REF_ARRAY_TYPE:
 			stack_ptr--;
-			ptrs[i] = &heap[stack[stack_ptr].i].page;
+			heap_slots[i] = stack[stack_ptr].i;
+			heap_ptrs[i] = heap[stack[stack_ptr].i].page;
+			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
 			break;
 		default:
@@ -370,9 +374,13 @@ void hll_call(int libno, int fno)
 			j++;
 			break;
 		case AIN_REF_STRING:
+			heap[heap_slots[i]].s = heap_ptrs[i];
+			break;
 		case AIN_REF_STRUCT:
-		case AIN_REF_FUNC_TYPE:
 		case AIN_REF_ARRAY_TYPE:
+			heap[heap_slots[i]].page = heap_ptrs[i];
+			break;
+		case AIN_REF_FUNC_TYPE:
 			break;
 		case AIN_ARRAY_TYPE:
 			// Sys41VM doesn't make a copy when passing an array by value.

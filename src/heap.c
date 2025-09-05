@@ -60,19 +60,6 @@ void heap_grow(size_t new_size)
 	heap_size = new_size;
 }
 
-void heap_guarantee(unsigned headroom)
-{
-	if (heap_size - heap_free_ptr >= headroom)
-		return;
-
-	size_t new_size = heap_size;
-	while (new_size - heap_free_ptr < headroom) {
-		new_size += HEAP_ALLOC_STEP;
-	}
-
-	heap_grow(new_size);
-}
-
 void heap_init(void)
 {
 	if (!heap) {
