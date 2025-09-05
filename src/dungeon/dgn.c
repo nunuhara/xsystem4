@@ -24,21 +24,12 @@
 #include "dungeon/mtrand43.h"
 #include "vm.h"
 
-struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
+struct dgn *dgn_new(uint32_t size_x, uint32_t size_y, uint32_t size_z)
 {
-	struct buffer r;
-	buffer_init(&r, data, size);
-	if (strncmp(buffer_strdata(&r), "DUGN", 4))
-		return NULL;
-	buffer_skip(&r, 4);
-
 	struct dgn *dgn = xcalloc(1, sizeof(struct dgn));
-	dgn->version = buffer_read_int32(&r);
-	dgn->size_x = buffer_read_int32(&r);
-	dgn->size_y = buffer_read_int32(&r);
-	dgn->size_z = buffer_read_int32(&r);
-	buffer_skip(&r, 40);
-
+	dgn->size_x = size_x;
+	dgn->size_y = size_y;
+	dgn->size_z = size_z;
 	int nr_cells = dgn_nr_cells(dgn);
 	dgn->cells = xcalloc(nr_cells, sizeof(struct dgn_cell));
 	uint32_t x = 0, y = 0, z = 0;
@@ -47,14 +38,61 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 		cell->x = x;
 		cell->y = y;
 		cell->z = z;
-		if (++x == dgn->size_x) {
+		if (++x == size_x) {
 			x = 0;
-			if (++y == dgn->size_y) {
+			if (++y == size_y) {
 				y = 0;
 				z++;
 			}
 		}
 		cell->event_blend_rate = 255;
+
+		cell->floor = -1;
+		cell->ceiling = -1;
+		cell->north_wall = -1;
+		cell->south_wall = -1;
+		cell->east_wall = -1;
+		cell->west_wall = -1;
+		cell->north_door = -1;
+		cell->south_door = -1;
+		cell->east_door = -1;
+		cell->west_door = -1;
+		cell->stairs_texture = -1;
+		cell->stairs_orientation = -1;
+		cell->lightmap_floor = -1;
+		cell->lightmap_ceiling = -1;
+		cell->lightmap_north = -1;
+		cell->lightmap_south = -1;
+		cell->lightmap_east = -1;
+		cell->lightmap_west = -1;
+		cell->battle_background = -1;
+		cell->polyobj_index = -1;
+		cell->roof_orientation = -1;
+		cell->roof_texture = -1;
+		cell->roof_underside_texture = -1;
+		cell->pathfinding_cost = -1;
+	}
+	return dgn;
+}
+
+struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
+{
+	struct buffer r;
+	buffer_init(&r, data, size);
+	if (strncmp(buffer_strdata(&r), "DUGN", 4))
+		return NULL;
+	buffer_skip(&r, 4);
+
+	uint32_t version = buffer_read_int32(&r);
+	uint32_t size_x = buffer_read_int32(&r);
+	uint32_t size_y = buffer_read_int32(&r);
+	uint32_t size_z = buffer_read_int32(&r);
+	buffer_skip(&r, 40);
+
+	struct dgn *dgn = dgn_new(size_x, size_y, size_z);
+	int nr_cells = dgn_nr_cells(dgn);
+	for (int i = 0; i < nr_cells; i++) {
+		struct dgn_cell *cell = &dgn->cells[i];
 
 		cell->floor = buffer_read_int32(&r);
 		cell->ceiling = buffer_read_int32(&r);
@@ -90,12 +128,8 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 			buffer_skip(&r, 4);
 			buffer_skip(&r, strlen(buffer_strdata(&r)) + 1);
 		}
-		cell->polyobj_index = -1;
-		cell->roof_orientation = -1;
-		cell->roof_texture = -1;
-		cell->roof_underside_texture = -1;
 		if (for_draw_field) {
-			if (dgn->version >= 9) {
+			if (version >= 9) {
 				cell->north_door_lock = buffer_read_int32(&r);
 				cell->west_door_lock = buffer_read_int32(&r);
 				cell->south_door_lock = buffer_read_int32(&r);
@@ -106,7 +140,7 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 				cell->east_door_angle = buffer_read_float(&r);
 				cell->walked = buffer_read_int32(&r);
 			}
-			if (dgn->version >= 11) {
+			if (version >= 11) {
 				cell->polyobj_index = buffer_read_int32(&r);
 				cell->polyobj_scale = buffer_read_float(&r);
 				cell->polyobj_rotation_y = buffer_read_float(&r);
@@ -119,7 +153,7 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 		} else {
 			buffer_skip(&r, 4);  // unknown
 			cell->battle_background = buffer_read_int32(&r);
-			if (dgn->version != DGN_VER_GALZOO) {
+			if (version != DGN_VER_GALZOO) {
 				continue;
 			}
 			cell->polyobj_index = buffer_read_int32(&r);
@@ -181,7 +215,7 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 	dgn->sphere_color_top = buffer_read_float(&r);
 	dgn->sphere_color_bottom = buffer_read_float(&r);
 	buffer_skip(&r, 4);  // unknown
-	if (for_draw_field && dgn->version >= 10) {
+	if (for_draw_field && version >= 10) {
 		dgn->back_color_r = buffer_read_int32(&r);
 		dgn->back_color_g = buffer_read_int32(&r);
 		dgn->back_color_b = buffer_read_int32(&r);
@@ -836,12 +870,7 @@ struct dgn *dgn_generate_drawdungeon2(int level)
 	dd2_generate_map(map, level);
 
 	// Create dgn structure from the generated map
-	struct dgn *dgn = xcalloc(1, sizeof(struct dgn));
-	dgn->size_x = DD2_MAP_WIDTH;
-	dgn->size_y = 1;
-	dgn->size_z = DD2_MAP_HEIGHT;
-	int nr_cells = dgn_nr_cells(dgn);
-	dgn->cells = xcalloc(nr_cells, sizeof(struct dgn_cell));
+	struct dgn *dgn = dgn_new(DD2_MAP_WIDTH, 1, DD2_MAP_HEIGHT);
 
 	struct mtrand43 floor_randomizer;
 	mtrand43_init(&floor_randomizer, (level * 65 + 32) | 1);
@@ -849,45 +878,6 @@ struct dgn *dgn_generate_drawdungeon2(int level)
 	for (int z = 0; z < dgn->size_z; z++) {
 		for (int x = 0; x < dgn->size_x; x++) {
 			struct dgn_cell *cell = &dgn->cells[dgn_cell_index(dgn, x, 0, z)];
-			cell->x = x;
-			cell->y = 0;
-			cell->z = z;
-			cell->event_blend_rate = 255;
-
-			cell->floor = -1;
-			cell->ceiling = -1;
-			cell->north_wall = -1;
-			cell->south_wall = -1;
-			cell->east_wall = -1;
-			cell->west_wall = -1;
-			cell->north_door = -1;
-			cell->south_door = -1;
-			cell->east_door = -1;
-			cell->west_door = -1;
-			cell->stairs_texture = -1;
-			cell->stairs_orientation = -1;
-			cell->lightmap_floor = -1;
-			cell->lightmap_ceiling = -1;
-			cell->lightmap_north = -1;
-			cell->lightmap_south = -1;
-			cell->lightmap_east = -1;
-			cell->lightmap_west = -1;
-			cell->enterable = 0;
-			cell->enterable_north = 0;
-			cell->enterable_south = 0;
-			cell->enterable_east = 0;
-			cell->enterable_west = 0;
-			cell->floor_event = 0;
-			cell->north_event = 0;
-			cell->south_event = 0;
-			cell->east_event = 0;
-			cell->west_event = 0;
-			cell->battle_background = -1;
-			cell->polyobj_index = -1;
-			cell->roof_orientation = -1;
-			cell->roof_texture = -1;
-			cell->roof_underside_texture = -1;
-			cell->pathfinding_cost = -1;
 
 			if (map[x][z] == '#') {
 				continue;
