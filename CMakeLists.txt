@@ -57,6 +57,7 @@ target_sources(xsystem4 PRIVATE
   src/format.c
   src/hacks.c
   src/heap.c
+  src/icon.c
   src/id_pool.c
   src/input.c
   src/json.c

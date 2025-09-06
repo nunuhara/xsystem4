@@ -27,6 +27,7 @@ enum resume_save_format {
 
 struct config {
 	char *game_name;
+	char *boot_name;
 	char *ain_filename;
 	char *vm_name;
 	char *game_dir;
