@@ -27,6 +27,8 @@
 #include "hll.h"
 #include "dungeon/dgn.h"
 #include "dungeon/dungeon.h"
+#include "dungeon/generator.h"
+#include "dungeon/map.h"
 #include "queue.h"
 #include "sact.h"
 #include "vm/heap.h"
@@ -1781,7 +1783,74 @@ static void PastelChime2_Field_UpdateDoors(
 	free(flags);
 }
 
-//void PastelChime2_AutoDungeonE_Create(int nFloor, int *nEntX, int *nEntY, int nComplex, int nWallArrangeMethod, int nFloorArrangeMethod, int nFieldSizeX, int nFieldSizeY, int nDoorLockPercent, struct page **dci);
+static struct page *make_pos_t_array(struct dgn *dgn, uint8_t *cell_flags, int flag)
+{
+	int struct_type = ain_get_struct(ain, "pos_t");
+	struct ain_struct *s = &ain->structures[struct_type];
+	int slot_x = find_struct_slot(s, "x");
+	int slot_y = find_struct_slot(s, "y");
+
+	int nr_points = 0;
+	for (int i = 0; i < dgn->size_z * dgn->size_x; i++) {
+		if (cell_flags[i] & flag) {
+			nr_points++;
+		}
+	}
+
+	struct page *array = alloc_page(ARRAY_PAGE, AIN_ARRAY_STRUCT, nr_points);
+	array->array.struct_type = struct_type;
+	array->array.rank = 1;
+	int out_index = 0;
+	for (int i = 0; i < dgn->size_z * dgn->size_x; i++) {
+		if (!(cell_flags[i] & flag))
+			continue;
+		struct page *elem = alloc_page(STRUCT_PAGE, struct_type, s->nr_members);
+		elem->values[slot_x].i = i % dgn->size_x;
+		elem->values[slot_y].i = i / dgn->size_x;
+		array->values[out_index++].i = heap_alloc_page(elem);
+	}
+	return array;
+}
+
+static void replace_object_slot(struct page *obj, const char *name, struct page *page)
+{
+	int slot = struct_get_var(obj, name)->i;
+	delete_page(slot);
+	heap_set_page(slot, page);
+}
+
+static void PastelChime2_AutoDungeonE_Create(
+	int floor, int *ent_x, int *ent_y, int complex,
+	int wall_arrange_method, int floor_arrange_method,
+	int field_size_x, int field_size_y, int door_lock_percent, struct page **dci)
+{
+	struct dungeon_context *ctx = dungeon_get_context(draw_field_sprite_number);
+	if (!ctx)
+		return;
+
+	uint8_t *cell_flags = xcalloc(field_size_y, field_size_x);
+	uint32_t seed = SDL_GetTicks();
+	NOTICE("PastelChime2.AutoDungeonE_Create: seed = %u, complexity = %d", seed, complex);
+	struct dgn *dgn = dgn_generate_drawfield(
+		floor, complex, wall_arrange_method, floor_arrange_method,
+		field_size_x, field_size_y, door_lock_percent, seed, cell_flags);
+	if (ctx->dgn)
+		dgn_free(ctx->dgn);
+	ctx->dgn = dgn;
+	dungeon_map_init(ctx);
+
+	replace_object_slot(*dci, "aposItem", make_pos_t_array(dgn, cell_flags, DF_FLAG_ITEM));
+	replace_object_slot(*dci, "aposEnemy", make_pos_t_array(dgn, cell_flags, DF_FLAG_ENEMY));
+	replace_object_slot(*dci, "aposTrap", make_pos_t_array(dgn, cell_flags, DF_FLAG_TRAP));
+	replace_object_slot(*dci, "aposNoTreasure", make_pos_t_array(dgn, cell_flags, DF_FLAG_NO_TREASURE));
+	replace_object_slot(*dci, "aposNoMonster", make_pos_t_array(dgn, cell_flags, DF_FLAG_NO_MONSTER));
+	replace_object_slot(*dci, "aposNoTrap", make_pos_t_array(dgn, cell_flags, DF_FLAG_NO_TRAP));
+
+	*ent_x = dgn->start_x;
+	*ent_y = dgn->start_y;
+	free(cell_flags);
+}
+
 //void PastelChime2_TestVMArray(struct page **a);
 
 static void PastelChime2_str_erase_found(struct string **s, struct string **key)
@@ -1949,7 +2018,7 @@ HLL_LIBRARY(PastelChime2,
 	    HLL_TODO_EXPORT(JudgeHitPointCircle, PastelChime2_JudgeHitPointCircle),
 	    HLL_TODO_EXPORT(JudgeHitLineCircle, PastelChime2_JudgeHitLineCircle),
 	    HLL_EXPORT(Field_UpdateDoors, PastelChime2_Field_UpdateDoors),
-	    HLL_TODO_EXPORT(AutoDungeonE_Create, PastelChime2_AutoDungeonE_Create),
+	    HLL_EXPORT(AutoDungeonE_Create, PastelChime2_AutoDungeonE_Create),
 	    HLL_TODO_EXPORT(TestVMArray, PastelChime2_TestVMArray),
 	    HLL_EXPORT(str_erase_found, PastelChime2_str_erase_found),
 	    HLL_EXPORT(Field_PickUpRoadShape, PastelChime2_Field_PickUpRoadShape),

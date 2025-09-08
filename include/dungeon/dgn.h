@@ -128,7 +128,7 @@ struct dgn {
 	float sphere_color_top;
 	float sphere_color_bottom;
 
-	// DrawDungeon2
+	// for generated dungeons
 	int start_x, start_y;
 	int exit_x, exit_y;
 
