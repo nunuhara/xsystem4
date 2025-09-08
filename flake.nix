@@ -2,7 +2,7 @@
   description = "Open source implementation of AliceSoft's System 4 game engine for unix-like operating systems";
 
   # Nixpkgs / NixOS version to use.
-  inputs.nixpkgs.url = "nixpkgs/nixos-22.11";
+  inputs.nixpkgs.url = "nixpkgs/nixos-25.05";
 
   outputs = { self, nixpkgs }:
     let
@@ -32,7 +32,7 @@
             libwebp
             libsndfile
             glew
-            readline81
+            readline
             chibi
             flex
             bison
@@ -62,7 +62,7 @@
               libwebp
               libsndfile
               glew
-              readline81
+              readline
               chibi
               flex
               bison
