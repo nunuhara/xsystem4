@@ -16,11 +16,13 @@
 
 uniform sampler2D tex;
 uniform float blend_rate;
+uniform vec3 multiply_color;
 
 in vec2 tex_coord;
 out vec4 frag_color;
 
 void main() {
-        frag_color = texture(tex, tex_coord);
+	frag_color = texture(tex, tex_coord);
+	frag_color.rgb *= multiply_color;
 	frag_color.a *= blend_rate;
 }

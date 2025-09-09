@@ -68,7 +68,7 @@ struct sact_sprite {
 
 /*
  * XXX: There are two different sprite renderers:
- *        * SACT2 - only shader param is blend rate
+ *        * SACT2 - blend rate and brightness (stored in multiply_color field)
  *        * ChipmunkSpriteEngine - blend rate, add color, multiply color, surface area
  *          (uses parts shader)
  *

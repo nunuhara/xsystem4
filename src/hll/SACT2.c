@@ -841,16 +841,20 @@ void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int 
 //void SACT2_Debug_Pause(void);
 //void SACT2_Debug_GetFuncStack(struct string **s, int nest);
 
-int SACT2_SP_SetBrightness(int sp_no, int brightness)
+int sact_SP_SetBrightness(int sp_no, int brightness)
 {
-	if (brightness != 255)
-		WARNING("Unimplemented HLL function: SACT2.SP_SetBrightness(%d, %d)", sp_no, brightness);
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	if (!sp) return 0;
+	sprite_set_multiply_color(sp, brightness, brightness, brightness);
+	sprite_dirty(sp);
 	return 1;
 }
 
-int SACT2_SP_GetBrightness(int sp_no)
+int sact_SP_GetBrightness(int sp_no)
 {
-	return 255;
+	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+	if (!sp) return 0;
+	return sp->multiply_color.r;
 }
 
 #define SACT_EXPORTS \
@@ -994,8 +998,8 @@ int SACT2_SP_GetBrightness(int sp_no)
 	    HLL_TODO_EXPORT(Debug_GetFuncStack, SACT2_Debug_GetFuncStack), \
 	    HLL_EXPORT(SP_GetAMapValue, sact_SP_GetAMapValue), \
 	    HLL_EXPORT(SP_GetPixelValue, sact_SP_GetPixelValue), \
-	    HLL_EXPORT(SP_SetBrightness, SACT2_SP_SetBrightness), \
-	    HLL_EXPORT(SP_GetBrightness, SACT2_SP_GetBrightness)
+	    HLL_EXPORT(SP_SetBrightness, sact_SP_SetBrightness), \
+	    HLL_EXPORT(SP_GetBrightness, sact_SP_GetBrightness)
 
 HLL_WARN_UNIMPLEMENTED( , void, SACTDX, SetVolumeMixerMasterGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED( , void, SACTDX, SetVolumeMixerSEGroupNum, int n);

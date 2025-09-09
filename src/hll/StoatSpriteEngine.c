@@ -41,8 +41,6 @@
 static bool fps_show = false;
 
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, JoypadQuake_Set, int num, int type, int magnitude);
-HLL_WARN_UNIMPLEMENTED(0, int,  StoatSpriteEngine, SP_SetBrightness, int sp_no, int brightness);
-HLL_WARN_UNIMPLEMENTED(0, int,  StoatSpriteEngine, SP_GetBrightness, int sp_no);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerMasterGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerSEGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerBGMGroupNum, int n);
@@ -1098,8 +1096,8 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_TODO_EXPORT(Debug_GetFuncStack, SACT2_Debug_GetFuncStack),
 	    HLL_EXPORT(SP_GetAMapValue, sact_SP_GetAMapValue),
 	    HLL_EXPORT(SP_GetPixelValue, sact_SP_GetPixelValue),
-	    HLL_EXPORT(SP_SetBrightness, StoatSpriteEngine_SP_SetBrightness),
-	    HLL_EXPORT(SP_GetBrightness, StoatSpriteEngine_SP_GetBrightness),
+	    HLL_EXPORT(SP_SetBrightness, sact_SP_SetBrightness),
+	    HLL_EXPORT(SP_GetBrightness, sact_SP_GetBrightness),
 	    HLL_TODO_EXPORT(SP_CreateCopy, SACTDX_SP_CreateCopy),
 	    HLL_TODO_EXPORT(Joypad_GetAnalogStickStatus, SACTDX_Joypad_GetAnalogStickStatus),
 	    HLL_TODO_EXPORT(GetDigitalStickStatus, SACTDX_GetDigitalStickStatus),

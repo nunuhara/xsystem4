@@ -88,6 +88,10 @@ static void prepare_sact_shader(struct gfx_render_job *job, void *data)
 	struct sprite_shader *s = (struct sprite_shader*)job->shader;
 	struct sact_sprite *sp = (struct sact_sprite*)data;
 	glUniform1f(s->blend_rate, sp->blend_rate / 255.0f);
+	glUniform3f(s->multiply_color,
+			sp->multiply_color.r / 255.0f,
+			sp->multiply_color.g / 255.0f,
+			sp->multiply_color.b / 255.0f);
 }
 
 static void prepare_chipmunk_shader(struct gfx_render_job *job, void *data)
@@ -123,6 +127,7 @@ void sprite_init_sact(void)
 	}
 	gfx_load_shader(&sprite_shader.s, "shaders/render.v.glsl", "shaders/sprite.f.glsl");
 	sprite_shader.blend_rate = glGetUniformLocation(sprite_shader.s.program, "blend_rate");
+	sprite_shader.multiply_color = glGetUniformLocation(sprite_shader.s.program, "multiply_color");
 	sprite_shader.s.prepare = prepare_sact_shader;
 
 }
