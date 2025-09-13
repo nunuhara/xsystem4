@@ -112,6 +112,11 @@ void dungeon_map_init(struct dungeon_context *ctx)
 	if (!map)
 		return;
 
+	if (map->textures) {
+		for (int i = 0; i < map->nr_textures; i++)
+			gfx_delete_texture(&map->textures[i]);
+		free(map->textures);
+	}
 	map->textures = xcalloc(dgn->size_y, sizeof(struct texture));
 	map->nr_textures = dgn->size_y;
 
