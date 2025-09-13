@@ -624,10 +624,22 @@ static void cmd_evaluate(cJSON *args, cJSON *resp)
 		return;
 	}
 
-	// TODO: frameId
+	unsigned old_frame = dbg_current_frame;
+	cJSON *j_id = cJSON_GetObjectItemCaseSensitive(args, "frameId");
+	if (j_id && cJSON_IsNumber(j_id)) {
+		int frame_id = j_id->valueint;
+		if (frame_id >= 0 && frame_id < call_stack_ptr) {
+			dbg_current_frame = call_stack_ptr - 1 - frame_id;
+		}
+	}
 
 	struct ain_type type;
-	union vm_value val = dbg_eval_string(j_expr->valuestring, &type);
+	char *sjis_expr = utf2sjis(j_expr->valuestring, 0);
+	union vm_value val = dbg_eval_string(sjis_expr, &type);
+	free(sjis_expr);
+
+	dbg_current_frame = old_frame;
+
 	struct string *s_val = dbg_value_to_string(&type, val, 0);
 	char *s_type = ain_strtype_d(ain, &type);
 
