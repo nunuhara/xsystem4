@@ -1662,7 +1662,7 @@ static void PastelChime2_Field_UpdateDoors(
 
 		ivec3 idx;
 		glm_ivec3_sub(pos[player], base, idx);
-		int flag_index = (idx[0] * size[0] + idx[1]) * size[1] + idx[2];
+		int flag_index = (idx[0] * size[1] + idx[1]) * size[2] + idx[2];
 		int x = pos[player][0];
 		int y = pos[player][1];
 		int z = pos[player][2];
@@ -1711,11 +1711,11 @@ static void PastelChime2_Field_UpdateDoors(
 					continue;
 				struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z);
 
-				int flag_index = ((x - base[0]) * size[0] + (y - base[1])) * size[1] + (z - base[2]);
+				int flag_index = ((x - base[0]) * size[1] + (y - base[1])) * size[2] + (z - base[2]);
 				int flag_index_north = flag_index + 1;
-				int flag_index_west = flag_index - (size[0] * size[1]);
+				int flag_index_west = flag_index - size[1] * size[2];
 				int flag_index_south = flag_index - 1;
-				int flag_index_east = flag_index + (size[0] * size[1]);
+				int flag_index_east = flag_index + size[1] * size[2];
 
 				// Open doors if needed.
 				if (flags[flag_index] & SHOULD_OPEN_NORTH && cell->north_door_angle == 0.f) {
