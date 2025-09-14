@@ -173,7 +173,9 @@ float gfx_size_char_kerning(struct text_style *ts, uint32_t code, uint32_t code_
 float gfx_size_text(struct text_style *ts, const char *text)
 {
 	struct font_size *size = text_style_font_size(ts);
-	float edge_advance = gfx_text_advance_edges ? ts->edge_left + ts->edge_right : 0.0f;
+	float edge_advance = gfx_text_advance_edges
+		? ts->edge_left + ts->edge_right + ceilf(ts->bold_width)
+		: 0.0f;
 	float x = 0.0f;
 	while (*text) {
 		x += font_size_char(size, char_to_code(text, size->font->charmap));
@@ -255,6 +257,11 @@ float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_styl
 	enum font_weight weight = gfx_int_to_font_weight(ts->weight);
 	struct font_size *font_size = text_style_font_size(ts);
 	float edge_width = text_style_edge_width(ts);
+
+	float edge_advance = gfx_text_advance_edges
+		? edge_width + ceilf(ts->bold_width)
+		: 0.f;
+
 	enum text_render_mode mode = blend ? RENDER_BLENDED : RENDER_COPY;
 	if (edge_width > 0.01f) {
 		struct text_render_metrics metrics = {
@@ -266,7 +273,7 @@ float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_styl
 			.scale_x = ts->scale_x,
 			.space_scale_x = ts->space_scale_x,
 			.font_spacing = ts->font_spacing,
-			.edge_spacing = gfx_text_advance_edges ? edge_width : 0.0,
+			.edge_spacing = edge_advance,
 			.mode = mode,
 			.font_size = font_size,
 		};
@@ -282,7 +289,7 @@ float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_styl
 		.scale_x = ts->scale_x,
 		.space_scale_x = ts->space_scale_x,
 		.font_spacing = ts->font_spacing,
-		.edge_spacing = gfx_text_advance_edges ? edge_width : 0.0,
+		.edge_spacing = edge_advance,
 		.mode = mode,
 		.font_size = font_size,
 	};

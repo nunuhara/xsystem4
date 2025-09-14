@@ -26,15 +26,16 @@ void main() {
 	// edge pixels
 	int size = int(floor(threshold));
 	int cutoff = size + 1;
-	float edge_weight = fract(threshold);
+	float edge_weight = fract(threshold) / 4.0;
 	vec2 tex_size = vec2(textureSize(tex, 0).xy);
+	float t = ceil(threshold);
 
 	float a_out = 0.0;
 
 	for (int x = -cutoff; x <= cutoff; x++) {
 		for (int y = -cutoff; y <= cutoff; y++) {
 			float d = distance(vec2(x, y), vec2(0, 0));
-			if (d > threshold)
+			if (d > t)
 				continue;
 			float a = texture(tex, tex_coord + vec2(x, y) / tex_size).r;
 			if (d > float(size))
