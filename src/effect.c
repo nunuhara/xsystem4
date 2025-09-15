@@ -196,6 +196,12 @@ static void effect_whitein(Texture *dst, Texture *old, Texture *new, float rate)
 	gfx_blend(dst, 0, 0, new, 0, 0, dst->w, dst->h, rate * 255);
 }
 
+static void effect_rotate_out(Texture *dst, Texture *old, Texture *new, float rate)
+{
+	gfx_fill(dst, 0, 0, dst->w, dst->h, 0, 0, 0);
+	gfx_copy_rot_zoom(dst, old, 0, 0, old->w, old->h, rate * 360, 1.f - rate);
+}
+
 static void effect_zoom_lr(Texture *dst, Texture *old, Texture *new, float rate)
 {
 	unsigned x_pos = roundf(dst->w * rate);
@@ -263,6 +269,7 @@ static effect_fun effect_functions[NR_EFFECTS] = {
 	[EFFECT_FADEIN]            = effect_fadein,
 	[EFFECT_WHITEOUT]          = effect_whiteout,
 	[EFFECT_WHITEIN]           = effect_whitein,
+	[EFFECT_ROTATE_OUT]        = effect_rotate_out,
 	[EFFECT_OSCILLATE]         = effect_oscillate,
 	[EFFECT_TV_SWITCH_OFF]     = effect_tv_switch_off,
 	[EFFECT_TV_SWITCH_ON]      = effect_tv_switch_on,
