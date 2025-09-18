@@ -1626,7 +1626,12 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case C_REF: {
 		int i = stack_pop().i;
 		int str = stack_pop().i;
-		stack_push(string_get_char(heap_get_string(str), i));
+		int32_t ch = string_get_char(heap_get_string(str), i);
+		// 'é' for EN Rance Quest
+		if (game_rance8_mg && ch == -91)
+			stack_push(165);
+		else
+			stack_push(ch);
 		break;
 	}
 	case C_ASSIGN: {
