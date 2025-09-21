@@ -2204,10 +2204,11 @@ static bool generate_dungeon_layout(struct drawfield_generator *dg, int door_loc
 	if (!create_dungeon_exit(dg)) {
 		return false;
 	}
-	// Clean up the area around the exit, filling in any empty space.
+	// To prevent the downward stairs from being visible from the side, set
+	// dark floor tiles in the empty space around the exit.
 	for (int y = dg->dgn->exit_y - 1; y <= dg->dgn->exit_y + 1; y++) {
 		for (int x = dg->dgn->exit_x - 1; x <= dg->dgn->exit_x + 1; x++) {
-			if (FLOOR(dg, x, y) != -1)
+			if ((x == dg->dgn->exit_x && y == dg->dgn->exit_y) || FLOOR(dg, x, y) != -1)
 				continue;
 			FLOOR(dg, x, y) = 3;
 			FLAG(dg, x, y) |= DF_FLAG_NO_TREASURE | DF_FLAG_NO_MONSTER | DF_FLAG_NO_TRAP;
