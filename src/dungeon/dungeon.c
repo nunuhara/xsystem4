@@ -246,13 +246,6 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 	return true;
 }
 
-static void dungeon_finalize_loading(struct dungeon_context *ctx)
-{
-	ctx->renderer = dungeon_renderer_create(ctx->version, 0, ctx->dtx, NULL, 0, NULL);
-	dungeon_map_init(ctx);
-	ctx->loaded = true;
-}
-
 bool dungeon_load_dungeon(struct dungeon_context *ctx, const char *filename, int num)
 {
 	char *path = gamedir_path(filename);
@@ -271,9 +264,9 @@ bool dungeon_load_dungeon(struct dungeon_context *ctx, const char *filename, int
 	if (!ctx->dgn)
 		return false;
 
-	if (ctx->dgn && ctx->dtx) {
-		dungeon_finalize_loading(ctx);
-	}
+	dungeon_map_init(ctx);
+
+	ctx->loaded = ctx->dgn && ctx->dtx;
 	return true;
 }
 
@@ -311,11 +304,13 @@ bool dungeon_load_texture(struct dungeon_context *ctx, const char *filename)
 			free(tes);
 		}
 	}
-
-	if (ctx->dgn && ctx->dtx) {
-		dungeon_finalize_loading(ctx);
-	}
 	free(path);
+
+	if (ctx->renderer)
+		dungeon_renderer_free(ctx->renderer);
+	ctx->renderer = dungeon_renderer_create(ctx->version, 0, ctx->dtx, NULL, 0, NULL);
+
+	ctx->loaded = ctx->dgn && ctx->dtx;
 	return true;
 }
 
