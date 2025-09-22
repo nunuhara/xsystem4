@@ -447,9 +447,15 @@ static bool PastelChime2_DungeonDataLoad(int id, struct page **dungeon)
 	if (index != dgn_nr_cells(ctx->dgn)) {
 		VM_ERROR("expected %d cells, got %d", dgn_nr_cells(ctx->dgn), index);
 	}
-
 	free(buf);
 	free(path);
+
+	dungeon_map_init(ctx);
+	struct dgn_cell *cells_end = ctx->dgn->cells + dgn_nr_cells(ctx->dgn);
+	for (struct dgn_cell *c = ctx->dgn->cells; c < cells_end; c++) {
+		if (c->walked)
+			dungeon_map_reveal(ctx, c->x, c->y, c->z, true);
+	}
 	return true;
 }
 
