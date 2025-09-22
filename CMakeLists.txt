@@ -147,6 +147,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/GoatGUIEngine.c
   src/hll/Gpx2Plus.c
   src/hll/GUIEngine.c
+  src/hll/HTTPDownloader.c
   src/hll/iarray.c
   src/hll/IbisInputEngine.c
   src/hll/InputDevice.c
