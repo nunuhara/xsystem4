@@ -462,6 +462,7 @@ extern struct static_library lib_FillAngle;
 extern struct static_library lib_GoatGUIEngine;
 extern struct static_library lib_Gpx2Plus;
 extern struct static_library lib_GUIEngine;
+extern struct static_library lib_HTTPDownloader;
 extern struct static_library lib_IbisInputEngine;
 extern struct static_library lib_InputDevice;
 extern struct static_library lib_InputString;
@@ -577,6 +578,7 @@ static struct static_library *static_libraries[] = {
 	&lib_GoatGUIEngine,
 	&lib_Gpx2Plus,
 	&lib_GUIEngine,
+	&lib_HTTPDownloader,
 	&lib_IbisInputEngine,
 	&lib_InputDevice,
 	&lib_InputString,
