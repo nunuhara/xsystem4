@@ -1332,6 +1332,26 @@ static void cleanup_floor_markers(struct drawfield_generator *dg)
 	}
 }
 
+static bool is_vertical_corridor(struct drawfield_generator *dg, int x, int y)
+{
+	struct dgn_cell *cell = dgn_cell_at(dg->dgn, x, dg->floor, y);
+	return cell->floor != -1 &&
+		FLOOR(dg, x - 1, y) != cell->floor &&
+		FLOOR(dg, x + 1, y) != cell->floor &&
+		cell->east_door == -1 &&
+		cell->west_door == -1;
+}
+
+static bool is_horizontal_corridor(struct drawfield_generator *dg, int x, int y)
+{
+	struct dgn_cell *cell = dgn_cell_at(dg->dgn, x, dg->floor, y);
+	return cell->floor != -1 &&
+		FLOOR(dg, x, y - 1) != cell->floor &&
+		FLOOR(dg, x, y + 1) != cell->floor &&
+		cell->north_door == -1 &&
+		cell->south_door == -1;
+}
+
 // Prunes or extends dead-end corridors to add variation.
 static void prune_and_extend_corridors(struct drawfield_generator *dg)
 {
@@ -1356,8 +1376,7 @@ static void prune_and_extend_corridors(struct drawfield_generator *dg)
 					int room_id = FLOOR(dg, x, y);
 					int cur_y = y;
 					while (cur_y > 0 && FLOOR(dg, x, cur_y) == room_id &&
-					       FLOOR(dg, x - 1, cur_y) != room_id &&
-					       FLOOR(dg, x + 1, cur_y) != room_id) {
+					       is_vertical_corridor(dg, x, cur_y)) {
 						FLOOR(dg, x, cur_y) = -1;
 						cur_y--;
 					}
@@ -1379,8 +1398,7 @@ static void prune_and_extend_corridors(struct drawfield_generator *dg)
 					int cur_y = y;
 					while (cur_y < dg->field_size_y - 1 &&
 					       FLOOR(dg, x, cur_y) == room_id &&
-					       FLOOR(dg, x - 1, cur_y) != room_id &&
-					       FLOOR(dg, x + 1, cur_y) != room_id) {
+					       is_vertical_corridor(dg, x, cur_y)) {
 						FLOOR(dg, x, cur_y) = -1;
 						cur_y++;
 					}
@@ -1401,8 +1419,7 @@ static void prune_and_extend_corridors(struct drawfield_generator *dg)
 					int room_id = FLOOR(dg, x, y);
 					int cur_x = x;
 					while (cur_x > 0 && FLOOR(dg, cur_x, y) == room_id &&
-					       FLOOR(dg, cur_x, y - 1) != room_id &&
-					       FLOOR(dg, cur_x, y + 1) != room_id) {
+					       is_horizontal_corridor(dg, cur_x, y)) {
 						FLOOR(dg, cur_x, y) = -1;
 						cur_x--;
 					}
@@ -1424,8 +1441,7 @@ static void prune_and_extend_corridors(struct drawfield_generator *dg)
 					int cur_x = x;
 					while (cur_x < dg->field_size_x - 1 &&
 					       FLOOR(dg, cur_x, y) == room_id &&
-					       FLOOR(dg, cur_x, y - 1) != room_id &&
-					       FLOOR(dg, cur_x, y + 1) != room_id) {
+					       is_horizontal_corridor(dg, cur_x, y)) {
 						FLOOR(dg, cur_x, y) = -1;
 						cur_x++;
 					}
