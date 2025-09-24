@@ -448,7 +448,7 @@ void dungeon_set_walked(int surface, int x, int y, int z, int flag)
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx)
 		return;
-	if (x < 0 || y < 0 || z < 0)
+	if (!dgn_is_in_map(ctx->dgn, x, y, z))
 		return;  // avoid VM_ERROR in Pastel Chime Continue
 	if (flag) {
 		dgn_cell_at(ctx->dgn, x, y, z)->walked = ctx->version == DRAW_DUNGEON_2 ? 3 : 1;

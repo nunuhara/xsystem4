@@ -1649,6 +1649,8 @@ static void PastelChime2_Field_UpdateDoors(
 		{ to_grid_coord(fx2), to_grid_coord(fy2), to_grid_coord(fz2) },
 		{ to_grid_coord(fx3), to_grid_coord(fy3), to_grid_coord(fz3) }
 	};
+	if (!dgn_is_in_map(ctx->dgn, pos[0][0], pos[0][1], pos[0][2]))
+		return;
 
 	// Calculate the bounding box of player positions to limit the update area.
 	ivec3 min_pos, max_pos;
