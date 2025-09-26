@@ -42,7 +42,7 @@ issues, please let me know or open a pull request to update this table.
 | Text Jam Session                                        | Supported   | From ALICEの館7 |
 | 没ロゴの哀しみ                                          | Supported   | From ALICEの館7 |
 | スタッフコーナー                                        | Supported   | From ALICEの館7 |
-| ぱすてるチャイムContinue                                | Unsupported |       |
+| ぱすてるチャイムContinue                                | Supported   |       |
 | GALZOOアイランド                                        | Supported   |       |
 | ぱすちゃC＋＋                                           | Unknown     |       |
 | よくばりサボテン                                        | Supported   |       |
