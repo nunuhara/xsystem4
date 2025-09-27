@@ -81,6 +81,8 @@ char *savedir_path(const char *path);
 void get_date(int *year, int *month, int *mday, int *wday);
 void get_time(int *hour, int *min, int *sec, int *ms);
 
+void screenshot_save(void);
+
 #ifndef XSYS4_DATA_DIR
 #define XSYS4_DATA_DIR "/usr/local/share/xsystem4"
 #endif

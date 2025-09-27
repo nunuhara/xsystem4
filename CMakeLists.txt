@@ -67,6 +67,7 @@ target_sources(xsystem4 PRIVATE
   src/resume.c
   src/savedata.c
   src/scene.c
+  src/screenshot.c
   src/sprite.c
   src/swf.c
   src/system4.c

@@ -609,12 +609,16 @@ void handle_events(void)
 			handle_window_event(&e);
 			break;
 		case SDL_KEYDOWN:
-			if (e.key.keysym.scancode == SDL_SCANCODE_F9)
+			if (e.key.keysym.scancode == SDL_SCANCODE_F9) {
 				vm_stack_trace();
-			if (e.key.keysym.scancode == SDL_SCANCODE_F11) {
+			} else if (e.key.keysym.scancode == SDL_SCANCODE_F11) {
 				uint32_t flag = SDL_WINDOW_FULLSCREEN_DESKTOP;
 				bool fs = SDL_GetWindowFlags(sdl.window) & flag;
 				SDL_SetWindowFullscreen(sdl.window, fs ? 0 : flag);
+			} else if (e.key.keysym.scancode == SDL_SCANCODE_S) {
+				if (e.key.keysym.mod & (KMOD_LALT | KMOD_RALT)) {
+					screenshot_save();
+				}
 			}
 			// fallthrough
 		case SDL_KEYUP:
