@@ -611,6 +611,11 @@ void handle_events(void)
 		case SDL_KEYDOWN:
 			if (e.key.keysym.scancode == SDL_SCANCODE_F9)
 				vm_stack_trace();
+			if (e.key.keysym.scancode == SDL_SCANCODE_F11) {
+				uint32_t flag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+				bool fs = SDL_GetWindowFlags(sdl.window) & flag;
+				SDL_SetWindowFullscreen(sdl.window, fs ? 0 : flag);
+			}
 			// fallthrough
 		case SDL_KEYUP:
 #ifdef __ANDROID__
