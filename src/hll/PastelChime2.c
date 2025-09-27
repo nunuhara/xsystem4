@@ -391,22 +391,27 @@ static bool PastelChime2_DungeonDataLoad(int id, struct page **dungeon)
 		return false;
 	}
 	int slot_m_dsd = find_struct_slot(&ain->structures[(*dungeon)->index], "m_dsd");
-	variable_set(*dungeon, slot_m_dsd, AIN_STRUCT, vm_int(heap_alloc_page(read_struct(&r, true))));
+	struct page *m_dsd = read_struct(&r, true);
+	variable_set(*dungeon, slot_m_dsd, AIN_STRUCT, vm_int(heap_alloc_page(m_dsd)));
+	struct page *map_size = heap_get_page(struct_get_var(m_dsd, "xyzMapSize")->i);
+	int size_x = struct_get_var(map_size, "x")->i;
+	int size_y = struct_get_var(map_size, "y")->i;
+	int size_z = struct_get_var(map_size, "z")->i;
 
 	// Read dungeon cells
 	int index = 0;
 	if (ctx->dgn)
 		dgn_free(ctx->dgn);
-	ctx->dgn = dgn_new(40, 3, 40);
+	ctx->dgn = dgn_new(size_x, size_y, size_z);
 
 	while (buffer_remaining(&r) > 0) {
 		int count = buffer_read_u8(&r) + 1;
 		uint8_t cell_buf[128];
 		buffer_read_bytes(&r, cell_buf, sizeof(cell_buf));
 		while (--count >= 0) {
-			int y = index / (40 * 40);
-			int z = (index / 40) % 40;
-			int x = index % 40;
+			int y = index / (size_x * size_z);
+			int z = (index / size_x) % size_z;
+			int x = index % size_x;
 			index++;
 			struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z);
 			struct buffer cr;
@@ -447,9 +452,15 @@ static bool PastelChime2_DungeonDataLoad(int id, struct page **dungeon)
 	if (index != dgn_nr_cells(ctx->dgn)) {
 		VM_ERROR("expected %d cells, got %d", dgn_nr_cells(ctx->dgn), index);
 	}
-
 	free(buf);
 	free(path);
+
+	dungeon_map_init(ctx);
+	struct dgn_cell *cells_end = ctx->dgn->cells + dgn_nr_cells(ctx->dgn);
+	for (struct dgn_cell *c = ctx->dgn->cells; c < cells_end; c++) {
+		if (c->walked)
+			dungeon_map_reveal(ctx, c->x, c->y, c->z, true);
+	}
 	return true;
 }
 
@@ -1638,6 +1649,8 @@ static void PastelChime2_Field_UpdateDoors(
 		{ to_grid_coord(fx2), to_grid_coord(fy2), to_grid_coord(fz2) },
 		{ to_grid_coord(fx3), to_grid_coord(fy3), to_grid_coord(fz3) }
 	};
+	if (!dgn_is_in_map(ctx->dgn, pos[0][0], pos[0][1], pos[0][2]))
+		return;
 
 	// Calculate the bounding box of player positions to limit the update area.
 	ivec3 min_pos, max_pos;
