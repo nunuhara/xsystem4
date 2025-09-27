@@ -44,7 +44,7 @@ issues, please let me know or open a pull request to update this table.
 | スタッフコーナー                                        | Supported   | From ALICEの館7 |
 | ぱすてるチャイムContinue                                | Supported   |       |
 | GALZOOアイランド                                        | Supported   |       |
-| ぱすちゃC＋＋                                           | Unknown     |       |
+| ぱすちゃC＋＋                                           | Supported   |       |
 | よくばりサボテン                                        | Supported   |       |
 | 妻しぼり                                                | Unknown     |       |
 | 戦国ランス                                              | Supported   |       |
