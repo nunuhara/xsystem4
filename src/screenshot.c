@@ -25,8 +25,87 @@
 #include "system4.h"
 #include "system4/cg.h"
 #include "system4/file.h"
-#include "gfx/gfx.h"
 #include "xsystem4.h"
+
+// XXX: can't include gfx/gfx.h because windows.h redefines Rectangle
+typedef struct texture Texture;
+Texture *gfx_main_surface(void);
+int gfx_save_texture(Texture *t, const char *path, enum cg_type);
+
+#ifdef _WIN32
+#include <windows.h>
+
+static char *default_filename(void)
+{
+	time_t t = time(NULL);
+	struct tm *tm = localtime(&t);
+	char datetime[128];
+	strftime(datetime, sizeof(datetime), "%Y%m%d_%H%M%S", tm);
+
+	char *name = xmalloc(PATH_MAX);
+	snprintf(name, PATH_MAX, "%s_%s.png", config.game_name, datetime);
+	return name;
+}
+
+static char *default_path(void)
+{
+	// FIXME: Earlier games use "[gamedir]/Snapshot/", but later games save under
+	//        "Documents/AliceSoft/[gamename]/Screenshot/"
+	char *path = gamedir_path("Snapshot");
+	if (mkdir_p(path)) {
+		WARNING("mkdir_p: %s", strerror(errno));
+		free(path);
+		return NULL;
+	}
+
+	for (int i = 0; path[i]; i++) {
+		if (path[i] == '/')
+			path[i] = '\\';
+	}
+
+	return path;
+}
+
+void screenshot_save(void)
+{
+	char *name = default_filename();
+	char *path = default_path();
+
+	OPENFILENAME ofn;
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.lpstrFilter = "PNG Files (*.png)\0*.png\0";
+	ofn.lpstrFile = name;
+	ofn.lpstrInitialDir = path;
+	ofn.nMaxFile = MAX_PATH;
+	ofn.Flags = OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
+	ofn.lpstrDefExt = "png";
+
+	if (GetSaveFileName(&ofn))
+	{
+		for (int i = 0; name[i]; i++) {
+			if (name[i] == '\\')
+				name[i] = '/';
+		}
+		gfx_save_texture(gfx_main_surface(), name, ALCG_PNG);
+		char msg[PATH_MAX + 64];
+		snprintf(msg, sizeof(msg), "Screenshot saved to %s", name);
+		SDL_ShowSimpleMessageBox(0, "xsystem4", msg, NULL);
+	}
+
+	free(name);
+	free(path);
+}
+
+#else
+#ifdef __ANDROID__
+
+void screenshot_save(void)
+{
+
+}
+
+#else
 
 static char *default_filename(void)
 {
@@ -41,23 +120,6 @@ static char *default_filename(void)
 	snprintf(name, sizeof(name), "Snapshot/%s_%s.png", config.game_name, datetime);
 	return gamedir_path(name);
 }
-
-#ifdef _WIN32
-
-void screenshot_save(void)
-{
-
-}
-
-#else
-#ifdef __ANDROID__
-
-void screenshot_save(void)
-{
-
-}
-
-#else
 
 static bool have_zenity(void)
 {
