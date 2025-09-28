@@ -179,6 +179,11 @@ static bool parse_monster_info(char *text)
 				current_motion->name = utf2sjis(string_buf, 0);
 			} else if (MATCH("データ = " QUOTED_STRING, string_buf)) {
 				current_motion->data_name = utf2sjis(string_buf, 0);
+// XXX: sscanf doesn't match this string on Windows for some reason...
+#define LOOP_STR "タイプ\x09\x09= ループ"
+			} else if (!strncmp(text, LOOP_STR, sizeof(LOOP_STR)-1)) {
+				text += sizeof(LOOP_STR)-1;
+				current_motion->type = MOTION_LOOP;
 			} else if (MATCH("タイプ = ループ")) {
 				current_motion->type = MOTION_LOOP;
 			} else if (MATCH("フレーム = %d , %d", &begin, &end)) {
