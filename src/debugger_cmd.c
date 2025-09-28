@@ -126,7 +126,9 @@ static void dbg_cmd_locals(unsigned nr_args, char **args)
 	struct page *page = heap_get_page(call_stack[call_stack_ptr - (frame_no+1)].page_slot);
 	struct ain_function *f = &ain->functions[page->index];
 	for (int i = 0; i < f->nr_vars; i++) {
-		struct string *value = dbg_value_to_string(&f->vars[i].type, page->values[i], 1);
+		if (f->vars[i].type.data == AIN_VOID)
+			continue;
+		struct string *value = dbg_variable_to_string(&f->vars[i].type, page, i, 1);
 		printf("[%d] %s: %s\n", i, display_sjis0(f->vars[i].name), display_sjis1(value->text));
 		free_string(value);
 	}
@@ -138,7 +140,9 @@ static void log_handler(struct breakpoint *bp)
 	struct page *locals = local_page();
 	printf("%s(", display_sjis0(f->name));
 	for (int i = 0; i < f->nr_args; i++) {
-		struct string *value = dbg_value_to_string(&f->vars[i].type, locals->values[i], 1);
+		if (f->vars[i].type.data == AIN_VOID)
+			continue;
+		struct string *value = dbg_variable_to_string(&f->vars[i].type, locals, i, 1);
 		printf(i > 0 ? ", %s" : "%s", display_sjis0(value->text));
 		free_string(value);
 	}
@@ -175,7 +179,9 @@ static void dbg_cmd_members(unsigned nr_args, char **args)
 	assert(page->nr_vars == s->nr_members);
 
 	for (int i = 0; i < s->nr_members; i++) {
-		struct string *value = dbg_value_to_string(&s->members[i].type, page->values[i], 1);
+		if (s->members[i].type.data == AIN_VOID)
+			continue;
+		struct string *value = dbg_variable_to_string(&s->members[i].type, page, i, 1);
 		printf("[%d] %s: %s\n", i, display_sjis0(s->members[i].name), display_sjis1(value->text));
 		free_string(value);
 	}

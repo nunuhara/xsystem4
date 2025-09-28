@@ -764,6 +764,8 @@ static void dbg_indent(struct string **s, int indent_level)
 }
 static struct string *_dbg_value_to_string(struct ain_type *type, union vm_value value,
 		int recursive, int indent);
+static struct string *_dbg_variable_to_string(
+	struct ain_type *type, struct page *page, int slot, int recursive, int indent);
 
 static struct string *dbg_string_to_string(struct string *str)
 {
@@ -788,10 +790,12 @@ static struct string *dbg_struct_to_string(struct ain_type *type, union vm_value
 	struct string *out = cstr_to_string("{\n");
 	for (int i = 0; i < page->nr_vars; i++) {
 		struct ain_variable *m = &ain->structures[type->struc].members[i];
+		if (m->type.data == AIN_VOID)
+			continue;
 		dbg_indent(&out, indent + 1);
 		string_append_cstr(&out, m->name, strlen(m->name));
 		string_append_cstr(&out, " = ", 3);
-		struct string *tmp = _dbg_value_to_string(&m->type, page->values[i],
+		struct string *tmp = _dbg_variable_to_string(&m->type, page, i,
 				recursive - 1, indent + 1);
 		string_append(&out, tmp);
 		free_string(tmp);
@@ -869,6 +873,34 @@ static struct string *_dbg_value_to_string(struct ain_type *type, union vm_value
 struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, int recursive)
 {
 	return _dbg_value_to_string(type, value, recursive, 0);
+}
+
+static struct string *_dbg_variable_to_string(
+	struct ain_type *type, struct page *page, int slot, int recursive, int indent)
+{
+	enum ain_data_type value_type;
+	switch (type->data) {
+	case AIN_REF_INT:      value_type = AIN_INT;      break;
+	case AIN_REF_LONG_INT: value_type = AIN_LONG_INT; break;
+	case AIN_REF_BOOL:     value_type = AIN_BOOL;     break;
+	case AIN_REF_FLOAT:    value_type = AIN_FLOAT;    break;
+	default:
+		return _dbg_value_to_string(type, page->values[slot], recursive, indent);
+	}
+
+	// get referenced value
+	int pageno = page->values[slot].i;
+	int varno  = page->values[slot + 1].i;
+	if (pageno < 0) {
+		return cstr_to_string("NULL");
+	}
+	struct ain_type t = {.data = value_type};
+	return _dbg_value_to_string(&t, heap[pageno].page->values[varno], recursive, indent);
+}
+
+struct string *dbg_variable_to_string(struct ain_type *type, struct page *page, int slot, int recursive)
+{
+	return _dbg_variable_to_string(type, page, slot, recursive, 0);
 }
 
 // the maximum number of instructions preceeding the instruction pointer to be displayed
