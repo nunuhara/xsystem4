@@ -53,7 +53,7 @@ xsystem4 can be built on Windows using MSYS2.
 
 First install MSYS2, and then open the MINGW64 shell and run the following command,
 
-    pacman -S flex bison \
+    pacman -S make flex bison \
         mingw-w64-x86_64-gcc \
         mingw-w64-x86_64-meson \
         mingw-w64-x86_64-pkg-config \
@@ -62,13 +62,15 @@ First install MSYS2, and then open the MINGW64 shell and run the following comma
         mingw-w64-x86_64-libjpeg-turbo \
         mingw-w64-x86_64-libwebp \
         mingw-w64-x86_64-libsndfile \
-        mingw-w64-x86_64-glew
+        mingw-w64-x86_64-glew \
+        mingw-w64-x86_64-nasm \
+        mingw-w64-x86_64-diffutils
 
 To build with FFmpeg support, you must compile FFmpeg as a static library:
 
     git clone https://github.com/FFmpeg/FFmpeg.git
     cd FFmpeg
-    git checkout n6.0
+    git checkout n7.1.2
     ./configure --disable-everything \
         --enable-decoder=mpegvideo \
         --enable-decoder=mpeg1video \
