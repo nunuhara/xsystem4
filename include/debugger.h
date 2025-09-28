@@ -94,6 +94,7 @@ void dbg_print_vm_state(void);
 void dbg_print_current_line(void);
 union vm_value dbg_eval_string(const char *str, struct ain_type *type_out);
 struct string *dbg_value_to_string(struct ain_type *type, union vm_value value, int recursive);
+struct string *dbg_variable_to_string(struct ain_type *type, struct page *page, int slot, int recursive);
 
 void dbg_dap_init(void);
 void dbg_dap_quit(void);
