@@ -633,10 +633,10 @@ static bool dd1_save_walk_data(struct dungeon_context *ctx, int map, struct page
 
 	int offset = dd1_find_walk_data(array, map, ctx->dgn);
 	if (offset == WALK_DATA_NOT_FOUND) {
-		offset = array->nr_vars;
-		array->values[1].i += 1;
-		union vm_value dim = { .i = array->nr_vars + 4 + nr_cells };
+		offset = array ? array->nr_vars : 0;
+		union vm_value dim = { .i = offset + 4 + nr_cells };
 		*page = array = realloc_array(array, 1, &dim, AIN_ARRAY_INT, 0, false);
+		array->values[1].i += 1;
 	} else if (offset == WALK_DATA_BROKEN) {
 		if (array)
 			WARNING("Discarding broken walk data");
