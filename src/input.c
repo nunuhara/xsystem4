@@ -608,6 +608,9 @@ void handle_events(void)
 		case SDL_WINDOWEVENT:
 			handle_window_event(&e);
 			break;
+		case SDL_APP_DIDENTERFOREGROUND:
+			gfx_swap();
+			break;
 		case SDL_KEYDOWN:
 			if (e.key.keysym.scancode == SDL_SCANCODE_F9) {
 				vm_stack_trace();
