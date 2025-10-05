@@ -24,6 +24,7 @@
 #include "input.h"
 #include "scene.h"
 #include "vm.h"
+#include "xsystem4.h"
 #include "debugger.h"
 
 #ifndef M_PI
