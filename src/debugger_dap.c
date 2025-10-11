@@ -1087,6 +1087,13 @@ void dbg_dap_log(const char *log, const char *fmt, va_list ap)
 	size_t len = max(1024, strlen(fmt) * 2);
 	char *buf = xmalloc(len);
 	vsnprintf(buf, len, fmt, ap);
+#ifdef _WIN32
+	// Since the callers use display_sjis*(), buf is in Shift_JIS on Windows.
+	// Convert to UTF-8 for DAP.
+	char *utf8 = sjis2utf(buf, 0);
+	free(buf);
+	buf = utf8;
+#endif
 	emit_output_event(log, buf);
 	free(buf);
 }
