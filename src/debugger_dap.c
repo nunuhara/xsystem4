@@ -56,6 +56,9 @@ static enum {
 	DAP_STOPPED
 } dap_state = DAP_UNINITIALIZED;
 
+static bool dap_launch_req_received = false;
+static bool dap_config_done_req_received = false;
+
 static enum {
 	NOT_STEPPING = 0,
 	STEPPING_INTO,
@@ -178,12 +181,17 @@ static void cmd_launch(cJSON *args, cJSON *resp)
 
 	// TODO: handle noDebug option
 	send_response(resp, true);
-	dap_state = DAP_RUNNING;
+	dap_launch_req_received = true;
+	if (dap_config_done_req_received)
+		dap_state = DAP_RUNNING;
 }
 
 static void cmd_configurationDone(cJSON *args, cJSON *resp)
 {
 	send_response(resp, true);
+	dap_config_done_req_received = true;
+	if (dap_launch_req_received)
+		dap_state = DAP_RUNNING;
 }
 
 static void cmd_stackTrace(cJSON *args, cJSON *resp)
