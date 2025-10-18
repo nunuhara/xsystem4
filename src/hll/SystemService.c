@@ -325,7 +325,10 @@ static void SystemService_OpenPlayingManual(void) {
 	if (!SystemService_IsExistPlayingManual()) {
 		return;
 	}
-
+#ifdef __ANDROID__
+	const int COMMAND_OPEN_PLAYING_MANUAL = 0x8000;
+	SDL_AndroidSendMessage(COMMAND_OPEN_PLAYING_MANUAL, 0);
+#else
 	char *filename = get_manual_filename();
 
 	char *real_path = realpath_utf8(filename);
@@ -352,6 +355,7 @@ static void SystemService_OpenPlayingManual(void) {
 
 	free(url);
 	free(path_component);
+#endif
 }
 
 //static bool SystemService_IsExistSystemMessage(void);
