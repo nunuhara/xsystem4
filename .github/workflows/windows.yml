@@ -1,0 +1,106 @@
+name: Windows Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            base-devel
+            git
+            nasm
+            diffutils
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-libjpeg-turbo
+            mingw-w64-x86_64-libwebp
+            mingw-w64-x86_64-libpng
+            mingw-w64-x86_64-libsndfile
+            mingw-w64-x86_64-glew
+
+      - name: Build FFmpeg
+        run: |
+          git clone --depth 1 --branch n7.1.2 https://github.com/FFmpeg/FFmpeg.git
+          cd FFmpeg
+          ./configure --disable-everything \
+            --enable-decoder=mpegvideo \
+            --enable-decoder=mpeg1video \
+            --enable-decoder=mpeg2video \
+            --enable-decoder=mp2 \
+            --enable-parser=mpegaudio \
+            --enable-parser=mpegvideo \
+            --enable-demuxer=mpegps \
+            --enable-demuxer=mpegts \
+            --enable-demuxer=mpegtsraw \
+            --enable-demuxer=mpegvideo \
+            --enable-decoder=vc1 \
+            --enable-decoder=wmapro \
+            --enable-parser=vc1 \
+            --enable-hwaccel=vc1_d3d11va \
+            --enable-hwaccel=vc1_d3d11va2 \
+            --enable-hwaccel=vc1_dxva2 \
+            --enable-demuxer=asf \
+            --enable-protocol=file \
+            --enable-filter=scale \
+            --enable-static \
+            --disable-shared \
+            --extra-libs=-static \
+            --extra-cflags=--static \
+            --prefix=/mingw64
+          make -j$(nproc)
+          make install
+          cd ..
+
+      - name: Build
+        run: |
+          mkdir debug
+          meson debug -Dbuildtype=debug
+          ninja -C debug
+          mkdir release
+          meson release -Dbuildtype=release
+          ninja -C release
+
+      - name: Test
+        run: |
+          debug/src/xsystem4.exe test/Run/test.ain
+          release/src/xsystem4.exe test/Run/test.ain
+
+      - name: Copy licenses
+        run: |
+          ls /mingw64/share/licenses
+          mkdir dist
+          cp -r /mingw64/share/licenses dist/
+
+      - name: Package
+        run: |
+          cp release/src/xsystem4.exe COPYING README.md game_compatibility.md dist/
+          cp debug/src/xsystem4.exe dist/xsystem4-debug.exe
+          cp /mingw64/bin/glew32.dll dist/
+          cp extra/*.lnk dist/
+          cp -r fonts dist/
+          cp -r shaders dist/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xsystem4
+          path: dist
+          compression-level: 9
