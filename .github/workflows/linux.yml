@@ -1,0 +1,30 @@
+name: Linux Build
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build-type: ["debug", "release"]
+
+    name: Linux ${{ matrix.build-type }}
+    steps:
+    - name: Checkout Source
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt install flex bison meson libfreetype-dev libglew-dev libffi-dev libpng-dev libsndfile-dev libturbojpeg0-dev libwebp-dev libsdl2-dev zlib1g-dev
+
+    - name: Build
+      run: |
+        mkdir -p out/${{ matrix.build-type }}
+        meson -Dbuildtype=${{ matrix.build-type }} out/${{ matrix.build-type }}
+        ninja -C out/${{ matrix.build-type }}
+
+    - name: Test
+      run: out/${{ matrix.build-type }}/src/xsystem4 test/Run/test.ain
