@@ -171,8 +171,8 @@ static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f,
 static void parts_render_flash_sprite(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_sprite *tag)
 {
 	struct parts_flash_object *obj2 = ht_get_int(f->sprites, tag->sprite_id, NULL);
-	if (!obj)
-		ERROR("undefined sprite id %d", tag->sprite_id);
+	if (!obj2)
+		return;  // sprite has no visual elements.
 
 	struct swf_tag *child = ht_get_int(f->dictionary, obj2->character_id, NULL);
 	if (!child)
