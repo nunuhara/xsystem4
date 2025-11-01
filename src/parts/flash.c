@@ -304,8 +304,6 @@ static void define_sprite(struct parts_flash *f, struct swf_tag_define_sprite *t
 			ERROR("unsupported tag %d in sprite", t->type);
 		}
 	}
-	if (!obj)
-		ERROR("sprite has no PlaceObject2 tag");
 	slot->value = obj;
 }
 
