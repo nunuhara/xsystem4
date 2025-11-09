@@ -211,6 +211,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/vmSurface.c
   src/hll/vmSystem.c
   src/hll/vmTimer.c
+  src/hll/ValueEncryption.c
   src/hll/VSFile.c
   )
 

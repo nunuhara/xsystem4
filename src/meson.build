@@ -172,6 +172,7 @@ xsystem4 = [version_h,
             'hll/vmSurface.c',
             'hll/vmSystem.c',
             'hll/vmTimer.c',
+            'hll/ValueEncryption.c',
             'hll/VSFile.c',
 ]
 

@@ -527,6 +527,7 @@ extern struct static_library lib_vmString;
 extern struct static_library lib_vmSurface;
 extern struct static_library lib_vmSystem;
 extern struct static_library lib_vmTimer;
+extern struct static_library lib_ValueEncryption;
 extern struct static_library lib_VSFile;
 
 static struct static_library *static_libraries[] = {
@@ -643,6 +644,7 @@ static struct static_library *static_libraries[] = {
 	&lib_vmSurface,
 	&lib_vmSystem,
 	&lib_vmTimer,
+	&lib_ValueEncryption,
 	&lib_VSFile,
 	NULL
 };
