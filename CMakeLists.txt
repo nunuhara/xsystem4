@@ -107,6 +107,7 @@ target_sources(xsystem4 PRIVATE
 
   src/hll/ACXLoader.c
   src/hll/ADVSYS.c
+  src/hll/AFAFactory.c
   src/hll/AliceLogo.c
   src/hll/AliceLogo2.c
   src/hll/AliceLogo3.c
