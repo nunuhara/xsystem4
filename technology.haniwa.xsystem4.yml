@@ -17,6 +17,8 @@ finish-args:
   - --socket=pulseaudio
   # Gamepad
   - --device=input
+cleanup:
+  - /lib/libsys4.a
 modules:
   - name: xsystem4
     buildsystem: meson
@@ -26,3 +28,11 @@ modules:
     sources:
       - type: git
         url: https://github.com/nunuhara/xsystem4.git
+  - name: metadata
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/share/metainfo
+      - install -D technology.haniwa.xsystem4.metainfo.xml /app/share/metainfo/
+    sources:
+      - type: file
+        path: technology.haniwa.xsystem4.metainfo.xml

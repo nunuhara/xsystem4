@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="console-application">
+  <id>technology.haniwa.xsystem4</id>
+  
+  <name>xsystem4</name>
+  <summary>Open source implementation of AliceSoft&apos;s System 4 game engine</summary>
+  
+  <metadata_license>MIT</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  
+  <description>
+    <p>
+      An open source implementation of AliceSoft&apos;s System 4 game engine for unix-like operating systems.
+    </p>
+  </description>
+
+  <icon type="stock">utilities-terminal</icon>
+  
+  <categories>
+    <category>Game</category>
+    <category>Emulator</category>
+  </categories>
+  
+  <provides>
+    <binary>xsystem4</binary>
+  </provides>
+
+  <url type="homepage">https://github.com/nunuhara/xsystem4</url>
+
+  <developer id="technology.haniwa">
+    <name>Nunuhara Cabbage</name>
+  </developer>
+
+</component>
