@@ -81,7 +81,15 @@ jobs:
             mingw-w64-x86_64-libsndfile
             mingw-w64-x86_64-glew
 
+      - name: Cache FFmpeg
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: FFmpeg/destdir
+          key: ${{ runner.os }}-ffmpeg-n7.1.2
+
       - name: Build FFmpeg
+        if: ${{ steps.cache-ffmpeg.outputs.cache-hit != 'true' }}
         run: |
           git clone --depth 1 --branch n7.1.2 https://github.com/FFmpeg/FFmpeg.git
           cd FFmpeg
@@ -111,8 +119,13 @@ jobs:
             --extra-cflags=--static \
             --prefix=/mingw64
           make -j$(nproc)
-          make install
+          mkdir destdir
+          DESTDIR=destdir make install
           cd ..
+
+      - name: Install FFmpeg
+        run: |
+          cp -a FFmpeg/destdir/. /
 
       - name: Build
         run: |
