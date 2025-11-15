@@ -69,11 +69,19 @@ HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, AddURLMenu, struct string *ti
 
 static bool SystemService_IsFullScreen(void)
 {
-	return false;
+	return gfx_is_fullscreen();
 }
 
-//bool SystemService_ChangeNormalScreen(void);
-HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, ChangeFullScreen);
+static bool SystemService_ChangeNormalScreen(void)
+{
+	return gfx_set_fullscreen(false);
+}
+
+static bool SystemService_ChangeFullScreen(void)
+{
+	return gfx_set_fullscreen(true);
+}
+
 HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, InitMainWindowPosAndSize);
 
 //static bool SystemService_UpdateView(void);
@@ -408,7 +416,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(GetGameName, SystemService_GetGameName),
 	    HLL_EXPORT(AddURLMenu, SystemService_AddURLMenu),
 	    HLL_EXPORT(IsFullScreen, SystemService_IsFullScreen),
-	    HLL_TODO_EXPORT(ChangeNormalScreen, SystemService_ChangeNormalScreen),
+	    HLL_EXPORT(ChangeNormalScreen, SystemService_ChangeNormalScreen),
 	    HLL_EXPORT(ChangeFullScreen, SystemService_ChangeFullScreen),
 	    HLL_EXPORT(InitMainWindowPosAndSize, SystemService_InitMainWindowPosAndSize),
 	    HLL_EXPORT(UpdateView, SystemService_UpdateView),
