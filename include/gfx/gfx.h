@@ -77,6 +77,9 @@ void gfx_fini(void);
 
 Texture *gfx_main_surface(void);
 void gfx_set_window_logical_size(int w, int h);
+bool gfx_set_fullscreen(bool enable);
+bool gfx_is_fullscreen(void);
+void gfx_toggle_fullscreen(void);
 void gfx_update_screen_scale(void);
 void gfx_set_wait_vsync(bool wait);
 float gfx_get_frame_rate(void);

@@ -319,6 +319,26 @@ void gfx_set_window_logical_size(int w, int h)
 	main_surface_init(w, h);
 }
 
+bool gfx_set_fullscreen(bool enable)
+{
+	uint32_t flags = enable ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
+	if (SDL_SetWindowFullscreen(sdl.window, flags) < 0) {
+		WARNING("Failed to set fullscreen mode: %s", SDL_GetError());
+		return false;
+	}
+	return true;
+}
+
+bool gfx_is_fullscreen(void)
+{
+	return SDL_GetWindowFlags(sdl.window) & SDL_WINDOW_FULLSCREEN_DESKTOP;
+}
+
+void gfx_toggle_fullscreen(void)
+{
+	gfx_set_fullscreen(!gfx_is_fullscreen());
+}
+
 void gfx_update_screen_scale(void)
 {
 	int display_w, display_h;
