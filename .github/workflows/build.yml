@@ -1,10 +1,54 @@
-name: Windows Build
+name: Build
 
 on: [push, pull_request]
 
 jobs:
-  build:
+  linux-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build-type: ["debug", "release"]
+
+    name: Linux ${{ matrix.build-type }}
+    steps:
+    - name: Checkout Source
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt install flex bison meson libfreetype-dev libglew-dev libffi-dev libpng-dev libsndfile-dev libturbojpeg0-dev libwebp-dev libsdl2-dev zlib1g-dev
+
+    - name: Build
+      run: |
+        mkdir -p out/${{ matrix.build-type }}
+        meson -Dbuildtype=${{ matrix.build-type }} out/${{ matrix.build-type }}
+        ninja -C out/${{ matrix.build-type }}
+
+    - name: Test
+      run: out/${{ matrix.build-type }}/src/xsystem4 test/Run/test.ain
+
+  flatpak-build:
+    name: Flatpak
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-48
+      options: --privileged
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+      with:
+        bundle: xsystem4-linux-x86_64-nightly.flatpak
+        manifest-path: technology.haniwa.xsystem4.yml
+        cache-key: flatpak-builder-${{ github.sha }}
+
+  windows-build:
     runs-on: windows-latest
+    name: Windows
 
     defaults:
       run:
@@ -25,6 +69,7 @@ jobs:
             git
             nasm
             diffutils
+            zip
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-meson
             mingw-w64-x86_64-pkg-config
@@ -97,10 +142,40 @@ jobs:
           cp extra/*.lnk dist/
           cp -r fonts dist/
           cp -r shaders dist/
+          mv dist xsystem4
+          zip -r -9 xsystem4-windows-x86_64-nightly.zip xsystem4
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: xsystem4
-          path: dist
-          compression-level: 9
+          path: xsystem4-windows-x86_64-nightly.zip
+
+  nightly:
+    name: Update nightly release
+    needs: [windows-build, flatpak-build]
+    if: ${{ github.repository == 'nunuhara/xsystem4' && github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v5
+        with:
+          merge-multiple: true
+
+      - name: Update nightly tag
+        uses: richardsimko/update-tag@v1
+        with:
+          tag_name: nightly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release nightly
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          name: nightly
+          tag_name: nightly
+          files: |
+            xsystem4-windows-x86_64-nightly.zip
+            xsystem4-linux-x86_64-nightly.flatpak
+          fail_on_unmatched_files: true
