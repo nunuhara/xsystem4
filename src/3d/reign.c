@@ -38,7 +38,7 @@ enum RE_plugin_version re_plugin_version;
 
 static struct RE_instance *create_instance(struct RE_plugin *plugin)
 {
-	struct RE_instance *instance = xcalloc(1, sizeof(struct RE_instance));
+	struct RE_instance *instance = xcalloc_aligned(1, struct RE_instance);
 	instance->plugin = plugin;
 	for (int i = 0; i < RE_NR_INSTANCE_TARGETS; i++)
 		instance->target[i] = -1;
@@ -229,7 +229,7 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 	if (!aar)
 		return NULL;
 
-	struct RE_plugin *plugin = xcalloc(1, sizeof(struct RE_plugin));
+	struct RE_plugin *plugin = xcalloc_aligned(1, struct RE_plugin);
 	plugin->plugin.name = "ReignEngine";
 	plugin->plugin.update = RE_render;
 	plugin->plugin.to_json = RE_to_json;

@@ -60,7 +60,7 @@ struct dungeon_context *dungeon_get_context(int surface)
 
 struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int width, int height)
 {
-	struct dungeon_context *ctx = xcalloc(1, sizeof(struct dungeon_context));
+	struct dungeon_context *ctx = xcalloc_aligned(1, struct dungeon_context);
 	ctx->plugin.name = plugin_name;
 	ctx->plugin.free = dungeon_context_free;
 	ctx->plugin.update = dungeon_render;

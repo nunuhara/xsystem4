@@ -153,7 +153,7 @@ static struct parts_flash_object *update_object(struct parts_flash_object *obj, 
 {
 	if (!obj) {
 		if (tag->flags & PLACE_FLAG_HAS_CHARACTER) {
-			obj = xcalloc(1, sizeof(struct parts_flash_object));
+			obj = xcalloc_aligned(1, struct parts_flash_object);
 			obj->depth = tag->depth;
 		} else {
 			ERROR("no object to update (depth=%d)", tag->depth);
