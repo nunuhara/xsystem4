@@ -94,7 +94,7 @@ static void unload_instance(struct RE_instance *instance)
 static void free_instance(struct RE_instance *instance)
 {
 	unload_instance(instance);
-	free(instance);
+	xfree_aligned(instance);
 }
 
 static void RE_back_cg_init(struct RE_back_cg *bcg)
@@ -263,7 +263,7 @@ void RE_plugin_free(struct RE_plugin *plugin)
 		RE_renderer_free(plugin->renderer);
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_destroy(&plugin->back_cg[i]);
-	free(plugin);
+	xfree_aligned(plugin);
 }
 
 bool RE_plugin_bind(struct RE_plugin *plugin, int sprite)

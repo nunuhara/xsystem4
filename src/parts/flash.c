@@ -38,7 +38,7 @@ static void clear_display_list(struct parts_flash *f)
 	while (!TAILQ_EMPTY(&f->display_list)) {
 		struct parts_flash_object *obj = TAILQ_FIRST(&f->display_list);
 		TAILQ_REMOVE(&f->display_list, obj, entry);
-		free(obj);
+		xfree_aligned(obj);
 	}
 }
 
@@ -62,7 +62,7 @@ void parts_flash_free(struct parts_flash *f)
 		ht_free_int(f->bitmaps);
 	}
 	if (f->sprites) {
-		ht_foreach_value(f->sprites, free);
+		ht_foreach_value(f->sprites, xfree_aligned);
 		ht_free_int(f->sprites);
 	}
 }
@@ -216,7 +216,7 @@ static void remove_object(struct parts_flash *f, struct swf_tag_remove_object2 *
 	TAILQ_FOREACH(p, &f->display_list, entry) {
 		if (p->depth == tag->depth) {
 			TAILQ_REMOVE(&f->display_list, p, entry);
-			free(p);
+			xfree_aligned(p);
 			return;
 		}
 	}
