@@ -101,24 +101,26 @@ static struct fnl_bitmap_glyph *fnl_get_bitmap_glyph(struct fnl_bitmap_size *bit
 	if (bitmap->glyphs[index])
 		return bitmap->glyphs[index];
 
-	unsigned long data_size;
-	uint8_t *data = fnl_glyph_data(bitmap->face->font->fnl, &bitmap->face->glyphs[index], &data_size);
+	struct fnl_glyph *glyph = &bitmap->face->glyphs[index];
+	uint8_t *data = fnl_glyph_data(bitmap->face->font->fnl, glyph);
 
-	const int glyph_w = (data_size*8) / bitmap->face->height;
+	const int glyph_w = fnl_glyph_stride(glyph) * 8;
 	const int glyph_h = bitmap->face->height;
 
 	struct fnl_bitmap_glyph *out = xmalloc(sizeof(struct fnl_bitmap_glyph));
 	out->width = glyph_w;
 	out->height = glyph_h;
-	out->advance = bitmap->face->glyphs[index].real_width;
-	out->pixels = xmalloc(glyph_w * glyph_h);
+	out->advance = glyph->width;
+	out->pixels = xcalloc(glyph_w, glyph_h);
 
 	// expand 1-bit bitmap to 8-bit
-	for (unsigned i = 0; i < glyph_w * glyph_h; i++) {
-		unsigned row = (glyph_h - 1) - i / glyph_w;
-		unsigned col = i % glyph_w;
-		bool on = data[i/8] & (1 << (7 - i % 8));
-		out->pixels[row*glyph_w + col] = on ? 255 : 0;
+	for (unsigned row = 0; row < glyph_h; row++) {
+		uint8_t *dst = out->pixels + ((glyph_h - 1) - row) * glyph_w;
+		for (unsigned col = 0; col < glyph->width; col++) {
+			unsigned i = row * glyph_w + col;
+			bool on = data[i/8] & (1 << (7 - i % 8));
+			dst[col] = on ? 255 : 0;
+		}
 	}
 
 	free(data);
@@ -183,7 +185,7 @@ static float fnl_font_size_char(struct font_size *_size, uint32_t code)
 		return 0.0;
 	if (!size->bitmap_size->face->glyphs[index].data_pos)
 		return 0.0;
-	float r = (float)size->bitmap_size->face->glyphs[index].real_width / (float)size->denominator;
+	float r = (float)size->bitmap_size->face->glyphs[index].width / (float)size->denominator;
 	if (code == '\t')
 		r *= 2.88;
 	return r;
