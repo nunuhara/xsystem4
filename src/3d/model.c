@@ -594,7 +594,7 @@ void model_free(struct model *model)
 
 	for (int i = 0; i < model->nr_bones; i++)
 		destroy_bone(&model->bones[i]);
-	free(model->bones);
+	xfree_aligned(model->bones);
 	if (model->bone_map)
 		ht_free_int(model->bone_map);
 	if (model->bone_name_map)

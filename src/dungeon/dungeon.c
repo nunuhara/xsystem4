@@ -102,7 +102,7 @@ static void dungeon_context_free(struct draw_plugin *plugin)
 	if (ctx->map)
 		dungeon_map_free(ctx->map);
 
-	free(ctx);
+	xfree_aligned(ctx);
 }
 
 static GLuint *load_event_textures(int *nr_textures_out)
