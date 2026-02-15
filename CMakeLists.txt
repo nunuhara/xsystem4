@@ -107,6 +107,7 @@ target_sources(xsystem4 PRIVATE
 
   src/hll/ACXLoader.c
   src/hll/ADVSYS.c
+  src/hll/AFAFactory.c
   src/hll/AliceLogo.c
   src/hll/AliceLogo2.c
   src/hll/AliceLogo3.c
@@ -211,6 +212,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/vmSurface.c
   src/hll/vmSystem.c
   src/hll/vmTimer.c
+  src/hll/ValueEncryption.c
   src/hll/VSFile.c
   )
 

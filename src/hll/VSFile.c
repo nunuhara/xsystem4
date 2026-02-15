@@ -80,19 +80,9 @@ static bool vsf_write_type(enum vsf_valuetype type)
 	return vsf_write(&b, 1);
 }
 
-static char *process_filename(struct string *filename)
-{
-	char *u = sjis2utf(filename->text, filename->size);
-	for (int i = 0; u[i]; i++) {
-		if (u[i] == '\\')
-			u[i] = '/';
-	}
-	return u;
-}
-
 static bool vsfile_open(struct string *filename, bool read)
 {
-	char *u = process_filename(filename);
+	char *u = gamedir_path(filename->text);
 	if (vs_file) {
 		WARNING("VSFile is already opened");
 		fclose(vs_file);

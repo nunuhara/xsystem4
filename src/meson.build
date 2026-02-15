@@ -68,6 +68,7 @@ xsystem4 = [version_h,
 
             'hll/ACXLoader.c',
             'hll/ADVSYS.c',
+            'hll/AFAFactory.c',
             'hll/AliceLogo.c',
             'hll/AliceLogo2.c',
             'hll/AliceLogo3.c',
@@ -172,6 +173,7 @@ xsystem4 = [version_h,
             'hll/vmSurface.c',
             'hll/vmSystem.c',
             'hll/vmTimer.c',
+            'hll/ValueEncryption.c',
             'hll/VSFile.c',
 ]
 

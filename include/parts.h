@@ -102,6 +102,7 @@ void PE_SetPartsRotateX(int parts_no, float rot_x);
 void PE_SetPartsRotateY(int parts_no, float rot_y);
 void PE_SetPartsRotateZ(int parts_no, float rot_z);
 float PE_GetPartsRotateZ(int parts_no);
+void PE_SetPartsAlphaClipperPartsNumber(int parts_no, int alpha_clipper_parts_no);
 void PE_SetPartsPixelDecide(int PartsNumber, bool pixel_decide);
 bool PE_SetThumbnailReductionSize(int reduction_size);
 bool PE_SetThumbnailMode(bool Mode);
