@@ -88,6 +88,7 @@ bool parts_flash_load(struct parts *parts, struct parts_flash *f, struct string 
 
 	f->name = string_dup(filename);
 	f->tag = f->swf->tags;
+	f->has_ended = false;
 	f->stopped = false;
 	f->elapsed = 0;
 	f->current_frame = 0;
@@ -128,10 +129,10 @@ static int do_action(struct parts_flash *f, struct swf_tag_do_action *tag)
 	for (struct swf_action *a = tag->actions; a->code != ACTION_END; a = a->next) {
 		switch (a->code) {
 		case ACTION_PLAY:
-			f->stopped = false;
+			f->has_ended = false;
 			break;
 		case ACTION_STOP:
-			f->stopped = true;
+			f->has_ended = true;
 			break;
 		case ACTION_GOTO_FRAME:
 			seek_frame = ((struct swf_action_goto_frame*)a)->frame;
@@ -328,7 +329,7 @@ bool parts_flash_seek(struct parts_flash *f, int frame)
 			// Do nothing.
 			break;
 		case TAG_END:
-			f->stopped = true;
+			f->has_ended = true;
 			break;
 		case TAG_SHOW_FRAME:
 			f->current_frame++;
@@ -371,7 +372,7 @@ bool parts_flash_seek(struct parts_flash *f, int frame)
 
 bool parts_flash_update(struct parts_flash *f, int passed_time)
 {
-	if (!f->swf || f->stopped)
+	if (!f->swf || f->has_ended || f->stopped)
 		return false;
 	f->elapsed += passed_time;
 	int delta_frame = muldiv(f->elapsed, f->swf->frame_rate, 256000);
@@ -425,6 +426,7 @@ bool PE_BackPartsFlashBeginFrame(int parts_no, int state)
 	struct parts_flash *f = parts_get_flash(parts, state);
 	if (!f->swf)
 		return false;
+	f->has_ended = false;
 	if (parts_flash_seek(f, 1))
 		parts_dirty(parts);
 	f->elapsed = 0;

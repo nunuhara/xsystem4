@@ -266,6 +266,7 @@ struct parts_flash {
 	struct swf *swf;
 
 	struct swf_tag *tag;
+	bool has_ended;
 	bool stopped;
 	unsigned elapsed;
 	int current_frame;
