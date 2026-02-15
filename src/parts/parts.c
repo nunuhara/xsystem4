@@ -1759,6 +1759,11 @@ float PE_GetPartsRotateZ(int parts_no)
 	return parts_get(parts_no)->local.rotation.z;
 }
 
+void PE_SetPartsAlphaClipperPartsNumber(int parts_no, int alpha_clipper_parts_no)
+{
+	UNIMPLEMENTED("(%d, %d)", parts_no, alpha_clipper_parts_no);
+}
+
 void PE_SetPartsPixelDecide(int parts_no, bool pixel_decide)
 {
 	//UNIMPLEMENTED("(%d, %s)", parts_no, pixel_decide ? "true" : "false");
