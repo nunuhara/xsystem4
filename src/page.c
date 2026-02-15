@@ -557,6 +557,17 @@ static int array_compare_custom(const void *_a, const void *_b)
 	return d ? d : a->index - b->index;
 }
 
+static int array_compare_custom_string(const void *_a, const void *_b)
+{
+	const struct sortable *a = _a;
+	const struct sortable *b = _b;
+	stack_push(vm_string_ref(heap_get_string(a->v.i)));
+	stack_push(vm_string_ref(heap_get_string(b->v.i)));
+	vm_call(current_sort_function, -1);
+	int d = stack_pop().i;
+	return d ? d : a->index - b->index;
+}
+
 void array_sort(struct page *page, int compare_fno)
 {
 	if (!page)
@@ -569,7 +580,8 @@ void array_sort(struct page *page, int compare_fno)
 			values[i].index = i;
 		}
 		current_sort_function = compare_fno;
-		qsort(values, page->nr_vars, sizeof(struct sortable), array_compare_custom);
+		qsort(values, page->nr_vars, sizeof(struct sortable),
+			page->a_type == AIN_ARRAY_STRING ? array_compare_custom_string : array_compare_custom);
 		for (int i = 0; i < page->nr_vars; i++) {
 			page->values[i] = values[i].v;
 		}
