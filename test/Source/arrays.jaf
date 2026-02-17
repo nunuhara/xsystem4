@@ -233,6 +233,30 @@ void test_array_sort_custom(void)
 	test_bool("array.Sort()", !failed, true);
 }
 
+int compare_string(string a, string b)
+{
+	if (a < b) return -1;
+	if (a > b) return 1;
+	return 0;
+}
+
+void test_array_sort_custom_string(void)
+{
+	int i;
+	bool failed = false;
+	array@string ar;
+	ar.PushBack("4");
+	ar.PushBack("1");
+	ar.PushBack("3");
+	ar.PushBack("0");
+	ar.PushBack("2");
+	ar.Sort(&compare_string);
+	for (i = 0; i < 5 && !failed; i++) {
+		failed = ar[i] != "%d" % i;
+	}
+	test_bool("string_array.Sort()", !failed, true);
+}
+
 int ctor_ctr = 0;
 
 struct array_ctor {
@@ -285,6 +309,7 @@ void test_arrays(void)
 	test_array_sort_float();
 	test_array_sort_string();
 	test_array_sort_custom();
+	test_array_sort_custom_string();
 	test_array_constructors();
 	test_array_push_struct_with_ref();
 }
