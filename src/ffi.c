@@ -485,6 +485,7 @@ extern struct static_library lib_MsgSkip;
 extern struct static_library lib_MusicSystem;
 extern struct static_library lib_NewFont;
 extern struct static_library lib_OutputLog;
+extern struct static_library lib_P3MapSprite;
 extern struct static_library lib_PassRegister;
 extern struct static_library lib_PastelChime2;
 extern struct static_library lib_PartsEngine;
@@ -604,6 +605,7 @@ static struct static_library *static_libraries[] = {
 	&lib_MusicSystem,
 	&lib_NewFont,
 	&lib_OutputLog,
+	&lib_P3MapSprite,
 	&lib_PassRegister,
 	&lib_PastelChime2,
 	&lib_PartsEngine,

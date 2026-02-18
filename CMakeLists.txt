@@ -172,6 +172,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/MusicSystem.c
   src/hll/NewFont.c
   src/hll/OutputLog.c
+  src/hll/P3MapSprite.c
   src/hll/PassRegister.c
   src/hll/PastelChime2.c
   src/hll/PartsEngine.c
