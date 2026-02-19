@@ -20,6 +20,7 @@ in vec2 tex_coord;
 out vec4 frag_color;
 
 void main() {
-	float gray = dot(texture(tex, tex_coord).rgb, vec3(0.299, 0.587, 0.114));
-	frag_color = vec4(vec3(gray), 1);
+	vec4 texel = texture(tex, tex_coord);
+	float gray = dot(texel.rgb, vec3(0.299, 0.587, 0.114));
+	frag_color = vec4(vec3(gray), texel.a);
 }

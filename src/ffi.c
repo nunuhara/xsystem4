@@ -469,6 +469,7 @@ extern struct static_library lib_InputDevice;
 extern struct static_library lib_InputString;
 extern struct static_library lib_KiwiSoundEngine;
 extern struct static_library lib_LoadCG;
+extern struct static_library lib_MADLoader;
 extern struct static_library lib_MainEXFile;
 extern struct static_library lib_MainSurface;
 extern struct static_library lib_MamanyoDemo;
@@ -587,6 +588,7 @@ static struct static_library *static_libraries[] = {
 	&lib_InputString,
 	&lib_KiwiSoundEngine,
 	&lib_LoadCG,
+	&lib_MADLoader,
 	&lib_MainEXFile,
 	&lib_MainSurface,
 	&lib_MamanyoDemo,

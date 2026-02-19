@@ -156,6 +156,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/InputString.c
   src/hll/KiwiSoundEngine.c
   src/hll/LoadCG.c
+  src/hll/MADLoader.c
   src/hll/MainEXFile.c
   src/hll/MainSurface.c
   src/hll/MamanyoDemo.c
