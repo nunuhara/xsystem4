@@ -394,6 +394,10 @@ static void SystemService_DRPKT(struct string **text)
 	*text = cstr_to_string("DRPKT QWERTY NUFUAUEO 75849027582754829");
 }
 
+static void SystemService_Rance96161988(struct string **text) {
+	*text = cstr_to_string("=Rance99/RANCE99=");
+}
+
 static void SystemService_PreLink(void);
 
 static void SystemService_ModuleInit(void)
@@ -446,7 +450,8 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(Rance0123456789, SystemService_Rance0123456789),
 	    HLL_EXPORT(XXXXX01XXXXXXXX, SystemService_XXXXX01XXXXXXXX),
 	    HLL_EXPORT(Test, SystemService_Test),
-	    HLL_EXPORT(DRPKT, SystemService_DRPKT)
+	    HLL_EXPORT(DRPKT, SystemService_DRPKT),
+	    HLL_EXPORT(Rance96161988, SystemService_Rance96161988)
 	);
 
 static struct ain_hll_function *get_fun(int libno, const char *name)
