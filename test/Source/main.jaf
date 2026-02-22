@@ -84,6 +84,10 @@ int main(void)
 	test_arrays();
 	test_end("arrays");
 
+	test_start("system");
+	test_system();
+	test_end("system");
+
 	test_start("Math.dll");
 	test_math();
 	test_end("Math.dll");

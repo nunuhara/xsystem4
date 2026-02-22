@@ -559,7 +559,13 @@ static void system_call(enum syscall_code code)
 	case SYS_EXISTS_FILE: { // system.ExistsFile(string szFileName)
 		int str = stack_pop().i;
 		char *path = gamedir_path(heap_get_string(str)->text);
-		stack_push(file_exists(path));
+		int len = strlen(path);
+		// Return true for directories, but false if the path ends with a directory separator.
+		if (len > 0 && (path[len-1] == '/' || path[len-1] == '\\')) {
+			stack_push(0);
+		} else {
+			stack_push(file_exists(path));
+		}
 		heap_unref(str);
 		free(path);
 		break;
