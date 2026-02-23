@@ -194,16 +194,15 @@ static int get_gsave_version(void)
 int save_globals(const char *keyname, const char *filename, const char *group_name, int *n_out)
 {
 	int group = -1;
-	int nr_vars;
+	int nr_vars = 0;
 	if (group_name) {
 		if ((group = get_group_index(group_name)) < 0) {
 			WARNING("Unregistered global group: %s", display_sjis0(group_name));
-			return 0;
-		}
-		nr_vars = 0;
-		for (int i = 0; i < ain->nr_globals; i++) {
-			if (ain->globals[i].group_index == group)
-				nr_vars++;
+		} else {
+			for (int i = 0; i < ain->nr_globals; i++) {
+				if (ain->globals[i].group_index == group)
+					nr_vars++;
+			}
 		}
 	} else {
 		nr_vars = ain->nr_globals;
@@ -212,14 +211,16 @@ int save_globals(const char *keyname, const char *filename, const char *group_na
 	struct gsave *save = gsave_create(get_gsave_version(), keyname, ain->nr_globals, group_name);
 	gsave_add_globals_record(save, nr_vars);
 
-	struct gsave_global *global = save->globals;
-	for (int i = 0; i < ain->nr_globals; i++) {
-		if (group >= 0 && ain->globals[i].group_index != group)
-			continue;
-		global->name = strdup(ain->globals[i].name);
-		global->type = ain->globals[i].type.data;
-		global->value = add_value_to_gsave(global->type, global_get(i), save);
-		global++;
+	if (nr_vars > 0) {
+		struct gsave_global *global = save->globals;
+		for (int i = 0; i < ain->nr_globals; i++) {
+			if (group >= 0 && ain->globals[i].group_index != group)
+				continue;
+			global->name = strdup(ain->globals[i].name);
+			global->type = ain->globals[i].type.data;
+			global->value = add_value_to_gsave(global->type, global_get(i), save);
+			global++;
+		}
 	}
 
 	char *path = savedir_path(filename);
