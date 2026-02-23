@@ -361,6 +361,18 @@ static int audio_get_time_length(struct id_pool *pool, int id)
 int wav_get_time_length(int id) { return audio_get_time_length(&wav, id); }
 int bgm_get_time_length(int id) { return audio_get_time_length(&bgm, id); }
 
+static int audio_get_data_length(enum asset_type type, int no) {
+	struct channel *ch = channel_open(type, no);
+	if (!ch)
+		return 0;
+	int len = channel_get_time_length(ch);
+	channel_close(ch);
+	return len;
+}
+
+int wav_get_data_length(int no) { return audio_get_data_length(ASSET_SOUND, no); }
+int bgm_get_data_length(int no) { return audio_get_data_length(ASSET_BGM, no); }
+
 static int audio_get_data_no(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
