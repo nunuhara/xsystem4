@@ -373,6 +373,7 @@ cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 		cJSON_AddNumberToObject(obj, "linked_from", parts->linked_from);
 	cJSON_AddNumberToObject(obj, "draw_filter", parts->draw_filter);
 	cJSON_AddBoolToObject(obj, "message_window", parts->message_window);
+	cJSON_AddNumberToObject(obj, "alpha_clipper_parts_no", parts->alpha_clipper_parts_no);
 
 	cJSON_AddItemToObjectCS(obj, "motions", motions = cJSON_CreateArray());
 	struct parts_motion *motion;

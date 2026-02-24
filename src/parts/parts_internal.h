@@ -334,6 +334,7 @@ struct parts {
 	int linked_from;
 	int draw_filter;
 	bool message_window;
+	int alpha_clipper_parts_no;
 	struct parts_motion_list motion;
 };
 

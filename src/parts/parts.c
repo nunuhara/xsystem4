@@ -1769,7 +1769,9 @@ float PE_GetPartsRotateZ(int parts_no)
 
 void PE_SetPartsAlphaClipperPartsNumber(int parts_no, int alpha_clipper_parts_no)
 {
-	UNIMPLEMENTED("(%d, %d)", parts_no, alpha_clipper_parts_no);
+	struct parts *parts = parts_get(parts_no);
+	parts->alpha_clipper_parts_no = alpha_clipper_parts_no;
+	parts_dirty(parts);
 }
 
 void PE_SetPartsPixelDecide(int parts_no, bool pixel_decide)

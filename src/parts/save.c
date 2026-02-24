@@ -22,7 +22,7 @@
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 2
+#define CURRENT_SAVE_VERSION 3
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -503,6 +503,7 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	iarray_write(w, parts->linked_from);
 	iarray_write(w, parts->draw_filter);
 	iarray_write(w, parts->message_window);
+	iarray_write(w, parts->alpha_clipper_parts_no);
 
 	unsigned motion_count_pos = iarray_writer_pos(w);
 	iarray_write(w, 0); // size of motion list
@@ -540,6 +541,8 @@ static void load_parts(struct iarray_reader *r, int version)
 	parts->draw_filter = iarray_read(r);
 	if (version > 0)
 		parts->message_window = iarray_read(r);
+	if (version > 2)
+		parts->alpha_clipper_parts_no = iarray_read(r);
 
 	int motion_count = iarray_read(r);
 	for (int i = 0; i < motion_count; i++) {
