@@ -222,6 +222,13 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 		iarray_write(w, op->text.line_space);
 		iarray_write_text_style(w, &op->text.style);
 		break;
+	case PARTS_CP_GRAY_FILTER:
+		iarray_write(w, op->filter.x);
+		iarray_write(w, op->filter.y);
+		iarray_write(w, op->filter.w);
+		iarray_write(w, op->filter.h);
+		iarray_write(w, op->filter.full_size);
+		break;
 	}
 }
 
@@ -271,6 +278,13 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 		op->text.y = iarray_read(r);
 		op->text.line_space = iarray_read(r);
 		iarray_read_text_style(r, &op->text.style);
+		break;
+	case PARTS_CP_GRAY_FILTER:
+		op->filter.x = iarray_read(r);
+		op->filter.y = iarray_read(r);
+		op->filter.w = iarray_read(r);
+		op->filter.h = iarray_read(r);
+		op->filter.full_size = !!iarray_read(r);
 		break;
 	}
 	return op;

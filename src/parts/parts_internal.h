@@ -185,7 +185,8 @@ enum parts_cp_op_type {
 	PARTS_CP_COPY_CUT_CG,
 	PARTS_CP_DRAW_TEXT,
 	PARTS_CP_COPY_TEXT,
-#define PARTS_NR_CP_TYPES (PARTS_CP_COPY_TEXT+1)
+	PARTS_CP_GRAY_FILTER,
+#define PARTS_NR_CP_TYPES (PARTS_CP_GRAY_FILTER+1)
 };
 
 struct parts_cp_create {
@@ -216,6 +217,11 @@ struct parts_cp_text {
 	struct text_style style;
 };
 
+struct parts_cp_filter {
+	int x, y, w, h;
+	bool full_size;
+};
+
 struct parts_cp_op {
 	TAILQ_ENTRY(parts_cp_op) entry;
 	enum parts_cp_op_type type;
@@ -225,6 +231,7 @@ struct parts_cp_op {
 		struct parts_cp_fill fill;
 		struct parts_cp_cut_cg cut_cg;
 		struct parts_cp_text text;
+		struct parts_cp_filter filter;
 	};
 };
 

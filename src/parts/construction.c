@@ -41,6 +41,7 @@ void parts_cp_op_free(struct parts_cp_op *op)
 	case PARTS_CP_DRAW_RECT:
 	case PARTS_CP_DRAW_CUT_CG:
 	case PARTS_CP_COPY_CUT_CG:
+	case PARTS_CP_GRAY_FILTER:
 		break;
 	case PARTS_CP_DRAW_TEXT:
 	case PARTS_CP_COPY_TEXT:
@@ -231,7 +232,23 @@ bool PE_AddCopyCutCGToPartsConstructionProcess(int parts_no, struct string *cg_n
 }
 
 bool PE_AddGrayFilterToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
-		bool full_size, int state);
+		bool full_size, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts_construction_process *cproc = get_cproc(parts_no, state);
+	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
+	op->type = PARTS_CP_GRAY_FILTER;
+	op->filter = (struct parts_cp_filter) {
+		.x = x, .y = y, .w = w, .h = h,
+		.full_size = full_size
+	};
+
+	parts_add_cp_op(cproc, op);
+	return true;
+}
+
 bool PE_AddAddFilterToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
 		int r, int g, int b, bool full_size, int state);
 bool PE_AddMulFilterToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
@@ -390,6 +407,18 @@ static void build_copy_text(struct parts_construction_process *cproc, struct par
 	gfx_render_text(&cproc->common.texture, op->x, op->y, op->text->text, &op->style, false);
 }
 
+static void build_gray_filter(struct parts_construction_process *cproc, struct parts_cp_filter *op)
+{
+	int x = op->x, y = op->y, w = op->w, h = op->h;
+	if (op->full_size) {
+		x = 0; y = 0;
+		w = cproc->common.texture.w;
+		h = cproc->common.texture.h;
+	}
+
+	gfx_copy_grayscale(&cproc->common.texture, x, y, &cproc->common.texture, x, y, w, h);
+}
+
 bool parts_build_construction_process(struct parts *parts,
 		struct parts_construction_process *cproc)
 {
@@ -428,6 +457,9 @@ bool parts_build_construction_process(struct parts *parts,
 			break;
 		case PARTS_CP_COPY_TEXT:
 			build_copy_text(cproc, &op->text);
+			break;
+		case PARTS_CP_GRAY_FILTER:
+			build_gray_filter(cproc, &op->filter);
 			break;
 		}
 	}

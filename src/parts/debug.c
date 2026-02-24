@@ -115,6 +115,7 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		[PARTS_CP_COPY_CUT_CG] = "copy_cut_cg",
 		[PARTS_CP_DRAW_TEXT] = "draw_text",
 		[PARTS_CP_COPY_TEXT] = "copy_text",
+		[PARTS_CP_GRAY_FILTER] = "gray_filter",
 	};
 
 	cJSON *ops, *tmp;
@@ -178,6 +179,13 @@ static void parts_construction_process_to_json(struct parts_construction_process
 			cJSON_AddNumberToObject(tmp, "y", op->text.y);
 			cJSON_AddNumberToObject(obj, "line_space", op->text.line_space);
 			cJSON_AddItemToObjectCS(obj, "style", text_style_to_json(&op->text.style, verbose));
+			break;
+		case PARTS_CP_GRAY_FILTER:
+			cJSON_AddNumberToObject(obj, "x", op->filter.x);
+			cJSON_AddNumberToObject(obj, "y", op->filter.y);
+			cJSON_AddNumberToObject(obj, "w", op->filter.w);
+			cJSON_AddNumberToObject(obj, "h", op->filter.h);
+			cJSON_AddBoolToObject(obj, "full_size", op->filter.full_size);
 			break;
 		}
 	}
@@ -503,6 +511,9 @@ static void parts_list_print(struct parts *parts, int indent)
 				break;
 			case PARTS_CP_COPY_TEXT:
 				sys_message(" copy-text");
+				break;
+			case PARTS_CP_GRAY_FILTER:
+				sys_message(" gray-filter");
 				break;
 			}
 		}
