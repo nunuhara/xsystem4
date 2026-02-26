@@ -382,6 +382,13 @@ bool parts_flash_update(struct parts_flash *f, int passed_time)
 	return parts_flash_seek(f, f->current_frame + delta_frame);
 }
 
+bool PE_ExistsFlashFile(struct string *flash_filename)
+{
+	if (!flash_filename)
+		return false;
+	return asset_exists_by_name(ASSET_FLASH, flash_filename->text, NULL);
+}
+
 bool PE_SetPartsFlash(int parts_no, struct string *flash_filename, int state)
 {
 	if (!parts_state_valid(--state))

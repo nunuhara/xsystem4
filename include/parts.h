@@ -224,6 +224,7 @@ bool PE_SetTextCharSpace(int parts_no, int char_space, int state);
 bool PE_SetTextLineSpace(int parts_no, int line_space, int state);
 
 // flash.c
+bool PE_ExistsFlashFile(struct string *flash_filename);
 bool PE_SetPartsFlash(int parts_no, struct string *flash_filename, int state);
 bool PE_IsPartsFlashEnd(int parts_no, int state);
 int PE_GetPartsFlashCurrentFrameNumber(int parts_no, int state);
