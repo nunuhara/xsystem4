@@ -292,7 +292,7 @@ struct page *alloc_array(int rank, union vm_value *dimensions, enum ain_data_typ
 
 	data_type = unref_array_type(data_type);
 	enum ain_data_type type = array_type(data_type);
-	struct page *page = alloc_page(ARRAY_PAGE, data_type, dimensions->i);
+	struct page *page = alloc_page(ARRAY_PAGE, data_type, max(0, dimensions->i));
 	page->array.struct_type = struct_type;
 	page->array.rank = rank;
 

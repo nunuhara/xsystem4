@@ -292,6 +292,13 @@ void test_array_push_struct_with_ref(void)
 	// Returning from this function should not double-free i.
 }
 
+void test_array_alloc_neg(void)
+{
+	array@int ar;
+	ar.Alloc(-4);
+	test_bool("ar.Alloc(-4); ar.Empty()", ar.Empty(), true);
+}
+
 void test_arrays(void)
 {
 	test_array_set();
@@ -312,4 +319,5 @@ void test_arrays(void)
 	test_array_sort_custom_string();
 	test_array_constructors();
 	test_array_push_struct_with_ref();
+	test_array_alloc_neg();
 }
