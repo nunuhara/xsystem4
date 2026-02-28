@@ -156,6 +156,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/InputString.c
   src/hll/KiwiSoundEngine.c
   src/hll/LoadCG.c
+  src/hll/MADLoader.c
   src/hll/MainEXFile.c
   src/hll/MainSurface.c
   src/hll/MamanyoDemo.c
@@ -171,6 +172,8 @@ target_sources(xsystem4 PRIVATE
   src/hll/MusicSystem.c
   src/hll/NewFont.c
   src/hll/OutputLog.c
+  src/hll/P3MapSprite.c
+  src/hll/P3SquareSprite.c
   src/hll/PassRegister.c
   src/hll/PastelChime2.c
   src/hll/PartsEngine.c

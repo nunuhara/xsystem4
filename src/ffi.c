@@ -469,6 +469,7 @@ extern struct static_library lib_InputDevice;
 extern struct static_library lib_InputString;
 extern struct static_library lib_KiwiSoundEngine;
 extern struct static_library lib_LoadCG;
+extern struct static_library lib_MADLoader;
 extern struct static_library lib_MainEXFile;
 extern struct static_library lib_MainSurface;
 extern struct static_library lib_MamanyoDemo;
@@ -484,6 +485,8 @@ extern struct static_library lib_MsgSkip;
 extern struct static_library lib_MusicSystem;
 extern struct static_library lib_NewFont;
 extern struct static_library lib_OutputLog;
+extern struct static_library lib_P3MapSprite;
+extern struct static_library lib_P3SquareSprite;
 extern struct static_library lib_PassRegister;
 extern struct static_library lib_PastelChime2;
 extern struct static_library lib_PartsEngine;
@@ -587,6 +590,7 @@ static struct static_library *static_libraries[] = {
 	&lib_InputString,
 	&lib_KiwiSoundEngine,
 	&lib_LoadCG,
+	&lib_MADLoader,
 	&lib_MainEXFile,
 	&lib_MainSurface,
 	&lib_MamanyoDemo,
@@ -602,6 +606,8 @@ static struct static_library *static_libraries[] = {
 	&lib_MusicSystem,
 	&lib_NewFont,
 	&lib_OutputLog,
+	&lib_P3MapSprite,
+	&lib_P3SquareSprite,
 	&lib_PassRegister,
 	&lib_PastelChime2,
 	&lib_PartsEngine,

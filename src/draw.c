@@ -1094,6 +1094,33 @@ void gfx_copy_grayscale(Texture *dst, int dx, int dy, Texture *src, int sx, int 
 	restore_blend_mode();
 }
 
+void gfx_copy_grayscale_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_grayscale_shader.s, dst, src, &data);
+
+	restore_blend_mode();
+}
+
+void gfx_copy_grayscale_reverse_LR_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	mat4 mw_transform = MAT4(
+	     -src->w, 0,      0, sx + w,
+	     0,       src->h, 0, -sy,
+	     0,       0,      1, 0,
+	     0,       0,      0, 1);
+	mat4 wv_transform = WV_TRANSFORM(w, h);
+
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_draw_shader(&copy_grayscale_shader.s, dst, src, mw_transform, wv_transform, &data);
+
+	restore_blend_mode();
+}
+
 static void draw_line(Texture *dst, int x0, int y0, int x1, int y1, struct copy_data *data)
 {
 	GLfloat w = dst->w;
