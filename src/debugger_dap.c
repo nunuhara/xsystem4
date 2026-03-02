@@ -411,6 +411,8 @@ static void add_array_elements_to_array(cJSON *array, struct page *page)
 
 static void add_page_to_array(cJSON *array, struct page *page)
 {
+	if (!page)
+		return;
 	switch (page->type) {
 	case GLOBAL_PAGE:
 		add_globals_to_array(array, page);
