@@ -43,31 +43,12 @@ static struct {
 	GLint top_right;
 	GLint add_color;
 	GLint multiply_color;
+	GLint use_clipper;
+	GLint clipper_tex;
+	GLint inv_clipper_transform;
 } parts_shader;
 
-static void parts_render_text(struct parts *parts, struct parts_text *t)
-{
-	int x = parts->global.pos.x + t->common.origin_offset.x;
-	int y = parts->global.pos.y + t->common.origin_offset.y;
-	for (int i = 0; i < t->nr_lines; i++) {
-		struct parts_text_line *line = &t->lines[i];
-		for (int j = 0; j < line->nr_chars; j++) {
-			struct parts_text_char *ch = &line->chars[j];
-			Rectangle rect = {
-				.x = x,
-				.y = y,
-				.w = ch->t.w,
-				.h = ch->t.h
-			};
-			gfx_render_texture(&ch->t, &rect);
-			x += ch->advance;
-		}
-		x = parts->global.pos.x + t->common.origin_offset.x;
-		y += line->height;
-	}
-}
-
-static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rectangle *rect, float blend_rate, vec3 add_color, vec3 multiply_color)
+static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rectangle *rect, float blend_rate, vec3 add_color, vec3 multiply_color, int alpha_clipper)
 {
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
 
@@ -86,7 +67,63 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 	glUniform2f(parts_shader.top_right, rect->x + rect->w, rect->y + rect->h);
 	glUniform3fv(parts_shader.add_color, 1, add_color);
 	glUniform3fv(parts_shader.multiply_color, 1, multiply_color);
+
+	struct parts *clipper = alpha_clipper ? parts_try_get(alpha_clipper) : NULL;
+	if (clipper) {
+		struct parts_common *c_common = &clipper->states[clipper->state].common;
+
+		// Calculate the inverse of the clipper's world matrix.
+		mat4 clip_mw = GLM_MAT4_IDENTITY_INIT;
+		glm_translate(clip_mw, (vec3) { clipper->global.pos.x, clipper->global.pos.y, 0 });
+		glm_rotate_z(clip_mw, clipper->local.rotation.z * (M_PI/180.0), clip_mw);
+		glm_scale(clip_mw, (vec3){ clipper->global.scale.x, clipper->global.scale.y, 1.0 });
+		glm_translate(clip_mw, (vec3){ c_common->origin_offset.x, c_common->origin_offset.y, 0 });
+		glm_scale(clip_mw, (vec3){ c_common->w, c_common->h, 1.0 });
+		mat4 clip_inv;
+		glm_mat4_inv(clip_mw, clip_inv);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, c_common->texture.handle);
+		glActiveTexture(GL_TEXTURE0);
+
+		glUniform1i(parts_shader.use_clipper, 1);
+		glUniform1i(parts_shader.clipper_tex, 1);
+		glUniformMatrix4fv(parts_shader.inv_clipper_transform, 1, GL_FALSE, clip_inv[0]);
+	} else {
+		glUniform1i(parts_shader.use_clipper, 0);
+	}
+
 	gfx_run_job(&job);
+}
+
+static void parts_render_text(struct parts *parts, struct parts_text *t)
+{
+	vec3 add_color = {
+		parts->global.add_color.r / 255.0f,
+		parts->global.add_color.g / 255.0f,
+		parts->global.add_color.b / 255.0f
+	};
+	vec3 multiply_color = {
+		parts->global.multiply_color.r / 255.0f,
+		parts->global.multiply_color.g / 255.0f,
+		parts->global.multiply_color.b / 255.0f,
+	};
+	float blend_rate = parts->global.alpha / 255.0;
+
+	int x = parts->global.pos.x + t->common.origin_offset.x;
+	int y = parts->global.pos.y + t->common.origin_offset.y;
+	for (int i = 0; i < t->nr_lines; i++) {
+		struct parts_text_line *line = &t->lines[i];
+		for (int j = 0; j < line->nr_chars; j++) {
+			struct parts_text_char *ch = &line->chars[j];
+			mat4 mw_transform = WORLD_TRANSFORM(ch->t.w, ch->t.h, x, y);
+			Rectangle r = { 0, 0, ch->t.w, ch->t.h };
+			parts_render_texture(&ch->t, mw_transform, &r, blend_rate, add_color, multiply_color, parts->alpha_clipper_parts_no);
+			x += ch->advance;
+		}
+		x = parts->global.pos.x + t->common.origin_offset.x;
+		y += line->height;
+	}
 }
 
 static void parts_render_cg(struct parts *parts, struct parts_common *common)
@@ -124,7 +161,7 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 		parts->global.multiply_color.g / 255.0f,
 		parts->global.multiply_color.b / 255.0f,
 	};
-	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color);
+	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color, parts->alpha_clipper_parts_no);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
@@ -165,7 +202,7 @@ static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f,
 		(parts->global.multiply_color.g / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[1]),
 		(parts->global.multiply_color.b / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[2])
 	};
-	parts_render_texture(src, mw_transform, &r, blend_rate, add_color, multiply_color);
+	parts_render_texture(src, mw_transform, &r, blend_rate, add_color, multiply_color, parts->alpha_clipper_parts_no);
 }
 
 static void parts_render_flash_sprite(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_sprite *tag)
@@ -326,10 +363,13 @@ void parts_dirty(possibly_unused struct parts *parts)
 
 void parts_render_init(void)
 {
-	gfx_load_shader(&parts_shader.shader, "shaders/render.v.glsl", "shaders/parts.f.glsl");
+	gfx_load_shader(&parts_shader.shader, "shaders/parts.v.glsl", "shaders/parts.f.glsl");
 	parts_shader.blend_rate = glGetUniformLocation(parts_shader.shader.program, "blend_rate");
 	parts_shader.bot_left = glGetUniformLocation(parts_shader.shader.program, "bot_left");
 	parts_shader.top_right = glGetUniformLocation(parts_shader.shader.program, "top_right");
 	parts_shader.add_color = glGetUniformLocation(parts_shader.shader.program, "add_color");
 	parts_shader.multiply_color = glGetUniformLocation(parts_shader.shader.program, "multiply_color");
+	parts_shader.use_clipper = glGetUniformLocation(parts_shader.shader.program, "use_clipper");
+	parts_shader.clipper_tex = glGetUniformLocation(parts_shader.shader.program, "clipper_tex");
+	parts_shader.inv_clipper_transform = glGetUniformLocation(parts_shader.shader.program, "inv_clipper_transform");
 }

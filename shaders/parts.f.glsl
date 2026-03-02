@@ -21,7 +21,11 @@ uniform vec2 top_right;
 uniform vec3 add_color;
 uniform vec3 multiply_color;
 
+uniform int use_clipper;
+uniform sampler2D clipper_tex;
+
 in vec2 tex_coord;
+in vec2 clip_coord;
 out vec4 frag_color;
 
 float point_in_rect(vec2 p, vec2 bot_left, vec2 top_right) {
@@ -36,5 +40,11 @@ void main() {
 
 	vec4 tex_color = texture(tex, tex_coord);
 	vec3 mod_color = (tex_color.rgb + add_color) * multiply_color;
-	frag_color = vec4(mod_color, tex_color.a * blend_rate) * point_in_rect(tex_coord, bl, tr);
+
+	float alpha = tex_color.a * blend_rate;
+	if (use_clipper != 0) {
+		alpha *= texture(clipper_tex, clip_coord).a * point_in_rect(clip_coord, vec2(0.0), vec2(1.0));
+	}
+
+	frag_color = vec4(mod_color, alpha) * point_in_rect(tex_coord, bl, tr);
 }

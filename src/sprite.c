@@ -141,13 +141,16 @@ void sprite_init_chipmunk(void)
 			return;
 		}
 	}
-	gfx_load_shader(&sprite_shader.s, "shaders/render.v.glsl", "shaders/parts.f.glsl");
+	gfx_load_shader(&sprite_shader.s, "shaders/parts.v.glsl", "shaders/parts.f.glsl");
 	sprite_shader.blend_rate = glGetUniformLocation(sprite_shader.s.program, "blend_rate");
 	sprite_shader.multiply_color = glGetUniformLocation(sprite_shader.s.program, "multiply_color");
 	sprite_shader.add_color = glGetUniformLocation(sprite_shader.s.program, "add_color");
 	sprite_shader.bot_left = glGetUniformLocation(sprite_shader.s.program, "bot_left");
 	sprite_shader.top_right = glGetUniformLocation(sprite_shader.s.program, "top_right");
 	sprite_shader.s.prepare = prepare_chipmunk_shader;
+	glUseProgram(sprite_shader.s.program);
+	glUniform1i(glGetUniformLocation(sprite_shader.s.program, "use_clipper"), 0);
+	glUseProgram(0);
 }
 
 static void sprite_render(struct sprite *_sp)

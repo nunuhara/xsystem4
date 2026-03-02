@@ -604,7 +604,15 @@ bool parts_cg_set(struct parts *parts, struct parts_cg *parts_cg, struct string 
 {
 	assert(cg_name && *(cg_name->text) != '\0');
 	int no;
-	struct cg *cg = asset_cg_load_by_name(cg_name->text, &no);
+	struct cg *cg;
+	if (!memcmp(cg_name->text, "<save>", 6)) {
+		char *path = savedir_path(cg_name->text + 6);
+		cg = cg_load_file(path);
+		no = 0;
+		free(path);
+	} else {
+		cg = asset_cg_load_by_name(cg_name->text, &no);
+	}
 	return _parts_cg_set(parts, parts_cg, cg, no, string_dup(cg_name));
 }
 
@@ -1761,7 +1769,9 @@ float PE_GetPartsRotateZ(int parts_no)
 
 void PE_SetPartsAlphaClipperPartsNumber(int parts_no, int alpha_clipper_parts_no)
 {
-	UNIMPLEMENTED("(%d, %d)", parts_no, alpha_clipper_parts_no);
+	struct parts *parts = parts_get(parts_no);
+	parts->alpha_clipper_parts_no = alpha_clipper_parts_no;
+	parts_dirty(parts);
 }
 
 void PE_SetPartsPixelDecide(int parts_no, bool pixel_decide)
