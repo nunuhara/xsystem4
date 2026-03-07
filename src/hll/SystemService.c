@@ -374,28 +374,38 @@ static void SystemService_RestrainScreensaver(void) { }
 
 //static int SystemService_Debug_GetUseVideoMemorySize(void);
 
+// Rance 01
 static void SystemService_Rance0123456789(struct string **text)
 {
-	*text = cstr_to_string("-RANCE010ECNAR-"); // ???
+	*text = cstr_to_string("-RANCE010ECNAR-");
 }
 
+// Rance 01 trial edition
 static void SystemService_XXXXX01XXXXXXXX(struct string **text)
 {
 	*text = cstr_to_string("RANCE01RANCEKAKKOII");
 }
 
+// Drapeko
 static void SystemService_Test(struct string **text)
 {
 	*text = cstr_to_string("DELETE ALL 758490275489207548093");
 }
 
+// Drapeko trial edition
 static void SystemService_DRPKT(struct string **text)
 {
 	*text = cstr_to_string("DRPKT QWERTY NUFUAUEO 75849027582754829");
 }
 
+// Rance 9
 static void SystemService_Rance96161988(struct string **text) {
 	*text = cstr_to_string("=Rance99/RANCE99=");
+}
+
+// Pascha3 Plus Contents
+static void SystemService_XXX(struct string **text) {
+	*text = cstr_to_string("FORMAT HDD ERASE 578205024758284076520478254092784789752384758204687293");
 }
 
 static void SystemService_PreLink(void);
@@ -449,6 +459,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_TODO_EXPORT(Debug_GetUseVideoMemorySize, SystemService_Debug_GetUseVideoMemorySize),
 	    HLL_EXPORT(Rance0123456789, SystemService_Rance0123456789),
 	    HLL_EXPORT(XXXXX01XXXXXXXX, SystemService_XXXXX01XXXXXXXX),
+	    HLL_EXPORT(XXX, SystemService_XXX),
 	    HLL_EXPORT(Test, SystemService_Test),
 	    HLL_EXPORT(DRPKT, SystemService_DRPKT),
 	    HLL_EXPORT(Rance96161988, SystemService_Rance96161988)
