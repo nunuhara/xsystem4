@@ -78,6 +78,8 @@ int wav_get_volume(int id);
 int bgm_get_volume(int id);
 int wav_get_time_length(int id);
 int bgm_get_time_length(int id);
+int wav_get_data_length(int no);
+int bgm_get_data_length(int no);
 int wav_get_group_num(int id);
 //int bgm_get_group_num(int id);
 int wav_prepare_from_file(int id, char *filename);

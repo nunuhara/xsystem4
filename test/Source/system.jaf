@@ -1,0 +1,8 @@
+// -*-mode: C; coding: sjis; -*-
+
+void test_system(void)
+{
+	string savedir = system.GetSaveFolderName();
+	test_equal("system.ExistFile(savedir) == 1", system.ExistFile(savedir), 1);
+	test_equal("system.ExistFile(savedir + \"\\\\\") == 1", system.ExistFile(savedir + "\\"), 0);
+}

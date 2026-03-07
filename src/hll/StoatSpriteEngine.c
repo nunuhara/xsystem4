@@ -45,7 +45,7 @@ HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerMasterGroupNum,
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerSEGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerBGMGroupNum, int n);
 
-static int StoatSpriteEngine_SP_SetDrawMethod(int sp_no, int method)
+int StoatSpriteEngine_SP_SetDrawMethod(int sp_no, int method)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
@@ -59,7 +59,7 @@ static int StoatSpriteEngine_SP_SetDrawMethod(int sp_no, int method)
 	}
 }
 
-static int StoatSpriteEngine_SP_GetDrawMethod(int sp_no)
+int StoatSpriteEngine_SP_GetDrawMethod(int sp_no)
 {
 	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return DRAW_METHOD_NORMAL;

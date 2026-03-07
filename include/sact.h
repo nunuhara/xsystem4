@@ -118,6 +118,8 @@ bool sact_DX_GetUsePower2Texture(void);
 void sact_DX_SetUsePower2Texture(bool use);
 
 extern struct text_style text_sprite_ts;
+int StoatSpriteEngine_SP_SetDrawMethod(int sp_no, int method);
+int StoatSpriteEngine_SP_GetDrawMethod(int sp_no);
 bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text);
 void StoatSpriteEngine_SP_SetTextSpriteType(int type);
 void StoatSpriteEngine_SP_SetTextSpriteSize(int size);
