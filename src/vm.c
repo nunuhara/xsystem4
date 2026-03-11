@@ -2298,8 +2298,17 @@ static enum opcode execute_instruction(enum opcode opcode)
 		}
 		break;
 	}
-	//case DG_NEW:
-	//case DG_STR_TO_METHOD:
+	case DG_NEW: {
+		stack_push(heap_alloc_page(alloc_page(DELEGATE_PAGE, 0, 0)));
+		break;
+	}
+	case DG_STR_TO_METHOD: {
+		stack_pop(); // delegate type index
+		int str = stack_pop().i;
+		stack_push(get_function_by_name(heap_get_string(str)->text));
+		heap_unref(str);
+		break;
+	}
 	// -- NOOPs ---
 	case FUNC:
 		break;
