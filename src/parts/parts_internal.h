@@ -103,7 +103,8 @@ enum parts_type {
 	PARTS_VGAUGE,
 	PARTS_CONSTRUCTION_PROCESS,
 	PARTS_FLASH,
-#define PARTS_NR_TYPES (PARTS_FLASH+1)
+	PARTS_FLAT,
+#define PARTS_NR_TYPES (PARTS_FLAT+1)
 };
 
 struct parts_common {
@@ -285,6 +286,33 @@ struct parts_flash {
 	TAILQ_HEAD(, parts_flash_object) display_list;
 };
 
+struct flat_layer_state {
+	int current_frame;
+	bool stopped;
+	bool suppress_advance;
+	int jump_target;  // pending jump frame, -1 = none
+	// Per-timeline: last matched script key index for change detection
+	// (-2 = uninitialized, -1 = no match, >= 0 = key index)
+	int *last_script_keys;
+	// Per-timeline: child layer state (for TIMELINE libs), NULL otherwise
+	struct flat_layer_state **children;
+	size_t nr_timelines;
+};
+
+struct parts_flat {
+	struct parts_common common;
+	struct string *name;
+	struct flat *flat;
+	bool stopped;
+	bool needs_advance;
+	unsigned elapsed;
+	int end_frame;
+	int pending_seek_delta;
+	struct flat_layer_state *root_state;
+	Texture *textures;  // indexed by library index (only CG libs have valid textures)
+	size_t nr_textures;
+};
+
 struct parts_state {
 	enum parts_type type;
 	union {
@@ -296,6 +324,7 @@ struct parts_state {
 		struct parts_gauge gauge;
 		struct parts_construction_process cproc;
 		struct parts_flash flash;
+		struct parts_flat flat;
 	};
 };
 
@@ -355,6 +384,7 @@ struct parts_gauge *parts_get_hgauge(struct parts *parts, int state);
 struct parts_gauge *parts_get_vgauge(struct parts *parts, int state);
 struct parts_construction_process *parts_get_construction_process(struct parts *parts, int state);
 struct parts_flash *parts_get_flash(struct parts *parts, int state);
+struct parts_flat *parts_get_flat(struct parts *parts, int state);
 void parts_set_pos(struct parts *parts, Point pos);
 void parts_set_global_pos(Point pos);
 void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h);
@@ -425,6 +455,12 @@ void parts_flash_free(struct parts_flash *f);
 bool parts_flash_load(struct parts *parts, struct parts_flash *f, struct string *filename);
 bool parts_flash_update(struct parts_flash *f, int passed_time);
 bool parts_flash_seek(struct parts_flash *f, int frame);
+
+// flat.c
+void parts_flat_free(struct parts_flat *f);
+bool parts_flat_load(struct parts *parts, struct parts_flat *f, struct string *filename);
+bool parts_flat_update(struct parts_flat *f, int passed_time);
+int parts_flat_find_library(struct flat *fl, const char *name);
 
 // debug.c
 struct sprite;

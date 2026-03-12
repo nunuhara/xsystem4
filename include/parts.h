@@ -238,4 +238,18 @@ bool PE_StartPartsFlash(int parts_no, int state);
 bool PE_GoFramePartsFlash(int parts_no, int frame_no, int state);
 int PE_GetPartsFlashEndFrame(int parts_no, int state);
 
+// flat.c
+bool PE_ExistsFlatFile(struct string *filename);
+bool PE_SetPartsFlat(int parts_no, struct string *filename, int state);
+bool PE_IsPartsFlatEnd(int parts_no, int state);
+int PE_GetPartsFlatCurrentFrameNumber(int parts_no, int state);
+bool PE_BackPartsFlatBeginFrame(int parts_no, int state);
+bool PE_StepPartsFlatFinalFrame(int parts_no, int state);
+bool PE_SetPartsFlatSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
+bool PE_SetPartsFlatAndStop(int parts_no, struct string *filename, int state);
+bool PE_StopPartsFlat(int parts_no, int state);
+bool PE_StartPartsFlat(int parts_no, int state);
+bool PE_GoFramePartsFlat(int parts_no, int frame_no, int state);
+int PE_GetPartsFlatEndFrame(int parts_no, int state);
+
 #endif /* SYSTEM4_PARTS_H */

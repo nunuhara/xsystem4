@@ -336,6 +336,20 @@ static void load_parts_flash(struct iarray_reader *r, struct parts *parts,
 	parts_flash_seek(flash, iarray_read(r));
 }
 
+static void save_parts_flat(struct iarray_writer *w, struct parts_flat *flat)
+{
+	iarray_write_string_or_null(w, flat->name);
+}
+
+static void load_parts_flat(struct iarray_reader *r, struct parts *parts,
+		struct parts_flat *flat)
+{
+	struct string *name = iarray_read_string_or_null(r);
+	parts_flat_load(parts, flat, name);
+	free_string(name);
+	flat->needs_advance = true;
+}
+
 static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 {
 	iarray_write(w, state->type);
@@ -368,6 +382,9 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 		break;
 	case PARTS_FLASH:
 		save_parts_flash(w, &state->flash);
+		break;
+	case PARTS_FLAT:
+		save_parts_flat(w, &state->flat);
 		break;
 	}
 }
@@ -407,6 +424,9 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 		break;
 	case PARTS_FLASH:
 		load_parts_flash(r, parts, &state->flash);
+		break;
+	case PARTS_FLAT:
+		load_parts_flat(r, parts, &state->flat);
 		break;
 	}
 }
