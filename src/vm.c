@@ -421,7 +421,15 @@ static void delegate_call(int dg_no, int return_address)
 		stack_pop(); // dg_index
 		stack_pop(); // dg_page
 		for (int i = ain->delegates[dg_no].nr_variables - 1; i >= 0; i--) {
-			variable_fini(stack_pop(), ain->delegates[dg_no].variables[i].type.data, true);
+			union vm_value v = stack_pop();
+			enum ain_data_type type = ain->delegates[dg_no].variables[i].type.data;
+			switch (type) {
+			case AIN_REF_TYPE:
+				break;
+			default:
+				variable_fini(v, type, true);
+				break;
+			}
 		}
 		if (return_values) {
 			stack_push(r);
