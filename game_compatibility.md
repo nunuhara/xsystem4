@@ -78,6 +78,7 @@ issues, please let me know or open a pull request to update this table.
 | ランス・クエスト マグナム                               | Supported   |       |
 | 母娘乱館                                                | Unknown     |       |
 | パステルチャイム3 バインドシーカー                      | Supported   |       |
+| パスチャ3 プラスコンテンツ                              | Supported   |       |
 | どらぺこ！ ～おねだりドラゴンとおっぱい勇者～           | Unsupported |       |
 | ランス01 光をもとめて                                   | Supported   |       |
 | Rance 01 - Quest for Hikari (EN)                        | Supported   |       |

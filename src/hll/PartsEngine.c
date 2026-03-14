@@ -36,6 +36,11 @@ static void PartsEngine_Update(int passed_time, bool is_skip, bool message_windo
 	PE_Update(passed_time, message_window_show);
 }
 
+static void PartsEngine_Update_Pascha3PC(struct string *xxx1, struct string *xxx2, int passed_time, bool is_skip, bool message_window_show)
+{
+	PE_Update(passed_time, message_window_show);
+}
+
 // Oyako Rankan
 static bool PartsEngine_AddDrawCutCGToPartsConstructionProcess_old(int parts_no,
 		struct string *cg_name, int dx, int dy, int sx, int sy, int w, int h,
@@ -245,5 +250,10 @@ static void PartsEngine_PreLink(void)
 	if (fun && fun->nr_arguments == 12) {
 		static_library_replace(&lib_PartsEngine, "AddCopyCutCGToPartsConstructionProcess",
 				PE_AddCopyCutCGToPartsConstructionProcess);
+	}
+	fun = get_fun(libno, "Update");
+	if (fun && fun->nr_arguments == 5) {
+		static_library_replace(&lib_PartsEngine, "Update",
+				PartsEngine_Update_Pascha3PC);
 	}
 }
