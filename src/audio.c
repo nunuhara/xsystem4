@@ -419,6 +419,10 @@ int wav_prepare_from_archive_data(int id, struct archive_data *dfile) {
 	return audio_prepare_from_archive_data(&wav, id, dfile);
 }
 
+int bgm_prepare_from_archive_data(int id, struct archive_data *dfile) {
+	return audio_prepare_from_archive_data(&bgm, id, dfile);
+}
+
 int wav_get_group_num_from_data_num(int no)
 {
 	struct wai *wai = wai_get(no);
