@@ -115,6 +115,18 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 	if (nr_ints != (n)) VM_ERROR("Invalid arguments for PartsFunc %d: expected %d ints, got %d", func_id, (n), nr_ints)
 
 	switch (func_id) {
+	case 0:  // void SetActiveLayer(int layer)
+		REQUIRE_INTS(1);
+		PE_set_active_controller(ints[0].i);
+		return 1;
+	case 1:  // int GetActiveLayer()
+		REQUIRE_INTS(1);
+		ints[0].i = PE_get_active_controller();
+		return 1;
+	case 2:  // int GetSystemOverlayLayer()
+		REQUIRE_INTS(1);
+		ints[0].i = PE_get_system_controller();
+		return 1;
 	case 162:  // bool InitPartsMovie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state)
 		REQUIRE_INTS(8);
 		ints[7].i = PE_init_parts_movie(ints[0].i, ints[1].i, ints[2].i, ints[3].i, ints[4].i, ints[5].i, ints[6].i);
@@ -307,11 +319,11 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(PartsFunc, PartsEngine_PartsFunc),
 	    HLL_EXPORT(Release, PE_ReleaseParts),
 	    HLL_TODO_EXPORT(ReleaseAll, PartsEngine_ReleaseAll),
-	    HLL_TODO_EXPORT(ReleaseAllWithoutSystem, PartsEngine_ReleaseAllWithoutSystem),
+	    HLL_EXPORT(ReleaseAllWithoutSystem, PE_ReleaseAllWithoutSystem),
 	    HLL_EXPORT(GetFreeNumber, PE_GetFreeNumber),
 	    HLL_EXPORT(IsExist, PE_IsExist),
-	    HLL_TODO_EXPORT(AddController, PartsEngine_AddController),
-	    HLL_TODO_EXPORT(RemoveController, PartsEngine_RemoveController),
+	    HLL_EXPORT(AddController, PE_AddController),
+	    HLL_EXPORT(RemoveController, PE_RemoveController),
 	    HLL_EXPORT(UpdateComponent, PartsEngine_Update),
 	    HLL_EXPORT(Parts_SetThumbnailReductionSize, PE_SetThumbnailReductionSize),
 	    HLL_EXPORT(Parts_SetThumbnailMode, PE_SetThumbnailMode),
@@ -683,5 +695,8 @@ static void PartsEngine_PreLink(void)
 	if (fun && fun->nr_arguments == 5) {
 		static_library_replace(&lib_PartsEngine, "Update",
 				PartsEngine_Update_Pascha3PC);
+	}
+	if (get_fun(libno, "AddController")) {
+		PE_enable_multi_controller();
 	}
 }

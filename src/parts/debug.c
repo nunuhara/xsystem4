@@ -380,6 +380,8 @@ cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 	cJSON_AddItemToObjectCS(obj, "clicked", parts_state_to_json(&parts->states[PARTS_STATE_CLICKED], verbose));
 	cJSON_AddItemToObjectCS(obj, "local", parts_params_to_json(&parts->local, verbose));
 	cJSON_AddItemToObjectCS(obj, "global", parts_params_to_json(&parts->global, verbose));
+	if (parts_multi_controller)
+		cJSON_AddNumberToObject(obj, "controller", parts->controller_no);
 	if (parts->delegate_index >= 0)
 		cJSON_AddNumberToObject(obj, "delegate_index", parts->delegate_index);
 	cJSON_AddNumberToObject(obj, "sprite_deform", parts->sprite_deform);
@@ -558,7 +560,7 @@ static void parts_list_print(struct parts *parts, int indent)
 		break;
 	}
 
-	sys_message(" @ z=%d (%d)\n", parts->global.z, parts->local.z);
+	sys_message(" @ controller=%d z=%d (%d)\n", parts->controller_no, parts->global.z, parts->local.z);
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {

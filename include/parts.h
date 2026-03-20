@@ -23,6 +23,7 @@ struct page;
 struct string;
 
 // parts.c
+void PE_enable_multi_controller(void);
 bool PE_Init(void);
 void PE_Reset(void);
 void PE_Update(int passed_time, bool message_window_show);
@@ -67,6 +68,7 @@ bool PE_SetNumeralSurfaceArea(int parts_no, int x, int y, int w, int h, int stat
 void PE_ReleaseParts(int parts_no);
 void PE_ReleaseAllParts(void);
 void PE_ReleaseAllPartsWithoutSystem(void);
+void PE_ReleaseAllWithoutSystem(struct page **erase_number_list);
 void PE_SetPos(int parts_no, int x, int y);
 int PE_GetPartsX(int parts_no);
 int PE_GetPartsY(int parts_no);
@@ -113,10 +115,15 @@ bool PE_SetPartsCGDetectionSize(int parts_no, struct string *cg_name, int state)
 bool PE_Save(struct page **buffer);
 bool PE_SaveWithoutHideParts(struct page **buffer);
 bool PE_Load(struct page **buffer);
+int PE_AddController(int index);
+void PE_RemoveController(struct page **erase_number_list, int index);
 // GUIEngine
 int PE_GetFreeNumber(void);
 bool PE_IsExist(int parts_no);
 // PartsFunc interface
+void PE_set_active_controller(int controller_no);
+int PE_get_active_controller(void);
+int PE_get_system_controller(void);
 bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state);
 int PE_get_movie_sprite(int parts_no, int state);
 

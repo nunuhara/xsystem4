@@ -374,6 +374,7 @@ struct parts {
 	bool message_window;
 	int alpha_clipper_parts_no;
 	struct parts_motion_list motion;
+	int controller_no;
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
@@ -381,6 +382,19 @@ struct parts {
 
 // parts.c
 extern struct parts_list parts_list;
+
+// Controllers are identified by their position in the stack (0 = bottom). The
+// system overlay controller lives outside the stack.
+#define PARTS_CONTROLLER_STACK_MAX 10000
+#define PARTS_CONTROLLER_SYSTEM_OVERLAY PARTS_CONTROLLER_STACK_MAX
+
+struct parts_controller_stack {
+	int nr_controllers;
+	int active;  // stack index or PARTS_CONTROLLER_SYSTEM_OVERLAY
+};
+extern struct parts_controller_stack ctrl_stack;
+extern bool parts_multi_controller;
+
 struct parts *parts_try_get(int parts_no);
 struct parts *parts_get(int parts_no);
 struct parts_cg *parts_get_cg(struct parts *parts, int state);
