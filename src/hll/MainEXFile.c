@@ -130,7 +130,7 @@ static void MainEXFile_ModuleFini(void)
 	nr_handles = 0;
 }
 
-//static bool MainEXFile_ReloadDebugEXFile(void);
+HLL_WARN_UNIMPLEMENTED(false, bool, MainEXFile, ReloadDebugEXFile, void);
 
 /*
  * Get handle for top-level value.
@@ -663,7 +663,7 @@ static bool MainEXFile_GetEXName(struct string *tree_path, int index, struct str
 HLL_LIBRARY(MainEXFile,
 	    HLL_EXPORT(_ModuleInit, MainEXFile_ModuleInit),
 	    HLL_EXPORT(_ModuleFini, MainEXFile_ModuleFini),
-	    HLL_TODO_EXPORT(ReloadDebugEXFile, MainEXFile_ReloadDebugEXFile),
+	    HLL_EXPORT(ReloadDebugEXFile, MainEXFile_ReloadDebugEXFile),
 	    HLL_EXPORT(Handle, MainEXFile_Handle),
 	    HLL_EXPORT(AHandle, MainEXFile_AHandle),
 	    HLL_EXPORT(A2Handle, MainEXFile_A2Handle),
