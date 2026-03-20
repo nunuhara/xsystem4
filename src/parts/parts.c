@@ -1227,6 +1227,18 @@ bool PE_SetPartsCGSurfaceArea(int parts_no, int x, int y, int w, int h, int stat
 	return true;
 }
 
+void PE_GetPartsCGSurfaceArea(int parts_no, int *x, int *y, int *w, int *h, int state)
+{
+	if (!parts_state_valid(--state))
+		return;
+
+	struct parts_cg *cg = parts_get_cg(parts_get(parts_no), state);
+	*x = cg->common.surface_area.x;
+	*y = cg->common.surface_area.y;
+	*w = cg->common.surface_area.w;
+	*h = cg->common.surface_area.h;
+}
+
 int PE_GetPartsCGNumber(int parts_no, int state)
 {
 	if (!parts_state_valid(--state)) {
