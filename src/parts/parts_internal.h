@@ -372,6 +372,7 @@ struct parts {
 	int linked_to;
 	int linked_from;
 	bool is_hovered;
+	int hover_time;
 	int draw_filter;
 	bool message_window;
 	int alpha_clipper_parts_no;

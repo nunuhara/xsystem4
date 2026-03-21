@@ -25,6 +25,8 @@
 // true between calls to BeginClick and EndClick
 bool parts_began_click = false;
 
+// the mouse position at last update
+static Point parts_prev_pos = {0};
 // true when the left mouse button was down last update
 static bool prev_clicking = false;
 // the last (fully) clicked parts number
@@ -43,7 +45,7 @@ static bool parts_hittest(struct parts *parts, int state, Point pos)
 }
 
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking,
-		bool *hover_consumed, bool *click_consumed)
+		int passed_time, bool *hover_consumed, bool *click_consumed)
 {
 	// Always use DEFAULT state hitbox regardless of the current display state.
 	bool is_hovered = parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos)
@@ -66,10 +68,24 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	if (is_hovered && !was_hovered) {
 		parts_msg_push(parts->no, parts->delegate_index,
 				PARTS_MSG_MOUSE_ENTER, "ii", cur_pos.x, cur_pos.y);
+		parts->hover_time = 0;
 	}
 	if (!is_hovered && was_hovered) {
 		parts_msg_push(parts->no, parts->delegate_index,
 				PARTS_MSG_MOUSE_LEAVE, "ii", cur_pos.x, cur_pos.y);
+	}
+
+	if (is_hovered) {
+		// MOUSE_ON message fires every frame while hovering
+		parts_msg_push(parts->no, parts->delegate_index,
+				PARTS_MSG_MOUSE_ON, "iii", cur_pos.x, cur_pos.y, parts->hover_time);
+		parts->hover_time += passed_time;
+
+		// MOUSE_MOVE message fires when cursor moves while hovering
+		if (cur_pos.x != parts_prev_pos.x || cur_pos.y != parts_prev_pos.y) {
+			parts_msg_push(parts->no, parts->delegate_index,
+					PARTS_MSG_MOUSE_MOVE, "ii", cur_pos.x, cur_pos.y);
+		}
 	}
 
 	if (!is_hovered) {
@@ -123,7 +139,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	}
 }
 
-void PE_UpdateInputState(possibly_unused int passed_time)
+void PE_UpdateInputState(int passed_time)
 {
 	Point cur_pos;
 	bool cur_clicking = key_is_down(VK_LBUTTON);
@@ -134,7 +150,7 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	struct parts *parts;
 	// Iterate front-to-back (highest z first) for proper cursor consumption
 	PARTS_LIST_FOREACH_REVERSE(parts) {
-		parts_update_mouse(parts, cur_pos, cur_clicking,
+		parts_update_mouse(parts, cur_pos, cur_clicking, passed_time,
 				&hover_consumed, &click_consumed);
 	}
 
@@ -146,6 +162,7 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	}
 
 	prev_clicking = cur_clicking;
+	parts_prev_pos = cur_pos;
 }
 
 void PE_SetPassCursor(int parts_no, bool pass)
