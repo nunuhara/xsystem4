@@ -52,6 +52,7 @@ int StoatSpriteEngine_SP_SetDrawMethod(int sp_no, int method)
 	switch (method) {
 	case 0: return sprite_set_draw_method(sp, DRAW_METHOD_NORMAL);
 	case 1: return sprite_set_draw_method(sp, DRAW_METHOD_ADDITIVE);
+	case 2: return sprite_set_draw_method(sp, DRAW_METHOD_MULTIPLY);
 	case 3: return sprite_set_draw_method(sp, DRAW_METHOD_SCREEN);
 	default:
 		WARNING("unknown draw method: %d", method);
@@ -67,6 +68,7 @@ int StoatSpriteEngine_SP_GetDrawMethod(int sp_no)
 	switch (method) {
 	case DRAW_METHOD_NORMAL: return 0;
 	case DRAW_METHOD_ADDITIVE: return 1;
+	case DRAW_METHOD_MULTIPLY: return 2;
 	case DRAW_METHOD_SCREEN: return 3;
 	default:
 		WARNING("unknown draw method: %d", method);
