@@ -465,6 +465,24 @@ void parts_add_motion(struct parts *parts, struct parts_motion *motion);
 extern Point parts_prev_pos;
 extern bool parts_began_click;
 
+// message.c
+enum parts_message_type {
+	PARTS_MSG_MOUSE_ENTER    = 1,
+	PARTS_MSG_MOUSE_MOVE     = 2,
+	PARTS_MSG_MOUSE_LEAVE    = 3,
+	PARTS_MSG_MOUSE_WHEEL    = 4,
+	PARTS_MSG_MOUSE_CLICK    = 5,
+	PARTS_MSG_MOUSE_ON       = 6,
+	PARTS_MSG_DRAG_BEGIN     = 7,
+	PARTS_MSG_DRAGGING       = 8,
+	PARTS_MSG_DRAG_END       = 9,
+	PARTS_MSG_KEY_TRIGGER    = 14,
+	PARTS_MSG_KEY_DOWN       = 15,
+	PARTS_MSG_KEY_UP         = 17,
+};
+
+void parts_msg_push(int parts_no, int delegate_index, int type, const char *fmt, ...);
+
 // construction.c
 void parts_cp_op_free(struct parts_cp_op *op);
 void parts_add_cp_op(struct parts_construction_process *cproc, struct parts_cp_op *op);
