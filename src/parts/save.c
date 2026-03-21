@@ -532,8 +532,10 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	iarray_write(w, parts->alpha_clipper_parts_no);
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and save unconditionally
-	if (parts_multi_controller)
+	if (parts_multi_controller) {
 		iarray_write(w, parts->controller_no);
+		iarray_write(w, parts->pass_cursor);
+	}
 
 	unsigned motion_count_pos = iarray_writer_pos(w);
 	iarray_write(w, 0); // size of motion list
@@ -575,9 +577,10 @@ static void load_parts(struct iarray_reader *r, int version)
 		parts->alpha_clipper_parts_no = iarray_read(r);
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and load based on version check
-	if (parts_multi_controller)
+	if (parts_multi_controller) {
 		parts->controller_no = iarray_read(r);
-
+		parts->pass_cursor = iarray_read(r);
+	}
 	int motion_count = iarray_read(r);
 	for (int i = 0; i < motion_count; i++) {
 		struct parts_motion *motion = load_parts_motion(r);

@@ -42,19 +42,25 @@ static bool parts_hittest(struct parts *parts, int state, Point pos)
 	return SDL_PointInRect(&pos, &hitbox);
 }
 
-static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking)
+static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking,
+		bool *hover_consumed, bool *click_consumed)
 {
 	// Always use DEFAULT state hitbox regardless of the current display state.
-	bool is_hovered = parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos);
+	bool is_hovered = parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos)
+		&& !*hover_consumed;
 
 	bool was_hovered = parts->is_hovered;
 	parts->is_hovered = is_hovered;
+
+	// !pass_cursor parts consume the cursor for parts behind them
+	if (is_hovered && !parts->pass_cursor)
+		*hover_consumed = true;
 
 	if (parts->linked_from >= 0 && is_hovered != was_hovered) {
 		parts_dirty(parts_get(parts->linked_from));
 	}
 
-	if (!parts_began_click || !parts->clickable)
+	if (!parts_began_click)
 		return;
 
 	if (is_hovered && !was_hovered) {
@@ -71,9 +77,18 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		return;
 	}
 
-	// click down: just remember the parts number for later
+	bool click_eligible = parts->clickable || !parts->pass_cursor;
+	if (!click_eligible || *click_consumed) {
+		if (!was_hovered)
+			audio_play_sound(parts->on_cursor_sound);
+		parts_set_state(parts, PARTS_STATE_HOVERED);
+		return;
+	}
+
+	// click down: first eligible part captures the click
 	if (cur_clicking && !prev_clicking) {
 		click_down_parts = parts->no;
+		*click_consumed = true;
 
 		// KEY_TRIGGER message fires on press transition
 		parts_msg_push(parts->no, parts->delegate_index,
@@ -96,7 +111,8 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	}
 
 	// click event: only if the click down event had same parts number
-	if (prev_clicking && !cur_clicking && click_down_parts == parts->no) {
+	if (parts->clickable && prev_clicking && !cur_clicking
+			&& click_down_parts == parts->no) {
 		audio_play_sound(parts->on_click_sound);
 		clicked_parts = parts->no;
 
@@ -113,9 +129,13 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	bool cur_clicking = key_is_down(VK_LBUTTON);
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
 
+	bool hover_consumed = false;
+	bool click_consumed = false;
 	struct parts *parts;
-	PARTS_LIST_FOREACH(parts) {
-		parts_update_mouse(parts, cur_pos, cur_clicking);
+	// Iterate front-to-back (highest z first) for proper cursor consumption
+	PARTS_LIST_FOREACH_REVERSE(parts) {
+		parts_update_mouse(parts, cur_pos, cur_clicking,
+				&hover_consumed, &click_consumed);
 	}
 
 	if (prev_clicking && !cur_clicking) {
@@ -126,6 +146,16 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	}
 
 	prev_clicking = cur_clicking;
+}
+
+void PE_SetPassCursor(int parts_no, bool pass)
+{
+	parts_get(parts_no)->pass_cursor = !!pass;
+}
+
+bool PE_GetPartsPassCursor(int parts_no)
+{
+	return parts_get(parts_no)->pass_cursor;
 }
 
 void PE_SetClickable(int parts_no, bool clickable)
