@@ -270,6 +270,8 @@ static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 	case PARTS_MOVIE:
 		parts_movie_to_json(&state->movie, obj, verbose);
 		break;
+	case PARTS_RECT_DETECTION:
+		break;
 	}
 
 	return obj;
@@ -557,6 +559,9 @@ static void parts_list_print(struct parts *parts, int indent)
 		break;
 	case PARTS_MOVIE:
 		sys_message("(movie sp=%d)", state->movie.sprite_no);
+		break;
+	case PARTS_RECT_DETECTION:
+		sys_message("(rect_detection)");
 		break;
 	}
 

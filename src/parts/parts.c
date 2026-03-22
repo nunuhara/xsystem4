@@ -212,6 +212,8 @@ static void parts_state_free(struct parts_state *state)
 		if (state->movie.sprite_no >= 0)
 			sact_SP_Delete(state->movie.sprite_no);
 		break;
+	case PARTS_RECT_DETECTION:
+		break;
 	}
 	memset(state, 0, sizeof(struct parts_state));
 }
@@ -258,6 +260,7 @@ void parts_state_reset(struct parts_state *state, enum parts_type type)
 	case PARTS_ANIMATION:
 	case PARTS_FLASH:
 	case PARTS_FLAT:
+	case PARTS_RECT_DETECTION:
 		break;
 	case PARTS_MOVIE:
 		state->movie.sprite_no = -1;
@@ -1919,6 +1922,7 @@ void PE_SetComponentType(int parts_no, int type, int state)
 	case 14: pt = PARTS_HGAUGE; break;
 	case 15: pt = PARTS_VGAUGE; break;
 	case 16: pt = PARTS_NUMERAL; break;
+	case 17: pt = PARTS_RECT_DETECTION; break;
 	case 18: pt = PARTS_CONSTRUCTION_PROCESS; break;
 	case 20: pt = PARTS_FLAT; break;
 	case 22: pt = PARTS_MOVIE; break;
@@ -1946,6 +1950,7 @@ int PE_GetComponentType(int parts_no, int state)
 	case PARTS_HGAUGE: return 14;
 	case PARTS_VGAUGE: return 15;
 	case PARTS_NUMERAL: return 16;
+	case PARTS_RECT_DETECTION: return 17;
 	case PARTS_CONSTRUCTION_PROCESS: return 18;
 	case PARTS_FLAT: return 20;
 	case PARTS_MOVIE: return 22;
@@ -1957,8 +1962,15 @@ int PE_GetComponentType(int parts_no, int state)
 
 bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state)
 {
-	UNIMPLEMENTED("(%d, %d, %d, %d)", parts_no, w, h, state);
-	return false;
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts)
+		return false;
+	if (parts->states[state].type != PARTS_RECT_DETECTION)
+		parts_state_reset(&parts->states[state], PARTS_RECT_DETECTION);
+	parts_set_dims(parts, &parts->states[state].common, w, h);
+	return true;
 }
 
 bool PE_SetPartsCGDetectionSize(int parts_no, struct string *cg_name, int state)
