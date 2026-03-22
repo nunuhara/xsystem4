@@ -881,7 +881,9 @@ bool parts_numeral_set_number(struct parts *parts, struct parts_numeral *num, in
 
 void parts_set_state(struct parts *parts, enum parts_state_type state)
 {
-	if (parts->state != state && parts->states[state].type != PARTS_UNINITIALIZED) {
+	while (state > PARTS_STATE_DEFAULT && parts->states[state].type == PARTS_UNINITIALIZED)
+		state--;
+	if (parts->state != state) {
 		parts->state = state;
 		parts_dirty(parts);
 	}
