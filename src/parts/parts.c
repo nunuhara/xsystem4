@@ -2101,6 +2101,24 @@ int PE_get_system_controller(void)
 	return PARTS_CONTROLLER_SYSTEM_OVERLAY;
 }
 
+float PE_parts_get_absolute_x(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	return parts ? (float)parts->global.pos.x : 0.0f;
+}
+
+float PE_parts_get_absolute_y(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	return parts ? (float)parts->global.pos.y : 0.0f;
+}
+
+int PE_parts_get_absolute_z(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	return parts ? parts->global.z : 0;
+}
+
 bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state)
 {
 	if (!parts_state_valid(--state))

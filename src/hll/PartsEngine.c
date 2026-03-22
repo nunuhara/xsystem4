@@ -110,9 +110,13 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 {
 	int nr_ints = (array_int && *array_int) ? (*array_int)->nr_vars : 0;
 	union vm_value *ints = nr_ints ? (*array_int)->values : NULL;
+	int nr_floats = (array_float && *array_float) ? (*array_float)->nr_vars : 0;
+	union vm_value *floats = nr_floats ? (*array_float)->values : NULL;
 
 #define REQUIRE_INTS(n) \
 	if (nr_ints != (n)) VM_ERROR("Invalid arguments for PartsFunc %d: expected %d ints, got %d", func_id, (n), nr_ints)
+#define REQUIRE_FLOATS(n) \
+	if (nr_floats < (n)) VM_ERROR("Invalid arguments for PartsFunc %d: expected %d floats, got %d", func_id, (n), nr_floats)
 
 	switch (func_id) {
 	case 0:  // void SetActiveLayer(int layer)
@@ -126,6 +130,20 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 	case 2:  // int GetSystemOverlayLayer()
 		REQUIRE_INTS(1);
 		ints[0].i = PE_get_system_controller();
+		return 1;
+	case 40:  // float PARTS_GetAbsoluteX(int number)
+		REQUIRE_INTS(1);
+		REQUIRE_FLOATS(1);
+		floats[0].f = PE_parts_get_absolute_x(ints[0].i);
+		return 1;
+	case 41:  // float PARTS_GetAbsoluteY(int number)
+		REQUIRE_INTS(1);
+		REQUIRE_FLOATS(1);
+		floats[0].f = PE_parts_get_absolute_y(ints[0].i);
+		return 1;
+	case 42:  // int PARTS_GetAbsoluteZ(int number)
+		REQUIRE_INTS(2);
+		ints[1].i = PE_parts_get_absolute_z(ints[0].i);
 		return 1;
 	case 103:  // void GetPartsCGSurfaceArea(int parts_no, int *x, int *y, int *w, int *h, int state)
 		REQUIRE_INTS(6);

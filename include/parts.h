@@ -129,6 +129,9 @@ int PE_get_active_controller(void);
 int PE_get_system_controller(void);
 bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state);
 int PE_get_movie_sprite(int parts_no, int state);
+float PE_parts_get_absolute_x(int parts_no);
+float PE_parts_get_absolute_y(int parts_no);
+int PE_parts_get_absolute_z(int parts_no);
 
 // construction.c
 bool PE_AddCreateToPartsConstructionProcess(int parts_no, int w, int h, int state);
