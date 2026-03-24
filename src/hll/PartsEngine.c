@@ -145,6 +145,10 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		REQUIRE_INTS(2);
 		ints[1].i = PE_parts_get_absolute_z(ints[0].i);
 		return 1;
+	case 45:  // void PARTS_SetLockInputState(int number, bool lock)
+		REQUIRE_INTS(2);
+		PE_parts_set_lock_input_state(ints[0].i, !!ints[1].i);
+		return 1;
 	case 103:  // void GetPartsCGSurfaceArea(int parts_no, int *x, int *y, int *w, int *h, int state)
 		REQUIRE_INTS(6);
 		PE_GetPartsCGSurfaceArea(ints[0].i, &ints[1].i, &ints[2].i, &ints[3].i, &ints[4].i, ints[5].i);

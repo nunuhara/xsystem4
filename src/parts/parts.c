@@ -884,6 +884,8 @@ bool parts_numeral_set_number(struct parts *parts, struct parts_numeral *num, in
 
 void parts_set_state(struct parts *parts, enum parts_state_type state)
 {
+	if (parts->lock_input_state)
+		return;
 	while (state > PARTS_STATE_DEFAULT && parts->states[state].type == PARTS_UNINITIALIZED)
 		state--;
 	if (parts->state != state) {
@@ -2117,6 +2119,11 @@ int PE_parts_get_absolute_z(int parts_no)
 {
 	struct parts *parts = parts_try_get(parts_no);
 	return parts ? parts->global.z : 0;
+}
+
+void PE_parts_set_lock_input_state(int parts_no, bool lock)
+{
+	parts_get(parts_no)->lock_input_state = lock;
 }
 
 bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state)

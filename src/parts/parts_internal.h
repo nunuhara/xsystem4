@@ -366,6 +366,7 @@ struct parts {
 	int sprite_deform;
 	bool clickable;
 	bool pass_cursor;
+	bool lock_input_state;
 	int on_cursor_sound;
 	int on_click_sound;
 	int origin_mode;

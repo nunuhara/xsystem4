@@ -388,6 +388,8 @@ cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 		cJSON_AddNumberToObject(obj, "delegate_index", parts->delegate_index);
 	cJSON_AddNumberToObject(obj, "sprite_deform", parts->sprite_deform);
 	cJSON_AddBoolToObject(obj, "clickable", parts->clickable);
+	cJSON_AddBoolToObject(obj, "pass_cursor", parts->pass_cursor);
+	cJSON_AddBoolToObject(obj, "lock_input_state", parts->lock_input_state);
 	if (parts->on_cursor_sound >= 0)
 		cJSON_AddNumberToObject(obj, "on_cursor_sound", parts->on_cursor_sound);
 	if (parts->on_click_sound >= 0)
