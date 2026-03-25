@@ -18,6 +18,7 @@
 
 #include "system4/ain.h"
 
+#include "vm/heap.h"
 #include "vm/page.h"
 #include "parts.h"
 #include "hll.h"
@@ -97,6 +98,130 @@ static void PartsEngine_AddComponentMotionPos(int parts_no, float begin_x, float
 			begin_t, end_t, curve_name);
 }
 
+static void PartsEngine_add_construction_process(union vm_value *ints,
+		union vm_value *floats, union vm_value *strings)
+{
+	int parts_no    = ints[0].i;
+	int state       = ints[1].i;
+	int command     = ints[2].i;
+	int interp_type = ints[3].i;
+	int sx          = ints[4].i;
+	int sy          = ints[5].i;
+	int sw          = ints[6].i;
+	int sh          = ints[7].i;
+	int dx          = ints[8].i;
+	int dy          = ints[9].i;
+	int dw          = ints[12].i;
+	int dh          = ints[13].i;
+	int r           = ints[14].i;
+	int g           = ints[15].i;
+	int b           = ints[16].i;
+	int a           = ints[17].i;
+	// int r2       = ints[18].i;
+	// int g2       = ints[19].i;
+	// int b2       = ints[20].i;
+	int char_space  = ints[21].i;
+	int line_space  = ints[22].i;
+	int font_type   = ints[23].i;
+	int font_size   = ints[24].i;
+	int font_r      = ints[25].i;
+	int font_g      = ints[26].i;
+	int font_b      = ints[27].i;
+	int edge_r      = ints[28].i;
+	int edge_g      = ints[29].i;
+	int edge_b      = ints[30].i;
+	int full_size   = ints[31].i;
+	float bold_weight = floats[0].f;
+	float edge_weight = floats[1].f;
+	struct string *text    = heap_get_string(strings[0].i);
+	struct string *cg_name = heap_get_string(strings[1].i);
+
+	switch (command) {
+	case 0:  // CASConstructionProcess::SetCreate
+		PE_AddCreateToPartsConstructionProcess(parts_no, dw, dh, state);
+		break;
+	case 1:  // CASConstructionProcess::SetCreatePixelOnly
+		PE_AddCreatePixelOnlyToPartsConstructionProcess(parts_no, dw, dh, state);
+		break;
+	case 2:  // CASConstructionProcess::SetCreateCG
+		PE_AddCreateCGToProcess(parts_no, cg_name, state);
+		break;
+	case 3:  // CASConstructionProcess::SetFill
+		PE_AddFillToPartsConstructionProcess(parts_no,
+				dx, dy, dw, dh, r, g, b, state);
+		break;
+	case 4:  // CASConstructionProcess::SetFillAlphaColor
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no,
+				dx, dy, dw, dh, r, g, b, a, state);
+		break;
+	case 5:  // CASConstructionProcess::SetFillAMap
+		PE_AddFillAMapToPartsConstructionProcess(parts_no,
+				dx, dy, dw, dh, a, state);
+		break;
+	case 6:  // CASConstructionProcess::SetFillWithAlpha
+		PE_AddFillWithAlphaToPartsConstructionProcess(parts_no,
+				dx, dy, dw, dh, r, g, b, a, state);
+		break;
+	case 7:  // CASConstructionProcess::SetDrawText
+		PE_AddDrawTextToPartsConstructionProcess(parts_no,
+				dx, dy, text, font_type, font_size,
+				font_r, font_g, font_b, bold_weight,
+				edge_r, edge_g, edge_b, edge_weight,
+				char_space, line_space, state);
+		break;
+	case 8:  // CASConstructionProcess::SetCopyText
+		PE_AddCopyTextToPartsConstructionProcess(parts_no,
+				dx, dy, text, font_type, font_size,
+				font_r, font_g, font_b, bold_weight,
+				edge_r, edge_g, edge_b, edge_weight,
+				char_space, line_space, state);
+		break;
+	case 9:  // CASConstructionProcess::SetFillGradationHorizon
+		WARNING("AddConstructProcess: FillGradationHorizon unimplemented");
+		break;
+	case 10:  // CASConstructionProcess::SetDrawRect
+		PE_AddDrawRectToPartsConstructionProcess(parts_no,
+				dx, dy, dw, dh, r, g, b, state);
+		break;
+	case 11:  // CASConstructionProcess::SetCutCGBlend (equal scale)
+		PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, dw, dh, sx, sy, dw, dh,
+				interp_type, state);
+		break;
+	case 12:  // CASConstructionProcess::SetCutCGCopy (equal scale)
+		PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, dw, dh, sx, sy, dw, dh,
+				interp_type, state);
+		break;
+	case 13:  // CASConstructionProcess::SetCutCGScaleBlend
+		PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, dw, dh, sx, sy, sw, sh,
+				interp_type, state);
+		break;
+	case 14:  // CASConstructionProcess::SetCutCGScaleCopy
+		PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, dw, dh, sx, sy, sw, sh,
+				interp_type, state);
+		break;
+	case 15:  // CASConstructionProcess::SetGrayFilter
+		PE_AddGrayFilterToPartsConstructionProcess(parts_no,
+				dx, dy, dw, dh, full_size, state);
+		break;
+	case 16:  // CASConstructionProcess::SetAddFilter
+		WARNING("AddConstructProcess: AddFilter unimplemented");
+		break;
+	case 17:  // CASConstructionProcess::SetMulFilter
+		WARNING("AddConstructProcess: MulFilter unimplemented");
+		break;
+	case 18:  // CASConstructionProcess::SetDrawLine
+		WARNING("AddConstructProcess: DrawLine unimplemented");
+		break;
+	default:
+		WARNING("AddConstructProcess: unknown command %d", command);
+		break;
+	}
+}
+
 // Generic dispatch function for PartsEngine operations.
 // func_id selects the operation; arguments and return values are passed
 // through three typed arrays (int/bool, float, string).
@@ -112,11 +237,15 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 	union vm_value *ints = nr_ints ? (*array_int)->values : NULL;
 	int nr_floats = (array_float && *array_float) ? (*array_float)->nr_vars : 0;
 	union vm_value *floats = nr_floats ? (*array_float)->values : NULL;
+	int nr_strings = (array_string && *array_string) ? (*array_string)->nr_vars : 0;
+	union vm_value *strings = nr_strings ? (*array_string)->values : NULL;
 
 #define REQUIRE_INTS(n) \
 	if (nr_ints != (n)) VM_ERROR("Invalid arguments for PartsFunc %d: expected %d ints, got %d", func_id, (n), nr_ints)
 #define REQUIRE_FLOATS(n) \
 	if (nr_floats < (n)) VM_ERROR("Invalid arguments for PartsFunc %d: expected %d floats, got %d", func_id, (n), nr_floats)
+#define REQUIRE_STRINGS(n) \
+	if (nr_strings < (n)) VM_ERROR("Invalid arguments for PartsFunc %d: expected %d strings, got %d", func_id, (n), nr_strings)
 
 	switch (func_id) {
 	case 0:  // void SetActiveLayer(int layer)
@@ -152,6 +281,12 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 	case 103:  // void GetPartsCGSurfaceArea(int parts_no, int *x, int *y, int *w, int *h, int state)
 		REQUIRE_INTS(6);
 		PE_GetPartsCGSurfaceArea(ints[0].i, &ints[1].i, &ints[2].i, &ints[3].i, &ints[4].i, ints[5].i);
+		return 1;
+	case 159:  // AddConstructProcess(ArrayInt[32], ArrayFloat[2], ArrayString[2])
+		REQUIRE_INTS(32);
+		REQUIRE_FLOATS(2);
+		REQUIRE_STRINGS(2);
+		PartsEngine_add_construction_process(ints, floats, strings);
 		return 1;
 	case 162:  // bool InitPartsMovie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state)
 		REQUIRE_INTS(8);
