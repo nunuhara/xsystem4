@@ -970,6 +970,7 @@ void parts_release(int parts_no)
 		return;
 
 	struct parts *parts = slot->value;
+	parts_input_reset_drag(parts);
 	parts_clear_motion(parts);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
 		parts_state_free(&parts->states[i]);

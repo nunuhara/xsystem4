@@ -172,6 +172,7 @@ void PE_SetPassCursor(int parts_no, bool pass);
 bool PE_GetPartsPassCursor(int parts_no);
 void PE_SetClickable(int parts_no, bool clickable);
 bool PE_GetPartsClickable(int parts_no);
+void PE_SetDrag(int parts_no, bool enable);
 void PE_SetPartsGroupDecideOnCursor(int group_no, bool decide_on_cursor);
 void PE_SetPartsGroupDecideClick(int group_no, bool decide_click);
 void PE_SetOnCursorShowLinkPartsNumber(int parts_no, int link_parts_no);

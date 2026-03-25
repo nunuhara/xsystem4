@@ -34,6 +34,13 @@ static int clicked_parts = 0;
 // the current (partially) clicked parts number
 static int click_down_parts = 0;
 
+// drag state
+static struct parts *drag_parts = NULL;
+static bool is_dragging = false;
+static Point drag_initial_pos;
+static Point drag_start_cursor;
+static struct parts *drop_target = NULL;
+
 static bool parts_hittest(struct parts *parts, int state, Point pos)
 {
 	Rectangle hitbox = parts->states[state].common.hitbox;
@@ -42,6 +49,21 @@ static bool parts_hittest(struct parts *parts, int state, Point pos)
 		hitbox.y += parts->parent->global.pos.y;
 	}
 	return SDL_PointInRect(&pos, &hitbox);
+}
+
+static void drag_state_reset(void)
+{
+	drag_parts = NULL;
+	is_dragging = false;
+	drop_target = NULL;
+}
+
+void parts_input_reset_drag(struct parts *parts)
+{
+	if (parts == drag_parts)
+		drag_state_reset();
+	else if (parts == drop_target)
+		drop_target = NULL;
 }
 
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking,
@@ -106,6 +128,10 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		click_down_parts = parts->no;
 		*click_consumed = true;
 
+		drag_parts = parts;
+		drag_initial_pos = parts->local.pos;
+		drag_start_cursor = cur_pos;
+
 		// KEY_TRIGGER message fires on press transition
 		parts_msg_push(parts->no, parts->delegate_index,
 				PARTS_MSG_KEY_TRIGGER, "i", VK_LBUTTON);
@@ -154,7 +180,74 @@ void PE_UpdateInputState(int passed_time)
 				&hover_consumed, &click_consumed);
 	}
 
+	// Drag movement processing
+	if (drag_parts && cur_clicking) {
+		bool cursor_moved = (cur_pos.x != parts_prev_pos.x ||
+				cur_pos.y != parts_prev_pos.y);
+		if (cursor_moved && drag_parts->draggable) {
+			Point new_pos = {
+				drag_initial_pos.x + (cur_pos.x - drag_start_cursor.x),
+				drag_initial_pos.y + (cur_pos.y - drag_start_cursor.y)
+			};
+			parts_set_pos(drag_parts, new_pos);
+			if (!is_dragging) {
+				parts_msg_push(drag_parts->no,
+						drag_parts->delegate_index,
+						PARTS_MSG_DRAG_BEGIN, "");
+			}
+			parts_msg_push(drag_parts->no, drag_parts->delegate_index,
+					PARTS_MSG_DRAGGING, "iiii", drag_start_cursor.x, drag_start_cursor.y,
+					cur_pos.x, cur_pos.y);
+			is_dragging = true;
+		}
+
+		// Drop target tracking
+		if (cursor_moved && is_dragging) {
+			struct parts *new_drop = NULL;
+			PARTS_LIST_FOREACH_REVERSE(parts) {
+				if (parts == drag_parts)
+					continue;
+				if (parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos)) {
+					new_drop = parts;
+					if (!parts->pass_cursor)
+						break;
+				}
+			}
+			if (new_drop != drop_target) {
+				if (drop_target) {
+					parts_msg_push(drop_target->no,
+							drop_target->delegate_index,
+							PARTS_MSG_DROP_LEAVE, "i", drag_parts->no);
+				}
+				if (new_drop) {
+					parts_msg_push(new_drop->no,
+							new_drop->delegate_index,
+							PARTS_MSG_DROP_ENTER, "i", drag_parts->no);
+				}
+				drop_target = new_drop;
+			} else if (drop_target) {
+				parts_msg_push(drop_target->no,
+						drop_target->delegate_index,
+						PARTS_MSG_DROP_ON, "iii", drag_parts->no, cur_pos.x,
+						cur_pos.y);
+			}
+		}
+	}
+
+	// Release handling
 	if (prev_clicking && !cur_clicking) {
+		if (is_dragging && drag_parts && drag_parts->draggable) {
+			parts_msg_push(drag_parts->no, drag_parts->delegate_index,
+					PARTS_MSG_DRAG_END, "");
+		}
+		if (drop_target && drag_parts) {
+			parts_msg_push(drop_target->no, drop_target->delegate_index,
+					PARTS_MSG_DROPPED, "iii", drag_parts->no, cur_pos.x, cur_pos.y);
+			parts_msg_push(drop_target->no, drop_target->delegate_index,
+					PARTS_MSG_DROP_LEAVE, "i", drag_parts->no);
+		}
+		drag_state_reset();
+
 		if (!click_down_parts) {
 			// TODO: play misclick sound
 		}
@@ -247,6 +340,12 @@ void PE_EndInput(void)
 {
 	parts_began_click = false;
 	clicked_parts = 0;
+	drag_state_reset();
+}
+
+void PE_SetDrag(int parts_no, bool enable)
+{
+	parts_get(parts_no)->draggable = !!enable;
 }
 
 int PE_GetClickPartsNumber(void)

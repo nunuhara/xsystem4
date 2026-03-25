@@ -570,6 +570,7 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 		iarray_write(w, parts->margin_bottom);
 		iarray_write(w, parts->margin_left);
 		iarray_write(w, parts->margin_right);
+		iarray_write(w, parts->draggable);
 	}
 
 	unsigned motion_count_pos = iarray_writer_pos(w);
@@ -620,6 +621,7 @@ static void load_parts(struct iarray_reader *r, int version)
 		parts->margin_bottom = iarray_read(r);
 		parts->margin_left = iarray_read(r);
 		parts->margin_right = iarray_read(r);
+		parts->draggable = iarray_read(r);
 	}
 
 	int motion_count = iarray_read(r);
