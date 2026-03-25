@@ -62,6 +62,7 @@ static void parts_init(struct parts *parts)
 	parts->local = PARTS_PARAMS_INITIALIZER;
 	parts->global = PARTS_PARAMS_INITIALIZER;
 	parts->delegate_index = -1;
+	parts->want_save = true;
 	parts->on_cursor_sound = -1;
 	parts->on_click_sound = -1;
 	parts->origin_mode = 1;
@@ -2101,6 +2102,11 @@ int PE_get_active_controller(void)
 int PE_get_system_controller(void)
 {
 	return PARTS_CONTROLLER_SYSTEM_OVERLAY;
+}
+
+void PE_parts_set_want_save(int parts_no, bool want_save)
+{
+	parts_get(parts_no)->want_save = want_save;
 }
 
 float PE_parts_get_absolute_x(int parts_no)

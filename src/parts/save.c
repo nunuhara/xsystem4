@@ -650,6 +650,8 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 	PARTS_LIST_FOREACH(parts) {
 		if (!save_hidden && !parts->global.show)
 			continue;
+		if (!parts->want_save)
+			continue;
 		save_parts(&w, parts);
 		count++;
 	}

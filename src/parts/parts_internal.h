@@ -367,6 +367,7 @@ struct parts {
 	bool clickable;
 	bool pass_cursor;
 	bool lock_input_state;
+	bool want_save;
 	int on_cursor_sound;
 	int on_click_sound;
 	int origin_mode;
