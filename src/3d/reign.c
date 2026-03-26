@@ -432,13 +432,38 @@ bool RE_instance_set_type(struct RE_instance *instance, int type)
 	return true;
 }
 
+bool RE_instance_data_exists(struct RE_instance *instance, const char *name)
+{
+	if (!instance)
+		return false;
+	const char *ext;
+	switch (instance->type) {
+	case RE_ITYPE_STATIC:
+	case RE_ITYPE_SKINNED:
+		ext = ".POL";
+		break;
+	case RE_ITYPE_PARTICLE_EFFECT:
+		ext = ".3de";
+		break;
+	default:
+		return archive_exists_by_name(instance->plugin->aar, name, NULL);
+	}
+	const char *basename = strrchr(name, '\\');
+	basename = basename ? basename + 1 : name;
+	char *path = xmalloc(strlen(name) + strlen(basename) + strlen(ext) + 2);
+	sprintf(path, "%s\\%s%s", name, basename, ext);
+	bool exists = archive_exists_by_name(instance->plugin->aar, path, NULL);
+	free(path);
+	return exists;
+}
+
 bool RE_instance_load(struct RE_instance *instance, const char *name)
 {
 	if (!instance)
 		return false;
 	unload_instance(instance);
 	if (name[0] == '\0')
-		return false;
+		return true;  // empty name just unloads the instance
 
 	struct pae *pae;
 	switch (instance->type) {
@@ -477,6 +502,19 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 		WARNING("Invalid instance type %d", instance->type);
 		return false;
 	}
+}
+
+bool RE_instance_motion_exists(struct RE_instance *instance, const char *name)
+{
+	if (!instance || !instance->model)
+		return false;
+	if (instance->model->mot_cache && ht_get(instance->model->mot_cache, name, NULL))
+		return true;
+	char *path = xmalloc(strlen(instance->model->path) + strlen(name) + 6);
+	sprintf(path, "%s\\%s.MOT", instance->model->path, name);
+	bool exists = archive_exists_by_name(instance->plugin->aar, path, NULL);
+	free(path);
+	return exists;
 }
 
 bool RE_instance_load_motion(struct RE_instance *instance, const char *name)
@@ -650,7 +688,7 @@ bool RE_instance_optimize_path_line(struct RE_instance *inst)
 
 bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *inst, int mouse_x, int mouse_y, vec3 out)
 {
-	if (!inst || !inst->model->collider)
+	if (!inst || !inst->model || !inst->model->collider)
 		return false;
 
 	float ndc_x = 2.f * mouse_x / inst->plugin->renderer->viewport_width - 1.f;
@@ -674,6 +712,45 @@ bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *inst, in
 	glm_vec3_normalize(direction);
 
 	return collider_raycast(inst->model->collider, origin, direction, out);
+}
+
+bool RE_plugin_transform_pos_to_view_pos(struct RE_plugin *plugin, float x, float y, float z, int *view_x, int *view_y)
+{
+	if (!plugin)
+		return false;
+
+	mat4 vp;
+	RE_calc_view_matrix(&plugin->camera, GLM_YUP, vp);
+	glm_mat4_mul(plugin->proj_transform, vp, vp);
+
+	vec4 pos = { x, y, z, 1.f };
+	glm_mat4_mulv(vp, pos, pos);
+
+	if (pos[3] == 0.f)
+		return false;
+
+	float ndc_x = pos[0] / pos[3];
+	float ndc_y = pos[1] / pos[3];
+
+	*view_x = (int)((ndc_x + 1.f) * 0.5f * plugin->renderer->viewport_width);
+	*view_y = (int)((1.f - ndc_y) * 0.5f * plugin->renderer->viewport_height);
+	return true;
+}
+
+bool RE_plugin_get_camera_z_vector(struct RE_plugin *plugin, vec3 out)
+{
+	if (!plugin)
+		return false;
+
+	vec3 euler = {
+		glm_rad(plugin->camera.pitch + plugin->camera.quake_pitch),
+		glm_rad(plugin->camera.yaw + plugin->camera.quake_yaw),
+		glm_rad(plugin->camera.roll)
+	};
+	mat4 rot;
+	glm_euler(euler, rot);
+	glm_mat4_mulv3(rot, GLM_FORWARD, 0.f, out);
+	return true;
 }
 
 void RE_instance_update_local_transform(struct RE_instance *inst)
