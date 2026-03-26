@@ -107,7 +107,8 @@ enum parts_type {
 	PARTS_MOVIE,
 	PARTS_RECT_DETECTION,
 	PARTS_LAYOUT_BOX,
-#define PARTS_NR_TYPES (PARTS_LAYOUT_BOX+1)
+	PARTS_3DLAYER,
+#define PARTS_NR_TYPES (PARTS_3DLAYER+1)
 };
 
 struct parts_common {
@@ -344,6 +345,12 @@ struct parts_layout_box {
 	int padding_right;
 };
 
+struct parts_3dlayer {
+	struct parts_common common;
+	int plugin;    // ReignEngine plugin handle (-1 = none)
+	int sprite_no; // SACT sprite used as render target
+};
+
 struct parts_state {
 	enum parts_type type;
 	union {
@@ -358,6 +365,7 @@ struct parts_state {
 		struct parts_flat flat;
 		struct parts_movie movie;
 		struct parts_layout_box layout_box;
+		struct parts_3dlayer layer3d;
 	};
 };
 
@@ -445,6 +453,7 @@ struct parts_flash *parts_get_flash(struct parts *parts, int state);
 struct parts_flat *parts_get_flat(struct parts *parts, int state);
 struct parts_movie *parts_get_movie(struct parts *parts, int state);
 struct parts_layout_box *parts_get_layout_box(struct parts *parts);
+struct parts_3dlayer *parts_get_3dlayer(struct parts *parts, int state);
 void parts_set_pos(struct parts *parts, Point pos);
 void parts_set_global_pos(Point pos);
 void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h);

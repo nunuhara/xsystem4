@@ -276,6 +276,10 @@ static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 		cJSON_AddNumberToObject(obj, "layout_type", state->layout_box.layout_type);
 		cJSON_AddNumberToObject(obj, "align", state->layout_box.align);
 		break;
+	case PARTS_3DLAYER:
+		cJSON_AddNumberToObject(obj, "plugin", state->layer3d.plugin);
+		cJSON_AddNumberToObject(obj, "sprite_no", state->layer3d.sprite_no);
+		break;
 	}
 
 	return obj;
@@ -572,6 +576,9 @@ static void parts_list_print(struct parts *parts, int indent)
 		break;
 	case PARTS_LAYOUT_BOX:
 		sys_message("(layout_box type=%d)", state->layout_box.layout_type);
+		break;
+	case PARTS_3DLAYER:
+		sys_message("(3dlayer plugin=%d sp=%d)", state->layer3d.plugin, state->layer3d.sprite_no);
 		break;
 	}
 

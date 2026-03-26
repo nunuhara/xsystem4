@@ -31,7 +31,7 @@ struct RE_options RE_options;
 
 static struct RE_plugin *plugins[RE_MAX_PLUGINS];
 
-static int create_plugin(enum RE_plugin_version version)
+int ReignEngine_create_plugin(enum RE_plugin_version version)
 {
 	for (int i = 0; i < RE_MAX_PLUGINS; i++) {
 		if (!plugins[i]) {
@@ -89,10 +89,10 @@ static struct RE_back_cg *get_back_cg(unsigned plugin, unsigned num)
 
 static int ReignEngine_CreatePlugin(void)
 {
-	return create_plugin(RE_REIGN_PLUGIN);
+	return ReignEngine_create_plugin(RE_REIGN_PLUGIN);
 }
 
-static bool ReignEngine_ReleasePlugin(int handle)
+bool ReignEngine_ReleasePlugin(int handle)
 {
 	if ((unsigned)handle >= RE_MAX_PLUGINS || !plugins[handle])
 		return false;
@@ -101,7 +101,7 @@ static bool ReignEngine_ReleasePlugin(int handle)
 	return true;
 }
 
-static bool ReignEngine_BindPlugin(int handle, int sprite)
+bool ReignEngine_BindPlugin(int handle, int sprite)
 {
 	return RE_plugin_bind(get_plugin(handle), sprite);
 }
@@ -1821,7 +1821,7 @@ HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, SetInstanceFresnelReflectRate, 
 
 static int TapirEngine_CreatePlugin(void)
 {
-	return create_plugin(RE_TAPIR_PLUGIN);
+	return ReignEngine_create_plugin(RE_TAPIR_PLUGIN);
 }
 
 HLL_WARN_UNIMPLEMENTED(false, bool, TapirEngine, SetInstanceDrawParam, int plugin_number, int instance_number, int draw_param, int value);

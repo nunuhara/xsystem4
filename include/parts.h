@@ -120,6 +120,9 @@ bool PE_SaveWithoutHideParts(struct page **buffer);
 bool PE_Load(struct page **buffer);
 int PE_AddController(int index);
 void PE_RemoveController(struct page **erase_number_list, int index);
+bool PE_CreateParts3DLayerPluginID(int parts_no, int state);
+int PE_GetParts3DLayerPluginID(int parts_no, int state);
+bool PE_ReleaseParts3DLayerPluginID(int parts_no, int state);
 // GUIEngine
 int PE_GetFreeNumber(void);
 bool PE_IsExist(int parts_no);

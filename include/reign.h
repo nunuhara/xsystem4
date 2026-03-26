@@ -31,6 +31,7 @@ struct hash_table;
 enum RE_plugin_version {
 	RE_REIGN_PLUGIN,  // Toushin Toshi 3
 	RE_TAPIR_PLUGIN,  // Rance Quest
+	RE_SEAL_PLUGIN,   // Rance 9
 };
 
 enum RE_instance_type {
@@ -305,5 +306,10 @@ bool RE_back_cg_set_name(struct RE_back_cg *bcg, struct string *name, struct arc
 
 void RE_render(struct sact_sprite *sp);
 cJSON *RE_to_json(struct sact_sprite *sp, bool verbose);
+
+// Exposed for PartsEngine 3DLayer
+int ReignEngine_create_plugin(enum RE_plugin_version version);
+bool ReignEngine_ReleasePlugin(int handle);
+bool ReignEngine_BindPlugin(int handle, int sprite);
 
 #endif /* SYSTEM4_REIGN_H */

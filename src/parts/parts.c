@@ -29,6 +29,7 @@
 #include "sprite.h"
 #include "parts.h"
 #include "parts_internal.h"
+#include "reign.h"
 
 struct parts_list parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
 static struct parts_list dirty_list = TAILQ_HEAD_INITIALIZER(dirty_list);
@@ -215,6 +216,13 @@ static void parts_state_free(struct parts_state *state)
 		if (state->movie.sprite_no >= 0)
 			sact_SP_Delete(state->movie.sprite_no);
 		break;
+	case PARTS_3DLAYER:
+		state->common.texture.handle = 0;
+		if (state->layer3d.plugin >= 0)
+			ReignEngine_ReleasePlugin(state->layer3d.plugin);
+		if (state->layer3d.sprite_no >= 0)
+			sact_SP_Delete(state->layer3d.sprite_no);
+		break;
 	}
 	memset(state, 0, sizeof(struct parts_state));
 }
@@ -255,6 +263,10 @@ void parts_state_reset(struct parts_state *state, enum parts_type type)
 	case PARTS_VGAUGE:
 		state->gauge.cg_no = -1;
 		state->gauge.rate = 0.0f;
+		break;
+	case PARTS_3DLAYER:
+		state->layer3d.plugin = -1;
+		state->layer3d.sprite_no = -1;
 		break;
 	case PARTS_UNINITIALIZED:
 	case PARTS_CG:
@@ -359,6 +371,14 @@ struct parts_layout_box *parts_get_layout_box(struct parts *parts)
 		parts_state_reset(&parts->states[0], PARTS_LAYOUT_BOX);
 	}
 	return &parts->states[0].layout_box;
+}
+
+struct parts_3dlayer *parts_get_3dlayer(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_3DLAYER) {
+		parts_state_reset(&parts->states[state], PARTS_3DLAYER);
+	}
+	return &parts->states[state].layer3d;
 }
 
 static Point calculate_offset(int mode, int w, int h)
@@ -1960,6 +1980,7 @@ void PE_SetComponentType(int parts_no, int type, int state)
 	case 17: pt = PARTS_RECT_DETECTION; break;
 	case 18: pt = PARTS_CONSTRUCTION_PROCESS; break;
 	case 20: pt = PARTS_FLAT; break;
+	case 21: pt = PARTS_3DLAYER; break;
 	case 22: pt = PARTS_MOVIE; break;
 	default:
 		VM_ERROR("unknown component type %d", type);
@@ -1989,6 +2010,7 @@ int PE_GetComponentType(int parts_no, int state)
 	case PARTS_RECT_DETECTION: return 17;
 	case PARTS_CONSTRUCTION_PROCESS: return 18;
 	case PARTS_FLAT: return 20;
+	case PARTS_3DLAYER: return 21;
 	case PARTS_MOVIE: return 22;
 	case PARTS_FLASH:
 		break;
@@ -2184,4 +2206,65 @@ int PE_get_movie_sprite(int parts_no, int state)
 		return -1;
 
 	return parts->states[state].movie.sprite_no;
+}
+
+bool PE_CreateParts3DLayerPluginID(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_get(parts_no);
+	struct parts_3dlayer *l = parts_get_3dlayer(parts, state);
+
+	if (l->plugin >= 0)
+		return false;
+
+	int handle = ReignEngine_create_plugin(RE_SEAL_PLUGIN);
+	if (handle < 0)
+		return false;
+
+	int sp_no = sact_SP_GetUnuseNum(0);
+	struct sact_sprite *sp = sact_create_sprite(sp_no, 1, 1, 0, 0, 0, 255);
+	if (!sp) {
+		ReignEngine_ReleasePlugin(handle);
+		return false;
+	}
+
+	if (!ReignEngine_BindPlugin(handle, sp_no)) {
+		sact_SP_Delete(sp_no);
+		ReignEngine_ReleasePlugin(handle);
+		return false;
+	}
+
+	l->plugin = handle;
+	l->sprite_no = sp_no;
+	return true;
+}
+
+int PE_GetParts3DLayerPluginID(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return -1;
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts || parts->states[state].type != PARTS_3DLAYER)
+		return -1;
+	return parts->states[state].layer3d.plugin;
+}
+
+bool PE_ReleaseParts3DLayerPluginID(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts || parts->states[state].type != PARTS_3DLAYER)
+		return false;
+	struct parts_3dlayer *l = &parts->states[state].layer3d;
+	if (l->plugin < 0)
+		return false;
+	ReignEngine_ReleasePlugin(l->plugin);
+	l->plugin = -1;
+	if (l->sprite_no >= 0) {
+		sact_SP_Delete(l->sprite_no);
+		l->sprite_no = -1;
+	}
+	return true;
 }
