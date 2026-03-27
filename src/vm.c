@@ -421,7 +421,15 @@ static void delegate_call(int dg_no, int return_address)
 		stack_pop(); // dg_index
 		stack_pop(); // dg_page
 		for (int i = ain->delegates[dg_no].nr_variables - 1; i >= 0; i--) {
-			variable_fini(stack_pop(), ain->delegates[dg_no].variables[i].type.data, true);
+			union vm_value v = stack_pop();
+			enum ain_data_type type = ain->delegates[dg_no].variables[i].type.data;
+			switch (type) {
+			case AIN_REF_TYPE:
+				break;
+			default:
+				variable_fini(v, type, true);
+				break;
+			}
 		}
 		if (return_values) {
 			stack_push(r);
@@ -2298,8 +2306,17 @@ static enum opcode execute_instruction(enum opcode opcode)
 		}
 		break;
 	}
-	//case DG_NEW:
-	//case DG_STR_TO_METHOD:
+	case DG_NEW: {
+		stack_push(heap_alloc_page(alloc_page(DELEGATE_PAGE, 0, 0)));
+		break;
+	}
+	case DG_STR_TO_METHOD: {
+		stack_pop(); // delegate type index
+		int str = stack_pop().i;
+		stack_push(get_function_by_name(heap_get_string(str)->text));
+		heap_unref(str);
+		break;
+	}
 	// -- NOOPs ---
 	case FUNC:
 		break;
