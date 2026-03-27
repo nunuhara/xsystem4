@@ -76,6 +76,8 @@ vec3 dir_lights_diffuse(vec3 norm)
 #endif // ENGINE == REIGN_ENGINE
 
 uniform sampler2D tex;
+uniform sampler2D blend_tex;
+uniform bool use_blend_texture;
 uniform sampler2D alpha_texture;
 uniform sampler2D light_texture;
 uniform sampler2D shadow_texture;
@@ -98,6 +100,8 @@ in vec4 shadow_frag_pos;
 in float dist;
 in vec3 eye;
 in vec3 normal;
+in float blend_weight;
+in vec2 blend_tex_coord;
 out vec4 frag_color;
 
 void main() {
@@ -119,6 +123,9 @@ void main() {
 		frag_rgb = texel.rgb;
 	} else {
 		texel = texture(tex, tex_coord);
+		if (use_blend_texture) {
+			texel = mix(texel, texture(blend_tex, blend_tex_coord), blend_weight);
+		}
 		if (diffuse_type == DIFFUSE_EMISSIVE) {
 			frag_rgb = texel.rgb;
 		} else {

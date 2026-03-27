@@ -74,6 +74,7 @@ struct material {
 	GLuint alpha_map;
 	GLuint light_map;
 	GLuint normal_map;
+	GLuint blend_texture;
 	float specular_strength;
 	float specular_shininess;
 	float shadow_darkness;
@@ -108,6 +109,8 @@ enum RE_attribute_location {
 	VATTR_LIGHT_UV,
 	VATTR_COLOR,
 	VATTR_TANGENT,
+	VATTR_BLEND_WEIGHT,
+	VATTR_BLEND_UV,
 };
 
 struct shadow_renderer {
@@ -185,6 +188,8 @@ struct RE_renderer {
 	GLint alpha_mode;
 	GLint alpha_texture;
 	GLint uv_scroll;
+	GLint blend_tex;
+	GLint use_blend_texture;
 
 	GLuint billboard_vao;
 	GLuint billboard_attr_buffer;
@@ -431,7 +436,7 @@ struct pol_material {
 struct pol_material_group {
 	struct pol_material m;
 	uint32_t nr_children;
-	struct pol_material *children;
+	struct pol_material_group *children;
 };
 
 enum mesh_flags {
@@ -461,6 +466,10 @@ struct pol_mesh {
 	vec3 *colors;
 	uint32_t nr_alphas;
 	float *alphas;
+	uint32_t nr_blend_uvs;
+	vec2 *blend_uvs;
+	uint32_t nr_blend_weights;
+	float *blend_weights;
 	uint32_t nr_triangles;
 	struct pol_triangle *triangles;
 	// Parameters in .opr file.
@@ -486,6 +495,8 @@ struct pol_triangle {
 	uint32_t light_uv_index[3];
 	uint32_t color_index[3];
 	uint32_t alpha_index[3];
+	uint32_t blend_uv_index[3];
+	uint32_t blend_weight_index[3];
 	vec3 normals[3];
 	uint32_t material_group_index;
 };

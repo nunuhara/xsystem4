@@ -39,6 +39,7 @@ enum {
 	LIGHT_TEXTURE_UNIT,
 	NORMAL_TEXTURE_UNIT,
 	SHADOW_TEXTURE_UNIT,
+	BLEND_TEXTURE_UNIT,
 };
 
 enum {
@@ -89,6 +90,8 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 	glBindAttribLocation(program, VATTR_LIGHT_UV, "vertex_light_uv");
 	glBindAttribLocation(program, VATTR_COLOR, "vertex_color");
 	glBindAttribLocation(program, VATTR_TANGENT, "vertex_tangent");
+	glBindAttribLocation(program, VATTR_BLEND_WEIGHT, "vertex_blend_weight");
+	glBindAttribLocation(program, VATTR_BLEND_UV, "vertex_blend_uv");
 
 	glLinkProgram(program);
 
@@ -258,6 +261,8 @@ struct RE_renderer *RE_renderer_new(void)
 	r->alpha_mode = glGetUniformLocation(r->program, "alpha_mode");
 	r->alpha_texture = glGetUniformLocation(r->program, "alpha_texture");
 	r->uv_scroll = glGetUniformLocation(r->program, "uv_scroll");
+	r->blend_tex = glGetUniformLocation(r->program, "blend_tex");
+	r->use_blend_texture = glGetUniformLocation(r->program, "use_blend_texture");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 
@@ -445,6 +450,15 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 			glUniform1i(r->alpha_texture, ALPHA_TEXTURE_UNIT);
 		} else {
 			glUniform1i(r->alpha_mode, mesh->is_transparent ? ALPHA_BLEND : ALPHA_TEST);
+		}
+
+		if (material->blend_texture) {
+			glUniform1i(r->use_blend_texture, GL_TRUE);
+			glActiveTexture(GL_TEXTURE0 + BLEND_TEXTURE_UNIT);
+			glBindTexture(GL_TEXTURE_2D, material->blend_texture);
+			glUniform1i(r->blend_tex, BLEND_TEXTURE_UNIT);
+		} else {
+			glUniform1i(r->use_blend_texture, GL_FALSE);
 		}
 
 		vec2 uv_scroll;
