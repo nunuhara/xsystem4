@@ -35,6 +35,31 @@ void my_class::set_a(int a_) {
 	a = a_;
 }
 
+string dtor_order;
+
+struct dtor_a {
+	~dtor_a() { dtor_order += "a"; }
+};
+
+struct dtor_b {
+	~dtor_b() { dtor_order += "b"; }
+};
+
+struct dtor_c {
+	~dtor_c() { dtor_order += "c"; }
+};
+
+struct dtor_parent {
+	dtor_a a;
+	dtor_b b;
+	dtor_c c;
+};
+
+void create_and_destroy_dtor_parent(void)
+{
+	dtor_parent p;
+}
+
 void test_structs(void)
 {
 	my_struct s;
@@ -61,4 +86,8 @@ void test_structs(void)
 	r <- new my_struct;
 	test_equal("r.a (uninitialized)", r.a, 0);
 	test_equal("r.a = 12", (r.a = 12, r.a), 12);
+
+	dtor_order = "";
+	create_and_destroy_dtor_parent();
+	test_string("member destruct order", dtor_order, "cba");
 }

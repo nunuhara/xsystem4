@@ -194,7 +194,7 @@ void variable_set(struct page *page, int varno, enum ain_data_type type, union v
 
 void delete_page_vars(struct page *page)
 {
-	for (int i = 0; i < page->nr_vars; i++) {
+	for (int i = page->nr_vars - 1; i >= 0; i--) {
 		variable_fini(page->values[i], variable_type(page, i, NULL, NULL), true);
 	}
 }
