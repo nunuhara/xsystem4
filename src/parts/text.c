@@ -72,6 +72,7 @@ static const char *parts_text_append_char(struct parts_text *t, const char *str)
 	if (*str == '\n') {
 		t->lines = xrealloc_array(t->lines, t->nr_lines, t->nr_lines + 1,
 				sizeof(struct parts_text_line));
+		t->lines[t->nr_lines].height = text_style_height(&t->ts);
 		t->nr_lines++;
 		return str + 1;
 	}
@@ -110,6 +111,8 @@ void parts_text_append(struct parts *parts, struct parts_text *t, struct string 
 	int height = 0;
 	for (int i = 0; i < t->nr_lines; i++) {
 		f_width = max(f_width, t->lines[i].width);
+		if (i > 0)
+			height += t->line_space;
 		height += t->lines[i].height;
 	}
 	int width = ceilf(f_width);
