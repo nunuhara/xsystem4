@@ -634,12 +634,6 @@ static bool pe_dirty = false;
 
 void parts_render_update(int passed_time)
 {
-	// XXX: hack for Rance 01 load issue
-	//      There is a bug in Rance 01 where a single bad frame is displayed after
-	//      loading a save. When this happens, the game passes a negative time delta
-	//      to PE_Update. We fix this issue by ignoring such calls.
-	if (passed_time < 0)
-		return;
 	if (pe_dirty) {
 		struct parts *p;
 		PARTS_LIST_FOREACH(p) {

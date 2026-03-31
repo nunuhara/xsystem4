@@ -1120,6 +1120,11 @@ static void parts_update_component(struct parts *parts)
 
 void PE_UpdateComponent(possibly_unused int passed_time)
 {
+	// After loading a save, the game script may compute a negative time delta
+	// because it stores an absolute system.GetTime() value in the save data,
+	// which is meaningless across process restarts.
+	if (passed_time < 0)
+		passed_time = 0;
 	while (!TAILQ_EMPTY(&dirty_list)) {
 		// pop parts object from dirty list
 		struct parts *parts = TAILQ_FIRST(&dirty_list);
