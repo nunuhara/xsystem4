@@ -294,11 +294,26 @@ static int alloc_scenario_page(const char *fname)
 	return slot;
 }
 
+static void set_struct_page(int slot)
+{
+	call_stack[call_stack_ptr-1].struct_page = slot;
+	// Keep `this` alive during the call (from Rance9 onwards).
+	if (AIN_VERSION_GTE(ain, 6, 1))
+		heap_ref(slot);
+}
+
+static void unref_call_frame(struct function_call *frame)
+{
+	if (frame->struct_page >= 0 && AIN_VERSION_GTE(ain, 6, 1))
+		heap_unref(frame->struct_page);
+	heap_unref(frame->page_slot);
+}
+
 static void scenario_jump(int address)
 {
 	// flush call stack
 	for (int i = call_stack_ptr - 1; i >= 0; i--) {
-		heap_unref(call_stack[i].page_slot);
+		unref_call_frame(&call_stack[i]);
 	}
 	call_stack_ptr = 0;
 	instr_ptr = address;
@@ -309,7 +324,7 @@ static void scenario_call(int slot)
 	int fno = heap[slot].page->index;
 	// flush call stack
 	for (int i = call_stack_ptr - 1; i >= 0; i--) {
-		heap_unref(call_stack[i].page_slot);
+		unref_call_frame(&call_stack[i]);
 	}
 	call_stack[0] = (struct function_call) {
 		.fno = fno,
@@ -378,7 +393,7 @@ static void method_call(int fno, int return_address)
 {
 	function_call(fno, return_address);
 	int struct_page = stack_pop().i;
-	call_stack[call_stack_ptr-1].struct_page = struct_page;
+	set_struct_page(struct_page);
 	heap[call_stack[call_stack_ptr-1].page_slot].page->local.struct_ptr = struct_page;
 }
 
@@ -411,7 +426,7 @@ static void delegate_call(int dg_no, int return_address)
 			heap[slot].page->values[i] = vm_copy(arg, dg->variables[i].type.data);
 		}
 
-		call_stack[call_stack_ptr-1].struct_page = obj;
+		set_struct_page(obj);
 	} else {
 		// call finished: clean up stack and jump to return address
 		union vm_value r;
@@ -453,7 +468,7 @@ void vm_call(int fno, int struct_page)
 
 static void function_return(void)
 {
-	heap_unref(call_stack[call_stack_ptr-1].page_slot);
+	unref_call_frame(&call_stack[call_stack_ptr-1]);
 	instr_ptr = call_stack[call_stack_ptr-1].return_address;
 	call_stack_ptr--;
 }
@@ -1907,7 +1922,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case SH_STRUCTREF_CALLMETHOD_NO_PARAM: {
 		int memb_page = member_get(get_argument(0)).i;
 		function_call(get_argument(1), instr_ptr + instruction_width(SH_STRUCTREF_CALLMETHOD_NO_PARAM));
-		call_stack[call_stack_ptr-1].struct_page = memb_page;
+		set_struct_page(memb_page);
 		break;
 	}
 	case SH_STRUCTREF2: {
@@ -1931,7 +1946,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int memb1 = member_get(get_argument(0)).i;
 		int memb2 = page_get_var(heap_get_page(memb1), get_argument(1)).i;
 		function_call(get_argument(2), instr_ptr + instruction_width(SH_STRUCTREF2_CALLMETHOD_NO_PARAM));
-		call_stack[call_stack_ptr-1].struct_page = memb2;
+		set_struct_page(memb2);
 		break;
 	}
 	case SH_IF_STRUCTREF_Z: {
@@ -1966,7 +1981,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case THISCALLMETHOD_NOPARAM: {
 		int this_page = struct_page_slot();
 		function_call(get_argument(0), instr_ptr + instruction_width(THISCALLMETHOD_NOPARAM));
-		call_stack[call_stack_ptr-1].struct_page = this_page;
+		set_struct_page(this_page);
 		break;
 	}
 	case SH_IF_LOC_NE_IMM: {
@@ -2373,6 +2388,8 @@ static void vm_free(void)
 	exit_libraries();
 	// flush call stack
 	for (int i = call_stack_ptr - 1; i >= 0; i--) {
+		if (call_stack[i].struct_page >= 0 && AIN_VERSION_GTE(ain, 6, 1))
+			exit_unref(call_stack[i].struct_page);
 		exit_unref(call_stack[i].page_slot);
 	}
 	// free globals
