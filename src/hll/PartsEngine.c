@@ -96,6 +96,12 @@ static void PartsEngine_AddComponentMotionPos(int parts_no, float begin_x, float
 			begin_t, end_t, curve_name);
 }
 
+HLL_WARN_UNIMPLEMENTED(0, int, PartsEngine, PartsFunc, int func_id, struct page **array_int, struct page **array_float, struct page **array_string);
+HLL_WARN_UNIMPLEMENTED(, void, PartsEngine, StopSoundWithoutSystemSound);
+HLL_WARN_UNIMPLEMENTED(, void, PartsEngine, ReleaseMessage, void);
+HLL_WARN_UNIMPLEMENTED(0, int, PartsEngine, GetMessageType, void);
+HLL_WARN_UNIMPLEMENTED(, void, PartsEngine, Parts_SetPassCursor, int Number, bool Pass);
+
 static void PartsEngine_PreLink(void);
 
 HLL_LIBRARY(PartsEngine,
@@ -265,7 +271,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(SaveWithoutHideParts, PE_SaveWithoutHideParts),
 	    HLL_EXPORT(Load, PE_Load),
 	    // Rance 9
-	    HLL_TODO_EXPORT(PartsFunc, PartsEngine_PartsFunc),
+	    HLL_EXPORT(PartsFunc, PartsEngine_PartsFunc),
 	    HLL_EXPORT(Release, PE_ReleaseParts),
 	    HLL_TODO_EXPORT(ReleaseAll, PartsEngine_ReleaseAll),
 	    HLL_TODO_EXPORT(ReleaseAllWithoutSystem, PartsEngine_ReleaseAllWithoutSystem),
@@ -277,16 +283,16 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(Parts_SetThumbnailReductionSize, PE_SetThumbnailReductionSize),
 	    HLL_EXPORT(Parts_SetThumbnailMode, PE_SetThumbnailMode),
 	    HLL_EXPORT(GetClickNumber, PE_GetClickPartsNumber),
-	    HLL_TODO_EXPORT(StopSoundWithoutSystemSound, PartsEngine_StopSoundWithoutSystemSound),
+	    HLL_EXPORT(StopSoundWithoutSystemSound, PartsEngine_StopSoundWithoutSystemSound),
 	    HLL_TODO_EXPORT(ReleaseActivity, PartsEngine_ReleaseActivity),
 	    HLL_TODO_EXPORT(CrateActivityBinary, PartsEngine_CrateActivityBinary),
 	    HLL_TODO_EXPORT(ReadActivityBinary, PartsEngine_ReadActivityBinary),
-	    HLL_TODO_EXPORT(ReleaseMessage, PartsEngine_ReleaseMessage),
+	    HLL_EXPORT(ReleaseMessage, PartsEngine_ReleaseMessage),
 	    HLL_TODO_EXPORT(PopMessage, PartsEngine_PopMessage),
 	    HLL_TODO_EXPORT(GetMessagePartsNumber, PartsEngine_GetMessagePartsNumber),
 	    HLL_TODO_EXPORT(GetMessageDelegateIndex, PartsEngine_GetMessageDelegateIndex),
 	    HLL_EXPORT(GetDelegateIndex, PE_GetDelegateIndex),
-	    HLL_TODO_EXPORT(GetMessageType, PartsEngine_GetMessageType),
+	    HLL_EXPORT(GetMessageType, PartsEngine_GetMessageType),
 	    HLL_TODO_EXPORT(GetMessageVariableCount, PartsEngine_GetMessageVariableCount),
 	    HLL_TODO_EXPORT(GetMessageVariableType, PartsEngine_GetMessageVariableType),
 	    HLL_TODO_EXPORT(GetMessageVariableInt, PartsEngine_GetMessageVariableInt),
@@ -595,7 +601,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_TODO_EXPORT(Parts_CreateParts3DLayerPluginID, PartsEngine_Parts_CreateParts3DLayerPluginID),
 	    HLL_TODO_EXPORT(Parts_GetParts3DLayerPluginID, PartsEngine_Parts_GetParts3DLayerPluginID),
 	    HLL_TODO_EXPORT(Parts_ReleaseParts3DLayerPluginID, PartsEngine_Parts_ReleaseParts3DLayerPluginID),
-	    HLL_TODO_EXPORT(Parts_SetPassCursor, PartsEngine_Parts_SetPassCursor),
+	    HLL_EXPORT(Parts_SetPassCursor, PartsEngine_Parts_SetPassCursor),
 	    HLL_EXPORT(Parts_SetClickable, PE_SetClickable),
 	    HLL_TODO_EXPORT(Parts_SetResetTimerByChangeInputStatus, PartsEngine_Parts_SetResetTimerByChangeInputStatus),
 	    HLL_TODO_EXPORT(Parts_SetDrag, PartsEngine_Parts_SetDrag),
