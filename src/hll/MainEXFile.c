@@ -51,7 +51,7 @@ static int set_indices(struct ex_value *val, int id)
 		break;
 	case EX_LIST:
 		for (unsigned i = 0; i < val->list->nr_items; i++) {
-			id = set_indices(&val->list->items->value, id);
+			id = set_indices(&val->list->items[i].value, id);
 		}
 		break;
 	case EX_TREE:
@@ -86,7 +86,7 @@ static void map_handles(struct ex_value *val)
 		break;
 	case EX_LIST:
 		for (unsigned i = 0; i < val->list->nr_items; i++) {
-			map_handles(&val->list->items->value);
+			map_handles(&val->list->items[i].value);
 		}
 		break;
 	case EX_TREE:
