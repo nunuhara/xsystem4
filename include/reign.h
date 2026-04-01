@@ -149,6 +149,9 @@ struct RE_plugin {
 
 	// TapirEngine
 	bool suspended;
+
+	// SealEngine
+	int mag_speed;
 };
 
 struct RE_instance {
@@ -171,6 +174,7 @@ struct RE_instance {
 	float shadow_volume_bone_radius;
 	bool draw_bump;
 	float fps;
+	bool use_mag_speed;
 	bool motion_blend;
 	float motion_blend_rate;
 	vec3 ambient;

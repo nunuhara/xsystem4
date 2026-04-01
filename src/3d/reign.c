@@ -49,6 +49,7 @@ static struct RE_instance *create_instance(struct RE_plugin *plugin)
 	instance->shadow_volume_bone_radius = 0.1f;
 	instance->draw_bump = true;
 	instance->fps = 30.0f;
+	instance->use_mag_speed = true;
 	instance->column_height = 1.0f;
 	instance->column_radius = 1.0f;
 	glm_mat4_identity(instance->local_transform);
@@ -240,6 +241,7 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 	plugin->pae_cache = ht_create(32);
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_init(&plugin->back_cg[i]);
+	plugin->mag_speed = 1;
 	plugin->fog_type = RE_FOG_NONE;
 	plugin->fog_near = 1.0;
 	plugin->fog_far = 10.0;
@@ -326,6 +328,8 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 			continue;
 
 		float delta_frame = inst->fps * elapsed_ms / 1000.0;
+		if (inst->use_mag_speed)
+			delta_frame *= plugin->mag_speed;
 		update_motion(inst->motion, delta_frame);
 		update_motion(inst->next_motion, delta_frame);
 

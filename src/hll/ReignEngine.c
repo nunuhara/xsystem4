@@ -2334,7 +2334,13 @@ HLL_LIBRARY(ReignEngine, REIGN_EXPORTS,
 
 HLL_LIBRARY(TapirEngine, REIGN_EXPORTS, TAPIR_EXPORTS);
 
-HLL_QUIET_UNIMPLEMENTED(, void, SealEngine, SetMagSpeed, int MagSpeed);
+static void SealEngine_SetMagSpeed(int mag_speed)
+{
+	for (int i = 0; i < RE_MAX_PLUGINS; i++) {
+		if (plugins[i])
+			plugins[i]->mag_speed = mag_speed;
+	}
+}
 //bool SealEngine_SaveInstance(int PluginNumber, int InstanceNumber, struct string *FileName);
 
 static bool SealEngine_IsExistInstanceData(int plugin, int instance, struct string *filename)
@@ -2437,8 +2443,20 @@ HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetInstanceCircleShadowRadius, i
 //float SealEngine_GetInstanceCircleShadowRadius(int PluginNumber, int InstanceNumber);
 //bool SealEngine_LoadInstanceLightParam(int PluginNumber, int InstanceNumber);
 HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, StoreInstanceLightParam, int PluginNumber, int InstanceNumber);
-HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetInstanceUseMagSpeed, int PluginNumber, int InstanceNumber, bool UseMagSpeed);
-//bool SealEngine_IsInstanceUseMagSpeed(int PluginNumber, int InstanceNumber);
+static bool SealEngine_SetInstanceUseMagSpeed(int plugin, int instance, bool use_mag_speed)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->use_mag_speed = use_mag_speed;
+	return true;
+}
+
+static bool SealEngine_IsInstanceUseMagSpeed(int plugin, int instance)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	return ri ? ri->use_mag_speed : false;
+}
 //bool SealEngine_CreateInstanceDebugBoneList(int PluginNumber, int InstanceNumber, int BoneInstanceNumber, int OnCursorIndex, int SelectedIndex);
 //bool SealEngine_CreateInstanceDebugBoneCollision(int PluginNumber, int InstanceNumber, int BoneInstanceNumber, int OnCursorIndex, int SelectedIndex);
 //bool SealEngine_GetCameraPos(int PluginNumber, float *X, float *Y, float *Z);
@@ -2559,7 +2577,7 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int Plugin
 	    HLL_TODO_EXPORT(LoadInstanceLightParam, SealEngine_LoadInstanceLightParam), \
 	    HLL_EXPORT(StoreInstanceLightParam, SealEngine_StoreInstanceLightParam), \
 	    HLL_EXPORT(SetInstanceUseMagSpeed, SealEngine_SetInstanceUseMagSpeed), \
-	    HLL_TODO_EXPORT(IsInstanceUseMagSpeed, SealEngine_IsInstanceUseMagSpeed), \
+	    HLL_EXPORT(IsInstanceUseMagSpeed, SealEngine_IsInstanceUseMagSpeed), \
 	    HLL_TODO_EXPORT(CreateInstanceDebugBoneList, SealEngine_CreateInstanceDebugBoneList), \
 	    HLL_TODO_EXPORT(CreateInstanceDebugBoneCollision, SealEngine_CreateInstanceDebugBoneCollision), \
 	    HLL_TODO_EXPORT(GetCameraPos, SealEngine_GetCameraPos), \
