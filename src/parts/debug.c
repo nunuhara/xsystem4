@@ -209,6 +209,11 @@ static void parts_flat_to_json(struct parts_flat *flat, cJSON *out, bool verbose
 	cJSON_AddNumberToObject(out, "end_frame", flat->end_frame);
 }
 
+static void parts_movie_to_json(struct parts_movie *movie, cJSON *out, bool verbose)
+{
+	cJSON_AddNumberToObject(out, "sprite_no", movie->sprite_no);
+}
+
 static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 {
 	static const char *state_types[PARTS_NR_TYPES] = {
@@ -261,6 +266,9 @@ static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 		break;
 	case PARTS_FLAT:
 		parts_flat_to_json(&state->flat, obj, verbose);
+		break;
+	case PARTS_MOVIE:
+		parts_movie_to_json(&state->movie, obj, verbose);
 		break;
 	}
 
@@ -544,6 +552,9 @@ static void parts_list_print(struct parts *parts, int indent)
 		break;
 	case PARTS_FLAT:
 		sys_message("(flat %s)", state->flat.name ? display_sjis0(state->flat.name->text) : "(null)");
+		break;
+	case PARTS_MOVIE:
+		sys_message("(movie sp=%d)", state->movie.sprite_no);
 		break;
 	}
 

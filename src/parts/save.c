@@ -386,6 +386,8 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 	case PARTS_FLAT:
 		save_parts_flat(w, &state->flat);
 		break;
+	case PARTS_MOVIE:
+		break;
 	}
 }
 
@@ -427,6 +429,8 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 		break;
 	case PARTS_FLAT:
 		load_parts_flat(r, parts, &state->flat);
+		break;
+	case PARTS_MOVIE:
 		break;
 	}
 }
