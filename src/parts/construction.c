@@ -38,6 +38,7 @@ void parts_cp_op_free(struct parts_cp_op *op)
 	case PARTS_CP_FILL:
 	case PARTS_CP_FILL_ALPHA_COLOR:
 	case PARTS_CP_FILL_AMAP:
+	case PARTS_CP_FILL_WITH_ALPHA:
 	case PARTS_CP_DRAW_RECT:
 	case PARTS_CP_DRAW_CUT_CG:
 	case PARTS_CP_COPY_CUT_CG:
@@ -157,7 +158,23 @@ bool PE_AddFillAMapToPartsConstructionProcess(int parts_no, int x, int y, int w,
 }
 
 bool PE_AddFillWithAlphaToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
-		int r, int g, int b, int a, int state);
+		int r, int g, int b, int a, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts_construction_process *cproc = get_cproc(parts_no, state);
+	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
+	op->type = PARTS_CP_FILL_WITH_ALPHA;
+	op->fill = (struct parts_cp_fill) {
+		.x = x, .y = y, .w = w, .h = h,
+		.r = r, .g = g, .b = b, .a = a
+	};
+
+	parts_add_cp_op(cproc, op);
+	return true;
+}
+
 bool PE_AddFillGradationHorizonToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
 		int top_r, int top_g, int top_b, int bot_r, int bot_g, int bot_b, int state);
 
@@ -355,6 +372,11 @@ static void build_fill_amap(struct parts_construction_process *cproc, struct par
 	gfx_fill_amap(&cproc->common.texture, op->x, op->y, op->w, op->h, op->a);
 }
 
+static void build_fill_with_alpha(struct parts_construction_process *cproc, struct parts_cp_fill *op)
+{
+	gfx_fill_with_alpha(&cproc->common.texture, op->x, op->y, op->w, op->h, op->r, op->g, op->b, op->a);
+}
+
 static void build_draw_rect(struct parts_construction_process *cproc, struct parts_cp_fill *op)
 {
 	int x2 = op->x + op->w - 1;
@@ -442,6 +464,9 @@ bool parts_build_construction_process(struct parts *parts,
 			break;
 		case PARTS_CP_FILL_AMAP:
 			build_fill_amap(cproc, &op->fill);
+			break;
+		case PARTS_CP_FILL_WITH_ALPHA:
+			build_fill_with_alpha(cproc, &op->fill);
 			break;
 		case PARTS_CP_DRAW_RECT:
 			build_draw_rect(cproc, &op->fill);

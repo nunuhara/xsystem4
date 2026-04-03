@@ -173,6 +173,7 @@ struct parts_gauge {
 	float rate;
 };
 
+// Serialized in save data. Do not reorder.
 enum parts_cp_op_type {
 	PARTS_CP_CREATE,
 	PARTS_CP_CREATE_PIXEL_ONLY,
@@ -186,7 +187,8 @@ enum parts_cp_op_type {
 	PARTS_CP_DRAW_TEXT,
 	PARTS_CP_COPY_TEXT,
 	PARTS_CP_GRAY_FILTER,
-#define PARTS_NR_CP_TYPES (PARTS_CP_GRAY_FILTER+1)
+	PARTS_CP_FILL_WITH_ALPHA,
+#define PARTS_NR_CP_TYPES (PARTS_CP_FILL_WITH_ALPHA+1)
 };
 
 struct parts_cp_create {
