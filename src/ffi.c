@@ -496,6 +496,7 @@ extern struct static_library lib_PlayMovie;
 extern struct static_library lib_ReignEngine;
 extern struct static_library lib_SACT2;
 extern struct static_library lib_SACTDX;
+extern struct static_library lib_SealEngine;
 extern struct static_library lib_SengokuRanceFont;
 extern struct static_library lib_Sound2ex;
 extern struct static_library lib_SoundFilePlayer;
@@ -617,6 +618,7 @@ static struct static_library *static_libraries[] = {
 	&lib_ReignEngine,
 	&lib_SACT2,
 	&lib_SACTDX,
+	&lib_SealEngine,
 	&lib_SengokuRanceFont,
 	&lib_Sound2ex,
 	&lib_SoundFilePlayer,

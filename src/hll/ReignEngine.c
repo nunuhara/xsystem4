@@ -2321,3 +2321,214 @@ HLL_LIBRARY(ReignEngine, REIGN_EXPORTS,
 	    HLL_TODO_EXPORT(GetNumofInstance, TapirEngine_GetNumofInstance)
 
 HLL_LIBRARY(TapirEngine, REIGN_EXPORTS, TAPIR_EXPORTS);
+
+HLL_QUIET_UNIMPLEMENTED(, void, SealEngine, SetMagSpeed, int MagSpeed);
+//bool SealEngine_SaveInstance(int PluginNumber, int InstanceNumber, struct string *FileName);
+//bool SealEngine_IsExistInstanceData(int PluginNumber, int InstanceNumber, struct string *FileName);
+//bool SealEngine_GetInstanceName(int PluginNumber, int InstanceNumber, struct string **pIName);
+//bool SealEngine_GetInstancePos(int PluginNumber, int InstanceNumber, float *pX, float *pY, float *pZ);
+//bool SealEngine_GetInstanceAngle(int PluginNumber, int InstanceNumber, float *pAngle);
+//bool SealEngine_GetInstanceAngleP(int PluginNumber, int InstanceNumber, float *pAngleP);
+//bool SealEngine_GetInstanceAngleB(int PluginNumber, int InstanceNumber, float *pAngleB);
+//bool SealEngine_SetInstanceVertexUV(int PluginNumber, int InstanceNumber, int Index, float U, float V);
+//bool SealEngine_GetInstanceDiffuse(int PluginNumber, int InstanceNumber, float *pR, float *pG, float *pB);
+//bool SealEngine_GetInstanceAmbient(int PluginNumber, int InstanceNumber, float *pR, float *pG, float *pB);
+//bool SealEngine_GetInstanceAlpha(int PluginNumber, int InstanceNumber, float *Alpha);
+//bool SealEngine_SetInstanceGrayscaleRate(int PluginNumber, int InstanceNumber, float GrayscaleRate);
+//bool SealEngine_GetInstanceGrayscaleRate(int PluginNumber, int InstanceNumber, float *GrayscaleRate);
+//bool SealEngine_IsExistInstanceMotion(int PluginNumber, int InstanceNumber, struct string *MotionName);
+//int SealEngine_GetInstanceNumofBone(int PluginNumber, int InstanceNumber);
+//bool SealEngine_GetInstanceBoneName(int PluginNumber, int InstanceNumber, int BoneIndex, struct string **pIName);
+//bool SealEngine_GetInstanceBoneParentIndex(int PluginNumber, int InstanceNumber, int BoneIndex, int *pParentBoneIndex);
+//bool SealEngine_SaveBoneFile(int PluginNumber, int InstanceNumber);
+//bool SealEngine_IsBoneCanIK(int PluginNumber, int InstanceNumber, int BoneIndex);
+//bool SealEngine_SetBoneCanIK(int PluginNumber, int InstanceNumber, int BoneIndex, bool CanIK);
+//bool SealEngine_GetBoneEulerAngle(int PluginNumber, int InstanceNumber, int BoneIndex, float *pEulerAngleP, float *pEulerAngleH, float *pEulerAngleB);
+//bool SealEngine_GetBoneMinEulerAngle(int PluginNumber, int InstanceNumber, int BoneIndex, float *pEulerAngleP, float *pEulerAngleH, float *pEulerAngleB);
+//bool SealEngine_GetBoneMaxEulerAngle(int PluginNumber, int InstanceNumber, int BoneIndex, float *pEulerAngleP, float *pEulerAngleH, float *pEulerAngleB);
+//bool SealEngine_SetBoneMinEulerAngle(int PluginNumber, int InstanceNumber, int BoneIndex, float EulerAngleP, float EulerAngleH, float EulerAngleB);
+//bool SealEngine_SetBoneMaxEulerAngle(int PluginNumber, int InstanceNumber, int BoneIndex, float EulerAngleP, float EulerAngleH, float EulerAngleB);
+//bool SealEngine_SetBoneMass(int PluginNumber, int InstanceNumber, int BoneIndex, float Mass);
+//bool SealEngine_SetBoneAirResistance(int PluginNumber, int InstanceNumber, int BoneIndex, float AirResistance);
+//bool SealEngine_SetBoneRestitutionCoefficient(int PluginNumber, int InstanceNumber, int BoneIndex, float RestitutionCoefficient);
+//float SealEngine_GetBoneMass(int PluginNumber, int InstanceNumber, int BoneIndex);
+//float SealEngine_GetBoneAirResistance(int PluginNumber, int InstanceNumber, int BoneIndex);
+//float SealEngine_GetBoneRestitutionCoefficient(int PluginNumber, int InstanceNumber, int BoneIndex);
+//int SealEngine_GetNumofBoneCollisionShapeList(int PluginNumber, int InstanceNumber);
+//int SealEngine_GetBoneCollisionShapeType(int PluginNumber, int InstanceNumber, int Index);
+//bool SealEngine_GetBoneCollisionShapePoint(int PluginNumber, int InstanceNumber, int Index, float *pX, float *pY, float *pZ);
+//bool SealEngine_GetBoneCollisionShapePoint2(int PluginNumber, int InstanceNumber, int Index, float *pX, float *pY, float *pZ);
+//float SealEngine_GetBoneCollisionShapeRadius(int PluginNumber, int InstanceNumber, int Index);
+//int SealEngine_GetBoneCollisionShapeLinkedBoneIndex(int PluginNumber, int InstanceNumber, int Index);
+//bool SealEngine_SetBoneCollisionShapeType(int PluginNumber, int InstanceNumber, int Index, int Type);
+//bool SealEngine_SetBoneCollisionShapePoint(int PluginNumber, int InstanceNumber, int Index, float X, float Y, float Z);
+//bool SealEngine_SetBoneCollisionShapePoint2(int PluginNumber, int InstanceNumber, int Index, float X, float Y, float Z);
+//bool SealEngine_SetBoneCollisionShapeRadius(int PluginNumber, int InstanceNumber, int Index, float Radius);
+//bool SealEngine_SetBoneCollisionShapeLinkedBoneIndex(int PluginNumber, int InstanceNumber, int Index, int BoneIndex);
+//bool SealEngine_AddBoneCollisionShape(int PluginNumber, int InstanceNumber);
+//bool SealEngine_EraseBoneCollisionShape(int PluginNumber, int InstanceNumber, int Index);
+//int SealEngine_GetInstanceNumofVertex(int PluginNumber, int InstanceNumber);
+//int SealEngine_GetInstanceNumofNormal(int PluginNumber, int InstanceNumber);
+//int SealEngine_GetInstanceNumofMesh(int PluginNumber, int InstanceNumber);
+//bool SealEngine_GetInstanceMeshName(int PluginNumber, int InstanceNumber, int MeshNumber, struct string **pIName);
+//int SealEngine_GetInstanceMeshMaterialIndex(int PluginNumber, int InstanceNumber, int MeshNumber);
+//int SealEngine_GetInstanceMeshMaterialID(int PluginNumber, int InstanceNumber, int MeshNumber);
+//int SealEngine_GetInstanceMeshNumofPolygon(int PluginNumber, int InstanceNumber, int MeshNumber);
+//bool SealEngine_IsInstanceMeshAlphaBlending(int PluginNumber, int InstanceNumber, int MeshNumber);
+//bool SealEngine_ClearLineList(int PluginNumber, int InstanceNumber);
+//bool SealEngine_AddLineList(int PluginNumber, int InstanceNumber, float X0, float Y0, float Z0, int Color0, float X1, float Y1, float Z1, int Color1);
+//bool SealEngine_SetInstanceCircleShadowRadius(int PluginNumber, int InstanceNumber, float CircleShadowRadius);
+//float SealEngine_GetInstanceCircleShadowRadius(int PluginNumber, int InstanceNumber);
+//bool SealEngine_LoadInstanceLightParam(int PluginNumber, int InstanceNumber);
+//bool SealEngine_StoreInstanceLightParam(int PluginNumber, int InstanceNumber);
+//bool SealEngine_SetInstanceUseMagSpeed(int PluginNumber, int InstanceNumber, bool UseMagSpeed);
+//bool SealEngine_IsInstanceUseMagSpeed(int PluginNumber, int InstanceNumber);
+//bool SealEngine_CreateInstanceDebugBoneList(int PluginNumber, int InstanceNumber, int BoneInstanceNumber, int OnCursorIndex, int SelectedIndex);
+//bool SealEngine_CreateInstanceDebugBoneCollision(int PluginNumber, int InstanceNumber, int BoneInstanceNumber, int OnCursorIndex, int SelectedIndex);
+//bool SealEngine_GetCameraPos(int PluginNumber, float *X, float *Y, float *Z);
+//bool SealEngine_GetCameraAngle(int PluginNumber, float *Angle);
+//bool SealEngine_GetCameraAngleP(int PluginNumber, float *AngleP);
+//bool SealEngine_GetCameraAngleB(int PluginNumber, float *AngleB);
+//bool SealEngine_GetCameraXVector(int PluginNumber, float *X, float *Y, float *Z);
+//bool SealEngine_GetCameraYVector(int PluginNumber, float *X, float *Y, float *Z);
+//bool SealEngine_GetCameraZVector(int PluginNumber, float *X, float *Y, float *Z);
+//bool SealEngine_SetDrawDOF(int PluginNumber, bool DrawDOF);
+//bool SealEngine_SetDOF_L(int PluginNumber, float DOF_L);
+//bool SealEngine_SetDOF_F(int PluginNumber, float DOF_F);
+//bool SealEngine_SetDOF_f(int PluginNumber, float DOF_f);
+//bool SealEngine_GetDrawDOF(int PluginNumber, bool *DrawDOF);
+//bool SealEngine_GetDOF_L(int PluginNumber, float *DOF_L);
+//bool SealEngine_GetDOF_F(int PluginNumber, float *DOF_F);
+//bool SealEngine_GetDOF_f(int PluginNumber, float *DOF_f);
+//bool SealEngine_SetShadowLightVector(int PluginNumber, float X, float Y, float Z);
+//bool SealEngine_GetShadowLightVector(int PluginNumber, float *X, float *Y, float *Z);
+//bool SealEngine_SetShadowRate(int PluginNumber, float Rate);
+//float SealEngine_GetShadowRate(int PluginNumber);
+//bool SealEngine_SetSoftFogEdgeLength(int PluginNumber, float SoftFogEdgeLength);
+//float SealEngine_GetSoftFogEdgeLength(int PluginNumber);
+//bool SealEngine_SetEdgeLength(int PluginNumber, float EdgeLength);
+//float SealEngine_GetEdgeLength(int PluginNumber);
+//bool SealEngine_SetEdgeReductionRate(int PluginNumber, float EdgeReductionRate);
+//float SealEngine_GetEdgeReductionRate(int PluginNumber);
+//bool SealEngine_SetEdgeColor(int PluginNumber, float ColorR, float ColorG, float ColorB);
+//bool SealEngine_GetEdgeColor(int PluginNumber, float *ColorR, float *ColorG, float *ColorB);
+//bool SealEngine_Calc2DDetectionHeight(int PluginNumber, float X, float Z, float *Height);
+//bool SealEngine_Calc2DDetection(int PluginNumber, float X0, float Y0, float Z0, float X1, float Y1, float Z1, float Radius, float *X2, float *Y2, float *Z2);
+//bool SealEngine_Calc2DDetectionIntersectEyeVector(int PluginNumber, int ViewX, int ViewY, float *X, float *Y, float *Z);
+//bool SealEngine_FindPath(int PluginNumber, float StartX, float StartY, float StartZ, float GoalX, float GoalY, float GoalZ);
+//bool SealEngine_GetPathLine(int PluginNumber, struct page **pIXArray, struct page **pIYArray, struct page **pIZArray);
+//bool SealEngine_GetOptimizedPathLine(int PluginNumber, struct page **pIXArray, struct page **pIYArray, struct page **pIZArray);
+//bool SealEngine_TransformPosToViewPos(int PluginNumber, float X, float Y, float Z, int *ViewX, int *ViewY);
+//bool SealEngine_ResetLightParam(int PluginNumber);
+//bool SealEngine_SetLightParam(int PluginNumber, int Type, float Value);
+//float SealEngine_GetLightParam(int PluginNumber, int Type);
+//bool SealEngine_IsThreadLoadingMode(int PluginNumber);
+//bool SealEngine_ClearCache(int PluginNumber);
+//bool SealEngine_GetHistogram(int PluginNumber, struct page **HistogramList);
+
+#define SEAL_EXPORTS \
+	    HLL_EXPORT(SetMagSpeed, SealEngine_SetMagSpeed), \
+	    HLL_TODO_EXPORT(SaveInstance, SealEngine_SaveInstance), \
+	    HLL_TODO_EXPORT(IsExistInstanceData, SealEngine_IsExistInstanceData), \
+	    HLL_TODO_EXPORT(GetInstanceName, SealEngine_GetInstanceName), \
+	    HLL_TODO_EXPORT(GetInstancePos, SealEngine_GetInstancePos), \
+	    HLL_TODO_EXPORT(GetInstanceAngle, SealEngine_GetInstanceAngle), \
+	    HLL_TODO_EXPORT(GetInstanceAngleP, SealEngine_GetInstanceAngleP), \
+	    HLL_TODO_EXPORT(GetInstanceAngleB, SealEngine_GetInstanceAngleB), \
+	    HLL_TODO_EXPORT(SetInstanceVertexUV, SealEngine_SetInstanceVertexUV), \
+	    HLL_TODO_EXPORT(GetInstanceDiffuse, SealEngine_GetInstanceDiffuse), \
+	    HLL_TODO_EXPORT(GetInstanceAmbient, SealEngine_GetInstanceAmbient), \
+	    HLL_TODO_EXPORT(GetInstanceAlpha, SealEngine_GetInstanceAlpha), \
+	    HLL_TODO_EXPORT(SetInstanceGrayscaleRate, SealEngine_SetInstanceGrayscaleRate), \
+	    HLL_TODO_EXPORT(GetInstanceGrayscaleRate, SealEngine_GetInstanceGrayscaleRate), \
+	    HLL_TODO_EXPORT(IsExistInstanceMotion, SealEngine_IsExistInstanceMotion), \
+	    HLL_TODO_EXPORT(GetInstanceNumofBone, SealEngine_GetInstanceNumofBone), \
+	    HLL_TODO_EXPORT(GetInstanceBoneName, SealEngine_GetInstanceBoneName), \
+	    HLL_TODO_EXPORT(GetInstanceBoneParentIndex, SealEngine_GetInstanceBoneParentIndex), \
+	    HLL_TODO_EXPORT(SaveBoneFile, SealEngine_SaveBoneFile), \
+	    HLL_TODO_EXPORT(IsBoneCanIK, SealEngine_IsBoneCanIK), \
+	    HLL_TODO_EXPORT(SetBoneCanIK, SealEngine_SetBoneCanIK), \
+	    HLL_TODO_EXPORT(GetBoneEulerAngle, SealEngine_GetBoneEulerAngle), \
+	    HLL_TODO_EXPORT(GetBoneMinEulerAngle, SealEngine_GetBoneMinEulerAngle), \
+	    HLL_TODO_EXPORT(GetBoneMaxEulerAngle, SealEngine_GetBoneMaxEulerAngle), \
+	    HLL_TODO_EXPORT(SetBoneMinEulerAngle, SealEngine_SetBoneMinEulerAngle), \
+	    HLL_TODO_EXPORT(SetBoneMaxEulerAngle, SealEngine_SetBoneMaxEulerAngle), \
+	    HLL_TODO_EXPORT(SetBoneMass, SealEngine_SetBoneMass), \
+	    HLL_TODO_EXPORT(SetBoneAirResistance, SealEngine_SetBoneAirResistance), \
+	    HLL_TODO_EXPORT(SetBoneRestitutionCoefficient, SealEngine_SetBoneRestitutionCoefficient), \
+	    HLL_TODO_EXPORT(GetBoneMass, SealEngine_GetBoneMass), \
+	    HLL_TODO_EXPORT(GetBoneAirResistance, SealEngine_GetBoneAirResistance), \
+	    HLL_TODO_EXPORT(GetBoneRestitutionCoefficient, SealEngine_GetBoneRestitutionCoefficient), \
+	    HLL_TODO_EXPORT(GetNumofBoneCollisionShapeList, SealEngine_GetNumofBoneCollisionShapeList), \
+	    HLL_TODO_EXPORT(GetBoneCollisionShapeType, SealEngine_GetBoneCollisionShapeType), \
+	    HLL_TODO_EXPORT(GetBoneCollisionShapePoint, SealEngine_GetBoneCollisionShapePoint), \
+	    HLL_TODO_EXPORT(GetBoneCollisionShapePoint2, SealEngine_GetBoneCollisionShapePoint2), \
+	    HLL_TODO_EXPORT(GetBoneCollisionShapeRadius, SealEngine_GetBoneCollisionShapeRadius), \
+	    HLL_TODO_EXPORT(GetBoneCollisionShapeLinkedBoneIndex, SealEngine_GetBoneCollisionShapeLinkedBoneIndex), \
+	    HLL_TODO_EXPORT(SetBoneCollisionShapeType, SealEngine_SetBoneCollisionShapeType), \
+	    HLL_TODO_EXPORT(SetBoneCollisionShapePoint, SealEngine_SetBoneCollisionShapePoint), \
+	    HLL_TODO_EXPORT(SetBoneCollisionShapePoint2, SealEngine_SetBoneCollisionShapePoint2), \
+	    HLL_TODO_EXPORT(SetBoneCollisionShapeRadius, SealEngine_SetBoneCollisionShapeRadius), \
+	    HLL_TODO_EXPORT(SetBoneCollisionShapeLinkedBoneIndex, SealEngine_SetBoneCollisionShapeLinkedBoneIndex), \
+	    HLL_TODO_EXPORT(AddBoneCollisionShape, SealEngine_AddBoneCollisionShape), \
+	    HLL_TODO_EXPORT(EraseBoneCollisionShape, SealEngine_EraseBoneCollisionShape), \
+	    HLL_TODO_EXPORT(GetInstanceNumofVertex, SealEngine_GetInstanceNumofVertex), \
+	    HLL_TODO_EXPORT(GetInstanceNumofNormal, SealEngine_GetInstanceNumofNormal), \
+	    HLL_TODO_EXPORT(GetInstanceNumofMesh, SealEngine_GetInstanceNumofMesh), \
+	    HLL_TODO_EXPORT(GetInstanceMeshName, SealEngine_GetInstanceMeshName), \
+	    HLL_TODO_EXPORT(GetInstanceMeshMaterialIndex, SealEngine_GetInstanceMeshMaterialIndex), \
+	    HLL_TODO_EXPORT(GetInstanceMeshMaterialID, SealEngine_GetInstanceMeshMaterialID), \
+	    HLL_TODO_EXPORT(GetInstanceMeshNumofPolygon, SealEngine_GetInstanceMeshNumofPolygon), \
+	    HLL_TODO_EXPORT(IsInstanceMeshAlphaBlending, SealEngine_IsInstanceMeshAlphaBlending), \
+	    HLL_TODO_EXPORT(ClearLineList, SealEngine_ClearLineList), \
+	    HLL_TODO_EXPORT(AddLineList, SealEngine_AddLineList), \
+	    HLL_TODO_EXPORT(SetInstanceCircleShadowRadius, SealEngine_SetInstanceCircleShadowRadius), \
+	    HLL_TODO_EXPORT(GetInstanceCircleShadowRadius, SealEngine_GetInstanceCircleShadowRadius), \
+	    HLL_TODO_EXPORT(LoadInstanceLightParam, SealEngine_LoadInstanceLightParam), \
+	    HLL_TODO_EXPORT(StoreInstanceLightParam, SealEngine_StoreInstanceLightParam), \
+	    HLL_TODO_EXPORT(SetInstanceUseMagSpeed, SealEngine_SetInstanceUseMagSpeed), \
+	    HLL_TODO_EXPORT(IsInstanceUseMagSpeed, SealEngine_IsInstanceUseMagSpeed), \
+	    HLL_TODO_EXPORT(CreateInstanceDebugBoneList, SealEngine_CreateInstanceDebugBoneList), \
+	    HLL_TODO_EXPORT(CreateInstanceDebugBoneCollision, SealEngine_CreateInstanceDebugBoneCollision), \
+	    HLL_TODO_EXPORT(GetCameraPos, SealEngine_GetCameraPos), \
+	    HLL_TODO_EXPORT(GetCameraAngle, SealEngine_GetCameraAngle), \
+	    HLL_TODO_EXPORT(GetCameraAngleP, SealEngine_GetCameraAngleP), \
+	    HLL_TODO_EXPORT(GetCameraAngleB, SealEngine_GetCameraAngleB), \
+	    HLL_TODO_EXPORT(GetCameraXVector, SealEngine_GetCameraXVector), \
+	    HLL_TODO_EXPORT(GetCameraYVector, SealEngine_GetCameraYVector), \
+	    HLL_TODO_EXPORT(GetCameraZVector, SealEngine_GetCameraZVector), \
+	    HLL_TODO_EXPORT(SetDrawDOF, SealEngine_SetDrawDOF), \
+	    HLL_TODO_EXPORT(SetDOF_L, SealEngine_SetDOF_L), \
+	    HLL_TODO_EXPORT(SetDOF_F, SealEngine_SetDOF_F), \
+	    HLL_TODO_EXPORT(SetDOF_f, SealEngine_SetDOF_f), \
+	    HLL_TODO_EXPORT(GetDrawDOF, SealEngine_GetDrawDOF), \
+	    HLL_TODO_EXPORT(GetDOF_L, SealEngine_GetDOF_L), \
+	    HLL_TODO_EXPORT(GetDOF_F, SealEngine_GetDOF_F), \
+	    HLL_TODO_EXPORT(GetDOF_f, SealEngine_GetDOF_f), \
+	    HLL_TODO_EXPORT(SetShadowLightVector, SealEngine_SetShadowLightVector), \
+	    HLL_TODO_EXPORT(GetShadowLightVector, SealEngine_GetShadowLightVector), \
+	    HLL_TODO_EXPORT(SetShadowRate, SealEngine_SetShadowRate), \
+	    HLL_TODO_EXPORT(GetShadowRate, SealEngine_GetShadowRate), \
+	    HLL_TODO_EXPORT(SetSoftFogEdgeLength, SealEngine_SetSoftFogEdgeLength), \
+	    HLL_TODO_EXPORT(GetSoftFogEdgeLength, SealEngine_GetSoftFogEdgeLength), \
+	    HLL_TODO_EXPORT(SetEdgeLength, SealEngine_SetEdgeLength), \
+	    HLL_TODO_EXPORT(GetEdgeLength, SealEngine_GetEdgeLength), \
+	    HLL_TODO_EXPORT(SetEdgeReductionRate, SealEngine_SetEdgeReductionRate), \
+	    HLL_TODO_EXPORT(GetEdgeReductionRate, SealEngine_GetEdgeReductionRate), \
+	    HLL_TODO_EXPORT(SetEdgeColor, SealEngine_SetEdgeColor), \
+	    HLL_TODO_EXPORT(GetEdgeColor, SealEngine_GetEdgeColor), \
+	    HLL_TODO_EXPORT(Calc2DDetectionHeight, SealEngine_Calc2DDetectionHeight), \
+	    HLL_TODO_EXPORT(Calc2DDetection, SealEngine_Calc2DDetection), \
+	    HLL_TODO_EXPORT(Calc2DDetectionIntersectEyeVector, SealEngine_Calc2DDetectionIntersectEyeVector), \
+	    HLL_TODO_EXPORT(FindPath, SealEngine_FindPath), \
+	    HLL_TODO_EXPORT(GetPathLine, SealEngine_GetPathLine), \
+	    HLL_TODO_EXPORT(GetOptimizedPathLine, SealEngine_GetOptimizedPathLine), \
+	    HLL_TODO_EXPORT(TransformPosToViewPos, SealEngine_TransformPosToViewPos), \
+	    HLL_TODO_EXPORT(ResetLightParam, SealEngine_ResetLightParam), \
+	    HLL_TODO_EXPORT(SetLightParam, SealEngine_SetLightParam), \
+	    HLL_TODO_EXPORT(GetLightParam, SealEngine_GetLightParam), \
+	    HLL_TODO_EXPORT(IsThreadLoadingMode, SealEngine_IsThreadLoadingMode), \
+	    HLL_TODO_EXPORT(ClearCache, SealEngine_ClearCache), \
+	    HLL_TODO_EXPORT(GetHistogram, SealEngine_GetHistogram)
+
+HLL_LIBRARY(SealEngine, REIGN_EXPORTS, TAPIR_EXPORTS, SEAL_EXPORTS);
