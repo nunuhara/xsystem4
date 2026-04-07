@@ -98,6 +98,7 @@ target_sources(xsystem4 PRIVATE
   src/parts/construction.c
   src/parts/debug.c
   src/parts/flash.c
+  src/parts/flat.c
   src/parts/input.c
   src/parts/motion.c
   src/parts/parts.c

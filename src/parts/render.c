@@ -15,11 +15,14 @@
  */
 
 #include <limits.h>
+#include <math.h>
 #include <assert.h>
 #include <cglm/cglm.h>
 
 #include "system4.h"
 #include "system4/hashtable.h"
+#include "system4/string.h"
+#include "system4/flat.h"
 
 #include "gfx/gfx.h"
 #include "scene.h"
@@ -166,6 +169,130 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
+static void render_flat_layer(struct parts *parts, struct parts_flat *f,
+		struct flat_layer_state *state,
+		struct flat_timeline *timelines, size_t nr_timelines,
+		mat4 parent, float parent_alpha);
+
+static void render_flat_item(struct parts *parts, struct parts_flat *f,
+		struct flat_layer_state *state, size_t tl_idx,
+		struct flat_timeline *tl,
+		struct flat_key_data_graphic *key,
+		mat4 parent, float parent_alpha)
+{
+	int lib_idx = parts_flat_find_library(f->flat, tl->library_name->text);
+	if (lib_idx < 0 || (size_t)lib_idx >= f->flat->nr_libraries)
+		return;
+
+	struct flat_library *lib = &f->flat->libraries[lib_idx];
+
+	float pos_x = (f->flat->hdr.version > 4) ? key->pos_x.f : (float)key->pos_x.i;
+	float pos_y = (f->flat->hdr.version > 4) ? key->pos_y.f : (float)key->pos_y.i;
+
+	mat4 layer_m = GLM_MAT4_IDENTITY_INIT;
+	glm_translate(layer_m, (vec3){ pos_x, pos_y, 0 });
+	glm_rotate_z(layer_m, deg2rad(key->angle_z), layer_m);
+	glm_scale(layer_m, (vec3){ key->scale_x, key->scale_y, 1.0f });
+	glm_translate(layer_m, (vec3){ -(float)key->origin_x, -(float)key->origin_y, 0 });
+
+	mat4 combined;
+	glm_mat4_mul(parent, layer_m, combined);
+
+	float alpha = parent_alpha * key->alpha / 255.0f;
+
+	switch (lib->type) {
+	case FLAT_LIB_CG: {
+		if ((size_t)lib_idx >= f->nr_textures || !f->textures[lib_idx].handle)
+			return;
+		Texture *tex = &f->textures[lib_idx];
+
+		switch (key->draw_filter) {
+		case 1:  // additive
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+			break;
+		case 2:  // multiply
+			glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
+			break;
+		case 3:  // screen
+			glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
+			break;
+		default:
+			break;
+		}
+
+		mat4 render_m;
+		glm_mat4_copy(combined, render_m);
+		glm_scale(render_m, (vec3){ tex->w, tex->h, 1.0f });
+
+		Rectangle rect;
+		if (key->area_width && key->area_height) {
+			rect = (Rectangle){ key->area_x, key->area_y, key->area_width, key->area_height };
+		} else {
+			rect = (Rectangle){ 0, 0, tex->w, tex->h };
+		}
+
+		vec3 add_color = { key->add_r / 255.0f, key->add_g / 255.0f, key->add_b / 255.0f };
+		vec3 mul_color = { key->mul_r / 255.0f, key->mul_g / 255.0f, key->mul_b / 255.0f };
+		parts_render_texture(tex, render_m, &rect, alpha, add_color, mul_color,
+				parts->alpha_clipper_parts_no);
+
+		if (key->draw_filter != 0)
+			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+		break;
+	}
+	case FLAT_LIB_TIMELINE: {
+		struct flat_layer_state *child = state->children[tl_idx];
+		if (child) {
+			render_flat_layer(parts, f, child,
+					lib->timeline.timelines,
+					lib->timeline.nr_timelines,
+					combined, alpha);
+		}
+		break;
+	}
+	// TODO: support FLAT_LIB_STOP_MOTION and FLAT_LIB_EMITTER
+	default:
+		break;
+	}
+}
+
+static void render_flat_layer(struct parts *parts, struct parts_flat *f,
+		struct flat_layer_state *state,
+		struct flat_timeline *timelines, size_t nr_timelines,
+		mat4 parent, float parent_alpha)
+{
+	// reverse order for correct z-ordering
+	for (size_t i = nr_timelines; i-- > 0;) {
+		struct flat_timeline *tl = &timelines[i];
+		if (tl->type != FLAT_TIMELINE_GRAPHIC)
+			continue;
+		int local = state->current_frame - tl->begin_frame;
+		if (local < 0 || local >= tl->frame_count)
+			continue;
+
+		if (local >= (int)tl->graphic.count)
+			continue;
+		struct flat_key_data_graphic *key = &tl->graphic.keys[local];
+
+		render_flat_item(parts, f, state, i, tl, key, parent, parent_alpha);
+	}
+}
+
+static void parts_render_flat(struct parts *parts, struct parts_flat *f)
+{
+	if (!f->flat || !f->root_state)
+		return;
+
+	mat4 base = GLM_MAT4_IDENTITY_INIT;
+	glm_translate(base, (vec3){ parts->global.pos.x, parts->global.pos.y, 0 });
+	glm_rotate_z(base, deg2rad(parts->local.rotation.z), base);
+	glm_scale(base, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0f });
+
+	render_flat_layer(parts, f, f->root_state,
+			f->flat->timelines, f->flat->nr_timelines,
+			base, parts->global.alpha / 255.0f);
+}
+
 static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_shape *tag)
 {
 	struct texture *src = ht_get_int(f->bitmaps, tag->fill_style.bitmap_id, NULL);
@@ -300,6 +427,9 @@ void parts_render(struct parts *parts)
 		break;
 	case PARTS_FLASH:
 		parts_render_flash(parts, &state->flash);
+		break;
+	case PARTS_FLAT:
+		parts_render_flat(parts, &state->flat);
 		break;
 	}
 }

@@ -175,6 +175,9 @@ static void parts_state_free(struct parts_state *state)
 	case PARTS_FLASH:
 		parts_flash_free(&state->flash);
 		break;
+	case PARTS_FLAT:
+		parts_flat_free(&state->flat);
+		break;
 	}
 	memset(state, 0, sizeof(struct parts_state));
 }
@@ -220,6 +223,7 @@ void parts_state_reset(struct parts_state *state, enum parts_type type)
 	case PARTS_CG:
 	case PARTS_ANIMATION:
 	case PARTS_FLASH:
+	case PARTS_FLAT:
 		break;
 	}
 }
@@ -286,6 +290,14 @@ struct parts_flash *parts_get_flash(struct parts *parts, int state)
 		parts_state_reset(&parts->states[state], PARTS_FLASH);
 	}
 	return &parts->states[state].flash;
+}
+
+struct parts_flat *parts_get_flat(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_FLAT) {
+		parts_state_reset(&parts->states[state], PARTS_FLAT);
+	}
+	return &parts->states[state].flat;
 }
 
 static Point calculate_offset(int mode, int w, int h)
@@ -838,20 +850,10 @@ void parts_set_surface_area(struct parts *parts, struct parts_common *common, in
 	parts_common_recalculate_hitbox(parts, common);
 }
 
-static void parts_update_loop(struct parts *parts, int passed_time)
+static bool parts_animation_update(struct parts_animation *anim, int passed_time)
 {
-	if (parts->states[parts->state].type == PARTS_FLASH) {
-		if (parts_flash_update(&parts->states[parts->state].flash, passed_time))
-			parts_dirty(parts);
-		return;
-	}
-
-	if (parts->states[parts->state].type != PARTS_ANIMATION)
-		return;
-
-	struct parts_animation *anim = &parts->states[parts->state].anim;
 	if (passed_time <= 0 || !anim->nr_frames)
-		return;
+		return false;
 
 	const unsigned elapsed = anim->elapsed + passed_time;
 	const unsigned frame_diff = elapsed / anim->frame_time;
@@ -861,10 +863,31 @@ static void parts_update_loop(struct parts *parts, int passed_time)
 		anim->elapsed = remainder;
 		anim->current_frame = (anim->current_frame + frame_diff) % anim->nr_frames;
 		anim->common.texture = anim->frames[anim->current_frame];
-		parts_dirty(parts);
+		return true;
 	} else {
 		anim->elapsed = elapsed;
+		return false;
 	}
+}
+
+static void parts_update_loop(struct parts *parts, int passed_time)
+{
+	bool dirty = false;
+	switch (parts->states[parts->state].type) {
+	case PARTS_ANIMATION:
+		dirty = parts_animation_update(&parts->states[parts->state].anim, passed_time);
+		break;
+	case PARTS_FLASH:
+		dirty = parts_flash_update(&parts->states[parts->state].flash, passed_time);
+		break;
+	case PARTS_FLAT:
+		dirty = parts_flat_update(&parts->states[parts->state].flat, passed_time);
+		break;
+	default:
+		break;
+	}
+	if (dirty)
+		parts_dirty(parts);
 }
 
 static void parts_update_animation(int passed_time)

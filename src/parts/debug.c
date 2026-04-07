@@ -200,6 +200,15 @@ static void parts_flash_to_json(struct parts_flash *flash, cJSON *out, bool verb
 	cJSON_AddNumberToObject(out, "current_frame", flash->current_frame);
 }
 
+static void parts_flat_to_json(struct parts_flat *flat, cJSON *out, bool verbose)
+{
+	if (flat->name)
+		cJSON_AddSjisToObject(out, "name", flat->name->text);
+	if (flat->root_state)
+		cJSON_AddNumberToObject(out, "current_frame", flat->root_state->current_frame);
+	cJSON_AddNumberToObject(out, "end_frame", flat->end_frame);
+}
+
 static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 {
 	static const char *state_types[PARTS_NR_TYPES] = {
@@ -211,7 +220,8 @@ static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 		[PARTS_HGAUGE] = "hgauge",
 		[PARTS_VGAUGE] = "vgauge",
 		[PARTS_CONSTRUCTION_PROCESS] = "construction_process",
-		[PARTS_FLASH] = "flash"
+		[PARTS_FLASH] = "flash",
+		[PARTS_FLAT] = "flat"
 	};
 	const char *type = "invalid";
 	if (state->type >= 0 && state->type < PARTS_NR_TYPES)
@@ -248,6 +258,9 @@ static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 		break;
 	case PARTS_FLASH:
 		parts_flash_to_json(&state->flash, obj, verbose);
+		break;
+	case PARTS_FLAT:
+		parts_flat_to_json(&state->flat, obj, verbose);
 		break;
 	}
 
@@ -528,6 +541,9 @@ static void parts_list_print(struct parts *parts, int indent)
 	}
 	case PARTS_FLASH:
 		sys_message("(flash %s)", display_sjis0(state->flash.name->text));
+		break;
+	case PARTS_FLAT:
+		sys_message("(flat %s)", state->flat.name ? display_sjis0(state->flat.name->text) : "(null)");
 		break;
 	}
 
