@@ -14,9 +14,14 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include "system4.h"
+#include <stdio.h>
 
+#include "system4.h"
+#include "system4/ain.h"
+
+#include "vm.h"
 #include "hll.h"
+#include "asset_manager.h"
 #include "audio.h"
 
 HLL_WARN_UNIMPLEMENTED( , void, KiwiSoundEngine, SetGlobalFocus, possibly_unused int nNum);
@@ -54,7 +59,44 @@ static int KiwiSoundEngine_GetBackVoiceGroup(void)
 	return 0;
 }
 
+static bool rance9_bgm_exists(int num)
+{
+	char name[16];
+	snprintf(name, sizeof(name), "%05d", num);
+	return asset_exists_by_name(ASSET_BGM, name, NULL);
+}
+
+static int rance9_bgm_prepare(int ch, int num)
+{
+	char name[16];
+	snprintf(name, sizeof(name), "%05d", num);
+	struct archive_data *dfile = asset_get_by_name(ASSET_BGM, name, NULL);
+	if (!dfile)
+		return 0;
+	return bgm_prepare_from_archive_data(ch, dfile);
+}
+
+static bool rance9_wav_exists(int num)
+{
+	char name[16];
+	snprintf(name, sizeof(name), "%05d", num);
+	return asset_exists_by_name(ASSET_SOUND, name, NULL);
+}
+
+static int rance9_wav_prepare(int ch, int num)
+{
+	char name[16];
+	snprintf(name, sizeof(name), "%05d", num);
+	struct archive_data *dfile = asset_get_by_name(ASSET_SOUND, name, NULL);
+	if (!dfile)
+		return 0;
+	return wav_prepare_from_archive_data(ch, dfile);
+}
+
+static void KiwiSoundEngine_PreLink(void);
+
 HLL_LIBRARY(KiwiSoundEngine,
+	    HLL_EXPORT(_PreLink, KiwiSoundEngine_PreLink),
 	    HLL_EXPORT(SetGlobalFocus, KiwiSoundEngine_SetGlobalFocus),
 	    HLL_EXPORT(Music_IsExist, bgm_exists),
 	    HLL_EXPORT(Music_Prepare, bgm_prepare),
@@ -100,3 +142,16 @@ HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(GetGimicSEGroup, KiwiSoundEngine_GetGimicSEGroup),
 	    HLL_EXPORT(GetBackVoiceGroup, KiwiSoundEngine_GetBackVoiceGroup)
 	);
+
+static void KiwiSoundEngine_PreLink(void)
+{
+	int libno = ain_get_library(ain, "KiwiSoundEngine");
+	if (libno < 0)
+		return;
+	if (ain_get_library_function(ain, libno, "Sound_Seek") >= 0) {
+		static_library_replace(&lib_KiwiSoundEngine, "Music_IsExist", rance9_bgm_exists);
+		static_library_replace(&lib_KiwiSoundEngine, "Music_Prepare", rance9_bgm_prepare);
+		static_library_replace(&lib_KiwiSoundEngine, "Sound_IsExist", rance9_wav_exists);
+		static_library_replace(&lib_KiwiSoundEngine, "Sound_Prepare", rance9_wav_prepare);
+	}
+}

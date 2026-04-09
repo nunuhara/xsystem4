@@ -89,5 +89,6 @@ int wav_get_group_num_from_data_num(int no);
 
 // Takes ownership of dfile.
 int wav_prepare_from_archive_data(int id, struct archive_data *dfile);
+int bgm_prepare_from_archive_data(int id, struct archive_data *dfile);
 
 #endif /* SYSTEM4_AUDIO_H */
