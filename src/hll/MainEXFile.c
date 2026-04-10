@@ -225,13 +225,16 @@ static int MainEXFile_RA2Handle(int handle, int row, struct string *format_name)
 static int MainEXFile_Row(int handle)
 {
 	struct ex_table *t = handle_to_table(handle);
-	return t ? t->nr_rows : 0; // FIXME: should this be nr_columns?
+	return t ? t->nr_rows : 0;
 }
 
 static int MainEXFile_Col(int handle)
 {
+	if (handle > 0 && (unsigned)handle < nr_handles &&
+	    handles[handle]->type == EX_LIST)
+		return handles[handle]->list->nr_items;
 	struct ex_table *t = handle_to_table(handle);
-	return t ? t->nr_columns : 0; // FIXME: should this be nr_rows?
+	return t ? t->nr_columns : 0;
 }
 
 static int MainEXFile_Type(int handle)
