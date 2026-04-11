@@ -26,6 +26,7 @@
 #include "vm/page.h"
 #include "xsystem4.h"
 #include "sact.h"
+#include "sprite.h"
 #include "parts.h"
 #include "parts_internal.h"
 
@@ -178,6 +179,12 @@ static void parts_state_free(struct parts_state *state)
 	case PARTS_FLAT:
 		parts_flat_free(&state->flat);
 		break;
+	case PARTS_MOVIE:
+		// The texture is owned by the SACT sprite.
+		state->common.texture.handle = 0;
+		if (state->movie.sprite_no >= 0)
+			sact_SP_Delete(state->movie.sprite_no);
+		break;
 	}
 	memset(state, 0, sizeof(struct parts_state));
 }
@@ -224,6 +231,9 @@ void parts_state_reset(struct parts_state *state, enum parts_type type)
 	case PARTS_ANIMATION:
 	case PARTS_FLASH:
 	case PARTS_FLAT:
+		break;
+	case PARTS_MOVIE:
+		state->movie.sprite_no = -1;
 		break;
 	}
 }
@@ -298,6 +308,14 @@ struct parts_flat *parts_get_flat(struct parts *parts, int state)
 		parts_state_reset(&parts->states[state], PARTS_FLAT);
 	}
 	return &parts->states[state].flat;
+}
+
+struct parts_movie *parts_get_movie(struct parts *parts, int state)
+{
+	if (parts->states[state].type != PARTS_MOVIE) {
+		parts_state_reset(&parts->states[state], PARTS_MOVIE);
+	}
+	return &parts->states[state].movie;
 }
 
 static Point calculate_offset(int mode, int w, int h)
@@ -1860,4 +1878,37 @@ void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate)
 {
 	if (rate != 1)
 		UNIMPLEMENTED("(%d, %d)");
+}
+
+bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts *parts = parts_get(parts_no);
+	struct parts_movie *movie = parts_get_movie(parts, state);
+
+	int sp_no = sact_SP_GetUnuseNum(0);
+	struct sact_sprite *sp = sact_create_sprite(sp_no, width, height, bg_r, bg_g, bg_b, 255);
+	if (!sp)
+		return false;
+
+	struct texture *tex = sprite_get_texture(sp);
+	movie->sprite_no = sp_no;
+	movie->common.texture = *tex; // XXX: textures normally shouldn't be copied like this...
+	parts_set_dims(parts, &movie->common, width, height);
+	parts_dirty(parts);
+	return true;
+}
+
+int PE_get_movie_sprite(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return -1;
+
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts || parts->states[state].type != PARTS_MOVIE)
+		return -1;
+
+	return parts->states[state].movie.sprite_no;
 }

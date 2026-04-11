@@ -18,6 +18,7 @@
 
 #include "system4/ain.h"
 
+#include "vm/page.h"
 #include "parts.h"
 #include "hll.h"
 
@@ -96,7 +97,39 @@ static void PartsEngine_AddComponentMotionPos(int parts_no, float begin_x, float
 			begin_t, end_t, curve_name);
 }
 
-HLL_WARN_UNIMPLEMENTED(0, int, PartsEngine, PartsFunc, int func_id, struct page **array_int, struct page **array_float, struct page **array_string);
+// Generic dispatch function for PartsEngine operations.
+// func_id selects the operation; arguments and return values are passed
+// through three typed arrays (int/bool, float, string).
+//
+// Calling convention (from game script):
+//   1. Push input values into the appropriate arrays.
+//   2. Push a placeholder (0 or "") for each output slot.
+//   3. Call PartsFunc; outputs are written back into the placeholder slots.
+static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
+		struct page **array_float, struct page **array_string)
+{
+	int nr_ints = (array_int && *array_int) ? (*array_int)->nr_vars : 0;
+	union vm_value *ints = nr_ints ? (*array_int)->values : NULL;
+
+#define REQUIRE_INTS(n) \
+	if (nr_ints != (n)) VM_ERROR("Invalid arguments for PartsFunc %d: expected %d ints, got %d", func_id, (n), nr_ints)
+
+	switch (func_id) {
+	case 162:  // bool InitPartsMovie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state)
+		REQUIRE_INTS(8);
+		ints[7].i = PE_init_parts_movie(ints[0].i, ints[1].i, ints[2].i, ints[3].i, ints[4].i, ints[5].i, ints[6].i);
+		return 1;
+	case 163:  // int GetMovieSprite(int parts_no, int state)
+		REQUIRE_INTS(3);
+		ints[2].i = PE_get_movie_sprite(ints[0].i, ints[1].i);
+		return 1;
+	default:
+		WARNING("Unknown func_id: %d", func_id);
+		return 0;
+	}
+#undef REQUIRE_INTS
+}
+
 HLL_WARN_UNIMPLEMENTED(, void, PartsEngine, StopSoundWithoutSystemSound);
 HLL_WARN_UNIMPLEMENTED(, void, PartsEngine, ReleaseMessage, void);
 HLL_WARN_UNIMPLEMENTED(0, int, PartsEngine, GetMessageType, void);

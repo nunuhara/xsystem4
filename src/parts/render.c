@@ -419,6 +419,7 @@ void parts_render(struct parts *parts)
 	case PARTS_HGAUGE:
 	case PARTS_VGAUGE:
 	case PARTS_CONSTRUCTION_PROCESS:
+	case PARTS_MOVIE:
 		if (state->common.texture.handle)
 			parts_render_cg(parts, &state->common);
 		break;

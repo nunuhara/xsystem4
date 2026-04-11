@@ -116,6 +116,9 @@ bool PE_Load(struct page **buffer);
 // GUIEngine
 int PE_GetFreeNumber(void);
 bool PE_IsExist(int parts_no);
+// PartsFunc interface
+bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state);
+int PE_get_movie_sprite(int parts_no, int state);
 
 // construction.c
 bool PE_AddCreateToPartsConstructionProcess(int parts_no, int w, int h, int state);

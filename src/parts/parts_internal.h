@@ -104,7 +104,8 @@ enum parts_type {
 	PARTS_CONSTRUCTION_PROCESS,
 	PARTS_FLASH,
 	PARTS_FLAT,
-#define PARTS_NR_TYPES (PARTS_FLAT+1)
+	PARTS_MOVIE,
+#define PARTS_NR_TYPES (PARTS_MOVIE+1)
 };
 
 struct parts_common {
@@ -313,6 +314,11 @@ struct parts_flat {
 	size_t nr_textures;
 };
 
+struct parts_movie {
+	struct parts_common common;
+	int sprite_no;  // SACT sprite number used as movie render target
+};
+
 struct parts_state {
 	enum parts_type type;
 	union {
@@ -325,6 +331,7 @@ struct parts_state {
 		struct parts_construction_process cproc;
 		struct parts_flash flash;
 		struct parts_flat flat;
+		struct parts_movie movie;
 	};
 };
 
@@ -385,6 +392,7 @@ struct parts_gauge *parts_get_vgauge(struct parts *parts, int state);
 struct parts_construction_process *parts_get_construction_process(struct parts *parts, int state);
 struct parts_flash *parts_get_flash(struct parts *parts, int state);
 struct parts_flat *parts_get_flat(struct parts *parts, int state);
+struct parts_movie *parts_get_movie(struct parts *parts, int state);
 void parts_set_pos(struct parts *parts, Point pos);
 void parts_set_global_pos(Point pos);
 void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h);
