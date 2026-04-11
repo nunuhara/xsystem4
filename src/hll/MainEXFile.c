@@ -51,7 +51,7 @@ static int set_indices(struct ex_value *val, int id)
 		break;
 	case EX_LIST:
 		for (unsigned i = 0; i < val->list->nr_items; i++) {
-			id = set_indices(&val->list->items->value, id);
+			id = set_indices(&val->list->items[i].value, id);
 		}
 		break;
 	case EX_TREE:
@@ -86,7 +86,7 @@ static void map_handles(struct ex_value *val)
 		break;
 	case EX_LIST:
 		for (unsigned i = 0; i < val->list->nr_items; i++) {
-			map_handles(&val->list->items->value);
+			map_handles(&val->list->items[i].value);
 		}
 		break;
 	case EX_TREE:
@@ -130,7 +130,7 @@ static void MainEXFile_ModuleFini(void)
 	nr_handles = 0;
 }
 
-//static bool MainEXFile_ReloadDebugEXFile(void);
+HLL_WARN_UNIMPLEMENTED(false, bool, MainEXFile, ReloadDebugEXFile, void);
 
 /*
  * Get handle for top-level value.
@@ -225,13 +225,16 @@ static int MainEXFile_RA2Handle(int handle, int row, struct string *format_name)
 static int MainEXFile_Row(int handle)
 {
 	struct ex_table *t = handle_to_table(handle);
-	return t ? t->nr_rows : 0; // FIXME: should this be nr_columns?
+	return t ? t->nr_rows : 0;
 }
 
 static int MainEXFile_Col(int handle)
 {
+	if (handle > 0 && (unsigned)handle < nr_handles &&
+	    handles[handle]->type == EX_LIST)
+		return handles[handle]->list->nr_items;
 	struct ex_table *t = handle_to_table(handle);
-	return t ? t->nr_columns : 0; // FIXME: should this be nr_rows?
+	return t ? t->nr_columns : 0;
 }
 
 static int MainEXFile_Type(int handle)
@@ -663,7 +666,7 @@ static bool MainEXFile_GetEXName(struct string *tree_path, int index, struct str
 HLL_LIBRARY(MainEXFile,
 	    HLL_EXPORT(_ModuleInit, MainEXFile_ModuleInit),
 	    HLL_EXPORT(_ModuleFini, MainEXFile_ModuleFini),
-	    HLL_TODO_EXPORT(ReloadDebugEXFile, MainEXFile_ReloadDebugEXFile),
+	    HLL_EXPORT(ReloadDebugEXFile, MainEXFile_ReloadDebugEXFile),
 	    HLL_EXPORT(Handle, MainEXFile_Handle),
 	    HLL_EXPORT(AHandle, MainEXFile_AHandle),
 	    HLL_EXPORT(A2Handle, MainEXFile_A2Handle),
