@@ -530,6 +530,10 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	iarray_write(w, parts->draw_filter);
 	iarray_write(w, parts->message_window);
 	iarray_write(w, parts->alpha_clipper_parts_no);
+	// TODO: once the Rance 9 save format stabilizes, bump save version
+	// and save unconditionally
+	if (parts_multi_controller)
+		iarray_write(w, parts->controller_no);
 
 	unsigned motion_count_pos = iarray_writer_pos(w);
 	iarray_write(w, 0); // size of motion list
@@ -569,6 +573,10 @@ static void load_parts(struct iarray_reader *r, int version)
 		parts->message_window = iarray_read(r);
 	if (version > 2)
 		parts->alpha_clipper_parts_no = iarray_read(r);
+	// TODO: once the Rance 9 save format stabilizes, bump save version
+	// and load based on version check
+	if (parts_multi_controller)
+		parts->controller_no = iarray_read(r);
 
 	int motion_count = iarray_read(r);
 	for (int i = 0; i < motion_count; i++) {
@@ -619,6 +627,13 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 	iarray_write(&w, CURRENT_SAVE_VERSION);
 	if (CURRENT_SAVE_VERSION > 1)
 		save_numeral_fonts(&w);
+
+	// TODO: once the Rance 9 save format stabilizes, bump save version
+	// and save unconditionally
+	if (parts_multi_controller) {
+		iarray_write(&w, ctrl_stack.active);
+		iarray_write(&w, ctrl_stack.nr_controllers);
+	}
 
 	unsigned count_pos = iarray_writer_pos(&w);
 	iarray_write(&w, 0); // size of parts list
@@ -676,6 +691,13 @@ bool PE_Load(struct page **buffer)
 
 	if (version > 1)
 		load_numeral_fonts(&r);
+
+	// TODO: once the Rance 9 save format stabilizes, bump save version
+	// and load based on version check
+	if (parts_multi_controller) {
+		ctrl_stack.active = iarray_read(&r);
+		ctrl_stack.nr_controllers = iarray_read(&r);
+	}
 
 	int nr_parts = iarray_read(&r);
 	if (nr_parts < 0) {

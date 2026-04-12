@@ -35,6 +35,12 @@ static struct parts_list dirty_list = TAILQ_HEAD_INITIALIZER(dirty_list);
 static struct hash_table *parts_table = NULL;
 static Point root_pos = { 0, 0 };
 
+struct parts_controller_stack ctrl_stack;
+bool parts_multi_controller;
+
+static void ctrl_stack_init(void);
+static void ctrl_stack_fini(void);
+
 #define PARTS_PARAMS_INITIALIZER (struct parts_params) { \
 	.z = 1, \
 	.pos = { 0, 0 }, \
@@ -87,17 +93,38 @@ static void dirty_list_remove(struct parts *parts)
 		TAILQ_REMOVE(&dirty_list, parts, dirty_list_entry);
 }
 
+static int parts_get_sprite_z(struct parts *parts)
+{
+	if (!parts_multi_controller)
+		return parts->global.z;
+	// The system overlay controller sorts above any in-stack controller.
+	return parts->controller_no;
+}
+
+static int parts_get_sprite_z2(struct parts *parts)
+{
+	if (!parts_multi_controller)
+		return 0;
+	return parts->global.z;
+}
+
 static void parts_list_insert(struct parts *parts)
 {
+	int z = parts_get_sprite_z(parts);
+	int z2 = parts_get_sprite_z2(parts);
+	parts->sp.z = z;
+	parts->sp.z2 = z2;
 	struct parts *p;
 	PARTS_LIST_FOREACH(p) {
-		if (p->global.z > parts->global.z) {
+		int pz = parts_get_sprite_z(p);
+		int pz2 = parts_get_sprite_z2(p);
+		if (pz > z || (pz == z && pz2 > z2)) {
 			TAILQ_INSERT_BEFORE(p, parts, parts_list_entry);
-			parts_engine_dirty();
-			return;
+			goto done;
 		}
 	}
 	TAILQ_INSERT_TAIL(&parts_list, parts, parts_list_entry);
+done:
 	parts_engine_dirty();
 	scene_register_sprite(&parts->sp);
 }
@@ -113,7 +140,6 @@ void parts_list_resort(struct parts *parts)
 	// TODO: this could be optimized
 	parts_list_remove(parts);
 	parts_list_insert(parts);
-	scene_set_sprite_z(&parts->sp, parts->global.z);
 }
 
 struct parts *parts_try_get(int parts_no)
@@ -132,6 +158,7 @@ struct parts *parts_get(int parts_no)
 
 	struct parts *parts = parts_alloc();
 	parts->no = parts_no;
+	parts->controller_no = ctrl_stack.active;
 	slot->value = parts;
 	parts_list_insert(parts);
 	return parts;
@@ -968,6 +995,14 @@ void parts_release_all(void)
 
 static bool parts_engine_initialized = false;
 
+void PE_enable_multi_controller(void)
+{
+	if (parts_multi_controller)
+		return;
+	assert(!parts_engine_initialized);
+	parts_multi_controller = true;
+}
+
 bool PE_Init(void)
 {
 	if (parts_engine_initialized)
@@ -977,6 +1012,7 @@ bool PE_Init(void)
 	parts_table = ht_create(1024);
 	parts_render_init();
 	parts_debug_init();
+	ctrl_stack_init();
 	parts_engine_initialized = true;
 	return true;
 }
@@ -984,6 +1020,7 @@ bool PE_Init(void)
 void PE_Reset(void)
 {
 	PE_ReleaseAllParts();
+	ctrl_stack_fini();
 	sact_ModuleFini();
 }
 
@@ -1021,7 +1058,8 @@ static void parts_update_component(struct parts *parts)
 	if (parts->parent) {
 		parts_combine_params(&parts->parent->global, &parts->local, &parts->global);
 	}
-	if (parts->global.z != parts->sp.z) {
+	if (parts_get_sprite_z(parts) != parts->sp.z
+			|| parts_get_sprite_z2(parts) != parts->sp.z2) {
 		parts_list_resort(parts);
 	}
 
@@ -1589,6 +1627,25 @@ void PE_ReleaseAllPartsWithoutSystem(void)
 	parts_release_all();
 }
 
+void PE_ReleaseAllWithoutSystem(struct page **erase_number_list)
+{
+	// Release all parts not belonging to the system overlay controller
+	struct parts *parts = TAILQ_FIRST(&parts_list);
+	while (parts) {
+		struct parts *next = TAILQ_NEXT(parts, parts_list_entry);
+		if (parts->controller_no != PARTS_CONTROLLER_SYSTEM_OVERLAY) {
+			*erase_number_list = array_pushback(*erase_number_list,
+					(union vm_value){.i = parts->no}, AIN_ARRAY_INT, -1);
+			parts_release(parts->no);
+		}
+		parts = next;
+	}
+
+	// Drop all normal controllers and add a fresh default one.
+	ctrl_stack.nr_controllers = 0;
+	PE_AddController(-1);
+}
+
 void PE_SetPos(int parts_no, int x, int y)
 {
 	parts_set_pos(parts_get(parts_no), (Point){ x, y });
@@ -1878,6 +1935,94 @@ void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate)
 {
 	if (rate != 1)
 		UNIMPLEMENTED("(%d, %d)");
+}
+
+static void ctrl_stack_init(void)
+{
+	memset(&ctrl_stack, 0, sizeof(ctrl_stack));
+	// Add initial default controller
+	PE_AddController(-1);
+}
+
+static void ctrl_stack_fini(void)
+{
+	memset(&ctrl_stack, 0, sizeof(ctrl_stack));
+}
+
+// Adds a new controller to the stack and makes it active. The `index`
+// parameter specifies the position in the stack at which to insert the new
+// controller; -1 means "insert directly after the currently active
+// controller". In practice the game only ever passes -1, and the active
+// controller is always the top of the stack at that point, so this
+// degenerates to a simple push.
+int PE_AddController(int index)
+{
+	if (index != -1)
+		VM_ERROR("index != -1 not supported (got %d)", index);
+	if (ctrl_stack.nr_controllers > 0 &&
+			ctrl_stack.active != ctrl_stack.nr_controllers - 1)
+		VM_ERROR("active controller is not at the top of the stack");
+	if (ctrl_stack.nr_controllers >= PARTS_CONTROLLER_STACK_MAX)
+		VM_ERROR("controller stack overflow");
+
+	int no = ctrl_stack.nr_controllers++;
+	ctrl_stack.active = no;
+	return no;
+}
+
+// Removes the controller at position `index` from the stack, releases all
+// parts belonging to it, and returns their parts numbers in
+// `erase_number_list`. `index == -1` means "remove the currently active
+// controller". In practice the game only ever passes -1, and the active
+// controller is always the top of the stack at that point, so this
+// degenerates to a simple pop.
+void PE_RemoveController(struct page **erase_number_list, int index)
+{
+	if (index != -1)
+		VM_ERROR("index != -1 not supported (got %d)", index);
+	if (ctrl_stack.nr_controllers == 0 ||
+			ctrl_stack.active != ctrl_stack.nr_controllers - 1)
+		VM_ERROR("active controller is not at the top of the stack");
+
+	int ctrl_no = ctrl_stack.active;
+
+	// Collect and release parts belonging to this controller
+	struct parts *p = TAILQ_FIRST(&parts_list);
+	while (p) {
+		struct parts *next = TAILQ_NEXT(p, parts_list_entry);
+		if (p->controller_no == ctrl_no) {
+			*erase_number_list = array_pushback(*erase_number_list,
+					(union vm_value){.i = p->no}, AIN_ARRAY_INT, -1);
+			parts_release(p->no);
+		}
+		p = next;
+	}
+
+	ctrl_stack.nr_controllers--;
+	if (ctrl_stack.nr_controllers == 0) {
+		PE_AddController(-1);
+	} else {
+		ctrl_stack.active = ctrl_stack.nr_controllers - 1;
+	}
+}
+
+void PE_set_active_controller(int controller_no)
+{
+	if (controller_no == PARTS_CONTROLLER_SYSTEM_OVERLAY ||
+			(controller_no >= 0 && controller_no < ctrl_stack.nr_controllers))
+		ctrl_stack.active = controller_no;
+	else
+		VM_ERROR("Invalid controller number: %d", controller_no);
+}
+
+int PE_get_active_controller(void)
+{
+	return ctrl_stack.active;
+}
+
+int PE_get_system_controller(void)
+{
+	return PARTS_CONTROLLER_SYSTEM_OVERLAY;
 }
 
 bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state)
