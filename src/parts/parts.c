@@ -1903,6 +1903,55 @@ int PE_GetInputState(int parts_no)
 	return parts_get(parts_no)->state + 1;
 }
 
+void PE_SetComponentType(int parts_no, int type, int state)
+{
+	if (!parts_state_valid(--state))
+		return;
+	struct parts *parts = parts_get(parts_no);
+	enum parts_type pt = PARTS_UNINITIALIZED;
+	switch (type) {
+	case 11: pt = PARTS_CG; break;
+	case 12: pt = PARTS_ANIMATION; break;
+	case 13: pt = PARTS_TEXT; break;
+	case 14: pt = PARTS_HGAUGE; break;
+	case 15: pt = PARTS_VGAUGE; break;
+	case 16: pt = PARTS_NUMERAL; break;
+	case 18: pt = PARTS_CONSTRUCTION_PROCESS; break;
+	case 20: pt = PARTS_FLAT; break;
+	case 22: pt = PARTS_MOVIE; break;
+	default:
+		VM_ERROR("unknown component type %d", type);
+	}
+	if (parts->states[state].type != pt)
+		parts_state_reset(&parts->states[state], pt);
+}
+
+int PE_GetComponentType(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return -1;
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts)
+		return -1;
+
+	switch (parts->states[state].type) {
+	case PARTS_UNINITIALIZED:  // defaluts to CG
+	case PARTS_CG:
+		return 11;
+	case PARTS_ANIMATION: return 12;
+	case PARTS_TEXT: return 13;
+	case PARTS_HGAUGE: return 14;
+	case PARTS_VGAUGE: return 15;
+	case PARTS_NUMERAL: return 16;
+	case PARTS_CONSTRUCTION_PROCESS: return 18;
+	case PARTS_FLAT: return 20;
+	case PARTS_MOVIE: return 22;
+	case PARTS_FLASH:
+		break;
+	}
+	VM_ERROR("unsupported component type %d", parts->states[state].type);
+}
+
 bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state)
 {
 	UNIMPLEMENTED("(%d, %d, %d, %d)", parts_no, w, h, state);
