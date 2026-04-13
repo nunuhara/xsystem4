@@ -133,6 +133,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/DALKEDemo.c
   src/hll/Data.c
   src/hll/DataFile.c
+  src/hll/Discord.c
   src/hll/DrawDungeon.c
   src/hll/DrawEffect.c
   src/hll/DrawGraph.c

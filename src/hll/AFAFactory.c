@@ -14,10 +14,31 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include "system4/string.h"
+#include "asset_manager.h"
 #include "hll.h"
 
+static enum asset_type get_asset_type(int type)
+{
+	switch (type) {
+	case 2: return ASSET_CG;
+	case 3: return ASSET_FLAT;
+	default: return -1;
+	}
+}
+
 HLL_WARN_UNIMPLEMENTED(false, bool, AFAFactory, IsExistArchive, struct string *ArchiveName);
-//bool AFAFactory_LoadArchive(int Type, struct string *ArchiveName);
+
+bool AFAFactory_LoadArchive(int type, struct string *archive_name)
+{
+	enum asset_type t = get_asset_type(type);
+	if (t < 0) {
+		WARNING("Unknown asset type: %d", type);
+		return false;
+	}
+	return asset_manager_load_archive(t, archive_name->text);
+}
+
 //int AFAFactory_GetCountOfData(int Type);
 //void AFAFactory_GetTitleByIndex(int Type, int Index, struct string **Name);
 //int AFAFactory_SearchTitle(int Type, struct string *Name);
@@ -28,7 +49,7 @@ HLL_WARN_UNIMPLEMENTED(false, bool, AFAFactory, IsExistArchive, struct string *A
 
 HLL_LIBRARY(AFAFactory,
 	    HLL_EXPORT(IsExistArchive, AFAFactory_IsExistArchive),
-	    HLL_TODO_EXPORT(LoadArchive, AFAFactory_LoadArchive),
+	    HLL_EXPORT(LoadArchive, AFAFactory_LoadArchive),
 	    HLL_TODO_EXPORT(GetCountOfData, AFAFactory_GetCountOfData),
 	    HLL_TODO_EXPORT(GetTitleByIndex, AFAFactory_GetTitleByIndex),
 	    HLL_TODO_EXPORT(SearchTitle, AFAFactory_SearchTitle),
