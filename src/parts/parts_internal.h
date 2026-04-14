@@ -370,6 +370,7 @@ struct parts {
 	int pending_parent;
 	int linked_to;
 	int linked_from;
+	bool is_hovered;
 	int draw_filter;
 	bool message_window;
 	int alpha_clipper_parts_no;
@@ -462,7 +463,6 @@ void parts_clear_motion(struct parts *parts);
 void parts_add_motion(struct parts *parts, struct parts_motion *motion);
 
 // input.c
-extern Point parts_prev_pos;
 extern bool parts_began_click;
 
 // message.c

@@ -22,8 +22,6 @@
 #include "xsystem4.h"
 #include "parts_internal.h"
 
-// the mouse position at last update
-Point parts_prev_pos = {0};
 // true between calls to BeginClick and EndClick
 bool parts_began_click = false;
 
@@ -34,20 +32,41 @@ static int clicked_parts = 0;
 // the current (partially) clicked parts number
 static int click_down_parts = 0;
 
+static bool parts_hittest(struct parts *parts, int state, Point pos)
+{
+	Rectangle hitbox = parts->states[state].common.hitbox;
+	if (parts->parent) {
+		hitbox.x += parts->parent->global.pos.x;
+		hitbox.y += parts->parent->global.pos.y;
+	}
+	return SDL_PointInRect(&pos, &hitbox);
+}
+
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking)
 {
-	Rectangle *hitbox = &parts->states[parts->state].common.hitbox;
-	bool prev_in = SDL_PointInRect(&parts_prev_pos, hitbox);
-	bool cur_in = SDL_PointInRect(&cur_pos, hitbox);
+	// Always use DEFAULT state hitbox regardless of the current display state.
+	bool is_hovered = parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos);
 
-	if (parts->linked_from >= 0 && cur_in != prev_in) {
+	bool was_hovered = parts->is_hovered;
+	parts->is_hovered = is_hovered;
+
+	if (parts->linked_from >= 0 && is_hovered != was_hovered) {
 		parts_dirty(parts_get(parts->linked_from));
 	}
 
 	if (!parts_began_click || !parts->clickable)
 		return;
 
-	if (!cur_in) {
+	if (is_hovered && !was_hovered) {
+		parts_msg_push(parts->no, parts->delegate_index,
+				PARTS_MSG_MOUSE_ENTER, "ii", cur_pos.x, cur_pos.y);
+	}
+	if (!is_hovered && was_hovered) {
+		parts_msg_push(parts->no, parts->delegate_index,
+				PARTS_MSG_MOUSE_LEAVE, "ii", cur_pos.x, cur_pos.y);
+	}
+
+	if (!is_hovered) {
 		parts_set_state(parts, PARTS_STATE_DEFAULT);
 		return;
 	}
@@ -55,12 +74,22 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	// click down: just remember the parts number for later
 	if (cur_clicking && !prev_clicking) {
 		click_down_parts = parts->no;
+
+		// KEY_TRIGGER message fires on press transition
+		parts_msg_push(parts->no, parts->delegate_index,
+				PARTS_MSG_KEY_TRIGGER, "i", VK_LBUTTON);
+	}
+
+	// KEY_DOWN message fires every frame while held (not first frame)
+	if (prev_clicking && cur_clicking && click_down_parts == parts->no) {
+		parts_msg_push(parts->no, parts->delegate_index,
+				PARTS_MSG_KEY_DOWN, "i", VK_LBUTTON);
 	}
 
 	if (cur_clicking && click_down_parts == parts->no) {
 		parts_set_state(parts, PARTS_STATE_CLICKED);
 	} else {
-		if (!prev_in) {
+		if (!was_hovered) {
 			audio_play_sound(parts->on_cursor_sound);
 		}
 		parts_set_state(parts, PARTS_STATE_HOVERED);
@@ -70,6 +99,11 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	if (prev_clicking && !cur_clicking && click_down_parts == parts->no) {
 		audio_play_sound(parts->on_click_sound);
 		clicked_parts = parts->no;
+
+		parts_msg_push(parts->no, parts->delegate_index,
+				PARTS_MSG_MOUSE_CLICK, "iii", cur_pos.x, cur_pos.y, VK_LBUTTON);
+		parts_msg_push(parts->no, parts->delegate_index,
+				PARTS_MSG_KEY_UP, "i", VK_LBUTTON);
 	}
 }
 
@@ -92,7 +126,6 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	}
 
 	prev_clicking = cur_clicking;
-	parts_prev_pos = cur_pos;
 }
 
 void PE_SetClickable(int parts_no, bool clickable)
@@ -183,11 +216,6 @@ bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state)
 	if (!parts)
 		return false;
 
-	Rectangle hitbox = parts->states[state].common.hitbox;
-	if (parts->parent) {
-		hitbox.x += parts->parent->global.pos.x;
-		hitbox.y += parts->parent->global.pos.y;
-	}
 	Point mouse_pos = { mouse_x, mouse_y };
-	return SDL_PointInRect(&mouse_pos, &hitbox);
+	return parts_hittest(parts, state, mouse_pos);
 }

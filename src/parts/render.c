@@ -403,8 +403,7 @@ void parts_render(struct parts *parts)
 		return;
 	if (parts->linked_to >= 0) {
 		struct parts *link_parts = parts_get(parts->linked_to);
-		struct parts_state *link_state = &link_parts->states[link_parts->state];
-		if (!SDL_PointInRect(&parts_prev_pos, &link_state->common.hitbox))
+		if (!link_parts->is_hovered)
 			return;
 	}
 
