@@ -143,8 +143,6 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 }
 
 HLL_WARN_UNIMPLEMENTED(, void, PartsEngine, StopSoundWithoutSystemSound);
-HLL_WARN_UNIMPLEMENTED(, void, PartsEngine, ReleaseMessage, void);
-HLL_WARN_UNIMPLEMENTED(0, int, PartsEngine, GetMessageType, void);
 HLL_WARN_UNIMPLEMENTED(, void, PartsEngine, Parts_SetPassCursor, int Number, bool Pass);
 
 static void PartsEngine_PreLink(void);
@@ -332,18 +330,18 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_TODO_EXPORT(ReleaseActivity, PartsEngine_ReleaseActivity),
 	    HLL_TODO_EXPORT(CrateActivityBinary, PartsEngine_CrateActivityBinary),
 	    HLL_TODO_EXPORT(ReadActivityBinary, PartsEngine_ReadActivityBinary),
-	    HLL_EXPORT(ReleaseMessage, PartsEngine_ReleaseMessage),
-	    HLL_TODO_EXPORT(PopMessage, PartsEngine_PopMessage),
-	    HLL_TODO_EXPORT(GetMessagePartsNumber, PartsEngine_GetMessagePartsNumber),
-	    HLL_TODO_EXPORT(GetMessageDelegateIndex, PartsEngine_GetMessageDelegateIndex),
+	    HLL_EXPORT(ReleaseMessage, PE_ReleaseMessage),
+	    HLL_EXPORT(PopMessage, PE_PopMessage),
+	    HLL_EXPORT(GetMessagePartsNumber, PE_GetMessagePartsNumber),
+	    HLL_EXPORT(GetMessageDelegateIndex, PE_GetMessageDelegateIndex),
 	    HLL_EXPORT(GetDelegateIndex, PE_GetDelegateIndex),
-	    HLL_EXPORT(GetMessageType, PartsEngine_GetMessageType),
-	    HLL_TODO_EXPORT(GetMessageVariableCount, PartsEngine_GetMessageVariableCount),
-	    HLL_TODO_EXPORT(GetMessageVariableType, PartsEngine_GetMessageVariableType),
-	    HLL_TODO_EXPORT(GetMessageVariableInt, PartsEngine_GetMessageVariableInt),
-	    HLL_TODO_EXPORT(GetMessageVariableFloat, PartsEngine_GetMessageVariableFloat),
-	    HLL_TODO_EXPORT(GetMessageVariableBool, PartsEngine_GetMessageVariableBool),
-	    HLL_TODO_EXPORT(GetMessageVariableString, PartsEngine_GetMessageVariableString),
+	    HLL_EXPORT(GetMessageType, PE_GetMessageType),
+	    HLL_EXPORT(GetMessageVariableCount, PE_GetMessageVariableCount),
+	    HLL_EXPORT(GetMessageVariableType, PE_GetMessageVariableType),
+	    HLL_EXPORT(GetMessageVariableInt, PE_GetMessageVariableInt),
+	    HLL_EXPORT(GetMessageVariableFloat, PE_GetMessageVariableFloat),
+	    HLL_EXPORT(GetMessageVariableBool, PE_GetMessageVariableBool),
+	    HLL_EXPORT(GetMessageVariableString, PE_GetMessageVariableString),
 	    HLL_EXPORT(SetDelegateIndex, PE_SetDelegateIndex),
 	    HLL_TODO_EXPORT(SetFocus, PartsEngine_SetFocus),
 	    HLL_TODO_EXPORT(IsFocus, PartsEngine_IsFocus),

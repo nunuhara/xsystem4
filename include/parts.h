@@ -176,6 +176,19 @@ void PE_EndInput(void);
 int PE_GetClickPartsNumber(void);
 bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state);
 
+// message.c
+void PE_ReleaseMessage(void);
+void PE_PopMessage(void);
+int PE_GetMessageType(void);
+int PE_GetMessagePartsNumber(void);
+int PE_GetMessageDelegateIndex(void);
+int PE_GetMessageVariableCount(void);
+int PE_GetMessageVariableType(int index);
+int PE_GetMessageVariableInt(int index);
+float PE_GetMessageVariableFloat(int index);
+bool PE_GetMessageVariableBool(int index);
+void PE_GetMessageVariableString(int index, struct string **out);
+
 // motion.c
 void PE_AddMotionPos(int parts_no, int begin_x, int begin_y, int end_x, int end_y, int begin_t, int end_t);
 void PE_AddMotionPos_curve(int parts_no, int begin_x, int begin_y, int end_x, int end_y,

@@ -1020,6 +1020,7 @@ bool PE_Init(void)
 void PE_Reset(void)
 {
 	PE_ReleaseAllParts();
+	PE_ReleaseMessage();
 	ctrl_stack_fini();
 	sact_ModuleFini();
 }
