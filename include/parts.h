@@ -162,6 +162,8 @@ bool PE_SetPartsConstructionSurfaceArea(int parts_no, int x, int y, int w, int h
 
 // input.c
 void PE_UpdateInputState(int passed_time);
+void PE_SetPassCursor(int parts_no, bool pass);
+bool PE_GetPartsPassCursor(int parts_no);
 void PE_SetClickable(int parts_no, bool clickable);
 bool PE_GetPartsClickable(int parts_no);
 void PE_SetPartsGroupDecideOnCursor(int group_no, bool decide_on_cursor);

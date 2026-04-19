@@ -364,6 +364,7 @@ struct parts {
 	int delegate_index;
 	int sprite_deform;
 	bool clickable;
+	bool pass_cursor;
 	int on_cursor_sound;
 	int on_click_sound;
 	int origin_mode;
@@ -371,6 +372,7 @@ struct parts {
 	int linked_to;
 	int linked_from;
 	bool is_hovered;
+	int hover_time;
 	int draw_filter;
 	bool message_window;
 	int alpha_clipper_parts_no;
@@ -379,6 +381,7 @@ struct parts {
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
+#define PARTS_LIST_FOREACH_REVERSE(iter) TAILQ_FOREACH_REVERSE(iter, &parts_list, parts_list, parts_list_entry)
 #define PARTS_FOREACH_CHILD(iter, parent) TAILQ_FOREACH(iter, &parent->children, child_list_entry)
 
 // parts.c
