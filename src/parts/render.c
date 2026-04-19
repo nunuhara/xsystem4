@@ -431,6 +431,8 @@ void parts_render(struct parts *parts)
 	case PARTS_FLAT:
 		parts_render_flat(parts, &state->flat);
 		break;
+	case PARTS_RECT_DETECTION:
+		break;
 	}
 }
 

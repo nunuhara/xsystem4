@@ -105,7 +105,8 @@ enum parts_type {
 	PARTS_FLASH,
 	PARTS_FLAT,
 	PARTS_MOVIE,
-#define PARTS_NR_TYPES (PARTS_MOVIE+1)
+	PARTS_RECT_DETECTION,
+#define PARTS_NR_TYPES (PARTS_RECT_DETECTION+1)
 };
 
 struct parts_common {
