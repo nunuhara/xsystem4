@@ -350,6 +350,30 @@ static void load_parts_flat(struct iarray_reader *r, struct parts *parts,
 	flat->needs_advance = true;
 }
 
+static void save_parts_layout_box(struct iarray_writer *w, struct parts_layout_box *lb)
+{
+	iarray_write(w, lb->layout_type);
+	iarray_write(w, lb->wrap);
+	iarray_write(w, lb->wrap_size);
+	iarray_write(w, lb->align);
+	iarray_write(w, lb->padding_top);
+	iarray_write(w, lb->padding_bottom);
+	iarray_write(w, lb->padding_left);
+	iarray_write(w, lb->padding_right);
+}
+
+static void load_parts_layout_box(struct iarray_reader *r, struct parts_layout_box *lb)
+{
+	lb->layout_type = iarray_read(r);
+	lb->wrap = iarray_read(r);
+	lb->wrap_size = iarray_read(r);
+	lb->align = iarray_read(r);
+	lb->padding_top = iarray_read(r);
+	lb->padding_bottom = iarray_read(r);
+	lb->padding_left = iarray_read(r);
+	lb->padding_right = iarray_read(r);
+}
+
 static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 {
 	iarray_write(w, state->type);
@@ -360,6 +384,8 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 	iarray_write_rectangle(w, &state->common.surface_area);
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
+	case PARTS_MOVIE:
+	case PARTS_RECT_DETECTION:
 		break;
 	case PARTS_CG:
 		save_parts_cg(w, &state->cg);
@@ -386,8 +412,8 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 	case PARTS_FLAT:
 		save_parts_flat(w, &state->flat);
 		break;
-	case PARTS_MOVIE:
-	case PARTS_RECT_DETECTION:
+	case PARTS_LAYOUT_BOX:
+		save_parts_layout_box(w, &state->layout_box);
 		break;
 	}
 }
@@ -403,6 +429,8 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 	iarray_read_rectangle(r, &state->common.surface_area);
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
+	case PARTS_MOVIE:
+	case PARTS_RECT_DETECTION:
 		break;
 	case PARTS_CG:
 		load_parts_cg(r, parts, &state->cg);
@@ -431,8 +459,8 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 	case PARTS_FLAT:
 		load_parts_flat(r, parts, &state->flat);
 		break;
-	case PARTS_MOVIE:
-	case PARTS_RECT_DETECTION:
+	case PARTS_LAYOUT_BOX:
+		load_parts_layout_box(r, &state->layout_box);
 		break;
 	}
 }
@@ -538,6 +566,10 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 		iarray_write(w, parts->controller_no);
 		iarray_write(w, parts->pass_cursor);
 		iarray_write(w, parts->lock_input_state);
+		iarray_write(w, parts->margin_top);
+		iarray_write(w, parts->margin_bottom);
+		iarray_write(w, parts->margin_left);
+		iarray_write(w, parts->margin_right);
 	}
 
 	unsigned motion_count_pos = iarray_writer_pos(w);
@@ -584,7 +616,12 @@ static void load_parts(struct iarray_reader *r, int version)
 		parts->controller_no = iarray_read(r);
 		parts->pass_cursor = iarray_read(r);
 		parts->lock_input_state = iarray_read(r);
+		parts->margin_top = iarray_read(r);
+		parts->margin_bottom = iarray_read(r);
+		parts->margin_left = iarray_read(r);
+		parts->margin_right = iarray_read(r);
 	}
+
 	int motion_count = iarray_read(r);
 	for (int i = 0; i < motion_count; i++) {
 		struct parts_motion *motion = load_parts_motion(r);

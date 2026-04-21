@@ -285,4 +285,23 @@ bool PE_StartPartsFlat(int parts_no, int state);
 bool PE_GoFramePartsFlat(int parts_no, int frame_no, int state);
 int PE_GetPartsFlatEndFrame(int parts_no, int state);
 
+// layoutbox.c
+void PE_SetLayoutBoxLayoutType(int parts_no, int type);
+int PE_GetLayoutBoxLayoutType(int parts_no);
+void PE_SetLayoutBoxReturn(int parts_no, bool return_flag, int return_size);
+bool PE_IsLayoutBoxReturn(int parts_no);
+int PE_GetLayoutBoxReturnSize(int parts_no);
+void PE_SetLayoutBoxAlign(int parts_no, int align);
+int PE_GetLayoutBoxAlign(int parts_no);
+void PE_SetComponentMargin(int parts_no, int top, int bottom, int left, int right);
+int PE_GetComponentMarginTop(int parts_no);
+int PE_GetComponentMarginBottom(int parts_no);
+int PE_GetComponentMarginLeft(int parts_no);
+int PE_GetComponentMarginRight(int parts_no);
+void PE_set_layoutbox_padding(int parts_no, int top, int bottom, int left, int right);
+int PE_get_layoutbox_padding_top(int parts_no);
+int PE_get_layoutbox_padding_bottom(int parts_no);
+int PE_get_layoutbox_padding_left(int parts_no);
+int PE_get_layoutbox_padding_right(int parts_no);
+
 #endif /* SYSTEM4_PARTS_H */
