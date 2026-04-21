@@ -62,6 +62,7 @@ static void parts_init(struct parts *parts)
 	parts->local = PARTS_PARAMS_INITIALIZER;
 	parts->global = PARTS_PARAMS_INITIALIZER;
 	parts->delegate_index = -1;
+	parts->want_save = true;
 	parts->on_cursor_sound = -1;
 	parts->on_click_sound = -1;
 	parts->origin_mode = 1;
@@ -884,6 +885,8 @@ bool parts_numeral_set_number(struct parts *parts, struct parts_numeral *num, in
 
 void parts_set_state(struct parts *parts, enum parts_state_type state)
 {
+	if (parts->lock_input_state)
+		return;
 	while (state > PARTS_STATE_DEFAULT && parts->states[state].type == PARTS_UNINITIALIZED)
 		state--;
 	if (parts->state != state) {
@@ -1225,6 +1228,18 @@ bool PE_SetPartsCGSurfaceArea(int parts_no, int x, int y, int w, int h, int stat
 	struct parts_cg *cg = parts_get_cg(parts, state);
 	parts_set_surface_area(parts, &cg->common, x, y, w, h);
 	return true;
+}
+
+void PE_GetPartsCGSurfaceArea(int parts_no, int *x, int *y, int *w, int *h, int state)
+{
+	if (!parts_state_valid(--state))
+		return;
+
+	struct parts_cg *cg = parts_get_cg(parts_get(parts_no), state);
+	*x = cg->common.surface_area.x;
+	*y = cg->common.surface_area.y;
+	*w = cg->common.surface_area.w;
+	*h = cg->common.surface_area.h;
 }
 
 int PE_GetPartsCGNumber(int parts_no, int state)
@@ -2087,6 +2102,34 @@ int PE_get_active_controller(void)
 int PE_get_system_controller(void)
 {
 	return PARTS_CONTROLLER_SYSTEM_OVERLAY;
+}
+
+void PE_parts_set_want_save(int parts_no, bool want_save)
+{
+	parts_get(parts_no)->want_save = want_save;
+}
+
+float PE_parts_get_absolute_x(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	return parts ? (float)parts->global.pos.x : 0.0f;
+}
+
+float PE_parts_get_absolute_y(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	return parts ? (float)parts->global.pos.y : 0.0f;
+}
+
+int PE_parts_get_absolute_z(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	return parts ? parts->global.z : 0;
+}
+
+void PE_parts_set_lock_input_state(int parts_no, bool lock)
+{
+	parts_get(parts_no)->lock_input_state = lock;
 }
 
 bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state)

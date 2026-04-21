@@ -37,6 +37,7 @@ bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_no,
 		int sprite_deform, int state);
 void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state);
 bool PE_SetPartsCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
+void PE_GetPartsCGSurfaceArea(int parts_no, int *x, int *y, int *w, int *h, int state);
 int PE_GetPartsCGNumber(int parts_no, int state);
 bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_time, int state);
 bool PE_SetLoopCG(int parts_no, struct string *cg_name, int start_no, int nr_frames,
@@ -126,8 +127,13 @@ bool PE_IsExist(int parts_no);
 void PE_set_active_controller(int controller_no);
 int PE_get_active_controller(void);
 int PE_get_system_controller(void);
+void PE_parts_set_want_save(int parts_no, bool want_save);
 bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state);
 int PE_get_movie_sprite(int parts_no, int state);
+float PE_parts_get_absolute_x(int parts_no);
+float PE_parts_get_absolute_y(int parts_no);
+int PE_parts_get_absolute_z(int parts_no);
+void PE_parts_set_lock_input_state(int parts_no, bool lock);
 
 // construction.c
 bool PE_AddCreateToPartsConstructionProcess(int parts_no, int w, int h, int state);
