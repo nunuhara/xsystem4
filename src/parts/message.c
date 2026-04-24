@@ -39,15 +39,15 @@ struct parts_message {
 static STAILQ_HEAD(, parts_message) msg_queue =
 		STAILQ_HEAD_INITIALIZER(msg_queue);
 
-void parts_msg_push(int parts_no, int delegate_index, int type, const char *fmt, ...)
+void parts_msg_push(struct parts* parts, int type, const char *fmt, ...)
 {
 	// Message system is introduced in Rance 9
 	if (!parts_multi_controller)
 		return;
 
 	struct parts_message *msg = xmalloc(sizeof(*msg));
-	msg->parts_no = parts_no;
-	msg->delegate_index = delegate_index;
+	msg->parts_no = parts->no;
+	msg->delegate_index = parts->delegate_index;
 	msg->type = type;
 	msg->nr_variables = 0;
 

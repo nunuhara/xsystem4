@@ -88,25 +88,22 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		return;
 
 	if (is_hovered && !was_hovered) {
-		parts_msg_push(parts->no, parts->delegate_index,
-				PARTS_MSG_MOUSE_ENTER, "ii", cur_pos.x, cur_pos.y);
+		parts_msg_push(parts, PARTS_MSG_MOUSE_ENTER, "ii", cur_pos.x, cur_pos.y);
 		parts->hover_time = 0;
 	}
 	if (!is_hovered && was_hovered) {
-		parts_msg_push(parts->no, parts->delegate_index,
-				PARTS_MSG_MOUSE_LEAVE, "ii", cur_pos.x, cur_pos.y);
+		parts_msg_push(parts, PARTS_MSG_MOUSE_LEAVE, "ii", cur_pos.x, cur_pos.y);
 	}
 
 	if (is_hovered) {
 		// MOUSE_ON message fires every frame while hovering
-		parts_msg_push(parts->no, parts->delegate_index,
-				PARTS_MSG_MOUSE_ON, "iii", cur_pos.x, cur_pos.y, parts->hover_time);
+		parts_msg_push(parts, PARTS_MSG_MOUSE_ON,
+				"iii", cur_pos.x, cur_pos.y, parts->hover_time);
 		parts->hover_time += passed_time;
 
 		// MOUSE_MOVE message fires when cursor moves while hovering
 		if (cur_pos.x != parts_prev_pos.x || cur_pos.y != parts_prev_pos.y) {
-			parts_msg_push(parts->no, parts->delegate_index,
-					PARTS_MSG_MOUSE_MOVE, "ii", cur_pos.x, cur_pos.y);
+			parts_msg_push(parts, PARTS_MSG_MOUSE_MOVE, "ii", cur_pos.x, cur_pos.y);
 		}
 	}
 
@@ -133,14 +130,12 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		drag_start_cursor = cur_pos;
 
 		// KEY_TRIGGER message fires on press transition
-		parts_msg_push(parts->no, parts->delegate_index,
-				PARTS_MSG_KEY_TRIGGER, "i", VK_LBUTTON);
+		parts_msg_push(parts, PARTS_MSG_KEY_TRIGGER, "i", VK_LBUTTON);
 	}
 
 	// KEY_DOWN message fires every frame while held (not first frame)
 	if (prev_clicking && cur_clicking && click_down_parts == parts->no) {
-		parts_msg_push(parts->no, parts->delegate_index,
-				PARTS_MSG_KEY_DOWN, "i", VK_LBUTTON);
+		parts_msg_push(parts, PARTS_MSG_KEY_DOWN, "i", VK_LBUTTON);
 	}
 
 	if (cur_clicking && click_down_parts == parts->no) {
@@ -158,10 +153,9 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		audio_play_sound(parts->on_click_sound);
 		clicked_parts = parts->no;
 
-		parts_msg_push(parts->no, parts->delegate_index,
-				PARTS_MSG_MOUSE_CLICK, "iii", cur_pos.x, cur_pos.y, VK_LBUTTON);
-		parts_msg_push(parts->no, parts->delegate_index,
-				PARTS_MSG_KEY_UP, "i", VK_LBUTTON);
+		parts_msg_push(parts, PARTS_MSG_MOUSE_CLICK,
+				"iii", cur_pos.x, cur_pos.y, VK_LBUTTON);
+		parts_msg_push(parts, PARTS_MSG_KEY_UP, "i", VK_LBUTTON);
 	}
 }
 
@@ -191,13 +185,10 @@ void PE_UpdateInputState(int passed_time)
 			};
 			parts_set_pos(drag_parts, new_pos);
 			if (!is_dragging) {
-				parts_msg_push(drag_parts->no,
-						drag_parts->delegate_index,
-						PARTS_MSG_DRAG_BEGIN, "");
+				parts_msg_push(drag_parts, PARTS_MSG_DRAG_BEGIN, "");
 			}
-			parts_msg_push(drag_parts->no, drag_parts->delegate_index,
-					PARTS_MSG_DRAGGING, "iiii", drag_start_cursor.x, drag_start_cursor.y,
-					cur_pos.x, cur_pos.y);
+			parts_msg_push(drag_parts, PARTS_MSG_DRAGGING, "iiii",
+					drag_start_cursor.x, drag_start_cursor.y, cur_pos.x, cur_pos.y);
 			is_dragging = true;
 		}
 
@@ -215,21 +206,17 @@ void PE_UpdateInputState(int passed_time)
 			}
 			if (new_drop != drop_target) {
 				if (drop_target) {
-					parts_msg_push(drop_target->no,
-							drop_target->delegate_index,
-							PARTS_MSG_DROP_LEAVE, "i", drag_parts->no);
+					parts_msg_push(drop_target, PARTS_MSG_DROP_LEAVE,
+							"i", drag_parts->no);
 				}
 				if (new_drop) {
-					parts_msg_push(new_drop->no,
-							new_drop->delegate_index,
-							PARTS_MSG_DROP_ENTER, "i", drag_parts->no);
+					parts_msg_push(new_drop, PARTS_MSG_DROP_ENTER,
+							"i", drag_parts->no);
 				}
 				drop_target = new_drop;
 			} else if (drop_target) {
-				parts_msg_push(drop_target->no,
-						drop_target->delegate_index,
-						PARTS_MSG_DROP_ON, "iii", drag_parts->no, cur_pos.x,
-						cur_pos.y);
+				parts_msg_push(drop_target, PARTS_MSG_DROP_ON,
+						"iii", drag_parts->no, cur_pos.x, cur_pos.y);
 			}
 		}
 	}
@@ -237,14 +224,12 @@ void PE_UpdateInputState(int passed_time)
 	// Release handling
 	if (prev_clicking && !cur_clicking) {
 		if (is_dragging && drag_parts && drag_parts->draggable) {
-			parts_msg_push(drag_parts->no, drag_parts->delegate_index,
-					PARTS_MSG_DRAG_END, "");
+			parts_msg_push(drag_parts, PARTS_MSG_DRAG_END, "");
 		}
 		if (drop_target && drag_parts) {
-			parts_msg_push(drop_target->no, drop_target->delegate_index,
-					PARTS_MSG_DROPPED, "iii", drag_parts->no, cur_pos.x, cur_pos.y);
-			parts_msg_push(drop_target->no, drop_target->delegate_index,
-					PARTS_MSG_DROP_LEAVE, "i", drag_parts->no);
+			parts_msg_push(drop_target, PARTS_MSG_DROPPED,
+					"iii", drag_parts->no, cur_pos.x, cur_pos.y);
+			parts_msg_push(drop_target, PARTS_MSG_DROP_LEAVE, "i", drag_parts->no);
 		}
 		drag_state_reset();
 

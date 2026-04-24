@@ -523,7 +523,7 @@ enum parts_message_type {
 	PARTS_MSG_KEY_UP         = 17,
 };
 
-void parts_msg_push(int parts_no, int delegate_index, int type, const char *fmt, ...);
+void parts_msg_push(struct parts* parts, int type, const char *fmt, ...);
 
 // construction.c
 void parts_cp_op_free(struct parts_cp_op *op);
