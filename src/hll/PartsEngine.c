@@ -282,6 +282,30 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		REQUIRE_INTS(2);
 		PE_parts_set_lock_input_state(ints[0].i, !!ints[1].i);
 		return 1;
+	case 57:  // void AppendChild(int number, int child_number)
+		REQUIRE_INTS(2);
+		PE_SetParentPartsNumber(ints[1].i, ints[0].i);
+		return 1;
+	case 91:  // void SetLayoutBoxPadding(int parts_no, int top, int bottom, int left, int right)
+		REQUIRE_INTS(5);
+		PE_set_layoutbox_padding(ints[0].i, ints[1].i, ints[2].i, ints[3].i, ints[4].i);
+		return 1;
+	case 92:  // int GetLayoutBoxPaddingTop(int parts_no)
+		REQUIRE_INTS(2);
+		ints[1].i = PE_get_layoutbox_padding_top(ints[0].i);
+		return 1;
+	case 93:  // int GetLayoutBoxPaddingBottom(int parts_no)
+		REQUIRE_INTS(2);
+		ints[1].i = PE_get_layoutbox_padding_bottom(ints[0].i);
+		return 1;
+	case 94:  // int GetLayoutBoxPaddingLeft(int parts_no)
+		REQUIRE_INTS(2);
+		ints[1].i = PE_get_layoutbox_padding_left(ints[0].i);
+		return 1;
+	case 95:  // int GetLayoutBoxPaddingRight(int parts_no)
+		REQUIRE_INTS(2);
+		ints[1].i = PE_get_layoutbox_padding_right(ints[0].i);
+		return 1;
 	case 103:  // void GetPartsCGSurfaceArea(int parts_no, int *x, int *y, int *w, int *h, int state)
 		REQUIRE_INTS(6);
 		PE_GetPartsCGSurfaceArea(ints[0].i, &ints[1].i, &ints[2].i, &ints[3].i, &ints[4].i, ints[5].i);
@@ -552,11 +576,11 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_TODO_EXPORT(GetComponentRotateX, PartsEngine_GetComponentRotateX),
 	    HLL_TODO_EXPORT(GetComponentRotateY, PartsEngine_GetComponentRotateY),
 	    HLL_EXPORT(GetComponentRotateZ, PE_GetPartsRotateZ),
-	    HLL_TODO_EXPORT(SetComponentMargin, PartsEngine_SetComponentMargin),
-	    HLL_TODO_EXPORT(GetComponentMarginTop, PartsEngine_GetComponentMarginTop),
-	    HLL_TODO_EXPORT(GetComponentMarginBottom, PartsEngine_GetComponentMarginBottom),
-	    HLL_TODO_EXPORT(GetComponentMarginLeft, PartsEngine_GetComponentMarginLeft),
-	    HLL_TODO_EXPORT(GetComponentMarginRight, PartsEngine_GetComponentMarginRight),
+	    HLL_EXPORT(SetComponentMargin, PE_SetComponentMargin),
+	    HLL_EXPORT(GetComponentMarginTop, PE_GetComponentMarginTop),
+	    HLL_EXPORT(GetComponentMarginBottom, PE_GetComponentMarginBottom),
+	    HLL_EXPORT(GetComponentMarginLeft, PE_GetComponentMarginLeft),
+	    HLL_EXPORT(GetComponentMarginRight, PE_GetComponentMarginRight),
 	    HLL_EXPORT(SetComponentAlphaClipper, PE_SetPartsAlphaClipperPartsNumber),
 	    HLL_TODO_EXPORT(GetComponentAlphaClipper, PartsEngine_GetComponentAlphaClipper),
 	    HLL_TODO_EXPORT(SetComponentTextureFilterType, PartsEngine_SetComponentTextureFilterType),
@@ -724,13 +748,13 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_TODO_EXPORT(GetMultiTextBoxSelectB, PartsEngine_GetMultiTextBoxSelectB),
 	    HLL_TODO_EXPORT(SetMultiTextBoxCGName, PartsEngine_SetMultiTextBoxCGName),
 	    HLL_TODO_EXPORT(GetMultiTextBoxCGName, PartsEngine_GetMultiTextBoxCGName),
-	    HLL_TODO_EXPORT(SetLayoutBoxLayoutType, PartsEngine_SetLayoutBoxLayoutType),
-	    HLL_TODO_EXPORT(GetLayoutBoxLayoutType, PartsEngine_GetLayoutBoxLayoutType),
-	    HLL_TODO_EXPORT(SetLayoutBoxReturn, PartsEngine_SetLayoutBoxReturn),
-	    HLL_TODO_EXPORT(IsLayoutBoxReturn, PartsEngine_IsLayoutBoxReturn),
-	    HLL_TODO_EXPORT(GetLayoutBoxReturnSize, PartsEngine_GetLayoutBoxReturnSize),
-	    HLL_TODO_EXPORT(SetLayoutBoxAlign, PartsEngine_SetLayoutBoxAlign),
-	    HLL_TODO_EXPORT(GetLayoutBoxAlign, PartsEngine_GetLayoutBoxAlign),
+	    HLL_EXPORT(SetLayoutBoxLayoutType, PE_SetLayoutBoxLayoutType),
+	    HLL_EXPORT(GetLayoutBoxLayoutType, PE_GetLayoutBoxLayoutType),
+	    HLL_EXPORT(SetLayoutBoxReturn, PE_SetLayoutBoxReturn),
+	    HLL_EXPORT(IsLayoutBoxReturn, PE_IsLayoutBoxReturn),
+	    HLL_EXPORT(GetLayoutBoxReturnSize, PE_GetLayoutBoxReturnSize),
+	    HLL_EXPORT(SetLayoutBoxAlign, PE_SetLayoutBoxAlign),
+	    HLL_EXPORT(GetLayoutBoxAlign, PE_GetLayoutBoxAlign),
 	    HLL_EXPORT(Parts_SetPartsCG, PE_SetPartsCG),
 	    HLL_EXPORT(Parts_GetPartsCGName, PE_GetPartsCGName),
 	    HLL_EXPORT(Parts_SetPartsCGSurfaceArea, PE_SetPartsCGSurfaceArea),

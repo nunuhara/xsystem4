@@ -106,7 +106,8 @@ enum parts_type {
 	PARTS_FLAT,
 	PARTS_MOVIE,
 	PARTS_RECT_DETECTION,
-#define PARTS_NR_TYPES (PARTS_RECT_DETECTION+1)
+	PARTS_LAYOUT_BOX,
+#define PARTS_NR_TYPES (PARTS_LAYOUT_BOX+1)
 };
 
 struct parts_common {
@@ -320,6 +321,29 @@ struct parts_movie {
 	int sprite_no;  // SACT sprite number used as movie render target
 };
 
+enum parts_layout_type {
+	PARTS_LAYOUT_FREE       = 0,  // no automatic layout
+	PARTS_LAYOUT_VERTICAL   = 1,
+	PARTS_LAYOUT_HORIZONTAL = 2,
+};
+
+// In AliceSoft's PartsEngine implementation, LayoutBox is a component type
+// that is NOT per-state. We store it per-state for uniformity with other
+// component types, but parts_get_layout_box() and all code in layoutbox.c
+// operate on states[0] only. This is safe as long as game scripts never
+// convert a LayoutBox parts to/from another component type.
+struct parts_layout_box {
+	struct parts_common common;
+	enum parts_layout_type layout_type;
+	bool wrap;
+	int wrap_size;
+	int align;
+	int padding_top;
+	int padding_bottom;
+	int padding_left;
+	int padding_right;
+};
+
 struct parts_state {
 	enum parts_type type;
 	union {
@@ -333,6 +357,7 @@ struct parts_state {
 		struct parts_flash flash;
 		struct parts_flat flat;
 		struct parts_movie movie;
+		struct parts_layout_box layout_box;
 	};
 };
 
@@ -379,6 +404,10 @@ struct parts {
 	int draw_filter;
 	bool message_window;
 	int alpha_clipper_parts_no;
+	int margin_top;
+	int margin_bottom;
+	int margin_left;
+	int margin_right;
 	struct parts_motion_list motion;
 	int controller_no;
 };
@@ -414,6 +443,7 @@ struct parts_construction_process *parts_get_construction_process(struct parts *
 struct parts_flash *parts_get_flash(struct parts *parts, int state);
 struct parts_flat *parts_get_flat(struct parts *parts, int state);
 struct parts_movie *parts_get_movie(struct parts *parts, int state);
+struct parts_layout_box *parts_get_layout_box(struct parts *parts);
 void parts_set_pos(struct parts *parts, Point pos);
 void parts_set_global_pos(Point pos);
 void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h);
@@ -508,6 +538,9 @@ bool parts_flat_load(struct parts *parts, struct parts_flat *f, struct string *f
 bool parts_flat_update(struct parts_flat *f, int passed_time);
 int parts_flat_find_library(struct flat *fl, const char *name);
 
+// layoutbox.c
+void parts_do_layout(struct parts *parts);
+
 // debug.c
 struct sprite;
 void parts_debug_init(void);
@@ -517,16 +550,6 @@ cJSON *parts_sprite_to_json(struct sprite *sp, bool verbose);
 static inline bool parts_state_valid(int state)
 {
 	return state >= 0 && state <= 2;
-}
-
-static inline int parts_get_width(struct parts *parts)
-{
-	return parts->states[parts->state].common.w;
-}
-
-static inline int parts_get_height(struct parts *parts)
-{
-	return parts->states[parts->state].common.h;
 }
 
 #endif /* SYSTEM4_PARTS_INTERNAL_H */

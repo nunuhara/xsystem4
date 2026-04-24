@@ -174,6 +174,8 @@ static void parts_state_free(struct parts_state *state)
 {
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
+	case PARTS_RECT_DETECTION:
+	case PARTS_LAYOUT_BOX:
 		break;
 	case PARTS_CG:
 		gfx_delete_texture(&state->common.texture);
@@ -212,8 +214,6 @@ static void parts_state_free(struct parts_state *state)
 		state->common.texture.handle = 0;
 		if (state->movie.sprite_no >= 0)
 			sact_SP_Delete(state->movie.sprite_no);
-		break;
-	case PARTS_RECT_DETECTION:
 		break;
 	}
 	memset(state, 0, sizeof(struct parts_state));
@@ -265,6 +265,10 @@ void parts_state_reset(struct parts_state *state, enum parts_type type)
 		break;
 	case PARTS_MOVIE:
 		state->movie.sprite_no = -1;
+		break;
+	case PARTS_LAYOUT_BOX:
+		state->layout_box.layout_type = PARTS_LAYOUT_VERTICAL;
+		state->layout_box.align = 1;
 		break;
 	}
 }
@@ -347,6 +351,14 @@ struct parts_movie *parts_get_movie(struct parts *parts, int state)
 		parts_state_reset(&parts->states[state], PARTS_MOVIE);
 	}
 	return &parts->states[state].movie;
+}
+
+struct parts_layout_box *parts_get_layout_box(struct parts *parts)
+{
+	if (parts->states[0].type != PARTS_LAYOUT_BOX) {
+		parts_state_reset(&parts->states[0], PARTS_LAYOUT_BOX);
+	}
+	return &parts->states[0].layout_box;
 }
 
 static Point calculate_offset(int mode, int w, int h)
@@ -1077,6 +1089,8 @@ static void parts_update_component(struct parts *parts)
 		parts->dirty = false;
 	}
 
+	parts_do_layout(parts);
+
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
 		parts_update_component(child);
@@ -1099,6 +1113,10 @@ void PE_UpdateComponent(possibly_unused int passed_time)
 			}
 			parts->parent = parent;
 			TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
+
+			// if parent is layout box, mark it dirty so that it can re-layout its children
+			if (parent->states[0].type == PARTS_LAYOUT_BOX)
+				parts_component_dirty(parent);
 		}
 		// TODO: should the child be orphaned if it already has a parent and an invalid
 		//       parent no is given?
@@ -1931,6 +1949,7 @@ void PE_SetComponentType(int parts_no, int type, int state)
 	struct parts *parts = parts_get(parts_no);
 	enum parts_type pt = PARTS_UNINITIALIZED;
 	switch (type) {
+	case 8:  pt = PARTS_LAYOUT_BOX; break;
 	case 11: pt = PARTS_CG; break;
 	case 12: pt = PARTS_ANIMATION; break;
 	case 13: pt = PARTS_TEXT; break;
@@ -1957,6 +1976,7 @@ int PE_GetComponentType(int parts_no, int state)
 		return -1;
 
 	switch (parts->states[state].type) {
+	case PARTS_LAYOUT_BOX: return 8;
 	case PARTS_UNINITIALIZED:  // defaluts to CG
 	case PARTS_CG:
 		return 11;

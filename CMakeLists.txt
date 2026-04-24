@@ -100,6 +100,7 @@ target_sources(xsystem4 PRIVATE
   src/parts/flash.c
   src/parts/flat.c
   src/parts/input.c
+  src/parts/layoutbox.c
   src/parts/motion.c
   src/parts/parts.c
   src/parts/render.c

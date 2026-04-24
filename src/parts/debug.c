@@ -272,6 +272,10 @@ static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
 		break;
 	case PARTS_RECT_DETECTION:
 		break;
+	case PARTS_LAYOUT_BOX:
+		cJSON_AddNumberToObject(obj, "layout_type", state->layout_box.layout_type);
+		cJSON_AddNumberToObject(obj, "align", state->layout_box.align);
+		break;
 	}
 
 	return obj;
@@ -565,6 +569,9 @@ static void parts_list_print(struct parts *parts, int indent)
 		break;
 	case PARTS_RECT_DETECTION:
 		sys_message("(rect_detection)");
+		break;
+	case PARTS_LAYOUT_BOX:
+		sys_message("(layout_box type=%d)", state->layout_box.layout_type);
 		break;
 	}
 

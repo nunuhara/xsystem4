@@ -411,6 +411,8 @@ void parts_render(struct parts *parts)
 	struct parts_state *state = &parts->states[parts->state];
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
+	case PARTS_RECT_DETECTION:
+	case PARTS_LAYOUT_BOX:
 		break;
 	case PARTS_CG:
 	case PARTS_ANIMATION:
@@ -430,8 +432,6 @@ void parts_render(struct parts *parts)
 		break;
 	case PARTS_FLAT:
 		parts_render_flat(parts, &state->flat);
-		break;
-	case PARTS_RECT_DETECTION:
 		break;
 	}
 }
