@@ -393,6 +393,7 @@ struct parts {
 	bool pass_cursor;
 	bool lock_input_state;
 	bool want_save;
+	bool draggable;
 	int on_cursor_sound;
 	int on_click_sound;
 	int origin_mode;
@@ -500,6 +501,7 @@ void parts_add_motion(struct parts *parts, struct parts_motion *motion);
 
 // input.c
 extern bool parts_began_click;
+void parts_input_reset_drag(struct parts *parts);
 
 // message.c
 enum parts_message_type {
@@ -512,12 +514,16 @@ enum parts_message_type {
 	PARTS_MSG_DRAG_BEGIN     = 7,
 	PARTS_MSG_DRAGGING       = 8,
 	PARTS_MSG_DRAG_END       = 9,
+	PARTS_MSG_DROP_ENTER     = 10,
+	PARTS_MSG_DROP_ON        = 11,
+	PARTS_MSG_DROPPED        = 12,
+	PARTS_MSG_DROP_LEAVE     = 13,
 	PARTS_MSG_KEY_TRIGGER    = 14,
 	PARTS_MSG_KEY_DOWN       = 15,
 	PARTS_MSG_KEY_UP         = 17,
 };
 
-void parts_msg_push(int parts_no, int delegate_index, int type, const char *fmt, ...);
+void parts_msg_push(struct parts* parts, int type, const char *fmt, ...);
 
 // construction.c
 void parts_cp_op_free(struct parts_cp_op *op);
