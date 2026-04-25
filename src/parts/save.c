@@ -386,6 +386,7 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 	case PARTS_UNINITIALIZED:
 	case PARTS_MOVIE:
 	case PARTS_RECT_DETECTION:
+	case PARTS_3DLAYER:
 		break;
 	case PARTS_CG:
 		save_parts_cg(w, &state->cg);
@@ -431,6 +432,7 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 	case PARTS_UNINITIALIZED:
 	case PARTS_MOVIE:
 	case PARTS_RECT_DETECTION:
+	case PARTS_3DLAYER:
 		break;
 	case PARTS_CG:
 		load_parts_cg(r, parts, &state->cg);

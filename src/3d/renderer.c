@@ -66,9 +66,11 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 	snprintf(defines, sizeof(defines),
 			 "#define REIGN_ENGINE %d\n"
 			 "#define TAPIR_ENGINE %d\n"
+			 "#define SEAL_ENGINE %d\n"
 			 "#define ENGINE %d\n",
 			 RE_REIGN_PLUGIN,
 			 RE_TAPIR_PLUGIN,
+			 RE_SEAL_PLUGIN,
 			 re_plugin_version);
 	GLuint program = glCreateProgram();
 	GLuint vertex_shader = gfx_load_shader_file(vertex_shader_path, GL_VERTEX_SHADER, defines);
@@ -928,7 +930,7 @@ void RE_render(struct sact_sprite *sp)
 	if (!r || plugin->suspended)
 		return;
 
-	if (re_plugin_version == RE_TAPIR_PLUGIN) {
+	if (re_plugin_version >= RE_TAPIR_PLUGIN) {
 		uint32_t timestamp = SDL_GetTicks();
 		RE_build_model(plugin, timestamp - r->last_frame_timestamp);
 		r->last_frame_timestamp = timestamp;

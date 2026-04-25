@@ -413,6 +413,7 @@ void parts_render(struct parts *parts)
 	case PARTS_UNINITIALIZED:
 	case PARTS_RECT_DETECTION:
 	case PARTS_LAYOUT_BOX:
+	case PARTS_3DLAYER:
 		break;
 	case PARTS_CG:
 	case PARTS_ANIMATION:

@@ -217,7 +217,7 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 {
 	re_plugin_version = version;
 
-	char *aar_path = gamedir_path("Data/ReignData.red");
+	char *aar_path = gamedir_path(version <= RE_TAPIR_PLUGIN ? "Data/ReignData.red" : "Data/3DData.red");
 	int error = ARCHIVE_SUCCESS;
 	struct archive *aar = (struct archive *)aar_open(aar_path, MMAP_IF_64BIT, &error);
 	if (error == ARCHIVE_FILE_ERROR) {
@@ -249,6 +249,7 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 
 void RE_plugin_free(struct RE_plugin *plugin)
 {
+	RE_plugin_unbind(plugin);
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		if (plugin->instances[i])
 			free_instance(plugin->instances[i]);
@@ -259,8 +260,6 @@ void RE_plugin_free(struct RE_plugin *plugin)
 	ht_free(plugin->model_cache);
 	ht_foreach_value(plugin->pae_cache, (void(*)(void*))pae_free);
 	ht_free(plugin->pae_cache);
-	if (plugin->renderer)
-		RE_renderer_free(plugin->renderer);
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_destroy(&plugin->back_cg[i]);
 	xfree_aligned(plugin);
