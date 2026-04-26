@@ -17,9 +17,11 @@
 #include <SDL.h>
 
 #include "system4.h"
+#include "system4/ain.h"
 #include "system4/utfsjis.h"
 #include "system4/string.h"
 
+#include "vm.h"
 #include "gfx/types.h"
 #include "gfx/gfx.h"
 #include "hll.h"
@@ -29,6 +31,7 @@ static int font_size;
 static int font_weight;
 static Point pos;
 static bool has_editing_text;
+static bool get_result_string_clears;
 
 static struct string *result;
 
@@ -42,7 +45,8 @@ static void InputString_ClearResultString(void)
 static struct string *InputString_GetResultString(void)
 {
 	struct string *s = string_ref(result);
-	InputString_ClearResultString();
+	if (get_result_string_clears)
+		InputString_ClearResultString();
 	return s;
 }
 
@@ -117,7 +121,20 @@ static bool InputString_Converts(void)
 	return has_editing_text;
 }
 
+static void InputString_PreLink(void)
+{
+	get_result_string_clears = true;
+	int libno = ain_get_library(ain, "InputString");
+	if (libno < 0)
+		return;
+	if (ain_get_library_function(ain, libno, "SetResultString") >= 0 ||
+	    ain_get_library_function(ain, libno, "Inputs") >= 0) {
+		get_result_string_clears = false;
+	}
+}
+
 HLL_LIBRARY(InputString,
+	    HLL_EXPORT(_PreLink, InputString_PreLink),
 	    HLL_EXPORT(SetFont, InputString_SetFont),
 	    HLL_EXPORT(SetPos, InputString_SetPos),
 	    HLL_EXPORT(Begin, InputString_Begin),
