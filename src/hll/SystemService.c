@@ -111,6 +111,8 @@ static bool SystemService_SetHideMouseCursorByGame(bool hide)
 //bool SystemService_GetHideMouseCursorByGame(void);
 HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, SetUsePower2Texture, bool use);
 //bool SystemService_GetUsePower2Texture(void);
+HLL_WARN_UNIMPLEMENTED(true, bool, SystemService, SetAntiAliasingMode, int mode);
+//int SystemService_GetAntiAliasingMode(void);
 
 enum window_settings_asect_ratio {
 	ASPECT_RATIO_NORMAL,
@@ -441,6 +443,8 @@ HLL_LIBRARY(SystemService,
 	    HLL_TODO_EXPORT(GetHideMouseCursorByGame, SystemService_GetHideMouseCursorByGame),
 	    HLL_EXPORT(SetUsePower2Texture, SystemService_SetUsePower2Texture),
 	    HLL_TODO_EXPORT(GetUsePower2Texture, SystemService_GetUsePower2Texture),
+	    HLL_EXPORT(SetAntiAliasingMode, SystemService_SetAntiAliasingMode),
+	    HLL_TODO_EXPORT(GetAntiAliasingMode, SystemService_GetAntiAliasingMode),
 	    HLL_EXPORT(SetWindowSetting, SystemService_SetWindowSetting),
 	    HLL_EXPORT(GetWindowSetting, SystemService_GetWindowSetting),
 	    HLL_EXPORT(SetMouseCursorConfig, SystemService_SetMouseCursorConfig),

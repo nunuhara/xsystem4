@@ -149,6 +149,9 @@ struct RE_plugin {
 
 	// TapirEngine
 	bool suspended;
+
+	// SealEngine
+	int mag_speed;
 };
 
 struct RE_instance {
@@ -171,6 +174,7 @@ struct RE_instance {
 	float shadow_volume_bone_radius;
 	bool draw_bump;
 	float fps;
+	bool use_mag_speed;
 	bool motion_blend;
 	float motion_blend_rate;
 	vec3 ambient;
@@ -212,7 +216,9 @@ int RE_create_instance(struct RE_plugin *plugin);
 bool RE_release_instance(struct RE_plugin *plugin, int instance);
 
 bool RE_instance_set_type(struct RE_instance *instance, int type);
+bool RE_instance_data_exists(struct RE_instance *instance, const char *name);
 bool RE_instance_load(struct RE_instance *instance, const char *name);
+bool RE_instance_motion_exists(struct RE_instance *instance, const char *name);
 bool RE_instance_load_motion(struct RE_instance *instance, const char *name);
 bool RE_instance_load_next_motion(struct RE_instance *instance, const char *name);
 bool RE_instance_free_next_motion(struct RE_instance *instance);
@@ -228,6 +234,8 @@ bool RE_instance_find_path(struct RE_instance *instance, vec3 start, vec3 goal);
 const vec3 *RE_instance_get_path_line(struct RE_instance *instance, int *nr_path_points);
 bool RE_instance_optimize_path_line(struct RE_instance *instance);
 bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *instance, int mouse_x, int mouse_y, vec3 out);
+bool RE_plugin_transform_pos_to_view_pos(struct RE_plugin *plugin, float x, float y, float z, int *view_x, int *view_y);
+bool RE_plugin_get_camera_z_vector(struct RE_plugin *plugin, vec3 out);
 
 int RE_motion_get_state(struct motion *motion);
 bool RE_motion_set_state(struct motion *motion, int state);
