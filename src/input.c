@@ -232,13 +232,20 @@ bool mouse_show_cursor(bool show)
 	return SDL_ShowCursor(show ? SDL_ENABLE : SDL_DISABLE) >= 0;
 }
 
+static void(*input_handler)(const char*);
+static void(*editing_handler)(const char*, int, int);
+static void(*key_handler)(int);
+
 static void key_event(SDL_KeyboardEvent *e, bool pressed)
 {
 	if (e->keysym.scancode >= (sizeof(sdl_keytable)/sizeof(*sdl_keytable)))
 		return;
 	enum sact_keycode code = sdl_keytable[e->keysym.scancode];
-	if (code)
+	if (code) {
 		key_state[code] = pressed;
+		if (pressed && key_handler)
+			key_handler(code);
+	}
 }
 
 static void mouse_event(SDL_MouseButtonEvent *e)
@@ -496,9 +503,6 @@ static void controller_button_event(SDL_ControllerButtonEvent *e)
 	joybutton_state[e->button] = e->state == SDL_PRESSED;
 }
 
-static void(*input_handler)(const char*);
-static void(*editing_handler)(const char*, int, int);
-
 void register_input_handler(void(*handler)(const char*))
 {
 	input_handler = handler;
@@ -517,6 +521,16 @@ void register_editing_handler(void(*handler)(const char*, int, int))
 void clear_editing_handler(void)
 {
 	editing_handler = NULL;
+}
+
+void register_key_handler(void(*handler)(int))
+{
+	key_handler = handler;
+}
+
+void clear_key_handler(void)
+{
+	key_handler = NULL;
 }
 
 static void fire_deferred_events(void)

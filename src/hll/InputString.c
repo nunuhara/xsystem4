@@ -95,10 +95,17 @@ static void handle_editing(const char *text, int start, int length)
 	has_editing_text = *text != '\0';
 }
 
+static void handle_key(int code)
+{
+	if (code == VK_BACK && !has_editing_text && result && result->size > 0)
+		string_pop_back(&result);
+}
+
 static void InputString_OpenIME(void)
 {
 	register_input_handler(handle_input);
 	register_editing_handler(handle_editing);
+	register_key_handler(handle_key);
 	has_editing_text = false;
 	SDL_StartTextInput();
 }
@@ -109,6 +116,7 @@ static void InputString_CloseIME(void)
 	has_editing_text = false;
 	clear_input_handler();
 	clear_editing_handler();
+	clear_key_handler();
 }
 
 static bool InputString_Inputs(void)
