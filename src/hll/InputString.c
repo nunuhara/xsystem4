@@ -39,11 +39,18 @@ static void InputString_ClearResultString(void)
 	result = string_ref(&EMPTY_STRING);
 }
 
-struct string *InputString_GetResultString(void)
+static struct string *InputString_GetResultString(void)
 {
 	struct string *s = string_ref(result);
 	InputString_ClearResultString();
 	return s;
+}
+
+static void InputString_SetResultString(struct string *s)
+{
+	if (result)
+		free_string(result);
+	result = string_ref(s);
 }
 
 static void InputString_SetFont(int nSize, possibly_unused struct string *pIName, int nWeight)
@@ -119,5 +126,6 @@ HLL_LIBRARY(InputString,
 	    HLL_EXPORT(CloseIME, InputString_CloseIME),
 	    HLL_EXPORT(GetResultString, InputString_GetResultString),
 	    HLL_EXPORT(ClearResultString, InputString_ClearResultString),
+	    HLL_EXPORT(SetResultString, InputString_SetResultString),
 	    HLL_EXPORT(Inputs, InputString_Inputs),
 	    HLL_EXPORT(Converts, InputString_Converts));
