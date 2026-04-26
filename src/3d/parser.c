@@ -70,15 +70,14 @@ static uint32_t parse_material_attributes(const char *name)
 	return flags;
 }
 
-static void parse_material(struct buffer *r, struct pol_material *m)
+static void parse_textures(struct buffer *r, int pol_version, struct pol_material *m)
 {
-	m->name = read_cstring(r);
-	m->flags = parse_material_attributes(m->name);
-
 	int nr_textures = buffer_read_int32(r);
 	for (int i = 0; i < nr_textures; i++) {
 		char *filename = read_cstring(r);
 		int type = buffer_read_int32(r);
+		if (pol_version >= 3)
+			buffer_skip(r, 8);  // 2 unknown float params
 		if ((unsigned)type < MAX_TEXTURE_TYPE) {
 			m->textures[type] = filename;
 		} else {
@@ -95,26 +94,57 @@ static void destroy_material(struct pol_material *m)
 		free(m->textures[i]);
 }
 
-static void parse_material_group(struct buffer *r, struct pol_material_group *mg)
-{
-	parse_material(r, &mg->m);
-
-	mg->nr_children = buffer_read_int32(r);
-	if (mg->nr_children > 0) {
-		mg->children = xcalloc(mg->nr_children, sizeof(struct pol_material));
-		for (uint32_t i = 0; i < mg->nr_children; i++) {
-			parse_material(r, &mg->children[i]);
-		}
-	}
-}
-
 static void destroy_material_group(struct pol_material_group *mg)
 {
 	destroy_material(&mg->m);
 	if (mg->children) {
 		for (uint32_t i = 0; i < mg->nr_children; i++)
-			destroy_material(&mg->children[i]);
+			destroy_material_group(&mg->children[i]);
 		free(mg->children);
+	}
+}
+
+// Material tree layout:
+//   level 0: top-level material per pol->materials[]. Either a textured leaf
+//            or a group containing sub-materials, never both.
+//   level 1: sub-material. Either a textured leaf or, in v4 only, a "blend
+//            group" (is_group=1) with exactly 2 leaf children.
+//   level 2: leaf children of a v4 blend group; cannot themselves be a group.
+static void parse_material_group(struct buffer *r, int pol_version,
+		struct pol_material_group *mg, int level)
+{
+	mg->m.name = read_cstring(r);
+	mg->m.flags = parse_material_attributes(mg->m.name);
+
+	bool is_group = false;
+	if (pol_version >= 4)
+		is_group = buffer_read_int32(r);
+
+	if (is_group) {
+		if (level >= 2)
+			ERROR("material group nesting too deep");
+		uint32_t uk = buffer_read_int32(r);
+		if (uk != 0)
+			ERROR("unexpected nonzero value in material group: %u", uk);
+
+		mg->nr_children = buffer_read_int32(r);
+		if (level == 1 && mg->nr_children != 2)
+			ERROR("blend group must have 2 children, got %u", mg->nr_children);
+	} else {
+		parse_textures(r, pol_version, &mg->m);
+
+		if (pol_version >= 4) {
+			uint32_t uk = buffer_read_int32(r);
+			if (uk != 0)
+				ERROR("unexpected nonzero value in material leaf: %u", uk);
+		} else if (level == 0) {
+			mg->nr_children = buffer_read_int32(r);
+		}
+	}
+	if (mg->nr_children > 0) {
+		mg->children = xcalloc(mg->nr_children, sizeof(struct pol_material_group));
+		for (uint32_t i = 0; i < mg->nr_children; i++)
+			parse_material_group(r, pol_version, &mg->children[i], level + 1);
 	}
 }
 
@@ -151,6 +181,11 @@ static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle
 		t->light_uv_index[1] = buffer_read_int32(r) - mesh->nr_uvs;
 		t->light_uv_index[2] = buffer_read_int32(r) - mesh->nr_uvs;
 	}
+	if (mesh->blend_uvs) {
+		t->blend_uv_index[0] = buffer_read_int32(r) - mesh->nr_uvs - mesh->nr_light_uvs;
+		t->blend_uv_index[1] = buffer_read_int32(r) - mesh->nr_uvs - mesh->nr_light_uvs;
+		t->blend_uv_index[2] = buffer_read_int32(r) - mesh->nr_uvs - mesh->nr_light_uvs;
+	}
 
 	t->color_index[0] = buffer_read_int32(r);
 	t->color_index[1] = buffer_read_int32(r);
@@ -159,6 +194,11 @@ static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle
 		t->alpha_index[0] = buffer_read_int32(r);
 		t->alpha_index[1] = buffer_read_int32(r);
 		t->alpha_index[2] = buffer_read_int32(r);
+	}
+	if (mesh->blend_weights) {
+		t->blend_weight_index[0] = buffer_read_int32(r);
+		t->blend_weight_index[1] = buffer_read_int32(r);
+		t->blend_weight_index[2] = buffer_read_int32(r);
 	}
 
 	read_direction(r, t->normals[0]);
@@ -227,6 +267,17 @@ static struct pol_mesh *parse_mesh(struct buffer *r, const struct pol *pol)
 		}
 	}
 
+	if (pol->version >= 4) {
+		mesh->nr_blend_uvs = buffer_read_int32(r);
+		if (mesh->nr_blend_uvs > 0) {
+			mesh->blend_uvs = xcalloc(mesh->nr_blend_uvs, sizeof(vec2));
+			for (uint32_t i = 0; i < mesh->nr_blend_uvs; i++) {
+				mesh->blend_uvs[i][0] = buffer_read_float(r);
+				mesh->blend_uvs[i][1] = buffer_read_float(r);
+			}
+		}
+	}
+
 	mesh->nr_colors = buffer_read_int32(r);
 	if (mesh->nr_colors > 0) {
 		mesh->colors = xcalloc(mesh->nr_colors, sizeof(vec3));
@@ -250,6 +301,16 @@ static struct pol_mesh *parse_mesh(struct buffer *r, const struct pol *pol)
 			mesh->alphas = xcalloc(mesh->nr_alphas, sizeof(float));
 			for (uint32_t i = 0; i < mesh->nr_alphas; i++) {
 				mesh->alphas[i] = buffer_read_u8(r) / 255.f;
+			}
+		}
+	}
+
+	if (pol->version >= 4) {
+		mesh->nr_blend_weights = buffer_read_int32(r);
+		if (mesh->nr_blend_weights > 0) {
+			mesh->blend_weights = xcalloc(mesh->nr_blend_weights, sizeof(float));
+			for (uint32_t i = 0; i < mesh->nr_blend_weights; i++) {
+				mesh->blend_weights[i] = buffer_read_u8(r) / 255.f;
 			}
 		}
 	}
@@ -280,8 +341,10 @@ static void free_mesh(struct pol_mesh *mesh)
 	free(mesh->vertices);
 	free(mesh->uvs);
 	free(mesh->light_uvs);
+	free(mesh->blend_uvs);
 	free(mesh->colors);
 	free(mesh->alphas);
+	free(mesh->blend_weights);
 	free(mesh->triangles);
 	free(mesh);
 }
@@ -310,7 +373,7 @@ struct pol *pol_parse(uint8_t *data, size_t size)
 
 	struct pol *pol = xcalloc(1, sizeof(struct pol));
 	pol->version = buffer_read_int32(&r);
-	if (pol->version != 1 && pol->version != 2) {
+	if (pol->version != 1 && pol->version != 2 && pol->version != 4) {
 		WARNING("unknown POL version: %d", pol->version);
 		free(pol);
 		return NULL;
@@ -318,7 +381,7 @@ struct pol *pol_parse(uint8_t *data, size_t size)
 	pol->nr_materials = buffer_read_int32(&r);
 	pol->materials = xcalloc(pol->nr_materials, sizeof(struct pol_material_group));
 	for (uint32_t i = 0; i < pol->nr_materials; i++) {
-		parse_material_group(&r, &pol->materials[i]);
+		parse_material_group(&r, pol->version, &pol->materials[i], 0);
 	}
 
 	pol->nr_meshes = buffer_read_int32(&r);

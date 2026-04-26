@@ -72,6 +72,8 @@ in vec4 vertex_color;
 in vec4 vertex_tangent;
 in ivec4 vertex_bone_index;
 in vec4 vertex_bone_weight;
+in float vertex_blend_weight;
+in vec2 vertex_blend_uv;
 
 out vec2 tex_coord;
 out vec2 light_tex_coord;
@@ -81,6 +83,8 @@ out vec4 shadow_frag_pos;
 out float dist;
 out vec3 eye;
 out vec3 normal;
+out float blend_weight;
+out vec2 blend_tex_coord;
 
 void main() {
 	mat4 local_bone_transform = local_transform;
@@ -117,6 +121,8 @@ void main() {
 	tex_coord = vertex_uv + uv_scroll;
 	light_tex_coord = vertex_light_uv + uv_scroll;
 	color_mod = vertex_color;
+	blend_weight = vertex_blend_weight;
+	blend_tex_coord = vertex_blend_uv + uv_scroll;
 	dist = -view_pos.z;
 	shadow_frag_pos = shadow_transform * world_pos;
 

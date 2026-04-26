@@ -54,6 +54,11 @@ struct vertex_bones {
 	GLfloat bone_weight[NR_WEIGHTS];
 };
 
+struct vertex_blend {
+	GLfloat blend_weight;
+	GLfloat blend_uv[2];
+};
+
 static bool is_transparent_mesh(const struct pol_mesh *mesh)
 {
 	if (re_plugin_version == RE_REIGN_PLUGIN)
@@ -202,6 +207,8 @@ static void destroy_material(struct material *material)
 		glDeleteTextures(1, &material->light_map);
 	if (material->normal_map)
 		glDeleteTextures(1, &material->normal_map);
+	if (material->blend_texture)
+		glDeleteTextures(1, &material->blend_texture);
 }
 
 static int cmp_by_bone_weight(const void *lhs, const void *rhs)
@@ -276,6 +283,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 	bool has_vertex_colors = m->nr_colors > 0 || m->nr_alphas > 0;
 	bool has_normal_map = model->materials[material].normal_map != 0;
 	bool has_bones = !!model->bone_map;
+	bool has_blend = m->blend_weights && model->materials[material].blend_texture;
 
 	GLsizei stride = sizeof(struct vertex_common);
 	if (has_light_map)
@@ -286,6 +294,8 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 		stride += sizeof(struct vertex_tangent);
 	if (has_bones)
 		stride += sizeof(struct vertex_bones);
+	if (has_blend)
+		stride += sizeof(struct vertex_blend);
 
 	void *buffer = xmalloc(m->nr_triangles * 3 * stride);
 	uint8_t *ptr = buffer;
@@ -335,6 +345,14 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 						v_bones->bone_weight[k] = 0.0;
 					}
 				}
+			}
+			if (has_blend) {
+				struct vertex_blend *v_blend = buf_alloc(&ptr, sizeof(struct vertex_blend));
+				v_blend->blend_weight = m->blend_weights[t->blend_weight_index[j]];
+				if (m->blend_uvs)
+					glm_vec2_copy(m->blend_uvs[t->blend_uv_index[j]], v_blend->blend_uv);
+				else
+					glm_vec2_copy(m->uvs[t->uv_index[j]], v_blend->blend_uv);
 			}
 			nr_vertices++;
 		}
@@ -411,6 +429,18 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 		glVertexAttribI4i(VATTR_BONE_INDEX, 0, 0, 0, 0);
 		glDisableVertexAttribArray(VATTR_BONE_WEIGHT);
 		glVertexAttrib4f(VATTR_BONE_WEIGHT, 0.0, 0.0, 0.0, 0.0);
+	}
+	if (has_blend) {
+		glEnableVertexAttribArray(VATTR_BLEND_WEIGHT);
+		glVertexAttribPointer(VATTR_BLEND_WEIGHT, 1, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_blend, blend_weight));
+		glEnableVertexAttribArray(VATTR_BLEND_UV);
+		glVertexAttribPointer(VATTR_BLEND_UV, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_blend, blend_uv));
+		base += sizeof(struct vertex_blend);
+	} else {
+		glDisableVertexAttribArray(VATTR_BLEND_WEIGHT);
+		glVertexAttrib1f(VATTR_BLEND_WEIGHT, 0.0);
+		glDisableVertexAttribArray(VATTR_BLEND_UV);
+		glVertexAttrib2f(VATTR_BLEND_UV, 0.0, 0.0);
 	}
 	assert((intptr_t)base == stride);
 
@@ -543,8 +573,19 @@ struct model *model_load(struct archive *aar, const char *path)
 			continue;
 		}
 		for (uint32_t j = 0; j < pol->materials[i].nr_children; j++) {
-			init_material(&model->materials[material_offsets[i] + j],
-				      &pol->materials[i].children[j], amt, aar, path);
+			struct pol_material_group *child = &pol->materials[i].children[j];
+			if (child->nr_children >= 2) {
+				// Group node: texture blending (base + blend)
+				init_material(&model->materials[material_offsets[i] + j],
+					      &child->children[0].m, amt, aar, path);
+				if (child->children[1].m.textures[COLOR_MAP]) {
+					model->materials[material_offsets[i] + j].blend_texture =
+						load_texture(aar, path, child->children[1].m.textures[COLOR_MAP], NULL);
+				}
+			} else {
+				init_material(&model->materials[material_offsets[i] + j],
+					      &child->m, amt, aar, path);
+			}
 		}
 	}
 
