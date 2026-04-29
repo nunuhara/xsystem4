@@ -125,7 +125,7 @@ static void parts_render_text(struct parts *parts, struct parts_text *t)
 			x += ch->advance;
 		}
 		x = parts->global.pos.x + t->common.origin_offset.x;
-		y += line->height;
+		y += line->height + t->line_space;
 	}
 }
 

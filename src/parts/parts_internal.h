@@ -129,7 +129,7 @@ struct parts_text {
 	struct parts_common common;
 	unsigned nr_lines;
 	struct parts_text_line *lines;
-	unsigned line_space;
+	int line_space;
 	struct { float x; int y; } cursor;
 	struct text_style ts;
 };
