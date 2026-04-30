@@ -62,9 +62,14 @@ void parts_flat_free(struct parts_flat *f)
 		free_string(f->name);
 	flat_layer_state_free(f->root_state);
 	if (f->textures) {
-		for (size_t i = 0; i < f->nr_textures; i++)
+		for (size_t i = 0; i < f->nr_libraries; i++)
 			gfx_delete_texture(&f->textures[i]);
 		free(f->textures);
+	}
+	if (f->stop_motion_frames) {
+		for (size_t i = 0; i < f->nr_libraries; i++)
+			free(f->stop_motion_frames[i].lib_indices);
+		free(f->stop_motion_frames);
 	}
 }
 
@@ -192,6 +197,75 @@ static bool flat_advance_children(struct flat *fl,
 	return changed;
 }
 
+// Build the CG list for a STOP_MOTION library: frame 0 is the base
+// library named in `sm->library_name`; subsequent frames are numbered
+// variants `${stem}_NN.${ext}`, terminated by the first missing entry.
+static void build_stop_motion_frames(struct parts_flat *f, int sm_lib_idx)
+{
+	struct flat_stop_motion *sm = &f->flat->libraries[sm_lib_idx].stop_motion;
+	const char *base = sm->library_name->text;
+
+	int base_idx = parts_flat_find_library(f->flat, base);
+	if (base_idx < 0)
+		return;
+
+	const char *dot = strrchr(base, '.');
+	if (!dot) {
+		WARNING("flat: invalid STOP_MOTION library name '%s'", base);
+		return;
+	}
+
+	int *indices = xmalloc(sizeof(int));
+	indices[0] = base_idx;
+	int count = 1;
+
+	char name_buf[512];
+	for (int i = 1; ; i++) {
+		snprintf(name_buf, sizeof(name_buf), "%.*s_%02d.%s",
+				(int)(dot - base), base, i, dot + 1);
+		int idx = parts_flat_find_library(f->flat, name_buf);
+		if (idx < 0)
+			break;
+		indices = xrealloc(indices, (count + 1) * sizeof(int));
+		indices[count++] = idx;
+	}
+
+	f->stop_motion_frames[sm_lib_idx].lib_indices = indices;
+	f->stop_motion_frames[sm_lib_idx].count = count;
+}
+
+static int stop_motion_frame_index(int loop_type, int span, int local, int total)
+{
+	if (total <= 1)
+		return 0;
+	int idx = (span > 0) ? local / span : 0;
+	switch (loop_type) {
+	case 0:  // stop at last frame
+		return min(idx, total - 1);
+	case 1:  // loop
+		return idx % total;
+	case 2: {  // ping-pong
+		int period = total * 2 - 2;
+		idx = idx % period;
+		return idx < total ? idx : period - idx;
+	}
+	default:
+		return 0;
+	}
+}
+
+int parts_flat_stop_motion_get_cg_lib(struct parts_flat *f, int sm_lib_idx, int local)
+{
+	if (sm_lib_idx < 0 || (size_t)sm_lib_idx >= f->nr_libraries)
+		return -1;
+	struct flat_stop_motion_frames *frames = &f->stop_motion_frames[sm_lib_idx];
+	if (frames->count <= 0)
+		return -1;
+	struct flat_stop_motion *sm = &f->flat->libraries[sm_lib_idx].stop_motion;
+	int frame = stop_motion_frame_index(sm->loop_type, sm->span, local, frames->count);
+	return frames->lib_indices[frame];
+}
+
 bool parts_flat_load(struct parts *parts, struct parts_flat *f, struct string *filename)
 {
 	if (f->flat) {
@@ -221,8 +295,10 @@ bool parts_flat_load(struct parts *parts, struct parts_flat *f, struct string *f
 	f->root_state = flat_layer_state_new(f->flat->nr_timelines);
 
 	// Load textures for CG libraries.
-	f->nr_textures = f->flat->nr_libraries;
-	f->textures = xcalloc(f->nr_textures, sizeof(Texture));
+	f->nr_libraries = f->flat->nr_libraries;
+	f->textures = xcalloc(f->nr_libraries, sizeof(Texture));
+	f->stop_motion_frames = xcalloc(f->nr_libraries,
+			sizeof(struct flat_stop_motion_frames));
 	for (size_t i = 0; i < f->flat->nr_libraries; i++) {
 		struct flat_library *lib = &f->flat->libraries[i];
 		if (lib->type != FLAT_LIB_CG)
@@ -235,6 +311,10 @@ bool parts_flat_load(struct parts *parts, struct parts_flat *f, struct string *f
 		gfx_init_texture_with_cg(&f->textures[i], cg);
 		cg_free(cg);
 	}
+	for (size_t i = 0; i < f->flat->nr_libraries; i++) {
+		if (f->flat->libraries[i].type == FLAT_LIB_STOP_MOTION)
+			build_stop_motion_frames(f, (int)i);
+	}
 
 	// TODO: The original engine performs per-frame hit testing against
 	// the flat's visible sprites (with full transform chain), rather than
@@ -244,7 +324,7 @@ bool parts_flat_load(struct parts *parts, struct parts_flat *f, struct string *f
 	if (w <= 0 || h <= 0) {
 		w = 0;
 		h = 0;
-		for (size_t i = 0; i < f->nr_textures; i++) {
+		for (size_t i = 0; i < f->nr_libraries; i++) {
 			if (f->textures[i].w > w)
 				w = f->textures[i].w;
 			if (f->textures[i].h > h)
