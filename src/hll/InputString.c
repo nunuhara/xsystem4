@@ -17,9 +17,11 @@
 #include <SDL.h>
 
 #include "system4.h"
+#include "system4/ain.h"
 #include "system4/utfsjis.h"
 #include "system4/string.h"
 
+#include "vm.h"
 #include "gfx/types.h"
 #include "gfx/gfx.h"
 #include "hll.h"
@@ -29,6 +31,7 @@ static int font_size;
 static int font_weight;
 static Point pos;
 static bool has_editing_text;
+static bool get_result_string_clears;
 
 static struct string *result;
 
@@ -39,11 +42,19 @@ static void InputString_ClearResultString(void)
 	result = string_ref(&EMPTY_STRING);
 }
 
-struct string *InputString_GetResultString(void)
+static struct string *InputString_GetResultString(void)
 {
 	struct string *s = string_ref(result);
-	InputString_ClearResultString();
+	if (get_result_string_clears)
+		InputString_ClearResultString();
 	return s;
+}
+
+static void InputString_SetResultString(struct string *s)
+{
+	if (result)
+		free_string(result);
+	result = string_ref(s);
 }
 
 static void InputString_SetFont(int nSize, possibly_unused struct string *pIName, int nWeight)
@@ -84,10 +95,17 @@ static void handle_editing(const char *text, int start, int length)
 	has_editing_text = *text != '\0';
 }
 
+static void handle_key(int code)
+{
+	if (code == VK_BACK && !has_editing_text && result && result->size > 0)
+		string_pop_back(&result);
+}
+
 static void InputString_OpenIME(void)
 {
 	register_input_handler(handle_input);
 	register_editing_handler(handle_editing);
+	register_key_handler(handle_key);
 	has_editing_text = false;
 	SDL_StartTextInput();
 }
@@ -98,6 +116,7 @@ static void InputString_CloseIME(void)
 	has_editing_text = false;
 	clear_input_handler();
 	clear_editing_handler();
+	clear_key_handler();
 }
 
 static bool InputString_Inputs(void)
@@ -110,7 +129,20 @@ static bool InputString_Converts(void)
 	return has_editing_text;
 }
 
+static void InputString_PreLink(void)
+{
+	get_result_string_clears = true;
+	int libno = ain_get_library(ain, "InputString");
+	if (libno < 0)
+		return;
+	if (ain_get_library_function(ain, libno, "SetResultString") >= 0 ||
+	    ain_get_library_function(ain, libno, "Inputs") >= 0) {
+		get_result_string_clears = false;
+	}
+}
+
 HLL_LIBRARY(InputString,
+	    HLL_EXPORT(_PreLink, InputString_PreLink),
 	    HLL_EXPORT(SetFont, InputString_SetFont),
 	    HLL_EXPORT(SetPos, InputString_SetPos),
 	    HLL_EXPORT(Begin, InputString_Begin),
@@ -119,5 +151,6 @@ HLL_LIBRARY(InputString,
 	    HLL_EXPORT(CloseIME, InputString_CloseIME),
 	    HLL_EXPORT(GetResultString, InputString_GetResultString),
 	    HLL_EXPORT(ClearResultString, InputString_ClearResultString),
+	    HLL_EXPORT(SetResultString, InputString_SetResultString),
 	    HLL_EXPORT(Inputs, InputString_Inputs),
 	    HLL_EXPORT(Converts, InputString_Converts));

@@ -153,5 +153,7 @@ void register_input_handler(void(*handler)(const char*));
 void clear_input_handler(void);
 void register_editing_handler(void(*handler)(const char*, int, int));
 void clear_editing_handler(void);
+void register_key_handler(void(*handler)(int));
+void clear_key_handler(void);
 
 #endif /* SYSTEM4_INPUT_H */
