@@ -20,6 +20,7 @@ uniform vec2 bot_left;
 uniform vec2 top_right;
 uniform vec3 add_color;
 uniform vec3 multiply_color;
+uniform int draw_filter;
 
 uniform int use_clipper;
 uniform sampler2D clipper_tex;
@@ -28,23 +29,37 @@ in vec2 tex_coord;
 in vec2 clip_coord;
 out vec4 frag_color;
 
-float point_in_rect(vec2 p, vec2 bot_left, vec2 top_right) {
-        vec2 s = step(bot_left, p) - step(top_right, p);
-        return s.x * s.y;
+const int DRAW_FILTER_MULTIPLY = 2;
+const int DRAW_FILTER_SCREEN = 3;
+
+bool inside_rect(vec2 p, vec2 bl, vec2 tr) {
+	return all(greaterThanEqual(p, bl)) && all(lessThan(p, tr));
 }
 
 void main() {
-        vec2 size = vec2(textureSize(tex, 0));
-	vec2 bl = bot_left / size;
-	vec2 tr = top_right / size;
+	vec2 size = vec2(textureSize(tex, 0));
+	if (!inside_rect(tex_coord, bot_left / size, top_right / size))
+		discard;
 
 	vec4 tex_color = texture(tex, tex_coord);
 	vec3 mod_color = (tex_color.rgb + add_color) * multiply_color;
-
 	float alpha = tex_color.a * blend_rate;
+
 	if (use_clipper != 0) {
-		alpha *= texture(clipper_tex, clip_coord).a * point_in_rect(clip_coord, vec2(0.0), vec2(1.0));
+		if (!inside_rect(clip_coord, vec2(0.0), vec2(1.0)))
+			discard;
+		alpha *= texture(clipper_tex, clip_coord).a;
 	}
 
-	frag_color = vec4(mod_color, alpha) * point_in_rect(tex_coord, bl, tr);
+	if (draw_filter == DRAW_FILTER_MULTIPLY) {
+		// result = mix(dst, mod_color*dst, alpha), used with (GL_DST_COLOR, GL_ZERO)
+		frag_color = vec4(mix(vec3(1.0), mod_color, alpha), 1.0);
+	} else if (draw_filter == DRAW_FILTER_SCREEN) {
+		// result = mod_color*alpha + (1 - mod_color*alpha)*dst,
+		// used with (GL_ONE, GL_ONE_MINUS_SRC_COLOR)
+		frag_color = vec4(mod_color * alpha, 1.0);
+	} else {
+		// normal or additive — blend func handles alpha
+		frag_color = vec4(mod_color, alpha);
+	}
 }
