@@ -1728,7 +1728,7 @@ void PE_SetAlpha(int parts_no, int alpha)
 
 void PE_SetPartsDrawFilter(int parts_no, int draw_filter)
 {
-	if (draw_filter && draw_filter != 1)
+	if (draw_filter != PARTS_DRAW_FILTER_NORMAL && draw_filter != PARTS_DRAW_FILTER_ADDITIVE)
 		UNIMPLEMENTED("(%d, %d)", parts_no, draw_filter);
 	parts_get(parts_no)->draw_filter = draw_filter;
 }

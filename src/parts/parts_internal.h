@@ -265,6 +265,13 @@ enum parts_flash_blend_mode {
 	PARTS_FLASH_BLEND_HARDLIGHT  = 14,
 };
 
+enum parts_draw_filter {
+	PARTS_DRAW_FILTER_NORMAL   = 0,
+	PARTS_DRAW_FILTER_ADDITIVE = 1,
+	PARTS_DRAW_FILTER_MULTIPLY = 2,
+	PARTS_DRAW_FILTER_SCREEN   = 3,
+};
+
 struct parts_flash_object {
 	TAILQ_ENTRY(parts_flash_object) entry;
 	uint16_t depth;
