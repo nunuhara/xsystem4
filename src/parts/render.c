@@ -52,6 +52,23 @@ static struct {
 	GLint inv_clipper_transform;
 } parts_shader;
 
+static void set_draw_filter_blend_func(int draw_filter)
+{
+	switch (draw_filter) {
+	case PARTS_DRAW_FILTER_ADDITIVE:
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+		break;
+	case PARTS_DRAW_FILTER_MULTIPLY:
+		glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
+		break;
+	case PARTS_DRAW_FILTER_SCREEN:
+		glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
+		break;
+	default:
+		break;
+	}
+}
+
 static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rectangle *rect, float blend_rate, vec3 add_color, vec3 multiply_color, int draw_filter, int alpha_clipper)
 {
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
@@ -133,13 +150,7 @@ static void parts_render_text(struct parts *parts, struct parts_text *t)
 
 static void parts_render_cg(struct parts *parts, struct parts_common *common)
 {
-	switch (parts->draw_filter) {
-	case PARTS_DRAW_FILTER_ADDITIVE:
-		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
-		break;
-	default:
-		break;
-	}
+	set_draw_filter_blend_func(parts->draw_filter);
 
 	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
 	glm_translate(mw_transform, (vec3) { parts->global.pos.x, parts->global.pos.y, 0 });
@@ -166,7 +177,7 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 		parts->global.multiply_color.g / 255.0f,
 		parts->global.multiply_color.b / 255.0f,
 	};
-	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
+	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color, parts->draw_filter, parts->alpha_clipper_parts_no);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
@@ -208,19 +219,7 @@ static void render_flat_item(struct parts *parts, struct parts_flat *f,
 			return;
 		Texture *tex = &f->textures[lib_idx];
 
-		switch (key->draw_filter) {
-		case PARTS_DRAW_FILTER_ADDITIVE:
-			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
-			break;
-		case PARTS_DRAW_FILTER_MULTIPLY:
-			glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
-			break;
-		case PARTS_DRAW_FILTER_SCREEN:
-			glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
-			break;
-		default:
-			break;
-		}
+		set_draw_filter_blend_func(key->draw_filter);
 
 		mat4 render_m;
 		glm_mat4_copy(combined, render_m);
