@@ -185,15 +185,15 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 static void render_flat_layer(struct parts *parts, struct parts_flat *f,
 		struct flat_layer_state *state,
 		struct flat_timeline *timelines, size_t nr_timelines,
-		mat4 parent, float parent_alpha);
+		mat4 parent, float parent_alpha, int parent_draw_filter);
 
 static void render_flat_cg(struct parts *parts, Texture *tex,
-		struct flat_key_data_graphic *key, mat4 combined, float alpha)
+		struct flat_key_data_graphic *key, mat4 combined, float alpha, int draw_filter)
 {
 	if (!tex->handle)
 		return;
 
-	set_draw_filter_blend_func(key->draw_filter);
+	set_draw_filter_blend_func(draw_filter);
 
 	mat4 render_m;
 	glm_mat4_copy(combined, render_m);
@@ -209,16 +209,16 @@ static void render_flat_cg(struct parts *parts, Texture *tex,
 	vec3 add_color = { key->add_r / 255.0f, key->add_g / 255.0f, key->add_b / 255.0f };
 	vec3 mul_color = { key->mul_r / 255.0f, key->mul_g / 255.0f, key->mul_b / 255.0f };
 	parts_render_texture(tex, render_m, &rect, alpha, add_color, mul_color,
-			key->draw_filter, parts->alpha_clipper_parts_no);
+			draw_filter, parts->alpha_clipper_parts_no);
 
-	if (key->draw_filter != PARTS_DRAW_FILTER_NORMAL)
+	if (draw_filter != PARTS_DRAW_FILTER_NORMAL)
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
 static void render_flat_item(struct parts *parts, struct parts_flat *f,
 		struct flat_layer_state *state, size_t tl_idx,
 		struct flat_timeline *tl, int local,
-		mat4 parent, float parent_alpha)
+		mat4 parent, float parent_alpha, int parent_draw_filter)
 {
 	struct flat_key_data_graphic *key = &tl->graphic.keys[local];
 	int lib_idx = parts_flat_find_library(f->flat, tl->library_name->text);
@@ -241,9 +241,14 @@ static void render_flat_item(struct parts *parts, struct parts_flat *f,
 
 	float alpha = parent_alpha * key->alpha / 255.0f;
 
+	// Effective draw filter: this key's own filter overrides for its subtree;
+	// otherwise the cascading parent filter persists.
+	int draw_filter = key->draw_filter != PARTS_DRAW_FILTER_NORMAL
+			? key->draw_filter : parent_draw_filter;
+
 	switch (lib->type) {
 	case FLAT_LIB_CG:
-		render_flat_cg(parts, &f->textures[lib_idx], key, combined, alpha);
+		render_flat_cg(parts, &f->textures[lib_idx], key, combined, alpha, draw_filter);
 		break;
 	case FLAT_LIB_TIMELINE: {
 		struct flat_layer_state *child = state->children[tl_idx];
@@ -251,14 +256,14 @@ static void render_flat_item(struct parts *parts, struct parts_flat *f,
 			render_flat_layer(parts, f, child,
 					lib->timeline.timelines,
 					lib->timeline.nr_timelines,
-					combined, alpha);
+					combined, alpha, draw_filter);
 		}
 		break;
 	}
 	case FLAT_LIB_STOP_MOTION: {
 		int cg_idx = parts_flat_stop_motion_get_cg_lib(f, lib_idx, local);
 		if (cg_idx >= 0 && (size_t)cg_idx < f->nr_libraries)
-			render_flat_cg(parts, &f->textures[cg_idx], key, combined, alpha);
+			render_flat_cg(parts, &f->textures[cg_idx], key, combined, alpha, draw_filter);
 		break;
 	}
 	// TODO: support FLAT_LIB_EMITTER
@@ -270,7 +275,7 @@ static void render_flat_item(struct parts *parts, struct parts_flat *f,
 static void render_flat_layer(struct parts *parts, struct parts_flat *f,
 		struct flat_layer_state *state,
 		struct flat_timeline *timelines, size_t nr_timelines,
-		mat4 parent, float parent_alpha)
+		mat4 parent, float parent_alpha, int parent_draw_filter)
 {
 	// reverse order for correct z-ordering
 	for (size_t i = nr_timelines; i-- > 0;) {
@@ -284,7 +289,7 @@ static void render_flat_layer(struct parts *parts, struct parts_flat *f,
 		if (local >= (int)tl->graphic.count)
 			continue;
 
-		render_flat_item(parts, f, state, i, tl, local, parent, parent_alpha);
+		render_flat_item(parts, f, state, i, tl, local, parent, parent_alpha, parent_draw_filter);
 	}
 }
 
@@ -300,7 +305,7 @@ static void parts_render_flat(struct parts *parts, struct parts_flat *f)
 
 	render_flat_layer(parts, f, f->root_state,
 			f->flat->timelines, f->flat->nr_timelines,
-			base, parts->global.alpha / 255.0f);
+			base, parts->global.alpha / 255.0f, PARTS_DRAW_FILTER_NORMAL);
 }
 
 static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_shape *tag)
