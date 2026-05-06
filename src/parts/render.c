@@ -197,6 +197,10 @@ static void render_flat_cg(struct parts *parts, Texture *tex,
 
 	mat4 render_m;
 	glm_mat4_copy(combined, render_m);
+	// area_x/area_y select a sub-rectangle of the texture atlas, but
+	// should not shift the on-screen position. This translation cancels
+	// the offset that the sub-rect's top-left would otherwise introduce.
+	glm_translate(render_m, (vec3){ -(float)key->area_x, -(float)key->area_y, 0.0f });
 	glm_scale(render_m, (vec3){ tex->w, tex->h, 1.0f });
 
 	Rectangle rect;
