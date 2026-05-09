@@ -15,8 +15,12 @@
  */
 
 #include <limits.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cglm/cglm.h>
+
+#include "system4/mt19937int.h"
 
 #include "system4.h"
 #include "system4/archive.h"
@@ -29,6 +33,46 @@
 #include "parts.h"
 #include "parts_internal.h"
 #include "xsystem4.h"
+
+enum emitter_direction_type {
+	EMITTER_DIRECTION_RANDOM         = 0,
+	EMITTER_DIRECTION_FIXED          = 1,
+	EMITTER_DIRECTION_PARENT         = 2,
+	EMITTER_DIRECTION_PARENT_REVERSE = 3,
+	EMITTER_DIRECTION_DISK           = 4,
+};
+
+enum emitter_create_pos_type {
+	EMITTER_CREATE_POS_NONE   = 0,
+	EMITTER_CREATE_POS_SPHERE = 1,
+	EMITTER_CREATE_POS_CIRCLE = 2,
+	EMITTER_CREATE_POS_RECT   = 3,
+};
+
+enum emitter_parent_key_mode {
+	EMITTER_PARENT_KEY_SELECTIVE         = 0,
+	EMITTER_PARENT_KEY_ANCESTOR_CURRENT  = 1,
+	EMITTER_PARENT_KEY_ANCESTOR_AT_BIRTH = 2,
+};
+
+static inline float mt_next(struct mt19937 *mt)
+{
+	return mt19937_genrand(mt) / 4294967296.0f;
+}
+
+static inline float mt_next_signed(struct mt19937 *mt)
+{
+	return mt_next(mt) - 0.5f;
+}
+
+// Approximately uniform random unit 3D vector.
+static void random_unit_vec3(struct mt19937 *mt, vec3 v)
+{
+	v[0] = mt_next_signed(mt);
+	v[1] = mt_next_signed(mt);
+	v[2] = mt_next_signed(mt);
+	glm_vec3_normalize(v);
+}
 
 static struct flat_layer_state *flat_layer_state_new(size_t nr_timelines)
 {
@@ -315,6 +359,17 @@ bool parts_flat_load(struct parts *parts, struct parts_flat *f, struct string *f
 		if (f->flat->libraries[i].type == FLAT_LIB_STOP_MOTION)
 			build_stop_motion_frames(f, (int)i);
 	}
+	for (size_t i = 0; i < f->flat->nr_libraries; i++) {
+		if (f->flat->libraries[i].type != FLAT_LIB_EMITTER)
+			continue;
+		struct flat_emitter *em = &f->flat->libraries[i].emitter;
+		if (em->end_pos_type != 0)
+			WARNING("flat: emitter '%s': unsupported end_pos_type %d",
+					display_sjis0(em->library_name->text), em->end_pos_type);
+		if (em->pos_track_mode == 0)
+			WARNING("flat: emitter '%s': unsupported pos_track_mode %d",
+					display_sjis0(em->library_name->text), em->pos_track_mode);
+	}
 
 	// TODO: The original engine performs per-frame hit testing against
 	// the flat's visible sprites (with full transform chain), rather than
@@ -381,6 +436,430 @@ bool parts_flat_update(struct parts_flat *f, int passed_time)
 			any_changed = true;
 	}
 	return any_changed;
+}
+
+// Build a layer matrix from a single key's properties.
+// The sequence is: T(pos) * Rz * Rx * Ry * S(scale) * T(-origin) * Reverse.
+// Components can be selectively enabled; pos is resolved by the caller.
+void parts_flat_build_layer_matrix(const struct flat_key_data_graphic *key,
+		vec2 pos,
+		bool use_rotation, bool use_scale, bool use_origin,
+		bool reverse_lr, bool reverse_tb,
+		mat4 out)
+{
+	glm_mat4_identity(out);
+	glm_translate(out, (vec3){ pos[0], pos[1], 0 });
+	// The original engine projects 3D-rotated sprites through a proper
+	// perspective, but we use an orthographic approximation for simplicity.
+	if (use_rotation) {
+		if (key->angle_z != 0) glm_rotate_z(out, glm_rad(key->angle_z), out);
+		if (key->angle_x != 0) glm_rotate_x(out, glm_rad(-key->angle_x), out);
+		if (key->angle_y != 0) glm_rotate_y(out, glm_rad(key->angle_y), out);
+	}
+	if (use_scale)
+		glm_scale(out, (vec3){ key->scale_x, key->scale_y, 1.0f });
+	if (use_origin)
+		glm_translate(out, (vec3){ -(float)key->origin_x, -(float)key->origin_y, 0 });
+	if (reverse_lr || reverse_tb) {
+		glm_scale(out, (vec3){
+				reverse_lr ? -1.0f : 1.0f,
+				reverse_tb ? -1.0f : 1.0f,
+				1.0f });
+	}
+}
+
+// Build the emitter's particle base matrix from the recorded ancestor key
+// chain.
+//
+// SELECTIVE mode: each ancestor contributes a fresh key with defaults
+// (scale=1, rotation=0, origin=0, reverse=false), overriding only the
+// properties listed in the emitter's inherit_* flags.
+//
+// ANCESTOR_CURRENT / ANCESTOR_AT_BIRTH modes: the keys from the entire
+// parent view chain are used as-is. inherit_* flags are ignored; all
+// ancestor properties affect the particle base matrix.
+void parts_flat_build_emitter_base_matrix(const struct flat_emitter *em,
+		const struct flat_key_stack *stack, mat4 out)
+{
+	bool connected = em->parent_key_mode != EMITTER_PARENT_KEY_SELECTIVE;
+	glm_mat4_identity(out);
+	for (int i = 0; i < stack->count; i++) {
+		const struct flat_key_data_graphic *key = stack->keys[i];
+		vec2 pos = { key->pos_x, key->pos_y };
+
+		mat4 layer_m;
+		parts_flat_build_layer_matrix(key, pos,
+				connected || em->inherit_rotation,
+				connected || em->inherit_scale,
+				connected,
+				(connected || em->inherit_reverse_lr) && key->reverse_lr,
+				(connected || em->inherit_reverse_tb) && key->reverse_tb,
+				layer_m);
+
+		glm_mat4_mul(out, layer_m, out);
+	}
+}
+
+// Returns how many particles should be born on birth_frame, distributing
+// create_count particles evenly across active_frames.
+static int emitter_get_birth_count(int birth_frame, int create_count,
+		int frame_count, int particle_lifetime)
+{
+	int active_frames = frame_count - particle_lifetime + 1;
+	if (active_frames <= 1)
+		return create_count;
+	if (create_count == 1)
+		return birth_frame == 0 ? 1 : 0;
+
+	if (create_count >= active_frames) {
+		// Dense case: distribute uniformly so each frame gets floor or ceil of
+		// the average rate.
+		float rate = (float)create_count / active_frames;
+		return (int)((birth_frame + 1) * rate) - (int)(birth_frame * rate);
+	}
+
+	// Sparse case: pin one particle to frame 0, then space the remaining
+	// create_count-1 particles evenly from frame 1 to active_frames-1 (so
+	// frame active_frames-1 also always gets one particle).
+	if (birth_frame == 0)
+		return 1;
+	float rate = (float)(create_count - 1) / (active_frames - 1);
+	return (int)(birth_frame * rate) - (int)((birth_frame - 1) * rate);
+}
+
+static float emitter_fade_alpha(int age, struct flat_emitter *em)
+{
+	if (em->fade_in_frame > 0 && age < em->fade_in_frame)
+		return (float)age / em->fade_in_frame;
+	if (em->fade_out_frame > 0 && age > em->particle_lifetime - em->fade_out_frame)
+		return (float)(em->particle_lifetime - age) / em->fade_out_frame;
+	return 1.0f;
+}
+
+static float emitter_gravity_displacement(int age, struct flat_emitter *em, int fps)
+{
+	if (!em->is_fall)
+		return 0;
+	const float G = 9.8f;
+	float t = (float)age / fps;
+	if (em->width != 0 && em->air_resistance != 0) {
+		float k = em->air_resistance / em->width;
+		float exp_term = 1 - expf(-k * t);
+		return (t - exp_term / k) * em->width * G / em->air_resistance;
+	}
+	return 0.5f * G * t * t;
+}
+
+// Lerp from `begin` to `end` at `t`, with per-endpoint random jitter scaled
+// by begin_rand / end_rand. When `sync` is true, both endpoints share the
+// same jitter draw (but the second draw is still consumed, to keep the RNG
+// sequence stable across the sync flag).
+static float lerp_with_jitter(struct mt19937 *mt,
+		float begin, float begin_rand, float end, float end_rand,
+		bool sync, float t)
+{
+	float r1 = mt_next_signed(mt) * begin_rand;
+	float r2 = mt_next_signed(mt) * end_rand;
+	float b = begin + r1;
+	float e = end + (sync ? r1 : r2);
+	return b + (e - b) * t;
+}
+
+static void emitter_interpolate_scale(float t, struct flat_emitter *em,
+		struct mt19937 *mt, vec2 out)
+{
+	float overall = lerp_with_jitter(mt, em->begin_scale, em->begin_scale_rand,
+			em->end_scale, em->end_scale_rand, em->sync_scale_rand, t);
+	float x = lerp_with_jitter(mt, em->begin_x_scale, em->begin_x_scale_rand,
+			em->end_x_scale, em->end_x_scale_rand, em->sync_scale_rand, t);
+	float y = lerp_with_jitter(mt, em->begin_y_scale, em->begin_y_scale_rand,
+			em->end_y_scale, em->end_y_scale_rand, em->sync_scale_rand, t);
+	out[0] = x * overall;
+	out[1] = y * overall;
+}
+
+static void emitter_interpolate_rotation(float t, struct flat_emitter *em,
+		struct mt19937 *mt, vec3 out)
+{
+	out[0] = lerp_with_jitter(mt, em->begin_x_angle, em->begin_x_angle_rand,
+			em->end_x_angle, em->end_x_angle_rand, em->sync_rotation_rand, t);
+	out[1] = lerp_with_jitter(mt, em->begin_y_angle, em->begin_y_angle_rand,
+			em->end_y_angle, em->end_y_angle_rand, em->sync_rotation_rand, t);
+	out[2] = lerp_with_jitter(mt, em->begin_z_angle, em->begin_z_angle_rand,
+			em->end_z_angle, em->end_z_angle_rand, em->sync_rotation_rand, t);
+}
+
+static void emitter_calc_create_position(struct flat_emitter *em,
+		struct mt19937 *mt, vec2 out)
+{
+	switch (em->create_pos_type) {
+	case EMITTER_CREATE_POS_RECT:
+		out[0] = mt_next_signed(mt) * em->create_pos_length;
+		out[1] = mt_next_signed(mt) * em->create_pos_length2;
+		return;
+	case EMITTER_CREATE_POS_SPHERE: {
+		vec3 v;
+		random_unit_vec3(mt, v);
+		out[0] = v[0];
+		out[1] = v[1];
+		break;
+	}
+	case EMITTER_CREATE_POS_CIRCLE:
+		out[0] = mt_next_signed(mt);
+		out[1] = mt_next_signed(mt);
+		glm_vec2_normalize(out);
+		break;
+	default:
+		glm_vec2_zero(out);
+		break;
+	}
+	float dist = mt_next(mt) * (em->create_pos_length - em->create_pos_length2)
+			+ em->create_pos_length2;
+	glm_vec2_scale(out, dist, out);
+}
+
+// 3D rejection sampling:
+// Picks a random unit vector c with dot(v, c) > cos(rand * angle/2), i.e.
+// constrained to within `rand * angle/2` of the input direction.
+static void randomize_direction_within_cone(vec3 v, float angle_deg, struct mt19937 *mt)
+{
+	glm_vec3_normalize(v);
+	float theta = mt_next(mt) * glm_rad(angle_deg) * 0.5f;
+	if (!(theta > 0))
+		return;
+	float cos_t = cosf(theta);
+	for (int i = 0; i < 1000; i++) {
+		vec3 c;
+		random_unit_vec3(mt, c);
+		if (glm_vec3_dot(v, c) > cos_t) {
+			glm_vec3_copy(c, v);
+			return;
+		}
+	}
+}
+
+static void emitter_calc_direction(struct flat_emitter *em,
+		struct mt19937 *mt, vec2 parent_vel, vec2 out)
+{
+	vec3 dir;
+	switch (em->direction_type) {
+	case EMITTER_DIRECTION_RANDOM:
+		random_unit_vec3(mt, dir);
+		break;
+	case EMITTER_DIRECTION_PARENT:
+		dir[0] = parent_vel[0];
+		dir[1] = parent_vel[1];
+		dir[2] = 0;
+		break;
+	case EMITTER_DIRECTION_PARENT_REVERSE:
+		dir[0] = -parent_vel[0];
+		dir[1] = -parent_vel[1];
+		dir[2] = 0;
+		break;
+	case EMITTER_DIRECTION_DISK: {
+		// direction_x/y/z is the normal of the emission disk. Pick a
+		// random unit vector on that disk; randomize_direction_within_cone
+		// below thickens it into a band of half-width direction_angle/2.
+		vec3 normal = { em->direction_x, em->direction_y, em->direction_z };
+		if (glm_vec3_norm2(normal) < 1e-12f)
+			glm_vec3_copy((vec3){ 0, 0, 1 }, normal);
+		glm_vec3_ortho(normal, dir);
+		float phi = mt_next(mt) * 2 * GLM_PIf;
+		glm_vec3_rotate(dir, phi, normal);
+		break;
+	}
+	case EMITTER_DIRECTION_FIXED:
+	default:
+		glm_vec3_copy((vec3){ em->direction_x, em->direction_y, em->direction_z }, dir);
+		break;
+	}
+	randomize_direction_within_cone(dir, em->direction_angle, mt);
+	// Project to 2D by dropping Z without renormalizing in 2D, so
+	// directions tilted out of the XY plane translate to slower
+	// on-screen motion.
+	glm_vec3_normalize(dir);
+	out[0] = dir[0];
+	out[1] = dir[1];
+}
+
+static void emitter_calc_trajectory(int age, struct flat_emitter *em,
+		vec2 dir, int fps, float move_rand_factor, vec2 out)
+{
+	float t = (float)age / fps;
+	float accel = em->acceleration * move_rand_factor;
+	float speed = em->speed * move_rand_factor;
+	float move_length = em->move_length * move_rand_factor;
+	float curve = em->move_curve * move_rand_factor;
+
+	if (accel < 0 && speed != 0) {
+		float t_max = fabsf(speed / accel);
+		if (t > t_max)
+			t = t_max;
+	}
+
+	float displacement = 0.5f * accel * t * t + speed * t;
+
+	if (move_length != 0) {
+		float norm_t = em->particle_lifetime > 0 ? (float)age / em->particle_lifetime : 0;
+		if (curve > 1.0f)
+			displacement += powf(norm_t, curve) * move_length;
+		else if (curve < -1.0f)
+			displacement += (1 - powf(1 - norm_t, -curve)) * move_length;
+		else
+			displacement += move_length * norm_t;
+	}
+	glm_vec2_scale(dir, displacement, out);
+}
+
+// Resolve the per-frame emitter layer properties (pos, alpha, colors, reverse
+// flags, draw_filter) into `out`, applying the emitter's inherit_* flags.
+void parts_flat_emitter_resolve_layer(
+		const struct flat_emitter *em,
+		const struct flat_key_data_graphic *key,
+		float parts_alpha, float layer_alpha,
+		struct flat_emitter_layer_effective *out)
+{
+	bool connected = em->parent_key_mode != EMITTER_PARENT_KEY_SELECTIVE;
+	out->use_origin = connected;
+	out->use_scale = connected || em->inherit_scale;
+	out->use_rotation = connected || em->inherit_rotation;
+	out->pos[0] = key->pos_x;
+	out->pos[1] = key->pos_y;
+	out->reverse_lr = (connected || em->inherit_reverse_lr) && key->reverse_lr;
+	out->reverse_tb = (connected || em->inherit_reverse_tb) && key->reverse_tb;
+	out->alpha = (connected || em->inherit_alpha) ? layer_alpha : parts_alpha;
+	if (connected || em->inherit_add_color) {
+		out->add_color[0] = key->add_r / 255.0f;
+		out->add_color[1] = key->add_g / 255.0f;
+		out->add_color[2] = key->add_b / 255.0f;
+	} else {
+		glm_vec3_zero(out->add_color);
+	}
+	if (connected || em->inherit_mul_color) {
+		out->mul_color[0] = key->mul_r / 255.0f;
+		out->mul_color[1] = key->mul_g / 255.0f;
+		out->mul_color[2] = key->mul_b / 255.0f;
+	} else {
+		glm_vec3_one(out->mul_color);
+	}
+	int draw_filter = (connected || em->inherit_draw_filter) ? key->draw_filter
+			: PARTS_DRAW_FILTER_NORMAL;
+	// Emitter's own draw_filter overrides the inherited one.
+	out->draw_filter = em->draw_filter != PARTS_DRAW_FILTER_NORMAL
+			? em->draw_filter : draw_filter;
+}
+
+// Compute the alignment origin offset for particle_align (1-9 numpad layout).
+bool parts_flat_emitter_get_align_offset(struct parts_flat *f, int emitter_lib_idx, vec2 out)
+{
+	struct flat_emitter *em = &f->flat->libraries[emitter_lib_idx].emitter;
+	if (em->particle_lifetime <= 0 || em->create_count <= 0)
+		return false;
+	if (f->flat->hdr.fps <= 0)
+		return false;
+
+	int cg_lib_idx = parts_flat_find_library(f->flat, em->library_name->text);
+	if (cg_lib_idx < 0 || (size_t)cg_lib_idx >= f->flat->nr_libraries)
+		return false;
+	if (f->flat->libraries[cg_lib_idx].type == FLAT_LIB_STOP_MOTION) {
+		cg_lib_idx = parts_flat_stop_motion_get_cg_lib(f, cg_lib_idx, 0);
+		if (cg_lib_idx < 0)
+			return false;
+	}
+
+	Texture *tex = &f->textures[cg_lib_idx];
+	if (!tex->handle)
+		return false;
+
+	int align = em->particle_align;
+	if (align < 1 || align > 9) align = 5;
+	int col = (align - 1) % 3;
+	int row = (align - 1) / 3;
+	out[0] = tex->w * col / 2.0f;
+	out[1] = tex->h * row / 2.0f;
+	return true;
+}
+
+// Enumerate the particles spawned on `birth_frame` for this emitter, computing
+// each particle's pose at the given `age` (in frames since its birth) and
+// invoking `fn` with the result. The RNG is seeded from the emitter's
+// rand_seed and birth_frame, so the same birth_frame always yields the same
+// particles regardless of `age`.
+void parts_flat_foreach_emitter_particle(struct parts_flat *f, int emitter_lib_idx,
+		const struct flat_key_data_graphic *keys,
+		int birth_frame, int age, int frame_count,
+		flat_emitter_particle_fn fn, void *ud)
+{
+	struct flat *fl = f->flat;
+	struct flat_emitter *em = &fl->libraries[emitter_lib_idx].emitter;
+
+	int count = emitter_get_birth_count(birth_frame, em->create_count,
+			frame_count, em->particle_lifetime);
+	if (count == 0)
+		return;
+
+	float fade_alpha = emitter_fade_alpha(age, em);
+	if (fade_alpha <= 0.f)
+		return;
+
+	// Resolve the particle CG.
+	int lib_idx = parts_flat_find_library(fl, em->library_name->text);
+	if (lib_idx < 0)
+		return;
+	if (fl->libraries[lib_idx].type == FLAT_LIB_STOP_MOTION) {
+		lib_idx = parts_flat_stop_motion_get_cg_lib(f, lib_idx, age);
+		if (lib_idx < 0)
+			return;
+	}
+
+	// Parent velocity at birth_frame (only consumed when direction_type
+	// is PARENT or PARENT_REVERSE). Backward difference at frame > 0,
+	// forward difference at frame 0, zero otherwise.
+	vec2 parent_vel = { 0, 0 };
+	if (em->direction_type == EMITTER_DIRECTION_PARENT
+			|| em->direction_type == EMITTER_DIRECTION_PARENT_REVERSE) {
+		const struct flat_key_data_graphic *cur = &keys[birth_frame];
+		if (birth_frame > 0) {
+			const struct flat_key_data_graphic *prev = &keys[birth_frame - 1];
+			parent_vel[0] = cur->pos_x - prev->pos_x;
+			parent_vel[1] = cur->pos_y - prev->pos_y;
+		} else if (birth_frame + 1 < frame_count) {
+			const struct flat_key_data_graphic *next = &keys[birth_frame + 1];
+			parent_vel[0] = next->pos_x - cur->pos_x;
+			parent_vel[1] = next->pos_y - cur->pos_y;
+		}
+	}
+
+	struct mt19937 mt;
+	mt19937_init(&mt, em->rand_seed * (birth_frame + 1));
+
+	int fps = fl->hdr.fps;
+	float pixels_per_meter = (float)fl->hdr.game_view_width / fl->hdr.meter;
+	float t = (float)age / em->particle_lifetime;
+	float gravity_y = emitter_gravity_displacement(age, em, fps);
+
+	for (int i = 0; i < count; i++) {
+		struct flat_emitter_particle p;
+		emitter_interpolate_scale(t, em, &mt, p.scale);
+		vec2 create_pos;
+		emitter_calc_create_position(em, &mt, create_pos);
+		emitter_interpolate_rotation(t, em, &mt, p.rot);
+		vec2 dir;
+		emitter_calc_direction(em, &mt, parent_vel, dir);
+		float move_rand_factor = 1.0f - (mt_next(&mt) - 0.5f) * em->move_rand * 0.01f;
+		vec2 traj;
+		emitter_calc_trajectory(age, em, dir, fps, move_rand_factor, traj);
+
+		if (em->align_to_direction && (dir[0] != 0 || dir[1] != 0))
+			p.rot[2] += glm_deg(atan2f(dir[1], dir[0])) + 90;
+
+		p.pos[0] = (create_pos[0] + traj[0]) * pixels_per_meter;
+		p.pos[1] = (create_pos[1] + traj[1] + gravity_y) * pixels_per_meter;
+		p.fade_alpha = fade_alpha;
+		p.cg_lib_idx = lib_idx;
+
+		fn(&p, ud);
+	}
 }
 
 bool PE_ExistsFlatFile(struct string *filename)
