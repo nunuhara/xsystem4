@@ -30,15 +30,6 @@
 
 #include "parts_internal.h"
 
-#ifndef M_PI
-#define M_PI (3.14159265358979323846)
-#endif
-
-static inline float deg2rad(float deg)
-{
-	return deg * (M_PI / 180.0);
-}
-
 static struct {
 	struct shader shader;
 	GLint blend_rate;
@@ -97,7 +88,7 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 		// Calculate the inverse of the clipper's world matrix.
 		mat4 clip_mw = GLM_MAT4_IDENTITY_INIT;
 		glm_translate(clip_mw, (vec3) { clipper->global.pos.x, clipper->global.pos.y, 0 });
-		glm_rotate_z(clip_mw, clipper->local.rotation.z * (M_PI/180.0), clip_mw);
+		glm_rotate_z(clip_mw, glm_rad(clipper->local.rotation.z), clip_mw);
 		glm_scale(clip_mw, (vec3){ clipper->global.scale.x, clipper->global.scale.y, 1.0 });
 		glm_translate(clip_mw, (vec3){ c_common->origin_offset.x, c_common->origin_offset.y, 0 });
 		glm_scale(clip_mw, (vec3){ c_common->w, c_common->h, 1.0 });
@@ -157,7 +148,7 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 	// FIXME: need perspective for 3D rotate
 	//glm_rotate_x(mw_transform, parts->rotation.x, mw_transform);
 	//glm_rotate_y(mw_transform, parts->rotation.y, mw_transform);
-	glm_rotate_z(mw_transform, parts->local.rotation.z * (M_PI/180.0), mw_transform);
+	glm_rotate_z(mw_transform, glm_rad(parts->local.rotation.z), mw_transform);
 	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
 	glm_translate(mw_transform, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
 	glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
@@ -197,6 +188,9 @@ static void render_flat_cg(struct parts *parts, Texture *tex,
 
 	mat4 render_m;
 	glm_mat4_copy(combined, render_m);
+	// Kill the Z-output row to pin clip_z at the near plane, avoiding
+	// near/far clipping of 3D-rotated sprites.
+	render_m[0][2] = render_m[1][2] = render_m[2][2] = render_m[3][2] = 0.0f;
 	// area_x/area_y select a sub-rectangle of the texture atlas, but
 	// should not shift the on-screen position. This translation cancels
 	// the offset that the sub-rect's top-left would otherwise introduce.
@@ -234,11 +228,26 @@ static void render_flat_item(struct parts *parts, struct parts_flat *f,
 	float pos_x = (f->flat->hdr.version > 4) ? key->pos_x.f : (float)key->pos_x.i;
 	float pos_y = (f->flat->hdr.version > 4) ? key->pos_y.f : (float)key->pos_y.i;
 
+	// Per-key local matrix:
+	//   M_layer = T(pos) * Rz * Rx * Ry * Scale * T(-origin) * ReverseScale
+	// The original engine projects 3D-rotated sprites through a proper
+	// perspective, but we use an orthographic approximation for simplicity.
 	mat4 layer_m = GLM_MAT4_IDENTITY_INIT;
 	glm_translate(layer_m, (vec3){ pos_x, pos_y, 0 });
-	glm_rotate_z(layer_m, deg2rad(key->angle_z), layer_m);
+	if (key->angle_z != 0)
+		glm_rotate_z(layer_m, glm_rad(key->angle_z), layer_m);
+	if (key->angle_x != 0)
+		glm_rotate_x(layer_m, glm_rad(-key->angle_x), layer_m);
+	if (key->angle_y != 0)
+		glm_rotate_y(layer_m, glm_rad(key->angle_y), layer_m);
 	glm_scale(layer_m, (vec3){ key->scale_x, key->scale_y, 1.0f });
 	glm_translate(layer_m, (vec3){ -(float)key->origin_x, -(float)key->origin_y, 0 });
+	if (key->reverse_lr || key->reverse_tb) {
+		glm_scale(layer_m, (vec3){
+				key->reverse_lr ? -1.0f : 1.0f,
+				key->reverse_tb ? -1.0f : 1.0f,
+				1.0f });
+	}
 
 	mat4 combined;
 	glm_mat4_mul(parent, layer_m, combined);
@@ -304,7 +313,7 @@ static void parts_render_flat(struct parts *parts, struct parts_flat *f)
 
 	mat4 base = GLM_MAT4_IDENTITY_INIT;
 	glm_translate(base, (vec3){ parts->global.pos.x, parts->global.pos.y, 0 });
-	glm_rotate_z(base, deg2rad(parts->local.rotation.z), base);
+	glm_rotate_z(base, glm_rad(parts->local.rotation.z), base);
 	glm_scale(base, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0f });
 
 	render_flat_layer(parts, f, f->root_state,
