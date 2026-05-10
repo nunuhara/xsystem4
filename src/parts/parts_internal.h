@@ -310,6 +310,13 @@ struct flat_layer_state {
 	size_t nr_timelines;
 };
 
+// Per-frame CG list for a STOP_MOTION library. lib_indices[k] is
+// the library index of the CG to display at frame k.
+struct flat_stop_motion_frames {
+	int *lib_indices;
+	int count;
+};
+
 struct parts_flat {
 	struct parts_common common;
 	struct string *name;
@@ -320,8 +327,10 @@ struct parts_flat {
 	int end_frame;
 	int pending_seek_delta;
 	struct flat_layer_state *root_state;
+	size_t nr_libraries;
 	Texture *textures;  // indexed by library index (only CG libs have valid textures)
-	size_t nr_textures;
+	// Indexed by library index. Only entries for STOP_MOTION libraries have lib_indices populated.
+	struct flat_stop_motion_frames *stop_motion_frames;
 };
 
 struct parts_movie {
@@ -559,6 +568,7 @@ void parts_flat_free(struct parts_flat *f);
 bool parts_flat_load(struct parts *parts, struct parts_flat *f, struct string *filename);
 bool parts_flat_update(struct parts_flat *f, int passed_time);
 int parts_flat_find_library(struct flat *fl, const char *name);
+int parts_flat_stop_motion_get_cg_lib(struct parts_flat *f, int sm_lib_idx, int local);
 
 // layoutbox.c
 void parts_do_layout(struct parts *parts);
