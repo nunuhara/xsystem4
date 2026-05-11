@@ -173,21 +173,29 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
+struct flat_draw_ctx {
+	mat4 matrix;
+	float alpha;
+	vec3 add_color;
+	vec3 mul_color;
+	int draw_filter;
+};
+
 static void render_flat_layer(struct parts *parts, struct parts_flat *f,
 		struct flat_layer_state *state,
 		struct flat_timeline *timelines, size_t nr_timelines,
-		mat4 parent, float parent_alpha, int parent_draw_filter);
+		struct flat_draw_ctx *ctx);
 
 static void render_flat_cg(struct parts *parts, Texture *tex,
-		struct flat_key_data_graphic *key, mat4 combined, float alpha, int draw_filter)
+		struct flat_key_data_graphic *key, struct flat_draw_ctx *ctx)
 {
 	if (!tex->handle)
 		return;
 
-	set_draw_filter_blend_func(draw_filter);
+	set_draw_filter_blend_func(ctx->draw_filter);
 
 	mat4 render_m;
-	glm_mat4_copy(combined, render_m);
+	glm_mat4_copy(ctx->matrix, render_m);
 	// Kill the Z-output row to pin clip_z at the near plane, avoiding
 	// near/far clipping of 3D-rotated sprites.
 	render_m[0][2] = render_m[1][2] = render_m[2][2] = render_m[3][2] = 0.0f;
@@ -204,19 +212,17 @@ static void render_flat_cg(struct parts *parts, Texture *tex,
 		rect = (Rectangle){ 0, 0, tex->w, tex->h };
 	}
 
-	vec3 add_color = { key->add_r / 255.0f, key->add_g / 255.0f, key->add_b / 255.0f };
-	vec3 mul_color = { key->mul_r / 255.0f, key->mul_g / 255.0f, key->mul_b / 255.0f };
-	parts_render_texture(tex, render_m, &rect, alpha, add_color, mul_color,
-			draw_filter, parts->alpha_clipper_parts_no);
+	parts_render_texture(tex, render_m, &rect, ctx->alpha, ctx->add_color, ctx->mul_color,
+			ctx->draw_filter, parts->alpha_clipper_parts_no);
 
-	if (draw_filter != PARTS_DRAW_FILTER_NORMAL)
+	if (ctx->draw_filter != PARTS_DRAW_FILTER_NORMAL)
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
 static void render_flat_item(struct parts *parts, struct parts_flat *f,
 		struct flat_layer_state *state, size_t tl_idx,
 		struct flat_timeline *tl, int local,
-		mat4 parent, float parent_alpha, int parent_draw_filter)
+		struct flat_draw_ctx *parent)
 {
 	struct flat_key_data_graphic *key = &tl->graphic.keys[local];
 	int lib_idx = parts_flat_find_library(f->flat, tl->library_name->text);
@@ -249,34 +255,33 @@ static void render_flat_item(struct parts *parts, struct parts_flat *f,
 				1.0f });
 	}
 
-	mat4 combined;
-	glm_mat4_mul(parent, layer_m, combined);
-
-	float alpha = parent_alpha * key->alpha / 255.0f;
-
-	// Effective draw filter: this key's own filter overrides for its subtree;
-	// otherwise the cascading parent filter persists.
-	int draw_filter = key->draw_filter != PARTS_DRAW_FILTER_NORMAL
-			? key->draw_filter : parent_draw_filter;
+	struct flat_draw_ctx ctx;
+	glm_mat4_mul(parent->matrix, layer_m, ctx.matrix);
+	ctx.alpha = parent->alpha * key->alpha / 255.0f;
+	vec3 key_add = { key->add_r / 255.0f, key->add_g / 255.0f, key->add_b / 255.0f };
+	vec3 key_mul = { key->mul_r / 255.0f, key->mul_g / 255.0f, key->mul_b / 255.0f };
+	glm_vec3_add(parent->add_color, key_add, ctx.add_color);
+	glm_vec3_mul(parent->mul_color, key_mul, ctx.mul_color);
+	ctx.draw_filter = key->draw_filter != PARTS_DRAW_FILTER_NORMAL
+			? key->draw_filter : parent->draw_filter;
 
 	switch (lib->type) {
 	case FLAT_LIB_CG:
-		render_flat_cg(parts, &f->textures[lib_idx], key, combined, alpha, draw_filter);
+		render_flat_cg(parts, &f->textures[lib_idx], key, &ctx);
 		break;
 	case FLAT_LIB_TIMELINE: {
 		struct flat_layer_state *child = state->children[tl_idx];
 		if (child) {
 			render_flat_layer(parts, f, child,
 					lib->timeline.timelines,
-					lib->timeline.nr_timelines,
-					combined, alpha, draw_filter);
+					lib->timeline.nr_timelines, &ctx);
 		}
 		break;
 	}
 	case FLAT_LIB_STOP_MOTION: {
 		int cg_idx = parts_flat_stop_motion_get_cg_lib(f, lib_idx, local);
 		if (cg_idx >= 0 && (size_t)cg_idx < f->nr_libraries)
-			render_flat_cg(parts, &f->textures[cg_idx], key, combined, alpha, draw_filter);
+			render_flat_cg(parts, &f->textures[cg_idx], key, &ctx);
 		break;
 	}
 	// TODO: support FLAT_LIB_EMITTER
@@ -288,7 +293,7 @@ static void render_flat_item(struct parts *parts, struct parts_flat *f,
 static void render_flat_layer(struct parts *parts, struct parts_flat *f,
 		struct flat_layer_state *state,
 		struct flat_timeline *timelines, size_t nr_timelines,
-		mat4 parent, float parent_alpha, int parent_draw_filter)
+		struct flat_draw_ctx *ctx)
 {
 	// reverse order for correct z-ordering
 	for (size_t i = nr_timelines; i-- > 0;) {
@@ -302,7 +307,7 @@ static void render_flat_layer(struct parts *parts, struct parts_flat *f,
 		if (local >= (int)tl->graphic.count)
 			continue;
 
-		render_flat_item(parts, f, state, i, tl, local, parent, parent_alpha, parent_draw_filter);
+		render_flat_item(parts, f, state, i, tl, local, ctx);
 	}
 }
 
@@ -311,14 +316,17 @@ static void parts_render_flat(struct parts *parts, struct parts_flat *f)
 	if (!f->flat || !f->root_state)
 		return;
 
-	mat4 base = GLM_MAT4_IDENTITY_INIT;
-	glm_translate(base, (vec3){ parts->global.pos.x, parts->global.pos.y, 0 });
-	glm_rotate_z(base, glm_rad(parts->local.rotation.z), base);
-	glm_scale(base, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0f });
-
+	struct flat_draw_ctx ctx;
+	glm_mat4_identity(ctx.matrix);
+	glm_translate(ctx.matrix, (vec3){ parts->global.pos.x, parts->global.pos.y, 0 });
+	glm_rotate_z(ctx.matrix, glm_rad(parts->local.rotation.z), ctx.matrix);
+	glm_scale(ctx.matrix, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0f });
+	ctx.alpha = parts->global.alpha / 255.0f;
+	glm_vec3_zero(ctx.add_color);
+	glm_vec3_one(ctx.mul_color);
+	ctx.draw_filter = PARTS_DRAW_FILTER_NORMAL;
 	render_flat_layer(parts, f, f->root_state,
-			f->flat->timelines, f->flat->nr_timelines,
-			base, parts->global.alpha / 255.0f, PARTS_DRAW_FILTER_NORMAL);
+			f->flat->timelines, f->flat->nr_timelines, &ctx);
 }
 
 static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_shape *tag)
