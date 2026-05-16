@@ -2185,6 +2185,9 @@ bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g
 	struct sact_sprite *sp = sact_create_sprite(sp_no, width, height, bg_r, bg_g, bg_b, 255);
 	if (!sp)
 		return false;
+	// The movie frames are composited by the parts engine via parts_render(),
+	// so hide the bound sprite from the scene to avoid double-drawing.
+	sprite_set_show(sp, false);
 
 	struct texture *tex = sprite_get_texture(sp);
 	movie->sprite_no = sp_no;
@@ -2232,6 +2235,9 @@ bool PE_CreateParts3DLayerPluginID(int parts_no, int state)
 		ReignEngine_ReleasePlugin(handle);
 		return false;
 	}
+	// The 3D content is composited by the parts engine via parts_render(), so
+	// hide the bound sprite from the scene to avoid double-drawing.
+	sprite_set_show(sp, false);
 
 	l->plugin = handle;
 	l->sprite_no = sp_no;
