@@ -25,7 +25,9 @@
 #include "system4/flat.h"
 
 #include "gfx/gfx.h"
+#include "sact.h"
 #include "scene.h"
+#include "sprite.h"
 #include "xsystem4.h"
 
 #include "parts_internal.h"
@@ -329,6 +331,24 @@ static void parts_render_flat(struct parts *parts, struct parts_flat *f)
 			f->flat->timelines, f->flat->nr_timelines, &ctx);
 }
 
+static void parts_render_3dlayer(struct parts *parts, struct parts_3dlayer *l)
+{
+	if (l->sprite_no < 0)
+		return;
+	struct sact_sprite *sp = sact_try_get_sprite(l->sprite_no);
+	if (!sp)
+		return;
+	struct texture *tex = sprite_get_texture(sp);
+	if (!tex->handle)
+		return;
+	// The bound sprite's texture is recreated by RE_set_viewport, so
+	// refresh the parts_common's view of it each frame.
+	l->common.texture = *tex;
+	l->common.w = tex->w;
+	l->common.h = tex->h;
+	parts_render_cg(parts, &l->common);
+}
+
 static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_shape *tag)
 {
 	struct texture *src = ht_get_int(f->bitmaps, tag->fill_style.bitmap_id, NULL);
@@ -449,7 +469,6 @@ void parts_render(struct parts *parts)
 	case PARTS_UNINITIALIZED:
 	case PARTS_RECT_DETECTION:
 	case PARTS_LAYOUT_BOX:
-	case PARTS_3DLAYER:
 		break;
 	case PARTS_CG:
 	case PARTS_ANIMATION:
@@ -469,6 +488,9 @@ void parts_render(struct parts *parts)
 		break;
 	case PARTS_FLAT:
 		parts_render_flat(parts, &state->flat);
+		break;
+	case PARTS_3DLAYER:
+		parts_render_3dlayer(parts, &state->layer3d);
 		break;
 	}
 }
