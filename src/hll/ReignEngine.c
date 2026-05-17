@@ -1082,7 +1082,7 @@ static bool ReignEngine_SetCameraAngle(int plugin, float angle)
 	struct RE_plugin *p = get_plugin(plugin);
 	if (!p)
 		return false;
-	p->camera.yaw = -angle;
+	p->camera.yaw = angle;
 	return true;
 }
 

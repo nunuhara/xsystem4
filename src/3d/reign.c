@@ -752,7 +752,7 @@ bool RE_plugin_get_camera_z_vector(struct RE_plugin *plugin, vec3 out)
 		glm_rad(plugin->camera.roll)
 	};
 	mat4 rot;
-	glm_euler(euler, rot);
+	glm_euler_yxz(euler, rot);
 	glm_mat4_mulv3(rot, GLM_FORWARD, 0.f, out);
 	return true;
 }
