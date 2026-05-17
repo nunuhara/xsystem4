@@ -26,8 +26,6 @@
 #include "reign.h"
 #include "vm/page.h"
 
-#define RE_MAX_PLUGINS 2
-
 struct RE_options RE_options;
 
 static struct RE_plugin *plugins[RE_MAX_PLUGINS];
@@ -44,9 +42,9 @@ int ReignEngine_create_plugin(enum RE_plugin_version version)
 	return -1;
 }
 
-static struct RE_plugin *get_plugin(unsigned plugin)
+struct RE_plugin *RE_get_plugin(int handle)
 {
-	return plugin < RE_MAX_PLUGINS ? plugins[plugin] : NULL;
+	return (unsigned)handle < RE_MAX_PLUGINS ? plugins[handle] : NULL;
 }
 
 void ReignEngine_update_models(void)
@@ -59,7 +57,7 @@ void ReignEngine_update_models(void)
 
 static struct RE_instance *get_instance(unsigned plugin, unsigned instance)
 {
-	struct RE_plugin *rp = get_plugin(plugin);
+	struct RE_plugin *rp = RE_get_plugin(plugin);
 	if (!rp)
 		return NULL;
 	return instance < (unsigned)rp->nr_instances ? rp->instances[instance] : NULL;
@@ -90,7 +88,7 @@ static struct particle_object *get_particle(unsigned plugin, unsigned instance, 
 
 static struct RE_back_cg *get_back_cg(unsigned plugin, unsigned num)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p || num >= RE_NR_BACK_CGS)
 		return NULL;
 	return &p->back_cg[num];
@@ -112,27 +110,27 @@ bool ReignEngine_ReleasePlugin(int handle)
 
 bool ReignEngine_BindPlugin(int handle, int sprite)
 {
-	return RE_plugin_bind(get_plugin(handle), sprite);
+	return RE_plugin_bind(RE_get_plugin(handle), sprite);
 }
 
 static bool ReignEngine_UnbindPlugin(int handle)
 {
-	return RE_plugin_unbind(get_plugin(handle));
+	return RE_plugin_unbind(RE_get_plugin(handle));
 }
 
 static bool ReignEngine_BuildModel(int plugin, int pass_time)
 {
-	return RE_build_model(get_plugin(plugin), pass_time);
+	return RE_build_model(RE_get_plugin(plugin), pass_time);
 }
 
 static int ReignEngine_CreateInstance(int plugin)
 {
-	return RE_create_instance(get_plugin(plugin));
+	return RE_create_instance(RE_get_plugin(plugin));
 }
 
 static bool ReignEngine_ReleaseInstance(int plugin, int instance)
 {
-	return RE_release_instance(get_plugin(plugin), instance);
+	return RE_release_instance(RE_get_plugin(plugin), instance);
 }
 
 static bool ReignEngine_LoadInstance(int plugin, int instance, struct string *name)
@@ -1077,7 +1075,7 @@ static bool ReignEngine_SetCameraQuakeEffectFlag(int plugin, int instance, bool 
 
 static bool ReignEngine_SetCameraPos(int plugin, float x, float y, float z)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->camera.pos[0] = x;
@@ -1088,7 +1086,7 @@ static bool ReignEngine_SetCameraPos(int plugin, float x, float y, float z)
 
 static bool ReignEngine_SetCameraAngle(int plugin, float angle)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->camera.yaw = angle;
@@ -1097,7 +1095,7 @@ static bool ReignEngine_SetCameraAngle(int plugin, float angle)
 
 static bool ReignEngine_SetCameraAngleP(int plugin, float angle_p)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->camera.pitch = angle_p;
@@ -1106,7 +1104,7 @@ static bool ReignEngine_SetCameraAngleP(int plugin, float angle_p)
 
 static bool ReignEngine_SetCameraAngleB(int plugin, float angle_b)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->camera.roll = angle_b;
@@ -1118,7 +1116,7 @@ static bool ReignEngine_SetCameraAngleB(int plugin, float angle_b)
 
 static int ReignEngine_GetShadowMapResolutionLevel(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->shadow_map_resolution_level : 0;
 }
 
@@ -1136,7 +1134,7 @@ HLL_QUIET_UNIMPLEMENTED(true, bool, ReignEngine, SetShadowMapLightLookPos, int p
 
 static bool ReignEngine_SetShadowMapLightDir(int plugin, float x, float y, float z)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->shadow_map_light_dir[0] = x;
@@ -1150,7 +1148,7 @@ HLL_QUIET_UNIMPLEMENTED(true, bool, ReignEngine, SetShadowBox, int plugin, float
 
 static bool ReignEngine_SetShadowBias(int plugin, int num, float shadow_bias)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	if (num != 0) {
@@ -1167,7 +1165,7 @@ static bool ReignEngine_SetShadowBias(int plugin, int num, float shadow_bias)
 
 static bool ReignEngine_SetShadowMapResolutionLevel(int plugin, int level)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->shadow_map_resolution_level = level;
@@ -1178,13 +1176,13 @@ static bool ReignEngine_SetShadowMapResolutionLevel(int plugin, int level)
 
 static bool ReignEngine_SetFogType(int plugin, int type)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? RE_plugin_set_fog_type(p, type) : false;
 }
 
 static bool ReignEngine_SetFogNear(int plugin, float near)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->fog_near = near;
@@ -1193,7 +1191,7 @@ static bool ReignEngine_SetFogNear(int plugin, float near)
 
 static bool ReignEngine_SetFogFar(int plugin, float far)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->fog_far = far;
@@ -1202,7 +1200,7 @@ static bool ReignEngine_SetFogFar(int plugin, float far)
 
 static bool ReignEngine_SetFogColor(int plugin, float r, float g, float b)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->fog_color[0] = r;
@@ -1213,25 +1211,25 @@ static bool ReignEngine_SetFogColor(int plugin, float r, float g, float b)
 
 static int ReignEngine_GetFogType(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? RE_plugin_get_fog_type(p) : 0;
 }
 
 static float ReignEngine_GetFogNear(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->fog_near : 0.0;
 }
 
 static float ReignEngine_GetFogFar(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->fog_far : 0.0;
 }
 
 static void ReignEngine_GetFogColor(int plugin, float *r, float *g, float *b)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return;
 	*r = p->fog_color[0];
@@ -1243,31 +1241,31 @@ HLL_WARN_UNIMPLEMENTED(false, bool, ReignEngine, LoadLightScatteringSetting, int
 
 static float ReignEngine_GetLSBetaR(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->ls_beta_r : 0.0;
 }
 
 static float ReignEngine_GetLSBetaM(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->ls_beta_m : 0.0;
 }
 
 static float ReignEngine_GetLSG(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->ls_g : 0.0;
 }
 
 static float ReignEngine_GetLSDistance(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->ls_distance : 0.0;
 }
 
 static void ReignEngine_GetLSLightDir(int plugin, float *x, float *y, float *z)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return;
 	*x = p->ls_light_dir[0];
@@ -1277,7 +1275,7 @@ static void ReignEngine_GetLSLightDir(int plugin, float *x, float *y, float *z)
 
 static void ReignEngine_GetLSLightColor(int plugin, float *r, float *g, float *b)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return;
 	*r = p->ls_light_color[0];
@@ -1287,7 +1285,7 @@ static void ReignEngine_GetLSLightColor(int plugin, float *r, float *g, float *b
 
 static void ReignEngine_GetLSSunColor(int plugin, float *r, float *g, float *b)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return;
 	*r = p->ls_sun_color[0];
@@ -1297,7 +1295,7 @@ static void ReignEngine_GetLSSunColor(int plugin, float *r, float *g, float *b)
 
 static bool ReignEngine_SetLSBetaR(int plugin, float beta_r)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->ls_beta_r = beta_r;
@@ -1306,7 +1304,7 @@ static bool ReignEngine_SetLSBetaR(int plugin, float beta_r)
 
 static bool ReignEngine_SetLSBetaM(int plugin, float beta_m)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->ls_beta_m = beta_m;
@@ -1315,7 +1313,7 @@ static bool ReignEngine_SetLSBetaM(int plugin, float beta_m)
 
 static bool ReignEngine_SetLSG(int plugin, float g)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->ls_g = g;
@@ -1324,7 +1322,7 @@ static bool ReignEngine_SetLSG(int plugin, float g)
 
 static bool ReignEngine_SetLSDistance(int plugin, float distance)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->ls_distance = distance;
@@ -1333,7 +1331,7 @@ static bool ReignEngine_SetLSDistance(int plugin, float distance)
 
 static bool ReignEngine_SetLSLightDir(int plugin, float x, float y, float z)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->ls_light_dir[0] = x;
@@ -1345,7 +1343,7 @@ static bool ReignEngine_SetLSLightDir(int plugin, float x, float y, float z)
 
 static bool ReignEngine_SetLSLightColor(int plugin, float r, float g, float b)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->ls_light_color[0] = r;
@@ -1356,7 +1354,7 @@ static bool ReignEngine_SetLSLightColor(int plugin, float r, float g, float b)
 
 static bool ReignEngine_SetLSSunColor(int plugin, float r, float g, float b)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->ls_sun_color[0] = r;
@@ -1392,12 +1390,12 @@ static int ReignEngine_GetOptionWaitVSync(void)
 
 static bool ReignEngine_SetViewport(int plugin, int x, int y, int width, int height)
 {
-	return RE_set_viewport(get_plugin(plugin), x, y, width, height);
+	return RE_set_viewport(RE_get_plugin(plugin), x, y, width, height);
 }
 
 bool ReignEngine_SetProjection(int plugin, float width, float height, float near, float far, float deg)
 {
-	return RE_set_projection(get_plugin(plugin), width, height, near, far, deg);
+	return RE_set_projection(RE_get_plugin(plugin), width, height, near, far, deg);
 }
 
 //float ReignEngine_GetBrightness(int plugin);
@@ -1405,7 +1403,7 @@ bool ReignEngine_SetProjection(int plugin, float width, float height, float near
 
 static bool ReignEngine_SetRenderMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->render_mode = mode;
@@ -1414,7 +1412,7 @@ static bool ReignEngine_SetRenderMode(int plugin, int mode)
 
 static bool ReignEngine_SetShadowMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->shadow_mode = mode;
@@ -1423,7 +1421,7 @@ static bool ReignEngine_SetShadowMode(int plugin, int mode)
 
 static bool ReignEngine_SetBumpMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->bump_mode = mode;
@@ -1434,7 +1432,7 @@ static bool ReignEngine_SetBumpMode(int plugin, int mode)
 
 static bool ReignEngine_SetVertexBlendMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->vertex_blend_mode = mode;
@@ -1443,7 +1441,7 @@ static bool ReignEngine_SetVertexBlendMode(int plugin, int mode)
 
 static bool ReignEngine_SetFogMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->fog_mode = mode;
@@ -1452,7 +1450,7 @@ static bool ReignEngine_SetFogMode(int plugin, int mode)
 
 static bool ReignEngine_SetSpecularMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->specular_mode = mode;
@@ -1461,7 +1459,7 @@ static bool ReignEngine_SetSpecularMode(int plugin, int mode)
 
 static bool ReignEngine_SetLightMapMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->light_map_mode = mode;
@@ -1470,7 +1468,7 @@ static bool ReignEngine_SetLightMapMode(int plugin, int mode)
 
 static bool ReignEngine_SetSoftFogEdgeMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->soft_fog_edge_mode = mode;
@@ -1479,7 +1477,7 @@ static bool ReignEngine_SetSoftFogEdgeMode(int plugin, int mode)
 
 static bool ReignEngine_SetSSAOMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->ssao_mode = mode;
@@ -1488,7 +1486,7 @@ static bool ReignEngine_SetSSAOMode(int plugin, int mode)
 
 static bool ReignEngine_SetShaderPrecisionMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->shader_precision_mode = mode;
@@ -1499,19 +1497,19 @@ static bool ReignEngine_SetShaderPrecisionMode(int plugin, int mode)
 
 static int ReignEngine_GetRenderMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->render_mode : 0;
 }
 
 static int ReignEngine_GetShadowMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->shadow_mode : 0;
 }
 
 static int ReignEngine_GetBumpMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->bump_mode : 0;
 }
 
@@ -1519,43 +1517,43 @@ static int ReignEngine_GetBumpMode(int plugin)
 
 static int ReignEngine_GetVertexBlendMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->vertex_blend_mode : 0;
 }
 
 static int ReignEngine_GetFogMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->fog_mode : 0;
 }
 
 static int ReignEngine_GetSpecularMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->specular_mode : 0;
 }
 
 static int ReignEngine_GetLightMapMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->light_map_mode : 0;
 }
 
 static int ReignEngine_GetSoftFogEdgeMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->soft_fog_edge_mode : 0;
 }
 
 static int ReignEngine_GetSSAOMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->ssao_mode : 0;
 }
 
 static int ReignEngine_GetShaderPrecisionMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->shader_precision_mode : 0;
 }
 
@@ -1563,19 +1561,19 @@ static int ReignEngine_GetShaderPrecisionMode(int plugin)
 
 static int ReignEngine_GetTextureResolutionLevel(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->texture_resolution_level : 0;
 }
 
 static int ReignEngine_GetTextureFilterMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->texture_filter_mode : 0;
 }
 
 static bool ReignEngine_SetTextureResolutionLevel(int plugin, int level)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->texture_resolution_level = level;
@@ -1584,7 +1582,7 @@ static bool ReignEngine_SetTextureResolutionLevel(int plugin, int level)
 
 static bool ReignEngine_SetTextureFilterMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->texture_filter_mode = mode;
@@ -1593,13 +1591,13 @@ static bool ReignEngine_SetTextureFilterMode(int plugin, int mode)
 
 static bool ReignEngine_GetUsePower2Texture(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->use_power2_texture : false;
 }
 
 static bool ReignEngine_SetUsePower2Texture(int plugin, bool use)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->use_power2_texture = use;
@@ -1608,7 +1606,7 @@ static bool ReignEngine_SetUsePower2Texture(int plugin, bool use)
 
 static bool ReignEngine_GetGlobalAmbient(int plugin, float *r, float *g, float *b)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	*r = p->global_ambient[0];
@@ -1619,7 +1617,7 @@ static bool ReignEngine_GetGlobalAmbient(int plugin, float *r, float *g, float *
 
 static bool ReignEngine_SetGlobalAmbient(int plugin, float r, float g, float b)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->global_ambient[0] = r;
@@ -1630,13 +1628,13 @@ static bool ReignEngine_SetGlobalAmbient(int plugin, float r, float g, float b)
 
 static int ReignEngine_GetBloomMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->bloom_mode : 0;
 }
 
 static bool ReignEngine_SetBloomMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->bloom_mode = mode;
@@ -1645,13 +1643,13 @@ static bool ReignEngine_SetBloomMode(int plugin, int mode)
 
 static int ReignEngine_GetGlareMode(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->glare_mode : 0;
 }
 
 static bool ReignEngine_SetGlareMode(int plugin, int mode)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->glare_mode = mode;
@@ -1660,25 +1658,25 @@ static bool ReignEngine_SetGlareMode(int plugin, int mode)
 
 static float ReignEngine_GetPostEffectFilterY(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->post_effect_filter_y : 0.0;
 }
 
 static float ReignEngine_GetPostEffectFilterCb(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->post_effect_filter_cb : 0.0;
 }
 
 static float ReignEngine_GetPostEffectFilterCr(int plugin)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	return p ? p->post_effect_filter_cr : 0.0;
 }
 
 static bool ReignEngine_SetPostEffectFilterY(int plugin, float y)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->post_effect_filter_y = y;
@@ -1687,7 +1685,7 @@ static bool ReignEngine_SetPostEffectFilterY(int plugin, float y)
 
 static bool ReignEngine_SetPostEffectFilterCb(int plugin, float cb)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->post_effect_filter_cb = cb;
@@ -1696,7 +1694,7 @@ static bool ReignEngine_SetPostEffectFilterCb(int plugin, float cb)
 
 static bool ReignEngine_SetPostEffectFilterCr(int plugin, float cr)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	p->post_effect_filter_cr = cr;
@@ -1754,7 +1752,7 @@ static bool ReignEngine_GetBackCGShow(int plugin, int num)
 
 static bool ReignEngine_SetBackCGName(int plugin, int num, struct string *cg_name)
 {
-	struct RE_plugin *p = get_plugin(plugin);
+	struct RE_plugin *p = RE_get_plugin(plugin);
 	if (!p)
 		return false;
 	return RE_back_cg_set_name(get_back_cg(plugin, num), cg_name, p->aar);
@@ -1827,7 +1825,7 @@ static int TapirEngine_CreatePlugin(void)
 
 static bool TapirEngine_SetInstanceDrawParam(int plugin_number, int instance_number, int draw_param, int value)
 {
-	struct RE_plugin *p = get_plugin(plugin_number);
+	struct RE_plugin *p = RE_get_plugin(plugin_number);
 	struct RE_instance *ri = get_instance(plugin_number, instance_number);
 	if (!p || !ri)
 		return false;
@@ -1842,7 +1840,7 @@ static bool TapirEngine_SetInstanceDrawParam(int plugin_number, int instance_num
 
 static bool TapirEngine_GetInstanceDrawParam(int plugin_number, int instance_number, int draw_param, int *value)
 {
-	struct RE_plugin *p = get_plugin(plugin_number);
+	struct RE_plugin *p = RE_get_plugin(plugin_number);
 	struct RE_instance *ri = get_instance(plugin_number, instance_number);
 	if (!p || !ri)
 		return false;
@@ -1927,7 +1925,7 @@ static bool TapirEngine_SetInstanceMeshShow(int plugin, int instance, struct str
 
 static bool TapirEngine_SetDrawOption(int plugin_number, int draw_option, int param)
 {
-	struct RE_plugin *p = get_plugin(plugin_number);
+	struct RE_plugin *p = RE_get_plugin(plugin_number);
 	if (!p)
 		return false;
 	if ((unsigned)draw_option >= RE_DRAW_OPTION_MAX) {
@@ -1940,7 +1938,7 @@ static bool TapirEngine_SetDrawOption(int plugin_number, int draw_option, int pa
 
 static int TapirEngine_GetDrawOption(int plugin_number, int draw_option)
 {
-	struct RE_plugin *p = get_plugin(plugin_number);
+	struct RE_plugin *p = RE_get_plugin(plugin_number);
 	if (!p)
 		return false;
 	if ((unsigned)draw_option >= RE_DRAW_OPTION_MAX) {
@@ -1956,18 +1954,18 @@ HLL_WARN_UNIMPLEMENTED(false, bool, TapirEngine, SetThreadLoadingMode, int plugi
 
 static bool TapirEngine_Suspend(int plugin_number)
 {
-	return RE_plugin_suspend(get_plugin(plugin_number));
+	return RE_plugin_suspend(RE_get_plugin(plugin_number));
 }
 
 static bool TapirEngine_IsSuspend(int plugin_number)
 {
-	struct RE_plugin *p = get_plugin(plugin_number);
+	struct RE_plugin *p = RE_get_plugin(plugin_number);
 	return p && p->suspended;
 }
 
 static bool TapirEngine_Resume(int plugin_number)
 {
-	return RE_plugin_resume(get_plugin(plugin_number));
+	return RE_plugin_resume(RE_get_plugin(plugin_number));
 }
 
 static int TapirEngine_GetNumofPlugin(void)
@@ -1982,7 +1980,7 @@ static int TapirEngine_GetNumofPlugin(void)
 
 static bool TapirEngine_IsExistPlugin(int plugin_number)
 {
-	return get_plugin(plugin_number) != NULL;
+	return RE_get_plugin(plugin_number) != NULL;
 }
 
 //int TapirEngine_GetNumofInstance(int PluginNumber);
@@ -2472,7 +2470,7 @@ HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetInstanceCircleShadowRadius, i
 //float SealEngine_GetInstanceCircleShadowRadius(int PluginNumber, int InstanceNumber);
 static bool SealEngine_LoadInstanceLightParam(int plugin, int instance)
 {
-	struct RE_plugin *rp = get_plugin(plugin);
+	struct RE_plugin *rp = RE_get_plugin(plugin);
 	struct RE_instance *ri = get_instance(plugin, instance);
 	if (!rp || !ri || !ri->light_params)
 		return false;
@@ -2482,7 +2480,7 @@ static bool SealEngine_LoadInstanceLightParam(int plugin, int instance)
 
 static bool SealEngine_StoreInstanceLightParam(int plugin, int instance)
 {
-	struct RE_plugin *rp = get_plugin(plugin);
+	struct RE_plugin *rp = RE_get_plugin(plugin);
 	struct RE_instance *ri = get_instance(plugin, instance);
 	if (!rp || !ri || !ri->light_params)
 		return false;
@@ -2515,7 +2513,7 @@ static bool SealEngine_IsInstanceUseMagSpeed(int plugin, int instance)
 static bool SealEngine_GetCameraZVector(int plugin, float *x, float *y, float *z)
 {
 	vec3 result;
-	if (!RE_plugin_get_camera_z_vector(get_plugin(plugin), result))
+	if (!RE_plugin_get_camera_z_vector(RE_get_plugin(plugin), result))
 		return false;
 	*x = result[0];
 	*y = result[1];
@@ -2539,7 +2537,7 @@ HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetShadowRate, int PluginNumber,
 //float SealEngine_GetSoftFogEdgeLength(int PluginNumber);
 static bool SealEngine_SetEdgeLength(int PluginNumber, float EdgeLength)
 {
-	struct RE_plugin *p = get_plugin(PluginNumber);
+	struct RE_plugin *p = RE_get_plugin(PluginNumber);
 	if (!p)
 		return false;
 	p->edge_length = EdgeLength;
@@ -2548,7 +2546,7 @@ static bool SealEngine_SetEdgeLength(int PluginNumber, float EdgeLength)
 
 static float SealEngine_GetEdgeLength(int PluginNumber)
 {
-	struct RE_plugin *p = get_plugin(PluginNumber);
+	struct RE_plugin *p = RE_get_plugin(PluginNumber);
 	return p ? p->edge_length : 0.0;
 }
 
@@ -2557,7 +2555,7 @@ static float SealEngine_GetEdgeLength(int PluginNumber)
 
 static bool SealEngine_SetEdgeColor(int PluginNumber, float ColorR, float ColorG, float ColorB)
 {
-	struct RE_plugin *p = get_plugin(PluginNumber);
+	struct RE_plugin *p = RE_get_plugin(PluginNumber);
 	if (!p)
 		return false;
 	p->edge_color[0] = ColorR;
@@ -2568,7 +2566,7 @@ static bool SealEngine_SetEdgeColor(int PluginNumber, float ColorR, float ColorG
 
 static bool SealEngine_GetEdgeColor(int PluginNumber, float *ColorR, float *ColorG, float *ColorB)
 {
-	struct RE_plugin *p = get_plugin(PluginNumber);
+	struct RE_plugin *p = RE_get_plugin(PluginNumber);
 	if (!p)
 		return false;
 	*ColorR = p->edge_color[0];
@@ -2585,12 +2583,12 @@ static bool SealEngine_GetEdgeColor(int PluginNumber, float *ColorR, float *Colo
 
 static bool SealEngine_TransformPosToViewPos(int PluginNumber, float x, float y, float z, int *view_x, int *view_y)
 {
-	return RE_plugin_transform_pos_to_view_pos(get_plugin(PluginNumber), x, y, -z, view_x, view_y);
+	return RE_plugin_transform_pos_to_view_pos(RE_get_plugin(PluginNumber), x, y, -z, view_x, view_y);
 }
 
 static bool SealEngine_ResetLightParam(int plugin)
 {
-	struct RE_plugin *rp = get_plugin(plugin);
+	struct RE_plugin *rp = RE_get_plugin(plugin);
 	if (!rp)
 		return false;
 	RE_plugin_reset_light_param(rp);
@@ -2599,7 +2597,7 @@ static bool SealEngine_ResetLightParam(int plugin)
 
 static bool SealEngine_SetLightParam(int plugin, int type, float value)
 {
-	struct RE_plugin *rp = get_plugin(plugin);
+	struct RE_plugin *rp = RE_get_plugin(plugin);
 	if (!rp || (unsigned)type >= RE_NR_LIGHT_PARAMS)
 		return false;
 	rp->light_params[type] = value;
@@ -2608,7 +2606,7 @@ static bool SealEngine_SetLightParam(int plugin, int type, float value)
 
 static float SealEngine_GetLightParam(int plugin, int type)
 {
-	struct RE_plugin *rp = get_plugin(plugin);
+	struct RE_plugin *rp = RE_get_plugin(plugin);
 	if (!rp || (unsigned)type >= RE_NR_LIGHT_PARAMS)
 		return 0.0f;
 	return rp->light_params[type];
