@@ -570,6 +570,56 @@ bool parts_flat_update(struct parts_flat *f, int passed_time);
 int parts_flat_find_library(struct flat *fl, const char *name);
 int parts_flat_stop_motion_get_cg_lib(struct parts_flat *f, int sm_lib_idx, int local);
 
+struct flat_emitter;
+struct flat_key_data_graphic;
+
+struct flat_emitter_particle {
+	vec2 pos;          // emitter-space position (pixels)
+	vec2 scale;
+	vec3 rot;          // degrees (x, y, z)
+	float fade_alpha;  // 0-1.0
+	int cg_lib_idx;    // CG library index of the texture for this particle
+};
+
+// Per-key emitter properties after applying the emitter's inherit_* flags.
+struct flat_emitter_layer_effective {
+	vec2 pos;
+	bool reverse_lr, reverse_tb;
+	float alpha;
+	vec3 add_color;
+	vec3 mul_color;
+	int draw_filter;
+	bool use_scale;
+	bool use_rotation;
+	bool use_origin;
+};
+
+#define FLAT_MAX_ANCESTOR_DEPTH 32
+struct flat_key_stack {
+	const struct flat_key_data_graphic *keys[FLAT_MAX_ANCESTOR_DEPTH];
+	int count;
+};
+
+typedef void (*flat_emitter_particle_fn)(const struct flat_emitter_particle *p,
+		void *ud);
+bool parts_flat_emitter_get_align_offset(struct parts_flat *f, int emitter_lib_idx, vec2 out);
+void parts_flat_foreach_emitter_particle(struct parts_flat *f, int emitter_lib_idx,
+		const struct flat_key_data_graphic *keys,
+		int birth_frame, int age, int frame_count,
+		flat_emitter_particle_fn fn, void *ud);
+void parts_flat_build_layer_matrix(const struct flat_key_data_graphic *key,
+		vec2 pos,
+		bool use_rotation, bool use_scale, bool use_origin,
+		bool reverse_lr, bool reverse_tb,
+		mat4 out);
+void parts_flat_build_emitter_base_matrix(const struct flat_emitter *em,
+		const struct flat_key_stack *stack, mat4 out);
+void parts_flat_emitter_resolve_layer(
+		const struct flat_emitter *em,
+		const struct flat_key_data_graphic *key,
+		float parts_alpha, float layer_alpha,
+		struct flat_emitter_layer_effective *out);
+
 // layoutbox.c
 void parts_do_layout(struct parts *parts);
 
