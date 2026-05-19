@@ -189,30 +189,34 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 		free(dtl_path);
 	} else if (ctx->version == DRAW_DUNGEON_14) {
 		char buf[100];
-		sprintf(buf, "Data/map%02d.dgn", num);
-		char *path = gamedir_path(buf);
-
 		size_t len;
-		uint8_t *dgn = file_read(path, &len);
+
+		snprintf(buf, sizeof(buf), "Data/map%02d.dgn", num);
+		char *dgn_path = gamedir_path(buf);
+		uint8_t *dgn = file_read(dgn_path, &len);
+		free(dgn_path);
 		if (dgn) {
 			ctx->dgn = dgn_parse(dgn, len, false);
 			free(dgn);
 		}
 
-		strcpy(path + strlen(path) - 3, "dtx");
-		uint8_t *dtx = file_read(path, &len);
+		snprintf(buf, sizeof(buf), "Data/map%02d.dtx", num);
+		char *dtx_path = gamedir_path(buf);
+		uint8_t *dtx = file_read(dtx_path, &len);
+		free(dtx_path);
 		if (dtx) {
 			ctx->dtx = dtx_parse(dtx, len);
 			free(dtx);
 		}
 
-		strcpy(path + strlen(path) - 3, "tes");
-		uint8_t *tes = file_read(path, &len);
+		snprintf(buf, sizeof(buf), "Data/map%02d.tes", num);
+		char *tes_path = gamedir_path(buf);
+		uint8_t *tes = file_read(tes_path, &len);
+		free(tes_path);
 		if (tes) {
 			ctx->tes = tes_parse(tes, len);
 			free(tes);
 		}
-		free(path);
 
 		char *polyobj_path = gamedir_path("Data/PolyObj.lin");
 		polyobj = polyobj_load(polyobj_path);
@@ -296,7 +300,7 @@ bool dungeon_load_texture(struct dungeon_context *ctx, const char *filename)
 	ctx->tes = NULL;
 	size_t path_len = strlen(path);
 	if (path_len > 4 && path[path_len - 4] == '.') {
-		strcpy(path + path_len - 4, ".tes");  // .dtx -> .tes
+		memcpy(path + path_len - 4, ".tes", 5);  // .dtx -> .tes
 		size_t tes_len;
 		uint8_t *tes = file_read(path, &tes_len);
 		if (tes) {
