@@ -835,7 +835,7 @@ void parts_flat_foreach_emitter_particle(struct parts_flat *f, int emitter_lib_i
 
 	int fps = fl->hdr.fps;
 	float pixels_per_meter = (float)fl->hdr.game_view_width / fl->hdr.meter;
-	float t = (float)age / em->particle_lifetime;
+	float t = em->particle_lifetime > 0 ? (float)age / em->particle_lifetime : 0;
 	float gravity_y = emitter_gravity_displacement(age, em, fps);
 
 	for (int i = 0; i < count; i++) {
