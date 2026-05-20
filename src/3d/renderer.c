@@ -337,7 +337,7 @@ void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out)
 		glm_rad(camera->roll)
 	};
 	mat4 rot;
-	glm_euler(euler, rot);
+	glm_euler_yxz(euler, rot);
 	glm_mat4_mulv3(rot, front, 0.0, front);
 	glm_look(camera->pos, front, up, out);
 }
