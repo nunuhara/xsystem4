@@ -155,6 +155,7 @@ struct RE_renderer {
 	GLint has_bones;
 	GLint global_ambient;
 	GLint instance_ambient;
+	GLint diffuse_mod;
 	struct {
 		GLint dir;
 		GLint diffuse;
@@ -515,6 +516,7 @@ struct mot {
 	uint32_t nr_bones;
 	uint32_t nr_texture_indices;
 	uint32_t *texture_indices;  // texture index for each frame
+	struct mpr *mpr;            // optional
 	struct mot_bone *motions[];
 };
 
@@ -567,6 +569,46 @@ struct amt_material *amt_find_material(struct amt *amt, const char *name);
 
 void opr_load(uint8_t *data, size_t size, struct pol *pol);
 void txa_load(uint8_t *data, size_t size, struct mot *mot);
+
+// mpr.c
+
+struct mpr_float_key { int frame; float v; };
+struct mpr_vec3_key { int frame; vec3 v; };
+struct mpr_int_key { int frame; int v; };
+
+struct mpr_track_set {
+	int nr_mul_alpha;
+	struct mpr_float_key *mul_alpha;
+	int nr_mul_diffuse;
+	struct mpr_vec3_key *mul_diffuse;
+	int nr_add_ambient;
+	struct mpr_vec3_key *add_ambient;
+	int nr_texture_anime;
+	struct mpr_int_key *texture_anime;  // mesh-scope only
+};
+
+struct mpr {
+	int nr_meshes;                       // == model->nr_meshes
+	struct mpr_track_set **mesh_tracks;  // sparse: indexed by mesh index, NULL if absent
+	struct mpr_track_set object;
+	bool has_mesh_alpha;                 // any mesh_tracks[i]->nr_mul_alpha > 0
+};
+
+// Per-draw material modulation.
+struct mpr_modulation {
+	float alpha;
+	vec3 ambient;
+	vec3 diffuse;
+};
+
+struct mpr *mpr_load(uint8_t *data, size_t size, struct model *model);
+void mpr_free(struct mpr *mpr);
+void mpr_evaluate_object(const struct mpr *mpr, float frame,
+		const struct RE_instance *inst, struct mpr_modulation *out);
+void mpr_evaluate_mesh(const struct mpr_track_set *mt, float frame,
+		const struct mpr_modulation *obj, struct mpr_modulation *out);
+void mpr_build_mat_tex_index(const struct model *model, const struct RE_instance *inst,
+		const struct mpr *mpr, float frame, int *mat_tex_index);
 
 // collision.c
 

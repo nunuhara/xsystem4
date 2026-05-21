@@ -491,6 +491,7 @@ void mot_free(struct mot *mot)
 	if (mot->texture_indices) {
 		free(mot->texture_indices);
 	}
+	mpr_free(mot->mpr);
 	free(mot);
 }
 

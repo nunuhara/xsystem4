@@ -783,11 +783,19 @@ static struct mot *mot_load(const char *name, struct model *model, struct archiv
 	}
 	qsort(mot->motions, mot->nr_bones, sizeof(struct mot_bone *), cmp_motions_by_bone_id);
 
-	// Load optional .txa file.
-	struct archive_data *txa_file = RE_get_aar_entry(aar, model->path, name, ".txa");
-	if (txa_file) {
-		txa_load(txa_file->data, txa_file->size, mot);
-		archive_free_data(txa_file);
+	// Load optional sidecar file.
+	if (re_plugin_version <= RE_TAPIR_PLUGIN) {
+		struct archive_data *txa_file = RE_get_aar_entry(aar, model->path, name, ".txa");
+		if (txa_file) {
+			txa_load(txa_file->data, txa_file->size, mot);
+			archive_free_data(txa_file);
+		}
+	} else {
+		struct archive_data *mpr_file = RE_get_aar_entry(aar, model->path, name, ".mpr");
+		if (mpr_file) {
+			mot->mpr = mpr_load(mpr_file->data, mpr_file->size, model);
+			archive_free_data(mpr_file);
+		}
 	}
 
 	return mot;

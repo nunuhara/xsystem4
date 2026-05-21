@@ -225,6 +225,7 @@ struct RE_renderer *RE_renderer_new(void)
 	glUniformBlockBinding(r->program, bone_transforms, BONE_TRANSFORMS_BINDING);
 	r->global_ambient = glGetUniformLocation(r->program, "global_ambient");
 	r->instance_ambient = glGetUniformLocation(r->program, "instance_ambient");
+	r->diffuse_mod = glGetUniformLocation(r->program, "diffuse_mod");
 	for (int i = 0; i < NR_DIR_LIGHTS; i++) {
 		char buf[64];
 		sprintf(buf, "dir_lights[%d].dir", i);
@@ -353,18 +354,27 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 	struct model *model = inst->model;
 	if (!inst->model)
 		return;
-	bool all_transparent = inst->alpha < 1.0f;
-	bool all_opaque = !model->has_transparent_mesh && inst->alpha >= 1.0f;
+
+	// NOTE: next_motion's .mpr is not sampled.
+	const struct mpr *mpr = (inst->motion && inst->motion->mot) ? inst->motion->mot->mpr : NULL;
+	float frame = inst->motion ? inst->motion->current_frame : 0.f;
+	struct mpr_modulation obj_mod;
+	mpr_evaluate_object(mpr, frame, inst, &obj_mod);
+
+	bool all_transparent = obj_mod.alpha < 1.0f;
+	bool all_opaque = !model->has_transparent_mesh && obj_mod.alpha >= 1.0f
+		&& !(mpr && mpr->has_mesh_alpha);
 	if ((phase == DRAW_OPAQUE && all_transparent) || (phase == DRAW_TRANSPARENT && all_opaque))
 		return;
+
+	int mat_tex_index[model->nr_materials];
+	mpr_build_mat_tex_index(model, inst, mpr, frame, mat_tex_index);
 
 	if (inst->local_transform_needs_update)
 		RE_instance_update_local_transform(inst);
 
 	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, inst->local_transform[0]);
 	glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, inst->normal_transform[0]);
-	glUniform1f(r->alpha_mod, inst->alpha);
-	glUniform3fv(r->instance_ambient, 1, inst->ambient);
 
 	bool draw_shadow = inst->draw_shadow && inst->plugin->shadow_mode;
 	if (draw_shadow) {
@@ -378,9 +388,20 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		if (mesh->hidden)
 			continue;
 		struct material *material = &model->materials[mesh->material];
-		bool is_transparent = mesh->is_transparent || inst->alpha < 1.0f;
+
+		const struct mpr_track_set *mt = mpr ? mpr->mesh_tracks[i] : NULL;
+		struct mpr_modulation mesh_mod;
+		mpr_evaluate_mesh(mt, frame, &obj_mod, &mesh_mod);
+		if (mesh_mod.alpha <= 0.0f)
+			continue;
+
+		bool is_transparent = mesh->is_transparent || mesh_mod.alpha < 1.0f;
 		if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
 			continue;
+
+		glUniform1f(r->alpha_mod, mesh_mod.alpha);
+		glUniform3fv(r->instance_ambient, 1, mesh_mod.ambient);
+		glUniform3fv(r->diffuse_mod, 1, mesh_mod.diffuse);
 
 		if (mesh->flags & MESH_BLEND_ADDITIVE) {
 			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
@@ -411,8 +432,8 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glUniform3fv(r->rim_color, 1, material->rim_color);
 
 		glActiveTexture(GL_TEXTURE0 + COLOR_TEXTURE_UNIT);
-		int animation_index = inst->texture_animation_index < material->nr_color_maps
-			? inst->texture_animation_index : 0;
+		int tex_index = mat_tex_index[mesh->material];
+		int animation_index = tex_index < material->nr_color_maps ? tex_index : 0;
 		glBindTexture(GL_TEXTURE_2D, material->color_maps[animation_index]);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
@@ -444,12 +465,12 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		}
 
 		if (material->alpha_map) {
-			glUniform1i(r->alpha_mode, mesh->is_transparent ? ALPHA_MAP_BLEND : ALPHA_MAP_TEST);
+			glUniform1i(r->alpha_mode, is_transparent ? ALPHA_MAP_BLEND : ALPHA_MAP_TEST);
 			glActiveTexture(GL_TEXTURE0 + ALPHA_TEXTURE_UNIT);
 			glBindTexture(GL_TEXTURE_2D, material->alpha_map);
 			glUniform1i(r->alpha_texture, ALPHA_TEXTURE_UNIT);
 		} else {
-			glUniform1i(r->alpha_mode, mesh->is_transparent ? ALPHA_BLEND : ALPHA_TEST);
+			glUniform1i(r->alpha_mode, is_transparent ? ALPHA_BLEND : ALPHA_TEST);
 		}
 
 		if (material->blend_texture) {
@@ -535,6 +556,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glm_mat4_pick3(local_transform, normal_transform);
 
 	glUniform3fv(r->instance_ambient, 1, inst->ambient);
+	glUniform3f(r->diffuse_mod, 1.f, 1.f, 1.f);
 
 	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, local_transform[0]);
 	glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, normal_transform[0]);
@@ -659,6 +681,7 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 		return;
 
 	glUniform3fv(r->instance_ambient, 1, inst->ambient);
+	glUniform3f(r->diffuse_mod, 1.f, 1.f, 1.f);
 
 	glUniform1i(r->has_bones, GL_FALSE);
 	glUniform1f(r->specular_strength, 0.0);

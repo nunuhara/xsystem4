@@ -87,6 +87,7 @@ uniform bool use_normal_map;
 uniform sampler2D normal_texture;
 
 uniform vec3 instance_ambient;
+uniform vec3 diffuse_mod;
 uniform int diffuse_type;
 uniform float shadow_darkness;
 uniform float shadow_bias;
@@ -120,20 +121,20 @@ void main() {
 	vec4 texel;
 	if (diffuse_type == DIFFUSE_ENV_MAP) {
 		texel = texture(tex, (vec2(normal.x, -normal.y) + 1.0) / 2.0);
-		frag_rgb = texel.rgb;
+		frag_rgb = texel.rgb * diffuse_mod;
 	} else {
 		texel = texture(tex, tex_coord);
 		if (use_blend_texture) {
 			texel = mix(texel, texture(blend_tex, blend_tex_coord), blend_weight);
 		}
 		if (diffuse_type == DIFFUSE_EMISSIVE) {
-			frag_rgb = texel.rgb;
+			frag_rgb = texel.rgb * diffuse_mod;
 		} else {
 			vec3 diffuse = dir_lights_diffuse(norm);
 			if (diffuse_type == DIFFUSE_LIGHT_MAP) {
 				diffuse *= texture(light_texture, light_tex_coord).rgb;
 			}
-			frag_rgb += texel.rgb * diffuse * color_mod.rgb;
+			frag_rgb += texel.rgb * diffuse * color_mod.rgb * diffuse_mod;
 		}
 	}
 
