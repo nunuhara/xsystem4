@@ -632,7 +632,7 @@ void parts_sprite_render(struct sprite *sp)
 
 static bool pe_dirty = false;
 
-void parts_render_update(int passed_time)
+void parts_render_update(void)
 {
 	if (pe_dirty) {
 		struct parts *p;
