@@ -332,15 +332,30 @@ void RE_renderer_free(struct RE_renderer *r)
 void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out)
 {
 	vec3 front = { 0.0, 0.0, -1.0 };
-	vec3 euler = {
-		glm_rad(camera->pitch + camera->quake_pitch),
-		glm_rad(camera->yaw + camera->quake_yaw),
-		glm_rad(camera->roll)
-	};
+	vec3 euler;
+	float *pos;
+	if (camera->override_active) {
+		euler[0] = glm_rad(camera->override_pitch);
+		euler[1] = glm_rad(camera->override_yaw);
+		euler[2] = glm_rad(camera->override_roll);
+		pos = camera->override_pos;
+	} else {
+		euler[0] = glm_rad(camera->pitch + camera->quake_pitch);
+		euler[1] = glm_rad(camera->yaw + camera->quake_yaw);
+		euler[2] = glm_rad(camera->roll);
+		pos = camera->pos;
+	}
 	mat4 rot;
 	glm_euler_yxz(euler, rot);
 	glm_mat4_mulv3(rot, front, 0.0, front);
-	glm_look(camera->pos, front, up, out);
+	vec3 up_v;
+	if (up) {
+		glm_vec3_copy(up, up_v);  // Use the provided up vector.
+	} else {
+		// Derive the camera's up by rotating world-Y with the same orientation.
+		glm_mat4_mulv3(rot, GLM_YUP, 0.0, up_v);
+	}
+	glm_look(pos, front, up_v, out);
 }
 
 static bool should_draw_shadow(struct mesh *mesh, struct material *material)
@@ -892,7 +907,8 @@ static void render_back_cg(struct texture *dst, struct RE_back_cg *bcg, struct R
 static void setup_lights(struct RE_plugin *plugin)
 {
 	struct RE_renderer *r = plugin->renderer;
-	glUniform3fv(r->camera_pos, 1, plugin->camera.pos);
+	glUniform3fv(r->camera_pos, 1, plugin->camera.override_active
+			? plugin->camera.override_pos : plugin->camera.pos);
 	glUniform3fv(r->global_ambient, 1, plugin->global_ambient);
 	int light_index = 0;
 	for (int i = 0; i < plugin->nr_instances; i++) {
@@ -1000,7 +1016,7 @@ void RE_render(struct sact_sprite *sp)
 	glEnable(GL_CULL_FACE);
 
 	mat4 view_transform;
-	RE_calc_view_matrix(&plugin->camera, GLM_YUP, view_transform);
+	RE_calc_view_matrix(&plugin->camera, NULL, view_transform);
 
 	// Tweak the projection transform so that the rendering result is vertically
 	// flipped. If we render the scene normally, the resulting image will be

@@ -84,6 +84,12 @@ struct RE_camera {
 	vec3 pos;
 	float pitch, roll, yaw;  // in degrees
 	float quake_pitch, quake_yaw;
+	// Per-frame full override from an 3de "camera" object. Cleared at the
+	// start of every RE_build_model tick and re-asserted by s3de_effect_update
+	// if any active camera object selects this frame.
+	bool override_active;
+	vec3 override_pos;
+	float override_pitch, override_yaw, override_roll;
 };
 
 struct RE_back_cg {
@@ -104,7 +110,7 @@ struct RE_plugin {
 	struct RE_instance **instances;
 	struct archive *aar;
 	struct hash_table *model_cache;
-	struct hash_table *pae_cache;
+	struct hash_table *effect_cache;
 	struct RE_renderer *renderer;
 	struct RE_camera camera;
 	mat4 proj_transform;
@@ -158,6 +164,7 @@ struct RE_instance {
 	struct RE_plugin *plugin;
 	struct model *model;
 	struct particle_effect *effect;
+	struct s3de_effect *s3de_effect;
 	struct motion *motion;
 	struct motion *next_motion;
 	struct height_detector *height_detector;
