@@ -1120,6 +1120,11 @@ static void parts_update_component(struct parts *parts)
 
 void PE_UpdateComponent(possibly_unused int passed_time)
 {
+	// After loading a save, the game script may compute a negative time delta
+	// because it stores an absolute system.GetTime() value in the save data,
+	// which is meaningless across process restarts.
+	if (passed_time < 0)
+		passed_time = 0;
 	while (!TAILQ_EMPTY(&dirty_list)) {
 		// pop parts object from dirty list
 		struct parts *parts = TAILQ_FIRST(&dirty_list);
@@ -1161,7 +1166,7 @@ void PE_Update(int passed_time, bool message_window_show)
 	audio_update();
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
-	parts_render_update(passed_time);
+	parts_render_update();
 }
 
 void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_window_show)
@@ -1169,7 +1174,7 @@ void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_
 	parts_message_window_show = message_window_show;
 	audio_update();
 	parts_update_animation(passed_time);
-	parts_render_update(passed_time);
+	parts_render_update();
 }
 
 void PE_SetDelegateIndex(int parts_no, int delegate_index)
