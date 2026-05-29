@@ -191,6 +191,7 @@ struct RE_renderer {
 	GLint uv_scroll;
 	GLint blend_tex;
 	GLint use_blend_texture;
+	GLint color_add;
 
 	GLuint billboard_vao;
 	GLuint billboard_attr_buffer;
@@ -557,13 +558,43 @@ struct s3de {
 	int loop_end_frame;
 	struct s3de_object *objects;
 	int nr_objects;
+	struct hash_table *textures; // name -> struct billboard_texture*
 };
 
 struct s3de *s3de_load(struct archive *aar, const char *path);
 void s3de_free(struct s3de *s);
 
+struct s3de_particle {
+	float begin_frame, end_frame;
+	vec3 world_pos;       // spawn-time world position
+	vec3 spawn_offset;    // offset from emitter pos
+	vec3 direction;
+	vec3 spawn_dir;       // emitter motion direction at spawn frame
+	float speed, accel;
+	float movement_distance, movement_curve;
+	float start_size_scale, end_size_scale;
+	float start_x_scale, end_x_scale;
+	float start_y_scale, end_y_scale;
+	float offset_x, offset_y;  // per-particle 2D quad pivot shift
+	vec3 start_rotation_deg, end_rotation_deg;
+	float fade_in_frames, fade_out_frames;
+};
+
+// Emitter-level values interpolated once per frame by s3de_effect_update,
+// then read (and combined with per-particle values) during rendering.
+struct s3de_object_state {
+	vec3 emitter_pos;
+	float emitter_size, emitter_x_size, emitter_y_size;
+	float emitter_alpha;
+	vec3 emitter_rotation_deg;
+	vec3 multiply_color;
+	vec3 additive_color;
+	struct s3de_particle *particles;  // length = obj->particle_count
+};
+
 struct s3de_effect {
 	struct s3de *s3de;
+	struct s3de_object_state *objects;  // length = s3de->nr_objects
 	int wav_channel;       // -1 if no sound
 	bool sound_started;
 	float last_frame;
@@ -573,6 +604,16 @@ struct s3de_effect *s3de_effect_create(struct s3de *s, struct archive *aar);
 void s3de_effect_free(struct s3de_effect *eff);
 void s3de_effect_update(struct RE_instance *inst);
 void s3de_calc_frame_range(struct s3de *s, struct motion *motion);
+bool s3de_particle_alpha(struct s3de_object_state *st, struct s3de_particle *p,
+	float frame, float *alpha_out);
+bool s3de_billboard_world_transform(struct RE_instance *inst,
+	struct s3de_object *obj, struct s3de_object_state *st,
+	struct s3de_particle *p, float frame, mat3 camera_rot,
+	mat4 out);
+bool s3de_mesh_world_transform(struct RE_instance *inst,
+	struct s3de_object *obj, struct s3de_object_state *st,
+	struct s3de_particle *p, float frame, mat3 camera_rot, vec3 camera_pos,
+	mat4 out);
 
 // parser.c
 
