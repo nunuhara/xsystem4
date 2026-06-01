@@ -40,9 +40,9 @@ struct model {
 	int nr_materials;
 	struct material *materials;
 	int nr_bones;
-	struct bone *bones;
-	struct hash_table *bone_map;  // bone id in POL/MOT -> struct bone *
-	struct hash_table *bone_name_map;  // bone name -> (struct bone * | NULL)
+	struct bone *bones;  // ordered so that parents precede their children
+	struct bone **bones_by_pol_index;  // POL bone array index -> struct bone *
+	struct hash_table *bone_map;  // bone id in POL -> struct bone *
 	struct hash_table *mot_cache;  // name -> struct mot *
 	struct collider *collider;
 	vec3 aabb[2];  // axis-aligned bounding box
