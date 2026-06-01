@@ -1224,12 +1224,13 @@ bool PE_SetPartsCG_by_index(int parts_no, int cg_no, int sprite_deform, int stat
 
 // XXX: Rance Quest
 bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_name,
-		possibly_unused int sprite_deform, int state)
+		int sprite_deform, int state)
 {
 	if (!parts_state_valid(--state))
 		return false;
 
 	struct parts *parts = parts_get(parts_no);
+	parts->sprite_deform = sprite_deform;
 	if (!cg_name) {
 		parts_state_reset(&parts->states[state], PARTS_CG);
 		parts_dirty(parts);
