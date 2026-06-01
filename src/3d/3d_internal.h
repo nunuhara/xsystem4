@@ -402,6 +402,178 @@ void particle_effect_free(struct particle_effect *effect);
 void particle_effect_update(struct RE_instance *inst);
 void particle_object_calc_local_transform(struct RE_instance *inst, struct particle_object *po, struct particle_instance *pi, float frame, mat4 dest);
 
+// s3de.c
+
+// .3de effect system. The 's' prefix is just to avoid an identifier starting
+// with a digit; it stands for SealEngine.
+
+enum s3de_object_type {
+	S3DE_OBJ_BILLBOARD,
+	S3DE_OBJ_POLYGON,
+	S3DE_OBJ_CAMERA,
+};
+
+enum s3de_move_type {
+	S3DE_MOVE_LINEAR,
+	S3DE_MOVE_BEZIER,
+};
+
+enum s3de_spawn_position_type {
+	S3DE_SPAWN_NORMAL,
+	S3DE_SPAWN_SPHERE,
+	S3DE_SPAWN_HORIZONTAL,
+};
+
+enum s3de_blend_type {
+	S3DE_BLEND_NORMAL,
+	S3DE_BLEND_ADDITIVE,
+};
+
+enum s3de_emitter_link_type {
+	S3DE_LINK_NONE              = 0,  // frozen at spawn-time world pos
+	S3DE_LINK_FOLLOW            = 1,  // particle follows current emitter pos
+	S3DE_LINK_ROTATE_AT_SPAWN   = 2,  // emitter rotation around spawn pos
+	S3DE_LINK_ROTATE_AT_CURRENT = 3,  // emitter rotation around current pos
+	S3DE_LINK_MAX = S3DE_LINK_ROTATE_AT_CURRENT
+};
+
+enum s3de_direction_type {
+	S3DE_DIR_RANDOM,
+	S3DE_DIR_SPECIFIED,
+	S3DE_DIR_EMITTER,
+	S3DE_DIR_EMITTER_REVERSE,
+	S3DE_DIR_EMITTER_COORD,
+	S3DE_DIR_ARBITRARY_PLANE,
+	S3DE_DIR_SPAWN,
+};
+
+enum s3de_posture_type {
+	S3DE_POSE_NONE,
+	S3DE_POSE_CAMERA,
+	S3DE_POSE_MOVE_DIR,
+	S3DE_POSE_MOVE_AND_FLY,
+	S3DE_POSE_FLY_AND_EMITTER_MOVE,
+};
+
+enum s3de_interp_type {
+	S3DE_INTERP_NONE,
+	S3DE_INTERP_LINEAR,
+	S3DE_INTERP_SLERP,
+};
+
+struct s3de_range {
+	float base;
+	float random;
+};
+
+struct s3de_scalar_entry {
+	int frame;
+	float value;
+	enum s3de_interp_type interp;
+};
+
+struct s3de_vec3_entry {
+	int frame;
+	vec3 v;
+	enum s3de_interp_type interp;
+};
+
+struct s3de_position_entry {
+	int frame;
+	vec3 pos;
+	enum s3de_interp_type interp;
+	float spawn_radius;
+	float spawn_angle_deg;
+};
+
+struct s3de_object {
+	char *name;
+	enum s3de_object_type type;
+	enum s3de_move_type movement_type;
+	enum s3de_spawn_position_type spawn_position_type;
+	float spawn_distance;
+	int particle_count;
+
+	char *texture;
+
+	enum s3de_blend_type blend_type;
+	char *polygon_name;
+	enum s3de_emitter_link_type emitter_link_type;
+	bool soft_fog_edge;
+
+	enum s3de_posture_type posture_type;
+	enum s3de_direction_type direction_type;
+	vec3 direction;
+	float direction_angle;
+
+	struct s3de_range start_size, end_size;
+	struct s3de_range start_x_size, end_x_size;
+	struct s3de_range start_y_size, end_y_size;
+	struct s3de_range offset_x, offset_y, offset_z;
+	struct s3de_range speed, acceleration;
+	struct s3de_range movement_distance, movement_curve;
+
+	bool free_fall;
+	float mass, air_resistance;
+
+	struct s3de_range start_x_rotation, end_x_rotation;
+	struct s3de_range start_y_rotation, end_y_rotation;
+	struct s3de_range start_z_rotation, end_z_rotation;
+
+	float x_revolution_angle[2], y_revolution_angle[2], z_revolution_angle[2];
+	float x_revolution_distance[2], y_revolution_distance[2], z_revolution_distance[2];
+
+	int child_frame;
+	float texture_anime_frame;
+
+	struct s3de_range alpha_fade_in_frame, alpha_fade_out_frame;
+
+	int *damages;
+	int nr_damages;
+
+	struct s3de_position_entry *position_list;
+	int nr_position_entries;
+	struct s3de_scalar_entry *size_list;
+	int nr_size_entries;
+	struct s3de_scalar_entry *x_size_list;
+	int nr_x_size_entries;
+	struct s3de_scalar_entry *y_size_list;
+	int nr_y_size_entries;
+	struct s3de_scalar_entry *alpha_list;
+	int nr_alpha_entries;
+	struct s3de_vec3_entry *rotation_list;
+	int nr_rotation_entries;
+	struct s3de_vec3_entry *multiply_color_list;
+	int nr_multiply_color_entries;
+	struct s3de_vec3_entry *additive_color_list;
+	int nr_additive_color_entries;
+
+	struct model *model;
+};
+
+struct s3de {
+	char *path;
+	int loop_start_frame;
+	int loop_end_frame;
+	struct s3de_object *objects;
+	int nr_objects;
+};
+
+struct s3de *s3de_load(struct archive *aar, const char *path);
+void s3de_free(struct s3de *s);
+
+struct s3de_effect {
+	struct s3de *s3de;
+	int wav_channel;       // -1 if no sound
+	bool sound_started;
+	float last_frame;
+};
+
+struct s3de_effect *s3de_effect_create(struct s3de *s, struct archive *aar);
+void s3de_effect_free(struct s3de_effect *eff);
+void s3de_effect_update(struct RE_instance *inst);
+void s3de_calc_frame_range(struct s3de *s, struct motion *motion);
+
 // parser.c
 
 struct pol {

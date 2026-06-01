@@ -45,6 +45,7 @@ xsystem4 = [version_h,
             '3d/particle.c',
             '3d/reign.c',
             '3d/renderer.c',
+            '3d/s3de.c',
 
             'dungeon/dgn.c',
             'dungeon/dtx.c',

@@ -77,6 +77,10 @@ static void unload_instance(struct RE_instance *instance)
 		particle_effect_free(instance->effect);
 		instance->effect = NULL;
 	}
+	if (instance->s3de_effect) {
+		s3de_effect_free(instance->s3de_effect);
+		instance->s3de_effect = NULL;
+	}
 	if (instance->bone_transforms) {
 		glDeleteBuffers(1, &instance->bone_transforms_ubo);
 		free(instance->bone_transforms);
@@ -238,7 +242,7 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 	plugin->instances = xcalloc(plugin->nr_instances, sizeof(struct RE_instance *));
 	plugin->aar = aar;
 	plugin->model_cache = ht_create(32);
-	plugin->pae_cache = ht_create(32);
+	plugin->effect_cache = ht_create(32);
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_init(&plugin->back_cg[i]);
 	plugin->mag_speed = 1;
@@ -260,8 +264,9 @@ void RE_plugin_free(struct RE_plugin *plugin)
 	archive_free(plugin->aar);
 	ht_foreach_value(plugin->model_cache, (void(*)(void*))model_free);
 	ht_free(plugin->model_cache);
-	ht_foreach_value(plugin->pae_cache, (void(*)(void*))pae_free);
-	ht_free(plugin->pae_cache);
+	ht_foreach_value(plugin->effect_cache, re_plugin_version < RE_SEAL_PLUGIN ?
+		(void(*)(void*))pae_free : (void(*)(void*))s3de_free);
+	ht_free(plugin->effect_cache);
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_destroy(&plugin->back_cg[i]);
 	xfree_aligned(plugin);
@@ -321,6 +326,7 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 		return false;
 
 	plugin->camera.quake_pitch = plugin->camera.quake_yaw = 0.0;
+	plugin->camera.override_active = false;
 
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
@@ -342,7 +348,11 @@ bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms)
 	// update_bones().
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
-		if (inst && inst->type == RE_ITYPE_PARTICLE_EFFECT)
+		if (!inst || inst->type != RE_ITYPE_PARTICLE_EFFECT)
+			continue;
+		if (inst->s3de_effect)
+			s3de_effect_update(inst);
+		else
 			particle_effect_update(inst);
 	}
 	return true;
@@ -469,7 +479,6 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 	if (name[0] == '\0')
 		return true;  // empty name just unloads the instance
 
-	struct pae *pae;
 	switch (instance->type) {
 	case RE_ITYPE_STATIC:
 	case RE_ITYPE_SKINNED:
@@ -488,18 +497,34 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 		}
 		return !!instance->model;
 	case RE_ITYPE_PARTICLE_EFFECT:
-		pae = ht_get(instance->plugin->pae_cache, name, NULL);
-		if (!pae) {
-			pae = pae_load(instance->plugin->aar, name);
-			if (!pae)
-				return false;
-			ht_put(instance->plugin->pae_cache, name, pae);
-		}
-		instance->effect = particle_effect_create(pae);
-		if (!instance->motion) {
-			instance->motion = xcalloc(1, sizeof(struct motion));
-			instance->motion->instance = instance;
-			pae_calc_frame_range(instance->effect->pae, instance->motion);
+		if (re_plugin_version >= RE_SEAL_PLUGIN) {
+			struct s3de *s3de = ht_get(instance->plugin->effect_cache, name, NULL);
+			if (!s3de) {
+				s3de = s3de_load(instance->plugin->aar, name);
+				if (!s3de)
+					return false;
+				ht_put(instance->plugin->effect_cache, name, s3de);
+			}
+			instance->s3de_effect = s3de_effect_create(s3de, instance->plugin->aar);
+			if (!instance->motion) {
+				instance->motion = xcalloc(1, sizeof(struct motion));
+				instance->motion->instance = instance;
+				s3de_calc_frame_range(instance->s3de_effect->s3de, instance->motion);
+			}
+		} else {
+			struct pae *pae = ht_get(instance->plugin->effect_cache, name, NULL);
+			if (!pae) {
+				pae = pae_load(instance->plugin->aar, name);
+				if (!pae)
+					return false;
+				ht_put(instance->plugin->effect_cache, name, pae);
+			}
+			instance->effect = particle_effect_create(pae);
+			if (!instance->motion) {
+				instance->motion = xcalloc(1, sizeof(struct motion));
+				instance->motion->instance = instance;
+				pae_calc_frame_range(instance->effect->pae, instance->motion);
+			}
 		}
 		return true;
 	default:
@@ -670,7 +695,7 @@ bool RE_instance_find_path(struct RE_instance *inst, vec3 start, vec3 goal)
 	if (!inst || !inst->model->collider)
 		return false;
 	mat4 vp_transform;
-	RE_calc_view_matrix(&inst->plugin->camera, GLM_YUP, vp_transform);
+	RE_calc_view_matrix(&inst->plugin->camera, NULL, vp_transform);
 	glm_mat4_mul(inst->plugin->proj_transform, vp_transform, vp_transform);
 	return collider_find_path(inst->model->collider, start, goal, vp_transform);
 }
@@ -701,7 +726,7 @@ bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *inst, in
 	vec4 far  = { ndc_x, ndc_y,  1.f, 1.f };
 
 	mat4 inv_vp;
-	RE_calc_view_matrix(&inst->plugin->camera, GLM_YUP, inv_vp);
+	RE_calc_view_matrix(&inst->plugin->camera, NULL, inv_vp);
 	glm_mat4_mul(inst->plugin->proj_transform, inv_vp, inv_vp);
 	glm_mat4_inv(inv_vp, inv_vp);
 
@@ -724,7 +749,7 @@ bool RE_plugin_transform_pos_to_view_pos(struct RE_plugin *plugin, float x, floa
 		return false;
 
 	mat4 vp;
-	RE_calc_view_matrix(&plugin->camera, GLM_YUP, vp);
+	RE_calc_view_matrix(&plugin->camera, NULL, vp);
 	glm_mat4_mul(plugin->proj_transform, vp, vp);
 
 	vec4 pos = { x, y, z, 1.f };
@@ -746,11 +771,16 @@ bool RE_plugin_get_camera_z_vector(struct RE_plugin *plugin, vec3 out)
 	if (!plugin)
 		return false;
 
-	vec3 euler = {
-		glm_rad(plugin->camera.pitch + plugin->camera.quake_pitch),
-		glm_rad(plugin->camera.yaw + plugin->camera.quake_yaw),
-		glm_rad(plugin->camera.roll)
-	};
+	vec3 euler;
+	if (plugin->camera.override_active) {
+		euler[0] = glm_rad(plugin->camera.override_pitch);
+		euler[1] = glm_rad(plugin->camera.override_yaw);
+		euler[2] = glm_rad(plugin->camera.override_roll);
+	} else {
+		euler[0] = glm_rad(plugin->camera.pitch + plugin->camera.quake_pitch);
+		euler[1] = glm_rad(plugin->camera.yaw + plugin->camera.quake_yaw);
+		euler[2] = glm_rad(plugin->camera.roll);
+	}
 	mat4 rot;
 	glm_euler_yxz(euler, rot);
 	glm_mat4_mulv3(rot, GLM_FORWARD, 0.f, out);

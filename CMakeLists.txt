@@ -84,6 +84,7 @@ target_sources(xsystem4 PRIVATE
   src/3d/particle.c
   src/3d/reign.c
   src/3d/renderer.c
+  src/3d/s3de.c
 
   src/dungeon/dgn.c
   src/dungeon/dtx.c
