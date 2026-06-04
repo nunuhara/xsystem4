@@ -264,6 +264,11 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		REQUIRE_INTS(2);
 		PE_parts_set_want_save(ints[0].i, !!ints[1].i);
 		return 1;
+	case 6:  // bool SaveThumbnail(string filename, int reduction_factor)
+		REQUIRE_INTS(2);
+		REQUIRE_STRINGS(1);
+		ints[1].i = PE_save_thumbnail(heap_get_string(strings[0].i), ints[0].i);
+		return 1;
 	case 40:  // float PARTS_GetAbsoluteX(int number)
 		REQUIRE_INTS(1);
 		REQUIRE_FLOATS(1);
