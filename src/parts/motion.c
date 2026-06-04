@@ -38,6 +38,8 @@ static struct parts_motion_list global_motion_list =
 
 // true after call to BeginMotion until the motion ends or EndMotion is called
 static bool is_motion = false;
+// true while the motion is paused (time does not advance)
+static bool is_motion_paused = false;
 // the elapsed time of the current motion
 static int motion_t = 0;
 // the end time of the current motion
@@ -498,6 +500,7 @@ void PE_BeginMotion(void)
 	// FIXME: starting a motion seems to clear non-default states
 	motion_t = 0;
 	is_motion = true;
+	is_motion_paused = false;
 	parts_init_all_motion();
 }
 
@@ -508,6 +511,7 @@ void PE_EndMotion(void)
 	motion_t = 0;
 	motion_end_t = 0;
 	is_motion = false;
+	is_motion_paused = false;
 	parts_fini_all_motion();
 }
 
@@ -531,6 +535,8 @@ void PE_SeekEndMotion(void)
 void PE_UpdateMotionTime(int time, possibly_unused bool skip)
 {
 	// TODO: use skip
+	if (is_motion_paused)
+		return;
 	PE_SetMotionTime(motion_t + time);
 }
 
@@ -542,4 +548,21 @@ bool PE_IsMotion(void)
 int PE_GetMotionEndTime(void)
 {
 	return motion_end_t;
+}
+
+void PE_PauseMotion(bool pause)
+{
+	if (parts_began_click)
+		return;
+	if (!is_motion)
+		return;
+	if (is_motion_paused == pause)
+		return;
+	is_motion_paused = pause;
+
+	// While paused, the per-frame advance stops updating the whole-screen
+	// vibration offset. Reset it to the origin so the screen doesn't stay
+	// stuck at the last shake position.
+	if (pause)
+		parts_set_global_pos((Point){ 0, 0 });
 }

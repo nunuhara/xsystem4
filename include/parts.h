@@ -248,6 +248,7 @@ void PE_SeekEndMotion(void);
 void PE_UpdateMotionTime(int time, bool skip);
 bool PE_IsMotion(void);
 int PE_GetMotionEndTime(void);
+void PE_PauseMotion(bool pause);
 
 // text.c
 bool PE_SetText(int parts_no, struct string *text, int state);
