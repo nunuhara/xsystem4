@@ -40,7 +40,6 @@ struct parts_controller_stack ctrl_stack;
 bool parts_multi_controller;
 
 static void ctrl_stack_init(void);
-static void ctrl_stack_fini(void);
 
 #define PARTS_PARAMS_INITIALIZER (struct parts_params) { \
 	.z = 1, \
@@ -1062,7 +1061,7 @@ void PE_Reset(void)
 {
 	PE_ReleaseAllParts();
 	PE_ReleaseMessage();
-	ctrl_stack_fini();
+	ctrl_stack_init();
 	sact_ModuleFini();
 }
 
@@ -2108,11 +2107,6 @@ static void ctrl_stack_init(void)
 	memset(&ctrl_stack, 0, sizeof(ctrl_stack));
 	// Add initial default controller
 	PE_AddController(-1);
-}
-
-static void ctrl_stack_fini(void)
-{
-	memset(&ctrl_stack, 0, sizeof(ctrl_stack));
 }
 
 // Adds a new controller to the stack and makes it active. The `index`
