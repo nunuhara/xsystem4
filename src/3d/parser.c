@@ -620,6 +620,15 @@ void opr_load(uint8_t *data, size_t size, struct pol *pol)
 			} else {
 				WARNING("invalid HeightDetection: %s", s);
 			}
+		} else if (sscanf(line, "ZWrite = %s", s) == 1) {
+			if (!strcmp(s, "false")) {
+				for (int i = 0; i < pol->nr_meshes; i++) {
+					if (!selected[i]) continue;
+					pol->meshes[i]->flags |= MESH_NO_ZWRITE;
+				}
+			} else if (strcmp(s, "true")) {
+				WARNING("invalid ZWrite: %s", s);
+			}
 		} else if (sscanf(line, "UVScroll = ( %f , %f )", &f1, &f2) == 2) {
 			for (int i = 0; i < pol->nr_meshes; i++) {
 				if (!selected[i]) continue;

@@ -664,6 +664,7 @@ enum mesh_flags {
 	MESH_NO_HEIGHT_DETECTION = 1 << 7,
 	MESH_ALPHA               = 1 << 8,
 	MESH_HAS_LIGHT_UV        = 1 << 9,
+	MESH_NO_ZWRITE           = 1 << 10,
 };
 
 struct pol_mesh {

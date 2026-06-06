@@ -506,12 +506,16 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 
 		if (mesh->flags & MESH_BOTH)
 			glDisable(GL_CULL_FACE);
+		if (mesh->flags & MESH_NO_ZWRITE)
+			glDepthMask(GL_FALSE);
 
 		if (mesh->nr_indices)
 			glDrawElements(GL_TRIANGLES, mesh->nr_indices, GL_UNSIGNED_SHORT, NULL);
 		else
 			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 
+		if (mesh->flags & MESH_NO_ZWRITE)
+			glDepthMask(GL_TRUE);
 		if (mesh->flags & MESH_BOTH)
 			glEnable(GL_CULL_FACE);
 		glBindVertexArray(0);
