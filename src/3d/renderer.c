@@ -1188,18 +1188,22 @@ static struct RE_instance **sort_instances(struct RE_plugin *plugin, mat4 view_t
 	return instances;
 }
 
+void RE_update_model(struct RE_plugin *plugin)
+{
+	struct RE_renderer *r = plugin->renderer;
+	if (!r || plugin->suspended)
+		return;
+	uint32_t timestamp = SDL_GetTicks();
+	RE_build_model(plugin, timestamp - r->last_frame_timestamp);
+	r->last_frame_timestamp = timestamp;
+}
+
 void RE_render(struct sact_sprite *sp)
 {
 	struct RE_plugin *plugin = (struct RE_plugin *)sp->plugin;
 	struct RE_renderer *r = plugin->renderer;
 	if (!r || plugin->suspended)
 		return;
-
-	if (re_plugin_version >= RE_TAPIR_PLUGIN) {
-		uint32_t timestamp = SDL_GetTicks();
-		RE_build_model(plugin, timestamp - r->last_frame_timestamp);
-		r->last_frame_timestamp = timestamp;
-	}
 
 	sprite_dirty(sp);
 	struct texture *texture = sprite_get_texture(sp);

@@ -48,6 +48,14 @@ static struct RE_plugin *get_plugin(unsigned plugin)
 	return plugin < RE_MAX_PLUGINS ? plugins[plugin] : NULL;
 }
 
+void ReignEngine_update_models(void)
+{
+	for (int i = 0; i < RE_MAX_PLUGINS; i++) {
+		if (plugins[i])
+			RE_update_model(plugins[i]);
+	}
+}
+
 static struct RE_instance *get_instance(unsigned plugin, unsigned instance)
 {
 	struct RE_plugin *rp = get_plugin(plugin);
