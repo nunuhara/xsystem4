@@ -92,6 +92,9 @@ uniform int diffuse_type;
 uniform float shadow_darkness;
 uniform float shadow_bias;
 uniform int alpha_mode;
+#if ENGINE == SEAL_ENGINE
+uniform vec3 color_add;
+#endif
 
 in vec2 tex_coord;
 in vec2 light_tex_coord;
@@ -137,6 +140,10 @@ void main() {
 			frag_rgb += texel.rgb * diffuse * color_mod.rgb * diffuse_mod;
 		}
 	}
+
+#if ENGINE == SEAL_ENGINE
+	frag_rgb += color_add;
+#endif
 
 #if ENGINE == REIGN_ENGINE
 	// Specular lighting
