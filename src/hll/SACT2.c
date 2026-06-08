@@ -1031,6 +1031,7 @@ int sact_TRANS_Begin(int type)
 
 int sact_TRANS_Update(float rate)
 {
+	sprite_call_plugins();
 	if (scene_is_dirty)
 		scene_render();
 	return effect_update(rate);
