@@ -264,7 +264,6 @@ struct RE_renderer *RE_renderer_new(void)
 	r->uv_scroll = glGetUniformLocation(r->program, "uv_scroll");
 	r->blend_tex = glGetUniformLocation(r->program, "blend_tex");
 	r->use_blend_texture = glGetUniformLocation(r->program, "use_blend_texture");
-	r->color_add = glGetUniformLocation(r->program, "color_add");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 
@@ -555,7 +554,6 @@ static void reset_draw_uniforms(struct RE_renderer *r)
 {
 	glUniform1f(r->alpha_mod, 1.0f);
 	glUniform3f(r->diffuse_mod, 1.0f, 1.0f, 1.0f);
-	glUniform3f(r->color_add, 0.0f, 0.0f, 0.0f);
 	glUniform2f(r->uv_scroll, 0.0f, 0.0f);
 	glUniform1i(r->has_bones, GL_FALSE);
 	glUniform1f(r->specular_strength, 0.0f);
@@ -875,8 +873,10 @@ static void render_s3de_effect(struct RE_instance *inst, struct RE_renderer *r, 
 		struct s3de_object *obj = &s->objects[i];
 		struct s3de_object_state *st = &inst->s3de_effect->objects[i];
 
+		vec3 ambient;
+		glm_vec3_add(inst->ambient, st->additive_color, ambient);
+		glUniform3fv(r->instance_ambient, 1, ambient);
 		glUniform3fv(r->diffuse_mod, 1, st->multiply_color);
-		glUniform3fv(r->color_add, 1, st->additive_color);
 
 		switch (obj->type) {
 		case S3DE_OBJ_BILLBOARD:
@@ -893,8 +893,6 @@ static void render_s3de_effect(struct RE_instance *inst, struct RE_renderer *r, 
 	}
 	free(keys);
 
-	glUniform3f(r->diffuse_mod, 1.0f, 1.0f, 1.0f);
-	glUniform3f(r->color_add, 0.0f, 0.0f, 0.0f);
 	if (phase == DRAW_TRANSPARENT)
 		glDepthMask(GL_TRUE);
 }

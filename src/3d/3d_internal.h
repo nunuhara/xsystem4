@@ -191,7 +191,6 @@ struct RE_renderer {
 	GLint uv_scroll;
 	GLint blend_tex;
 	GLint use_blend_texture;
-	GLint color_add;
 
 	GLuint billboard_vao;
 	GLuint billboard_attr_buffer;
