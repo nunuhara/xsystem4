@@ -818,7 +818,7 @@ struct mpr_modulation {
 struct mpr *mpr_load(uint8_t *data, size_t size, struct model *model);
 void mpr_free(struct mpr *mpr);
 void mpr_evaluate_object(const struct mpr *mpr, float frame,
-		const struct RE_instance *inst, struct mpr_modulation *out);
+		struct RE_instance *inst, struct mpr_modulation *out);
 void mpr_evaluate_mesh(const struct mpr_track_set *mt, float frame,
 		const struct mpr_modulation *obj, struct mpr_modulation *out);
 void mpr_build_mat_tex_index(const struct model *model, const struct RE_instance *inst,

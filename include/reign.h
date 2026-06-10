@@ -184,6 +184,7 @@ struct RE_instance {
 	bool use_mag_speed;
 	bool motion_blend;
 	float motion_blend_rate;
+	vec3 diffuse;  // color multiplier for meshes, light color for lights
 	vec3 ambient;
 	vec3 column_pos;
 	float column_height;
@@ -195,7 +196,6 @@ struct RE_instance {
 
 	// Lights
 	vec3 vec;
-	vec3 diffuse;
 	vec3 globe_diffuse;
 
 	// Private

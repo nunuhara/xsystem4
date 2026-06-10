@@ -42,10 +42,9 @@ static struct RE_instance *create_instance(struct RE_plugin *plugin)
 	instance->plugin = plugin;
 	for (int i = 0; i < RE_NR_INSTANCE_TARGETS; i++)
 		instance->target[i] = -1;
-	instance->scale[0] = 1.0f;
-	instance->scale[1] = 1.0f;
-	instance->scale[2] = 1.0f;
+	glm_vec3_one(instance->scale);
 	instance->alpha = 1.0f;
+	glm_vec3_one(instance->diffuse);
 	instance->shadow_volume_bone_radius = 0.1f;
 	instance->draw_bump = true;
 	instance->fps = 30.0f;
