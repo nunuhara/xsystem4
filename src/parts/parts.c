@@ -40,7 +40,6 @@ struct parts_controller_stack ctrl_stack;
 bool parts_multi_controller;
 
 static void ctrl_stack_init(void);
-static void ctrl_stack_fini(void);
 
 #define PARTS_PARAMS_INITIALIZER (struct parts_params) { \
 	.z = 1, \
@@ -1062,7 +1061,7 @@ void PE_Reset(void)
 {
 	PE_ReleaseAllParts();
 	PE_ReleaseMessage();
-	ctrl_stack_fini();
+	ctrl_stack_init();
 	sact_ModuleFini();
 }
 
@@ -1955,6 +1954,44 @@ bool PE_SetThumbnailMode(bool mode)
 	return true;
 }
 
+bool PE_save_thumbnail(struct string *filename, int reduction_factor)
+{
+	if (reduction_factor < 1)
+		reduction_factor = 1;
+
+	Texture *src = gfx_main_surface();
+	int w = src->w / reduction_factor;
+	int h = src->h / reduction_factor;
+
+	// Downscale by repeatedly halving until we are within a factor of two of
+	// the target size, then do the final stretch. This avoids the aliasing
+	// that a single bilinear minification would otherwise produce.
+	Texture tmp, *cur = src;
+	bool have_tmp = false;
+	while (cur->w / 2 > w && cur->h / 2 > h) {
+		Texture next;
+		gfx_init_texture_blank(&next, cur->w / 2, cur->h / 2);
+		gfx_copy_stretch_with_alpha_map(&next, 0, 0, next.w, next.h, cur, 0, 0, cur->w, cur->h);
+		if (have_tmp)
+			gfx_delete_texture(&tmp);
+		tmp = next;
+		cur = &tmp;
+		have_tmp = true;
+	}
+
+	Texture dst;
+	gfx_init_texture_blank(&dst, w, h);
+	gfx_copy_stretch_with_alpha_map(&dst, 0, 0, w, h, cur, 0, 0, cur->w, cur->h);
+	if (have_tmp)
+		gfx_delete_texture(&tmp);
+
+	char *path = savedir_path(filename->text);
+	int r = gfx_save_texture(&dst, path, ALCG_QNT);
+	free(path);
+	gfx_delete_texture(&dst);
+	return !!r;
+}
+
 void PE_SetInputState(int parts_no, int state)
 {
 	if (!parts_state_valid(--state)) {
@@ -2070,11 +2107,6 @@ static void ctrl_stack_init(void)
 	memset(&ctrl_stack, 0, sizeof(ctrl_stack));
 	// Add initial default controller
 	PE_AddController(-1);
-}
-
-static void ctrl_stack_fini(void)
-{
-	memset(&ctrl_stack, 0, sizeof(ctrl_stack));
 }
 
 // Adds a new controller to the stack and makes it active. The `index`

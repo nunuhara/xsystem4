@@ -111,8 +111,8 @@ HLL_WARN_UNIMPLEMENTED(0, int,  ChipmunkSpriteEngine, SP_SetBrightness, int sp_n
 HLL_WARN_UNIMPLEMENTED(0, int,  ChipmunkSpriteEngine, SP_GetBrightness, int sp_no);
 
 static bool keep_previous_view = true;
-HLL_WARN_UNIMPLEMENTED((keep_previous_view = on, true), bool, ChipmunkSpriteEngine, KeepPreviousView_SetMode, bool on);
-HLL_WARN_UNIMPLEMENTED(keep_previous_view, bool, ChipmunkSpriteEngine, KeepPreviousView_GetMode);
+HLL_QUIET_UNIMPLEMENTED((keep_previous_view = on, true), bool, ChipmunkSpriteEngine, KeepPreviousView_SetMode, bool on);
+HLL_QUIET_UNIMPLEMENTED(keep_previous_view, bool, ChipmunkSpriteEngine, KeepPreviousView_GetMode);
 HLL_QUIET_UNIMPLEMENTED(false, bool, ChipmunkSpriteEngine, KeepPreviousView);
 
 static void ChipmunkSpriteEngine_Sleep(void)

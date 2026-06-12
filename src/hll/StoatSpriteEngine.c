@@ -188,8 +188,8 @@ float StoatSpriteEngine_FPS_Get(void)
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, VIEW_SetOffsetPos, int x, int y);
 
 static bool keep_previous_view = true;
-HLL_WARN_UNIMPLEMENTED((keep_previous_view = on, true), bool, StoatSpriteEngine, KeepPreviousView_SetMode, bool on);
-HLL_WARN_UNIMPLEMENTED(keep_previous_view, bool, StoatSpriteEngine, KeepPreviousView_GetMode);
+HLL_QUIET_UNIMPLEMENTED((keep_previous_view = on, true), bool, StoatSpriteEngine, KeepPreviousView_SetMode, bool on);
+HLL_QUIET_UNIMPLEMENTED(keep_previous_view, bool, StoatSpriteEngine, KeepPreviousView_GetMode);
 
 /*
  * NOTE: The multisprite "type" alters the behavior of the multisprite functions.
