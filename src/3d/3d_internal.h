@@ -664,6 +664,7 @@ enum mesh_flags {
 	MESH_ALPHA               = 1 << 8,
 	MESH_HAS_LIGHT_UV        = 1 << 9,
 	MESH_NO_ZWRITE           = 1 << 10,
+	MESH_HEIGHT_DETECTION    = 1 << 11,
 };
 
 struct pol_mesh {
@@ -838,6 +839,7 @@ struct collider {
 };
 
 struct collider *collider_create(struct pol_mesh *mesh);
+struct collider *collider_create_raycast(struct pol_mesh **meshes, int nr_meshes);
 void collider_free(struct collider *collider);
 bool collider_height(struct collider *collider, vec2 xz, float *h_out);
 bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out);

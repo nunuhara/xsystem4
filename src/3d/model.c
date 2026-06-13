@@ -582,6 +582,8 @@ struct model *model_load(struct archive *aar, const char *path)
 	}
 
 	// Meshes
+	struct pol_mesh **hd_meshes = xmalloc(pol->nr_meshes * sizeof(*hd_meshes));
+	int nr_hd_meshes = 0;
 	for (uint32_t i = 0; i < pol->nr_meshes; i++) {
 		if (!pol->meshes[i])
 			continue;
@@ -592,6 +594,8 @@ struct model *model_load(struct archive *aar, const char *path)
 				model->collider = collider_create(pol->meshes[i]);
 			continue;
 		}
+		if (pol->meshes[i]->flags & MESH_HEIGHT_DETECTION)
+			hd_meshes[nr_hd_meshes++] = pol->meshes[i];
 		struct pol_material_group *mg = &pol->materials[pol->meshes[i]->material];
 		int m_off = material_offsets[pol->meshes[i]->material];
 		if (mg->nr_children == 0) {
@@ -602,6 +606,10 @@ struct model *model_load(struct archive *aar, const char *path)
 			add_mesh(model, pol->meshes[i], j, m_off + j);
 		}
 	}
+
+	if (!model->collider && nr_hd_meshes > 0)
+		model->collider = collider_create_raycast(hd_meshes, nr_hd_meshes);
+	free(hd_meshes);
 
 	pol_compute_aabb(pol, model->aabb);
 

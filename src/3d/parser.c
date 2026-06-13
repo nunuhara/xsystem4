@@ -612,7 +612,12 @@ void opr_load(uint8_t *data, size_t size, struct pol *pol)
 				pol->meshes[i]->edge_size = f1;
 			}
 		} else if (sscanf(line, "HeightDetection = %s", s) == 1) {
-			if (!strcmp(s, "false")) {
+			if (!strcmp(s, "true")) {
+				for (int i = 0; i < pol->nr_meshes; i++) {
+					if (!selected[i]) continue;
+					pol->meshes[i]->flags |= MESH_HEIGHT_DETECTION;
+				}
+			} else if (!strcmp(s, "false")) {
 				for (int i = 0; i < pol->nr_meshes; i++) {
 					if (!selected[i]) continue;
 					pol->meshes[i]->flags |= MESH_NO_HEIGHT_DETECTION;
