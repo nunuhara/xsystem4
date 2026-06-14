@@ -184,6 +184,7 @@ struct RE_instance {
 	bool use_mag_speed;
 	bool motion_blend;
 	float motion_blend_rate;
+	vec3 diffuse;  // color multiplier for meshes, light color for lights
 	vec3 ambient;
 	vec3 column_pos;
 	float column_height;
@@ -195,7 +196,6 @@ struct RE_instance {
 
 	// Lights
 	vec3 vec;
-	vec3 diffuse;
 	vec3 globe_diffuse;
 
 	// Private
@@ -217,6 +217,7 @@ bool RE_plugin_unbind(struct RE_plugin *plugin);
 bool RE_plugin_suspend(struct RE_plugin *plugin);
 bool RE_plugin_resume(struct RE_plugin *plugin);
 bool RE_build_model(struct RE_plugin *plugin, int elapsed_ms);
+void RE_update_model(struct RE_plugin *plugin);
 bool RE_set_viewport(struct RE_plugin *plugin, int x, int y, int width, int height);
 bool RE_set_projection(struct RE_plugin *plugin, float width, float height, float near, float far, float deg);
 int RE_create_instance(struct RE_plugin *plugin);
@@ -326,5 +327,8 @@ cJSON *RE_to_json(struct sact_sprite *sp, bool verbose);
 int ReignEngine_create_plugin(enum RE_plugin_version version);
 bool ReignEngine_ReleasePlugin(int handle);
 bool ReignEngine_BindPlugin(int handle, int sprite);
+
+// Exposed for MarmotModelEngine
+void ReignEngine_update_models(void);
 
 #endif /* SYSTEM4_REIGN_H */

@@ -264,7 +264,6 @@ struct RE_renderer *RE_renderer_new(void)
 	r->uv_scroll = glGetUniformLocation(r->program, "uv_scroll");
 	r->blend_tex = glGetUniformLocation(r->program, "blend_tex");
 	r->use_blend_texture = glGetUniformLocation(r->program, "use_blend_texture");
-	r->color_add = glGetUniformLocation(r->program, "color_add");
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 
@@ -506,12 +505,16 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 
 		if (mesh->flags & MESH_BOTH)
 			glDisable(GL_CULL_FACE);
+		if (mesh->flags & MESH_NO_ZWRITE)
+			glDepthMask(GL_FALSE);
 
 		if (mesh->nr_indices)
 			glDrawElements(GL_TRIANGLES, mesh->nr_indices, GL_UNSIGNED_SHORT, NULL);
 		else
 			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 
+		if (mesh->flags & MESH_NO_ZWRITE)
+			glDepthMask(GL_TRUE);
 		if (mesh->flags & MESH_BOTH)
 			glEnable(GL_CULL_FACE);
 		glBindVertexArray(0);
@@ -547,6 +550,25 @@ static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r
 		render_static_model(inst->shadow_volume_instance, r, phase);
 }
 
+static void reset_draw_uniforms(struct RE_renderer *r)
+{
+	glUniform1f(r->alpha_mod, 1.0f);
+	glUniform3f(r->diffuse_mod, 1.0f, 1.0f, 1.0f);
+	glUniform2f(r->uv_scroll, 0.0f, 0.0f);
+	glUniform1i(r->has_bones, GL_FALSE);
+	glUniform1f(r->specular_strength, 0.0f);
+	glUniform1f(r->specular_shininess, 0.0f);
+	glUniform1i(r->use_specular_map, GL_FALSE);
+	glUniform1f(r->rim_exponent, 0.0f);
+	glUniform3f(r->rim_color, 0.0f, 0.0f, 0.0f);
+	glUniform1i(r->use_normal_map, GL_FALSE);
+	glUniform1i(r->use_blend_texture, GL_FALSE);
+	glUniform1f(r->shadow_darkness, 0.0f);
+	glUniform1i(r->alpha_mode, ALPHA_BLEND);
+	glUniform1i(r->fog_type, 0);
+	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
+}
+
 static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat, enum draw_phase phase)
 {
 	if (!inst->draw)
@@ -572,20 +594,11 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glm_mat4_pick3(local_transform, normal_transform);
 
 	glUniform3fv(r->instance_ambient, 1, inst->ambient);
-	glUniform3f(r->diffuse_mod, 1.f, 1.f, 1.f);
-
 	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, local_transform[0]);
 	glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, normal_transform[0]);
-	glUniform1i(r->has_bones, GL_FALSE);
+
+	reset_draw_uniforms(r);
 	glUniform1f(r->alpha_mod, inst->alpha);
-	glUniform1f(r->specular_strength, 0.0);
-	glUniform1f(r->specular_shininess, 0.0);
-	glUniform1i(r->use_specular_map, GL_FALSE);
-	glUniform1f(r->rim_exponent, 0.0);
-	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
-	glUniform1i(r->use_normal_map, GL_FALSE);
-	glUniform1f(r->shadow_darkness, 0.0f);
-	glUniform1i(r->alpha_mode, ALPHA_BLEND);
 	glUniform1i(r->fog_type, inst->plugin->fog_mode ? inst->plugin->fog_type : 0);
 	switch (inst->draw_type) {
 	case RE_DRAW_TYPE_NORMAL:
@@ -821,17 +834,7 @@ static void render_s3de_effect(struct RE_instance *inst, struct RE_renderer *r, 
 		RE_instance_update_local_transform(inst);
 
 	glUniform3fv(r->instance_ambient, 1, inst->ambient);
-	glUniform3f(r->diffuse_mod, 1.f, 1.f, 1.f);
-
-	glUniform1i(r->has_bones, GL_FALSE);
-	glUniform1f(r->specular_strength, 0.0);
-	glUniform1f(r->specular_shininess, 0.0);
-	glUniform1i(r->use_specular_map, GL_FALSE);
-	glUniform1f(r->rim_exponent, 0.0);
-	glUniform1i(r->use_normal_map, GL_FALSE);
-	glUniform1f(r->shadow_darkness, 0.0f);
-	glUniform1i(r->alpha_mode, ALPHA_BLEND);
-	glUniform1i(r->fog_type, 0);
+	reset_draw_uniforms(r);
 
 	if (phase == DRAW_TRANSPARENT)
 		glDepthMask(GL_FALSE);
@@ -870,8 +873,10 @@ static void render_s3de_effect(struct RE_instance *inst, struct RE_renderer *r, 
 		struct s3de_object *obj = &s->objects[i];
 		struct s3de_object_state *st = &inst->s3de_effect->objects[i];
 
+		vec3 ambient;
+		glm_vec3_add(inst->ambient, st->additive_color, ambient);
+		glUniform3fv(r->instance_ambient, 1, ambient);
 		glUniform3fv(r->diffuse_mod, 1, st->multiply_color);
-		glUniform3fv(r->color_add, 1, st->additive_color);
 
 		switch (obj->type) {
 		case S3DE_OBJ_BILLBOARD:
@@ -888,8 +893,6 @@ static void render_s3de_effect(struct RE_instance *inst, struct RE_renderer *r, 
 	}
 	free(keys);
 
-	glUniform3f(r->diffuse_mod, 1.0f, 1.0f, 1.0f);
-	glUniform3f(r->color_add, 0.0f, 0.0f, 0.0f);
 	if (phase == DRAW_TRANSPARENT)
 		glDepthMask(GL_TRUE);
 }
@@ -901,16 +904,7 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 		return;
 
 	glUniform3fv(r->instance_ambient, 1, inst->ambient);
-	glUniform3f(r->diffuse_mod, 1.f, 1.f, 1.f);
-
-	glUniform1i(r->has_bones, GL_FALSE);
-	glUniform1f(r->specular_strength, 0.0);
-	glUniform1f(r->specular_shininess, 0.0);
-	glUniform1i(r->use_specular_map, GL_FALSE);
-	glUniform1f(r->rim_exponent, 0.0);
-	glUniform1i(r->use_normal_map, GL_FALSE);
-	glUniform1f(r->shadow_darkness, 0.0f);
-	glUniform1i(r->alpha_mode, ALPHA_BLEND);
+	reset_draw_uniforms(r);
 
 	glDepthMask(GL_FALSE);
 
@@ -1184,18 +1178,22 @@ static struct RE_instance **sort_instances(struct RE_plugin *plugin, mat4 view_t
 	return instances;
 }
 
+void RE_update_model(struct RE_plugin *plugin)
+{
+	struct RE_renderer *r = plugin->renderer;
+	if (!r || plugin->suspended)
+		return;
+	uint32_t timestamp = SDL_GetTicks();
+	RE_build_model(plugin, timestamp - r->last_frame_timestamp);
+	r->last_frame_timestamp = timestamp;
+}
+
 void RE_render(struct sact_sprite *sp)
 {
 	struct RE_plugin *plugin = (struct RE_plugin *)sp->plugin;
 	struct RE_renderer *r = plugin->renderer;
 	if (!r || plugin->suspended)
 		return;
-
-	if (re_plugin_version >= RE_TAPIR_PLUGIN) {
-		uint32_t timestamp = SDL_GetTicks();
-		RE_build_model(plugin, timestamp - r->last_frame_timestamp);
-		r->last_frame_timestamp = timestamp;
-	}
 
 	sprite_dirty(sp);
 	struct texture *texture = sprite_get_texture(sp);

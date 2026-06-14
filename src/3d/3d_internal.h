@@ -191,7 +191,6 @@ struct RE_renderer {
 	GLint uv_scroll;
 	GLint blend_tex;
 	GLint use_blend_texture;
-	GLint color_add;
 
 	GLuint billboard_vao;
 	GLuint billboard_attr_buffer;
@@ -664,6 +663,8 @@ enum mesh_flags {
 	MESH_NO_HEIGHT_DETECTION = 1 << 7,
 	MESH_ALPHA               = 1 << 8,
 	MESH_HAS_LIGHT_UV        = 1 << 9,
+	MESH_NO_ZWRITE           = 1 << 10,
+	MESH_HEIGHT_DETECTION    = 1 << 11,
 };
 
 struct pol_mesh {
@@ -817,7 +818,7 @@ struct mpr_modulation {
 struct mpr *mpr_load(uint8_t *data, size_t size, struct model *model);
 void mpr_free(struct mpr *mpr);
 void mpr_evaluate_object(const struct mpr *mpr, float frame,
-		const struct RE_instance *inst, struct mpr_modulation *out);
+		struct RE_instance *inst, struct mpr_modulation *out);
 void mpr_evaluate_mesh(const struct mpr_track_set *mt, float frame,
 		const struct mpr_modulation *obj, struct mpr_modulation *out);
 void mpr_build_mat_tex_index(const struct model *model, const struct RE_instance *inst,
@@ -838,6 +839,7 @@ struct collider {
 };
 
 struct collider *collider_create(struct pol_mesh *mesh);
+struct collider *collider_create_raycast(struct pol_mesh **meshes, int nr_meshes);
 void collider_free(struct collider *collider);
 bool collider_height(struct collider *collider, vec2 xz, float *h_out);
 bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out);

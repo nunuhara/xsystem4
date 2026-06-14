@@ -15,6 +15,7 @@
  */
 
 #include <assert.h>
+#include <float.h>
 #include <stdlib.h>
 #include <cglm/cglm.h>
 
@@ -36,11 +37,8 @@ struct collider_edge {
 	vec2 aabb[2];
 };
 
-static void init_triangles(struct collider *collider, struct pol_mesh *mesh)
+static struct collider_triangle *fill_triangles(struct collider_triangle *t, struct pol_mesh *mesh)
 {
-	collider->nr_triangles = mesh->nr_triangles;
-	collider->triangles = xcalloc(mesh->nr_triangles, sizeof(struct collider_triangle));
-	struct collider_triangle *t = collider->triangles;
 	for (int tri_i = 0; tri_i < mesh->nr_triangles; tri_i++, t++) {
 		glm_aabb2d_invalidate(t->aabb);
 		for (int i = 0; i < 3; i++) {
@@ -65,6 +63,14 @@ static void init_triangles(struct collider *collider, struct pol_mesh *mesh)
 			t->neighbors[i] = -1;
 		}
 	}
+	return t;
+}
+
+static void init_triangles(struct collider *collider, struct pol_mesh *mesh)
+{
+	collider->nr_triangles = mesh->nr_triangles;
+	collider->triangles = xcalloc(mesh->nr_triangles, sizeof(struct collider_triangle));
+	fill_triangles(collider->triangles, mesh);
 }
 
 static void link_neighbors(struct collider *collider, int t1_index, int t2_index)
@@ -134,6 +140,20 @@ struct collider *collider_create(struct pol_mesh *mesh)
 	struct collider *collider = xcalloc(1, sizeof(struct collider));
 	init_triangles(collider, mesh);
 	init_edges(collider, mesh);
+	return collider;
+}
+
+// Creates a collider for raycasting only (no edges / neighbor links), from the
+// union of the given meshes' triangles. Used for SealEngine HeightDetection meshes.
+struct collider *collider_create_raycast(struct pol_mesh **meshes, int nr_meshes)
+{
+	struct collider *collider = xcalloc(1, sizeof(struct collider));
+	for (int i = 0; i < nr_meshes; i++)
+		collider->nr_triangles += meshes[i]->nr_triangles;
+	collider->triangles = xcalloc(collider->nr_triangles, sizeof(struct collider_triangle));
+	struct collider_triangle *t = collider->triangles;
+	for (int i = 0; i < nr_meshes; i++)
+		t = fill_triangles(t, meshes[i]);
 	return collider;
 }
 
@@ -275,16 +295,21 @@ bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, 
 
 bool collider_raycast(struct collider *collider, vec3 origin, vec3 direction, vec3 out)
 {
+	// Return the intersection nearest to the ray origin (closest to the camera).
+	float nearest = FLT_MAX;
 	struct collider_triangle* t = collider->triangles;
 	for (; t < collider->triangles + collider->nr_triangles; t++) {
 		float d;
 		if (glm_ray_triangle(origin, direction, t->vertices[0], t->vertices[1], t->vertices[2], &d)) {
-			glm_vec3_scale(direction, d, out);
-			glm_vec3_add(origin, out, out);
-			return true;
+			if (d < nearest)
+				nearest = d;
 		}
 	}
-	return false;
+	if (nearest == FLT_MAX)
+		return false;
+	glm_vec3_scale(direction, nearest, out);
+	glm_vec3_add(origin, out, out);
+	return true;
 }
 
 struct pathfinder_node {

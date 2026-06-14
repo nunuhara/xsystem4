@@ -15,10 +15,11 @@
  */
 
 #include "hll.h"
+#include "reign.h"
 
 static bool MarmotModelEngine_Update(void)
 {
-	// ???
+	ReignEngine_update_models();
 	return true;
 }
 

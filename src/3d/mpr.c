@@ -244,11 +244,11 @@ static int eval_int(const struct mpr_int_key *keys, int nr, float frame, int fal
 
 // Combine inst defaults with .mpr Object-scope keyframes.
 void mpr_evaluate_object(const struct mpr *mpr, float frame,
-		const struct RE_instance *inst, struct mpr_modulation *out)
+		struct RE_instance *inst, struct mpr_modulation *out)
 {
 	out->alpha = inst->alpha;
-	glm_vec3_copy((float *)inst->ambient, out->ambient);
-	glm_vec3_one(out->diffuse);
+	glm_vec3_copy(inst->ambient, out->ambient);
+	glm_vec3_copy(inst->diffuse, out->diffuse);
 	if (!mpr)
 		return;
 	out->alpha *= eval_float(mpr->object.mul_alpha, mpr->object.nr_mul_alpha, frame, 1.f);
