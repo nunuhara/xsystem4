@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -149,7 +150,19 @@ HLL_WARN_UNIMPLEMENTED( , void, MsgSkip, UseFlag, int use);
 HLL_WARN_UNIMPLEMENTED(0, int,  MsgSkip, GetNumofMsg, void);
 HLL_WARN_UNIMPLEMENTED(0, int,  MsgSkip, GetNumofFlag, void);
 
+static void MsgSkip_PreLink(void)
+{
+	int libno = ain_get_library(ain, "MsgSkip");
+	assert(libno >= 0);
+	if (ain_get_library_function(ain, libno, "Init") < 0) {
+		struct string *name = cstr_to_string("MsgSkip.asd");
+		MsgSkip_Init(name);
+		free_string(name);
+	}
+}
+
 HLL_LIBRARY(MsgSkip,
+	    HLL_EXPORT(_PreLink, MsgSkip_PreLink),
 	    HLL_EXPORT(Init, MsgSkip_Init),
 	    HLL_EXPORT(UseFlag, MsgSkip_UseFlag),
 	    HLL_EXPORT(SetEnable, MsgSkip_SetEnable),
