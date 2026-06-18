@@ -50,7 +50,7 @@ in vec3 light_dir[NR_DIR_LIGHTS];
 
 uniform vec3 global_ambient;
 
-vec3 dir_lights_diffuse(vec3 norm)
+vec3 compute_diffuse(vec3 norm)
 {
 	vec3 diffuse = vec3(0.0);
 	for (int i = 0; i < NR_DIR_LIGHTS; i++) {
@@ -60,11 +60,29 @@ vec3 dir_lights_diffuse(vec3 norm)
 	return diffuse;
 }
 
-#else // ENGINE == REIGN_ENGINE
+#elif ENGINE == SEAL_ENGINE
 
 const vec3 global_ambient = vec3(0.0);
 
-vec3 dir_lights_diffuse(vec3 norm)
+// Hemisphere lighting (sky/middle/ground).
+uniform vec3 hemi_light_dir;
+uniform vec3 hemi_sky_color;
+uniform vec3 hemi_mid_color;
+uniform vec3 hemi_ground_color;
+
+vec3 compute_diffuse(vec3 norm)
+{
+	float t = 0.5 * dot(norm, hemi_light_dir) + 0.5;
+	vec3 low_mid = mix(hemi_ground_color, hemi_mid_color, t);
+	vec3 mid_high = mix(hemi_mid_color, hemi_sky_color, t);
+	return mix(low_mid, mid_high, t);
+}
+
+#else // TAPIR_ENGINE
+
+const vec3 global_ambient = vec3(0.0);
+
+vec3 compute_diffuse(vec3 norm)
 {
 	return vec3(1.0);
 }
@@ -138,7 +156,7 @@ void main() {
 			texel = mix(texel, texture(blend_tex, blend_tex_coord), blend_weight);
 		}
 		if (diffuse_type != DIFFUSE_EMISSIVE) {
-			diffuse = dir_lights_diffuse(norm);
+			diffuse = compute_diffuse(norm);
 			if (diffuse_type == DIFFUSE_LIGHT_MAP) {
 				diffuse *= texture(light_texture, light_tex_coord).rgb;
 			}

@@ -188,6 +188,10 @@ struct RE_renderer {
 	GLint ls_light_dir;
 	GLint ls_light_color;
 	GLint ls_sun_color;
+	GLint hemi_light_dir;
+	GLint hemi_sky_color;
+	GLint hemi_mid_color;
+	GLint hemi_ground_color;
 	GLint alpha_mode;
 	GLint alpha_texture;
 	GLint uv_scroll;

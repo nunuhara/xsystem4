@@ -259,6 +259,10 @@ struct RE_renderer *RE_renderer_new(void)
 	r->ls_light_dir = glGetUniformLocation(r->program, "ls_light_dir");
 	r->ls_light_color = glGetUniformLocation(r->program, "ls_light_color");
 	r->ls_sun_color = glGetUniformLocation(r->program, "ls_sun_color");
+	r->hemi_light_dir = glGetUniformLocation(r->program, "hemi_light_dir");
+	r->hemi_sky_color = glGetUniformLocation(r->program, "hemi_sky_color");
+	r->hemi_mid_color = glGetUniformLocation(r->program, "hemi_mid_color");
+	r->hemi_ground_color = glGetUniformLocation(r->program, "hemi_ground_color");
 	r->alpha_mode = glGetUniformLocation(r->program, "alpha_mode");
 	r->alpha_texture = glGetUniformLocation(r->program, "alpha_texture");
 	r->uv_scroll = glGetUniformLocation(r->program, "uv_scroll");
@@ -1133,6 +1137,26 @@ static void setup_light_scattering(struct RE_plugin *plugin)
 	}
 }
 
+static void setup_hemisphere_light(struct RE_plugin *plugin)
+{
+	struct RE_renderer *r = plugin->renderer;
+	const float *lp = plugin->light_params;
+	vec3 hemi_dir = {
+		-lp[SEAL_LP_HEMI_VEC], -lp[SEAL_LP_HEMI_VEC + 1], lp[SEAL_LP_HEMI_VEC + 2]
+	};
+	glm_vec3_normalize(hemi_dir);
+	glUniform3fv(r->hemi_light_dir, 1, hemi_dir);
+	glUniform3fv(r->hemi_sky_color, 1, &lp[SEAL_LP_HEMI_SKY_COLOR]);
+	glUniform3fv(r->hemi_mid_color, 1, &lp[SEAL_LP_HEMI_MID_COLOR]);
+	glUniform3fv(r->hemi_ground_color, 1, &lp[SEAL_LP_HEMI_GROUND_COLOR]);
+	// SealEngine's specular uses the hemisphere light vector. hemi_dir points
+	// toward the light, but the shader's specular formula expects the light
+	// propagation direction.
+	vec3 spec_dir;
+	glm_vec3_negate_to(hemi_dir, spec_dir);
+	glUniform3fv(r->specular_light_dir, 1, spec_dir);
+}
+
 static void setup_lights(struct RE_plugin *plugin)
 {
 	struct RE_renderer *r = plugin->renderer;
@@ -1168,6 +1192,9 @@ static void setup_lights(struct RE_plugin *plugin)
 		glUniform3fv(r->dir_lights[light_index].diffuse, 1, zero);
 		glUniform3fv(r->dir_lights[light_index].globe_diffuse, 1, zero);
 	}
+
+	if (re_plugin_version >= RE_SEAL_PLUGIN)
+		setup_hemisphere_light(plugin);
 }
 
 static int cmp_instances_by_z(const void *lhs, const void *rhs)
