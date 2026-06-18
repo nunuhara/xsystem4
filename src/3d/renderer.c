@@ -236,7 +236,7 @@ struct RE_renderer *RE_renderer_new(void)
 		r->dir_lights[i].globe_diffuse = glGetUniformLocation(r->program, buf);
 	}
 	r->specular_light_dir = glGetUniformLocation(r->program, "specular_light_dir");
-	r->specular_strength = glGetUniformLocation(r->program, "specular_strength");
+	r->specular_color = glGetUniformLocation(r->program, "specular_color");
 	r->specular_shininess = glGetUniformLocation(r->program, "specular_shininess");
 	r->use_specular_map = glGetUniformLocation(r->program, "use_specular_map");
 	r->specular_texture = glGetUniformLocation(r->program, "specular_texture");
@@ -429,8 +429,13 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 
 		GLboolean use_specular_map = GL_FALSE;
 		if (inst->plugin->specular_mode && !(mesh->flags & MESH_NOLIGHTING)) {
-			glUniform1f(r->specular_strength, material->specular_strength);
-			glUniform1f(r->specular_shininess, material->specular_shininess);
+			if (mesh->flags & MESH_HAS_SPECULAR_COLOR) {
+				glUniform3fv(r->specular_color, 1, mesh->specular_color);
+			} else {
+				glUniform3f(r->specular_color, material->specular_strength, material->specular_strength, material->specular_strength);
+			}
+			float shininess = (mesh->flags & MESH_HAS_SPECULAR_POWER) ? mesh->specular_power : material->specular_shininess;
+			glUniform1f(r->specular_shininess, shininess);
 			if (material->specular_map) {
 				glActiveTexture(GL_TEXTURE0 + SPECULAR_TEXTURE_UNIT);
 				glBindTexture(GL_TEXTURE_2D, material->specular_map);
@@ -438,8 +443,8 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 				use_specular_map = GL_TRUE;
 			}
 		} else {
-			glUniform1f(r->specular_strength, 0.0);
-			glUniform1f(r->specular_shininess, 0.0);
+			glUniform3f(r->specular_color, 0.0f, 0.0f, 0.0f);
+			glUniform1f(r->specular_shininess, 0.0f);
 		}
 		glUniform1i(r->use_specular_map, use_specular_map);
 
@@ -556,7 +561,7 @@ static void reset_draw_uniforms(struct RE_renderer *r)
 	glUniform3f(r->diffuse_mod, 1.0f, 1.0f, 1.0f);
 	glUniform2f(r->uv_scroll, 0.0f, 0.0f);
 	glUniform1i(r->has_bones, GL_FALSE);
-	glUniform1f(r->specular_strength, 0.0f);
+	glUniform3f(r->specular_color, 0.0f, 0.0f, 0.0f);
 	glUniform1f(r->specular_shininess, 0.0f);
 	glUniform1i(r->use_specular_map, GL_FALSE);
 	glUniform1f(r->rim_exponent, 0.0f);

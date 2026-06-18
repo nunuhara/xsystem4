@@ -16,6 +16,8 @@
 
 const float PI = 3.14159265358979323846;
 
+#define ENABLE_SPECULAR (ENGINE == REIGN_ENGINE || ENGINE == SEAL_ENGINE)
+
 #if ENGINE == REIGN_ENGINE
 
 #define NR_DIR_LIGHTS 3
@@ -28,14 +30,12 @@ struct dir_light {
 };
 
 uniform dir_light dir_lights[NR_DIR_LIGHTS];
-uniform vec3 specular_light_dir;
 uniform int fog_type;
 uniform vec4 ls_params;  // (beta_r, beta_m, g, distance)
 uniform vec3 ls_light_dir;
 uniform vec3 ls_light_color;
 uniform vec3 ls_sun_color;
 out vec3 light_dir[NR_DIR_LIGHTS];
-out vec3 specular_dir;
 out vec3 ls_ex;
 out vec3 ls_in;
 
@@ -46,6 +46,11 @@ const vec2 uv_scroll = vec2(0.0);
 uniform vec2 uv_scroll;
 
 #endif // ENGINE == REIGN_ENGINE
+
+#if ENABLE_SPECULAR
+uniform vec3 specular_light_dir;
+out vec3 specular_dir;
+#endif
 
 uniform mat4 local_transform;
 uniform mat4 view_transform;
@@ -131,11 +136,13 @@ void main() {
 	frag_pos = TBN * vec3(world_pos);
 	eye = TBN * camera_pos;
 
+#if ENABLE_SPECULAR
+	specular_dir = TBN * specular_light_dir;
+#endif
 #if ENGINE == REIGN_ENGINE
 	light_dir[0] = TBN * dir_lights[0].dir;
 	light_dir[1] = TBN * dir_lights[1].dir;
 	light_dir[2] = TBN * dir_lights[2].dir;
-	specular_dir = TBN * specular_light_dir;
 
 	if (fog_type == FOG_LIGHT_SCATTERING) {
 		float beta_r = ls_params.x;

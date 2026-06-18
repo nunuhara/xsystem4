@@ -574,7 +574,7 @@ void opr_load(uint8_t *data, size_t size, struct pol *pol)
 
 		char s[200];
 		int i1, i2, i3;
-		float f1, f2;
+		float f1, f2, f3;
 		if (sscanf(line, "Mesh = \"%[^\"]\"", s) == 1) {
 			for (int i = 0; i < pol->nr_meshes; i++) {
 				selected[i] = pol->meshes[i] && !strcmp(pol->meshes[i]->name, s);
@@ -639,6 +639,20 @@ void opr_load(uint8_t *data, size_t size, struct pol *pol)
 				if (!selected[i]) continue;
 				pol->meshes[i]->uv_scroll[0] = f1;
 				pol->meshes[i]->uv_scroll[1] = f2;
+			}
+		} else if (sscanf(line, "SpecularColor = ( %f , %f , %f )", &f1, &f2, &f3) == 3) {
+			for (int i = 0; i < pol->nr_meshes; i++) {
+				if (!selected[i]) continue;
+				pol->meshes[i]->flags |= MESH_HAS_SPECULAR_COLOR;
+				pol->meshes[i]->specular_color[0] = f1;
+				pol->meshes[i]->specular_color[1] = f2;
+				pol->meshes[i]->specular_color[2] = f3;
+			}
+		} else if (sscanf(line, "SpecularPower = %f", &f1) == 1) {
+			for (int i = 0; i < pol->nr_meshes; i++) {
+				if (!selected[i]) continue;
+				pol->meshes[i]->flags |= MESH_HAS_SPECULAR_POWER;
+				pol->meshes[i]->specular_power = f1;
 			}
 		} else if (strchr(line, '=')) {
 			WARNING("unknown field: %s", line);

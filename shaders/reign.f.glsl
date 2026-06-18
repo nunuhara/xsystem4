@@ -24,6 +24,8 @@
 #define ALPHA_MAP_BLEND 2
 #define ALPHA_MAP_TEST 3
 
+#define ENABLE_SPECULAR (ENGINE == REIGN_ENGINE || ENGINE == SEAL_ENGINE)
+
 #if ENGINE == REIGN_ENGINE
 
 #define NR_DIR_LIGHTS 3
@@ -36,11 +38,7 @@ struct dir_light {
 	vec3 globe_diffuse;
 };
 
-uniform sampler2D specular_texture;
 uniform dir_light dir_lights[NR_DIR_LIGHTS];
-uniform float specular_strength;
-uniform float specular_shininess;
-uniform bool use_specular_map;
 uniform float rim_exponent;
 uniform vec3 rim_color;
 uniform int fog_type;
@@ -48,7 +46,6 @@ uniform float fog_near;
 uniform float fog_far;
 uniform vec3 fog_color;
 in vec3 light_dir[NR_DIR_LIGHTS];
-in vec3 specular_dir;
 in vec3 ls_ex;
 in vec3 ls_in;
 
@@ -74,6 +71,14 @@ vec3 dir_lights_diffuse(vec3 norm)
 }
 
 #endif // ENGINE == REIGN_ENGINE
+
+#if ENABLE_SPECULAR
+uniform sampler2D specular_texture;
+uniform vec3 specular_color;
+uniform float specular_shininess;
+uniform bool use_specular_map;
+in vec3 specular_dir;
+#endif
 
 uniform sampler2D tex;
 uniform sampler2D blend_tex;
@@ -136,17 +141,19 @@ void main() {
 	}
 	frag_rgb += texel.rgb * diffuse * color_mod.rgb * diffuse_mod;
 
-#if ENGINE == REIGN_ENGINE
+#if ENABLE_SPECULAR
 	// Specular lighting
-	if (specular_strength > 0.0) {
+	if (any(greaterThan(specular_color, vec3(0.0)))) {
 		vec3 reflect_dir = reflect(specular_dir, norm);
-		float specular = pow(max(dot(view_dir, reflect_dir), 0.0), specular_shininess) * specular_strength;
+		float specular = pow(max(dot(view_dir, reflect_dir), 0.0), specular_shininess);
 		if (use_specular_map) {
 			specular *= texture(specular_texture, tex_coord).r;
 		}
-		frag_rgb += vec3(specular);
+		frag_rgb += specular_color * specular;
 	}
+#endif
 
+#if ENGINE == REIGN_ENGINE
 	// Rim lighting
 	if (rim_exponent > 0.0) {
 		// Normal map is not used here.
