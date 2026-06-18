@@ -16,12 +16,14 @@
 
 const float PI = 3.14159265358979323846;
 
+#define FOG_LIGHT_SCATTERING 2
+
 #define ENABLE_SPECULAR (ENGINE == REIGN_ENGINE || ENGINE == SEAL_ENGINE)
+#define ENABLE_LIGHT_SCATTERING (ENGINE == REIGN_ENGINE || ENGINE == SEAL_ENGINE)
 
 #if ENGINE == REIGN_ENGINE
 
 #define NR_DIR_LIGHTS 3
-#define FOG_LIGHT_SCATTERING 2
 
 struct dir_light {
 	vec3 dir;
@@ -30,14 +32,7 @@ struct dir_light {
 };
 
 uniform dir_light dir_lights[NR_DIR_LIGHTS];
-uniform int fog_type;
-uniform vec4 ls_params;  // (beta_r, beta_m, g, distance)
-uniform vec3 ls_light_dir;
-uniform vec3 ls_light_color;
-uniform vec3 ls_sun_color;
 out vec3 light_dir[NR_DIR_LIGHTS];
-out vec3 ls_ex;
-out vec3 ls_in;
 
 const vec2 uv_scroll = vec2(0.0);
 
@@ -46,6 +41,16 @@ const vec2 uv_scroll = vec2(0.0);
 uniform vec2 uv_scroll;
 
 #endif // ENGINE == REIGN_ENGINE
+
+#if ENABLE_LIGHT_SCATTERING
+uniform int fog_type;
+uniform vec4 ls_params;  // (beta_r, beta_m, g, distance)
+uniform vec3 ls_light_dir;
+uniform vec3 ls_light_color;
+uniform vec3 ls_sun_color;
+out vec3 ls_ex;
+out vec3 ls_in;
+#endif
 
 #if ENABLE_SPECULAR
 uniform vec3 specular_light_dir;
@@ -143,7 +148,8 @@ void main() {
 	light_dir[0] = TBN * dir_lights[0].dir;
 	light_dir[1] = TBN * dir_lights[1].dir;
 	light_dir[2] = TBN * dir_lights[2].dir;
-
+#endif
+#if ENABLE_LIGHT_SCATTERING
 	if (fog_type == FOG_LIGHT_SCATTERING) {
 		float beta_r = ls_params.x;
 		float beta_m = ls_params.y;

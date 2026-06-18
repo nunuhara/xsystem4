@@ -1179,14 +1179,7 @@ static bool ReignEngine_SetShadowMapResolutionLevel(int plugin, int level)
 static bool ReignEngine_SetFogType(int plugin, int type)
 {
 	struct RE_plugin *p = get_plugin(plugin);
-	if (!p)
-		return false;
-	if (type != RE_FOG_LINEAR && type != RE_FOG_LIGHT_SCATTERING) {
-		WARNING("unknown fog type %d", type);
-		return false;
-	}
-	p->fog_type = type;
-	return true;
+	return p ? RE_plugin_set_fog_type(p, type) : false;
 }
 
 static bool ReignEngine_SetFogNear(int plugin, float near)
@@ -1221,7 +1214,7 @@ static bool ReignEngine_SetFogColor(int plugin, float r, float g, float b)
 static int ReignEngine_GetFogType(int plugin)
 {
 	struct RE_plugin *p = get_plugin(plugin);
-	return p ? p->fog_type : 0;
+	return p ? RE_plugin_get_fog_type(p) : 0;
 }
 
 static float ReignEngine_GetFogNear(int plugin)

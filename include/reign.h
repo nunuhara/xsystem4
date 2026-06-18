@@ -271,6 +271,8 @@ bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *instance
 bool RE_plugin_transform_pos_to_view_pos(struct RE_plugin *plugin, float x, float y, float z, int *view_x, int *view_y);
 bool RE_plugin_get_camera_z_vector(struct RE_plugin *plugin, vec3 out);
 void RE_plugin_reset_light_param(struct RE_plugin *plugin);
+bool RE_plugin_set_fog_type(struct RE_plugin *plugin, int type);
+int RE_plugin_get_fog_type(struct RE_plugin *plugin);
 
 int RE_motion_get_state(struct motion *motion);
 bool RE_motion_set_state(struct motion *motion, int state);

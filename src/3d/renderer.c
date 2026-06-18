@@ -424,8 +424,11 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
 		}
 
-		glUniform1i(r->fog_type, (inst->plugin->fog_mode && !(mesh->flags & MESH_NOLIGHTING))
-			? inst->plugin->fog_type : 0);
+		int fog_type = inst->plugin->fog_type;
+		if (!inst->plugin->fog_mode || (re_plugin_version == RE_REIGN_PLUGIN && (mesh->flags & MESH_NOLIGHTING))) {
+			fog_type = RE_FOG_NONE;
+		}
+		glUniform1i(r->fog_type, fog_type);
 
 		GLboolean use_specular_map = GL_FALSE;
 		if (inst->plugin->specular_mode && !(mesh->flags & MESH_NOLIGHTING)) {
@@ -1111,6 +1114,25 @@ static void render_back_cg(struct texture *dst, struct RE_back_cg *bcg, struct R
 	gfx_copy_stretch_blend_amap_alpha(dst, bcg->x, bcg->y, sw * bcg->mag, sh * bcg->mag, &bcg->texture, 0, 0, sw, sh, bcg->blend_rate * 255);
 }
 
+static void setup_light_scattering(struct RE_plugin *plugin)
+{
+	struct RE_renderer *r = plugin->renderer;
+	if (re_plugin_version >= RE_SEAL_PLUGIN) {
+		const float *lp = plugin->light_params;
+		glUniform4f(r->ls_params, lp[SEAL_LP_LS_BETA_R], lp[SEAL_LP_LS_BETA_M],
+			lp[SEAL_LP_LS_G], lp[SEAL_LP_LS_DISTANCE]);
+		glUniform3f(r->ls_light_dir, lp[SEAL_LP_LS_LIGHT_VEC],
+			lp[SEAL_LP_LS_LIGHT_VEC + 1], -lp[SEAL_LP_LS_LIGHT_VEC + 2]);
+		glUniform3fv(r->ls_light_color, 1, &lp[SEAL_LP_LS_LIGHT_COLOR]);
+		glUniform3fv(r->ls_sun_color, 1, &lp[SEAL_LP_LS_SUN_COLOR]);
+	} else {
+		glUniform4f(r->ls_params, plugin->ls_beta_r, plugin->ls_beta_m, plugin->ls_g, plugin->ls_distance);
+		glUniform3fv(r->ls_light_dir, 1, plugin->ls_light_dir);
+		glUniform3fv(r->ls_light_color, 1, plugin->ls_light_color);
+		glUniform3fv(r->ls_sun_color, 1, plugin->ls_sun_color);
+	}
+}
+
 static void setup_lights(struct RE_plugin *plugin)
 {
 	struct RE_renderer *r = plugin->renderer;
@@ -1253,10 +1275,7 @@ void RE_render(struct sact_sprite *sp)
 			glUniform3fv(r->fog_color, 1, plugin->fog_color);
 			break;
 		case RE_FOG_LIGHT_SCATTERING:
-			glUniform4f(r->ls_params, plugin->ls_beta_r, plugin->ls_beta_m, plugin->ls_g, plugin->ls_distance);
-			glUniform3fv(r->ls_light_dir, 1, plugin->ls_light_dir);
-			glUniform3fv(r->ls_light_color, 1, plugin->ls_light_color);
-			glUniform3fv(r->ls_sun_color, 1, plugin->ls_sun_color);
+			setup_light_scattering(plugin);
 			break;
 		}
 	}

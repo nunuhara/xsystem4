@@ -808,6 +808,45 @@ void RE_plugin_reset_light_param(struct RE_plugin *plugin)
 	lit_reset(plugin->light_params);
 }
 
+bool RE_plugin_set_fog_type(struct RE_plugin *plugin, int type)
+{
+	if (re_plugin_version == RE_REIGN_PLUGIN) {
+		switch (type) {
+		case 0: plugin->fog_type = RE_FOG_NONE; return true;
+		case 1: plugin->fog_type = RE_FOG_LINEAR; return true;
+		case 2: plugin->fog_type = RE_FOG_LIGHT_SCATTERING; return true;
+		default: break;
+		}
+	} else {
+		switch (type) {
+		case 0: plugin->fog_type = RE_FOG_NONE; return true;
+		case 1: plugin->fog_type = RE_FOG_LIGHT_SCATTERING; return true;
+		default: break;
+		}
+	}
+	WARNING("unknown fog type %d", type);
+	return false;
+}
+
+int RE_plugin_get_fog_type(struct RE_plugin *plugin)
+{
+	if (re_plugin_version == RE_REIGN_PLUGIN) {
+		switch (plugin->fog_type) {
+		case RE_FOG_NONE: return 0;
+		case RE_FOG_LINEAR: return 1;
+		case RE_FOG_LIGHT_SCATTERING: return 2;
+		default: break;
+		}
+	} else {
+		switch (plugin->fog_type) {
+		case RE_FOG_NONE: return 0;
+		case RE_FOG_LIGHT_SCATTERING: return 1;
+		default: break;
+		}
+	}
+	ERROR("[BUG] unexpected fog type %d", plugin->fog_type);
+}
+
 void RE_instance_update_local_transform(struct RE_instance *inst)
 {
 	vec3 euler = {

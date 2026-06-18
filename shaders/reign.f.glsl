@@ -24,13 +24,15 @@
 #define ALPHA_MAP_BLEND 2
 #define ALPHA_MAP_TEST 3
 
+#define FOG_LINEAR 1
+#define FOG_LIGHT_SCATTERING 2
+
 #define ENABLE_SPECULAR (ENGINE == REIGN_ENGINE || ENGINE == SEAL_ENGINE)
+#define ENABLE_LIGHT_SCATTERING (ENGINE == REIGN_ENGINE || ENGINE == SEAL_ENGINE)
 
 #if ENGINE == REIGN_ENGINE
 
 #define NR_DIR_LIGHTS 3
-#define FOG_LINEAR 1
-#define FOG_LIGHT_SCATTERING 2
 
 struct dir_light {
 	vec3 dir;
@@ -41,13 +43,10 @@ struct dir_light {
 uniform dir_light dir_lights[NR_DIR_LIGHTS];
 uniform float rim_exponent;
 uniform vec3 rim_color;
-uniform int fog_type;
 uniform float fog_near;
 uniform float fog_far;
 uniform vec3 fog_color;
 in vec3 light_dir[NR_DIR_LIGHTS];
-in vec3 ls_ex;
-in vec3 ls_in;
 
 uniform vec3 global_ambient;
 
@@ -71,6 +70,12 @@ vec3 dir_lights_diffuse(vec3 norm)
 }
 
 #endif // ENGINE == REIGN_ENGINE
+
+#if ENABLE_LIGHT_SCATTERING
+uniform int fog_type;
+in vec3 ls_ex;
+in vec3 ls_in;
+#endif
 
 #if ENABLE_SPECULAR
 uniform sampler2D specular_texture;
@@ -165,7 +170,11 @@ void main() {
 	if (fog_type == FOG_LINEAR) {
 		float fog_factor = clamp((dist - fog_near) / (fog_far - fog_near), 0.0, 1.0);
 		frag_rgb = mix(frag_rgb, fog_color, fog_factor);
-	} else if (fog_type == FOG_LIGHT_SCATTERING) {
+	}
+#endif
+
+#if ENABLE_LIGHT_SCATTERING
+	if (fog_type == FOG_LIGHT_SCATTERING) {
 		frag_rgb = frag_rgb * ls_ex + ls_in;
 	}
 #endif
