@@ -263,6 +263,9 @@ struct RE_renderer *RE_renderer_new(void)
 	r->hemi_sky_color = glGetUniformLocation(r->program, "hemi_sky_color");
 	r->hemi_mid_color = glGetUniformLocation(r->program, "hemi_mid_color");
 	r->hemi_ground_color = glGetUniformLocation(r->program, "hemi_ground_color");
+	r->tonemap_param = glGetUniformLocation(r->program, "tonemap_param");
+	r->tonemap_param2 = glGetUniformLocation(r->program, "tonemap_param2");
+	r->nolighting = glGetUniformLocation(r->program, "nolighting");
 	r->alpha_mode = glGetUniformLocation(r->program, "alpha_mode");
 	r->alpha_texture = glGetUniformLocation(r->program, "alpha_texture");
 	r->uv_scroll = glGetUniformLocation(r->program, "uv_scroll");
@@ -433,6 +436,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 			fog_type = RE_FOG_NONE;
 		}
 		glUniform1i(r->fog_type, fog_type);
+		glUniform1i(r->nolighting, !!(mesh->flags & MESH_NOLIGHTING));
 
 		GLboolean use_specular_map = GL_FALSE;
 		if (inst->plugin->specular_mode && !(mesh->flags & MESH_NOLIGHTING)) {
@@ -1157,6 +1161,14 @@ static void setup_hemisphere_light(struct RE_plugin *plugin)
 	glUniform3fv(r->specular_light_dir, 1, spec_dir);
 }
 
+static void setup_tone_mapping(struct RE_plugin *plugin)
+{
+	struct RE_renderer *r = plugin->renderer;
+	const float *lp = plugin->light_params;
+	glUniform4fv(r->tonemap_param, 1, &lp[SEAL_LP_TONEMAP_EXPOSURE_BIAS]);
+	glUniform4fv(r->tonemap_param2, 1, &lp[SEAL_LP_TONEMAP_C]);
+}
+
 static void setup_lights(struct RE_plugin *plugin)
 {
 	struct RE_renderer *r = plugin->renderer;
@@ -1310,6 +1322,8 @@ void RE_render(struct sact_sprite *sp)
 	glEnable(GL_BLEND);
 
 	setup_lights(plugin);
+	if (re_plugin_version >= RE_SEAL_PLUGIN)
+		setup_tone_mapping(plugin);
 
 	// Sort instances by z-order.
 	struct RE_instance **sorted_instances = sort_instances(plugin, view_transform);

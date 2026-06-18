@@ -192,6 +192,9 @@ struct RE_renderer {
 	GLint hemi_sky_color;
 	GLint hemi_mid_color;
 	GLint hemi_ground_color;
+	GLint tonemap_param;
+	GLint tonemap_param2;
+	GLint nolighting;
 	GLint alpha_mode;
 	GLint alpha_texture;
 	GLint uv_scroll;

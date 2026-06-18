@@ -103,6 +103,28 @@ uniform bool use_specular_map;
 in vec3 specular_dir;
 #endif
 
+#if ENGINE == SEAL_ENGINE
+// Uncharted 2 (Hable) filmic tone mapping.
+uniform vec4 tonemap_param;   // (ExposureBias, WhitePoint, A, B)
+uniform vec4 tonemap_param2;  // (C, D, E, F)
+uniform bool nolighting;
+
+vec3 hable(vec3 v)
+{
+	float a = tonemap_param.z, b = tonemap_param.w;
+	float c = tonemap_param2.x, d = tonemap_param2.y;
+	float e = tonemap_param2.z, f = tonemap_param2.w;
+	return ((v * (a * v + c * b) + d * e) / (v * (a * v + b) + d * f)) - e / f;
+}
+
+vec3 tone_map(vec3 color)
+{
+	vec3 curr = hable(color * tonemap_param.x);
+	vec3 white = hable(vec3(tonemap_param.y));
+	return curr / white;
+}
+#endif
+
 uniform sampler2D tex;
 uniform sampler2D blend_tex;
 uniform bool use_blend_texture;
@@ -213,6 +235,11 @@ void main() {
 		}
 		frag_rgb *= brightness;
 	}
+
+#if ENGINE == SEAL_ENGINE
+	if (!nolighting)
+		frag_rgb = tone_map(frag_rgb);
+#endif
 
 	// Alpha mapping
 	float alpha = texel.a * color_mod.a * alpha_mod;
