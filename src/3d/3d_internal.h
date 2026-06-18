@@ -790,6 +790,9 @@ struct amt_material *amt_find_material(struct amt *amt, const char *name);
 void opr_load(uint8_t *data, size_t size, struct pol *pol);
 void txa_load(uint8_t *data, size_t size, struct mot *mot);
 
+void lit_reset(float *out);
+bool lit_parse(uint8_t *data, size_t size, float *out);
+
 // mpr.c
 
 struct mpr_float_key { int frame; float v; };

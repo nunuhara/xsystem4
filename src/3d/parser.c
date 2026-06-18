@@ -687,3 +687,63 @@ void txa_load(uint8_t *data, size_t size, struct mot *mot)
 	mot->nr_texture_indices = count;
 	mot->texture_indices = indices;
 }
+
+void lit_reset(float *out)
+{
+	static const float lit_param_defaults[RE_NR_LIGHT_PARAMS] = {
+		[SEAL_LP_TONEMAP_EXPOSURE_BIAS] =   1.0f,
+		[SEAL_LP_TONEMAP_WHITE_POINT]   =   1.0f,
+		[SEAL_LP_TONEMAP_A]             =   0.22f,
+		[SEAL_LP_TONEMAP_B]             =   0.30f,
+		[SEAL_LP_TONEMAP_C]             =   0.10f,
+		[SEAL_LP_TONEMAP_D]             =   0.20f,
+		[SEAL_LP_TONEMAP_E]             =   0.01f,
+		[SEAL_LP_TONEMAP_F]             =   0.30f,
+		[SEAL_LP_HEMI_VEC + 0]          =  -1.0f,
+		[SEAL_LP_HEMI_VEC + 1]          =  -1.0f,
+		[SEAL_LP_HEMI_VEC + 2]          =   1.0f,
+		[SEAL_LP_HEMI_SKY_COLOR + 0]    =   1.2f,
+		[SEAL_LP_HEMI_SKY_COLOR + 1]    =   1.2f,
+		[SEAL_LP_HEMI_SKY_COLOR + 2]    =   1.2f,
+		[SEAL_LP_HEMI_MID_COLOR + 0]    =   0.5f,
+		[SEAL_LP_HEMI_MID_COLOR + 1]    =   0.5f,
+		[SEAL_LP_HEMI_MID_COLOR + 2]    =   0.5f,
+		[SEAL_LP_HEMI_GROUND_COLOR + 0] =   0.3f,
+		[SEAL_LP_HEMI_GROUND_COLOR + 1] =   0.3f,
+		[SEAL_LP_HEMI_GROUND_COLOR + 2] =   0.3f,
+		[SEAL_LP_LS_BETA_R]             =   0.25f,
+		[SEAL_LP_LS_BETA_M]             =   1.25f,
+		[SEAL_LP_LS_G]                  =   0.05f,
+		[SEAL_LP_LS_DISTANCE]           = 140.0f,
+		[SEAL_LP_LS_LIGHT_VEC + 0]      =  -1.0f,
+		[SEAL_LP_LS_LIGHT_VEC + 1]      =  -1.0f,
+		[SEAL_LP_LS_LIGHT_VEC + 2]      =   1.0f,
+		[SEAL_LP_LS_LIGHT_COLOR + 0]    =   1.0f,
+		[SEAL_LP_LS_LIGHT_COLOR + 1]    =   1.0f,
+		[SEAL_LP_LS_LIGHT_COLOR + 2]    =   1.0f,
+		[SEAL_LP_LS_SUN_COLOR + 0]      =   0.5f,
+		[SEAL_LP_LS_SUN_COLOR + 1]      =   0.5f,
+		[SEAL_LP_LS_SUN_COLOR + 2]      =   0.5f,
+	};
+	memcpy(out, lit_param_defaults, sizeof(lit_param_defaults));
+}
+
+bool lit_parse(uint8_t *data, size_t size, float *out)
+{
+	if (size != 8 + RE_NR_LIGHT_PARAMS * 4 || memcmp(data, "LITP", 4) != 0) {
+		WARNING("invalid .lit file");
+		return false;
+	}
+	struct buffer r;
+	buffer_init(&r, data, size);
+	buffer_skip(&r, 4);  // "LITP"
+	int32_t version = buffer_read_int32(&r);
+	if (version != 0) {
+		WARNING("unsupported .lit version %d", version);
+		return false;
+	}
+	lit_reset(out);
+	for (int i = 0; i < RE_NR_LIGHT_PARAMS; i++)
+		out[i] = buffer_read_float(&r);
+	return true;
+}

@@ -23,6 +23,7 @@
 
 #include "system4.h"
 #include "system4/aar.h"
+#include "system4/archive.h"
 #include "system4/cg.h"
 #include "system4/hashtable.h"
 #include "system4/string.h"
@@ -98,6 +99,7 @@ static void unload_instance(struct RE_instance *instance)
 static void free_instance(struct RE_instance *instance)
 {
 	unload_instance(instance);
+	free(instance->light_params);
 	xfree_aligned(instance);
 }
 
@@ -249,6 +251,7 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 	plugin->fog_near = 1.0;
 	plugin->fog_far = 10.0;
 	glm_vec3_one(plugin->fog_color);
+	lit_reset(plugin->light_params);
 	return plugin;
 }
 
@@ -431,6 +434,10 @@ bool RE_instance_set_type(struct RE_instance *instance, int type)
 		instance->motion->instance = instance;
 		break;
 	case RE_ITYPE_DIRECTIONAL_LIGHT:
+		if (re_plugin_version >= RE_SEAL_PLUGIN) {
+			instance->light_params = xmalloc(RE_NR_LIGHT_PARAMS * sizeof(float));
+			lit_reset(instance->light_params);
+		}
 		break;
 	case RE_ITYPE_SPECULAR_LIGHT:
 		break;
@@ -526,6 +533,16 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 			}
 		}
 		return true;
+	case RE_ITYPE_DIRECTIONAL_LIGHT:
+		if (re_plugin_version >= RE_SEAL_PLUGIN) {
+			struct archive_data *dfile = archive_get_by_name(instance->plugin->aar, name);
+			if (!dfile)
+				return false;
+			bool ok = lit_parse(dfile->data, dfile->size, instance->light_params);
+			archive_free_data(dfile);
+			return ok;
+		}
+		return false;
 	default:
 		WARNING("Invalid instance type %d", instance->type);
 		return false;
@@ -784,6 +801,11 @@ bool RE_plugin_get_camera_z_vector(struct RE_plugin *plugin, vec3 out)
 	glm_euler_yxz(euler, rot);
 	glm_mat4_mulv3(rot, GLM_FORWARD, 0.f, out);
 	return true;
+}
+
+void RE_plugin_reset_light_param(struct RE_plugin *plugin)
+{
+	lit_reset(plugin->light_params);
 }
 
 void RE_instance_update_local_transform(struct RE_instance *inst)

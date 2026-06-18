@@ -16,6 +16,7 @@
 
 #include <cglm/cglm.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "system4.h"
 #include "system4/aar.h"
@@ -2449,8 +2450,25 @@ static bool SealEngine_IsExistInstanceMotion(int plugin, int instance, struct st
 //bool SealEngine_AddLineList(int PluginNumber, int InstanceNumber, float X0, float Y0, float Z0, int Color0, float X1, float Y1, float Z1, int Color1);
 HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetInstanceCircleShadowRadius, int PluginNumber, int InstanceNumber, float CircleShadowRadius);
 //float SealEngine_GetInstanceCircleShadowRadius(int PluginNumber, int InstanceNumber);
-//bool SealEngine_LoadInstanceLightParam(int PluginNumber, int InstanceNumber);
-HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, StoreInstanceLightParam, int PluginNumber, int InstanceNumber);
+static bool SealEngine_LoadInstanceLightParam(int plugin, int instance)
+{
+	struct RE_plugin *rp = get_plugin(plugin);
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!rp || !ri || !ri->light_params)
+		return false;
+	memcpy(ri->light_params, rp->light_params, RE_NR_LIGHT_PARAMS * sizeof(float));
+	return true;
+}
+
+static bool SealEngine_StoreInstanceLightParam(int plugin, int instance)
+{
+	struct RE_plugin *rp = get_plugin(plugin);
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!rp || !ri || !ri->light_params)
+		return false;
+	memcpy(rp->light_params, ri->light_params, RE_NR_LIGHT_PARAMS * sizeof(float));
+	return true;
+}
 static bool SealEngine_SetInstanceUseMagSpeed(int plugin, int instance, bool use_mag_speed)
 {
 	struct RE_instance *ri = get_instance(plugin, instance);
@@ -2517,9 +2535,31 @@ static bool SealEngine_TransformPosToViewPos(int PluginNumber, float x, float y,
 	return RE_plugin_transform_pos_to_view_pos(get_plugin(PluginNumber), x, y, -z, view_x, view_y);
 }
 
-HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, ResetLightParam, int PluginNumber);
-//bool SealEngine_SetLightParam(int PluginNumber, int Type, float Value);
-//float SealEngine_GetLightParam(int PluginNumber, int Type);
+static bool SealEngine_ResetLightParam(int plugin)
+{
+	struct RE_plugin *rp = get_plugin(plugin);
+	if (!rp)
+		return false;
+	RE_plugin_reset_light_param(rp);
+	return true;
+}
+
+static bool SealEngine_SetLightParam(int plugin, int type, float value)
+{
+	struct RE_plugin *rp = get_plugin(plugin);
+	if (!rp || (unsigned)type >= RE_NR_LIGHT_PARAMS)
+		return false;
+	rp->light_params[type] = value;
+	return true;
+}
+
+static float SealEngine_GetLightParam(int plugin, int type)
+{
+	struct RE_plugin *rp = get_plugin(plugin);
+	if (!rp || (unsigned)type >= RE_NR_LIGHT_PARAMS)
+		return 0.0f;
+	return rp->light_params[type];
+}
 HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int PluginNumber);
 //bool SealEngine_ClearCache(int PluginNumber);
 //bool SealEngine_GetHistogram(int PluginNumber, struct page **HistogramList);
@@ -2582,7 +2622,7 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int Plugin
 	    HLL_TODO_EXPORT(AddLineList, SealEngine_AddLineList), \
 	    HLL_EXPORT(SetInstanceCircleShadowRadius, SealEngine_SetInstanceCircleShadowRadius), \
 	    HLL_TODO_EXPORT(GetInstanceCircleShadowRadius, SealEngine_GetInstanceCircleShadowRadius), \
-	    HLL_TODO_EXPORT(LoadInstanceLightParam, SealEngine_LoadInstanceLightParam), \
+	    HLL_EXPORT(LoadInstanceLightParam, SealEngine_LoadInstanceLightParam), \
 	    HLL_EXPORT(StoreInstanceLightParam, SealEngine_StoreInstanceLightParam), \
 	    HLL_EXPORT(SetInstanceUseMagSpeed, SealEngine_SetInstanceUseMagSpeed), \
 	    HLL_EXPORT(IsInstanceUseMagSpeed, SealEngine_IsInstanceUseMagSpeed), \
@@ -2623,8 +2663,8 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int Plugin
 	    HLL_TODO_EXPORT(GetOptimizedPathLine, SealEngine_GetOptimizedPathLine), \
 	    HLL_EXPORT(TransformPosToViewPos, SealEngine_TransformPosToViewPos), \
 	    HLL_EXPORT(ResetLightParam, SealEngine_ResetLightParam), \
-	    HLL_TODO_EXPORT(SetLightParam, SealEngine_SetLightParam), \
-	    HLL_TODO_EXPORT(GetLightParam, SealEngine_GetLightParam), \
+	    HLL_EXPORT(SetLightParam, SealEngine_SetLightParam), \
+	    HLL_EXPORT(GetLightParam, SealEngine_GetLightParam), \
 	    HLL_EXPORT(IsThreadLoadingMode, SealEngine_IsThreadLoadingMode), \
 	    HLL_TODO_EXPORT(ClearCache, SealEngine_ClearCache), \
 	    HLL_TODO_EXPORT(GetHistogram, SealEngine_GetHistogram)
