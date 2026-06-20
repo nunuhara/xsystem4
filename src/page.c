@@ -703,6 +703,8 @@ void array_reverse(struct page *page)
 
 struct page *delegate_new_from_method(int obj, int fun)
 {
+	if (fun < 1)
+		return alloc_page(DELEGATE_PAGE, 0, 0);
 	struct page *page = alloc_page(DELEGATE_PAGE, 0, 3);
 	page->values[0].i = obj;
 	page->values[1].i = fun;
@@ -725,6 +727,8 @@ bool delegate_contains(struct page *dst, int obj, int fun)
 
 struct page *delegate_append(struct page *dst, int obj, int fun)
 {
+	if (fun < 1)
+		return dst;
 	if (!dst)
 		return delegate_new_from_method(obj, fun);
 	if (dst->type != DELEGATE_PAGE)
