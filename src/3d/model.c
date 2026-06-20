@@ -379,6 +379,8 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 	mesh->outline_color[2] = m->edge_color.b / 255.f;
 	mesh->outline_thickness = m->edge_size ? m->edge_size : DEFAULT_OUTLINE_THICKNESS;
 	glm_vec2_copy(m->uv_scroll, mesh->uv_scroll);
+	glm_vec3_copy(m->specular_color, mesh->specular_color);
+	mesh->specular_power = m->specular_power;
 	mesh->nr_vertices = nr_vertices;
 
 	glGenVertexArrays(1, &mesh->vao);

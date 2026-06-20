@@ -24,11 +24,15 @@
 #define ALPHA_MAP_BLEND 2
 #define ALPHA_MAP_TEST 3
 
+#define FOG_LINEAR 1
+#define FOG_LIGHT_SCATTERING 2
+
+#define ENABLE_SPECULAR (ENGINE == REIGN_ENGINE || ENGINE == SEAL_ENGINE)
+#define ENABLE_LIGHT_SCATTERING (ENGINE == REIGN_ENGINE || ENGINE == SEAL_ENGINE)
+
 #if ENGINE == REIGN_ENGINE
 
 #define NR_DIR_LIGHTS 3
-#define FOG_LINEAR 1
-#define FOG_LIGHT_SCATTERING 2
 
 struct dir_light {
 	vec3 dir;
@@ -36,25 +40,17 @@ struct dir_light {
 	vec3 globe_diffuse;
 };
 
-uniform sampler2D specular_texture;
 uniform dir_light dir_lights[NR_DIR_LIGHTS];
-uniform float specular_strength;
-uniform float specular_shininess;
-uniform bool use_specular_map;
 uniform float rim_exponent;
 uniform vec3 rim_color;
-uniform int fog_type;
 uniform float fog_near;
 uniform float fog_far;
 uniform vec3 fog_color;
 in vec3 light_dir[NR_DIR_LIGHTS];
-in vec3 specular_dir;
-in vec3 ls_ex;
-in vec3 ls_in;
 
 uniform vec3 global_ambient;
 
-vec3 dir_lights_diffuse(vec3 norm)
+vec3 compute_diffuse(vec3 norm)
 {
 	vec3 diffuse = vec3(0.0);
 	for (int i = 0; i < NR_DIR_LIGHTS; i++) {
@@ -64,16 +60,70 @@ vec3 dir_lights_diffuse(vec3 norm)
 	return diffuse;
 }
 
-#else // ENGINE == REIGN_ENGINE
+#elif ENGINE == SEAL_ENGINE
 
 const vec3 global_ambient = vec3(0.0);
 
-vec3 dir_lights_diffuse(vec3 norm)
+// Hemisphere lighting (sky/middle/ground).
+uniform vec3 hemi_light_dir;
+uniform vec3 hemi_sky_color;
+uniform vec3 hemi_mid_color;
+uniform vec3 hemi_ground_color;
+
+vec3 compute_diffuse(vec3 norm)
+{
+	float t = 0.5 * dot(norm, hemi_light_dir) + 0.5;
+	vec3 low_mid = mix(hemi_ground_color, hemi_mid_color, t);
+	vec3 mid_high = mix(hemi_mid_color, hemi_sky_color, t);
+	return mix(low_mid, mid_high, t);
+}
+
+#else // TAPIR_ENGINE
+
+const vec3 global_ambient = vec3(0.0);
+
+vec3 compute_diffuse(vec3 norm)
 {
 	return vec3(1.0);
 }
 
 #endif // ENGINE == REIGN_ENGINE
+
+#if ENABLE_LIGHT_SCATTERING
+uniform int fog_type;
+in vec3 ls_ex;
+in vec3 ls_in;
+#endif
+
+#if ENABLE_SPECULAR
+uniform sampler2D specular_texture;
+uniform vec3 specular_color;
+uniform float specular_shininess;
+uniform bool use_specular_map;
+in vec3 specular_dir;
+#endif
+
+#if ENGINE == SEAL_ENGINE
+// Uncharted 2 (Hable) filmic tone mapping.
+uniform vec4 tonemap_param;   // (ExposureBias, WhitePoint, A, B)
+uniform vec4 tonemap_param2;  // (C, D, E, F)
+uniform bool nolighting;
+
+vec3 hable(vec3 v)
+{
+	float a = tonemap_param.z, b = tonemap_param.w;
+	float c = tonemap_param2.x, d = tonemap_param2.y;
+	float e = tonemap_param2.z, f = tonemap_param2.w;
+	return ((v * (a * v + c * b) + d * e) / (v * (a * v + b) + d * f)) - e / f;
+}
+
+vec3 tone_map(vec3 color)
+{
+	vec3 curr = hable(color * tonemap_param.x);
+	vec3 white = hable(vec3(tonemap_param.y));
+	return curr / white;
+}
+#endif
 
 uniform sampler2D tex;
 uniform sampler2D blend_tex;
@@ -128,7 +178,7 @@ void main() {
 			texel = mix(texel, texture(blend_tex, blend_tex_coord), blend_weight);
 		}
 		if (diffuse_type != DIFFUSE_EMISSIVE) {
-			diffuse = dir_lights_diffuse(norm);
+			diffuse = compute_diffuse(norm);
 			if (diffuse_type == DIFFUSE_LIGHT_MAP) {
 				diffuse *= texture(light_texture, light_tex_coord).rgb;
 			}
@@ -136,17 +186,19 @@ void main() {
 	}
 	frag_rgb += texel.rgb * diffuse * color_mod.rgb * diffuse_mod;
 
-#if ENGINE == REIGN_ENGINE
+#if ENABLE_SPECULAR
 	// Specular lighting
-	if (specular_strength > 0.0) {
+	if (any(greaterThan(specular_color, vec3(0.0)))) {
 		vec3 reflect_dir = reflect(specular_dir, norm);
-		float specular = pow(max(dot(view_dir, reflect_dir), 0.0), specular_shininess) * specular_strength;
+		float specular = pow(max(dot(view_dir, reflect_dir), 0.0), specular_shininess);
 		if (use_specular_map) {
 			specular *= texture(specular_texture, tex_coord).r;
 		}
-		frag_rgb += vec3(specular);
+		frag_rgb += specular_color * specular;
 	}
+#endif
 
+#if ENGINE == REIGN_ENGINE
 	// Rim lighting
 	if (rim_exponent > 0.0) {
 		// Normal map is not used here.
@@ -158,7 +210,11 @@ void main() {
 	if (fog_type == FOG_LINEAR) {
 		float fog_factor = clamp((dist - fog_near) / (fog_far - fog_near), 0.0, 1.0);
 		frag_rgb = mix(frag_rgb, fog_color, fog_factor);
-	} else if (fog_type == FOG_LIGHT_SCATTERING) {
+	}
+#endif
+
+#if ENABLE_LIGHT_SCATTERING
+	if (fog_type == FOG_LIGHT_SCATTERING) {
 		frag_rgb = frag_rgb * ls_ex + ls_in;
 	}
 #endif
@@ -179,6 +235,11 @@ void main() {
 		}
 		frag_rgb *= brightness;
 	}
+
+#if ENGINE == SEAL_ENGINE
+	if (!nolighting)
+		frag_rgb = tone_map(frag_rgb);
+#endif
 
 	// Alpha mapping
 	float alpha = texel.a * color_mod.a * alpha_mod;

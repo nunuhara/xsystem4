@@ -63,6 +63,8 @@ struct mesh {
 	vec3 outline_color;
 	float outline_thickness;
 	vec2 uv_scroll;
+	vec3 specular_color;
+	float specular_power;
 };
 
 struct material {
@@ -163,7 +165,7 @@ struct RE_renderer {
 		GLint ambient;
 	} dir_lights[NR_DIR_LIGHTS];
 	GLint specular_light_dir;
-	GLint specular_strength;
+	GLint specular_color;
 	GLint specular_shininess;
 	GLint use_specular_map;
 	GLint specular_texture;
@@ -186,6 +188,13 @@ struct RE_renderer {
 	GLint ls_light_dir;
 	GLint ls_light_color;
 	GLint ls_sun_color;
+	GLint hemi_light_dir;
+	GLint hemi_sky_color;
+	GLint hemi_mid_color;
+	GLint hemi_ground_color;
+	GLint tonemap_param;
+	GLint tonemap_param2;
+	GLint nolighting;
 	GLint alpha_mode;
 	GLint alpha_texture;
 	GLint uv_scroll;
@@ -665,6 +674,8 @@ enum mesh_flags {
 	MESH_HAS_LIGHT_UV        = 1 << 9,
 	MESH_NO_ZWRITE           = 1 << 10,
 	MESH_HEIGHT_DETECTION    = 1 << 11,
+	MESH_HAS_SPECULAR_COLOR  = 1 << 12,
+	MESH_HAS_SPECULAR_POWER  = 1 << 13,
 };
 
 struct pol_mesh {
@@ -691,6 +702,8 @@ struct pol_mesh {
 	Color edge_color;
 	float edge_size;
 	vec2 uv_scroll;
+	vec3 specular_color;
+	float specular_power;
 };
 
 struct pol_vertex {
@@ -783,6 +796,9 @@ struct amt_material *amt_find_material(struct amt *amt, const char *name);
 
 void opr_load(uint8_t *data, size_t size, struct pol *pol);
 void txa_load(uint8_t *data, size_t size, struct mot *mot);
+
+void lit_reset(float *out);
+bool lit_parse(uint8_t *data, size_t size, float *out);
 
 // mpr.c
 
