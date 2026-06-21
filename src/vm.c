@@ -267,6 +267,30 @@ static int get_function_by_name(const char *name)
 	return -1;
 }
 
+// Check whether a function's signature is compatible with a delegate type.
+static bool function_matches_delegate(int dg_no, int fno)
+{
+	if (dg_no < 0 || dg_no >= ain->nr_delegates)
+		return false;
+	if (fno < 0 || fno >= ain->nr_functions)
+		return false;
+	struct ain_function_type *dg = &ain->delegates[dg_no];
+	struct ain_function *f = &ain->functions[fno];
+
+	if (dg->return_type.data != f->return_type.data ||
+	    dg->return_type.struc != f->return_type.struc)
+		return false;
+	if (dg->nr_arguments != f->nr_args)
+		return false;
+	for (int i = 0; i < dg->nr_arguments; i++) {
+		struct ain_type *a = &dg->variables[i].type;
+		struct ain_type *b = &f->vars[i].type;
+		if (a->data != b->data || a->struc != b->struc || a->rank != b->rank)
+			return false;
+	}
+	return true;
+}
+
 static int scenario_label_addr(const char *lname)
 {
 	for (int i = 0; i < ain->nr_scenario_labels; i++) {
@@ -2326,9 +2350,10 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case DG_STR_TO_METHOD: {
-		stack_pop(); // delegate type index
+		int dg_no = stack_pop().i;
 		int str = stack_pop().i;
-		stack_push(get_function_by_name(heap_get_string(str)->text));
+		int fno = get_function_by_name(heap_get_string(str)->text);
+		stack_push(function_matches_delegate(dg_no, fno) ? fno : 0);
 		heap_unref(str);
 		break;
 	}
