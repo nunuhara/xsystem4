@@ -247,9 +247,10 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_init(&plugin->back_cg[i]);
 	plugin->mag_speed = 1;
+	plugin->edge_length = 0.02f;
 	plugin->fog_type = RE_FOG_NONE;
-	plugin->fog_near = 1.0;
-	plugin->fog_far = 10.0;
+	plugin->fog_near = 1.0f;
+	plugin->fog_far = 10.0f;
 	glm_vec3_one(plugin->fog_color);
 	lit_reset(plugin->light_params);
 	return plugin;

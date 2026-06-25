@@ -183,6 +183,8 @@ struct RE_plugin {
 	// SealEngine
 	int mag_speed;
 	float light_params[RE_NR_LIGHT_PARAMS];
+	float edge_length;
+	vec3 edge_color;
 };
 
 struct RE_instance {
