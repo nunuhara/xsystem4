@@ -92,12 +92,6 @@ enum RE_draw_options {
 	RE_DRAW_OPTION_MAX
 };
 
-enum RE_draw_edge_mode {
-	RE_DRAW_EDGE_NONE = 0,
-	RE_DRAW_EDGE_CHARACTERS_ONLY = 1,
-	RE_DRAW_EDGE_ALL = 2,
-};
-
 struct RE_options {
 	int anti_aliasing;
 	int wait_vsync;
@@ -129,6 +123,7 @@ struct RE_back_cg {
 
 struct RE_plugin {
 	struct draw_plugin plugin;
+	enum RE_plugin_version version;
 	int sprite;
 	int nr_instances;
 	struct RE_instance **instances;
@@ -203,6 +198,7 @@ struct RE_instance {
 	vec3 scale;
 	float alpha;
 	bool draw;
+	bool draw_edge;
 	bool draw_shadow;
 	bool make_shadow;
 	float shadow_volume_bone_radius;

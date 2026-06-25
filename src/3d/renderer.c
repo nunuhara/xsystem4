@@ -1072,8 +1072,7 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 
 static void render_outlines(struct RE_plugin *plugin, mat4 view_transform)
 {
-	enum RE_draw_edge_mode mode = plugin->draw_options[RE_DRAW_OPTION_EDGE];
-	if (mode == RE_DRAW_EDGE_NONE)
+	if (plugin->draw_options[RE_DRAW_OPTION_EDGE] == 0)
 		return;
 	struct outline_renderer *or = &plugin->renderer->outline;
 	if (!or->program)
@@ -1095,7 +1094,7 @@ static void render_outlines(struct RE_plugin *plugin, mat4 view_transform)
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst || !inst->draw)
 			continue;
-		if (mode == RE_DRAW_EDGE_CHARACTERS_ONLY && inst->type != RE_ITYPE_SKINNED)
+		if (!inst->draw_edge)
 			continue;
 		struct model *model = inst->model;
 		if (inst->model && model->nr_bones > 0) {

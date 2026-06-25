@@ -1825,8 +1825,35 @@ static int TapirEngine_CreatePlugin(void)
 	return ReignEngine_create_plugin(RE_TAPIR_PLUGIN);
 }
 
-HLL_WARN_UNIMPLEMENTED(false, bool, TapirEngine, SetInstanceDrawParam, int plugin_number, int instance_number, int draw_param, int value);
-//bool TapirEngine_GetInstanceDrawParam(int PluginNumber, int InstanceNumber, int DrawParam, int *Value);
+static bool TapirEngine_SetInstanceDrawParam(int plugin_number, int instance_number, int draw_param, int value)
+{
+	struct RE_plugin *p = get_plugin(plugin_number);
+	struct RE_instance *ri = get_instance(plugin_number, instance_number);
+	if (!p || !ri)
+		return false;
+	int edge_index = p->version >= RE_SEAL_PLUGIN ? 2 : 0;
+	if (draw_param == edge_index) {
+		ri->draw_edge = value != 0;
+		return true;
+	}
+	WARNING("unimplemented InstanceDrawParam: %d", draw_param);
+	return false;
+}
+
+static bool TapirEngine_GetInstanceDrawParam(int plugin_number, int instance_number, int draw_param, int *value)
+{
+	struct RE_plugin *p = get_plugin(plugin_number);
+	struct RE_instance *ri = get_instance(plugin_number, instance_number);
+	if (!p || !ri)
+		return false;
+	int edge_index = p->version >= RE_SEAL_PLUGIN ? 2 : 0;
+	if (draw_param == edge_index) {
+		*value = ri->draw_edge;
+		return true;
+	}
+	WARNING("unimplemented InstanceDrawParam: %d", draw_param);
+	return false;
+}
 
 static float TapirEngine_CalcInstance2DDetectionHeight(int plugin, int instance, float x, float z)
 {
@@ -2313,7 +2340,7 @@ HLL_LIBRARY(ReignEngine, REIGN_EXPORTS,
 #define TAPIR_EXPORTS \
 	    HLL_EXPORT(CreatePlugin, TapirEngine_CreatePlugin), \
 	    HLL_EXPORT(SetInstanceDrawParam, TapirEngine_SetInstanceDrawParam), \
-	    HLL_TODO_EXPORT(GetInstanceDrawParam, TapirEngine_GetInstanceDrawParam), \
+	    HLL_EXPORT(GetInstanceDrawParam, TapirEngine_GetInstanceDrawParam), \
 	    HLL_EXPORT(CalcInstance2DDetectionHeight, TapirEngine_CalcInstance2DDetectionHeight), \
 	    HLL_EXPORT(CalcInstance2DDetection, TapirEngine_CalcInstance2DDetection), \
 	    HLL_EXPORT(FindInstancePath, TapirEngine_FindInstancePath), \

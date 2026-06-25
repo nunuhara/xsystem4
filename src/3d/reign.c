@@ -41,6 +41,7 @@ static struct RE_instance *create_instance(struct RE_plugin *plugin)
 {
 	struct RE_instance *instance = xcalloc_aligned(1, struct RE_instance);
 	instance->plugin = plugin;
+	instance->draw_edge = plugin->version == RE_TAPIR_PLUGIN;
 	for (int i = 0; i < RE_NR_INSTANCE_TARGETS; i++)
 		instance->target[i] = -1;
 	glm_vec3_one(instance->scale);
@@ -236,6 +237,7 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 		return NULL;
 
 	struct RE_plugin *plugin = xcalloc_aligned(1, struct RE_plugin);
+	plugin->version = version;
 	plugin->plugin.name = "ReignEngine";
 	plugin->plugin.update = RE_render;
 	plugin->plugin.to_json = RE_to_json;
@@ -247,6 +249,8 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		RE_back_cg_init(&plugin->back_cg[i]);
 	plugin->mag_speed = 1;
+	if (version == RE_TAPIR_PLUGIN)
+		plugin->draw_options[RE_DRAW_OPTION_EDGE] = 1;
 	plugin->edge_length = 0.02f;
 	plugin->fog_type = RE_FOG_NONE;
 	plugin->fog_near = 1.0f;
