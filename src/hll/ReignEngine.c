@@ -1825,8 +1825,35 @@ static int TapirEngine_CreatePlugin(void)
 	return ReignEngine_create_plugin(RE_TAPIR_PLUGIN);
 }
 
-HLL_WARN_UNIMPLEMENTED(false, bool, TapirEngine, SetInstanceDrawParam, int plugin_number, int instance_number, int draw_param, int value);
-//bool TapirEngine_GetInstanceDrawParam(int PluginNumber, int InstanceNumber, int DrawParam, int *Value);
+static bool TapirEngine_SetInstanceDrawParam(int plugin_number, int instance_number, int draw_param, int value)
+{
+	struct RE_plugin *p = get_plugin(plugin_number);
+	struct RE_instance *ri = get_instance(plugin_number, instance_number);
+	if (!p || !ri)
+		return false;
+	int edge_index = p->version >= RE_SEAL_PLUGIN ? 2 : 0;
+	if (draw_param == edge_index) {
+		ri->draw_edge = value != 0;
+		return true;
+	}
+	WARNING("unimplemented InstanceDrawParam: %d", draw_param);
+	return false;
+}
+
+static bool TapirEngine_GetInstanceDrawParam(int plugin_number, int instance_number, int draw_param, int *value)
+{
+	struct RE_plugin *p = get_plugin(plugin_number);
+	struct RE_instance *ri = get_instance(plugin_number, instance_number);
+	if (!p || !ri)
+		return false;
+	int edge_index = p->version >= RE_SEAL_PLUGIN ? 2 : 0;
+	if (draw_param == edge_index) {
+		*value = ri->draw_edge;
+		return true;
+	}
+	WARNING("unimplemented InstanceDrawParam: %d", draw_param);
+	return false;
+}
 
 static float TapirEngine_CalcInstance2DDetectionHeight(int plugin, int instance, float x, float z)
 {
@@ -2313,7 +2340,7 @@ HLL_LIBRARY(ReignEngine, REIGN_EXPORTS,
 #define TAPIR_EXPORTS \
 	    HLL_EXPORT(CreatePlugin, TapirEngine_CreatePlugin), \
 	    HLL_EXPORT(SetInstanceDrawParam, TapirEngine_SetInstanceDrawParam), \
-	    HLL_TODO_EXPORT(GetInstanceDrawParam, TapirEngine_GetInstanceDrawParam), \
+	    HLL_EXPORT(GetInstanceDrawParam, TapirEngine_GetInstanceDrawParam), \
 	    HLL_EXPORT(CalcInstance2DDetectionHeight, TapirEngine_CalcInstance2DDetectionHeight), \
 	    HLL_EXPORT(CalcInstance2DDetection, TapirEngine_CalcInstance2DDetection), \
 	    HLL_EXPORT(FindInstancePath, TapirEngine_FindInstancePath), \
@@ -2510,12 +2537,45 @@ HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetShadowRate, int PluginNumber,
 //float SealEngine_GetShadowRate(int PluginNumber);
 //bool SealEngine_SetSoftFogEdgeLength(int PluginNumber, float SoftFogEdgeLength);
 //float SealEngine_GetSoftFogEdgeLength(int PluginNumber);
-HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetEdgeLength, int PluginNumber, float EdgeLength);
-//float SealEngine_GetEdgeLength(int PluginNumber);
+static bool SealEngine_SetEdgeLength(int PluginNumber, float EdgeLength)
+{
+	struct RE_plugin *p = get_plugin(PluginNumber);
+	if (!p)
+		return false;
+	p->edge_length = EdgeLength;
+	return true;
+}
+
+static float SealEngine_GetEdgeLength(int PluginNumber)
+{
+	struct RE_plugin *p = get_plugin(PluginNumber);
+	return p ? p->edge_length : 0.0;
+}
+
 //bool SealEngine_SetEdgeReductionRate(int PluginNumber, float EdgeReductionRate);
 //float SealEngine_GetEdgeReductionRate(int PluginNumber);
-HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetEdgeColor, int PluginNumber, float ColorR, float ColorG, float ColorB);
-//bool SealEngine_GetEdgeColor(int PluginNumber, float *ColorR, float *ColorG, float *ColorB);
+
+static bool SealEngine_SetEdgeColor(int PluginNumber, float ColorR, float ColorG, float ColorB)
+{
+	struct RE_plugin *p = get_plugin(PluginNumber);
+	if (!p)
+		return false;
+	p->edge_color[0] = ColorR;
+	p->edge_color[1] = ColorG;
+	p->edge_color[2] = ColorB;
+	return true;
+}
+
+static bool SealEngine_GetEdgeColor(int PluginNumber, float *ColorR, float *ColorG, float *ColorB)
+{
+	struct RE_plugin *p = get_plugin(PluginNumber);
+	if (!p)
+		return false;
+	*ColorR = p->edge_color[0];
+	*ColorG = p->edge_color[1];
+	*ColorB = p->edge_color[2];
+	return true;
+}
 //bool SealEngine_Calc2DDetectionHeight(int PluginNumber, float X, float Z, float *Height);
 //bool SealEngine_Calc2DDetection(int PluginNumber, float X0, float Y0, float Z0, float X1, float Y1, float Z1, float Radius, float *X2, float *Y2, float *Z2);
 //bool SealEngine_Calc2DDetectionIntersectEyeVector(int PluginNumber, int ViewX, int ViewY, float *X, float *Y, float *Z);
@@ -2643,11 +2703,11 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int Plugin
 	    HLL_TODO_EXPORT(SetSoftFogEdgeLength, SealEngine_SetSoftFogEdgeLength), \
 	    HLL_TODO_EXPORT(GetSoftFogEdgeLength, SealEngine_GetSoftFogEdgeLength), \
 	    HLL_EXPORT(SetEdgeLength, SealEngine_SetEdgeLength), \
-	    HLL_TODO_EXPORT(GetEdgeLength, SealEngine_GetEdgeLength), \
+	    HLL_EXPORT(GetEdgeLength, SealEngine_GetEdgeLength), \
 	    HLL_TODO_EXPORT(SetEdgeReductionRate, SealEngine_SetEdgeReductionRate), \
 	    HLL_TODO_EXPORT(GetEdgeReductionRate, SealEngine_GetEdgeReductionRate), \
 	    HLL_EXPORT(SetEdgeColor, SealEngine_SetEdgeColor), \
-	    HLL_TODO_EXPORT(GetEdgeColor, SealEngine_GetEdgeColor), \
+	    HLL_EXPORT(GetEdgeColor, SealEngine_GetEdgeColor), \
 	    HLL_TODO_EXPORT(Calc2DDetectionHeight, SealEngine_Calc2DDetectionHeight), \
 	    HLL_TODO_EXPORT(Calc2DDetection, SealEngine_Calc2DDetection), \
 	    HLL_TODO_EXPORT(Calc2DDetectionIntersectEyeVector, SealEngine_Calc2DDetectionIntersectEyeVector), \

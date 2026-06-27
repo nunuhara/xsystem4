@@ -1072,8 +1072,7 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 
 static void render_outlines(struct RE_plugin *plugin, mat4 view_transform)
 {
-	enum RE_draw_edge_mode mode = plugin->draw_options[RE_DRAW_OPTION_EDGE];
-	if (mode == RE_DRAW_EDGE_NONE)
+	if (plugin->draw_options[RE_DRAW_OPTION_EDGE] == 0)
 		return;
 	struct outline_renderer *or = &plugin->renderer->outline;
 	if (!or->program)
@@ -1082,12 +1081,20 @@ static void render_outlines(struct RE_plugin *plugin, mat4 view_transform)
 	glUniformMatrix4fv(or->view_transform, 1, GL_FALSE, view_transform[0]);
 	glUniformMatrix4fv(or->proj_transform, 1, GL_FALSE, plugin->proj_transform[0]);
 
+	// SealEngine ignores the per-mesh edge parameters from .opr and uses
+	// a single plugin-wide edge length and color.
+	bool seal_edge = re_plugin_version >= RE_SEAL_PLUGIN;
+	if (seal_edge) {
+		glUniform3fv(or->outline_color, 1, plugin->edge_color);
+		glUniform1f(or->outline_thickness, plugin->edge_length);
+	}
+
 	glCullFace(GL_FRONT);
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst || !inst->draw)
 			continue;
-		if (mode == RE_DRAW_EDGE_CHARACTERS_ONLY && inst->type != RE_ITYPE_SKINNED)
+		if (!inst->draw_edge)
 			continue;
 		struct model *model = inst->model;
 		if (inst->model && model->nr_bones > 0) {
@@ -1102,8 +1109,10 @@ static void render_outlines(struct RE_plugin *plugin, mat4 view_transform)
 			struct mesh *mesh = &model->meshes[j];
 			if (mesh->flags & MESH_NO_EDGE)
 				continue;
-			glUniform3fv(or->outline_color, 1, mesh->outline_color);
-			glUniform1f(or->outline_thickness, mesh->outline_thickness);
+			if (!seal_edge) {
+				glUniform3fv(or->outline_color, 1, mesh->outline_color);
+				glUniform1f(or->outline_thickness, mesh->outline_thickness);
+			}
 			glBindVertexArray(mesh->vao);
 			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 		}
