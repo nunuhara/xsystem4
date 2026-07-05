@@ -158,7 +158,16 @@ static bool read_config(const char *path)
 	return true;
 }
 
-static void read_user_config_file(const char *path)
+static char *user_config_path(struct ini_entry *entry, const char *basedir)
+{
+	const char *path = ini_string(entry)->text;
+	if (basedir && !is_absolute_path(path)) {
+		return path_join(basedir, path);
+	}
+	return xstrdup(path);
+}
+
+static void read_user_config_file(const char *path, const char *basedir)
 {
 	int ini_size;
 	struct ini_entry *ini = ini_parse(path, &ini_size);
@@ -167,11 +176,14 @@ static void read_user_config_file(const char *path)
 
 	for (int i = 0; i < ini_size; i++) {
 		if (!strcmp(ini[i].name->text, "font-mincho")) {
-			config.font_paths[FONT_MINCHO] = xstrdup(ini_string(&ini[i])->text);
+			free(config.font_paths[FONT_MINCHO]);
+			config.font_paths[FONT_MINCHO] = user_config_path(&ini[i], basedir);
 		} else if (!strcmp(ini[i].name->text, "font-gothic")) {
-			config.font_paths[FONT_GOTHIC] = xstrdup(ini_string(&ini[i])->text);
+			free(config.font_paths[FONT_GOTHIC]);
+			config.font_paths[FONT_GOTHIC] = user_config_path(&ini[i], basedir);
 		} else if (!strcmp(ini[i].name->text, "font-fnl")) {
-			config.fnl_path = xstrdup(ini_string(&ini[i])->text);
+			free(config.fnl_path);
+			config.fnl_path = user_config_path(&ini[i], basedir);
 		} else if (!strcmp(ini[i].name->text, "font-x-scale")) {
 			float f = strtof(ini_string(&ini[i])->text, NULL);
 			if (fabsf(f) < 0.01) {
@@ -190,7 +202,7 @@ static void read_user_config_file(const char *path)
 			}
 		} else if (!strcmp(ini[i].name->text, "save-folder")) {
 			free(config.save_dir);
-			config.save_dir = xstrdup(ini_string(&ini[i])->text);
+			config.save_dir = user_config_path(&ini[i], basedir);
 		} else if (!strcmp(ini[i].name->text, "save-format")) {
 			if (!strcmp(ini_string(&ini[i])->text, "json")) {
 				config.save_format = SAVE_FORMAT_JSON;
@@ -213,12 +225,12 @@ static void read_user_config(void)
 	// global config
 	path = xmalloc(PATH_MAX);
 	snprintf(path, PATH_MAX-1, "%s/.xsys4rc", config.home_dir);
-	read_user_config_file(path);
+	read_user_config_file(path, NULL);
 	free(path);
 
 	// game-specific config
 	path = gamedir_path(".xsys4rc");
-	read_user_config_file(path);
+	read_user_config_file(path, config.game_dir);
 	free(path);
 }
 
