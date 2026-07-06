@@ -625,6 +625,15 @@ void opr_load(uint8_t *data, size_t size, struct pol *pol)
 			} else {
 				WARNING("invalid HeightDetection: %s", s);
 			}
+		} else if (sscanf(line, "DrawShadow = %s", s) == 1) {
+			if (!strcmp(s, "false")) {
+				for (int i = 0; i < pol->nr_meshes; i++) {
+					if (!selected[i]) continue;
+					pol->meshes[i]->flags |= MESH_NO_DRAWSHADOW;
+				}
+			} else if (strcmp(s, "true")) {
+				WARNING("invalid DrawShadow: %s", s);
+			}
 		} else if (sscanf(line, "ZWrite = %s", s) == 1) {
 			if (!strcmp(s, "false")) {
 				for (int i = 0; i < pol->nr_meshes; i++) {
@@ -654,6 +663,13 @@ void opr_load(uint8_t *data, size_t size, struct pol *pol)
 				pol->meshes[i]->flags |= MESH_HAS_SPECULAR_POWER;
 				pol->meshes[i]->specular_power = f1;
 			}
+		} else if (sscanf(line, "ParallaxScale = %f", &f1) == 1) {
+			// parallax mapping is not implemented
+		} else if (sscanf(line, "ReliefScale = %f", &f1) == 1) {
+			// relief mapping is not implemented
+		} else if (sscanf(line, "MeshCombinable = %s", s) == 1) {
+			if (strcmp(s, "true") && strcmp(s, "false"))
+				WARNING("invalid MeshCombinable: %s", s);
 		} else if (strchr(line, '=')) {
 			WARNING("unknown field: %s", line);
 		}

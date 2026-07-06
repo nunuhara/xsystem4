@@ -676,6 +676,7 @@ enum mesh_flags {
 	MESH_HEIGHT_DETECTION    = 1 << 11,
 	MESH_HAS_SPECULAR_COLOR  = 1 << 12,
 	MESH_HAS_SPECULAR_POWER  = 1 << 13,
+	MESH_NO_DRAWSHADOW       = 1 << 14,
 };
 
 struct pol_mesh {

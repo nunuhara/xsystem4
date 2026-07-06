@@ -367,7 +367,7 @@ void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out)
 
 static bool should_draw_shadow(struct mesh *mesh, struct material *material)
 {
-	return !(mesh->flags & (MESH_ALPHA | MESH_BOTH | MESH_SPRITE))
+	return !(mesh->flags & (MESH_ALPHA | MESH_BOTH | MESH_SPRITE | MESH_NO_DRAWSHADOW))
 	    && !(material->flags & (MATERIAL_ALPHA | MATERIAL_SPRITE));
 }
 
