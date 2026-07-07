@@ -331,64 +331,90 @@ bool PE_AddCopyTextToPartsConstructionProcess(int parts_no, int x, int y, struct
 			PARTS_CP_COPY_TEXT);
 }
 
-static void build_create(struct parts *parts, struct parts_construction_process *cproc,
+static bool build_create(struct parts *parts, struct parts_construction_process *cproc,
 		struct parts_cp_create *op)
 {
 	gfx_delete_texture(&cproc->common.texture);
 	gfx_init_texture_rgba(&cproc->common.texture, op->w, op->h, (SDL_Color){0,0,0,255});
+	if (!cproc->common.texture.handle)
+		return false;
 	parts_set_dims(parts, &cproc->common, op->w, op->h);
+	return true;
 }
 
-static void build_create_pixel_only(struct parts *parts, struct parts_construction_process *cproc,
+static bool build_create_pixel_only(struct parts *parts, struct parts_construction_process *cproc,
 		struct parts_cp_create *op)
 {
 	gfx_delete_texture(&cproc->common.texture);
 	gfx_init_texture_rgb(&cproc->common.texture, op->w, op->h, (SDL_Color){0,0,0,255});
+	if (!cproc->common.texture.handle)
+		return false;
 	parts_set_dims(parts, &cproc->common, op->w, op->h);
+	return true;
 }
 
-static void build_cg(struct parts *parts, struct parts_construction_process *cproc, struct parts_cp_cg *op)
+static bool build_cg(struct parts *parts, struct parts_construction_process *cproc, struct parts_cp_cg *op)
 {
 	struct cg *cg = asset_cg_load(op->no);
-	assert(cg);
+	if (!cg)
+		return false;
 	gfx_delete_texture(&cproc->common.texture);
 	gfx_init_texture_with_cg(&cproc->common.texture, cg);
 	parts_set_dims(parts, &cproc->common, cg->metrics.w, cg->metrics.h);
 	cg_free(cg);
+	return true;
 }
 
-static void build_fill(struct parts_construction_process *cproc, struct parts_cp_fill *op)
+static bool build_fill(struct parts_construction_process *cproc, struct parts_cp_fill *op)
 {
+	if (!cproc->common.texture.handle)
+		return false;
 	gfx_fill(&cproc->common.texture, op->x, op->y, op->w, op->h, op->r, op->g, op->b);
+	return true;
 }
 
-static void build_fill_alpha_color(struct parts_construction_process *cproc, struct parts_cp_fill *op)
+static bool build_fill_alpha_color(struct parts_construction_process *cproc, struct parts_cp_fill *op)
 {
+	if (!cproc->common.texture.handle)
+		return false;
 	gfx_fill_alpha_color(&cproc->common.texture, op->x, op->y, op->w, op->h, op->r, op->g, op->b, op->a);
+	return true;
 }
 
-static void build_fill_amap(struct parts_construction_process *cproc, struct parts_cp_fill *op)
+static bool build_fill_amap(struct parts_construction_process *cproc, struct parts_cp_fill *op)
 {
+	if (!cproc->common.texture.handle)
+		return false;
 	gfx_fill_amap(&cproc->common.texture, op->x, op->y, op->w, op->h, op->a);
+	return true;
 }
 
-static void build_fill_with_alpha(struct parts_construction_process *cproc, struct parts_cp_fill *op)
+static bool build_fill_with_alpha(struct parts_construction_process *cproc, struct parts_cp_fill *op)
 {
+	if (!cproc->common.texture.handle)
+		return false;
 	gfx_fill_with_alpha(&cproc->common.texture, op->x, op->y, op->w, op->h, op->r, op->g, op->b, op->a);
+	return true;
 }
 
-static void build_draw_rect(struct parts_construction_process *cproc, struct parts_cp_fill *op)
+static bool build_draw_rect(struct parts_construction_process *cproc, struct parts_cp_fill *op)
 {
+	if (!cproc->common.texture.handle)
+		return false;
 	int x2 = op->x + op->w - 1;
 	int y2 = op->y + op->h - 1;
 	gfx_draw_line(&cproc->common.texture, op->x, op->y, x2, op->y, op->r, op->g, op->b);
 	gfx_draw_line(&cproc->common.texture, op->x, op->y, op->x, y2, op->r, op->g, op->b);
 	gfx_draw_line(&cproc->common.texture, x2, op->y, x2, y2, op->r, op->g, op->b);
 	gfx_draw_line(&cproc->common.texture, op->x, y2, x2, y2, op->r, op->g, op->b);
+	return true;
 }
 
-static void build_draw_cut_cg(struct parts_construction_process *cproc, struct parts_cp_cut_cg *op)
+static bool build_draw_cut_cg(struct parts_construction_process *cproc, struct parts_cp_cut_cg *op)
 {
+	if (!cproc->common.texture.handle)
+		return false;
+
 	struct cg *cg = asset_cg_load(op->cg_no);
 	assert(cg);
 
@@ -399,10 +425,14 @@ static void build_draw_cut_cg(struct parts_construction_process *cproc, struct p
 	gfx_copy_stretch_blend_amap(&cproc->common.texture, op->dx, op->dy, op->dw, op->dh,
 			&src, op->sx, op->sy, op->sw, op->sh);
 	gfx_delete_texture(&src);
+	return true;
 }
 
-static void build_copy_cut_cg(struct parts_construction_process *cproc, struct parts_cp_cut_cg *op)
+static bool build_copy_cut_cg(struct parts_construction_process *cproc, struct parts_cp_cut_cg *op)
 {
+	if (!cproc->common.texture.handle)
+		return false;
+
 	struct cg *cg = asset_cg_load(op->cg_no);
 	assert(cg);
 
@@ -413,24 +443,33 @@ static void build_copy_cut_cg(struct parts_construction_process *cproc, struct p
 	gfx_copy_stretch_with_alpha_map(&cproc->common.texture, op->dx, op->dy, op->dw, op->dh,
 			&src, op->sx, op->sy, op->sw, op->sh);
 	gfx_delete_texture(&src);
+	return true;
 }
 
-static void build_draw_text(struct parts_construction_process *cproc, struct parts_cp_text *op)
+static bool build_draw_text(struct parts_construction_process *cproc, struct parts_cp_text *op)
 {
+	if (!cproc->common.texture.handle)
+		return false;
 	gfx_render_text(&cproc->common.texture, op->x, op->y, op->text->text, &op->style, true);
+	return true;
 }
 
-static void build_copy_text(struct parts_construction_process *cproc, struct parts_cp_text *op)
+static bool build_copy_text(struct parts_construction_process *cproc, struct parts_cp_text *op)
 {
+	if (!cproc->common.texture.handle)
+		return false;
 	int w = ceilf(gfx_size_text (&op->style, op->text->text));
 	int h = ceilf(op->style.size + op->style.edge_up + op->style.edge_down);
 	gfx_fill_with_alpha(&cproc->common.texture, op->x, op->y, w, h,
 			op->style.edge_color.r, op->style.edge_color.g, op->style.edge_color.b, 0);
 	gfx_render_text(&cproc->common.texture, op->x, op->y, op->text->text, &op->style, false);
+	return true;
 }
 
-static void build_gray_filter(struct parts_construction_process *cproc, struct parts_cp_filter *op)
+static bool build_gray_filter(struct parts_construction_process *cproc, struct parts_cp_filter *op)
 {
+	if (!cproc->common.texture.handle)
+		return false;
 	int x = op->x, y = op->y, w = op->w, h = op->h;
 	if (op->full_size) {
 		x = 0; y = 0;
@@ -439,6 +478,7 @@ static void build_gray_filter(struct parts_construction_process *cproc, struct p
 	}
 
 	gfx_copy_grayscale(&cproc->common.texture, x, y, &cproc->common.texture, x, y, w, h);
+	return true;
 }
 
 bool parts_build_construction_process(struct parts *parts,
@@ -448,43 +488,56 @@ bool parts_build_construction_process(struct parts *parts,
 	TAILQ_FOREACH(op, &cproc->ops, entry) {
 		switch (op->type) {
 		case PARTS_CP_CREATE:
-			build_create(parts, cproc, &op->create);
+			if (!build_create(parts, cproc, &op->create))
+				return false;
 			break;
 		case PARTS_CP_CREATE_PIXEL_ONLY:
-			build_create_pixel_only(parts, cproc, &op->create);
+			if (!build_create_pixel_only(parts, cproc, &op->create))
+				return false;
 			break;
 		case PARTS_CP_CG:
-			build_cg(parts, cproc, &op->cg);
+			if (!build_cg(parts, cproc, &op->cg))
+				return false;
 			break;
 		case PARTS_CP_FILL:
-			build_fill(cproc, &op->fill);
+			if (!build_fill(cproc, &op->fill))
+				return false;
 			break;
 		case PARTS_CP_FILL_ALPHA_COLOR:
-			build_fill_alpha_color(cproc, &op->fill);
+			if (!build_fill_alpha_color(cproc, &op->fill))
+				return false;
 			break;
 		case PARTS_CP_FILL_AMAP:
-			build_fill_amap(cproc, &op->fill);
+			if (!build_fill_amap(cproc, &op->fill))
+				return false;
 			break;
 		case PARTS_CP_FILL_WITH_ALPHA:
-			build_fill_with_alpha(cproc, &op->fill);
+			if (!build_fill_with_alpha(cproc, &op->fill))
+				return false;
 			break;
 		case PARTS_CP_DRAW_RECT:
-			build_draw_rect(cproc, &op->fill);
+			if (!build_draw_rect(cproc, &op->fill))
+				return false;
 			break;
 		case PARTS_CP_DRAW_CUT_CG:
-			build_draw_cut_cg(cproc, &op->cut_cg);
+			if (!build_draw_cut_cg(cproc, &op->cut_cg))
+				return false;
 			break;
 		case PARTS_CP_COPY_CUT_CG:
-			build_copy_cut_cg(cproc, &op->cut_cg);
+			if (!build_copy_cut_cg(cproc, &op->cut_cg))
+				return false;
 			break;
 		case PARTS_CP_DRAW_TEXT:
-			build_draw_text(cproc, &op->text);
+			if (!build_draw_text(cproc, &op->text))
+				return false;
 			break;
 		case PARTS_CP_COPY_TEXT:
-			build_copy_text(cproc, &op->text);
+			if (!build_copy_text(cproc, &op->text))
+				return false;
 			break;
 		case PARTS_CP_GRAY_FILTER:
-			build_gray_filter(cproc, &op->filter);
+			if (!build_gray_filter(cproc, &op->filter))
+				return false;
 			break;
 		}
 	}
