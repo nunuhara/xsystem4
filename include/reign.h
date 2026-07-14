@@ -234,6 +234,9 @@ struct RE_instance {
 	int texture_animation_index;
 };
 
+#define RE_MAX_PLUGINS 2
+struct RE_plugin *RE_get_plugin(int handle);
+
 struct RE_plugin *RE_plugin_new(enum RE_plugin_version version);
 void RE_plugin_free(struct RE_plugin *plugin);
 bool RE_plugin_bind(struct RE_plugin *plugin, int sprite);
@@ -357,5 +360,8 @@ bool ReignEngine_BindPlugin(int handle, int sprite);
 
 // Exposed for MarmotModelEngine
 void ReignEngine_update_models(void);
+
+// debug.c
+void re_debug_init(void);
 
 #endif /* SYSTEM4_REIGN_H */

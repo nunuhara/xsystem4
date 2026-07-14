@@ -222,6 +222,7 @@ static void update_bones(struct RE_instance *inst)
 
 struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 {
+	re_debug_init();
 	re_plugin_version = version;
 
 	char *aar_path = gamedir_path(version <= RE_TAPIR_PLUGIN ? "Data/ReignData.red" : "Data/3DData.red");
