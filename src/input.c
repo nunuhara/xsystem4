@@ -113,6 +113,7 @@ static enum sact_keycode sdl_keytable[] = {
 	[SDL_SCANCODE_KP_MINUS] = VK_SUBTRACT,
 	[SDL_SCANCODE_KP_PERIOD] = VK_DECIMAL,
 	[SDL_SCANCODE_KP_DIVIDE] = VK_DIVIDE,
+	[SDL_SCANCODE_KP_ENTER] = VK_RETURN,
 	[SDL_SCANCODE_F1] = VK_F1,
 	[SDL_SCANCODE_F2] = VK_F2,
 	[SDL_SCANCODE_F3] = VK_F3,
@@ -140,6 +141,29 @@ static enum sact_keycode sdl_keytable[] = {
 	[SDL_SCANCODE_NUMLOCKCLEAR] = VK_NUMLOCK,
 	[SDL_SCANCODE_SCROLLLOCK] = VK_SCROLL,
 };
+
+static enum sact_keycode sdl_to_sact_key(SDL_Scancode scancode, SDL_Keymod modifiers)
+{
+	if (!(modifiers & KMOD_NUM)) {
+		switch (scancode) {
+		case SDL_SCANCODE_KP_0:      return VK_INSERT;
+		case SDL_SCANCODE_KP_1:      return VK_END;
+		case SDL_SCANCODE_KP_2:      return VK_DOWN;
+		case SDL_SCANCODE_KP_3:      return VK_NEXT;
+		case SDL_SCANCODE_KP_4:      return VK_LEFT;
+		case SDL_SCANCODE_KP_5:      return VK_CLEAR;
+		case SDL_SCANCODE_KP_6:      return VK_RIGHT;
+		case SDL_SCANCODE_KP_7:      return VK_HOME;
+		case SDL_SCANCODE_KP_8:      return VK_UP;
+		case SDL_SCANCODE_KP_9:      return VK_PRIOR;
+		case SDL_SCANCODE_KP_PERIOD: return VK_DELETE;
+		default: break;
+		}
+	}
+	if (scancode >= sizeof(sdl_keytable) / sizeof(*sdl_keytable))
+		return 0;
+	return sdl_keytable[scancode];
+}
 
 bool mouse_focus = true;
 bool keyboard_focus = true;
@@ -238,9 +262,7 @@ static void(*key_handler)(int);
 
 static void key_event(SDL_KeyboardEvent *e, bool pressed)
 {
-	if (e->keysym.scancode >= (sizeof(sdl_keytable)/sizeof(*sdl_keytable)))
-		return;
-	enum sact_keycode code = sdl_keytable[e->keysym.scancode];
+	enum sact_keycode code = sdl_to_sact_key(e->keysym.scancode, e->keysym.mod);
 	if (code) {
 		key_state[code] = pressed;
 		if (pressed && key_handler)
@@ -744,4 +766,3 @@ void handle_events(void)
 	if (dbg_dap)
 		dbg_dap_handle_messages();
 }
-
