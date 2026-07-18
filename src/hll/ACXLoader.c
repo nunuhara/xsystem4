@@ -17,8 +17,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <zlib.h>
-
 #include "system4.h"
 #include "system4/string.h"
 #include "system4/acx.h"

@@ -20,13 +20,12 @@
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
-#include <zlib.h>
-
 #include "system4.h"
 #include "system4/buffer.h"
 #include "system4/file.h"
 #include "system4/little_endian.h"
 #include "system4/string.h"
+#include "system4/zlib.h"
 
 #include "hll.h"
 #include "savedata.h"
@@ -180,12 +179,13 @@ static int File_Close(void)
 	int r = 1;
 	if (current_mode == FILE_WRITE) {
 		size_t raw_size = contents.index;
-		unsigned long compressed_size = compressBound(raw_size);
+		size_t compressed_size = zlib_compress_bound(raw_size);
 		uint8_t *buf = xmalloc(4 + compressed_size);
 		LittleEndian_putDW(buf, 0, raw_size);
-		int r = compress2(buf + 4, &compressed_size, contents.buf, raw_size, Z_DEFAULT_COMPRESSION);
-		if (r != Z_OK) {
-			WARNING("File.Close: compress2 failed");
+		compressed_size = zlib_compress(buf + 4, compressed_size, contents.buf,
+				raw_size, ZLIB_DEFAULT_COMPRESSION);
+		if (!compressed_size) {
+			WARNING("File.Close: zlib_compress failed");
 			r = 0;
 		} else {
 			if (fwrite(buf, 4 + compressed_size, 1, current_file) != 1) {
@@ -238,11 +238,11 @@ static int File_Read(struct page **_page)
 
 		// Check if it's ZLIB compressed
 		if (file_size > 6 && buf[4] == 0x78 && buf[5] == 0x9c) {
-			unsigned long raw_size = LittleEndian_getDW(buf, 0);
+			size_t raw_size = LittleEndian_getDW(buf, 0);
 			uint8_t *raw_buf = xmalloc(raw_size);
-			int r = uncompress(raw_buf, &raw_size, buf + 4, file_size);
+			bool ok = zlib_decompress_exact(raw_buf, raw_size, buf + 4, file_size - 4);
 			free(buf);
-			if (r != Z_OK) {
+			if (!ok) {
 				WARNING("File.Read failed to uncompress");
 				free(raw_buf);
 				return 0;
@@ -368,4 +368,3 @@ HLL_LIBRARY(File,
 	    //HLL_EXPORT(SetFind, File_SetFind),
 	    //HLL_EXPORT(GetFind, File_GetFind),
 	    HLL_EXPORT(MakeDirectory, File_MakeDirectory));
-

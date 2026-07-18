@@ -19,10 +19,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zlib.h>
 #include "system4.h"
 #include "system4/buffer.h"
 #include "system4/little_endian.h"
+#include "system4/zlib.h"
 #include "swf.h"
 
 static void free_tag_list(struct swf_tag *tags);
@@ -277,10 +277,9 @@ static struct swf_tag_define_bits_lossless *parse_define_bits_lossless(struct bu
 	if (tag->format != 5)
 		ERROR("DefineBitsLossless: unsupported format %d", tag->format);
 
-	unsigned long len = 4 * tag->width * tag->height;
+	size_t len = 4 * tag->width * tag->height;
 	uint8_t *pixels = xmalloc(len);
-	int rv = uncompress(pixels, &len, r->buf + r->index, buffer_remaining(r));
-	if (rv != Z_OK || len != 4 * tag->width * tag->height)
+	if (!zlib_decompress_exact(pixels, len, r->buf + r->index, buffer_remaining(r)))
 		ERROR("DefineBitsLossless: broken bitmap data");
 
 	uint8_t alpha_const = type == TAG_DEFINE_BITS_LOSSLESS ? 0xff : 0;
@@ -666,10 +665,10 @@ struct swf *aff_load(uint8_t *data, size_t size)
 		uint8_t *raw = xmalloc(raw_size);
 		memcpy(raw, buf, 8);
 		raw[0] = 'F';
-		unsigned long dest_size = raw_size - 8;
-		int rv = uncompress(raw + 8, &dest_size, buf + 8, size - 8);
+		size_t dest_size = raw_size - 8;
+		bool ok = zlib_decompress_exact(raw + 8, dest_size, buf + 8, size - 8);
 		free(buf);
-		if (rv != Z_OK || dest_size != raw_size - 8) {
+		if (!ok) {
 			free(raw);
 			return NULL;
 		}

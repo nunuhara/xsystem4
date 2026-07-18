@@ -15,12 +15,11 @@
  */
 
 #include <stdlib.h>
-#include <zlib.h>
-
 #include "system4/archive.h"
 #include "system4/buffer.h"
 #include "system4/little_endian.h"
 #include "system4/string.h"
+#include "system4/zlib.h"
 
 #include "hll.h"
 #include "asset_manager.h"
@@ -40,11 +39,11 @@ static int Data_Open(int num)
 	struct archive_data *dfile = asset_get(ASSET_DATA, num);
 	if (!dfile)
 		return 0;
-	unsigned long uncompressed_size = LittleEndian_getDW(dfile->data, 0);
+	size_t uncompressed_size = LittleEndian_getDW(dfile->data, 0);
 	uint8_t *buf = xmalloc(uncompressed_size);
-	int rv = uncompress(buf, &uncompressed_size, (uint8_t *)dfile->data + 4, dfile->size - 4);
-	if (rv != Z_OK) {
-		WARNING("%s: uncompress failed (%d)", dfile->name, rv);
+	if (!zlib_decompress_exact(buf, uncompressed_size,
+			(uint8_t *)dfile->data + 4, dfile->size - 4)) {
+		WARNING("%s: uncompress failed", dfile->name);
 		archive_free_data(dfile);
 		free(buf);
 		return 0;

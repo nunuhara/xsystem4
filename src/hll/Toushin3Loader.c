@@ -17,13 +17,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zlib.h>
-
 #include "system4/little_endian.h"
 #include "system4/buffer.h"
 #include "system4/file.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
+#include "system4/zlib.h"
 
 #include "hll.h"
 #include "vm/heap.h"
@@ -83,9 +82,9 @@ static uint8_t *read_compressed_data(FILE *fp, uint32_t *size)
 		free(buf);
 		return NULL;
 	}
-	unsigned long raw_size = LittleEndian_getDW(buf, 0);
+	size_t raw_size = LittleEndian_getDW(buf, 0);
 	void *raw = malloc(raw_size);
-	if (uncompress(raw, &raw_size, buf + 4, *size - 4) != Z_OK) {
+	if (!zlib_decompress_exact(raw, raw_size, buf + 4, *size - 4)) {
 		WARNING("uncompress failed");
 		free(raw);
 		free(buf);
