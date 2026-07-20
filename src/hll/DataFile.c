@@ -16,12 +16,11 @@
 
 #include <string.h>
 #include <stdio.h>
-#include <zlib.h>
-
 #include "system4/archive.h"
 #include "system4/buffer.h"
 #include "system4/mt19937int.h"
 #include "system4/string.h"
+#include "system4/zlib.h"
 
 #include "hll.h"
 #include "asset_manager.h"
@@ -267,7 +266,7 @@ static int DataFile_Open(int link)
 	}
 	buffer_skip(&r, 4);
 
-	unsigned long uncompressed_size = buffer_read_int32(&r);
+	size_t uncompressed_size = buffer_read_int32(&r);
 	uint32_t compressed_size = buffer_remaining(&r);
 
 	// decode compressed data
@@ -277,10 +276,10 @@ static int DataFile_Open(int link)
 	mt19937_xorcode(compressed_data, compressed_size, 4588163);
 
 	uint8_t *raw = xmalloc(uncompressed_size);
-	int rv = uncompress(raw, &uncompressed_size, compressed_data, compressed_size);
+	bool ok = zlib_decompress_exact(raw, uncompressed_size, compressed_data, compressed_size);
 	free(compressed_data);
-	if (rv != Z_OK) {
-		WARNING("Uncompress failed: %d", rv);
+	if (!ok) {
+		WARNING("Uncompress failed");
 		free(raw);
 		return 0;
 	}

@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <zlib.h>
 #include "cJSON.h"
 
 #include "system4.h"
@@ -26,6 +25,7 @@
 #include "system4/little_endian.h"
 #include "system4/string.h"
 #include "system4/file.h"
+#include "system4/zlib.h"
 
 #include "hll.h"
 #include "xsystem4.h"
@@ -97,10 +97,11 @@ static void write_register(unsigned handle)
 	}
 
 	size_t raw_size = buf.index;
-	unsigned long compressed_size = compressBound(raw_size);
+	size_t compressed_size = zlib_compress_bound(raw_size);
 	uint8_t *compressed = xmalloc(compressed_size);
-	int r = compress2(compressed, &compressed_size, buf.buf, raw_size, Z_BEST_COMPRESSION);
-	if (r != Z_OK) {
+	compressed_size = zlib_compress(compressed, compressed_size, buf.buf,
+			raw_size, ZLIB_BEST_COMPRESSION);
+	if (!compressed_size) {
 		WARNING("Failed to compress PassRegister file: %s", display_utf0(reg->filename));
 		goto end;
 	}
@@ -136,15 +137,14 @@ static void read_register_psr(struct passregister *reg, uint8_t *data, size_t da
 		WARNING("Unexpected PassRegister version %d", version);
 		return;
 	}
-	unsigned long raw_size = LittleEndian_getDW(data, 8);
+	size_t raw_size = LittleEndian_getDW(data, 8);
 	size_t compressed_size = LittleEndian_getDW(data, 12);
 	if (PSR_HEADER_SIZE + compressed_size != data_len) {
 		WARNING("Broken PassRegister file");
 		return;
 	}
 	uint8_t *raw = xmalloc(raw_size);
-	int r = uncompress(raw, &raw_size, data + PSR_HEADER_SIZE, compressed_size);
-	if (r != Z_OK) {
+	if (!zlib_decompress_exact(raw, raw_size, data + PSR_HEADER_SIZE, compressed_size)) {
 		WARNING("PassRegister: failed to uncompress");
 		free(raw);
 		return;

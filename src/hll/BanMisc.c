@@ -17,12 +17,11 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include <zlib.h>
-
 #include "system4/file.h"
 #include "system4/little_endian.h"
 #include "system4/string.h"
 #include "system4/mt19937int.h"
+#include "system4/zlib.h"
 
 #include "hll.h"
 #include "audio.h"
@@ -47,14 +46,15 @@ static int BanMisc_SaveStruct(struct page *page, struct string *file_name)
 	iarray_free_writer(&out);
 
 	// compress
-	unsigned long compressed_size = compressBound(raw_size);
+	size_t compressed_size = zlib_compress_bound(raw_size);
 	uint8_t *buf = xmalloc(MD11_HEADER_SIZE + compressed_size);
 	memcpy(buf, md11_signature, sizeof(md11_signature));
 	LittleEndian_putDW(buf, 4, raw_size);
 	uint8_t *compressed = buf + MD11_HEADER_SIZE;
-	int r = compress2(compressed, &compressed_size, raw_buf, raw_size, Z_DEFAULT_COMPRESSION);
+	compressed_size = zlib_compress(compressed, compressed_size, raw_buf,
+			raw_size, ZLIB_DEFAULT_COMPRESSION);
 	free(raw_buf);
-	if (r != Z_OK) {
+	if (!compressed_size) {
 		free(buf);
 		return 0;
 	}
@@ -79,7 +79,7 @@ static struct page *load_md11(int struct_type, uint8_t *buf, size_t len)
 		WARNING("BanMisc.LoadStruct file too short");
 		return NULL;
 	}
-	unsigned long raw_size = LittleEndian_getDW(buf, 4);
+	size_t raw_size = LittleEndian_getDW(buf, 4);
 	if (raw_size % 4 != 0) {
 		WARNING("BanMisc.LoadStruct invalid file format");
 		return NULL;
@@ -92,9 +92,8 @@ static struct page *load_md11(int struct_type, uint8_t *buf, size_t len)
 
 	// decompress
 	uint8_t *raw_buf = xmalloc(raw_size);
-	int r = uncompress(raw_buf, &raw_size, buf, len);
-	if (r != Z_OK) {
-		WARNING("BanMisc.LoadStruct uncompress failed: %d", r);
+	if (!zlib_decompress_exact(raw_buf, raw_size, buf, len)) {
+		WARNING("BanMisc.LoadStruct uncompress failed");
 		free(raw_buf);
 		return NULL;
 	}
