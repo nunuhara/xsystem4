@@ -1669,6 +1669,9 @@ uint16_t plm_buffer_read_vlc_uint(plm_buffer_t *self, const plm_vlc_uint_t *tabl
 
 // ----------------------------------------------------------------------------
 // plm_demux implementation
+//
+// xsystem4 change: The demuxer accepts MPEG-1 and MPEG-2 Systems pack/PES headers.
+// The video and audio decoders still only support MPEG-1 Video and MP2 Audio.
 
 static const int PLM_START_PACK = 0xBA;
 static const int PLM_START_END = 0xB9;
@@ -1685,6 +1688,7 @@ struct plm_demux_t {
 	double duration;
 
 	int start_code;
+	int is_mpeg2;
 	int has_pack_header;
 	int has_system_header;
 	int has_headers;
@@ -1738,19 +1742,52 @@ int plm_demux_has_headers(plm_demux_t *self) {
 		}
 
 		self->start_code = PLM_START_PACK;
-		if (!plm_buffer_has(self->buffer, 64)) {
-			return FALSE;
-		}
-		self->start_code = -1;
-
-		if (plm_buffer_read(self->buffer, 4) != 0x02) {
+		if (!plm_buffer_has(self->buffer, 8)) {
 			return FALSE;
 		}
 
-		self->system_clock_ref = plm_demux_decode_time(self);
-		plm_buffer_skip(self->buffer, 1);
-		plm_buffer_skip(self->buffer, 22); // mux_rate * 50
-		plm_buffer_skip(self->buffer, 1);
+		size_t byte_index = self->buffer->bit_index >> 3;
+		int marker = self->buffer->bytes[byte_index];
+		if ((marker & 0xf0) == 0x20) {
+			if (!plm_buffer_has(self->buffer, 64)) {
+				return FALSE;
+			}
+			self->start_code = -1;
+
+			plm_buffer_skip(self->buffer, 4); // MPEG-1 marker
+			self->system_clock_ref = plm_demux_decode_time(self);
+			plm_buffer_skip(self->buffer, 1);
+			plm_buffer_skip(self->buffer, 22); // mux_rate * 50
+			plm_buffer_skip(self->buffer, 1);
+		}
+		else if ((marker & 0xc0) == 0x40) {
+			// MPEG-2 pack headers have a fixed 10-byte part followed by up to
+			// seven stuffing bytes. Read the stuffing length before consuming
+			// anything so that a partial input can be retried.
+			if (!plm_buffer_has(self->buffer, 80)) {
+				return FALSE;
+			}
+			byte_index = self->buffer->bit_index >> 3;
+			int stuffing_length = self->buffer->bytes[byte_index + 9] & 0x07;
+			if (!plm_buffer_has(self->buffer, (10 + stuffing_length) << 3)) {
+				return FALSE;
+			}
+			self->start_code = -1;
+			self->is_mpeg2 = TRUE;
+
+			plm_buffer_skip(self->buffer, 2); // MPEG-2 marker
+			self->system_clock_ref = plm_demux_decode_time(self);
+			plm_buffer_skip(self->buffer, 9); // SCR extension
+			plm_buffer_skip(self->buffer, 1);
+			plm_buffer_skip(self->buffer, 22); // program mux rate
+			plm_buffer_skip(self->buffer, 2); // marker bits
+			plm_buffer_skip(self->buffer, 5); // reserved
+			plm_buffer_skip(self->buffer, 3); // stuffing length
+			plm_buffer_skip(self->buffer, stuffing_length << 3);
+		}
+		else {
+			return FALSE;
+		}
 
 		self->has_pack_header = TRUE;
 	}
@@ -2085,6 +2122,65 @@ plm_packet_t *plm_demux_decode_packet(plm_demux_t *self, int type) {
 
 	self->next_packet.type = type;
 	self->next_packet.length = plm_buffer_read(self->buffer, 16);
+	self->next_packet.pts = PLM_PACKET_INVALID_TS;
+
+	if (self->is_mpeg2) {
+		// MPEG-2 PES packets have three fixed header bytes followed by a
+		// variable-length optional header. This decoder only needs PTS; all
+		// other optional fields can be skipped using the header length.
+		if (self->next_packet.length < 3 ||
+			plm_buffer_read(self->buffer, 2) != 0x02
+		) {
+			self->next_packet.length = 0;
+			return NULL;
+		}
+		plm_buffer_skip(self->buffer, 6); // scrambling and control flags
+		int pts_dts_marker = plm_buffer_read(self->buffer, 2);
+		plm_buffer_skip(self->buffer, 6); // remaining optional-field flags
+		int header_length = plm_buffer_read(self->buffer, 8);
+		if (
+			self->next_packet.length < (size_t)(3 + header_length) ||
+			!plm_buffer_has(self->buffer, header_length << 3)
+		) {
+			self->next_packet.length = 0;
+			return NULL;
+		}
+
+		int header_bytes_read = 0;
+		if (pts_dts_marker == 0x02) {
+			if (header_length < 5 || plm_buffer_read(self->buffer, 4) != 0x02) {
+				self->next_packet.length = 0;
+				return NULL;
+			}
+			self->next_packet.pts = plm_demux_decode_time(self);
+			header_bytes_read = 5;
+		}
+		else if (pts_dts_marker == 0x03) {
+			if (header_length < 10 || plm_buffer_read(self->buffer, 4) != 0x03) {
+				self->next_packet.length = 0;
+				return NULL;
+			}
+			self->next_packet.pts = plm_demux_decode_time(self);
+			if (plm_buffer_read(self->buffer, 4) != 0x01) {
+				self->next_packet.length = 0;
+				return NULL;
+			}
+			plm_demux_decode_time(self); // DTS
+			header_bytes_read = 10;
+		}
+		else if (pts_dts_marker != 0x00) {
+			self->next_packet.length = 0;
+			return NULL;
+		}
+
+		if (self->next_packet.pts != PLM_PACKET_INVALID_TS) {
+			self->last_decoded_pts = self->next_packet.pts;
+		}
+		plm_buffer_skip(self->buffer, (header_length - header_bytes_read) << 3);
+		self->next_packet.length -= 3 + header_length;
+		return plm_demux_get_packet(self);
+	}
+
 	self->next_packet.length -= plm_buffer_skip_bytes(self->buffer, 0xff); // stuffing
 
 	// skip P-STD
