@@ -175,7 +175,7 @@ static int audio_callback(sts_mixer_sample_t *sample, void *data)
 		return STS_STREAM_COMPLETE;
 	}
 	const int nr_channels = 2;
-	unsigned samples = mc->audio.frame->linesize[0] / mc->bytes_per_sample;
+	unsigned samples = mc->audio.frame->nb_samples;
 	if (samples * nr_channels != sample->length) {
 		free(sample->data);
 		sample->length = samples * nr_channels;
