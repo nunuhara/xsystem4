@@ -505,32 +505,11 @@ struct channel *channel_open(enum asset_type type, int no)
 		return NULL;
 	}
 
-	struct channel *ch = channel_open_archive_data(dfile);
+	struct channel *ch = channel_open_archive_data(dfile, type, no);
 	if (!ch) {
 		WARNING("Failed to open %s %d", type == ASSET_SOUND ? "WAV" : "BGM", no);
 		return NULL;
 	}
-
-	if (type == ASSET_SOUND) {
-		struct wai *wai = wai_get(no);
-		ch->volume = 100;
-		ch->loop_start = 0;
-		ch->loop_end = ch->info.frames;
-		ch->loop_count = 1;
-		ch->mixer_no = wai ? wai->channel : 1;
-	} else {
-		struct bgi *bgi = bgi_get(no);
-		if (bgi) {
-			ch->volume = clamp(0, 100, bgi->volume);
-			ch->loop_start = clamp(0, ch->info.frames, bgi->loop_start);
-			ch->loop_end = clamp(0, ch->info.frames, bgi->loop_end);
-			ch->loop_count = max(0, bgi->loop_count);
-			ch->mixer_no = clamp(0, nr_mixers, bgi->channel);
-		} else {
-			ch->loop_count = 0;
-		}
-	}
-	ch->no = no;
 
 	return ch;
 }
@@ -565,7 +544,8 @@ static bool init_channel(struct channel *ch)
 	return true;
 }
 
-struct channel *channel_open_archive_data(struct archive_data *dfile)
+struct channel *channel_open_archive_data(struct archive_data *dfile,
+					  enum asset_type type, int metadata_no)
 {
 	struct channel *ch = xcalloc(1, sizeof(struct channel));
 	ch->dfile = dfile;
@@ -579,6 +559,24 @@ struct channel *channel_open_archive_data(struct archive_data *dfile)
 			sf_close(ch->file);
 		free(ch);
 		return NULL;
+	}
+	if (metadata_no >= 0) {
+		if (type == ASSET_SOUND) {
+			struct wai *wai = wai_get(metadata_no);
+			ch->mixer_no = wai ? wai->channel : 1;
+		} else if (type == ASSET_BGM) {
+			struct bgi *bgi = bgi_get(metadata_no);
+			if (bgi) {
+				ch->volume = clamp(0, 100, bgi->volume);
+				ch->loop_start = clamp(0, ch->info.frames, bgi->loop_start);
+				ch->loop_end = clamp(0, ch->info.frames, bgi->loop_end);
+				ch->loop_count = max(0, bgi->loop_count);
+				ch->mixer_no = clamp(0, nr_mixers, bgi->channel);
+			} else {
+				ch->loop_count = 0;
+			}
+		}
+		ch->no = metadata_no;
 	}
 	return ch;
 }

@@ -103,7 +103,7 @@ bool audio_play_archive_data(struct archive_data *dfile)
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
 		if (anonymous_channels[i] == -1) {
 			int ch = wav_get_unused_channel();
-			if (!wav_prepare_from_archive_data(ch, dfile))
+			if (!wav_prepare_from_archive_data(ch, AUDIO_NO_METADATA, dfile))
 				return false;
 			if (!wav_play(ch)) {
 				wav_unprepare(ch);
@@ -404,23 +404,29 @@ static int audio_prepare_from_file(struct id_pool *pool, int id, char *filename)
 int wav_prepare_from_file(int id, char *filename) { return audio_prepare_from_file(&wav, id, filename); }
 int bgm_prepare_from_file(int id, char *filename) { return audio_prepare_from_file(&bgm, id, filename); }
 
-static int audio_prepare_from_archive_data(struct id_pool *pool, int id, struct archive_data *dfile)
+static int audio_prepare_from_archive_data(struct id_pool *pool, int id,
+					   enum asset_type type, int metadata_no,
+					   struct archive_data *dfile)
 {
 	if (id < 0)
 		return 0;
-	struct channel *ch = channel_open_archive_data(dfile);
+	struct channel *ch = channel_open_archive_data(dfile, type, metadata_no);
 	struct channel *old = id_pool_set(pool, id, ch);
 	if (old)
 		channel_close(old);
 	return !!ch;
 }
 
-int wav_prepare_from_archive_data(int id, struct archive_data *dfile) {
-	return audio_prepare_from_archive_data(&wav, id, dfile);
+int wav_prepare_from_archive_data(int id, int metadata_no, struct archive_data *dfile)
+{
+	return audio_prepare_from_archive_data(
+		&wav, id, ASSET_SOUND, metadata_no, dfile);
 }
 
-int bgm_prepare_from_archive_data(int id, struct archive_data *dfile) {
-	return audio_prepare_from_archive_data(&bgm, id, dfile);
+int bgm_prepare_from_archive_data(int id, int metadata_no, struct archive_data *dfile)
+{
+	return audio_prepare_from_archive_data(
+		&bgm, id, ASSET_BGM, metadata_no, dfile);
 }
 
 int wav_get_group_num_from_data_num(int no)

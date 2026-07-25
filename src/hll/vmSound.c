@@ -39,7 +39,7 @@ static int vmSound_LoadMemory(int channel, int memory)
 	struct archive_data *dfile = chr_loader_get_blob_as_archive_data(memory);
 	if (!dfile)
 		return 0;
-	return wav_prepare_from_archive_data(channel, dfile);
+	return wav_prepare_from_archive_data(channel, AUDIO_NO_METADATA, dfile);
 }
 
 static void vmSound_Unload(int channel, int length)

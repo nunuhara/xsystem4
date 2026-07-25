@@ -19,6 +19,8 @@
 
 #include <stdbool.h>
 
+#define AUDIO_NO_METADATA -1
+
 struct archive_data;
 
 void audio_init(void);
@@ -88,7 +90,7 @@ int bgm_prepare_from_file(int id, char *filename);
 int wav_get_group_num_from_data_num(int no);
 
 // Takes ownership of dfile.
-int wav_prepare_from_archive_data(int id, struct archive_data *dfile);
-int bgm_prepare_from_archive_data(int id, struct archive_data *dfile);
+int wav_prepare_from_archive_data(int id, int metadata_no, struct archive_data *dfile);
+int bgm_prepare_from_archive_data(int id, int metadata_no, struct archive_data *dfile);
 
 #endif /* SYSTEM4_AUDIO_H */

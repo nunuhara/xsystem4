@@ -59,8 +59,9 @@ struct channel;
 enum asset_type;
 
 struct channel *channel_open(enum asset_type type, int no);
-// Takes ownership of dfile.
-struct channel *channel_open_archive_data(struct archive_data *dfile);
+// Takes ownership of dfile. Metadata is not applied if metadata_no is negative.
+struct channel *channel_open_archive_data(struct archive_data *dfile,
+					  enum asset_type type, int metadata_no);
 struct channel *channel_open_file(const char *path);
 void channel_close(struct channel *ch);
 int channel_play(struct channel *ch);
