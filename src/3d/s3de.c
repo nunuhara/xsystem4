@@ -1464,7 +1464,7 @@ struct s3de_effect *s3de_effect_create(struct s3de *s, struct archive *aar)
 	struct archive_data *dfile = RE_get_aar_entry(aar, s->path, basename, ".wav");
 	if (dfile) {
 		int ch = wav_get_unused_channel();
-		if (wav_prepare_from_archive_data(ch, dfile)) {
+		if (wav_prepare_from_archive_data(ch, AUDIO_NO_METADATA, dfile)) {
 			eff->wav_channel = ch;
 		} else {
 			WARNING("wav_prepare_from_archive_data failed for %s\\%s.wav", s->path, basename);

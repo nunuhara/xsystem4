@@ -73,7 +73,7 @@ static int rance9_bgm_prepare(int ch, int num)
 	struct archive_data *dfile = asset_get_by_name(ASSET_BGM, name, NULL);
 	if (!dfile)
 		return 0;
-	return bgm_prepare_from_archive_data(ch, dfile);
+	return bgm_prepare_from_archive_data(ch, num, dfile);
 }
 
 static bool rance9_wav_exists(int num)
@@ -90,7 +90,7 @@ static int rance9_wav_prepare(int ch, int num)
 	struct archive_data *dfile = asset_get_by_name(ASSET_SOUND, name, NULL);
 	if (!dfile)
 		return 0;
-	return wav_prepare_from_archive_data(ch, dfile);
+	return wav_prepare_from_archive_data(ch, num, dfile);
 }
 
 static void KiwiSoundEngine_PreLink(void);

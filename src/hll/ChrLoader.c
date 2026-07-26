@@ -288,7 +288,7 @@ static bool ChrLoader_LoadWavFile(int sound_channel, int id)
 {
 	int blob = chr_loader_get_blob_handle(id, 4);
 	struct archive_data *dfile = chr_loader_get_blob_as_archive_data(blob);
-	if (!dfile || !wav_prepare_from_archive_data(sound_channel, dfile)) {
+	if (!dfile || !wav_prepare_from_archive_data(sound_channel, AUDIO_NO_METADATA, dfile)) {
 		WARNING("ChrLoader.LoadWavFile %d failed", id);
 		return false;
 	}
