@@ -367,7 +367,7 @@ void RE_calc_view_matrix(struct RE_camera *camera, vec3 up, mat4 out)
 
 static bool should_draw_shadow(struct mesh *mesh, struct material *material)
 {
-	return !(mesh->flags & (MESH_ALPHA | MESH_BOTH | MESH_SPRITE))
+	return !(mesh->flags & (MESH_ALPHA | MESH_BOTH | MESH_SPRITE | MESH_NO_DRAWSHADOW))
 	    && !(material->flags & (MATERIAL_ALPHA | MATERIAL_SPRITE));
 }
 
@@ -439,13 +439,13 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		glUniform1i(r->nolighting, !!(mesh->flags & MESH_NOLIGHTING));
 
 		GLboolean use_specular_map = GL_FALSE;
-		if (inst->plugin->specular_mode && !(mesh->flags & MESH_NOLIGHTING)) {
+		float shininess = (mesh->flags & MESH_HAS_SPECULAR_POWER) ? mesh->specular_power : material->specular_shininess;
+		if (inst->plugin->specular_mode && !(mesh->flags & MESH_NOLIGHTING) && shininess > 0.0f) {
 			if (mesh->flags & MESH_HAS_SPECULAR_COLOR) {
 				glUniform3fv(r->specular_color, 1, mesh->specular_color);
 			} else {
 				glUniform3f(r->specular_color, material->specular_strength, material->specular_strength, material->specular_strength);
 			}
-			float shininess = (mesh->flags & MESH_HAS_SPECULAR_POWER) ? mesh->specular_power : material->specular_shininess;
 			glUniform1f(r->specular_shininess, shininess);
 			if (material->specular_map) {
 				glActiveTexture(GL_TEXTURE0 + SPECULAR_TEXTURE_UNIT);
