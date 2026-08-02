@@ -410,6 +410,11 @@ static void SystemService_XXX(struct string **text) {
 	*text = cstr_to_string("FORMAT HDD ERASE 578205024758284076520478254092784789752384758204687293");
 }
 
+// Busou Shoujotai Blade Briders
+static void SystemService_GetSystemBufferName(struct string **text) {
+	*text = cstr_to_string("xxx4wxx:xxxx-xxxxxfx5x3");
+}
+
 static void SystemService_PreLink(void);
 
 static void SystemService_ModuleInit(void)
@@ -463,6 +468,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_TODO_EXPORT(Debug_GetUseVideoMemorySize, SystemService_Debug_GetUseVideoMemorySize),
 	    HLL_EXPORT(Rance0123456789, SystemService_Rance0123456789),
 	    HLL_EXPORT(XXXXX01XXXXXXXX, SystemService_XXXXX01XXXXXXXX),
+	    HLL_EXPORT(GetSystemBufferName, SystemService_GetSystemBufferName),
 	    HLL_EXPORT(XXX, SystemService_XXX),
 	    HLL_EXPORT(Test, SystemService_Test),
 	    HLL_EXPORT(DRPKT, SystemService_DRPKT),
