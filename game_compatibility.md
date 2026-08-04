@@ -82,4 +82,6 @@ issues, please let me know or open a pull request to update this table.
 | どらぺこ！ ～おねだりドラゴンとおっぱい勇者～           | Unsupported |       |
 | ランス01 光をもとめて                                   | Supported   |       |
 | Rance 01 - Quest for Hikari (EN)                        | Supported   |       |
-| All games released after Rance 01                       | Unsupported |       |
+| ランスIX－ヘルマン革命－                                | Supported   |       |
+| Rance IX - The Helmanian Revolution (EN)                | Unknown     |       |
+| All games released after Rance IX                       | Unsupported |       |
