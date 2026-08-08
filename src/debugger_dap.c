@@ -1010,12 +1010,13 @@ static int read_command_thread(void *data)
 				WARNING("Debug Adapter Protocol error: no Content-Length header");
 				continue;
 			}
-			char *buf = malloc(content_length);
+			char *buf = malloc(content_length+1);
 			if (fread(buf, content_length, 1, stdin) != 1) {
 				WARNING("fread(stdin): %s", strerror(errno));
 				free(buf);
 				continue;
 			}
+			buf[content_length] = '\0';
 			msgq_enqueue(queue, buf);
 			content_length = -1;
 		} else {
