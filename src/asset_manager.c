@@ -85,7 +85,10 @@ bool asset_manager_load_archive(enum asset_type type, const char *archive_name)
 		return false;
 	if (!assets[type]->load_archive)
 		ERROR("load_archive not supported on this archive type");
-	return assets[type]->load_archive(assets[type], archive_name);
+	char *path = gamedir_path(archive_name);
+	bool r = assets[type]->load_archive(assets[type], path);
+	free(path);
+	return r;
 }
 
 bool asset_exists(enum asset_type type, int id)
