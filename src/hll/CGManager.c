@@ -17,7 +17,6 @@
 #include "system4/cg.h"
 #include "system4/string.h"
 #include "asset_manager.h"
-#include "xsystem4.h"
 #include "hll.h"
 
 static bool CGManager_Init(void *imain_system, int cg_cache_size)
@@ -27,10 +26,7 @@ static bool CGManager_Init(void *imain_system, int cg_cache_size)
 
 static bool CGManager_LoadArchive(struct string *archive_name)
 {
-	char *name = gamedir_path(archive_name->text);
-	bool r = asset_manager_load_archive(ASSET_CG, name);
-	free(name);
-	return r;
+	return asset_manager_load_archive(ASSET_CG, archive_name->text);
 }
 
 static bool CGManager_IsExist(struct string *cg_name)
