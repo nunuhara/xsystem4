@@ -140,7 +140,7 @@ static void parts_construction_process_to_json(struct parts_construction_process
 			cJSON_AddNumberToObject(tmp, "h", op->create.h);
 			break;
 		case PARTS_CP_CG:
-			cJSON_AddNumberToObject(obj, "no", op->cg.no);
+			cJSON_AddSjisToObject(obj, "name", op->cg.name->text);
 			break;
 		case PARTS_CP_FILL:
 		case PARTS_CP_FILL_ALPHA_COLOR:
@@ -160,7 +160,7 @@ static void parts_construction_process_to_json(struct parts_construction_process
 			break;
 		case PARTS_CP_DRAW_CUT_CG:
 		case PARTS_CP_COPY_CUT_CG:
-			cJSON_AddNumberToObject(obj, "no", op->cut_cg.cg_no);
+			cJSON_AddSjisToObject(obj, "name", op->cut_cg.cg_name->text);
 			cJSON_AddItemToObjectCS(obj, "dst", tmp = cJSON_CreateObject());
 			cJSON_AddNumberToObject(tmp, "x", op->cut_cg.dx);
 			cJSON_AddNumberToObject(tmp, "y", op->cut_cg.dy);
