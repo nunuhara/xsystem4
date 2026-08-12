@@ -34,15 +34,19 @@ void parts_cp_op_free(struct parts_cp_op *op)
 	switch (op->type) {
 	case PARTS_CP_CREATE:
 	case PARTS_CP_CREATE_PIXEL_ONLY:
-	case PARTS_CP_CG:
 	case PARTS_CP_FILL:
 	case PARTS_CP_FILL_ALPHA_COLOR:
 	case PARTS_CP_FILL_AMAP:
 	case PARTS_CP_FILL_WITH_ALPHA:
 	case PARTS_CP_DRAW_RECT:
+	case PARTS_CP_GRAY_FILTER:
+		break;
+	case PARTS_CP_CG:
+		free_string(op->cg.name);
+		break;
 	case PARTS_CP_DRAW_CUT_CG:
 	case PARTS_CP_COPY_CUT_CG:
-	case PARTS_CP_GRAY_FILTER:
+		free_string(op->cut_cg.cg_name);
 		break;
 	case PARTS_CP_DRAW_TEXT:
 	case PARTS_CP_COPY_TEXT:
@@ -92,8 +96,7 @@ bool PE_AddCreateCGToProcess(int parts_no, struct string *cg_name, int state)
 	if (!parts_state_valid(--state))
 		return false;
 
-	int no;
-	if (!asset_exists_by_name(ASSET_CG, cg_name->text, &no)) {
+	if (!asset_exists_by_name(ASSET_CG, cg_name->text, NULL)) {
 		WARNING("Invalid CG name: %s", display_sjis0(cg_name->text));
 		return false;
 	}
@@ -101,7 +104,7 @@ bool PE_AddCreateCGToProcess(int parts_no, struct string *cg_name, int state)
 	struct parts_construction_process *cproc = get_cproc(parts_no, state);
 	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
 	op->type = PARTS_CP_CG;
-	op->cg.no = no;
+	op->cg.name = string_ref(cg_name);
 	parts_add_cp_op(cproc, op);
 	return true;
 }
@@ -202,8 +205,7 @@ bool PE_AddDrawCutCGToPartsConstructionProcess(int parts_no, struct string *cg_n
 	if (!parts_state_valid(--state))
 		return false;
 
-	int cg_no;
-	if (!asset_exists_by_name(ASSET_CG, cg_name->text, &cg_no)) {
+	if (!asset_exists_by_name(ASSET_CG, cg_name->text, NULL)) {
 		WARNING("Invalid CG name: %s", display_sjis0(cg_name->text));
 		return false;
 	}
@@ -212,7 +214,7 @@ bool PE_AddDrawCutCGToPartsConstructionProcess(int parts_no, struct string *cg_n
 	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
 	op->type = PARTS_CP_DRAW_CUT_CG;
 	op->cut_cg = (struct parts_cp_cut_cg) {
-		.cg_no = cg_no,
+		.cg_name = string_ref(cg_name),
 		.dx = dx, .dy = dy, .dw = dw, .dh = dh,
 		.sx = sx, .sy = sy, .sw = sw, .sh = sh,
 		.interp_type = interp_type
@@ -228,8 +230,7 @@ bool PE_AddCopyCutCGToPartsConstructionProcess(int parts_no, struct string *cg_n
 	if (!parts_state_valid(--state))
 		return false;
 
-	int cg_no;
-	if (!asset_exists_by_name(ASSET_CG, cg_name->text, &cg_no)) {
+	if (!asset_exists_by_name(ASSET_CG, cg_name->text, NULL)) {
 		WARNING("Invalid CG name: %s", display_sjis0(cg_name->text));
 		return false;
 	}
@@ -238,7 +239,7 @@ bool PE_AddCopyCutCGToPartsConstructionProcess(int parts_no, struct string *cg_n
 	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
 	op->type = PARTS_CP_COPY_CUT_CG;
 	op->cut_cg = (struct parts_cp_cut_cg) {
-		.cg_no = cg_no,
+		.cg_name = string_ref(cg_name),
 		.dx = dx, .dy = dy, .dw = dw, .dh = dh,
 		.sx = sx, .sy = sy, .sw = sw, .sh = sh,
 		.interp_type = interp_type
@@ -355,7 +356,7 @@ static bool build_create_pixel_only(struct parts *parts, struct parts_constructi
 
 static bool build_cg(struct parts *parts, struct parts_construction_process *cproc, struct parts_cp_cg *op)
 {
-	struct cg *cg = asset_cg_load(op->no);
+	struct cg *cg = asset_cg_load_by_name(op->name->text, NULL);
 	if (!cg)
 		return false;
 	gfx_delete_texture(&cproc->common.texture);
@@ -415,7 +416,7 @@ static bool build_draw_cut_cg(struct parts_construction_process *cproc, struct p
 	if (!cproc->common.texture.handle)
 		return false;
 
-	struct cg *cg = asset_cg_load(op->cg_no);
+	struct cg *cg = asset_cg_load_by_name(op->cg_name->text, NULL);
 	assert(cg);
 
 	Texture src;
@@ -433,7 +434,7 @@ static bool build_copy_cut_cg(struct parts_construction_process *cproc, struct p
 	if (!cproc->common.texture.handle)
 		return false;
 
-	struct cg *cg = asset_cg_load(op->cg_no);
+	struct cg *cg = asset_cg_load_by_name(op->cg_name->text, NULL);
 	assert(cg);
 
 	Texture src;

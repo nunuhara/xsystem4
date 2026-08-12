@@ -16,13 +16,15 @@
 
 #include "system4.h"
 #include "system4/string.h"
+#include "system4/archive.h"
 
 #include "vm/page.h"
+#include "asset_manager.h"
 #include "parts.h"
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 4
+#define CURRENT_SAVE_VERSION 5
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -186,7 +188,7 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 		iarray_write(w, op->create.h);
 		break;
 	case PARTS_CP_CG:
-		iarray_write(w, op->cg.no);
+		iarray_write_string(w, op->cg.name);
 		break;
 	case PARTS_CP_FILL:
 	case PARTS_CP_FILL_ALPHA_COLOR:
@@ -204,7 +206,7 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 		break;
 	case PARTS_CP_DRAW_CUT_CG:
 	case PARTS_CP_COPY_CUT_CG:
-		iarray_write(w, op->cut_cg.cg_no);
+		iarray_write_string(w, op->cut_cg.cg_name);
 		iarray_write(w, op->cut_cg.dx);
 		iarray_write(w, op->cut_cg.dy);
 		iarray_write(w, op->cut_cg.dw);
@@ -233,7 +235,24 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 	}
 }
 
-static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
+static struct string *load_cp_cg_name(struct iarray_reader *r, int version)
+{
+	if (version >= 5)
+		return iarray_read_string(r);
+	// In version 4 and earlier, the CG name was stored as an integer ID.
+	// Convert it to a string name by looking up the asset.
+	int cg_no = iarray_read(r);
+	if (cg_no <= 0)
+		return string_ref(&EMPTY_STRING);
+	struct archive_data *data = asset_get(ASSET_CG, cg_no);
+	if (!data)
+		return string_ref(&EMPTY_STRING);
+	struct string *name = cstr_to_string(data->name);
+	archive_free_data(data);
+	return name;
+}
+
+static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r, int version)
 {
 	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
 	op->type = iarray_read(r);
@@ -244,7 +263,7 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 		op->create.h = iarray_read(r);
 		break;
 	case PARTS_CP_CG:
-		op->cg.no = iarray_read(r);
+		op->cg.name = load_cp_cg_name(r, version);
 		break;
 	case PARTS_CP_FILL:
 	case PARTS_CP_FILL_ALPHA_COLOR:
@@ -262,7 +281,7 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 		break;
 	case PARTS_CP_DRAW_CUT_CG:
 	case PARTS_CP_COPY_CUT_CG:
-		op->cut_cg.cg_no = iarray_read(r);
+		op->cut_cg.cg_name = load_cp_cg_name(r, version);
 		op->cut_cg.dx = iarray_read(r);
 		op->cut_cg.dy = iarray_read(r);
 		op->cut_cg.dw = iarray_read(r);
@@ -309,11 +328,11 @@ static void save_parts_construction_process(struct iarray_writer *w,
 }
 
 static void load_parts_construction_process(struct iarray_reader *r, struct parts *parts,
-		struct parts_construction_process *cproc)
+		struct parts_construction_process *cproc, int version)
 {
 	int ops_count = iarray_read(r);
 	for (int i = 0; i < ops_count; i++) {
-		struct parts_cp_op *op = load_parts_cp_op(r);
+		struct parts_cp_op *op = load_parts_cp_op(r, version);
 		parts_add_cp_op(cproc, op);
 	}
 	parts_build_construction_process(parts, cproc);
@@ -420,7 +439,7 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 }
 
 static void load_parts_state(struct iarray_reader *r, struct parts *parts,
-		struct parts_state *state)
+		struct parts_state *state, int version)
 {
 	parts_state_reset(state, iarray_read(r));
 	state->common.w = iarray_read(r);
@@ -453,7 +472,7 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 		load_parts_gauge(r, parts, &state->gauge, true);
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
-		load_parts_construction_process(r, parts, &state->cproc);
+		load_parts_construction_process(r, parts, &state->cproc, version);
 		break;
 	case PARTS_FLASH:
 		load_parts_flash(r, parts, &state->flash);
@@ -590,7 +609,7 @@ static void load_parts(struct iarray_reader *r, int version)
 	struct parts *parts = parts_get(no);
 	parts->state = iarray_read(r);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		load_parts_state(r, parts, &parts->states[i]);
+		load_parts_state(r, parts, &parts->states[i], version);
 	}
 
 	load_parts_params(r, &parts->local);

@@ -202,7 +202,7 @@ struct parts_cp_create {
 };
 
 struct parts_cp_cg {
-	int no;
+	struct string *name;
 };
 
 struct parts_cp_fill {
@@ -211,7 +211,7 @@ struct parts_cp_fill {
 };
 
 struct parts_cp_cut_cg {
-	int cg_no;
+	struct string *cg_name;
 	int dx, dy, dw, dh;
 	int sx, sy, sw, sh;
 	int interp_type;
