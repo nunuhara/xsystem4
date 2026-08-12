@@ -99,9 +99,15 @@ static void load_parts_text(struct iarray_reader *r, struct parts *parts,
 	text->cursor.y = 0;
 
 	int nr_lines = iarray_read(r);
-	for (unsigned i = 0; i < nr_lines; i++) {
+	for (int i = 0; i < nr_lines; i++) {
 		struct string *line = iarray_read_string(r);
+		if (i > 0) {
+			struct string *nl = make_string("\n", 1);
+			parts_text_append(parts, text, nl);
+			free_string(nl);
+		}
 		parts_text_append(parts, text, line);
+		free_string(line);
 	}
 }
 
