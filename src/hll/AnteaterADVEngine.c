@@ -276,6 +276,7 @@ bool ADVLogList_Load(struct page **data)
 			goto error;
 		}
 
+		free_log(log);
 		log->lines = xcalloc(nr_lines, sizeof(struct string*));
 		for (int i = 0; i < nr_lines; i++) {
 			log->lines[i] = iarray_read_string(&r);
@@ -475,6 +476,7 @@ error:
 
 static void AnteaterADVEngine_ModuleFini(void)
 {
+	ADVLogList_Clear();
 	ADVSceneKeeper_Clear();
 }
 

@@ -68,6 +68,7 @@ static void load_parts_cg(struct iarray_reader *r, struct parts *parts, struct p
 	struct string *name = iarray_read_string_or_null(r);
 	if (name) {
 		parts_cg_set(parts, cg, name);
+		free_string(name);
 	} else if (no) {
 		parts_cg_set_by_index(parts, cg, no);
 	}
