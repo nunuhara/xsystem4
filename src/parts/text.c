@@ -84,13 +84,12 @@ static const char *parts_text_append_char(struct parts_text *t, const char *str)
 
 	ch->off = text_style_offset(&t->ts);
 	int len = extract_sjis_char(str, ch->ch);
-	int width = ceilf(text_style_width(&t->ts, ch->ch));
+	int width = gfx_size_char(&t->ts, ch->ch);
 	int height = text_style_height(&t->ts);
 	gfx_init_texture_rgba(&ch->t, width, height, (SDL_Color){0,0,0,0});
-	ch->advance = gfx_render_textf(&ch->t, 0, 0, ch->ch, &t->ts, false);
-
+	ch->advance = ceilf(gfx_render_textf(&ch->t, 0, 0, ch->ch, &t->ts, false));
 	line->width += ch->advance;
-	line->height = max(line->height, height + ceilf(t->ts.bold_width)*2);
+	line->height = max(line->height, height);
 	return str + len;
 }
 

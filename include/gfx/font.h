@@ -163,21 +163,15 @@ float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_styl
 void gfx_render_dash_text(Texture *dst, struct text_style *ts);
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text);
 void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text);
+float gfx_size_char_unstyled(struct text_style *ts, const char *ch);
 float gfx_size_char(struct text_style *ts, const char *ch);
-float gfx_size_char_kerning(struct text_style *ts, uint32_t code, uint32_t code_next);
 float gfx_size_text(struct text_style *ts, const char *text);
 float gfx_get_actual_font_size(unsigned face, float size);
 float gfx_get_actual_font_size_round_down(unsigned face, float size);
 
-static inline float text_style_width(struct text_style *ts, const char *ch)
-{
-	return (gfx_size_char(ts, ch) + (ts->bold_width * 2) + ts->edge_left + ts->edge_right)
-		* ts->scale_x;
-}
-
 static inline float text_style_height(struct text_style *ts)
 {
-	return ts->size + (ts->bold_width * 2) + ts->edge_up + ts->edge_down;
+	return ts->size + ceilf(ts->bold_width)*2 + ts->edge_up + ts->edge_down;
 }
 
 #endif /* SYSTEM4_FONT_H */

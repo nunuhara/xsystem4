@@ -113,7 +113,7 @@ bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 
 	char s[3];
 	extract_sjis_char(text->text, s);
-	int w = ceilf(text_style_width(&text_sprite_ts, s));
+	int w = ceilf(gfx_size_char(&text_sprite_ts, s));
 	int h = text_sprite_ts.size;
 	// XXX: System40.exe lies about the height of half-width characters.
 	//      E.g. a size 64 letter "H" is reported as 32 pixels tall.

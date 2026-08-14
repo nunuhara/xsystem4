@@ -135,7 +135,7 @@ static void parts_render_text(struct parts *parts, struct parts_text *t)
 			Rectangle r = { 0, 0, ch->t.w, ch->t.h };
 			parts_render_texture(&ch->t, mw_transform, &r, blend_rate, add_color,
 					multiply_color, 0, parts->alpha_clipper_parts_no);
-			x += ceilf(ch->advance);
+			x += ch->advance;
 		}
 		x = parts->global.pos.x + t->common.origin_offset.x;
 		y += line->height + t->line_space;
