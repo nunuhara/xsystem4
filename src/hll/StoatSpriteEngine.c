@@ -146,7 +146,7 @@ void StoatSpriteEngine_SP_SetTextSpriteColor(int r, int g, int b)
 
 void StoatSpriteEngine_SP_SetTextSpriteBoldWeight(float weight)
 {
-	//NOTICE("StoatSpriteEngine.SP_SetTextSpriteBoldWeight(%f)", weight);
+	text_sprite_ts.bold_width = weight;
 }
 
 void StoatSpriteEngine_SP_SetTextSpriteEdgeWeight(float weight)

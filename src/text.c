@@ -174,7 +174,7 @@ float gfx_size_text(struct text_style *ts, const char *text)
 {
 	struct font_size *size = text_style_font_size(ts);
 	float edge_advance = gfx_text_advance_edges
-		? ts->edge_left + ts->edge_right + ceilf(ts->bold_width)
+		? ts->edge_left + ts->edge_right + ceilf(ts->bold_width)*2
 		: 0.0f;
 	float x = 0.0f;
 	while (*text) {

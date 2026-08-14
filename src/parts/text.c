@@ -90,7 +90,7 @@ static const char *parts_text_append_char(struct parts_text *t, const char *str)
 	ch->advance = gfx_render_textf(&ch->t, 0, 0, ch->ch, &t->ts, false);
 
 	line->width += ch->advance;
-	line->height = max(line->height, height);
+	line->height = max(line->height, height + ceilf(t->ts.bold_width)*2);
 	return str + len;
 }
 
@@ -205,6 +205,7 @@ bool PE_SetFont(int parts_no, int type, int size, int r, int g, int b, float bol
 	text->ts.weight = bold_weight * 1000;
 	text->ts.edge_color = (SDL_Color) { edge_r, edge_g, edge_b, 255 };
 	text_style_set_edge_width(&text->ts, edge_weight);
+	text->ts.bold_width = bold_weight;
 	parts_text_rerender(parts, text);
 	return true;
 }
