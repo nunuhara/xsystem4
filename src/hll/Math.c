@@ -23,8 +23,22 @@
 #define M_PI (3.14159265358979323846)
 #endif
 
+#include "system4/mt19937int.h"
+
 #include "hll.h"
 #include "vm/page.h"
+
+static struct mt19937 mt;
+static bool mt_initialized;
+
+static uint32_t math_genrand(void)
+{
+	if (!mt_initialized) {
+		mt19937_init(&mt, 4357);
+		mt_initialized = true;
+	}
+	return mt19937_genrand(&mt);
+}
 
 struct shuffle_table {
 	int id;
@@ -64,9 +78,16 @@ static float Math_Tan(float x)
 	return tanf(deg2rad(x));
 }
 
+static void Math_SetSeed(int seed)
+{
+	mt19937_init(&mt, (uint32_t)seed | 1);
+	mt19937_genrand(&mt);  // the original engine discards the first value
+	mt_initialized = true;
+}
+
 static void Math_SetSeedByCurrentTime(void)
 {
-	srand(time(NULL));
+	Math_SetSeed(time(NULL));
 }
 
 static int Math_Min(int a, int b)
@@ -105,9 +126,14 @@ static void Math_SwapF(float *a, float *b)
 
 //void Math_SetRandMode(int mode);
 
+static int Math_Rand(void)
+{
+	return math_genrand() & 0x7fffffff;
+}
+
 static float Math_RandF(void)
 {
-	return rand() * (1.0 / (RAND_MAX + 1U));
+	return (float)(math_genrand() * (1.0 / 4294967296.0));
 }
 
 static void shuffle_array(int *a, int len)
@@ -192,10 +218,10 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(Abs, abs),
 	    HLL_EXPORT(AbsF, fabsf),
 	    HLL_EXPORT(Pow, powf),
-	    HLL_EXPORT(SetSeed, srand),
+	    HLL_EXPORT(SetSeed, Math_SetSeed),
 	    HLL_EXPORT(SetSeedByCurrentTime, Math_SetSeedByCurrentTime),
 	    //HLL_EXPORT(SetRandMode, Math_SetRandMode),
-	    HLL_EXPORT(Rand, rand),
+	    HLL_EXPORT(Rand, Math_Rand),
 	    HLL_EXPORT(RandF, Math_RandF),
 	    HLL_EXPORT(RandTableInit, Math_RandTableInit),
 	    HLL_EXPORT(RandTable, Math_RandTable),

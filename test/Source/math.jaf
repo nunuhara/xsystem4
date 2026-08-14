@@ -31,6 +31,25 @@ void test_math(void)
 	test_float("Math.SwapF(a, b), a", fa, 2.0);
 	test_float("Math.SwapF(a, b), b", fb, 1.0);
 
+	// The default seed is 4357. This must run before any other random
+	// number is drawn.
+	test_equal("Math.Rand() #1 (default seed)", Math.Rand(), 1362922229);
+	test_equal("Math.Rand() #2 (default seed)", Math.Rand(), 2143450242);
+
+	Math.SetSeed(12345);
+	test_equal("Math.Rand() #1 (seed 12345)", Math.Rand(), 2120104832);
+	test_equal("Math.Rand() #2 (seed 12345)", Math.Rand(), 377474682);
+
+	// SetSeed ORs the seed with 1.
+	Math.SetSeed(12344);
+	test_equal("Math.Rand() #1 (seed 12344)", Math.Rand(), 2120104832);
+	test_equal("Math.Rand() #2 (seed 12344)", Math.Rand(), 377474682);
+
+	Math.SetSeed(12345);
+	test_float("Math.RandF() #1", Math.RandF(), 0.993625);
+	test_float("Math.RandF() #2", Math.RandF(), 0.587888);
+	test_float("Math.RandF() #3", Math.RandF(), 0.857469);
+
 	Math.RandTableInit(42, 10);
 	for (i = 0; i < 10; i++) {
 		ar[Math.RandTable(42)] = 1;
