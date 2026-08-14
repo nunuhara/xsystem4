@@ -250,7 +250,7 @@ static bool ChipmunkSpriteEngine_SP_GetFontWidth(struct string *text, int *width
 		return true;
 	}
 
-	*width = gfx_size_text(&text_sprite_ts, text->text);
+	*width = ceilf(gfx_size_text(&text_sprite_ts, text->text));
 	return true;
 }
 
