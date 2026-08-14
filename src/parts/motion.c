@@ -156,10 +156,15 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 	case PARTS_MOTION_ALPHA:
 		parts_set_alpha(parts, motion_calculate_i(motion, motion_t));
 		break;
-	case PARTS_MOTION_CG:
-		parts_cg_set_by_index(parts, parts_get_cg(parts, parts->state),
-				motion_calculate_i(motion, motion_t));
+	case PARTS_MOTION_CG: {
+		int i = motion_calculate_i(motion, motion_t);
+		if (i == 0) {
+			parts_state_reset(&parts->states[parts->state], PARTS_CG);
+		} else {
+			parts_cg_set_by_index(parts, parts_get_cg(parts, parts->state), i);
+		}
 		break;
+	}
 	case PARTS_MOTION_HGAUGE_RATE:
 		parts_hgauge_set_rate(parts, parts_get_hgauge(parts, parts->state),
 				motion_calculate_f(motion, motion_t));
