@@ -140,6 +140,7 @@ static void parts_text_rerender(struct parts *parts, struct parts_text *t)
 		return;
 	struct string *text = parts_text_get(t);
 	parts_text_free(t);
+	t->ts.font_size = NULL; // clear cached font
 	t->lines = NULL;
 	t->nr_lines = 0;
 	parts_text_append(parts, t, text);
