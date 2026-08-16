@@ -2157,7 +2157,7 @@ void PE_RemoveController(struct page **erase_number_list, int index)
 		struct parts *next = TAILQ_NEXT(p, parts_list_entry);
 		if (p->controller_no == ctrl_no) {
 			*erase_number_list = array_pushback(*erase_number_list,
-					(union vm_value){.i = p->no}, AIN_ARRAY_INT, -1);
+					(union vm_value){.i = p->delegate_index}, AIN_ARRAY_INT, -1);
 			parts_release(p->no);
 		}
 		p = next;
