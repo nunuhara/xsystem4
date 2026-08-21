@@ -51,6 +51,15 @@ static void write_instruction1(struct buffer *out, enum opcode op, int32_t arg)
 	buffer_write_int32(out, arg);
 }
 
+static void write_instruction3(struct buffer *out, enum opcode op, int32_t arg0, int32_t arg1,
+		int32_t arg2)
+{
+	buffer_write_int16(out, op);
+	buffer_write_int32(out, arg0);
+	buffer_write_int32(out, arg1);
+	buffer_write_int32(out, arg2);
+}
+
 void set_msgskip_delay(struct ain *ain, unsigned ms)
 {
 	int orig_fno = ain_get_function(ain, "A");
@@ -175,6 +184,100 @@ static void apply_rance6_hacks(struct ain *ain)
 	game_rance6_mg = true;
 }
 
+// Rance IX
+// --------
+// T_PartsNo class is implemented in an extremely inefficient way, which
+// causes noticable performance issues when using the UI (e.g. when loading
+// the items screen).
+// We rewrite this class to improve performance.
+static void apply_rance9_hacks(struct ain *ain)
+{
+	int add_fno = ain_get_function(ain, "T_PartsNo@add");
+	int erase_fno = ain_get_function(ain, "T_PartsNo@erase");
+	if (add_fno < 0 || erase_fno < 0) {
+		WARNING("Couldn't location T_PartsNo@add or T_PartsNo@erase");
+		return;
+	}
+
+	struct buffer out;
+	buffer_init(&out, ain->code, ain->code_size);
+
+	// bool T_PartsNo::add(int nNo)
+	// {
+	//     if (nNo < 10000 || nNo > 999999)
+	//         return false;
+	//     int idx = nNo - 10000;
+	//     if (this.m_abUsed[idx])
+	//         return false;
+	//     return (this.m_abUsed[idx] = true);
+	// }
+	int32_t return_false_addr[3];
+	struct ain_function *f = &ain->functions[add_fno];
+	buffer_seek(&out, f->address);
+	// if (nNo < 10000 || nNo > 999999) return false;
+	write_instruction3(&out, SH_IF_LOC_LT_IMM, 0, 10000, 0);
+	return_false_addr[0] = out.index - 4;
+	write_instruction3(&out, SH_IF_LOC_GT_IMM, 0, 999999, 0);
+	return_false_addr[1] = out.index - 4;
+	// int idx = nNo - 10000;
+	write_instruction0(&out, PUSHLOCALPAGE);
+	write_instruction1(&out, PUSH, 1);
+	write_instruction1(&out, SH_LOCALREF, 0);
+	write_instruction1(&out, PUSH, 10000);
+	write_instruction0(&out, SUB);
+	write_instruction0(&out, ASSIGN);
+	write_instruction0(&out, POP);
+	// if (this.m_abUsed[idx]) return false;
+	write_instruction1(&out, SH_STRUCTREF, 1);
+	write_instruction1(&out, SH_LOCALREF, 1);
+	write_instruction0(&out, REF);
+	write_instruction1(&out, IFNZ, 0);
+	return_false_addr[2] = out.index - 4;
+	// return (this.m_abUsed[idx] = true);
+	write_instruction1(&out, SH_STRUCTREF, 1);
+	write_instruction1(&out, SH_LOCALREF, 1);
+	write_instruction1(&out, PUSH, 1);
+	write_instruction0(&out, ASSIGN);
+	write_instruction0(&out, RETURN);
+	// [return false]
+	buffer_write_int32_at(&out, return_false_addr[0], out.index);
+	buffer_write_int32_at(&out, return_false_addr[1], out.index);
+	buffer_write_int32_at(&out, return_false_addr[2], out.index);
+	write_instruction1(&out, PUSH, 0);
+	write_instruction0(&out, RETURN);
+
+	// bool T_PartsNo::erase(int nNo)
+	// {
+	//     if (nNo < 10000 || nNo > 999999)
+	//         return false;
+	//     this.m_abUsed[nNo - 10000] = false;
+	//     return true;
+	// }
+	f = &ain->functions[erase_fno];
+	buffer_seek(&out, f->address);
+	// if (nNo < 10000 || nNo > 999999) return false;
+	write_instruction3(&out, SH_IF_LOC_LT_IMM, 0, 10000, 0);
+	return_false_addr[0] = out.index - 4;
+	write_instruction3(&out, SH_IF_LOC_GT_IMM, 0, 999999, 0);
+	return_false_addr[1] = out.index - 4;
+	// this.m_abUsed[nNo - 10000] = false;
+	write_instruction1(&out, SH_STRUCTREF, 1);
+	write_instruction1(&out, SH_LOCALREF, 0);
+	write_instruction1(&out, PUSH, 10000);
+	write_instruction0(&out, SUB);
+	write_instruction1(&out, PUSH, 0);
+	write_instruction0(&out, ASSIGN);
+	write_instruction0(&out, POP);
+	// return true;
+	write_instruction1(&out, PUSH, 1);
+	write_instruction0(&out, RETURN);
+	// [return false]
+	buffer_write_int32_at(&out, return_false_addr[0], out.index);
+	buffer_write_int32_at(&out, return_false_addr[1], out.index);
+	write_instruction1(&out, PUSH, 0);
+	write_instruction0(&out, RETURN);
+}
+
 // Daibanchou (English fan translation)
 // ------------------------------------
 // Gpx2Plus.CopyStretchReduceAMap behaves differently in order to work around
@@ -203,6 +306,9 @@ void apply_game_specific_hacks(struct ain *ain)
 		game_rance8_mg = true;
 	} else if (!strcmp(game_name, "ＤＵＮＧＥＯＮＳ＆ＤＯＬＬＳ")) {
 		game_dungeons_and_dolls = true;
+	} else if (!strcmp(game_name, "ランス９")
+			|| !strcmp(game_name, "Rance 9 - The Helmanian Revolution")) {
+		apply_rance9_hacks(ain);
 	}
 	free(game_name);
 
