@@ -222,6 +222,10 @@ static void PartsEngine_add_construction_process(union vm_value *ints,
 	}
 }
 
+// Rance9 predates the layer functions at func_id 3-5.  Use the numbering from
+// later PartsEngine versions as canonical and adjust Rance9's ids to match.
+static bool parts_func_uses_rance9_ids;
+
 // Generic dispatch function for PartsEngine operations.
 // func_id selects the operation; arguments and return values are passed
 // through three typed arrays (int/bool, float, string).
@@ -247,7 +251,11 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 #define REQUIRE_STRINGS(n) \
 	if (nr_strings < (n)) VM_ERROR("Invalid arguments for PartsFunc %d: expected %d strings, got %d", func_id, (n), nr_strings)
 
-	switch (func_id) {
+	int canonical_func_id = func_id;
+	if (parts_func_uses_rance9_ids && canonical_func_id > 2)
+		canonical_func_id += 3;
+
+	switch (canonical_func_id) {
 	case 0:  // void SetActiveLayer(int layer)
 		REQUIRE_INTS(1);
 		PE_set_active_controller(ints[0].i);
@@ -260,76 +268,87 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		REQUIRE_INTS(1);
 		ints[0].i = PE_get_system_controller();
 		return 1;
-	case 3:  // void PauseMotion(bool pause)
+	// Layers are identified by their index in the controller stack, so the
+	// layer id and index conversions are identity functions.
+	case 3:  // int GetLayerIndex(int layer_id)
+	case 4:  // int GetLayerID(int layer_index)
+		REQUIRE_INTS(2);
+		ints[1].i = ints[0].i;
+		return 1;
+	case 5:  // int NumofLayer()
+		REQUIRE_INTS(1);
+		ints[0].i = PE_get_nr_controllers();
+		return 1;
+	case 6:  // void PauseMotion(bool pause)
 		REQUIRE_INTS(1);
 		PE_PauseMotion(!!ints[0].i);
 		return 1;
-	case 4:  // void SetWantSave(int parts_no, bool want_save)
+	case 7:  // void SetWantSave(int parts_no, bool want_save)
 		REQUIRE_INTS(2);
 		PE_parts_set_want_save(ints[0].i, !!ints[1].i);
 		return 1;
-	case 6:  // bool SaveThumbnail(string filename, int reduction_factor)
+	case 9:  // bool SaveThumbnail(string filename, int reduction_factor)
 		REQUIRE_INTS(2);
 		REQUIRE_STRINGS(1);
 		ints[1].i = PE_save_thumbnail(heap_get_string(strings[0].i), ints[0].i);
 		return 1;
-	case 40:  // float PARTS_GetAbsoluteX(int number)
+	case 43:  // float PARTS_GetAbsoluteX(int number)
 		REQUIRE_INTS(1);
 		REQUIRE_FLOATS(1);
 		floats[0].f = PE_parts_get_absolute_x(ints[0].i);
 		return 1;
-	case 41:  // float PARTS_GetAbsoluteY(int number)
+	case 44:  // float PARTS_GetAbsoluteY(int number)
 		REQUIRE_INTS(1);
 		REQUIRE_FLOATS(1);
 		floats[0].f = PE_parts_get_absolute_y(ints[0].i);
 		return 1;
-	case 42:  // int PARTS_GetAbsoluteZ(int number)
+	case 45:  // int PARTS_GetAbsoluteZ(int number)
 		REQUIRE_INTS(2);
 		ints[1].i = PE_parts_get_absolute_z(ints[0].i);
 		return 1;
-	case 45:  // void PARTS_SetLockInputState(int number, bool lock)
+	case 48:  // void PARTS_SetLockInputState(int number, bool lock)
 		REQUIRE_INTS(2);
 		PE_parts_set_lock_input_state(ints[0].i, !!ints[1].i);
 		return 1;
-	case 57:  // void AppendChild(int number, int child_number)
+	case 60:  // void AppendChild(int number, int child_number)
 		REQUIRE_INTS(2);
 		PE_SetParentPartsNumber(ints[1].i, ints[0].i);
 		return 1;
-	case 91:  // void SetLayoutBoxPadding(int parts_no, int top, int bottom, int left, int right)
+	case 94:  // void SetLayoutBoxPadding(int parts_no, int top, int bottom, int left, int right)
 		REQUIRE_INTS(5);
 		PE_set_layoutbox_padding(ints[0].i, ints[1].i, ints[2].i, ints[3].i, ints[4].i);
 		return 1;
-	case 92:  // int GetLayoutBoxPaddingTop(int parts_no)
+	case 95:  // int GetLayoutBoxPaddingTop(int parts_no)
 		REQUIRE_INTS(2);
 		ints[1].i = PE_get_layoutbox_padding_top(ints[0].i);
 		return 1;
-	case 93:  // int GetLayoutBoxPaddingBottom(int parts_no)
+	case 96:  // int GetLayoutBoxPaddingBottom(int parts_no)
 		REQUIRE_INTS(2);
 		ints[1].i = PE_get_layoutbox_padding_bottom(ints[0].i);
 		return 1;
-	case 94:  // int GetLayoutBoxPaddingLeft(int parts_no)
+	case 97:  // int GetLayoutBoxPaddingLeft(int parts_no)
 		REQUIRE_INTS(2);
 		ints[1].i = PE_get_layoutbox_padding_left(ints[0].i);
 		return 1;
-	case 95:  // int GetLayoutBoxPaddingRight(int parts_no)
+	case 98:  // int GetLayoutBoxPaddingRight(int parts_no)
 		REQUIRE_INTS(2);
 		ints[1].i = PE_get_layoutbox_padding_right(ints[0].i);
 		return 1;
-	case 103:  // void GetPartsCGSurfaceArea(int parts_no, int *x, int *y, int *w, int *h, int state)
+	case 106:  // void GetPartsCGSurfaceArea(int parts_no, int *x, int *y, int *w, int *h, int state)
 		REQUIRE_INTS(6);
 		PE_GetPartsCGSurfaceArea(ints[0].i, &ints[1].i, &ints[2].i, &ints[3].i, &ints[4].i, ints[5].i);
 		return 1;
-	case 159:  // AddConstructProcess(ArrayInt[32], ArrayFloat[2], ArrayString[2])
+	case 162:  // AddConstructProcess(ArrayInt[32], ArrayFloat[2], ArrayString[2])
 		REQUIRE_INTS(32);
 		REQUIRE_FLOATS(2);
 		REQUIRE_STRINGS(2);
 		PartsEngine_add_construction_process(ints, floats, strings);
 		return 1;
-	case 162:  // bool InitPartsMovie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state)
+	case 165:  // bool InitPartsMovie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state)
 		REQUIRE_INTS(8);
 		ints[7].i = PE_init_parts_movie(ints[0].i, ints[1].i, ints[2].i, ints[3].i, ints[4].i, ints[5].i, ints[6].i);
 		return 1;
-	case 163:  // int GetMovieSprite(int parts_no, int state)
+	case 166:  // int GetMovieSprite(int parts_no, int state)
 		REQUIRE_INTS(3);
 		ints[2].i = PE_get_movie_sprite(ints[0].i, ints[1].i);
 		return 1;
@@ -896,4 +915,5 @@ static void PartsEngine_PreLink(void)
 	if (get_fun(libno, "AddController")) {
 		PE_enable_multi_controller();
 	}
+	parts_func_uses_rance9_ids = ain_get_function(ain, "PARTS_GetLayerIndex") < 0;
 }

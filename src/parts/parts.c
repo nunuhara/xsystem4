@@ -2184,6 +2184,11 @@ int PE_get_system_controller(void)
 	return PARTS_CONTROLLER_SYSTEM_OVERLAY;
 }
 
+int PE_get_nr_controllers(void)
+{
+	return ctrl_stack.nr_controllers;
+}
+
 void PE_parts_set_want_save(int parts_no, bool want_save)
 {
 	parts_get(parts_no)->want_save = want_save;
