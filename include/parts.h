@@ -97,6 +97,7 @@ bool PE_SetPartsGroupNumber(int parts_no, int group_no);
 void PE_SetPartsMessageWindowShowLink(int parts_no, bool message_window_show_link);
 bool PE_GetPartsMessageWindowShowLink(int parts_no);
 void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate);
+int PE_GetSpeedupRateByMessageSkip(int parts_no);
 void PE_SetPartsMagX(int parts_no, float scale_x);
 float PE_GetPartsMagX(int parts_no);
 void PE_SetPartsMagY(int parts_no, float scale_y);
