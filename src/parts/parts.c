@@ -2253,13 +2253,8 @@ int PE_get_movie_sprite(int parts_no, int state)
 	return parts->states[state].movie.sprite_no;
 }
 
-bool PE_CreateParts3DLayerPluginID(int parts_no, int state)
+bool parts_3dlayer_create_plugin(struct parts_3dlayer *l)
 {
-	if (!parts_state_valid(--state))
-		return false;
-	struct parts *parts = parts_get(parts_no);
-	struct parts_3dlayer *l = parts_get_3dlayer(parts, state);
-
 	if (l->plugin >= 0)
 		return false;
 
@@ -2286,6 +2281,14 @@ bool PE_CreateParts3DLayerPluginID(int parts_no, int state)
 	l->plugin = handle;
 	l->sprite_no = sp_no;
 	return true;
+}
+
+bool PE_CreateParts3DLayerPluginID(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_get(parts_no);
+	return parts_3dlayer_create_plugin(parts_get_3dlayer(parts, state));
 }
 
 int PE_GetParts3DLayerPluginID(int parts_no, int state)

@@ -21,10 +21,11 @@
 #include "vm/page.h"
 #include "asset_manager.h"
 #include "parts.h"
+#include "reign.h"
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 5
+#define CURRENT_SAVE_VERSION 6
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -376,6 +377,24 @@ static void load_parts_flat(struct iarray_reader *r, struct parts *parts,
 	flat->needs_advance = true;
 }
 
+static void save_parts_3dlayer(struct iarray_writer *w, struct parts_3dlayer *l)
+{
+	struct RE_plugin *plugin = l->plugin >= 0 ? RE_get_plugin(l->plugin) : NULL;
+	iarray_write(w, !!plugin);
+	if (plugin)
+		RE_plugin_serialize(plugin, w);
+}
+
+static void load_parts_3dlayer(struct iarray_reader *r, struct parts_3dlayer *l,
+		int version)
+{
+	if (!iarray_read(r))
+		return;
+	if (!parts_3dlayer_create_plugin(l))
+		VM_ERROR("cannot create 3D layer plugin");
+	RE_plugin_deserialize(RE_get_plugin(l->plugin), r, version);
+}
+
 static void save_parts_layout_box(struct iarray_writer *w, struct parts_layout_box *lb)
 {
 	iarray_write(w, lb->layout_type);
@@ -412,7 +431,9 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 	case PARTS_UNINITIALIZED:
 	case PARTS_MOVIE:
 	case PARTS_RECT_DETECTION:
+		break;
 	case PARTS_3DLAYER:
+		save_parts_3dlayer(w, &state->layer3d);
 		break;
 	case PARTS_CG:
 		save_parts_cg(w, &state->cg);
@@ -458,7 +479,10 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 	case PARTS_UNINITIALIZED:
 	case PARTS_MOVIE:
 	case PARTS_RECT_DETECTION:
+		break;
 	case PARTS_3DLAYER:
+		if (version > 5)
+			load_parts_3dlayer(r, &state->layer3d, version);
 		break;
 	case PARTS_CG:
 		load_parts_cg(r, parts, &state->cg);

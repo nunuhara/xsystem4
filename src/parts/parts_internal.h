@@ -504,6 +504,7 @@ bool parts_gauge_set_cg(struct parts *parts, struct parts_gauge *g, struct strin
 bool parts_gauge_set_cg_by_index(struct parts *parts, struct parts_gauge *g, int cg_no);
 void parts_hgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate);
 void parts_vgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate);
+bool parts_3dlayer_create_plugin(struct parts_3dlayer *l);
 
 // text.c
 void parts_text_free(struct parts_text *t);
