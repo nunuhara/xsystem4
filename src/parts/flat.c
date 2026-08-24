@@ -749,7 +749,20 @@ void parts_flat_emitter_resolve_layer(
 			? em->draw_filter : draw_filter;
 }
 
-// Compute the alignment origin offset for particle_align (1-9 numpad layout).
+// Compute the alignment origin offset (1-9 phone keypad layout).
+void parts_flat_align_offset(int align, int w, int h, vec2 out)
+{
+	if (align < 1 || align > 9) {
+		glm_vec2_zero(out);
+		return;
+	}
+	int col = (align - 1) % 3;
+	int row = (align - 1) / 3;
+	out[0] = -(float)w * col / 2.0f;
+	out[1] = -(float)h * row / 2.0f;
+}
+
+// Compute the alignment origin offset for the emitter's particle_align.
 bool parts_flat_emitter_get_align_offset(struct parts_flat *f, int emitter_lib_idx, vec2 out)
 {
 	struct flat_emitter *em = &f->flat->libraries[emitter_lib_idx].emitter;
@@ -773,10 +786,7 @@ bool parts_flat_emitter_get_align_offset(struct parts_flat *f, int emitter_lib_i
 
 	int align = em->particle_align;
 	if (align < 1 || align > 9) align = 5;
-	int col = (align - 1) % 3;
-	int row = (align - 1) / 3;
-	out[0] = tex->w * col / 2.0f;
-	out[1] = tex->h * row / 2.0f;
+	parts_flat_align_offset(align, tex->w, tex->h, out);
 	return true;
 }
 

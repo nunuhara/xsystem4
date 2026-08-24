@@ -603,6 +603,7 @@ struct flat_key_stack {
 
 typedef void (*flat_emitter_particle_fn)(const struct flat_emitter_particle *p,
 		void *ud);
+void parts_flat_align_offset(int align, int w, int h, vec2 out);
 bool parts_flat_emitter_get_align_offset(struct parts_flat *f, int emitter_lib_idx, vec2 out);
 void parts_flat_foreach_emitter_particle(struct parts_flat *f, int emitter_lib_idx,
 		const struct flat_key_data_graphic *keys,

@@ -224,7 +224,7 @@ static void render_emitter_particle_cb(const struct flat_emitter_particle *p,
 	if (p->rot[1] != 0)
 		glm_rotate_y(m, glm_rad(p->rot[1]), m);
 	glm_scale(m, (vec3){ p->scale[0], p->scale[1], 1.0f });
-	glm_translate(m, (vec3){ -d->align[0], -d->align[1], 0 });
+	glm_translate(m, (vec3){ d->align[0], d->align[1], 0 });
 
 	// Bring particle into screen space, then kill the Z-output row so
 	// clip_z stays at the near plane.
@@ -328,23 +328,27 @@ static void render_flat_cg(struct parts *parts, Texture *tex,
 
 	set_draw_filter_blend_func(ctx->draw_filter);
 
-	mat4 render_m;
-	glm_mat4_copy(ctx->matrix, render_m);
-	// Kill the Z-output row to pin clip_z at the near plane, avoiding
-	// near/far clipping of 3D-rotated sprites.
-	render_m[0][2] = render_m[1][2] = render_m[2][2] = render_m[3][2] = 0.0f;
-	// area_x/area_y select a sub-rectangle of the texture atlas, but
-	// should not shift the on-screen position. This translation cancels
-	// the offset that the sub-rect's top-left would otherwise introduce.
-	glm_translate(render_m, (vec3){ -(float)key->area_x, -(float)key->area_y, 0.0f });
-	glm_scale(render_m, (vec3){ tex->w, tex->h, 1.0f });
-
 	Rectangle rect;
 	if (key->area_width && key->area_height) {
 		rect = (Rectangle){ key->area_x, key->area_y, key->area_width, key->area_height };
 	} else {
 		rect = (Rectangle){ 0, 0, tex->w, tex->h };
 	}
+
+	vec2 align;
+	parts_flat_align_offset(key->align, rect.w, rect.h, align);
+
+	mat4 render_m;
+	glm_mat4_copy(ctx->matrix, render_m);
+	// Kill the Z-output row to pin clip_z at the near plane, avoiding
+	// near/far clipping of 3D-rotated sprites.
+	render_m[0][2] = render_m[1][2] = render_m[2][2] = render_m[3][2] = 0.0f;
+	glm_translate(render_m, (vec3){ align[0], align[1], 0.0f });
+	// area_x/area_y select a sub-rectangle of the texture atlas, but
+	// should not shift the on-screen position. This translation cancels
+	// the offset that the sub-rect's top-left would otherwise introduce.
+	glm_translate(render_m, (vec3){ -(float)key->area_x, -(float)key->area_y, 0.0f });
+	glm_scale(render_m, (vec3){ tex->w, tex->h, 1.0f });
 
 	parts_render_texture(tex, render_m, &rect, ctx->alpha, ctx->add_color, ctx->mul_color,
 			ctx->draw_filter, parts->alpha_clipper_parts_no);
