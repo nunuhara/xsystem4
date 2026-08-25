@@ -22,47 +22,30 @@ uniform float progress;  // effect progress (0..1)
 in vec2 tex_coord;
 out vec4 frag_color;
 
-#define MAX_STRIDE 128.0
+#define MAX_CHUNK 128.0
 
 vec3 get_pixel(vec2 xy) {
         return mix(texture(old, xy).rgb, texture(tex, xy).rgb, progress);
 }
 
-void main() {
-        // size of each chunk
-        float stride = MAX_STRIDE * (1.0 - abs(progress * 2.0 - 1.0)); // progress=(0..0.5..1) -> stride=(0..max..0)
-        // offset of frag coordinate relative to chunk
-        vec2 offset = mod(gl_FragCoord.xy, stride);
-        // the chunk coordinate
-        vec2 chunk = tex_coord - offset / resolution;
-        // coordinate of chunk center
-        vec2 center = chunk + vec2(stride/2.0, stride/2.0) / resolution;
-
-        // FIXME: In this implementation, the anchor point is at the top left of the screen.
-        //        It should be anchored at the center to match SACT2.dll.
-        frag_color = vec4(get_pixel(center), 1.0);
-}
-
-/* NOTE: This is an alternate implementation which computes an average for each chunk.
-         SACT2.dll does not do this.
-
-#define SAMPLES 8.0
-#define MAX_STRIDE 16.0
-
-vec3 get_pixel(vec2 xy) {
-        return mix(texture(old, xy).xyz, texture(tex, xy).xyz, progress);
+float triangle(float f) {
+        return 1.0 - abs(f * 2.0 - 1.0);
 }
 
 void main() {
-        float stride = MAX_STRIDE * (1.0 - abs(progress * 2.0 - 1.0)); // progress=(0..0.5..1) -> stride=(0..max..0)
-        vec3 avg = vec3(0, 0, 0);
-        vec2 xy = floor(gl_FragCoord.xy / (SAMPLES * stride)) * (SAMPLES * stride);
-        for (float j = 0.0; j < SAMPLES; j += 1.0) {
-                for (float i = 0.0; i < SAMPLES; i+= 1.0) {
-                        avg += get_pixel((xy + stride * vec2(i, j)) / resolution);
-                }
-        }
-        avg /= SAMPLES * SAMPLES;
-        frag_color = vec4(avg, 1.0);
+	// center of the screen
+	vec2 center = resolution * 0.5;
+	// size of each chunk
+	float chunk_size = floor(triangle(progress) * MAX_CHUNK);
+	// number of chunks in each screen quadrant (including partial chunks at edges)
+	vec2 chunks_per_quadrant = floor(center / chunk_size);
+	// offset from screen to edge of grid (negative or zero)
+	vec2 grid_off = center - (chunks_per_quadrant * chunk_size);
+	// offset of pixel in chunk
+	vec2 chunk_off = mod(gl_FragCoord.xy - grid_off, chunk_size);
+	// the chunk coordinate
+	vec2 chunk = tex_coord - vec2(chunk_off) / resolution;
+	// coordinate of chunk center
+	vec2 chunk_center = chunk + vec2(chunk_size/2.0, chunk_size/2.0) / resolution;
+	frag_color = vec4(get_pixel(chunk_center), 1.0);
 }
-*/
