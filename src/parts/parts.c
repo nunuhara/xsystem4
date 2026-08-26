@@ -2101,12 +2101,6 @@ bool PE_IsExist(int parts_no)
 	return !!ht_get_int(parts_table, parts_no, NULL);
 }
 
-void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate)
-{
-	if (rate != 1)
-		UNIMPLEMENTED("(%d, %d)");
-}
-
 static void ctrl_stack_init(void)
 {
 	memset(&ctrl_stack, 0, sizeof(ctrl_stack));

@@ -537,12 +537,21 @@ void PE_SeekEndMotion(void)
 	PE_SetMotionTime(motion_end_t - 1);
 }
 
-void PE_UpdateMotionTime(int time, possibly_unused bool skip)
+static int msgskip_speedup_rate = 1;
+
+void PE_UpdateMotionTime(int time, bool skip)
 {
-	// TODO: use skip
 	if (is_motion_paused)
 		return;
-	PE_SetMotionTime(motion_t + time);
+	if (skip)
+		PE_SetMotionTime(motion_t + time * msgskip_speedup_rate);
+	else
+		PE_SetMotionTime(motion_t + time);
+}
+
+void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate)
+{
+	msgskip_speedup_rate = max(1, rate);
 }
 
 bool PE_IsMotion(void)
