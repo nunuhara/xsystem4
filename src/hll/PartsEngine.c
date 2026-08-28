@@ -17,6 +17,7 @@
 #include <assert.h>
 
 #include "system4/ain.h"
+#include "system4/string.h"
 
 #include "vm/heap.h"
 #include "vm/page.h"
@@ -338,6 +339,16 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		REQUIRE_INTS(6);
 		PE_GetPartsCGSurfaceArea(ints[0].i, &ints[1].i, &ints[2].i, &ints[3].i, &ints[4].i, ints[5].i);
 		return 1;
+	case 112: {  // string GetText(int parts_no, int state)
+		REQUIRE_INTS(2);
+		REQUIRE_STRINGS(1);
+		struct string *text = PE_GetText(ints[0].i, ints[1].i);
+		if (text) {
+			heap_string_assign(strings[0].i, text);
+			free_string(text);
+		}
+		return 1;
+	}
 	case 162:  // AddConstructProcess(ArrayInt[32], ArrayFloat[2], ArrayString[2])
 		REQUIRE_INTS(32);
 		REQUIRE_FLOATS(2);

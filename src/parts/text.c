@@ -169,6 +169,14 @@ bool PE_SetText(int parts_no, struct string *text, int state)
 	return true;
 }
 
+struct string *PE_GetText(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return NULL;
+
+	return parts_text_get(parts_get_text(parts_get(parts_no), state));
+}
+
 bool PE_AddPartsText(int parts_no, struct string *text, int state)
 {
 	if (!parts_state_valid(--state))

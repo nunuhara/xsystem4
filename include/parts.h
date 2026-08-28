@@ -254,6 +254,7 @@ void PE_PauseMotion(bool pause);
 
 // text.c
 bool PE_SetText(int parts_no, struct string *text, int state);
+struct string *PE_GetText(int parts_no, int state);
 bool PE_AddPartsText(int parts_no, struct string *text, int state);
 bool PE_SetPartsTextSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
 bool PE_SetFont(int parts_no, int type, int size, int r, int g, int b, float bold_weight, int edge_r, int edge_g, int edge_b, float edge_weight, int state);
