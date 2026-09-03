@@ -34,15 +34,9 @@
 struct parts_list parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
 static struct parts_list dirty_list = TAILQ_HEAD_INITIALIZER(dirty_list);
 static struct hash_table *parts_table = NULL;
-static Point root_pos = { 0, 0 };
 
-struct parts_controller_stack ctrl_stack;
-bool parts_multi_controller;
-
-static void ctrl_stack_init(void);
-
-#define PARTS_PARAMS_INITIALIZER (struct parts_params) { \
-	.z = 1, \
+#define PARTS_PARAMS_INITIALIZER(Z) (struct parts_params) { \
+	.z = Z, \
 	.pos = { 0, 0 }, \
 	.show = true, \
 	.alpha = 255, \
@@ -52,6 +46,13 @@ static void ctrl_stack_init(void);
 	.multiply_color = { 255, 255, 255, 255 } \
 }
 
+static struct parts_params root_params = PARTS_PARAMS_INITIALIZER(0);
+
+struct parts_controller_stack ctrl_stack;
+bool parts_multi_controller;
+
+static void ctrl_stack_init(void);
+
 static void parts_init(struct parts *parts)
 {
 	parts->sp.z = 1;
@@ -59,8 +60,8 @@ static void parts_init(struct parts *parts)
 	parts->sp.has_alpha = true;
 	parts->sp.render = parts_sprite_render;
 	parts->sp.to_json = parts_sprite_to_json;
-	parts->local = PARTS_PARAMS_INITIALIZER;
-	parts->global = PARTS_PARAMS_INITIALIZER;
+	parts->local = PARTS_PARAMS_INITIALIZER(1);
+	parts->global = PARTS_PARAMS_INITIALIZER(1);
 	parts->delegate_index = -1;
 	parts->want_save = true;
 	parts->on_cursor_sound = -1;
@@ -452,16 +453,16 @@ void parts_set_pos(struct parts *parts, Point pos)
 	parts->local.pos.x = pos.x;
 	parts->local.pos.y = pos.y;
 	parts_recalculate_hitbox(parts);
-	parts_update_global_pos(parts, parts->parent ? parts->parent->global.pos : root_pos);
+	parts_update_global_pos(parts, parts->parent ? parts->parent->global.pos : root_params.pos);
 	parts_dirty(parts);
 }
 
 void parts_set_global_pos(Point pos)
 {
-	root_pos = pos;
+	root_params.pos = pos;
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
-		parts_update_global_pos(parts, root_pos);
+		parts_update_global_pos(parts, root_params.pos);
 	}
 	parts_engine_dirty();
 }
@@ -1002,6 +1003,7 @@ void parts_release(int parts_no)
 		struct parts *child = TAILQ_FIRST(&parts->children);
 		TAILQ_REMOVE(&parts->children, child, child_list_entry);
 		child->parent = NULL;
+		parts_component_dirty(child);
 	}
 	if (parts->parent) {
 		TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
@@ -1098,9 +1100,8 @@ static void parts_combine_params(struct parts_params *parent, struct parts_param
 
 static void parts_update_component(struct parts *parts)
 {
-	if (parts->parent) {
-		parts_combine_params(&parts->parent->global, &parts->local, &parts->global);
-	}
+	parts_combine_params(parts->parent ? &parts->parent->global : &root_params,
+			&parts->local, &parts->global);
 	if (parts_get_sprite_z(parts) != parts->sp.z
 			|| parts_get_sprite_z2(parts) != parts->sp.z2) {
 		parts_list_resort(parts);
