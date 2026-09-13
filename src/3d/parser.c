@@ -72,14 +72,20 @@ static uint32_t parse_material_attributes(const char *name)
 
 static void parse_textures(struct buffer *r, int pol_version, struct pol_material *m)
 {
+	glm_vec2_one(m->uv_tiling);
 	int nr_textures = buffer_read_int32(r);
 	for (int i = 0; i < nr_textures; i++) {
 		char *filename = read_cstring(r);
 		int type = buffer_read_int32(r);
-		if (pol_version >= 3)
-			buffer_skip(r, 8);  // 2 unknown float params
+		vec2 uv_tiling = { 1.0f, 1.0f };
+		if (pol_version >= 3) {
+			uv_tiling[0] = buffer_read_float(r);
+			uv_tiling[1] = buffer_read_float(r);
+		}
 		if ((unsigned)type < MAX_TEXTURE_TYPE) {
 			m->textures[type] = filename;
+			if (type == COLOR_MAP)
+				glm_vec2_copy(uv_tiling, m->uv_tiling);
 		} else {
 			WARNING("invalid texture type %d", type);
 			free(filename);

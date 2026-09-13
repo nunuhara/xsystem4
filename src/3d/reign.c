@@ -53,6 +53,14 @@ static struct RE_instance *create_instance(struct RE_plugin *plugin)
 	instance->use_mag_speed = true;
 	instance->column_height = 1.0f;
 	instance->column_radius = 1.0f;
+	glm_vec3_copy((vec3){-1.0f, 2.0f, 0.0f}, instance->vertex_pos[0]);
+	glm_vec3_copy((vec3){-1.0f, 0.0f, 0.0f}, instance->vertex_pos[1]);
+	glm_vec3_copy((vec3){ 1.0f, 2.0f, 0.0f}, instance->vertex_pos[2]);
+	glm_vec3_copy((vec3){ 1.0f, 0.0f, 0.0f}, instance->vertex_pos[3]);
+	glm_vec2_copy((vec2){0.0f, 0.0f}, instance->vertex_uv[0]);
+	glm_vec2_copy((vec2){0.0f, 1.0f}, instance->vertex_uv[1]);
+	glm_vec2_copy((vec2){1.0f, 0.0f}, instance->vertex_uv[2]);
+	glm_vec2_copy((vec2){1.0f, 1.0f}, instance->vertex_uv[3]);
 	glm_mat4_identity(instance->local_transform);
 	glm_mat3_identity(instance->normal_transform);
 	return instance;
@@ -62,7 +70,9 @@ static void free_instance(struct RE_instance *instance);
 
 static void unload_instance(struct RE_instance *instance)
 {
-	if (instance->motion) {
+	// A billboard's motion holds frame animation state that the game can set
+	// before loading the instance data, so it must survive unloads.
+	if (instance->motion && instance->type != RE_ITYPE_BILLBOARD) {
 		motion_free(instance->motion);
 		instance->motion = NULL;
 	}
@@ -87,6 +97,12 @@ static void unload_instance(struct RE_instance *instance)
 		free(instance->bone_transforms);
 		instance->bone_transforms = NULL;
 	}
+	if (instance->billboard_frames) {
+		// No need to free the textures, they are owned by the renderer.
+		free(instance->billboard_frames);
+		instance->billboard_frames = NULL;
+		instance->nr_billboard_frames = 0;
+	}
 	if (instance->height_detector) {
 		RE_renderer_free_height_detector(instance->height_detector);
 		instance->height_detector = NULL;
@@ -100,6 +116,8 @@ static void unload_instance(struct RE_instance *instance)
 static void free_instance(struct RE_instance *instance)
 {
 	unload_instance(instance);
+	if (instance->motion)
+		motion_free(instance->motion);
 	free(instance->light_params);
 	xfree_aligned(instance);
 }
@@ -252,6 +270,7 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 	plugin->mag_speed = 1;
 	if (version == RE_TAPIR_PLUGIN)
 		plugin->draw_options[RE_DRAW_OPTION_EDGE] = 1;
+	plugin->draw_options[RE_DRAW_OPTION_LIGHTING] = 1;
 	plugin->edge_length = 0.02f;
 	plugin->fog_type = RE_FOG_NONE;
 	plugin->fog_near = 1.0f;
@@ -483,6 +502,37 @@ bool RE_instance_data_exists(struct RE_instance *instance, const char *name)
 	return exists;
 }
 
+// Loads the frame images of a billboard instance. They are stored in the
+// archive as "<name>\<basename>.png", "<name>\<basename>[1].png", ...
+static bool load_billboard_frames(struct RE_instance *instance, const char *name)
+{
+	const char *basename = strrchr(name, '\\');
+	basename = basename ? basename + 1 : name;
+	char *path = xmalloc(strlen(name) + strlen(basename) + 22);
+
+	int capacity = 8;
+	instance->billboard_frames = xcalloc(capacity, sizeof(struct billboard_texture *));
+	for (int i = 0;; i++) {
+		if (i == 0)
+			sprintf(path, "%s\\%s.png", name, basename);
+		else
+			sprintf(path, "%s\\%s[%d].png", name, basename, i);
+		struct billboard_texture *bt = RE_renderer_load_billboard_texture_by_path(
+			instance->plugin->renderer, instance->plugin->aar, path);
+		if (!bt)
+			break;
+		if (i == capacity) {
+			instance->billboard_frames = xrealloc_array(
+				instance->billboard_frames, capacity, capacity * 2, sizeof(struct billboard_texture *));
+			capacity *= 2;
+		}
+		instance->billboard_frames[i] = bt;
+		instance->nr_billboard_frames = i + 1;
+	}
+	free(path);
+	return instance->nr_billboard_frames > 0;
+}
+
 bool RE_instance_load(struct RE_instance *instance, const char *name)
 {
 	if (!instance)
@@ -539,6 +589,9 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 			}
 		}
 		return true;
+	case RE_ITYPE_BILLBOARD:
+		if (re_plugin_version >= RE_SEAL_PLUGIN)
+			return load_billboard_frames(instance, name);
 	case RE_ITYPE_DIRECTIONAL_LIGHT:
 		if (re_plugin_version >= RE_SEAL_PLUGIN) {
 			struct archive_data *dfile = archive_get_by_name(instance->plugin->aar, name);
@@ -610,19 +663,28 @@ bool RE_instance_set_mesh_show(struct RE_instance *instance, const char *mesh_na
 	return false;
 }
 
+// Converts from the (top-left, top-right, bottom-left, bottom-right) order used
+// by the API to the vertex order of the billboard mesh.
+static const int billboard_vertex_index[4] = {0, 2, 1, 3};
+
 bool RE_instance_set_vertex_pos(struct RE_instance *instance, int index, float x, float y, float z)
 {
-	if (!instance)
+	if (!instance || (unsigned)index >= 4)
 		return false;
 	if (instance->type != RE_ITYPE_BILLBOARD)
 		ERROR("not implemented");
-	// Hack: This works because SetInstanceVertexPos is only used to scale
-	// billboards, and SetInstanceScale is not used for billboards.
-	if (index == 1) {
-		instance->scale[0] = x;
-		instance->scale[1] = y / 2.0;
-	}
-	return false;
+	glm_vec3_copy((vec3){x, y, z}, instance->vertex_pos[billboard_vertex_index[index]]);
+	return true;
+}
+
+bool RE_instance_set_vertex_uv(struct RE_instance *instance, int index, float u, float v)
+{
+	if (!instance || (unsigned)index >= 4)
+		return false;
+	if (instance->type != RE_ITYPE_BILLBOARD)
+		ERROR("not implemented");
+	glm_vec2_copy((vec2){u, v}, instance->vertex_uv[billboard_vertex_index[index]]);
+	return true;
 }
 
 int RE_instance_get_bone_index(struct RE_instance *instance, const char *name)
@@ -907,9 +969,9 @@ bool RE_motion_set_frame_range(struct motion *motion, float begin, float end)
 		return false;
 	motion->frame_begin = begin;
 	motion->frame_end = end;
-	if (motion->instance->type == RE_ITYPE_BILLBOARD) {
+	if (motion->instance->type == RE_ITYPE_BILLBOARD && re_plugin_version < RE_SEAL_PLUGIN) {
 		for (int i = begin; i < end; i++) {
-			if (!RE_renderer_load_billboard_texture(motion->instance->plugin->renderer, i))
+			if (!RE_renderer_load_billboard_texture_by_no(motion->instance->plugin->renderer, i))
 				return false;
 		}
 	}
@@ -922,9 +984,9 @@ bool RE_motion_set_loop_frame_range(struct motion *motion, float begin, float en
 		return false;
 	motion->loop_frame_begin = begin;
 	motion->loop_frame_end = end;
-	if (motion->instance->type == RE_ITYPE_BILLBOARD) {
+	if (motion->instance->type == RE_ITYPE_BILLBOARD && re_plugin_version < RE_SEAL_PLUGIN) {
 		for (int i = begin; i < end; i++) {
-			if (!RE_renderer_load_billboard_texture(motion->instance->plugin->renderer, i))
+			if (!RE_renderer_load_billboard_texture_by_no(motion->instance->plugin->renderer, i))
 				return false;
 		}
 	}

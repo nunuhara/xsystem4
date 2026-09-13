@@ -108,6 +108,7 @@ in vec3 specular_dir;
 uniform vec4 tonemap_param;   // (ExposureBias, WhitePoint, A, B)
 uniform vec4 tonemap_param2;  // (C, D, E, F)
 uniform bool nolighting;
+uniform float grayscale_rate;
 
 vec3 hable(vec3 v)
 {
@@ -239,6 +240,9 @@ void main() {
 #if ENGINE == SEAL_ENGINE
 	if (!nolighting)
 		frag_rgb = tone_map(frag_rgb);
+
+	if (grayscale_rate != 0.0)
+		frag_rgb = mix(frag_rgb, vec3(dot(frag_rgb, vec3(0.299, 0.587, 0.114))), grayscale_rate);
 #endif
 
 	// Alpha mapping

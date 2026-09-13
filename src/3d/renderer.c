@@ -166,24 +166,8 @@ static void destroy_outline_renderer(struct outline_renderer *or)
 		glDeleteProgram(or->program);
 }
 
-static void init_billboard_mesh(struct RE_renderer *r)
+static void init_billboard_unused_vertex_attrs(void)
 {
-	static const GLfloat vertices[] = {
-		// x,    y,   z,    u,   v
-		-1.0,  1.0, 0.0,  0.0, 0.0,
-		-1.0, -1.0, 0.0,  0.0, 1.0,
-		 1.0,  1.0, 0.0,  1.0, 0.0,
-		 1.0, -1.0, 0.0,  1.0, 1.0,
-	};
-	glGenVertexArrays(1, &r->billboard_vao);
-	glBindVertexArray(r->billboard_vao);
-	glGenBuffers(1, &r->billboard_attr_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, r->billboard_attr_buffer);
-
-	glEnableVertexAttribArray(VATTR_POS);
-	glVertexAttribPointer(VATTR_POS, 3, GL_FLOAT, GL_FALSE, 20, (const void *)0);
-	glEnableVertexAttribArray(VATTR_UV);
-	glVertexAttribPointer(VATTR_UV, 2, GL_FLOAT, GL_FALSE, 20, (const void *)12);
 	glDisableVertexAttribArray(VATTR_LIGHT_UV);
 	glVertexAttrib2f(VATTR_LIGHT_UV, 0.0, 0.0);
 	glDisableVertexAttribArray(VATTR_COLOR);
@@ -196,8 +180,39 @@ static void init_billboard_mesh(struct RE_renderer *r)
 	glVertexAttribI4i(VATTR_BONE_INDEX, 0, 0, 0, 0);
 	glDisableVertexAttribArray(VATTR_BONE_WEIGHT);
 	glVertexAttrib4f(VATTR_BONE_WEIGHT, 0.0, 0.0, 0.0, 0.0);
+}
 
+static void init_billboard_mesh(struct RE_renderer *r)
+{
+	static const GLfloat vertices[] = {
+		// x,    y,   z,    u,   v
+		-1.0,  1.0, 0.0,  0.0, 0.0,
+		-1.0, -1.0, 0.0,  0.0, 1.0,
+		 1.0,  1.0, 0.0,  1.0, 0.0,
+		 1.0, -1.0, 0.0,  1.0, 1.0,
+	};
+	glGenBuffers(1, &r->billboard_particle_attr_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, r->billboard_particle_attr_buffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glGenBuffers(1, &r->billboard_instance_attr_buffer);
+
+	glGenVertexArrays(1, &r->billboard_particle_vao);
+	glBindVertexArray(r->billboard_particle_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, r->billboard_particle_attr_buffer);
+	glEnableVertexAttribArray(VATTR_POS);
+	glVertexAttribPointer(VATTR_POS, 3, GL_FLOAT, GL_FALSE, 20, (const void *)0);
+	glEnableVertexAttribArray(VATTR_UV);
+	glVertexAttribPointer(VATTR_UV, 2, GL_FLOAT, GL_FALSE, 20, (const void *)12);
+	init_billboard_unused_vertex_attrs();
+
+	glGenVertexArrays(1, &r->billboard_instance_vao);
+	glBindVertexArray(r->billboard_instance_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, r->billboard_instance_attr_buffer);
+	glEnableVertexAttribArray(VATTR_POS);
+	glVertexAttribPointer(VATTR_POS, 3, GL_FLOAT, GL_FALSE, 20, (const void *)0);
+	glEnableVertexAttribArray(VATTR_UV);
+	glVertexAttribPointer(VATTR_UV, 2, GL_FLOAT, GL_FALSE, 20, (const void *)12);
+	init_billboard_unused_vertex_attrs();
 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -205,8 +220,10 @@ static void init_billboard_mesh(struct RE_renderer *r)
 
 static void destroy_billboard_mesh(struct RE_renderer *r)
 {
-	glDeleteVertexArrays(1, &r->billboard_vao);
-	glDeleteBuffers(1, &r->billboard_attr_buffer);
+	glDeleteVertexArrays(1, &r->billboard_particle_vao);
+	glDeleteVertexArrays(1, &r->billboard_instance_vao);
+	glDeleteBuffers(1, &r->billboard_particle_attr_buffer);
+	glDeleteBuffers(1, &r->billboard_instance_attr_buffer);
 }
 
 struct RE_renderer *RE_renderer_new(void)
@@ -266,9 +283,11 @@ struct RE_renderer *RE_renderer_new(void)
 	r->tonemap_param = glGetUniformLocation(r->program, "tonemap_param");
 	r->tonemap_param2 = glGetUniformLocation(r->program, "tonemap_param2");
 	r->nolighting = glGetUniformLocation(r->program, "nolighting");
+	r->grayscale_rate = glGetUniformLocation(r->program, "grayscale_rate");
 	r->alpha_mode = glGetUniformLocation(r->program, "alpha_mode");
 	r->alpha_texture = glGetUniformLocation(r->program, "alpha_texture");
 	r->uv_scroll = glGetUniformLocation(r->program, "uv_scroll");
+	r->uv_tiling = glGetUniformLocation(r->program, "uv_tiling");
 	r->blend_tex = glGetUniformLocation(r->program, "blend_tex");
 	r->use_blend_texture = glGetUniformLocation(r->program, "use_blend_texture");
 
@@ -277,7 +296,8 @@ struct RE_renderer *RE_renderer_new(void)
 	init_shadow_renderer(&r->shadow);
 	init_outline_renderer(&r->outline);
 	init_billboard_mesh(r);
-	r->billboard_textures = ht_create(256);
+	r->billboard_textures_by_no = ht_create(256);
+	r->billboard_textures_by_path = ht_create(256);
 	r->last_frame_timestamp = SDL_GetTicks();
 	return r;
 }
@@ -291,15 +311,8 @@ void RE_renderer_set_viewport_size(struct RE_renderer *r, int width, int height)
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 }
 
-bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no)
+static struct billboard_texture *create_billboard_texture(struct cg *cg)
 {
-	if (ht_get_int(r->billboard_textures, cg_no, NULL))
-		return true;
-
-	struct cg *cg = asset_cg_load(cg_no);
-	if (!cg)
-		return false;
-
 	struct billboard_texture *bt = xcalloc(1, sizeof(struct billboard_texture));
 	glGenTextures(1, &bt->texture);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
@@ -311,10 +324,43 @@ bool RE_renderer_load_billboard_texture(struct RE_renderer *r, int cg_no)
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	bt->has_alpha = cg->metrics.has_alpha;
+	return bt;
+}
 
+bool RE_renderer_load_billboard_texture_by_no(struct RE_renderer *r, int cg_no)
+{
+	if (ht_get_int(r->billboard_textures_by_no, cg_no, NULL))
+		return true;
+
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+
+	ht_put_int(r->billboard_textures_by_no, cg_no, create_billboard_texture(cg));
 	cg_free(cg);
-	ht_put_int(r->billboard_textures, cg_no, bt);
 	return true;
+}
+
+struct billboard_texture *RE_renderer_load_billboard_texture_by_path(struct RE_renderer *r, struct archive *aar, const char *path)
+{
+	struct billboard_texture *bt = ht_get(r->billboard_textures_by_path, path, NULL);
+	if (bt)
+		return bt;
+
+	struct archive_data *dfile = archive_get_by_name(aar, path);
+	if (!dfile)
+		return NULL;
+	struct cg *cg = cg_load_data(dfile);
+	archive_free_data(dfile);
+	if (!cg) {
+		WARNING("cg_load_data failed: %s", path);
+		return NULL;
+	}
+
+	bt = create_billboard_texture(cg);
+	cg_free(cg);
+	ht_put(r->billboard_textures_by_path, path, bt);
+	return bt;
 }
 
 static void free_billboard_texture(void *value)
@@ -328,8 +374,10 @@ void RE_renderer_free(struct RE_renderer *r)
 {
 	glDeleteProgram(r->program);
 	glDeleteRenderbuffers(1, &r->depth_buffer);
-	ht_foreach_value(r->billboard_textures, free_billboard_texture);
-	ht_free_int(r->billboard_textures);
+	ht_foreach_value(r->billboard_textures_by_no, free_billboard_texture);
+	ht_free_int(r->billboard_textures_by_no);
+	ht_foreach_value(r->billboard_textures_by_path, free_billboard_texture);
+	ht_free(r->billboard_textures_by_path);
 	destroy_billboard_mesh(r);
 	destroy_shadow_renderer(&r->shadow);
 	destroy_outline_renderer(&r->outline);
@@ -369,6 +417,16 @@ static bool should_draw_shadow(struct mesh *mesh, struct material *material)
 {
 	return !(mesh->flags & (MESH_ALPHA | MESH_BOTH | MESH_SPRITE | MESH_NO_DRAWSHADOW))
 	    && !(material->flags & (MATERIAL_ALPHA | MATERIAL_SPRITE));
+}
+
+static bool lighting_disabled(struct RE_plugin *plugin)
+{
+	return plugin->draw_options[RE_DRAW_OPTION_LIGHTING] <= 0;
+}
+
+static bool is_nolighting(struct RE_plugin *plugin, struct mesh *mesh)
+{
+	return lighting_disabled(plugin) || (mesh->flags & MESH_NOLIGHTING);
 }
 
 static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum draw_phase phase)
@@ -431,16 +489,17 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
 		}
 
+		bool nolighting = is_nolighting(inst->plugin, mesh);
 		int fog_type = inst->plugin->fog_type;
-		if (!inst->plugin->fog_mode || (re_plugin_version == RE_REIGN_PLUGIN && (mesh->flags & MESH_NOLIGHTING))) {
+		if (!inst->plugin->fog_mode || (re_plugin_version == RE_REIGN_PLUGIN && nolighting)) {
 			fog_type = RE_FOG_NONE;
 		}
 		glUniform1i(r->fog_type, fog_type);
-		glUniform1i(r->nolighting, !!(mesh->flags & MESH_NOLIGHTING));
+		glUniform1i(r->nolighting, nolighting);
 
 		GLboolean use_specular_map = GL_FALSE;
 		float shininess = (mesh->flags & MESH_HAS_SPECULAR_POWER) ? mesh->specular_power : material->specular_shininess;
-		if (inst->plugin->specular_mode && !(mesh->flags & MESH_NOLIGHTING) && shininess > 0.0f) {
+		if (inst->plugin->specular_mode && !nolighting && shininess > 0.0f) {
 			if (mesh->flags & MESH_HAS_SPECULAR_COLOR) {
 				glUniform3fv(r->specular_color, 1, mesh->specular_color);
 			} else {
@@ -475,7 +534,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 
 		if (mesh->flags & MESH_ENVMAP) {
 			glUniform1i(r->diffuse_type, DIFFUSE_ENV_MAP);
-		} else if (mesh->flags & MESH_NOLIGHTING) {
+		} else if (nolighting) {
 			glUniform1i(r->diffuse_type, DIFFUSE_EMISSIVE);
 		} else if (material->light_map && mesh->flags & MESH_HAS_LIGHT_UV && inst->plugin->light_map_mode) {
 			glUniform1i(r->diffuse_type, DIFFUSE_LIGHT_MAP);
@@ -516,6 +575,9 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 		vec2 uv_scroll;
 		glm_vec2_scale(mesh->uv_scroll, r->last_frame_timestamp / 1000.f, uv_scroll);
 		glUniform2fv(r->uv_scroll, 1, uv_scroll);
+		glUniform4f(r->uv_tiling,
+			material->uv_tiling[0], material->uv_tiling[1],
+			material->blend_uv_tiling[0], material->blend_uv_tiling[1]);
 
 		glBindVertexArray(mesh->vao);
 
@@ -566,11 +628,13 @@ static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r
 		render_static_model(inst->shadow_volume_instance, r, phase);
 }
 
-static void reset_draw_uniforms(struct RE_renderer *r)
+static void reset_draw_uniforms(struct RE_renderer *r, struct RE_plugin *plugin)
 {
+	bool nolighting = lighting_disabled(plugin);
 	glUniform1f(r->alpha_mod, 1.0f);
 	glUniform3f(r->diffuse_mod, 1.0f, 1.0f, 1.0f);
 	glUniform2f(r->uv_scroll, 0.0f, 0.0f);
+	glUniform4f(r->uv_tiling, 1.0f, 1.0f, 1.0f, 1.0f);
 	glUniform1i(r->has_bones, GL_FALSE);
 	glUniform3f(r->specular_color, 0.0f, 0.0f, 0.0f);
 	glUniform1f(r->specular_shininess, 0.0f);
@@ -582,15 +646,23 @@ static void reset_draw_uniforms(struct RE_renderer *r)
 	glUniform1f(r->shadow_darkness, 0.0f);
 	glUniform1i(r->alpha_mode, ALPHA_BLEND);
 	glUniform1i(r->fog_type, 0);
-	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
+	glUniform1i(r->nolighting, nolighting);
+	glUniform1i(r->diffuse_type, nolighting ? DIFFUSE_EMISSIVE : DIFFUSE_NORMAL);
 }
 
 static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat, enum draw_phase phase)
 {
 	if (!inst->draw)
 		return;
-	int cg_no = inst->motion->current_frame;
-	struct billboard_texture *bt = ht_get_int(r->billboard_textures, cg_no, NULL);
+	int frame = inst->motion->current_frame;
+	struct billboard_texture *bt;
+	if (inst->nr_billboard_frames > 0) {
+		if (frame < 0 || frame >= inst->nr_billboard_frames)
+			return;
+		bt = inst->billboard_frames[frame];
+	} else {
+		bt = ht_get_int(r->billboard_textures_by_no, frame, NULL);
+	}
 	if (!bt)
 		return;
 	bool is_transparent = bt->has_alpha || inst->alpha < 1.0f;
@@ -603,8 +675,6 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glm_mat4_pick3t(view_mat, rot);
 	glm_mat4_ins3(rot, local_transform);
 	glm_scale(local_transform, inst->scale);
-	// Billboard instances are bottomed at y=0.
-	glm_translate_y(local_transform, 1.0);
 	mat3 normal_transform;
 	// This should be safe because billboards do not have non-uniform scaling.
 	glm_mat4_pick3(local_transform, normal_transform);
@@ -613,7 +683,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, local_transform[0]);
 	glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, normal_transform[0]);
 
-	reset_draw_uniforms(r);
+	reset_draw_uniforms(r, inst->plugin);
 	glUniform1f(r->alpha_mod, inst->alpha);
 	glUniform1i(r->fog_type, inst->plugin->fog_mode ? inst->plugin->fog_type : 0);
 	switch (inst->draw_type) {
@@ -629,7 +699,15 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
 	glUniform1i(r->texture, 0);
-	glBindVertexArray(r->billboard_vao);
+	GLfloat vertices[4][5];
+	for (int i = 0; i < 4; i++) {
+		glm_vec3_copy(inst->vertex_pos[i], vertices[i]);
+		glm_vec2_copy(inst->vertex_uv[i], vertices[i] + 3);
+	}
+	glBindVertexArray(r->billboard_instance_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, r->billboard_instance_attr_buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
@@ -649,7 +727,7 @@ static void render_billboard_particles(struct RE_renderer *r, struct RE_instance
 
 	glActiveTexture(GL_TEXTURE0);
 	glUniform1i(r->texture, 0);
-	glBindVertexArray(r->billboard_vao);
+	glBindVertexArray(r->billboard_particle_vao);
 
 	for (int index = 0; index < pae_obj->nr_particles; index++) {
 		struct particle_instance *pi = &po->instances[index];
@@ -686,7 +764,8 @@ static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *
 	if (!model)
 		return;
 
-	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
+	glUniform1i(r->diffuse_type,
+		lighting_disabled(inst->plugin) ? DIFFUSE_EMISSIVE : DIFFUSE_NORMAL);
 	glUniform1i(r->fog_type, inst->plugin->fog_mode ? inst->plugin->fog_type : 0);
 
 	for (int index = 0; index < pae_obj->nr_particles; index++) {
@@ -705,6 +784,9 @@ static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *
 		for (int i = 0; i < model->nr_meshes; i++) {
 			struct mesh *mesh = &model->meshes[i];
 			struct material *material = &model->materials[mesh->material];
+			glUniform4f(r->uv_tiling,
+				material->uv_tiling[0], material->uv_tiling[1],
+				material->blend_uv_tiling[0], material->blend_uv_tiling[1]);
 
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, material->color_maps[0]);
@@ -742,7 +824,7 @@ static void render_s3de_billboard_particles(struct RE_renderer *r, struct RE_ins
 	}
 	glActiveTexture(GL_TEXTURE0);
 	glUniform1i(r->texture, 0);
-	glBindVertexArray(r->billboard_vao);
+	glBindVertexArray(r->billboard_particle_vao);
 	glDisable(GL_CULL_FACE);
 	glBindTexture(GL_TEXTURE_2D, bt->texture);
 
@@ -780,7 +862,8 @@ static void render_s3de_polygon_particles(struct RE_renderer *r, struct RE_insta
 	if (phase == DRAW_OPAQUE && st->emitter_alpha < 1.0f)
 		return;
 
-	glUniform1i(r->diffuse_type, DIFFUSE_NORMAL);
+	glUniform1i(r->diffuse_type,
+		lighting_disabled(inst->plugin) ? DIFFUSE_EMISSIVE : DIFFUSE_NORMAL);
 	// The .3de blend_type is ignored for polygon objects. Per-mesh additive
 	// blend modes are not yet handled.
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
@@ -807,6 +890,9 @@ static void render_s3de_polygon_particles(struct RE_renderer *r, struct RE_insta
 			if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
 				continue;
 			struct material *material = &model->materials[mesh->material];
+			glUniform4f(r->uv_tiling,
+				material->uv_tiling[0], material->uv_tiling[1],
+				material->blend_uv_tiling[0], material->blend_uv_tiling[1]);
 
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, material->color_maps[0]);
@@ -850,7 +936,7 @@ static void render_s3de_effect(struct RE_instance *inst, struct RE_renderer *r, 
 		RE_instance_update_local_transform(inst);
 
 	glUniform3fv(r->instance_ambient, 1, inst->ambient);
-	reset_draw_uniforms(r);
+	reset_draw_uniforms(r, inst->plugin);
 
 	if (phase == DRAW_TRANSPARENT)
 		glDepthMask(GL_FALSE);
@@ -920,7 +1006,7 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 		return;
 
 	glUniform3fv(r->instance_ambient, 1, inst->ambient);
-	reset_draw_uniforms(r);
+	reset_draw_uniforms(r, inst->plugin);
 
 	glDepthMask(GL_FALSE);
 
@@ -953,6 +1039,8 @@ static void render_particle_effect(struct RE_instance *inst, struct RE_renderer 
 
 static void render_instance(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat, enum draw_phase phase)
 {
+	glUniform1f(r->grayscale_rate, inst->grayscale_rate);
+
 	switch (inst->type) {
 	case RE_ITYPE_STATIC:
 		render_static_model(inst, r, phase);
@@ -1086,7 +1174,8 @@ static void render_outlines(struct RE_plugin *plugin, mat4 view_transform)
 	bool seal_edge = re_plugin_version >= RE_SEAL_PLUGIN;
 	if (seal_edge) {
 		glUniform3fv(or->outline_color, 1, plugin->edge_color);
-		glUniform1f(or->outline_thickness, plugin->edge_length);
+		float thickness = plugin->edge_length * (1.f - plugin->edge_reduction_rate);
+		glUniform1f(or->outline_thickness, thickness);
 	}
 
 	glCullFace(GL_FRONT);

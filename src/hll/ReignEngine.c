@@ -2405,7 +2405,11 @@ static bool SealEngine_GetInstanceAngleB(int plugin, int instance, float *angle_
 	return true;
 }
 
-//bool SealEngine_SetInstanceVertexUV(int PluginNumber, int InstanceNumber, int Index, float U, float V);
+static bool SealEngine_SetInstanceVertexUV(int plugin, int instance, int index, float u, float v)
+{
+	return RE_instance_set_vertex_uv(get_instance(plugin, instance), index, u, v);
+}
+
 //bool SealEngine_GetInstanceDiffuse(int PluginNumber, int InstanceNumber, float *pR, float *pG, float *pB);
 //bool SealEngine_GetInstanceAmbient(int PluginNumber, int InstanceNumber, float *pR, float *pG, float *pB);
 
@@ -2418,8 +2422,23 @@ static bool SealEngine_GetInstanceAlpha(int plugin, int instance, float *alpha)
 	return true;
 }
 
-//bool SealEngine_SetInstanceGrayscaleRate(int PluginNumber, int InstanceNumber, float GrayscaleRate);
-//bool SealEngine_GetInstanceGrayscaleRate(int PluginNumber, int InstanceNumber, float *GrayscaleRate);
+static bool SealEngine_SetInstanceGrayscaleRate(int plugin, int instance, float rate)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	ri->grayscale_rate = rate;
+	return true;
+}
+
+static bool SealEngine_GetInstanceGrayscaleRate(int plugin, int instance, float *rate)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	*rate = ri->grayscale_rate;
+	return true;
+}
 
 static bool SealEngine_IsExistInstanceMotion(int plugin, int instance, struct string *motion_name)
 {
@@ -2550,8 +2569,20 @@ static float SealEngine_GetEdgeLength(int PluginNumber)
 	return p ? p->edge_length : 0.0;
 }
 
-//bool SealEngine_SetEdgeReductionRate(int PluginNumber, float EdgeReductionRate);
-//float SealEngine_GetEdgeReductionRate(int PluginNumber);
+static bool SealEngine_SetEdgeReductionRate(int plugin, float rate)
+{
+	struct RE_plugin *p = RE_get_plugin(plugin);
+	if (!p)
+		return false;
+	p->edge_reduction_rate = rate;
+	return true;
+}
+
+static float SealEngine_GetEdgeReductionRate(int plugin)
+{
+	struct RE_plugin *p = RE_get_plugin(plugin);
+	return p ? p->edge_reduction_rate : 0.0;
+}
 
 static bool SealEngine_SetEdgeColor(int PluginNumber, float ColorR, float ColorG, float ColorB)
 {
@@ -2624,12 +2655,12 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int Plugin
 	    HLL_EXPORT(GetInstanceAngle, SealEngine_GetInstanceAngle), \
 	    HLL_EXPORT(GetInstanceAngleP, SealEngine_GetInstanceAngleP), \
 	    HLL_EXPORT(GetInstanceAngleB, SealEngine_GetInstanceAngleB), \
-	    HLL_TODO_EXPORT(SetInstanceVertexUV, SealEngine_SetInstanceVertexUV), \
+	    HLL_EXPORT(SetInstanceVertexUV, SealEngine_SetInstanceVertexUV), \
 	    HLL_TODO_EXPORT(GetInstanceDiffuse, SealEngine_GetInstanceDiffuse), \
 	    HLL_TODO_EXPORT(GetInstanceAmbient, SealEngine_GetInstanceAmbient), \
 	    HLL_EXPORT(GetInstanceAlpha, SealEngine_GetInstanceAlpha), \
-	    HLL_TODO_EXPORT(SetInstanceGrayscaleRate, SealEngine_SetInstanceGrayscaleRate), \
-	    HLL_TODO_EXPORT(GetInstanceGrayscaleRate, SealEngine_GetInstanceGrayscaleRate), \
+	    HLL_EXPORT(SetInstanceGrayscaleRate, SealEngine_SetInstanceGrayscaleRate), \
+	    HLL_EXPORT(GetInstanceGrayscaleRate, SealEngine_GetInstanceGrayscaleRate), \
 	    HLL_EXPORT(IsExistInstanceMotion, SealEngine_IsExistInstanceMotion), \
 	    HLL_TODO_EXPORT(GetInstanceNumofBone, SealEngine_GetInstanceNumofBone), \
 	    HLL_TODO_EXPORT(GetInstanceBoneName, SealEngine_GetInstanceBoneName), \
@@ -2702,8 +2733,8 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int Plugin
 	    HLL_TODO_EXPORT(GetSoftFogEdgeLength, SealEngine_GetSoftFogEdgeLength), \
 	    HLL_EXPORT(SetEdgeLength, SealEngine_SetEdgeLength), \
 	    HLL_EXPORT(GetEdgeLength, SealEngine_GetEdgeLength), \
-	    HLL_TODO_EXPORT(SetEdgeReductionRate, SealEngine_SetEdgeReductionRate), \
-	    HLL_TODO_EXPORT(GetEdgeReductionRate, SealEngine_GetEdgeReductionRate), \
+	    HLL_EXPORT(SetEdgeReductionRate, SealEngine_SetEdgeReductionRate), \
+	    HLL_EXPORT(GetEdgeReductionRate, SealEngine_GetEdgeReductionRate), \
 	    HLL_EXPORT(SetEdgeColor, SealEngine_SetEdgeColor), \
 	    HLL_EXPORT(GetEdgeColor, SealEngine_GetEdgeColor), \
 	    HLL_TODO_EXPORT(Calc2DDetectionHeight, SealEngine_Calc2DDetectionHeight), \

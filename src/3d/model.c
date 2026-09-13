@@ -143,9 +143,11 @@ static GLuint *load_texture_list(struct archive *aar, const char *path, const ch
 	return textures;
 }
 
-static bool init_material(struct material *material, const struct pol_material *m, struct amt *amt, struct archive *aar, const char *path)
+static bool init_material(struct material *material, struct pol_material *m, struct amt *amt, struct archive *aar, const char *path)
 {
 	material->flags = m->flags;
+	glm_vec2_copy(m->uv_tiling, material->uv_tiling);
+	glm_vec2_one(material->blend_uv_tiling);
 	if (!m->textures[COLOR_MAP]) {
 		WARNING("No color texture");
 		return false;
@@ -575,6 +577,8 @@ struct model *model_load(struct archive *aar, const char *path)
 				if (child->children[1].m.textures[COLOR_MAP]) {
 					model->materials[material_offsets[i] + j].blend_texture =
 						load_texture(aar, path, child->children[1].m.textures[COLOR_MAP], NULL);
+					glm_vec2_copy(child->children[1].m.uv_tiling,
+						model->materials[material_offsets[i] + j].blend_uv_tiling);
 				}
 			} else {
 				init_material(&model->materials[material_offsets[i] + j],
@@ -735,6 +739,8 @@ struct model *model_create_sphere(int r, int g, int b, int a)
 	model->materials = xcalloc(1, sizeof(struct material));
 	struct material *material = &model->materials[0];
 	material->is_transparent = true;
+	glm_vec2_one(material->uv_tiling);
+	glm_vec2_one(material->blend_uv_tiling);
 	material->color_maps = xmalloc(sizeof(GLuint));
 	material->nr_color_maps = 1;
 	glGenTextures(1, material->color_maps);

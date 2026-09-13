@@ -42,6 +42,8 @@ uniform vec2 uv_scroll;
 
 #endif // ENGINE == REIGN_ENGINE
 
+uniform vec4 uv_tiling;
+
 #if ENABLE_LIGHT_SCATTERING
 uniform int fog_type;
 uniform vec4 ls_params;  // (beta_r, beta_m, g, distance)
@@ -128,11 +130,11 @@ void main() {
 	vec4 view_pos = view_transform * world_pos;
 	gl_Position = proj_transform * view_pos;
 
-	tex_coord = vertex_uv + uv_scroll;
+	tex_coord = (vertex_uv + uv_scroll) * uv_tiling.xy;
 	light_tex_coord = vertex_light_uv + uv_scroll;
 	color_mod = vertex_color;
 	blend_weight = vertex_blend_weight;
-	blend_tex_coord = vertex_blend_uv + uv_scroll;
+	blend_tex_coord = (vertex_blend_uv + uv_scroll) * uv_tiling.zw;
 	dist = -view_pos.z;
 	shadow_frag_pos = shadow_transform * world_pos;
 
