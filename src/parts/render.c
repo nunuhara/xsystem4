@@ -134,7 +134,7 @@ static void parts_render_text(struct parts *parts, struct parts_text *t)
 			mat4 mw_transform = WORLD_TRANSFORM(ch->t.w, ch->t.h, x, y);
 			Rectangle r = { 0, 0, ch->t.w, ch->t.h };
 			parts_render_texture(&ch->t, mw_transform, &r, blend_rate, add_color,
-					multiply_color, 0, parts->alpha_clipper_parts_no);
+					multiply_color, 0, parts->global.alpha_clipper_parts_no);
 			x += ch->advance;
 		}
 		x = parts->global.pos.x + t->common.origin_offset.x;
@@ -189,7 +189,9 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 		parts->global.multiply_color.g / 255.0f,
 		parts->global.multiply_color.b / 255.0f,
 	};
-	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color, parts->draw_filter, parts->alpha_clipper_parts_no);
+	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0,
+			add_color, multiply_color, parts->draw_filter,
+			parts->global.alpha_clipper_parts_no);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
@@ -292,7 +294,7 @@ static void render_flat_emitter(struct parts *parts, struct parts_flat *f,
 		struct emitter_render_ud ud = {
 			.f = f,
 			.parent_alpha = eff.alpha,
-			.alpha_clipper = parts->alpha_clipper_parts_no,
+			.alpha_clipper = parts->global.alpha_clipper_parts_no,
 			.draw_filter = eff.draw_filter,
 		};
 		glm_vec2_copy(align, ud.align);
@@ -351,7 +353,7 @@ static void render_flat_cg(struct parts *parts, Texture *tex,
 	glm_scale(render_m, (vec3){ tex->w, tex->h, 1.0f });
 
 	parts_render_texture(tex, render_m, &rect, ctx->alpha, ctx->add_color, ctx->mul_color,
-			ctx->draw_filter, parts->alpha_clipper_parts_no);
+			ctx->draw_filter, parts->global.alpha_clipper_parts_no);
 
 	if (ctx->draw_filter != PARTS_DRAW_FILTER_NORMAL)
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
@@ -520,7 +522,8 @@ static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f,
 		(parts->global.multiply_color.g / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[1]),
 		(parts->global.multiply_color.b / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[2])
 	};
-	parts_render_texture(src, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
+	parts_render_texture(src, mw_transform, &r, blend_rate, add_color, multiply_color,
+			0, parts->global.alpha_clipper_parts_no);
 }
 
 static void parts_render_flash_sprite(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_sprite *tag)

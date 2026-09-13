@@ -396,6 +396,7 @@ struct parts_params {
 	struct { float x, y, z; } rotation;
 	SDL_Color add_color;
 	SDL_Color multiply_color;
+	int alpha_clipper_parts_no;
 };
 
 struct parts {
@@ -428,7 +429,6 @@ struct parts {
 	int hover_time;
 	int draw_filter;
 	bool message_window;
-	int alpha_clipper_parts_no;
 	int margin_top;
 	int margin_bottom;
 	int margin_left;

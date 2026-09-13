@@ -43,7 +43,8 @@ static struct hash_table *parts_table = NULL;
 	.scale = { 1.0f, 1.0f }, \
 	.rotation = { 0.0f, 0.0f, 0.0f }, \
 	.add_color = { 0, 0, 0, 0 }, \
-	.multiply_color = { 255, 255, 255, 255 } \
+	.multiply_color = { 255, 255, 255, 255 }, \
+	.alpha_clipper_parts_no = 0 \
 }
 
 static struct parts_params root_params = PARTS_PARAMS_INITIALIZER(0);
@@ -1096,6 +1097,8 @@ static void parts_combine_params(struct parts_params *parent, struct parts_param
 	out->multiply_color.r = parent->multiply_color.r * (child->multiply_color.r / 255.0f);
 	out->multiply_color.g = parent->multiply_color.g * (child->multiply_color.g / 255.0f);
 	out->multiply_color.b = parent->multiply_color.b * (child->multiply_color.b / 255.0f);
+	out->alpha_clipper_parts_no = child->alpha_clipper_parts_no
+			? child->alpha_clipper_parts_no : parent->alpha_clipper_parts_no;
 }
 
 static void parts_update_component(struct parts *parts)
@@ -1939,7 +1942,8 @@ float PE_GetPartsRotateZ(int parts_no)
 void PE_SetPartsAlphaClipperPartsNumber(int parts_no, int alpha_clipper_parts_no)
 {
 	struct parts *parts = parts_get(parts_no);
-	parts->alpha_clipper_parts_no = alpha_clipper_parts_no;
+	parts->local.alpha_clipper_parts_no = alpha_clipper_parts_no;
+	parts_component_dirty(parts);
 	parts_dirty(parts);
 }
 

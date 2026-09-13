@@ -303,6 +303,7 @@ static cJSON *parts_params_to_json(struct parts_params *params, bool verbose)
 	cJSON_AddNumberToObject(tmp, "z", params->rotation.z);
 	cJSON_AddItemToObjectCS(obj, "add_color", color_to_json(&params->add_color, verbose));
 	cJSON_AddItemToObjectCS(obj, "mul_color", color_to_json(&params->multiply_color, verbose));
+	cJSON_AddNumberToObject(obj, "alpha_clipper_parts_no", params->alpha_clipper_parts_no);
 	return obj;
 }
 
@@ -411,7 +412,6 @@ cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 		cJSON_AddNumberToObject(obj, "linked_from", parts->linked_from);
 	cJSON_AddNumberToObject(obj, "draw_filter", parts->draw_filter);
 	cJSON_AddBoolToObject(obj, "message_window", parts->message_window);
-	cJSON_AddNumberToObject(obj, "alpha_clipper_parts_no", parts->alpha_clipper_parts_no);
 
 	cJSON_AddItemToObjectCS(obj, "motions", motions = cJSON_CreateArray());
 	struct parts_motion *motion;
