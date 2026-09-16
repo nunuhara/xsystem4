@@ -134,7 +134,7 @@ static void parts_render_text(struct parts *parts, struct parts_text *t)
 			mat4 mw_transform = WORLD_TRANSFORM(ch->t.w, ch->t.h, x, y);
 			Rectangle r = { 0, 0, ch->t.w, ch->t.h };
 			parts_render_texture(&ch->t, mw_transform, &r, blend_rate, add_color,
-					multiply_color, 0, parts->alpha_clipper_parts_no);
+					multiply_color, 0, parts->global.alpha_clipper_parts_no);
 			x += ch->advance;
 		}
 		x = parts->global.pos.x + t->common.origin_offset.x;
@@ -189,7 +189,9 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 		parts->global.multiply_color.g / 255.0f,
 		parts->global.multiply_color.b / 255.0f,
 	};
-	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color, parts->draw_filter, parts->alpha_clipper_parts_no);
+	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0,
+			add_color, multiply_color, parts->draw_filter,
+			parts->global.alpha_clipper_parts_no);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
@@ -224,7 +226,7 @@ static void render_emitter_particle_cb(const struct flat_emitter_particle *p,
 	if (p->rot[1] != 0)
 		glm_rotate_y(m, glm_rad(p->rot[1]), m);
 	glm_scale(m, (vec3){ p->scale[0], p->scale[1], 1.0f });
-	glm_translate(m, (vec3){ -d->align[0], -d->align[1], 0 });
+	glm_translate(m, (vec3){ d->align[0], d->align[1], 0 });
 
 	// Bring particle into screen space, then kill the Z-output row so
 	// clip_z stays at the near plane.
@@ -292,7 +294,7 @@ static void render_flat_emitter(struct parts *parts, struct parts_flat *f,
 		struct emitter_render_ud ud = {
 			.f = f,
 			.parent_alpha = eff.alpha,
-			.alpha_clipper = parts->alpha_clipper_parts_no,
+			.alpha_clipper = parts->global.alpha_clipper_parts_no,
 			.draw_filter = eff.draw_filter,
 		};
 		glm_vec2_copy(align, ud.align);
@@ -328,17 +330,6 @@ static void render_flat_cg(struct parts *parts, Texture *tex,
 
 	set_draw_filter_blend_func(ctx->draw_filter);
 
-	mat4 render_m;
-	glm_mat4_copy(ctx->matrix, render_m);
-	// Kill the Z-output row to pin clip_z at the near plane, avoiding
-	// near/far clipping of 3D-rotated sprites.
-	render_m[0][2] = render_m[1][2] = render_m[2][2] = render_m[3][2] = 0.0f;
-	// area_x/area_y select a sub-rectangle of the texture atlas, but
-	// should not shift the on-screen position. This translation cancels
-	// the offset that the sub-rect's top-left would otherwise introduce.
-	glm_translate(render_m, (vec3){ -(float)key->area_x, -(float)key->area_y, 0.0f });
-	glm_scale(render_m, (vec3){ tex->w, tex->h, 1.0f });
-
 	Rectangle rect;
 	if (key->area_width && key->area_height) {
 		rect = (Rectangle){ key->area_x, key->area_y, key->area_width, key->area_height };
@@ -346,8 +337,23 @@ static void render_flat_cg(struct parts *parts, Texture *tex,
 		rect = (Rectangle){ 0, 0, tex->w, tex->h };
 	}
 
+	vec2 align;
+	parts_flat_align_offset(key->align, rect.w, rect.h, align);
+
+	mat4 render_m;
+	glm_mat4_copy(ctx->matrix, render_m);
+	// Kill the Z-output row to pin clip_z at the near plane, avoiding
+	// near/far clipping of 3D-rotated sprites.
+	render_m[0][2] = render_m[1][2] = render_m[2][2] = render_m[3][2] = 0.0f;
+	glm_translate(render_m, (vec3){ align[0], align[1], 0.0f });
+	// area_x/area_y select a sub-rectangle of the texture atlas, but
+	// should not shift the on-screen position. This translation cancels
+	// the offset that the sub-rect's top-left would otherwise introduce.
+	glm_translate(render_m, (vec3){ -(float)key->area_x, -(float)key->area_y, 0.0f });
+	glm_scale(render_m, (vec3){ tex->w, tex->h, 1.0f });
+
 	parts_render_texture(tex, render_m, &rect, ctx->alpha, ctx->add_color, ctx->mul_color,
-			ctx->draw_filter, parts->alpha_clipper_parts_no);
+			ctx->draw_filter, parts->global.alpha_clipper_parts_no);
 
 	if (ctx->draw_filter != PARTS_DRAW_FILTER_NORMAL)
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
@@ -516,7 +522,8 @@ static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f,
 		(parts->global.multiply_color.g / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[1]),
 		(parts->global.multiply_color.b / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[2])
 	};
-	parts_render_texture(src, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
+	parts_render_texture(src, mw_transform, &r, blend_rate, add_color, multiply_color,
+			0, parts->global.alpha_clipper_parts_no);
 }
 
 static void parts_render_flash_sprite(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_sprite *tag)

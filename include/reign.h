@@ -29,6 +29,8 @@
 typedef struct cJSON cJSON;
 struct hash_table;
 struct billboard_texture;
+struct iarray_reader;
+struct iarray_writer;
 
 enum RE_plugin_version {
 	RE_REIGN_PLUGIN,  // Toushin Toshi 3
@@ -135,6 +137,7 @@ struct RE_plugin {
 	struct RE_renderer *renderer;
 	struct RE_camera camera;
 	mat4 proj_transform;
+	int viewport_x, viewport_y, viewport_width, viewport_height;
 
 	struct RE_back_cg back_cg[RE_NR_BACK_CGS];
 
@@ -195,6 +198,7 @@ struct RE_instance {
 	struct height_detector *height_detector;
 
 	enum RE_instance_type type;
+	struct string *name;
 	int target[RE_NR_INSTANCE_TARGETS];
 	vec3 pos;
 	float pitch, roll, yaw;  // in degrees
@@ -361,6 +365,10 @@ bool RE_back_cg_set_name(struct RE_back_cg *bcg, struct string *name, struct arc
 
 void RE_render(struct sact_sprite *sp);
 cJSON *RE_to_json(struct sact_sprite *sp, bool verbose);
+
+// save.c
+void RE_plugin_serialize(struct RE_plugin *plugin, struct iarray_writer *w);
+void RE_plugin_deserialize(struct RE_plugin *plugin, struct iarray_reader *r, int version);
 
 // Exposed for PartsEngine 3DLayer
 int ReignEngine_create_plugin(enum RE_plugin_version version);

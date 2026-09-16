@@ -396,6 +396,7 @@ struct parts_params {
 	struct { float x, y, z; } rotation;
 	SDL_Color add_color;
 	SDL_Color multiply_color;
+	int alpha_clipper_parts_no;
 };
 
 struct parts {
@@ -428,7 +429,6 @@ struct parts {
 	int hover_time;
 	int draw_filter;
 	bool message_window;
-	int alpha_clipper_parts_no;
 	int margin_top;
 	int margin_bottom;
 	int margin_left;
@@ -504,6 +504,7 @@ bool parts_gauge_set_cg(struct parts *parts, struct parts_gauge *g, struct strin
 bool parts_gauge_set_cg_by_index(struct parts *parts, struct parts_gauge *g, int cg_no);
 void parts_hgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate);
 void parts_vgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate);
+bool parts_3dlayer_create_plugin(struct parts_3dlayer *l);
 
 // text.c
 void parts_text_free(struct parts_text *t);
@@ -602,6 +603,7 @@ struct flat_key_stack {
 
 typedef void (*flat_emitter_particle_fn)(const struct flat_emitter_particle *p,
 		void *ud);
+void parts_flat_align_offset(int align, int w, int h, vec2 out);
 bool parts_flat_emitter_get_align_offset(struct parts_flat *f, int emitter_lib_idx, vec2 out);
 void parts_flat_foreach_emitter_particle(struct parts_flat *f, int emitter_lib_idx,
 		const struct flat_key_data_graphic *keys,

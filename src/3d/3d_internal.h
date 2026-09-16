@@ -224,6 +224,7 @@ struct billboard_texture {
 
 extern enum RE_plugin_version re_plugin_version;
 
+struct RE_instance *RE_create_instance_at(struct RE_plugin *plugin, int index);
 void RE_instance_update_local_transform(struct RE_instance *inst);
 
 // model.c

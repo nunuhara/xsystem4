@@ -70,6 +70,10 @@ static void free_instance(struct RE_instance *instance);
 
 static void unload_instance(struct RE_instance *instance)
 {
+	if (instance->name) {
+		free_string(instance->name);
+		instance->name = NULL;
+	}
 	// A billboard's motion holds frame animation state that the game can set
 	// before loading the instance data, so it must survive unloads.
 	if (instance->motion && instance->type != RE_ITYPE_BILLBOARD) {
@@ -397,6 +401,10 @@ bool RE_set_viewport(struct RE_plugin *plugin, int x, int y, int width, int heig
 	sprite_init_color(sp, width, height, 0, 0, 0, 255);
 	sprite_set_pos(sp, x, y);
 	RE_renderer_set_viewport_size(plugin->renderer, width, height);
+	plugin->viewport_x = x;
+	plugin->viewport_y = y;
+	plugin->viewport_width = width;
+	plugin->viewport_height = height;
 	return true;
 }
 
@@ -420,17 +428,29 @@ int RE_create_instance(struct RE_plugin *plugin)
 {
 	if (!plugin)
 		return -1;
-	for (int i = 0; i < plugin->nr_instances; i++) {
-		if (!plugin->instances[i]) {
-			plugin->instances[i] = create_instance(plugin);
-			return i;
-		}
+	int index;
+	for (index = 0; index < plugin->nr_instances; index++) {
+		if (!plugin->instances[index])
+			break;
 	}
-	int old_size = plugin->nr_instances;
-	plugin->nr_instances *= 2;
-	plugin->instances = xrealloc_array(plugin->instances, old_size, plugin->nr_instances, sizeof(struct RE_instance *));
-	plugin->instances[old_size] = create_instance(plugin);
-	return old_size;
+	RE_create_instance_at(plugin, index);
+	return index;
+}
+
+struct RE_instance *RE_create_instance_at(struct RE_plugin *plugin, int index)
+{
+	if (index >= plugin->nr_instances) {
+		int old_size = plugin->nr_instances;
+		int new_size = old_size;
+		while (new_size <= index)
+			new_size *= 2;
+		plugin->instances = xrealloc_array(plugin->instances, old_size, new_size, sizeof(struct RE_instance *));
+		plugin->nr_instances = new_size;
+	}
+	if (plugin->instances[index])
+		free_instance(plugin->instances[index]);
+	plugin->instances[index] = create_instance(plugin);
+	return plugin->instances[index];
 }
 
 bool RE_release_instance(struct RE_plugin *plugin, int instance)
@@ -540,6 +560,7 @@ bool RE_instance_load(struct RE_instance *instance, const char *name)
 	unload_instance(instance);
 	if (name[0] == '\0')
 		return true;  // empty name just unloads the instance
+	instance->name = cstr_to_string(name);
 
 	switch (instance->type) {
 	case RE_ITYPE_STATIC:

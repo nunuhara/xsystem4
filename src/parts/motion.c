@@ -554,6 +554,11 @@ void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate)
 	msgskip_speedup_rate = max(1, rate);
 }
 
+int PE_GetSpeedupRateByMessageSkip(int parts_no)
+{
+	return msgskip_speedup_rate;
+}
+
 bool PE_IsMotion(void)
 {
 	return is_motion;
