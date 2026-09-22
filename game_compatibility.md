@@ -84,4 +84,14 @@ issues, please let me know or open a pull request to update this table.
 | Rance 01 - Quest for Hikari (EN)                        | Supported   |       |
 | ランスIX－ヘルマン革命－                                | Supported   |       |
 | Rance IX - The Helmanian Revolution (EN)                | Unknown     |       |
-| All games released after Rance IX                       | Unsupported |       |
+| 武想少女隊ぶれいど☆ブライダーズ                         | Supported   |       |
+| イブニクル                                              | Unsupported |       |
+| Evenicle (EN)                                           | Unsupported |       |
+| ランス03 リーザス陥落                                   | Unsupported |       |
+| Rance 03 -The Fall of Leazas- (EN)                      | Unsupported |       |
+| 妻みぐい3                                               | Unsupported |       |
+| は～とふるママン                                        | Unsupported |       |
+| 超昂神騎エクシール                                      | Unsupported |       |
+| Beat Valkyrie Ixseal (EN)                               | Unsupported |       |
+| Rance X －決戦－                                        | Unsupported |       |
+| All games released after Rance X                        | Unsupported |       |
