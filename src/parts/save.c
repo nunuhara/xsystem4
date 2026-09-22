@@ -21,10 +21,11 @@
 #include "vm/page.h"
 #include "asset_manager.h"
 #include "parts.h"
+#include "reign.h"
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 5
+#define CURRENT_SAVE_VERSION 7
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -39,9 +40,10 @@ static void save_parts_params(struct iarray_writer *w, struct parts_params *para
 	iarray_write_float(w, params->rotation.z);
 	iarray_write_color(w, &params->add_color);
 	iarray_write_color(w, &params->multiply_color);
+	iarray_write(w, params->alpha_clipper_parts_no);
 }
 
-static void load_parts_params(struct iarray_reader *r, struct parts_params *params)
+static void load_parts_params(struct iarray_reader *r, struct parts_params *params, int version)
 {
 	params->z = iarray_read(r);
 	iarray_read_point(r, &params->pos);
@@ -54,6 +56,8 @@ static void load_parts_params(struct iarray_reader *r, struct parts_params *para
 	params->rotation.z = iarray_read_float(r);
 	iarray_read_color(r, &params->add_color);
 	iarray_read_color(r, &params->multiply_color);
+	if (version >= 7)
+		params->alpha_clipper_parts_no = iarray_read(r);
 }
 
 static void save_parts_cg(struct iarray_writer *w, struct parts_cg *cg)
@@ -376,6 +380,24 @@ static void load_parts_flat(struct iarray_reader *r, struct parts *parts,
 	flat->needs_advance = true;
 }
 
+static void save_parts_3dlayer(struct iarray_writer *w, struct parts_3dlayer *l)
+{
+	struct RE_plugin *plugin = l->plugin >= 0 ? RE_get_plugin(l->plugin) : NULL;
+	iarray_write(w, !!plugin);
+	if (plugin)
+		RE_plugin_serialize(plugin, w);
+}
+
+static void load_parts_3dlayer(struct iarray_reader *r, struct parts_3dlayer *l,
+		int version)
+{
+	if (!iarray_read(r))
+		return;
+	if (!parts_3dlayer_create_plugin(l))
+		VM_ERROR("cannot create 3D layer plugin");
+	RE_plugin_deserialize(RE_get_plugin(l->plugin), r, version);
+}
+
 static void save_parts_layout_box(struct iarray_writer *w, struct parts_layout_box *lb)
 {
 	iarray_write(w, lb->layout_type);
@@ -412,7 +434,9 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 	case PARTS_UNINITIALIZED:
 	case PARTS_MOVIE:
 	case PARTS_RECT_DETECTION:
+		break;
 	case PARTS_3DLAYER:
+		save_parts_3dlayer(w, &state->layer3d);
 		break;
 	case PARTS_CG:
 		save_parts_cg(w, &state->cg);
@@ -458,7 +482,10 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 	case PARTS_UNINITIALIZED:
 	case PARTS_MOVIE:
 	case PARTS_RECT_DETECTION:
+		break;
 	case PARTS_3DLAYER:
+		if (version > 5)
+			load_parts_3dlayer(r, &state->layer3d, version);
 		break;
 	case PARTS_CG:
 		load_parts_cg(r, parts, &state->cg);
@@ -587,7 +614,6 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	iarray_write(w, parts->linked_from);
 	iarray_write(w, parts->draw_filter);
 	iarray_write(w, parts->message_window);
-	iarray_write(w, parts->alpha_clipper_parts_no);
 	iarray_write(w, parts->controller_no);
 	iarray_write(w, parts->pass_cursor);
 	iarray_write(w, parts->lock_input_state);
@@ -619,8 +645,8 @@ static void load_parts(struct iarray_reader *r, int version)
 		load_parts_state(r, parts, &parts->states[i], version);
 	}
 
-	load_parts_params(r, &parts->local);
-	load_parts_params(r, &parts->global);
+	load_parts_params(r, &parts->local, version);
+	load_parts_params(r, &parts->global, version);
 	parts->pending_parent = iarray_read(r);
 	parts->delegate_index = iarray_read(r);
 	parts->sprite_deform = iarray_read(r);
@@ -633,8 +659,8 @@ static void load_parts(struct iarray_reader *r, int version)
 	parts->draw_filter = iarray_read(r);
 	if (version > 0)
 		parts->message_window = iarray_read(r);
-	if (version > 2)
-		parts->alpha_clipper_parts_no = iarray_read(r);
+	if (version > 2 && version < 7)
+		parts->local.alpha_clipper_parts_no = iarray_read(r);
 	if (version > 3 || (version == 3 && parts_multi_controller)) {
 		parts->controller_no = iarray_read(r);
 		parts->pass_cursor = iarray_read(r);

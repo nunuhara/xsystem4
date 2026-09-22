@@ -97,6 +97,7 @@ bool PE_SetPartsGroupNumber(int parts_no, int group_no);
 void PE_SetPartsMessageWindowShowLink(int parts_no, bool message_window_show_link);
 bool PE_GetPartsMessageWindowShowLink(int parts_no);
 void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate);
+int PE_GetSpeedupRateByMessageSkip(int parts_no);
 void PE_SetPartsMagX(int parts_no, float scale_x);
 float PE_GetPartsMagX(int parts_no);
 void PE_SetPartsMagY(int parts_no, float scale_y);
@@ -130,6 +131,7 @@ bool PE_IsExist(int parts_no);
 void PE_set_active_controller(int controller_no);
 int PE_get_active_controller(void);
 int PE_get_system_controller(void);
+int PE_get_nr_controllers(void);
 void PE_parts_set_want_save(int parts_no, bool want_save);
 bool PE_save_thumbnail(struct string *filename, int reduction_factor);
 bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state);
@@ -252,6 +254,7 @@ void PE_PauseMotion(bool pause);
 
 // text.c
 bool PE_SetText(int parts_no, struct string *text, int state);
+struct string *PE_GetText(int parts_no, int state);
 bool PE_AddPartsText(int parts_no, struct string *text, int state);
 bool PE_SetPartsTextSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
 bool PE_SetFont(int parts_no, int type, int size, int r, int g, int b, float bold_weight, int edge_r, int edge_g, int edge_b, float edge_weight, int state);

@@ -34,23 +34,25 @@
 struct parts_list parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
 static struct parts_list dirty_list = TAILQ_HEAD_INITIALIZER(dirty_list);
 static struct hash_table *parts_table = NULL;
-static Point root_pos = { 0, 0 };
 
-struct parts_controller_stack ctrl_stack;
-bool parts_multi_controller;
-
-static void ctrl_stack_init(void);
-
-#define PARTS_PARAMS_INITIALIZER (struct parts_params) { \
-	.z = 1, \
+#define PARTS_PARAMS_INITIALIZER(Z) (struct parts_params) { \
+	.z = Z, \
 	.pos = { 0, 0 }, \
 	.show = true, \
 	.alpha = 255, \
 	.scale = { 1.0f, 1.0f }, \
 	.rotation = { 0.0f, 0.0f, 0.0f }, \
 	.add_color = { 0, 0, 0, 0 }, \
-	.multiply_color = { 255, 255, 255, 255 } \
+	.multiply_color = { 255, 255, 255, 255 }, \
+	.alpha_clipper_parts_no = 0 \
 }
+
+static struct parts_params root_params = PARTS_PARAMS_INITIALIZER(0);
+
+struct parts_controller_stack ctrl_stack;
+bool parts_multi_controller;
+
+static void ctrl_stack_init(void);
 
 static void parts_init(struct parts *parts)
 {
@@ -59,8 +61,8 @@ static void parts_init(struct parts *parts)
 	parts->sp.has_alpha = true;
 	parts->sp.render = parts_sprite_render;
 	parts->sp.to_json = parts_sprite_to_json;
-	parts->local = PARTS_PARAMS_INITIALIZER;
-	parts->global = PARTS_PARAMS_INITIALIZER;
+	parts->local = PARTS_PARAMS_INITIALIZER(1);
+	parts->global = PARTS_PARAMS_INITIALIZER(1);
 	parts->delegate_index = -1;
 	parts->want_save = true;
 	parts->on_cursor_sound = -1;
@@ -452,16 +454,16 @@ void parts_set_pos(struct parts *parts, Point pos)
 	parts->local.pos.x = pos.x;
 	parts->local.pos.y = pos.y;
 	parts_recalculate_hitbox(parts);
-	parts_update_global_pos(parts, parts->parent ? parts->parent->global.pos : root_pos);
+	parts_update_global_pos(parts, parts->parent ? parts->parent->global.pos : root_params.pos);
 	parts_dirty(parts);
 }
 
 void parts_set_global_pos(Point pos)
 {
-	root_pos = pos;
+	root_params.pos = pos;
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
-		parts_update_global_pos(parts, root_pos);
+		parts_update_global_pos(parts, root_params.pos);
 	}
 	parts_engine_dirty();
 }
@@ -1002,6 +1004,7 @@ void parts_release(int parts_no)
 		struct parts *child = TAILQ_FIRST(&parts->children);
 		TAILQ_REMOVE(&parts->children, child, child_list_entry);
 		child->parent = NULL;
+		parts_component_dirty(child);
 	}
 	if (parts->parent) {
 		TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
@@ -1094,13 +1097,14 @@ static void parts_combine_params(struct parts_params *parent, struct parts_param
 	out->multiply_color.r = parent->multiply_color.r * (child->multiply_color.r / 255.0f);
 	out->multiply_color.g = parent->multiply_color.g * (child->multiply_color.g / 255.0f);
 	out->multiply_color.b = parent->multiply_color.b * (child->multiply_color.b / 255.0f);
+	out->alpha_clipper_parts_no = child->alpha_clipper_parts_no
+			? child->alpha_clipper_parts_no : parent->alpha_clipper_parts_no;
 }
 
 static void parts_update_component(struct parts *parts)
 {
-	if (parts->parent) {
-		parts_combine_params(&parts->parent->global, &parts->local, &parts->global);
-	}
+	parts_combine_params(parts->parent ? &parts->parent->global : &root_params,
+			&parts->local, &parts->global);
 	if (parts_get_sprite_z(parts) != parts->sp.z
 			|| parts_get_sprite_z2(parts) != parts->sp.z2) {
 		parts_list_resort(parts);
@@ -1938,7 +1942,8 @@ float PE_GetPartsRotateZ(int parts_no)
 void PE_SetPartsAlphaClipperPartsNumber(int parts_no, int alpha_clipper_parts_no)
 {
 	struct parts *parts = parts_get(parts_no);
-	parts->alpha_clipper_parts_no = alpha_clipper_parts_no;
+	parts->local.alpha_clipper_parts_no = alpha_clipper_parts_no;
+	parts_component_dirty(parts);
 	parts_dirty(parts);
 }
 
@@ -2184,6 +2189,11 @@ int PE_get_system_controller(void)
 	return PARTS_CONTROLLER_SYSTEM_OVERLAY;
 }
 
+int PE_get_nr_controllers(void)
+{
+	return ctrl_stack.nr_controllers;
+}
+
 void PE_parts_set_want_save(int parts_no, bool want_save)
 {
 	parts_get(parts_no)->want_save = want_save;
@@ -2248,13 +2258,8 @@ int PE_get_movie_sprite(int parts_no, int state)
 	return parts->states[state].movie.sprite_no;
 }
 
-bool PE_CreateParts3DLayerPluginID(int parts_no, int state)
+bool parts_3dlayer_create_plugin(struct parts_3dlayer *l)
 {
-	if (!parts_state_valid(--state))
-		return false;
-	struct parts *parts = parts_get(parts_no);
-	struct parts_3dlayer *l = parts_get_3dlayer(parts, state);
-
 	if (l->plugin >= 0)
 		return false;
 
@@ -2281,6 +2286,14 @@ bool PE_CreateParts3DLayerPluginID(int parts_no, int state)
 	l->plugin = handle;
 	l->sprite_no = sp_no;
 	return true;
+}
+
+bool PE_CreateParts3DLayerPluginID(int parts_no, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_get(parts_no);
+	return parts_3dlayer_create_plugin(parts_get_3dlayer(parts, state));
 }
 
 int PE_GetParts3DLayerPluginID(int parts_no, int state)
