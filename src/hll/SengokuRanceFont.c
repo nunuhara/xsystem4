@@ -43,6 +43,105 @@ struct sr_text_properties {
 	struct text_style ts;
 };
 
+// A font_size that uses FNL first and Gothic for missing glyphs.
+struct sr_fallback_font_size {
+	struct font_size super;
+	struct font_size *fnl;
+	struct font_size *gothic;
+	struct sr_fallback_font_size *next;
+};
+
+#define SR_FALLBACK_FONT_SCALE 0.75f
+#define SR_FALLBACK_VERTICAL_SHIFT_RATIO 0.65f
+
+static struct sr_fallback_font_size *sr_fallback_sizes;
+
+static uint32_t sjis_code_to_unicode(uint32_t code)
+{
+	char sjis[] = { code >> 8, code, 0 };
+	const char *p = code > 0xff ? sjis : sjis + 1;
+	int unicode;
+	sjis_char2unicode(p, &unicode);
+	return unicode;
+}
+
+static bool sr_fallback_get_glyph(struct font_size *_size, struct glyph *glyph,
+		uint32_t code, enum font_weight weight)
+{
+	struct sr_fallback_font_size *size = (struct sr_fallback_font_size*)_size;
+	if (size->fnl->font->get_glyph(size->fnl, glyph, code, weight))
+		return true;
+
+	if (!size->gothic->font->get_glyph(size->gothic, glyph,
+			sjis_code_to_unicode(code), weight))
+		return false;
+	// Align the gothic glyph toward the bottom of the FNL line.
+	glyph->rect.y += size->fnl->y_offset - size->gothic->y_offset;
+	glyph->rect.y -= lroundf((size->fnl->size - size->gothic->size)
+		* SR_FALLBACK_VERTICAL_SHIFT_RATIO);
+	return true;
+}
+
+static float sr_fallback_size_char(struct font_size *_size, uint32_t code)
+{
+	struct sr_fallback_font_size *size = (struct sr_fallback_font_size*)_size;
+	float width = size->fnl->font->size_char(size->fnl, code);
+	if (width != 0.0f)
+		return width;
+	return size->gothic->font->size_char(size->gothic,
+			sjis_code_to_unicode(code));
+}
+
+static float sr_fallback_size_char_kerning(struct font_size *size, uint32_t code,
+		uint32_t code_next)
+{
+	struct sr_fallback_font_size *fallback = (struct sr_fallback_font_size*)size;
+	float width = fallback->fnl->font->size_char_kerning(fallback->fnl,
+			code, code_next);
+	if (width != 0.0f)
+		return width;
+	return fallback->gothic->font->size_char_kerning(fallback->gothic,
+			sjis_code_to_unicode(code), sjis_code_to_unicode(code_next));
+}
+
+static struct font sr_fallback_font = {
+	.charmap = CHARMAP_SJIS,
+	.get_glyph = sr_fallback_get_glyph,
+	.size_char = sr_fallback_size_char,
+	.size_char_kerning = sr_fallback_size_char_kerning,
+};
+
+static struct font_size *sr_get_fallback_size(struct font_size *fnl)
+{
+	// One wrapper per FNL size.
+	for (struct sr_fallback_font_size *size = sr_fallback_sizes; size;
+			size = size->next) {
+		if (size->fnl == fnl)
+			return &size->super;
+	}
+
+	struct sr_fallback_font_size *size = xcalloc(1, sizeof(*size));
+	size->super.size = fnl->size;
+	size->super.y_offset = fnl->y_offset;
+	size->super.font = &sr_fallback_font;
+	size->fnl = fnl;
+	size->gothic = gfx_font_get_size(FONT_GOTHIC,
+			fnl->size * SR_FALLBACK_FONT_SCALE);
+	size->next = sr_fallback_sizes;
+	sr_fallback_sizes = size;
+	return &size->super;
+}
+
+static void sr_prepare_text_style(struct text_style *ts)
+{
+	if (ts->font_size)
+		return;
+	struct font_size *size = gfx_font_get_size(ts->face, ts->size);
+	// Install the wrapper only on FNL text styles.
+	ts->font_size = size->font->charmap == CHARMAP_SJIS
+		? sr_get_fallback_size(size) : size;
+}
+
 static struct sr_text_properties default_text_properties = {
 	.x = 0.0,
 	.y = 0,
@@ -134,6 +233,7 @@ static void SengokuRanceFont_SetEdgeWidth(float w)
 
 static float SengokuRanceFont_GetTextWidth(struct string *str)
 {
+	sr_prepare_text_style(&current_text_properties.ts);
 	return gfx_size_text(&current_text_properties.ts, str->text);
 }
 
@@ -326,6 +426,7 @@ static float sp_text_draw(struct sact_sprite *sp, struct sr_text_properties *tp,
 	if (tp->ts.size < 8) {
 		tp->ts.size = 8;
 	}
+	sr_prepare_text_style(&tp->ts);
 
 	if (!sp->text.texture.handle) {
 		gfx_init_texture_rgba(&sp->text.texture, sp->rect.w, sp->rect.h, COLOR(0, 0, 0, 0));
