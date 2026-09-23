@@ -510,6 +510,7 @@ struct parts {
 	bool draggable;
 	int on_cursor_sound;
 	int on_click_sound;
+	struct string *sound_names[PARTS_NR_STATES];
 	int origin_mode;
 	int pending_parent;
 	int linked_to;

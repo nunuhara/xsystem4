@@ -422,6 +422,19 @@ cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 		cJSON_AddNumberToObject(obj, "on_cursor_sound", parts->on_cursor_sound);
 	if (parts->on_click_sound >= 0)
 		cJSON_AddNumberToObject(obj, "on_click_sound", parts->on_click_sound);
+	bool has_sound_name = false;
+	for (int i = 0; i < PARTS_NR_STATES; i++)
+		has_sound_name |= parts->sound_names[i] != NULL;
+	if (has_sound_name) {
+		cJSON *sound_names;
+		cJSON_AddItemToObjectCS(obj, "sound_names", sound_names = cJSON_CreateArray());
+		for (int i = 0; i < PARTS_NR_STATES; i++) {
+			struct string *name = parts->sound_names[i];
+			char *utf = sjis2utf(name ? name->text : "", 0);
+			cJSON_AddItemToArray(sound_names, cJSON_CreateString(utf));
+			free(utf);
+		}
+	}
 	cJSON_AddNumberToObject(obj, "origin_mode", parts->origin_mode);
 	cJSON_AddNumberToObject(obj, "parent", parts->parent ? parts->parent->no : -1);
 	if (parts->linked_to >= 0)

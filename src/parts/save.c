@@ -25,7 +25,7 @@
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 8
+#define CURRENT_SAVE_VERSION 9
 
 // Old save data can store a layout box as this sprite type.
 #define LEGACY_SPRITE_LAYOUTBOX 12
@@ -785,6 +785,8 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	iarray_write(w, parts->margin_left);
 	iarray_write(w, parts->margin_right);
 	iarray_write(w, parts->draggable);
+	for (int i = 0; i < PARTS_NR_STATES; i++)
+		iarray_write_string_or_null(w, parts->sound_names[i]);
 
 	unsigned motion_count_pos = iarray_writer_pos(w);
 	iarray_write(w, 0); // size of motion list
@@ -835,6 +837,10 @@ static void load_parts(struct iarray_reader *r, int version)
 		parts->margin_left = iarray_read(r);
 		parts->margin_right = iarray_read(r);
 		parts->draggable = iarray_read(r);
+	}
+	if (version >= 9) {
+		for (int i = 0; i < PARTS_NR_STATES; i++)
+			parts->sound_names[i] = iarray_read_string_or_null(r);
 	}
 
 	int motion_count = iarray_read(r);

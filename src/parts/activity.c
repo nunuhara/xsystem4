@@ -603,8 +603,14 @@ static void pact_common(struct buffer *r, struct parts *p)
 	p->pass_cursor = buffer_read_u8(r);
 	p->draggable = buffer_read_u8(r);
 	pact_skip(r, "bb");  // unknown
-	pact_skip(r, "ssss");  // sound event names (not yet implemented)
-	pact_skip(r, "iiii");  // sound event values
+	for (int state = 0; state <= PARTS_NR_STATES; state++) {
+		struct string *name = cstr_to_string(buffer_skip_string(r));
+		// Slot 0 is unused.
+		if (state != 0)
+			PE_SetPartsSoundName(p->no, name, state);
+		free_string(name);
+	}
+	pact_skip(r, "iiii");  // ResetTimerByChangeInputStatus for each state
 }
 
 static bool pact_part(struct buffer *r, struct activity_part *part)
