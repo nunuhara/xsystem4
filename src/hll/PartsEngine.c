@@ -355,6 +355,11 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		}
 		return 1;
 	}
+	case 158:  // void SetFlatUpdateSpeedRate(int parts_no, float rate, int state)
+		REQUIRE_INTS(2);
+		REQUIRE_FLOATS(1);
+		PE_SetFlatUpdateSpeedRate(ints[0].i, floats[0].f, ints[1].i);
+		return 1;
 	case 162:  // AddConstructProcess(ArrayInt[32], ArrayFloat[2], ArrayString[2])
 		REQUIRE_INTS(32);
 		REQUIRE_FLOATS(2);

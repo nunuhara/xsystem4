@@ -293,6 +293,7 @@ bool PE_StopPartsFlat(int parts_no, int state);
 bool PE_StartPartsFlat(int parts_no, int state);
 bool PE_GoFramePartsFlat(int parts_no, int frame_no, int state);
 int PE_GetPartsFlatEndFrame(int parts_no, int state);
+void PE_SetFlatUpdateSpeedRate(int parts_no, float rate, int state);
 
 // layoutbox.c
 void PE_SetLayoutBoxLayoutType(int parts_no, int type);
