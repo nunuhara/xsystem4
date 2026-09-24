@@ -2113,19 +2113,15 @@ static void ctrl_stack_init(void)
 	PE_AddController(-1);
 }
 
-// Adds a new controller to the stack and makes it active. The `index`
-// parameter specifies the position in the stack at which to insert the new
-// controller; -1 means "insert directly after the currently active
-// controller". In practice the game only ever passes -1, and the active
-// controller is always the top of the stack at that point, so this
-// degenerates to a simple push.
-int PE_AddController(int index)
+// Adds a controller after the one with the specified ID and makes it active.
+// An unknown ID (including -1) uses the active controller. Only appending to
+// the stack is supported.
+int PE_AddController(int controller_id)
 {
-	if (index != -1)
-		VM_ERROR("index != -1 not supported (got %d)", index);
-	if (ctrl_stack.nr_controllers > 0 &&
-			ctrl_stack.active != ctrl_stack.nr_controllers - 1)
-		VM_ERROR("active controller is not at the top of the stack");
+	int base = controller_id >= 0 && controller_id < ctrl_stack.nr_controllers
+		? controller_id : ctrl_stack.active;
+	if (ctrl_stack.nr_controllers > 0 && base != ctrl_stack.nr_controllers - 1)
+		VM_ERROR("cannot add controller after non-top controller %d", base);
 	if (ctrl_stack.nr_controllers >= PARTS_CONTROLLER_STACK_MAX)
 		VM_ERROR("controller stack overflow");
 
@@ -2134,21 +2130,15 @@ int PE_AddController(int index)
 	return no;
 }
 
-// Removes the controller at position `index` from the stack, releases all
-// parts belonging to it, and returns their parts numbers in
-// `erase_number_list`. `index == -1` means "remove the currently active
-// controller". In practice the game only ever passes -1, and the active
-// controller is always the top of the stack at that point, so this
-// degenerates to a simple pop.
-void PE_RemoveController(struct page **erase_number_list, int index)
+// Removes the controller with the specified ID and returns the numbers of its
+// parts in `erase_number_list`. An unknown ID (including -1) uses the active
+// controller. Only popping the top controller is supported.
+void PE_RemoveController(struct page **erase_number_list, int controller_id)
 {
-	if (index != -1)
-		VM_ERROR("index != -1 not supported (got %d)", index);
-	if (ctrl_stack.nr_controllers == 0 ||
-			ctrl_stack.active != ctrl_stack.nr_controllers - 1)
-		VM_ERROR("active controller is not at the top of the stack");
-
-	int ctrl_no = ctrl_stack.active;
+	int ctrl_no = controller_id >= 0 && controller_id < ctrl_stack.nr_controllers
+		? controller_id : ctrl_stack.active;
+	if (ctrl_stack.nr_controllers == 0 || ctrl_no != ctrl_stack.nr_controllers - 1)
+		VM_ERROR("cannot remove non-top controller %d", ctrl_no);
 
 	// Collect and release parts belonging to this controller
 	struct parts *p = TAILQ_FIRST(&parts_list);
