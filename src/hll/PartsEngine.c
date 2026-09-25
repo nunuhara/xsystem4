@@ -108,125 +108,38 @@ static float PartsEngine_GetLayoutBoxReturnSize_float(int parts_no)
 static void PartsEngine_add_construction_process(union vm_value *ints,
 		union vm_value *floats, union vm_value *strings)
 {
-	int parts_no    = ints[0].i;
-	int state       = ints[1].i;
-	int command     = ints[2].i;
-	int interp_type = ints[3].i;
-	int sx          = ints[4].i;
-	int sy          = ints[5].i;
-	int sw          = ints[6].i;
-	int sh          = ints[7].i;
-	int dx          = ints[8].i;
-	int dy          = ints[9].i;
-	int dw          = ints[12].i;
-	int dh          = ints[13].i;
-	int r           = ints[14].i;
-	int g           = ints[15].i;
-	int b           = ints[16].i;
-	int a           = ints[17].i;
-	// int r2       = ints[18].i;
-	// int g2       = ints[19].i;
-	// int b2       = ints[20].i;
-	int char_space  = ints[21].i;
-	int line_space  = ints[22].i;
-	int font_type   = ints[23].i;
-	int font_size   = ints[24].i;
-	int font_r      = ints[25].i;
-	int font_g      = ints[26].i;
-	int font_b      = ints[27].i;
-	int edge_r      = ints[28].i;
-	int edge_g      = ints[29].i;
-	int edge_b      = ints[30].i;
-	int full_size   = ints[31].i;
-	float bold_weight = floats[0].f;
-	float edge_weight = floats[1].f;
-	struct string *text    = heap_get_string(strings[0].i);
-	struct string *cg_name = heap_get_string(strings[1].i);
-
-	switch (command) {
-	case 0:  // CASConstructionProcess::SetCreate
-		PE_AddCreateToPartsConstructionProcess(parts_no, dw, dh, state);
-		break;
-	case 1:  // CASConstructionProcess::SetCreatePixelOnly
-		PE_AddCreatePixelOnlyToPartsConstructionProcess(parts_no, dw, dh, state);
-		break;
-	case 2:  // CASConstructionProcess::SetCreateCG
-		PE_AddCreateCGToProcess(parts_no, cg_name, state);
-		break;
-	case 3:  // CASConstructionProcess::SetFill
-		PE_AddFillToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, r, g, b, state);
-		break;
-	case 4:  // CASConstructionProcess::SetFillAlphaColor
-		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, r, g, b, a, state);
-		break;
-	case 5:  // CASConstructionProcess::SetFillAMap
-		PE_AddFillAMapToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, a, state);
-		break;
-	case 6:  // CASConstructionProcess::SetFillWithAlpha
-		PE_AddFillWithAlphaToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, r, g, b, a, state);
-		break;
-	case 7:  // CASConstructionProcess::SetDrawText
-		PE_AddDrawTextToPartsConstructionProcess(parts_no,
-				dx, dy, text, font_type, font_size,
-				font_r, font_g, font_b, bold_weight,
-				edge_r, edge_g, edge_b, edge_weight,
-				char_space, line_space, state);
-		break;
-	case 8:  // CASConstructionProcess::SetCopyText
-		PE_AddCopyTextToPartsConstructionProcess(parts_no,
-				dx, dy, text, font_type, font_size,
-				font_r, font_g, font_b, bold_weight,
-				edge_r, edge_g, edge_b, edge_weight,
-				char_space, line_space, state);
-		break;
-	case 9:  // CASConstructionProcess::SetFillGradationHorizon
-		WARNING("AddConstructProcess: FillGradationHorizon unimplemented");
-		break;
-	case 10:  // CASConstructionProcess::SetDrawRect
-		PE_AddDrawRectToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, r, g, b, state);
-		break;
-	case 11:  // CASConstructionProcess::SetCutCGBlend (equal scale)
-		PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
-				dx, dy, dw, dh, sx, sy, dw, dh,
-				interp_type, state);
-		break;
-	case 12:  // CASConstructionProcess::SetCutCGCopy (equal scale)
-		PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
-				dx, dy, dw, dh, sx, sy, dw, dh,
-				interp_type, state);
-		break;
-	case 13:  // CASConstructionProcess::SetCutCGScaleBlend
-		PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
-				dx, dy, dw, dh, sx, sy, sw, sh,
-				interp_type, state);
-		break;
-	case 14:  // CASConstructionProcess::SetCutCGScaleCopy
-		PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
-				dx, dy, dw, dh, sx, sy, sw, sh,
-				interp_type, state);
-		break;
-	case 15:  // CASConstructionProcess::SetGrayFilter
-		PE_AddGrayFilterToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, full_size, state);
-		break;
-	case 16:  // CASConstructionProcess::SetAddFilter
-		WARNING("AddConstructProcess: AddFilter unimplemented");
-		break;
-	case 17:  // CASConstructionProcess::SetMulFilter
-		WARNING("AddConstructProcess: MulFilter unimplemented");
-		break;
-	case 18:  // CASConstructionProcess::SetDrawLine
-		WARNING("AddConstructProcess: DrawLine unimplemented");
-		break;
-	default:
-		WARNING("AddConstructProcess: unknown command %d", command);
-		break;
-	}
+	struct parts_cp_command cmd = {
+		.type        = ints[2].i,
+		.interp_type = ints[3].i,
+		.sx          = ints[4].i,
+		.sy          = ints[5].i,
+		.sw          = ints[6].i,
+		.sh          = ints[7].i,
+		.dx          = ints[8].i,
+		.dy          = ints[9].i,
+		.dw          = ints[12].i,
+		.dh          = ints[13].i,
+		.r           = ints[14].i,
+		.g           = ints[15].i,
+		.b           = ints[16].i,
+		.a           = ints[17].i,
+		.char_space  = ints[21].i,
+		.line_space  = ints[22].i,
+		.font_type   = ints[23].i,
+		.font_size   = ints[24].i,
+		.font_r      = ints[25].i,
+		.font_g      = ints[26].i,
+		.font_b      = ints[27].i,
+		.edge_r      = ints[28].i,
+		.edge_g      = ints[29].i,
+		.edge_b      = ints[30].i,
+		.full_size   = ints[31].i,
+		.bold_weight = floats[0].f,
+		.edge_weight = floats[1].f,
+		.text        = heap_get_string(strings[0].i),
+		.cg_name     = heap_get_string(strings[1].i),
+	};
+	PE_add_construct_process(ints[0].i, ints[1].i, &cmd);
 }
 
 // Rance9 predates the layer functions at func_id 3-5.  Use the numbering from
