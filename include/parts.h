@@ -355,4 +355,26 @@ int PE_get_layoutbox_padding_bottom(int parts_no);
 int PE_get_layoutbox_padding_left(int parts_no);
 int PE_get_layoutbox_padding_right(int parts_no);
 
+// activity.c
+bool PE_ReleaseActivity(struct string *name, struct page **erase_number_list);
+bool PE_activity_read_file(struct string *name, struct string *filename);
+bool PE_activity_is_loaded(struct string *name);
+int PE_activity_numof_parts(struct string *name);
+bool PE_activity_get_parts(struct string *name, int index, struct string **parts_name,
+		int *number);
+bool PE_activity_is_exist_parts_by_name(struct string *name, struct string *parts_name);
+bool PE_activity_is_exist_parts_by_number(struct string *name, int number);
+int PE_activity_get_parts_number(struct string *name, struct string *parts_name);
+void PE_activity_get_parts_name(struct string *name, int number, struct string **parts_name);
+bool PE_activity_is_exist_file(struct string *filename);
+bool PE_activity_is_exist_intent_data(struct string *name, struct string *parts_name);
+int PE_activity_numof_intent_data_destination(struct string *name, struct string *parts_name);
+void PE_activity_get_intent_data_destination(struct string *name, struct string *parts_name,
+		int index, struct string **destination);
+int PE_activity_get_intent_data_type(struct string *name, struct string *parts_name);
+void PE_activity_get_func(struct string *name, struct string *parts_name, int state,
+		struct string *map_id, struct string **function);
+int PE_activity_numof_end_key(struct string *name);
+int PE_activity_get_end_key(struct string *name, int index);
+
 #endif /* SYSTEM4_PARTS_H */

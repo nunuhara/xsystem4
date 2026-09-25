@@ -212,6 +212,97 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		REQUIRE_STRINGS(1);
 		ints[1].i = PE_save_thumbnail(heap_get_string(strings[0].i), ints[0].i);
 		return 1;
+	case 10:  // bool Activity_IsLoaded(string Name)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_is_loaded(heap_get_string(strings[0].i));
+		return 1;
+	case 15:  // int Activity_NumofParts(string Name)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_numof_parts(heap_get_string(strings[0].i));
+		return 1;
+	case 16:  // bool Activity_GetParts(int Index, string Name, ref string PartsName, ref int Number)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(3);
+		ints[2].i = PE_activity_get_parts(heap_get_string(strings[0].i), ints[0].i,
+				&heap[strings[1].i].s, &ints[1].i);
+		return 1;
+	case 17:  // bool Activity_IsExistPartsByName(string Name, string PartsName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_is_exist_parts_by_name(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 18:  // bool Activity_IsExistPartsByNumber(string Name, int Number)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(2);
+		ints[1].i = PE_activity_is_exist_parts_by_number(heap_get_string(strings[0].i),
+				ints[0].i);
+		return 1;
+	case 19:  // int Activity_GetPartsNumber(string Name, string PartsName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_get_parts_number(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 20:  // string Activity_GetPartsName(string Name, int Number)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		PE_activity_get_parts_name(heap_get_string(strings[0].i), ints[0].i,
+				&heap[strings[1].i].s);
+		return 1;
+	case 21:  // Activity_ReadFile(string Name, string FileName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_read_file(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 23:  // bool Activity_IsExistFile(string FileName)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_is_exist_file(heap_get_string(strings[0].i));
+		return 1;
+	case 26:  // bool Activity_IsExistIntentData(string Name, string PartsName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_is_exist_intent_data(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 27:  // int Activity_NumofIntentDataDestination(string Name, string PartsName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_numof_intent_data_destination(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 28:  // string Activity_GetIntentDataDestination(int Index, string Name, string PartsName)
+		REQUIRE_STRINGS(3);
+		REQUIRE_INTS(1);
+		PE_activity_get_intent_data_destination(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i), ints[0].i, &heap[strings[2].i].s);
+		return 1;
+	case 29:  // int Activity_GetIntentDataType(string Name, string PartsName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_get_intent_data_type(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 31:  // string Activity_GetFunc(string Name, string PartsName, int State, string MapID)
+		REQUIRE_STRINGS(4);
+		REQUIRE_INTS(1);
+		PE_activity_get_func(heap_get_string(strings[0].i), heap_get_string(strings[1].i),
+				ints[0].i, heap_get_string(strings[2].i), &heap[strings[3].i].s);
+		return 1;
+	case 41:  // int Activity_NumofEndKey(string Name)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_numof_end_key(heap_get_string(strings[0].i));
+		return 1;
+	case 42:  // int Activity_GetEndKey(string Name, int Index)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(2);
+		ints[1].i = PE_activity_get_end_key(heap_get_string(strings[0].i), ints[0].i);
+		return 1;
 	case 43:  // float PARTS_GetAbsoluteX(int number)
 		REQUIRE_INTS(1);
 		REQUIRE_FLOATS(1);
@@ -484,7 +575,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(Parts_SetThumbnailMode, PE_SetThumbnailMode),
 	    HLL_EXPORT(GetClickNumber, PE_GetClickPartsNumber),
 	    HLL_EXPORT(StopSoundWithoutSystemSound, PartsEngine_StopSoundWithoutSystemSound),
-	    HLL_TODO_EXPORT(ReleaseActivity, PartsEngine_ReleaseActivity),
+	    HLL_EXPORT(ReleaseActivity, PE_ReleaseActivity),
 	    HLL_TODO_EXPORT(CrateActivityBinary, PartsEngine_CrateActivityBinary),
 	    HLL_TODO_EXPORT(ReadActivityBinary, PartsEngine_ReadActivityBinary),
 	    HLL_EXPORT(ReleaseMessage, PE_ReleaseMessage),
