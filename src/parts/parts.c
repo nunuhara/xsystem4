@@ -387,7 +387,6 @@ struct parts_3dlayer *parts_get_3dlayer(struct parts *parts, int state)
 static Point calculate_offset(int mode, int w, int h)
 {
 	switch (mode) {
-	case 1:  return (Point) {    0, 0    }; // top-left
 	case 2:  return (Point) { -w/2, 0    }; // top-center
 	case 3:  return (Point) {   -w, 0    }; // top-right
 	case 4:  return (Point) {    0, -h/2 }; // middle-left
@@ -396,7 +395,7 @@ static Point calculate_offset(int mode, int w, int h)
 	case 7:  return (Point) {    0, -h   }; // bottom-left
 	case 8:  return (Point) { -w/2, -h   }; // bottom-center
 	case 9:  return (Point) {   -w, -h   }; // bottom-right
-	default: return (Point) { mode, (3*h)/4 }; // why...
+	default: return (Point) {    0, 0    }; // top-left
 	}
 }
 
