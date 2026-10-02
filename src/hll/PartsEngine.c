@@ -313,6 +313,10 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		REQUIRE_INTS(2);
 		ints[1].i = PE_parts_get_absolute_z(ints[0].i);
 		return 1;
+	case 46:  // int PARTS_GetAbsoluteMaxZ(int number)
+		REQUIRE_INTS(2);
+		ints[1].i = PE_parts_get_absolute_max_z(ints[0].i);
+		return 1;
 	case 48:  // void PARTS_SetLockInputState(int number, bool lock)
 		REQUIRE_INTS(2);
 		PE_parts_set_lock_input_state(ints[0].i, !!ints[1].i);
