@@ -915,7 +915,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_TODO_EXPORT(LoadParts, PartsEngine_LoadParts),
 	    // Evenicle
 	    HLL_TODO_EXPORT(GetActiveParts, PartsEngine_GetActiveParts),
-	    HLL_TODO_EXPORT(SetClickMissSoundName, PartsEngine_SetClickMissSoundName),
+	    HLL_EXPORT(SetClickMissSoundName, PE_SetClickMissSoundName),
 	    HLL_TODO_EXPORT(GetClickMissSoundName, PartsEngine_GetClickMissSoundName),
 	    HLL_TODO_EXPORT(AddComponentMotionAddColor, PartsEngine_AddComponentMotionAddColor),
 	    HLL_TODO_EXPORT(AddComponentMotionMulColor, PartsEngine_AddComponentMotionMulColor),

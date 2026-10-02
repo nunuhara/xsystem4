@@ -15,6 +15,7 @@
  */
 
 #include "system4.h"
+#include "system4/string.h"
 
 #include "asset_manager.h"
 #include "audio.h"
@@ -329,6 +330,12 @@ bool PE_SetClickMissSoundNumber(possibly_unused int sound_no)
 {
 	UNIMPLEMENTED("(%d)", sound_no);
 	return true;
+}
+
+void PE_SetClickMissSoundName(struct string *sound_name)
+{
+	if (sound_name->size > 0)
+		UNIMPLEMENTED("(%s)", display_sjis0(sound_name->text));
 }
 
 void PE_BeginInput(void)

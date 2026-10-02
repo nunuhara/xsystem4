@@ -227,6 +227,7 @@ int PE_GetOnCursorShowLinkPartsNumber(int parts_no);
 bool PE_SetPartsOnCursorSoundNumber(int parts_no, int sound_no);
 bool PE_SetPartsClickSoundNumber(int parts_no, int sound_no);
 bool PE_SetClickMissSoundNumber(int sound_no);
+void PE_SetClickMissSoundName(struct string *sound_name);
 void PE_BeginInput(void);
 void PE_EndInput(void);
 int PE_GetClickPartsNumber(void);
