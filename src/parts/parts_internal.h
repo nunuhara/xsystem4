@@ -80,6 +80,7 @@ struct sound_motion {
 	TAILQ_ENTRY(sound_motion) entry;
 	int begin_time;
 	int sound_no;
+	struct string *sound_name;
 	bool played;
 };
 

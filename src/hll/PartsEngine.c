@@ -1011,7 +1011,7 @@ static void PartsEngine_PreLink(void)
 	}
 	fun = get_fun(libno, "AddMotionSound");
 	if (fun && fun->nr_arguments == 2 && fun->arguments[0].type.data == AIN_STRING) {
-		static_library_replace(&lib_PartsEngine, "AddMotionSound", NULL);
+		static_library_replace(&lib_PartsEngine, "AddMotionSound", PE_AddMotionSound_by_name);
 	}
 	fun = get_fun(libno, "SetLayoutBoxReturn");
 	if (fun && fun->nr_arguments == 3 && fun->arguments[2].type.data == AIN_FLOAT) {

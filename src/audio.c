@@ -116,6 +116,8 @@ static struct channel *open_asset_channel(enum asset_type type, int no)
 #define NR_ANONYMOUS_CHANNELS 64
 static int anonymous_channels[NR_ANONYMOUS_CHANNELS];
 
+static struct channel *audio_open_named(const char *name, bool streaming);
+
 void audio_init(void)
 {
 	static bool audio_initialized = false;
@@ -182,6 +184,27 @@ bool audio_play_sound(int sound_no)
 				return false;
 			}
 			anonymous_channels[i] = ch;
+			return true;
+		}
+	}
+	WARNING("Failed to allocate anonymous audio channel");
+	return false;
+}
+
+bool audio_play_sound_by_name(const char *name)
+{
+	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
+		if (anonymous_channels[i] == -1) {
+			struct channel *ch = audio_open_named(name, false);
+			if (!ch)
+				return false;
+			if (!channel_play(ch)) {
+				channel_close(ch);
+				return false;
+			}
+			int id = wav_get_unused_channel();
+			id_pool_set(&wav, id, ch);
+			anonymous_channels[i] = id;
 			return true;
 		}
 	}

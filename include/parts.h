@@ -283,6 +283,7 @@ void PE_AddMotionRotateZ_curve(int parts_no, float begin, float end, int begin_t
 		struct string *curve_name);
 void PE_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin_t, int end_t);
 void PE_AddMotionSound(int sound_no, int begin_t);
+void PE_AddMotionSound_by_name(struct string *sound_name, int begin_t);
 void PE_AddWholeMotionVibrationSize(int begin_w, int begin_h, int begin_t, int end_t);
 void PE_BeginMotion(void);
 void PE_EndMotion(void);

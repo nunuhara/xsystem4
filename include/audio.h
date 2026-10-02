@@ -28,6 +28,7 @@ void audio_init(void);
 void audio_reset(void);
 void audio_update(void);
 bool audio_play_sound(int sound_no);
+bool audio_play_sound_by_name(const char *name);
 // Takes ownership of dfile.
 bool audio_play_archive_data(struct archive_data *dfile);
 
