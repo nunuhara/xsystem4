@@ -881,25 +881,30 @@ bool RE_plugin_calc_2d_detection(struct RE_plugin *plugin, vec3 start, vec3 end,
 		return false;
 
 	glm_vec3_copy(start, out);
+	if (plugin->nr_instances == 0)
+		return true;
+
+	// The colliders of all instances make one continuous surface.
+	struct placed_collider *colliders = xcalloc(plugin->nr_instances, sizeof(struct placed_collider));
+	int nr_colliders = 0;
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst || !inst->model || !inst->model->collider)
 			continue;
-		vec2 p0 = { start[0] - inst->pos[0], start[2] - inst->pos[2] };
-		// Use the first terrain containing the start point.
-		// FIXME: Moving between terrain instances is not supported.
-		float height;
-		if (!collider_height(inst->model->collider, p0, &height))
-			continue;
-		vec2 p1 = { end[0] - inst->pos[0], end[2] - inst->pos[2] };
-		vec2 p2;
-		if (check_collision(inst->model->collider, p0, p1, radius, p2)) {
-			out[0] = p2[0] + inst->pos[0];
-			out[2] = p2[1] + inst->pos[2];
-			out[1] = RE_plugin_calc_2d_detection_height(plugin, out[0], out[2]);
-		}
-		break;
+		colliders[nr_colliders].collider = inst->model->collider;
+		colliders[nr_colliders].offset[0] = inst->pos[0];
+		colliders[nr_colliders].offset[1] = inst->pos[2];
+		nr_colliders++;
 	}
+	vec2 p0 = { start[0], start[2] };
+	vec2 p1 = { end[0], end[2] };
+	vec2 p2;
+	if (check_collision_multi(colliders, nr_colliders, p0, p1, radius, p2)) {
+		out[0] = p2[0];
+		out[2] = p2[1];
+		out[1] = RE_plugin_calc_2d_detection_height(plugin, out[0], out[2]);
+	}
+	free(colliders);
 	return true;
 }
 
