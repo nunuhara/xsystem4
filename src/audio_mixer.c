@@ -15,6 +15,7 @@
  */
 
 #include <stdatomic.h>
+#include <math.h>
 #include <assert.h>
 
 #include <sndfile.h>
@@ -30,6 +31,10 @@
 
 #define clamp(min_value, max_value, value) min(max_value, max(min_value, value))
 #define muldiv(x, y, denom) ((int64_t)(x) * (int64_t)(y) / (int64_t)(denom))
+
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
 
 /*
  * The actual mixer implementation is contained in this header.
@@ -49,6 +54,7 @@ struct fade {
 	uint_least32_t elapsed;
 	float start_volume;
 	float end_volume;
+	enum fade_curve curve;
 };
 
 struct channel {
@@ -186,6 +192,20 @@ static int cb_read_frames(struct channel *ch, float *out, sf_count_t frame_count
 	return STS_STREAM_CONTINUE;
 }
 
+static float fade_curve(enum fade_curve curve, float t)
+{
+	switch (curve) {
+	case FADE_CURVE_LOG_IN: return -logf(1.0f - t) / 7.0f;
+	case FADE_CURVE_QUAD_OUT: return 1.0f - (1.0f - t) * (1.0f - t);
+	case FADE_CURVE_EXPO_OUT: return (100.0f - powf(100.0f, 1.0f - t)) / 99.0f;
+	case FADE_CURVE_SINE_IN: return 1.0f - cosf(t * (float)M_PI / 2.0f);
+	case FADE_CURVE_SINE_IN_OUT: return (1.0f - cosf(t * (float)M_PI)) / 2.0f;
+	case FADE_CURVE_SQRT_IN: return 1.0f - sqrtf(1.0f - t);
+	case FADE_CURVE_LINEAR:
+	default: return t;
+	}
+}
+
 /*
  * Calculate the gain for a fade at a given sample.
  */
@@ -196,7 +216,7 @@ static float cb_calc_fade(struct fade *fade)
 
 	float progress = (float)fade->elapsed / (float)fade->frames;
 	float delta_v = fade->end_volume - fade->start_volume;
-	float gain = fade->start_volume + delta_v * progress;
+	float gain = fade->start_volume + delta_v * fade_curve(fade->curve, progress);
 	if (gain < 0.0) return 0.0;
 	if (gain > 1.0) return 1.0;
 	return gain;
@@ -350,7 +370,7 @@ int channel_set_loop_end_pos(struct channel *ch, int pos)
 	return 1;
 }
 
-int channel_fade(struct channel *ch, int time, int volume, bool stop)
+int channel_fade(struct channel *ch, int time, int volume, bool stop, enum fade_curve curve)
 {
 	if (!time && stop)
 		return channel_stop(ch);
@@ -374,6 +394,7 @@ int channel_fade(struct channel *ch, int time, int volume, bool stop)
 	ch->fade.frames = muldiv(time, ch->info.samplerate, 1000);
 	ch->fade.elapsed = 0;
 	ch->fade.end_volume = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	ch->fade.curve = curve;
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }

@@ -316,7 +316,7 @@ static int pool_fade(struct id_pool *pool, int id, int time, int volume, bool st
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
-	return channel_fade(ch, time, volume, stop);
+	return channel_fade(ch, time, volume, stop, FADE_CURVE_LINEAR);
 }
 int wav_fade(int id, int time, int volume, bool stop) { return pool_fade(&wav, id, time, volume, stop); }
 int bgm_fade(int id, int time, int volume, bool stop) { return pool_fade(&bgm, id, time, volume, stop); }
@@ -592,9 +592,11 @@ bool audio_fade(int id, int time, float volume, bool stop, int curve)
 	struct channel *ch = audio_channel(id);
 	if (!ch)
 		return false;
-	if (curve != 0)
+	if (curve > FADE_CURVE_MAX)
 		WARNING("Unknown fade curve %d", curve);
-	return channel_fade(ch, time > 0 ? time : 0, (int)(volume * 100 + 0.5f), stop);
+	if (curve < FADE_CURVE_MIN || curve > FADE_CURVE_MAX)
+		curve = FADE_CURVE_LINEAR;
+	return channel_fade(ch, time > 0 ? time : 0, (int)(volume * 100 + 0.5f), stop, curve);
 }
 
 bool audio_stop_fade(int id) { struct channel *ch = audio_channel(id); return ch && channel_stop_fade(ch); }

@@ -19,6 +19,18 @@
 
 #include <stdbool.h>
 
+enum fade_curve {
+	FADE_CURVE_LINEAR = 0,
+	FADE_CURVE_LOG_IN = 1,
+	FADE_CURVE_QUAD_OUT = 2,
+	FADE_CURVE_EXPO_OUT = 3,
+	FADE_CURVE_SINE_IN = 4,
+	FADE_CURVE_SINE_IN_OUT = 5,
+	FADE_CURVE_SQRT_IN = 6,
+};
+#define FADE_CURVE_MIN FADE_CURVE_LINEAR
+#define FADE_CURVE_MAX FADE_CURVE_SQRT_IN
+
 void mixer_init(void);
 int mixer_get_numof(void);
 const char *mixer_get_name(int n);
@@ -51,7 +63,7 @@ int channel_set_loop_count(struct channel *ch, int count);
 int channel_get_loop_count(struct channel *ch);
 int channel_set_loop_start_pos(struct channel *ch, int pos);
 int channel_set_loop_end_pos(struct channel *ch, int pos);
-int channel_fade(struct channel *ch, int time, int volume, bool stop);
+int channel_fade(struct channel *ch, int time, int volume, bool stop, enum fade_curve curve);
 int channel_stop_fade(struct channel *ch);
 int channel_is_fading(struct channel *ch);
 int channel_pause(struct channel *ch);
