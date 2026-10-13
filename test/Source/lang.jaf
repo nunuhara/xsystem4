@@ -26,6 +26,25 @@ struct lang_struct {
 	lang_struct_inner in;
 };
 
+ref string global_ref_string = global_ref_string_data;
+string global_ref_string_data = "initialized";
+array@lang_struct global_ref_struct_array_data[1];
+ref array@lang_struct global_ref_struct_array = global_ref_struct_array_data;
+ref int global_ref_int = global_ref_int_data;
+int global_ref_int_data = 45;
+
+void test_global_refs(void)
+{
+	test_string("global string ref init", global_ref_string, "initialized");
+	global_ref_struct_array[0].a = 44;
+	global_ref_struct_array <- NULL;
+	test_equal("global struct array ref", global_ref_struct_array_data[0].a, 44);
+
+	test_equal("global int ref init", global_ref_int, 45);
+	global_ref_int = 46;
+	test_equal("global int ref assign", global_ref_int_data, 46);
+}
+
 void struct_set_a(lang_struct s, int i)
 {
 	s.a = i;
@@ -159,6 +178,7 @@ void test_lang(void)
 	'message1';
 	'message2';
 	test_ref_compare();
+	test_global_refs();
 }
 
 int msg_count = 0;

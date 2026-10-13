@@ -2476,6 +2476,38 @@ int vm_execute_ain(struct ain *program)
 		}
 	}
 
+	// Reference initializers contain global variable indices, not heap slots.
+	// Resolve them after applying ordinary initializers.
+	for (int i = 0; i < ain->nr_initvals; i++) {
+		struct ain_initval *v = &ain->global_initvals[i];
+		switch (ain->globals[v->global_index].type.data) {
+		case AIN_REF_STRING:
+		case AIN_REF_STRUCT:
+		case AIN_REF_ARRAY_TYPE:
+		case AIN_REF_ARRAY:
+		case AIN_REF_DELEGATE:
+			if (v->int_value != -1) {
+				int slot = global_get(v->int_value).i;
+				heap[0].page->values[v->global_index].i = slot;
+				heap_ref(slot);
+			}
+			break;
+		case AIN_REF_INT:
+		case AIN_REF_FLOAT:
+		case AIN_REF_BOOL:
+		case AIN_REF_LONG_INT:
+		case AIN_REF_FUNC_TYPE:
+			if (v->int_value != -1) {
+				heap[0].page->values[v->global_index].i = 0;
+				heap[0].page->values[v->global_index + 1].i = v->int_value;
+				heap_ref(0);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
 	if (ain->alloc >= 0)
 		vm_call(ain->alloc, -1); // function "0": allocate global arrays
 
