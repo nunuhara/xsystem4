@@ -370,8 +370,19 @@ int channel_set_loop_end_pos(struct channel *ch, int pos)
 	return 1;
 }
 
+static void channel_interrupt_fade(struct channel *ch)
+{
+	SDL_LockAudioDevice(audio_device);
+	bool stop = ch->fade.fading && ch->fade.stop;
+	ch->fade.fading = false;
+	SDL_UnlockAudioDevice(audio_device);
+	if (stop)
+		channel_stop(ch);
+}
+
 int channel_fade(struct channel *ch, int time, int volume, bool stop, enum fade_curve curve)
 {
+	channel_interrupt_fade(ch);
 	if (!time && stop)
 		return channel_stop(ch);
 
