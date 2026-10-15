@@ -50,6 +50,7 @@ issues, please let me know or open a pull request to update this table.
 | 戦国ランス                                              | Supported   |       |
 | Sengoku Rance (EN FanTL)                                | Supported   |       |
 | Sengoku Rance (MangaGamer)                              | Supported   |       |
+| 战国兰斯 (Steam)                                        | Supported   | See [GBK games](#gbk-games) |
 | だぶる先生らいふっ                                      | Unknown     |       |
 | お嬢様をいいなりにするゲーム                            | Supported   |       |
 | 超昂閃忍ハルカ                                          | Unknown     |       |
@@ -95,3 +96,15 @@ issues, please let me know or open a pull request to update this table.
 | Beat Valkyrie Ixseal (EN)                               | Unsupported |       |
 | Rance X －決戦－                                        | Unsupported |       |
 | All games released after Rance X                        | Unsupported |       |
+
+### GBK games
+
+Chinese versions use the GBK character encoding and need Chinese fonts. Put a
+`.xsys4rc` file like this in the game directory, with the font paths changed
+to fonts on your system:
+
+```
+encoding = "gbk"
+font-gothic = "C:/Windows/Fonts/msyh.ttc"
+font-mincho = "C:/Windows/Fonts/simsun.ttc"
+```
