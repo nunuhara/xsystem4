@@ -133,7 +133,7 @@ extern bool gfx_text_advance_edges;
 
 void gfx_font_init(void);
 void ft_font_init(void);
-struct font *ft_font_load(const char *path);
+struct font *ft_font_load(const char *spec);
 struct font *fnl_font_load(struct fnl *lib, unsigned index);
 
 bool gfx_set_font(enum font_face face, unsigned int size);

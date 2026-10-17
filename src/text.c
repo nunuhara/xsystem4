@@ -60,8 +60,11 @@ static struct font *load_font(enum font_face type)
 
 	struct font *font;
 	// user specified font
-	if (config.font_paths[type] && (font = ft_font_load(config.font_paths[type])))
-		return font;
+	if (config.font_paths[type]) {
+		if ((font = ft_font_load(config.font_paths[type])))
+			return font;
+		WARNING("Failed to load font '%s'; using the default font", config.font_paths[type]);
+	}
 	// installed default font
 	if ((font = ft_font_load(default_font_paths[type])))
 		return font;

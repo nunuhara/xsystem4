@@ -14,7 +14,10 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_BITMAP_H
@@ -209,8 +212,27 @@ static float ft_font_size_char_kerning(struct font_size *size, uint32_t code,
 	return (advance / 65536.f) + (delta.x / 64.f);
 }
 
-struct font *ft_font_load(const char *path)
+static char *parse_font_spec(const char *spec, FT_Long *index)
 {
+	char *path = xstrdup(spec);
+	*index = 0;
+
+	char *colon = strrchr(path, ':');
+	if (!colon || colon == path || !isdigit((unsigned char)colon[1]))
+		return path;
+	char *end;
+	unsigned long n = strtoul(colon + 1, &end, 10);
+	if (*end)
+		return path;
+	*index = (FT_Long)n;
+	*colon = '\0';
+	return path;
+}
+
+struct font *ft_font_load(const char *spec)
+{
+	FT_Long index;
+	char *path = parse_font_spec(spec, &index);
 	struct font_ft *font = xcalloc(1, sizeof(struct font_ft));
 
 #ifdef __ANDROID__
@@ -218,30 +240,25 @@ struct font *ft_font_load(const char *path)
 	// directly, so use SDL_LoadFile to load the content into memory.
 	size_t size;
 	void *buf = SDL_LoadFile(path, &size);
-	if (!buf) {
-		free(font);
-		return NULL;
-	}
-	if (FT_New_Memory_Face(ft_lib, buf, size, 0, &font->font)) {
+	if (!buf)
+		goto err;
+	if (FT_New_Memory_Face(ft_lib, buf, size, index, &font->font)) {
 		free(buf);
-		free(font);
-		return NULL;
+		goto err;
 	}
 #else
-	if (FT_New_Face(ft_lib, path, 0, &font->font)) {
-		free(font);
-		return NULL;
-	}
+	if (FT_New_Face(ft_lib, path, index, &font->font))
+		goto err;
 #endif
 
 	if (!font->font->charmap) {
-		WARNING("Font '%s' doesn't contain unicode charmap", path);
+		WARNING("Font '%s' doesn't contain unicode charmap", spec);
 #ifdef __ANDROID__
 		free(buf);
 #endif
-		free(font);
-		return NULL;
+		goto err;
 	}
+	free(path);
 
 	font->super.get_size = ft_font_get_size;
 	font->super.get_actual_size = ft_font_get_actual_size;
@@ -250,4 +267,9 @@ struct font *ft_font_load(const char *path)
 	font->super.size_char = ft_font_size_char;
 	font->super.size_char_kerning = ft_font_size_char_kerning;
 	return &font->super;
+
+err:
+	free(font);
+	free(path);
+	return NULL;
 }

@@ -393,8 +393,8 @@ static void usage(void)
 	puts("    -a, --audit          Audit AIN file for xsystem4 compatibility");
 	puts("    -e, --echo-message   Echo in-game messages to standard output");
 	puts("        --encoding       Specify the game's character encoding. sjis (default) or gbk");
-	puts("        --font-mincho    Specify the path to the mincho font to use");
-	puts("        --font-gothic    Specify the path to the gothic font to use");
+	puts("        --font-mincho    Specify the path to the mincho font to use (path[:index] for .ttc)");
+	puts("        --font-gothic    Specify the path to the gothic font to use (path[:index] for .ttc)");
 	puts("        --font-fnl       Specify the path to a .fnl font library to use");
 	puts("        --font-x-scale   Specify the x scale for text rendering (1.0 = default scale)");
 	puts("    -j, --joypad         Enable joypad");
