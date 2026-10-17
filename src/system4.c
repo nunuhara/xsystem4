@@ -589,7 +589,9 @@ int main(int argc, char *argv[])
 	} else {
 		usage_error("Can't initialize game with argument '%s'", argv[0]);
 	}
-	ainfile = gamedir_path(config.ain_filename);
+	ainfile = gamedir_path_icase(config.ain_filename);
+	if (!ainfile)
+		ERROR("AIN file not found: %s", display_sjis0(config.ain_filename));
 
 	read_user_config();
 
