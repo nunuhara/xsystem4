@@ -16,6 +16,7 @@
 
 #include <string.h>
 
+#include "system4/ain.h"
 #include "system4/ex.h"
 #include "system4/string.h"
 
@@ -23,11 +24,6 @@
 #include "hll.h"
 
 #include "system4/utfsjis.h"
-
-// TODO: Later versions of this library have a different interface, but use the
-//       same function names. Will need to handle this somehow...
-//       Probably best to have separate implementations and choose the correct
-//       one at startup.
 
 static struct ex *ex;
 static struct ex_value **handles = NULL;
@@ -663,7 +659,52 @@ static bool MainEXFile_GetEXName(struct string *tree_path, int index, struct str
 	return false;
 }
 
+// Some games pass an EX name instead of a handle.
+#define MAIN_EX_NAME_FUNCTIONS(X) \
+	X(int, Row, (struct string *name), (MainEXFile_Handle(name))) \
+	X(int, Col, (struct string *name), (MainEXFile_Handle(name))) \
+	X(int, Type, (struct string *name), (MainEXFile_Handle(name))) \
+	X(int, AType, (struct string *name, int index), (MainEXFile_Handle(name), index)) \
+	X(int, A2Type, (struct string *name, int row, int col), (MainEXFile_Handle(name), row, col)) \
+	X(int, IA2Type, (struct string *name, int key, struct string *format), (MainEXFile_Handle(name), key, format)) \
+	X(int, SA2Type, (struct string *name, struct string *key, struct string *format), (MainEXFile_Handle(name), key, format)) \
+	X(int, RA2Type, (struct string *name, int row, struct string *format), (MainEXFile_Handle(name), row, format)) \
+	X(bool, Exists, (struct string *name), (MainEXFile_Handle(name))) \
+	X(bool, AExists, (struct string *name, int index), (MainEXFile_Handle(name), index)) \
+	X(bool, A2Exists, (struct string *name, int row, int col), (MainEXFile_Handle(name), row, col)) \
+	X(bool, IA2Exists, (struct string *name, int key, struct string *format), (MainEXFile_Handle(name), key, format)) \
+	X(bool, SA2Exists, (struct string *name, struct string *key, struct string *format), (MainEXFile_Handle(name), key, format)) \
+	X(bool, RA2Exists, (struct string *name, int row, struct string *format), (MainEXFile_Handle(name), row, format)) \
+	X(bool, Int, (struct string *name, int *data), (MainEXFile_Handle(name), data)) \
+	X(bool, Float, (struct string *name, float *data), (MainEXFile_Handle(name), data)) \
+	X(bool, String, (struct string *name, struct string **data), (MainEXFile_Handle(name), data)) \
+	X(bool, AInt, (struct string *name, int index, int *data), (MainEXFile_Handle(name), index, data)) \
+	X(bool, AFloat, (struct string *name, int index, float *data), (MainEXFile_Handle(name), index, data)) \
+	X(bool, AString, (struct string *name, int index, struct string **data), (MainEXFile_Handle(name), index, data)) \
+	X(bool, A2Int, (struct string *name, int row, int col, int *data), (MainEXFile_Handle(name), row, col, data)) \
+	X(bool, A2Float, (struct string *name, int row, int col, float *data), (MainEXFile_Handle(name), row, col, data)) \
+	X(bool, A2String, (struct string *name, int row, int col, struct string **data), (MainEXFile_Handle(name), row, col, data)) \
+	X(int, GetRowAtIntKey, (struct string *name, int key), (MainEXFile_Handle(name), key)) \
+	X(int, GetRowAtStringKey, (struct string *name, struct string *key), (MainEXFile_Handle(name), key)) \
+	X(bool, IA2Int, (struct string *name, int key, struct string *format, int *data), (MainEXFile_Handle(name), key, format, data)) \
+	X(bool, IA2Float, (struct string *name, int key, struct string *format, float *data), (MainEXFile_Handle(name), key, format, data)) \
+	X(bool, IA2String, (struct string *name, int key, struct string *format, struct string **data), (MainEXFile_Handle(name), key, format, data)) \
+	X(bool, SA2Int, (struct string *name, struct string *key, struct string *format, int *data), (MainEXFile_Handle(name), key, format, data)) \
+	X(bool, SA2Float, (struct string *name, struct string *key, struct string *format, float *data), (MainEXFile_Handle(name), key, format, data)) \
+	X(bool, SA2String, (struct string *name, struct string *key, struct string *format, struct string **data), (MainEXFile_Handle(name), key, format, data)) \
+	X(bool, RA2Int, (struct string *name, int row, struct string *format, int *data), (MainEXFile_Handle(name), row, format, data)) \
+	X(bool, RA2Float, (struct string *name, int row, struct string *format, float *data), (MainEXFile_Handle(name), row, format, data)) \
+	X(bool, RA2String, (struct string *name, int row, struct string *format, struct string **data), (MainEXFile_Handle(name), row, format, data))
+
+#define DEFINE_NAME_WRAPPER(ret, name, params, args) \
+	static ret MainEXFile_Name_##name params { return MainEXFile_##name args; }
+MAIN_EX_NAME_FUNCTIONS(DEFINE_NAME_WRAPPER)
+#undef DEFINE_NAME_WRAPPER
+
+static void MainEXFile_PreLink(void);
+
 HLL_LIBRARY(MainEXFile,
+	    HLL_EXPORT(_PreLink, MainEXFile_PreLink),
 	    HLL_EXPORT(_ModuleInit, MainEXFile_ModuleInit),
 	    HLL_EXPORT(_ModuleFini, MainEXFile_ModuleFini),
 	    HLL_EXPORT(ReloadDebugEXFile, MainEXFile_ReloadDebugEXFile),
@@ -711,3 +752,21 @@ HLL_LIBRARY(MainEXFile,
 	    HLL_EXPORT(GetEXNameCount, MainEXFile_GetEXNameCount),
 	    HLL_EXPORT(GetNodeName, MainEXFile_GetNodeName),
 	    HLL_EXPORT(GetEXName, MainEXFile_GetEXName));
+
+static void MainEXFile_PreLink(void)
+{
+	int libno = ain_get_library(ain, "MainEXFile");
+	if (libno < 0)
+		return;
+	int row = ain_get_library_function(ain, libno, "Row");
+	if (row < 0 || ain->libraries[libno].functions[row].nr_arguments < 1 ||
+	    ain->libraries[libno].functions[row].arguments[0].type.data != AIN_STRING)
+		return;
+
+#define USE_NAME_WRAPPER(ret, name, params, args) \
+	static_library_replace(&lib_MainEXFile, #name, MainEXFile_Name_##name);
+	MAIN_EX_NAME_FUNCTIONS(USE_NAME_WRAPPER)
+#undef USE_NAME_WRAPPER
+}
+
+#undef MAIN_EX_NAME_FUNCTIONS
