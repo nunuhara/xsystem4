@@ -513,6 +513,7 @@ int dungeon_calc_conquer(int surface)
  *         int size_x, size_y, size_z;
  *         int cells[size_x * size_y * size_z];
  *     } maps[nr_maps];
+ *     int padding[];  // unused, may be empty
  * };
  *
  * struct DrawDungeon2_WalkData {
@@ -530,10 +531,11 @@ enum {
 	WALK_DATA_BROKEN = -2,
 };
 
-static int dd1_find_walk_data(struct page *array, int map_no, struct dgn *dgn)
+// When the map is not found, *end is set to the offset after the last map.
+static int dd1_find_walk_data(struct page *array, int map_no, struct dgn *dgn, int *end)
 {
 	if (!array)
-		return WALK_DATA_NOT_FOUND;
+		return WALK_DATA_BROKEN;
 	if (array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->array.rank != 1)
 		VM_ERROR("Not a flat integer array");
 
@@ -559,6 +561,9 @@ static int dd1_find_walk_data(struct page *array, int map_no, struct dgn *dgn)
 		}
 		ptr += 4 + nr_cells;
 	}
+	if (ptr > array->nr_vars)
+		return WALK_DATA_BROKEN;
+	*end = ptr;
 	return WALK_DATA_NOT_FOUND;
 }
 
@@ -566,7 +571,10 @@ static bool dd1_load_walk_data(struct dungeon_context *ctx, int map, struct page
 {
 	struct page *array = *page;
 
-	int offset = dd1_find_walk_data(array, map, ctx->dgn);
+	if (!array)
+		return true;  // no walk data is not an error
+	int end;
+	int offset = dd1_find_walk_data(array, map, ctx->dgn, &end);
 	if (offset < 0)
 		return offset != WALK_DATA_BROKEN;
 
@@ -631,9 +639,10 @@ static bool dd1_save_walk_data(struct dungeon_context *ctx, int map, struct page
 	struct page *array = *page;
 	int nr_cells = dgn_nr_cells(ctx->dgn);
 
-	int offset = dd1_find_walk_data(array, map, ctx->dgn);
+	int end;
+	int offset = dd1_find_walk_data(array, map, ctx->dgn, &end);
 	if (offset == WALK_DATA_NOT_FOUND) {
-		offset = array ? array->nr_vars : 0;
+		offset = end;
 		union vm_value dim = { .i = offset + 4 + nr_cells };
 		*page = array = realloc_array(array, 1, &dim, AIN_ARRAY_INT, 0, false);
 		array->values[1].i += 1;
