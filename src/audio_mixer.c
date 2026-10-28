@@ -24,7 +24,6 @@
 #include "system4/archive.h"
 #include "system4/utfsjis.h"
 
-#include "asset_manager.h"
 #include "audio.h"
 #include "mixer.h"
 #include "xsystem4.h"
@@ -55,7 +54,6 @@ struct fade {
 struct channel {
 	// archive data
 	struct archive_data *dfile;
-	int no;
 	int mixer_no;
 
 	// audio file data
@@ -300,10 +298,33 @@ int channel_is_playing(struct channel *ch)
 	return ch->voice >= 0;
 }
 
+int channel_set_mixer(struct channel *ch, int mixer_no)
+{
+	assert(ch->voice < 0);
+	if (mixer_no < 0 || mixer_no >= nr_mixers)
+		return 0;
+	ch->mixer_no = mixer_no;
+	return 1;
+}
+
+int channel_get_mixer(struct channel *ch)
+{
+	return ch->mixer_no;
+}
+
+int channel_set_volume(struct channel *ch, int volume)
+{
+	SDL_LockAudioDevice(audio_device);
+	ch->volume = clamp(0, 100, volume);
+	ch->fade.fading = false;
+	SDL_UnlockAudioDevice(audio_device);
+	return 1;
+}
+
 int channel_set_loop_count(struct channel *ch, int count)
 {
 	SDL_LockAudioDevice(audio_device);
-	ch->loop_count = count;
+	ch->loop_count = max(0, count);
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
@@ -316,7 +337,7 @@ int channel_get_loop_count(struct channel *ch)
 int channel_set_loop_start_pos(struct channel *ch, int pos)
 {
 	SDL_LockAudioDevice(audio_device);
-	ch->loop_start = pos;
+	ch->loop_start = clamp(0, ch->info.frames, pos);
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
@@ -324,7 +345,7 @@ int channel_set_loop_start_pos(struct channel *ch, int pos)
 int channel_set_loop_end_pos(struct channel *ch, int pos)
 {
 	SDL_LockAudioDevice(audio_device);
-	ch->loop_end = pos;
+	ch->loop_end = clamp(0, ch->info.frames, pos);
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
@@ -334,27 +355,25 @@ int channel_fade(struct channel *ch, int time, int volume, bool stop)
 	if (!time && stop)
 		return channel_stop(ch);
 
+	// XXX: Fade with time=0 is used to set volume. This needs to
+	//      take effect immediately, not via the audio callback
+	//      because the stream isn't necessarily playing yet.
+	//      E.g. the below call sequence should fade from 0 -> 33:
+	//
+	//          SACT2.Music_Fade(ch, 0, 0, 0);
+	//          SACT2.Music_Fade(ch, 33, 4000, 0);
+	//          SACT2.Music_Play(ch);
+	if (!time)
+		return channel_set_volume(ch, volume);
+
 	SDL_LockAudioDevice(audio_device);
-	if (!time) {
-		// XXX: Fade with time=0 is used to set volume. This needs to
-		//      take effect immediately, not via the audio callback
-		//      because the stream isn't necessarily playing yet.
-		//      E.g. the below call sequence should fade from 0 -> 33:
-		//
-		//          SACT2.Music_Fade(ch, 0, 0, 0);
-		//          SACT2.Music_Fade(ch, 33, 4000, 0);
-		//          SACT2.Music_Play(ch);
-		ch->fade.fading = false;
-		ch->volume = max(0, min(100, volume));
-	} else {
-		ch->fade.fading = true;
-		ch->fade.stop = stop;
-		ch->fade.start_pos = ch->frame;
-		ch->fade.start_volume = (float)ch->volume / 100.0;
-		ch->fade.frames = muldiv(time, ch->info.samplerate, 1000);
-		ch->fade.elapsed = 0;
-		ch->fade.end_volume = clamp(0.0f, 1.0f, (float)volume / 100.0f);
-	}
+	ch->fade.fading = true;
+	ch->fade.stop = stop;
+	ch->fade.start_pos = ch->frame;
+	ch->fade.start_volume = (float)ch->volume / 100.0;
+	ch->fade.frames = muldiv(time, ch->info.samplerate, 1000);
+	ch->fade.elapsed = 0;
+	ch->fade.end_volume = clamp(0.0f, 1.0f, (float)volume / 100.0f);
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
@@ -496,24 +515,6 @@ static SF_VIRTUAL_IO channel_vio = {
 	.tell = channel_vio_tell
 };
 
-struct channel *channel_open(enum asset_type type, int no)
-{
-	// get file from archive
-	struct archive_data *dfile = asset_get(type, no);
-	if (!dfile) {
-		WARNING("Failed to load %s %d", type == ASSET_SOUND ? "WAV" : "BGM", no);
-		return NULL;
-	}
-
-	struct channel *ch = channel_open_archive_data(dfile, type, no);
-	if (!ch) {
-		WARNING("Failed to open %s %d", type == ASSET_SOUND ? "WAV" : "BGM", no);
-		return NULL;
-	}
-
-	return ch;
-}
-
 static bool init_channel(struct channel *ch)
 {
 	if (sf_error(ch->file) != SF_ERR_NO_ERROR) {
@@ -540,12 +541,10 @@ static bool init_channel(struct channel *ch)
 	ch->loop_count = 1;
 	ch->mixer_no = 0;
 
-	ch->no = -1;
 	return true;
 }
 
-struct channel *channel_open_archive_data(struct archive_data *dfile,
-					  enum asset_type type, int metadata_no)
+struct channel *channel_open_archive_data(struct archive_data *dfile)
 {
 	struct channel *ch = xcalloc(1, sizeof(struct channel));
 	ch->dfile = dfile;
@@ -559,24 +558,6 @@ struct channel *channel_open_archive_data(struct archive_data *dfile,
 			sf_close(ch->file);
 		free(ch);
 		return NULL;
-	}
-	if (metadata_no >= 0) {
-		if (type == ASSET_SOUND) {
-			struct wai *wai = wai_get(metadata_no);
-			ch->mixer_no = wai ? wai->channel : 1;
-		} else if (type == ASSET_BGM) {
-			struct bgi *bgi = bgi_get(metadata_no);
-			if (bgi) {
-				ch->volume = clamp(0, 100, bgi->volume);
-				ch->loop_start = clamp(0, ch->info.frames, bgi->loop_start);
-				ch->loop_end = clamp(0, ch->info.frames, bgi->loop_end);
-				ch->loop_count = max(0, bgi->loop_count);
-				ch->mixer_no = clamp(0, nr_mixers, bgi->channel);
-			} else {
-				ch->loop_count = 0;
-			}
-		}
-		ch->no = metadata_no;
 	}
 	return ch;
 }
@@ -678,12 +659,6 @@ void mixer_init(void)
 		mixers[i].stream.sample.data = mixers[i].data;
 		mixers[i].voice = sts_mixer_play_stream(&mixers[i].parent->mixer, &mixers[i].stream, 1.0f);
 	}
-
-	// read audio metadata
-	if (config.bgi_path)
-		bgi_read(config.bgi_path);
-	if (config.wai_path)
-		wai_load(config.wai_path);
 
 	// initialize SDL audio
 	SDL_AudioSpec have;

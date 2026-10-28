@@ -20,13 +20,19 @@
 #include "system4/file.h"
 #include "system4/little_endian.h"
 
-#include "mixer.h"
+#include "asset_manager.h"
+#include "audio_meta.h"
 #include "xsystem4.h"
 
 #define BGI_MAX 100
 
-static int bgi_nfile;
-static struct bgi bgi_data[BGI_MAX];
+struct bgi_entry {
+	int no;
+	struct audio_meta meta;
+};
+
+static int nr_bgi;
+static struct bgi_entry bgi_entries[BGI_MAX];
 
 static char *bgi_gets(char *buf, int n, FILE *fp)
 {
@@ -44,7 +50,7 @@ static char *bgi_gets(char *buf, int n, FILE *fp)
 	return buf;
 }
 
-void bgi_read(const char *path)
+static void load_bgi(const char *path)
 {
 	FILE *fp = file_open_utf8(path, "rb");
 	if (!fp) {
@@ -53,54 +59,50 @@ void bgi_read(const char *path)
 	}
 
 	char buf[256];
-	bgi_nfile = 0;
-	while (bgi_nfile < BGI_MAX && bgi_gets(buf, sizeof(buf), fp)) {
+	nr_bgi = 0;
+	while (nr_bgi < BGI_MAX && bgi_gets(buf, sizeof(buf), fp)) {
+		struct bgi_entry *e = &bgi_entries[nr_bgi];
 		int terminator;
 		if (sscanf(buf, " %d, %d, %d, %d, %d",
-			   &bgi_data[bgi_nfile].no,
-			   &bgi_data[bgi_nfile].loop_count,
-			   &bgi_data[bgi_nfile].loop_start,
-			   &bgi_data[bgi_nfile].loop_end,
+			   &e->no,
+			   &e->meta.loop_count,
+			   &e->meta.loop_start,
+			   &e->meta.loop_end,
 			   &terminator) != 5) {
 			continue;
 		} else if (terminator != -1) {
 			goto new_format;
 		}
-		bgi_data[bgi_nfile].channel = -1;
-		bgi_data[bgi_nfile].volume = 100;
-		bgi_nfile++;
+		e->meta.fields = AUDIO_META_LOOP_COUNT | AUDIO_META_LOOP_RANGE;
+		nr_bgi++;
 	}
+	fclose(fp);
 	return;
 new_format:
 	fseek(fp, 0, SEEK_SET);
-	bgi_nfile = 0;
-	while (bgi_nfile < BGI_MAX && bgi_gets(buf, sizeof(buf), fp)) {
+	nr_bgi = 0;
+	while (nr_bgi < BGI_MAX && bgi_gets(buf, sizeof(buf), fp)) {
+		struct bgi_entry *e = &bgi_entries[nr_bgi];
 		if (sscanf(buf, " %d, %d, %d, %d, %d, %d",
-			   &bgi_data[bgi_nfile].no,
-			   &bgi_data[bgi_nfile].loop_count,
-			   &bgi_data[bgi_nfile].loop_start,
-			   &bgi_data[bgi_nfile].loop_end,
-			   &bgi_data[bgi_nfile].channel,
-			   &bgi_data[bgi_nfile].volume) != 6) {
+			   &e->no,
+			   &e->meta.loop_count,
+			   &e->meta.loop_start,
+			   &e->meta.loop_end,
+			   &e->meta.group,
+			   &e->meta.volume) != 6) {
 			continue;
 		}
-		bgi_nfile++;
+		e->meta.fields = AUDIO_META_GROUP | AUDIO_META_LOOP_COUNT |
+			AUDIO_META_LOOP_RANGE | AUDIO_META_VOLUME;
+		nr_bgi++;
 	}
+	fclose(fp);
 }
 
-struct bgi *bgi_get(int no)
-{
-	for (int i = 0; i < bgi_nfile; i++) {
-		if (bgi_data[i].no == no)
-			return &bgi_data[i];
-	}
-	return NULL;
-}
-
-static struct wai *wai_data = NULL;
 static int nr_wai = 0;
+static struct audio_meta *wai_meta;
 
-void wai_load(const char *path)
+static void load_wai(const char *path)
 {
 	size_t len;
 	uint8_t *file = file_read(path, &len);
@@ -135,9 +137,13 @@ void wai_load(const char *path)
 		goto end;
 	}
 
-	wai_data = xcalloc(count, sizeof(struct wai));
+	free(wai_meta);
+	wai_meta = xcalloc(count, sizeof(struct audio_meta));
 	for (int i = 0; i < count; i++) {
-		wai_data[i].channel = LittleEndian_getDW(data, i*record_size + 8);
+		wai_meta[i] = (struct audio_meta) {
+			.fields = AUDIO_META_GROUP,
+			.group = LittleEndian_getDW(data, i*record_size + 8),
+		};
 	}
 	nr_wai = count;
 
@@ -145,10 +151,22 @@ end:
 	free(file);
 }
 
-struct wai *wai_get(int no)
+void audio_meta_load(void)
 {
-	no--;
-	if (no < 0 || no >= nr_wai)
-		return NULL;
-	return &wai_data[no];
+	if (config.bgi_path)
+		load_bgi(config.bgi_path);
+	if (config.wai_path)
+		load_wai(config.wai_path);
+}
+
+const struct audio_meta *audio_meta_get_by_number(enum asset_type type, int no)
+{
+	if (type == ASSET_BGM) {
+		for (int i = 0; i < nr_bgi; i++)
+			if (bgi_entries[i].no == no)
+				return &bgi_entries[i].meta;
+	} else if (type == ASSET_SOUND && no > 0 && no <= nr_wai) {
+		return &wai_meta[no - 1];
+	}
+	return NULL;
 }

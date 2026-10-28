@@ -20,9 +20,9 @@
 
 #include "asset_manager.h"
 #include "audio.h"
+#include "audio_meta.h"
 #include "id_pool.h"
 #include "mixer.h"
-#include "xsystem4.h"
 
 /*
  * Common audio interface for SACT2/KiwiSoundEngine.
@@ -31,6 +31,34 @@
 
 static struct id_pool wav;
 static struct id_pool bgm;
+
+static void apply_metadata(struct channel *ch, enum asset_type type, int no)
+{
+	const struct audio_meta *meta = audio_meta_get_by_number(type, no);
+	if (!meta) {
+		if (type == ASSET_SOUND)
+			channel_set_mixer(ch, 1);
+		else if (type == ASSET_BGM)
+			channel_set_loop_count(ch, 0);
+		return;
+	}
+	if (meta->fields & AUDIO_META_GROUP)
+		channel_set_mixer(ch, meta->group);
+	if (meta->fields & AUDIO_META_LOOP_COUNT)
+		channel_set_loop_count(ch, meta->loop_count);
+	if (meta->fields & AUDIO_META_LOOP_RANGE) {
+		channel_set_loop_start_pos(ch, meta->loop_start);
+		channel_set_loop_end_pos(ch, meta->loop_end);
+	}
+	if (meta->fields & AUDIO_META_VOLUME)
+		channel_set_volume(ch, meta->volume);
+}
+
+static struct channel *open_asset_channel(enum asset_type type, int no)
+{
+	struct archive_data *data = asset_get(type, no);
+	return data ? channel_open_archive_data(data) : NULL;
+}
 
 // Anonymous channels for playing sounds in-engine. audio_update must be called
 // periodically to clean up channels that have finished playing.
@@ -51,6 +79,7 @@ void audio_init(void)
 	}
 
 	mixer_init();
+	audio_meta_load();
 	audio_initialized = true;
 }
 
@@ -124,7 +153,9 @@ static int pool_prepare(struct id_pool *pool, int id, enum asset_type type, int 
 {
 	if (id < 0)
 		return 0;
-	struct channel *ch = channel_open(type, no);
+	struct channel *ch = open_asset_channel(type, no);
+	if (ch)
+		apply_metadata(ch, type, no);
 	struct channel *old = id_pool_set(pool, id, ch);
 	if (old)
 		channel_close(old);
@@ -362,7 +393,7 @@ int wav_get_time_length(int id) { return pool_get_time_length(&wav, id); }
 int bgm_get_time_length(int id) { return pool_get_time_length(&bgm, id); }
 
 static int get_data_length(enum asset_type type, int no) {
-	struct channel *ch = channel_open(type, no);
+	struct channel *ch = open_asset_channel(type, no);
 	if (!ch)
 		return 0;
 	int len = channel_get_time_length(ch);
@@ -410,7 +441,9 @@ static int pool_prepare_from_archive_data(struct id_pool *pool, int id,
 {
 	if (id < 0)
 		return 0;
-	struct channel *ch = channel_open_archive_data(dfile, type, metadata_no);
+	struct channel *ch = channel_open_archive_data(dfile);
+	if (ch && metadata_no >= 0)
+		apply_metadata(ch, type, metadata_no);
 	struct channel *old = id_pool_set(pool, id, ch);
 	if (old)
 		channel_close(old);
@@ -431,6 +464,6 @@ int bgm_prepare_from_archive_data(int id, int metadata_no, struct archive_data *
 
 int wav_get_group_num_from_data_num(int no)
 {
-	struct wai *wai = wai_get(no);
-	return wai ? wai->channel : 0;
+	const struct audio_meta *meta = audio_meta_get_by_number(ASSET_SOUND, no);
+	return meta ? meta->group : 0;
 }

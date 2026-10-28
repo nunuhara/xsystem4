@@ -19,27 +19,6 @@
 
 #include <stdbool.h>
 
-struct bgi {
-	int no;
-	int loop_count;
-	int loop_start;
-	int loop_end;
-	int channel;
-	int volume;
-};
-
-struct wai {
-	//int uk1;
-	//int uk2;
-	int channel;
-	//int uk3; // version 4+
-};
-
-void bgi_read(const char *path);
-struct bgi *bgi_get(int no);
-void wai_load(const char *path);
-struct wai *wai_get(int no);
-
 void mixer_init(void);
 int mixer_get_numof(void);
 const char *mixer_get_name(int n);
@@ -56,17 +35,17 @@ void mixer_stream_stop(int voice);
 
 struct archive_data;
 struct channel;
-enum asset_type;
-
-struct channel *channel_open(enum asset_type type, int no);
-// Takes ownership of dfile. Metadata is not applied if metadata_no is negative.
-struct channel *channel_open_archive_data(struct archive_data *dfile,
-					  enum asset_type type, int metadata_no);
+// Takes ownership of dfile.
+struct channel *channel_open_archive_data(struct archive_data *dfile);
 struct channel *channel_open_file(const char *path);
 void channel_close(struct channel *ch);
 int channel_play(struct channel *ch);
 int channel_stop(struct channel *ch);
 int channel_is_playing(struct channel *ch);
+// The channel must not be playing.
+int channel_set_mixer(struct channel *ch, int mixer_no);
+int channel_get_mixer(struct channel *ch);
+int channel_set_volume(struct channel *ch, int volume);
 int channel_set_loop_count(struct channel *ch, int count);
 int channel_get_loop_count(struct channel *ch);
 int channel_set_loop_start_pos(struct channel *ch, int pos);
