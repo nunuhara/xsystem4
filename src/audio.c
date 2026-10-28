@@ -120,7 +120,7 @@ bool audio_play_archive_data(struct archive_data *dfile)
 bool wav_exists(int no) { return asset_exists(ASSET_SOUND, no); }
 bool bgm_exists(int no) { return asset_exists(ASSET_BGM, no); }
 
-static int audio_prepare(struct id_pool *pool, int id, enum asset_type type, int no)
+static int pool_prepare(struct id_pool *pool, int id, enum asset_type type, int no)
 {
 	if (id < 0)
 		return 0;
@@ -131,10 +131,10 @@ static int audio_prepare(struct id_pool *pool, int id, enum asset_type type, int
 	return !!ch;
 }
 
-int wav_prepare(int id, int no) { return audio_prepare(&wav, id, ASSET_SOUND, no); }
-int bgm_prepare(int id, int no) { return audio_prepare(&bgm, id, ASSET_BGM, no); }
+int wav_prepare(int id, int no) { return pool_prepare(&wav, id, ASSET_SOUND, no); }
+int bgm_prepare(int id, int no) { return pool_prepare(&bgm, id, ASSET_BGM, no); }
 
-static int audio_unprepare(struct id_pool *pool, int id)
+static int pool_unprepare(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_release(pool, id);
 	if (!ch)
@@ -143,10 +143,10 @@ static int audio_unprepare(struct id_pool *pool, int id)
 	return 1;
 }
 
-int wav_unprepare(int id) { return audio_unprepare(&wav, id); }
-int bgm_unprepare(int id) { return audio_unprepare(&bgm, id); }
+int wav_unprepare(int id) { return pool_unprepare(&wav, id); }
+int bgm_unprepare(int id) { return pool_unprepare(&bgm, id); }
 
-static int audio_play(struct id_pool *pool, int id)
+static int pool_play(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch) {
@@ -156,10 +156,10 @@ static int audio_play(struct id_pool *pool, int id)
 	}
 	return channel_play(ch);
 }
-int wav_play(int id) { return audio_play(&wav, id); }
-int bgm_play(int id) { return audio_play(&bgm, id); }
+int wav_play(int id) { return pool_play(&wav, id); }
+int bgm_play(int id) { return pool_play(&bgm, id); }
 
-static int audio_stop(struct id_pool *pool, int id)
+static int pool_stop(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch) {
@@ -167,201 +167,201 @@ static int audio_stop(struct id_pool *pool, int id)
 	}
 	return channel_stop(ch);
 }
-int wav_stop(int id) { return audio_stop(&wav, id); }
-int bgm_stop(int id) { return audio_stop(&bgm, id); }
+int wav_stop(int id) { return pool_stop(&wav, id); }
+int bgm_stop(int id) { return pool_stop(&bgm, id); }
 
-static int audio_is_playing(struct id_pool *pool, int id)
+static int pool_is_playing(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	return ch && channel_is_playing(ch);
 }
-bool wav_is_playing(int id) { return audio_is_playing(&wav, id); }
-bool bgm_is_playing(int id) { return audio_is_playing(&bgm, id); }
+bool wav_is_playing(int id) { return pool_is_playing(&wav, id); }
+bool bgm_is_playing(int id) { return pool_is_playing(&bgm, id); }
 
-static int audio_set_loop_count(struct id_pool *pool, int id, int count)
+static int pool_set_loop_count(struct id_pool *pool, int id, int count)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_set_loop_count(ch, count);
 }
-int wav_set_loop_count(int id, int count) { return audio_set_loop_count(&wav, id, count); }
-int bgm_set_loop_count(int id, int count) { return audio_set_loop_count(&bgm, id, count); }
+int wav_set_loop_count(int id, int count) { return pool_set_loop_count(&wav, id, count); }
+int bgm_set_loop_count(int id, int count) { return pool_set_loop_count(&bgm, id, count); }
 
-static int audio_get_loop_count(struct id_pool *pool, int id)
+static int pool_get_loop_count(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_get_loop_count(ch);
 }
-int wav_get_loop_count(int id) { return audio_get_loop_count(&wav, id); }
-int bgm_get_loop_count(int id) { return audio_get_loop_count(&bgm, id); }
+int wav_get_loop_count(int id) { return pool_get_loop_count(&wav, id); }
+int bgm_get_loop_count(int id) { return pool_get_loop_count(&bgm, id); }
 
-static int audio_set_loop_start_pos(struct id_pool *pool, int id, int pos)
+static int pool_set_loop_start_pos(struct id_pool *pool, int id, int pos)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_set_loop_start_pos(ch, pos);
 }
-int wav_set_loop_start_pos(int id, int pos) { return audio_set_loop_start_pos(&wav, id, pos); }
-int bgm_set_loop_start_pos(int id, int pos) { return audio_set_loop_start_pos(&bgm, id, pos); }
+int wav_set_loop_start_pos(int id, int pos) { return pool_set_loop_start_pos(&wav, id, pos); }
+int bgm_set_loop_start_pos(int id, int pos) { return pool_set_loop_start_pos(&bgm, id, pos); }
 
-static int audio_set_loop_end_pos(struct id_pool *pool, int id, int pos)
+static int pool_set_loop_end_pos(struct id_pool *pool, int id, int pos)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_set_loop_end_pos(ch, pos);
 }
-int wav_set_loop_end_pos(int id, int pos) { return audio_set_loop_end_pos(&wav, id, pos); }
-int bgm_set_loop_end_pos(int id, int pos) { return audio_set_loop_end_pos(&bgm, id, pos); }
+int wav_set_loop_end_pos(int id, int pos) { return pool_set_loop_end_pos(&wav, id, pos); }
+int bgm_set_loop_end_pos(int id, int pos) { return pool_set_loop_end_pos(&bgm, id, pos); }
 
-static int audio_fade(struct id_pool *pool, int id, int time, int volume, bool stop)
+static int pool_fade(struct id_pool *pool, int id, int time, int volume, bool stop)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_fade(ch, time, volume, stop);
 }
-int wav_fade(int id, int time, int volume, bool stop) { return audio_fade(&wav, id, time, volume, stop); }
-int bgm_fade(int id, int time, int volume, bool stop) { return audio_fade(&bgm, id, time, volume, stop); }
+int wav_fade(int id, int time, int volume, bool stop) { return pool_fade(&wav, id, time, volume, stop); }
+int bgm_fade(int id, int time, int volume, bool stop) { return pool_fade(&bgm, id, time, volume, stop); }
 
-static int audio_stop_fade(struct id_pool *pool, int id)
+static int pool_stop_fade(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_stop_fade(ch);
 }
-int wav_stop_fade(int id) { return audio_stop_fade(&wav, id); }
-int bgm_stop_fade(int id) { return audio_stop_fade(&bgm, id); }
+int wav_stop_fade(int id) { return pool_stop_fade(&wav, id); }
+int bgm_stop_fade(int id) { return pool_stop_fade(&bgm, id); }
 
-static bool audio_is_fading(struct id_pool *pool, int id)
+static bool pool_is_fading(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_is_fading(ch);
 }
-bool wav_is_fading(int id) { return audio_is_fading(&wav, id); }
-bool bgm_is_fading(int id) { return audio_is_fading(&bgm, id); }
+bool wav_is_fading(int id) { return pool_is_fading(&wav, id); }
+bool bgm_is_fading(int id) { return pool_is_fading(&bgm, id); }
 
-static int audio_pause(struct id_pool *pool, int id)
+static int pool_pause(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_pause(ch);
 }
-int wav_pause(int id) { return audio_pause(&wav, id); }
-int bgm_pause(int id) { return audio_pause(&bgm, id); }
+int wav_pause(int id) { return pool_pause(&wav, id); }
+int bgm_pause(int id) { return pool_pause(&bgm, id); }
 
-static int audio_restart(struct id_pool *pool, int id)
+static int pool_restart(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_restart(ch);
 }
-int wav_restart(int id) { return audio_restart(&wav, id); }
-int bgm_restart(int id) { return audio_restart(&bgm, id); }
+int wav_restart(int id) { return pool_restart(&wav, id); }
+int bgm_restart(int id) { return pool_restart(&bgm, id); }
 
-static bool audio_is_paused(struct id_pool *pool, int id)
+static bool pool_is_paused(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_is_paused(ch);
 }
-bool wav_is_paused(int id) { return audio_is_paused(&wav, id); }
-bool bgm_is_paused(int id) { return audio_is_paused(&bgm, id); }
+bool wav_is_paused(int id) { return pool_is_paused(&wav, id); }
+bool bgm_is_paused(int id) { return pool_is_paused(&bgm, id); }
 
-static int audio_get_pos(struct id_pool *pool, int id)
+static int pool_get_pos(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_get_pos(ch);
 }
-int wav_get_pos(int id) { return audio_get_pos(&wav, id); }
-int bgm_get_pos(int id) { return audio_get_pos(&bgm, id); }
+int wav_get_pos(int id) { return pool_get_pos(&wav, id); }
+int bgm_get_pos(int id) { return pool_get_pos(&bgm, id); }
 
-static int audio_get_length(struct id_pool *pool, int id)
+static int pool_get_length(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_get_length(ch);
 }
-int wav_get_length(int id) { return audio_get_length(&wav, id); }
-int bgm_get_length(int id) { return audio_get_length(&bgm, id); }
+int wav_get_length(int id) { return pool_get_length(&wav, id); }
+int bgm_get_length(int id) { return pool_get_length(&bgm, id); }
 
-static int audio_get_sample_pos(struct id_pool *pool, int id)
+static int pool_get_sample_pos(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_get_sample_pos(ch);
 }
-int wav_get_sample_pos(int id) { return audio_get_sample_pos(&wav, id); }
-int bgm_get_sample_pos(int id) { return audio_get_sample_pos(&bgm, id); }
+int wav_get_sample_pos(int id) { return pool_get_sample_pos(&wav, id); }
+int bgm_get_sample_pos(int id) { return pool_get_sample_pos(&bgm, id); }
 
-static int audio_get_sample_length(struct id_pool *pool, int id)
+static int pool_get_sample_length(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_get_sample_length(ch);
 }
-int wav_get_sample_length(int id) { return audio_get_sample_length(&wav, id); }
-int bgm_get_sample_length(int id) { return audio_get_sample_length(&bgm, id); }
+int wav_get_sample_length(int id) { return pool_get_sample_length(&wav, id); }
+int bgm_get_sample_length(int id) { return pool_get_sample_length(&bgm, id); }
 
-static int audio_seek(struct id_pool *pool, int id, int pos)
+static int pool_seek(struct id_pool *pool, int id, int pos)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_seek(ch, pos);
 }
-int wav_seek(int id, int pos) { return audio_seek(&wav, id, pos); }
-int bgm_seek(int id, int pos) { return audio_seek(&bgm, id, pos); }
+int wav_seek(int id, int pos) { return pool_seek(&wav, id, pos); }
+int bgm_seek(int id, int pos) { return pool_seek(&bgm, id, pos); }
 
 int wav_get_unused_channel(void) { return id_pool_get_unused(&wav); }
 int bgm_get_unused_channel(void) { return id_pool_get_unused(&bgm); }
 
-static int audio_reverse_LR(struct id_pool *pool, int id)
+static int pool_reverse_LR(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_reverse_LR(ch);
 }
-int wav_reverse_LR(int id) { return audio_reverse_LR(&wav, id); }
-int bgm_reverse_LR(int id) { return audio_reverse_LR(&bgm, id); }
+int wav_reverse_LR(int id) { return pool_reverse_LR(&wav, id); }
+int bgm_reverse_LR(int id) { return pool_reverse_LR(&bgm, id); }
 
-static int audio_get_volume(struct id_pool *pool, int id)
+static int pool_get_volume(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_get_volume(ch);
 }
-int wav_get_volume(int id) { return audio_get_volume(&wav, id); }
-int bgm_get_volume(int id) { return audio_get_volume(&bgm, id); }
+int wav_get_volume(int id) { return pool_get_volume(&wav, id); }
+int bgm_get_volume(int id) { return pool_get_volume(&bgm, id); }
 
-static int audio_get_time_length(struct id_pool *pool, int id)
+static int pool_get_time_length(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
 	return channel_get_time_length(ch);
 }
-int wav_get_time_length(int id) { return audio_get_time_length(&wav, id); }
-int bgm_get_time_length(int id) { return audio_get_time_length(&bgm, id); }
+int wav_get_time_length(int id) { return pool_get_time_length(&wav, id); }
+int bgm_get_time_length(int id) { return pool_get_time_length(&bgm, id); }
 
-static int audio_get_data_length(enum asset_type type, int no) {
+static int get_data_length(enum asset_type type, int no) {
 	struct channel *ch = channel_open(type, no);
 	if (!ch)
 		return 0;
@@ -370,10 +370,10 @@ static int audio_get_data_length(enum asset_type type, int no) {
 	return len;
 }
 
-int wav_get_data_length(int no) { return audio_get_data_length(ASSET_SOUND, no); }
-int bgm_get_data_length(int no) { return audio_get_data_length(ASSET_BGM, no); }
+int wav_get_data_length(int no) { return get_data_length(ASSET_SOUND, no); }
+int bgm_get_data_length(int no) { return get_data_length(ASSET_BGM, no); }
 
-static int audio_get_data_no(struct id_pool *pool, int id)
+static int pool_get_data_no(struct id_pool *pool, int id)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
@@ -383,14 +383,14 @@ static int audio_get_data_no(struct id_pool *pool, int id)
 
 int wav_get_group_num(int id)
 {
-	int no = audio_get_data_no(&wav, id);
+	int no = pool_get_data_no(&wav, id);
 	if (no < 0)
 		return 0;
 	return wav_get_group_num_from_data_num(no);
 }
 //int bgm_get_group_num(int channel);
 
-static int audio_prepare_from_file(struct id_pool *pool, int id, char *filename)
+static int pool_prepare_from_file(struct id_pool *pool, int id, char *filename)
 {
 	if (id < 0)
 		return 0;
@@ -401,12 +401,12 @@ static int audio_prepare_from_file(struct id_pool *pool, int id, char *filename)
 	return !!ch;
 }
 
-int wav_prepare_from_file(int id, char *filename) { return audio_prepare_from_file(&wav, id, filename); }
-int bgm_prepare_from_file(int id, char *filename) { return audio_prepare_from_file(&bgm, id, filename); }
+int wav_prepare_from_file(int id, char *filename) { return pool_prepare_from_file(&wav, id, filename); }
+int bgm_prepare_from_file(int id, char *filename) { return pool_prepare_from_file(&bgm, id, filename); }
 
-static int audio_prepare_from_archive_data(struct id_pool *pool, int id,
-					   enum asset_type type, int metadata_no,
-					   struct archive_data *dfile)
+static int pool_prepare_from_archive_data(struct id_pool *pool, int id,
+					  enum asset_type type, int metadata_no,
+					  struct archive_data *dfile)
 {
 	if (id < 0)
 		return 0;
@@ -419,13 +419,13 @@ static int audio_prepare_from_archive_data(struct id_pool *pool, int id,
 
 int wav_prepare_from_archive_data(int id, int metadata_no, struct archive_data *dfile)
 {
-	return audio_prepare_from_archive_data(
+	return pool_prepare_from_archive_data(
 		&wav, id, ASSET_SOUND, metadata_no, dfile);
 }
 
 int bgm_prepare_from_archive_data(int id, int metadata_no, struct archive_data *dfile)
 {
-	return audio_prepare_from_archive_data(
+	return pool_prepare_from_archive_data(
 		&bgm, id, ASSET_BGM, metadata_no, dfile);
 }
 
