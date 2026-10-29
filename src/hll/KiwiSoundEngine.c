@@ -154,4 +154,6 @@ static void KiwiSoundEngine_PreLink(void)
 		static_library_replace(&lib_KiwiSoundEngine, "Sound_IsExist", rance9_wav_exists);
 		static_library_replace(&lib_KiwiSoundEngine, "Sound_Prepare", rance9_wav_prepare);
 	}
+	if (ain_get_library_function(ain, libno, "Prepare") >= 0)
+		audio_meta_load_timemap();
 }

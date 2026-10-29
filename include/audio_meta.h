@@ -18,6 +18,7 @@
 #define SYSTEM4_AUDIO_META_H
 
 enum asset_type;
+struct string;
 
 enum audio_meta_field {
 	AUDIO_META_GROUP = 1 << 0,
@@ -36,6 +37,9 @@ struct audio_meta {
 };
 
 void audio_meta_load(void);
+void audio_meta_load_timemap(void);
 const struct audio_meta *audio_meta_get_by_number(enum asset_type type, int no);
+const struct audio_meta *audio_meta_get_by_name(const char *name);
+struct string *audio_meta_get_sound_name_by_number(int number);
 
 #endif
