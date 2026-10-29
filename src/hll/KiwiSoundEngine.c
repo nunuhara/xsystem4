@@ -18,11 +18,13 @@
 
 #include "system4.h"
 #include "system4/ain.h"
+#include "system4/string.h"
 
 #include "vm.h"
 #include "hll.h"
 #include "asset_manager.h"
 #include "audio.h"
+#include "audio_meta.h"
 
 HLL_WARN_UNIMPLEMENTED( , void, KiwiSoundEngine, SetGlobalFocus, possibly_unused int nNum);
 
@@ -57,6 +59,20 @@ static int KiwiSoundEngine_GetGimicSEGroup(void)
 static int KiwiSoundEngine_GetBackVoiceGroup(void)
 {
 	return 0;
+}
+
+static int KiwiSoundEngine_MillisecondsToSamples(int ms, int samples_per_sec)
+{
+	return (int)((int64_t)ms * samples_per_sec / 1000);
+}
+
+static int KiwiSoundEngine_GetSoundFileName(int num, struct string **file_name)
+{
+	struct string *name = audio_meta_get_sound_name_by_number(num);
+	if (*file_name)
+		free_string(*file_name);
+	*file_name = string_ref(name ? name : &EMPTY_STRING);
+	return name != NULL;
 }
 
 static bool rance9_bgm_exists(int num)
@@ -140,7 +156,38 @@ HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(GetSEGroup, KiwiSoundEngine_GetSEGroup),
 	    HLL_EXPORT(GetVoiceGroup, KiwiSoundEngine_GetVoiceGroup),
 	    HLL_EXPORT(GetGimicSEGroup, KiwiSoundEngine_GetGimicSEGroup),
-	    HLL_EXPORT(GetBackVoiceGroup, KiwiSoundEngine_GetBackVoiceGroup)
+	    HLL_EXPORT(GetBackVoiceGroup, KiwiSoundEngine_GetBackVoiceGroup),
+	    HLL_TODO_EXPORT(GetFreeSeID, KiwiSoundEngine_GetFreeSeID),
+	    HLL_EXPORT(IsExistSeID, audio_se_exists),
+	    HLL_EXPORT(SetSeParam, audio_se_set_params),
+	    HLL_EXPORT(PlaySe, audio_se_play),
+	    HLL_EXPORT(StopSe, audio_se_stop),
+	    HLL_EXPORT(IsPlaySe, audio_se_is_playing),
+	    HLL_TODO_EXPORT(GetFreeID, KiwiSoundEngine_GetFreeID),
+	    HLL_EXPORT(IsExistID, audio_id_exists),
+	    HLL_EXPORT(Prepare, audio_prepare),
+	    HLL_EXPORT(Unprepare, audio_unprepare),
+	    HLL_EXPORT(Play, audio_play),
+	    HLL_EXPORT(Stop, audio_stop),
+	    HLL_EXPORT(IsPlay, audio_is_playing),
+	    HLL_EXPORT(SetLoopCount, audio_set_loop_count),
+	    HLL_EXPORT(GetLoopCount, audio_get_loop_count),
+	    HLL_EXPORT(Pause, audio_pause),
+	    HLL_EXPORT(Restart, audio_restart),
+	    HLL_EXPORT(IsPause, audio_is_paused),
+	    HLL_EXPORT(Fade, audio_fade),
+	    HLL_EXPORT(StopFade, audio_stop_fade),
+	    HLL_EXPORT(IsFade, audio_is_fading),
+	    HLL_EXPORT(Seek, audio_seek),
+	    HLL_EXPORT(GetPos, audio_get_pos),
+	    HLL_EXPORT(GetLength, audio_get_length),
+	    HLL_EXPORT(GetGroupNum, audio_get_group),
+	    HLL_EXPORT(IsExistFile, audio_exists_by_name),
+	    HLL_EXPORT(GetLengthFromFile, audio_get_length_by_name),
+	    HLL_EXPORT(GetGroupNumFromFile, audio_get_group_by_name),
+	    HLL_EXPORT(GetGroupVolume, audio_get_group_volume),
+	    HLL_EXPORT(MillisecondsToSamples, KiwiSoundEngine_MillisecondsToSamples),
+	    HLL_EXPORT(GetSoundFileName, KiwiSoundEngine_GetSoundFileName)
 	);
 
 static void KiwiSoundEngine_PreLink(void)

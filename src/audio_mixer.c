@@ -707,6 +707,23 @@ int mixer_get_volume(int n, int *volume)
 	return 1;
 }
 
+float mixer_get_effective_volume(int n)
+{
+	if (n < 0 || n >= nr_mixers)
+		return 0.0f;
+	SDL_LockAudioDevice(audio_device);
+	float volume = 1.0f;
+	for (struct mixer *m = &mixers[n]; m; m = m->parent) {
+		if (m->muted) {
+			volume = 0.0f;
+			break;
+		}
+		volume *= m->mixer.gain;
+	}
+	SDL_UnlockAudioDevice(audio_device);
+	return volume;
+}
+
 int mixer_set_volume(int n, int volume)
 {
 	if (n < 0 || n >= config.mixer_nr_channels)

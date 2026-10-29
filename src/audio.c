@@ -15,14 +15,18 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "system4.h"
+#include "system4/string.h"
 
 #include "asset_manager.h"
 #include "audio.h"
 #include "audio_meta.h"
 #include "id_pool.h"
 #include "mixer.h"
+#include "queue.h"
 
 /*
  * Common audio interface for SACT2/KiwiSoundEngine.
@@ -31,17 +35,51 @@
 
 static struct id_pool wav;
 static struct id_pool bgm;
+static struct id_pool channels;
+static struct id_pool se_players;
 
-static void apply_metadata(struct channel *ch, enum asset_type type, int no)
+struct audio_se_playback {
+	LIST_ENTRY(audio_se_playback) entry;
+	struct channel *channel;
+	struct string *name;
+};
+
+struct audio_se_player {
+	// Minimum time in milliseconds between two playbacks of the same sound.
+	int play_span;
+	// If false, a new playback stops the playbacks of the same sound.
+	bool multi_play;
+	LIST_HEAD(, audio_se_playback) playbacks;
+};
+
+static void se_playback_remove(struct audio_se_playback *playback)
 {
-	const struct audio_meta *meta = audio_meta_get_by_number(type, no);
-	if (!meta) {
-		if (type == ASSET_SOUND)
-			channel_set_mixer(ch, 1);
-		else if (type == ASSET_BGM)
-			channel_set_loop_count(ch, 0);
-		return;
+	LIST_REMOVE(playback, entry);
+	channel_close(playback->channel);
+	free_string(playback->name);
+	free(playback);
+}
+
+static void se_stop_all(struct audio_se_player *player)
+{
+	while (!LIST_EMPTY(&player->playbacks))
+		se_playback_remove(LIST_FIRST(&player->playbacks));
+}
+
+static void se_cleanup(struct audio_se_player *player)
+{
+	struct audio_se_playback *p, *next;
+	for (p = LIST_FIRST(&player->playbacks); p; p = next) {
+		next = LIST_NEXT(p, entry);
+		if (!channel_is_playing(p->channel))
+			se_playback_remove(p);
 	}
+}
+
+static void apply_metadata(struct channel *ch, const struct audio_meta *meta)
+{
+	if (!meta)
+		return;
 	if (meta->fields & AUDIO_META_GROUP)
 		channel_set_mixer(ch, meta->group);
 	if (meta->fields & AUDIO_META_LOOP_COUNT)
@@ -52,6 +90,19 @@ static void apply_metadata(struct channel *ch, enum asset_type type, int no)
 	}
 	if (meta->fields & AUDIO_META_VOLUME)
 		channel_set_volume(ch, meta->volume);
+}
+
+static void apply_numbered_metadata(struct channel *ch, enum asset_type type, int no)
+{
+	const struct audio_meta *meta = audio_meta_get_by_number(type, no);
+	if (!meta) {
+		if (type == ASSET_SOUND)
+			channel_set_mixer(ch, 1);
+		else if (type == ASSET_BGM)
+			channel_set_loop_count(ch, 0);
+		return;
+	}
+	apply_metadata(ch, meta);
 }
 
 static struct channel *open_asset_channel(enum asset_type type, int no)
@@ -73,6 +124,8 @@ void audio_init(void)
 
 	id_pool_init(&wav, 0);
 	id_pool_init(&bgm, 0);
+	id_pool_init(&channels, 0);
+	id_pool_init(&se_players, 0);
 
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
 		anonymous_channels[i] = -1;
@@ -85,6 +138,13 @@ void audio_init(void)
 
 void audio_reset(void)
 {
+	for (int i = id_pool_get_first(&channels); i >= 0; i = id_pool_get_next(&channels, i))
+		audio_unprepare(i);
+	for (int i = id_pool_get_first(&se_players); i >= 0; i = id_pool_get_next(&se_players, i)) {
+		struct audio_se_player *player = id_pool_release(&se_players, i);
+		se_stop_all(player);
+		free(player);
+	}
 	for (int i = id_pool_get_first(&wav); i >= 0; i = id_pool_get_next(&wav, i)) {
 		wav_unprepare(i);
 	}
@@ -98,6 +158,8 @@ void audio_reset(void)
 
 void audio_update(void)
 {
+	for (int i = id_pool_get_first(&se_players); i >= 0; i = id_pool_get_next(&se_players, i))
+		se_cleanup(id_pool_get(&se_players, i));
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
 		if (anonymous_channels[i] >= 0) {
 			if (!wav_is_playing(anonymous_channels[i])) {
@@ -155,7 +217,7 @@ static int pool_prepare(struct id_pool *pool, int id, enum asset_type type, int 
 		return 0;
 	struct channel *ch = open_asset_channel(type, no);
 	if (ch)
-		apply_metadata(ch, type, no);
+		apply_numbered_metadata(ch, type, no);
 	struct channel *old = id_pool_set(pool, id, ch);
 	if (old)
 		channel_close(old);
@@ -443,7 +505,7 @@ static int pool_prepare_from_archive_data(struct id_pool *pool, int id,
 		return 0;
 	struct channel *ch = channel_open_archive_data(dfile);
 	if (ch && metadata_no >= 0)
-		apply_metadata(ch, type, metadata_no);
+		apply_numbered_metadata(ch, type, metadata_no);
 	struct channel *old = id_pool_set(pool, id, ch);
 	if (old)
 		channel_close(old);
@@ -466,4 +528,186 @@ int wav_get_group_num_from_data_num(int no)
 {
 	const struct audio_meta *meta = audio_meta_get_by_number(ASSET_SOUND, no);
 	return meta ? meta->group : 0;
+}
+
+enum sound_group {
+	SOUND_GROUP_BGM = 1,
+	SOUND_GROUP_SE = 2,
+};
+
+static struct archive_data *audio_get_named_data(const char *name)
+{
+	struct archive_data *data = asset_get_by_name(ASSET_SOUND, name, NULL);
+	return data ? data : asset_get_by_name(ASSET_VOICE, name, NULL);
+}
+
+static struct channel *audio_open_named(const char *name, bool streaming)
+{
+	struct archive_data *data = audio_get_named_data(name);
+	if (!data)
+		return NULL;
+	struct channel *ch = channel_open_archive_data(data);
+	if (!ch)
+		return NULL;
+	const struct audio_meta *meta = audio_meta_get_by_name(name);
+	if (!meta)
+		channel_set_mixer(ch, streaming ? SOUND_GROUP_BGM : SOUND_GROUP_SE);
+	channel_set_loop_count(ch, streaming ? 0 : 1);
+	apply_metadata(ch, meta);
+	return ch;
+}
+
+bool audio_id_exists(int id) { return id_pool_get(&channels, id) != NULL; }
+
+bool audio_prepare(int id, struct string *name, bool streaming)
+{
+	if (id < 0)
+		return false;
+	struct channel *ch = audio_open_named(name->text, streaming);
+	if (!ch)
+		return false;
+	struct channel *old = id_pool_set(&channels, id, ch);
+	if (old)
+		channel_close(old);
+	return true;
+}
+
+bool audio_unprepare(int id) { return pool_unprepare(&channels, id); }
+
+static struct channel *audio_channel(int id) { return id_pool_get(&channels, id); }
+
+bool audio_play(int id) { struct channel *ch = audio_channel(id); return ch && channel_play(ch); }
+bool audio_stop(int id) { struct channel *ch = audio_channel(id); return ch && channel_stop(ch); }
+bool audio_is_playing(int id) { struct channel *ch = audio_channel(id); return ch && channel_is_playing(ch); }
+
+bool audio_set_loop_count(int id, int count) { struct channel *ch = audio_channel(id); return ch && channel_set_loop_count(ch, count); }
+int audio_get_loop_count(int id) { struct channel *ch = audio_channel(id); return ch ? channel_get_loop_count(ch) : 0; }
+
+bool audio_pause(int id) { struct channel *ch = audio_channel(id); return ch && channel_pause(ch); }
+bool audio_restart(int id) { struct channel *ch = audio_channel(id); return ch && channel_restart(ch); }
+bool audio_is_paused(int id) { struct channel *ch = audio_channel(id); return ch && channel_is_paused(ch); }
+
+bool audio_fade(int id, int time, float volume, bool stop, int curve)
+{
+	struct channel *ch = audio_channel(id);
+	if (!ch)
+		return false;
+	if (curve != 0)
+		WARNING("Unknown fade curve %d", curve);
+	return channel_fade(ch, time > 0 ? time : 0, (int)(volume * 100 + 0.5f), stop);
+}
+
+bool audio_stop_fade(int id) { struct channel *ch = audio_channel(id); return ch && channel_stop_fade(ch); }
+bool audio_is_fading(int id) { struct channel *ch = audio_channel(id); return ch && channel_is_fading(ch); }
+bool audio_seek(int id, int milliseconds) { struct channel *ch = audio_channel(id); return ch && channel_seek(ch, milliseconds); }
+int audio_get_pos(int id) { struct channel *ch = audio_channel(id); return ch ? channel_get_pos(ch) : 0; }
+int audio_get_length(int id) { struct channel *ch = audio_channel(id); return ch ? channel_get_length(ch) : 0; }
+int audio_get_group(int id) { struct channel *ch = audio_channel(id); return ch ? channel_get_mixer(ch) : 0; }
+
+bool audio_se_exists(int se_id) { return id_pool_get(&se_players, se_id) != NULL; }
+
+static struct audio_se_player *se_player_get_or_create(int id)
+{
+	if (id < 0)
+		return NULL;
+	struct audio_se_player *player = id_pool_get(&se_players, id);
+	if (!player) {
+		player = xcalloc(1, sizeof(*player));
+		player->multi_play = true;
+		id_pool_set(&se_players, id, player);
+	}
+	return player;
+}
+
+bool audio_se_set_params(int se_id, int play_span, bool multi_play)
+{
+	struct audio_se_player *player = se_player_get_or_create(se_id);
+	if (!player)
+		return false;
+	player->play_span = play_span;
+	player->multi_play = multi_play;
+	return true;
+}
+
+bool audio_se_play(int se_id, struct string *name)
+{
+	struct audio_se_player *player = se_player_get_or_create(se_id);
+	if (!player)
+		return false;
+	se_cleanup(player);
+	// play_span and multi_play apply only to playbacks of the same sound.
+	struct audio_se_playback *p;
+	LIST_FOREACH(p, &player->playbacks, entry) {
+		if (!strcmp(p->name->text, name->text)
+				&& channel_get_pos(p->channel) < player->play_span)
+			return false;
+	}
+	if (!player->multi_play) {
+		struct audio_se_playback *next;
+		for (p = LIST_FIRST(&player->playbacks); p; p = next) {
+			next = LIST_NEXT(p, entry);
+			if (!strcmp(p->name->text, name->text))
+				se_playback_remove(p);
+		}
+	}
+	struct channel *ch = audio_open_named(name->text, false);
+	if (!ch)
+		return false;
+	if (!channel_play(ch)) {
+		channel_close(ch);
+		return false;
+	}
+	p = xmalloc(sizeof(*p));
+	p->channel = ch;
+	p->name = string_ref(name);
+	LIST_INSERT_HEAD(&player->playbacks, p, entry);
+	return true;
+}
+
+bool audio_se_stop(int se_id)
+{
+	struct audio_se_player *player = id_pool_get(&se_players, se_id);
+	if (!player)
+		return false;
+	se_stop_all(player);
+	return true;
+}
+
+bool audio_se_is_playing(int se_id)
+{
+	struct audio_se_player *player = id_pool_get(&se_players, se_id);
+	if (!player)
+		return false;
+	se_cleanup(player);
+	return !LIST_EMPTY(&player->playbacks);
+}
+
+bool audio_exists_by_name(struct string *name)
+{
+	return asset_exists_by_name(ASSET_SOUND, name->text, NULL) ||
+		asset_exists_by_name(ASSET_VOICE, name->text, NULL);
+}
+
+int audio_get_length_by_name(struct string *name)
+{
+	struct archive_data *data = audio_get_named_data(name->text);
+	if (!data)
+		return 0;
+	struct channel *ch = channel_open_archive_data(data);
+	if (!ch)
+		return 0;
+	int length = channel_get_length(ch);
+	channel_close(ch);
+	return length;
+}
+
+int audio_get_group_by_name(struct string *name)
+{
+	const struct audio_meta *meta = audio_meta_get_by_name(name->text);
+	return meta ? meta->group : SOUND_GROUP_SE;
+}
+
+float audio_get_group_volume(int group)
+{
+	return mixer_get_effective_volume(group);
 }
