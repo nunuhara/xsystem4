@@ -16,17 +16,28 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "system4.h"
+#include "system4/archive.h"
+#include "system4/ex.h"
 #include "system4/file.h"
+#include "system4/hashtable.h"
 #include "system4/little_endian.h"
+#include "system4/string.h"
 
-#include "mixer.h"
+#include "asset_manager.h"
+#include "audio_meta.h"
 #include "xsystem4.h"
 
 #define BGI_MAX 100
 
-static int bgi_nfile;
-static struct bgi bgi_data[BGI_MAX];
+struct bgi_entry {
+	int no;
+	struct audio_meta meta;
+};
+
+static int nr_bgi;
+static struct bgi_entry bgi_entries[BGI_MAX];
 
 static char *bgi_gets(char *buf, int n, FILE *fp)
 {
@@ -44,7 +55,7 @@ static char *bgi_gets(char *buf, int n, FILE *fp)
 	return buf;
 }
 
-void bgi_read(const char *path)
+static void load_bgi(const char *path)
 {
 	FILE *fp = file_open_utf8(path, "rb");
 	if (!fp) {
@@ -53,54 +64,50 @@ void bgi_read(const char *path)
 	}
 
 	char buf[256];
-	bgi_nfile = 0;
-	while (bgi_nfile < BGI_MAX && bgi_gets(buf, sizeof(buf), fp)) {
+	nr_bgi = 0;
+	while (nr_bgi < BGI_MAX && bgi_gets(buf, sizeof(buf), fp)) {
+		struct bgi_entry *e = &bgi_entries[nr_bgi];
 		int terminator;
 		if (sscanf(buf, " %d, %d, %d, %d, %d",
-			   &bgi_data[bgi_nfile].no,
-			   &bgi_data[bgi_nfile].loop_count,
-			   &bgi_data[bgi_nfile].loop_start,
-			   &bgi_data[bgi_nfile].loop_end,
+			   &e->no,
+			   &e->meta.loop_count,
+			   &e->meta.loop_start,
+			   &e->meta.loop_end,
 			   &terminator) != 5) {
 			continue;
 		} else if (terminator != -1) {
 			goto new_format;
 		}
-		bgi_data[bgi_nfile].channel = -1;
-		bgi_data[bgi_nfile].volume = 100;
-		bgi_nfile++;
+		e->meta.fields = AUDIO_META_LOOP_COUNT | AUDIO_META_LOOP_RANGE;
+		nr_bgi++;
 	}
+	fclose(fp);
 	return;
 new_format:
 	fseek(fp, 0, SEEK_SET);
-	bgi_nfile = 0;
-	while (bgi_nfile < BGI_MAX && bgi_gets(buf, sizeof(buf), fp)) {
+	nr_bgi = 0;
+	while (nr_bgi < BGI_MAX && bgi_gets(buf, sizeof(buf), fp)) {
+		struct bgi_entry *e = &bgi_entries[nr_bgi];
 		if (sscanf(buf, " %d, %d, %d, %d, %d, %d",
-			   &bgi_data[bgi_nfile].no,
-			   &bgi_data[bgi_nfile].loop_count,
-			   &bgi_data[bgi_nfile].loop_start,
-			   &bgi_data[bgi_nfile].loop_end,
-			   &bgi_data[bgi_nfile].channel,
-			   &bgi_data[bgi_nfile].volume) != 6) {
+			   &e->no,
+			   &e->meta.loop_count,
+			   &e->meta.loop_start,
+			   &e->meta.loop_end,
+			   &e->meta.group,
+			   &e->meta.volume) != 6) {
 			continue;
 		}
-		bgi_nfile++;
+		e->meta.fields = AUDIO_META_GROUP | AUDIO_META_LOOP_COUNT |
+			AUDIO_META_LOOP_RANGE | AUDIO_META_VOLUME;
+		nr_bgi++;
 	}
+	fclose(fp);
 }
 
-struct bgi *bgi_get(int no)
-{
-	for (int i = 0; i < bgi_nfile; i++) {
-		if (bgi_data[i].no == no)
-			return &bgi_data[i];
-	}
-	return NULL;
-}
-
-static struct wai *wai_data = NULL;
 static int nr_wai = 0;
+static struct audio_meta *wai_meta;
 
-void wai_load(const char *path)
+static void load_wai(const char *path)
 {
 	size_t len;
 	uint8_t *file = file_read(path, &len);
@@ -135,9 +142,13 @@ void wai_load(const char *path)
 		goto end;
 	}
 
-	wai_data = xcalloc(count, sizeof(struct wai));
+	free(wai_meta);
+	wai_meta = xcalloc(count, sizeof(struct audio_meta));
 	for (int i = 0; i < count; i++) {
-		wai_data[i].channel = LittleEndian_getDW(data, i*record_size + 8);
+		wai_meta[i] = (struct audio_meta) {
+			.fields = AUDIO_META_GROUP,
+			.group = LittleEndian_getDW(data, i*record_size + 8),
+		};
 	}
 	nr_wai = count;
 
@@ -145,10 +156,125 @@ end:
 	free(file);
 }
 
-struct wai *wai_get(int no)
+struct timemap_entry {
+	struct string *name;
+	struct audio_meta meta;
+};
+
+static struct timemap_entry *timemap;
+static size_t nr_timemap;
+static size_t timemap_capacity;
+static struct hash_table *timemap_meta_by_name;
+static struct hash_table *timemap_name_by_number;
+
+static struct ex_value *get_cell(struct ex_table *table, unsigned row, int col,
+				 enum ex_value_type type)
 {
-	no--;
-	if (no < 0 || no >= nr_wai)
+	struct ex_value *v = ex_table_get(table, row, col);
+	return v && v->type == type ? v : NULL;
+}
+
+static void load_timemap(enum asset_type type, const char *name)
+{
+	struct archive_data *data = asset_get_by_name(type, name, NULL);
+	if (!data)
+		return;
+	struct ex *ex = ex_read(data->data, data->size);
+	archive_free_data(data);
+	if (!ex)
+		return;
+	struct ex_table *table = ex_get_table(ex, "SoundInfo");
+	if (!table)
+		goto done;
+	int name_col = ex_col_from_name(table, "Name");
+	int group_col = ex_col_from_name(table, "Group");
+	int begin_col = ex_col_from_name(table, "LoopBeginSample");
+	int end_col = ex_col_from_name(table, "LoopEndSample");
+	if (name_col < 0 || group_col < 0 || begin_col < 0 || end_col < 0)
+		goto done;
+	for (unsigned row = 0; row < table->nr_rows; row++) {
+		struct ex_value *name_v = get_cell(table, row, name_col, EX_STRING);
+		struct ex_value *group_v = get_cell(table, row, group_col, EX_INT);
+		struct ex_value *begin_v = get_cell(table, row, begin_col, EX_INT);
+		struct ex_value *end_v = get_cell(table, row, end_col, EX_INT);
+		if (!name_v || !group_v || !begin_v || !end_v)
+			continue;
+		if (nr_timemap == timemap_capacity) {
+			timemap_capacity = timemap_capacity ? timemap_capacity * 2 : 64;
+			timemap = xrealloc(timemap, timemap_capacity * sizeof(*timemap));
+		}
+		timemap[nr_timemap++] = (struct timemap_entry) {
+			.name = string_ref(name_v->s),
+			.meta = { .fields = AUDIO_META_GROUP | AUDIO_META_LOOP_RANGE,
+				.group = group_v->i, .loop_start = begin_v->i,
+				.loop_end = end_v->i },
+		};
+	}
+done:
+	ex_free(ex);
+}
+
+static void index_timemap(void)
+{
+	timemap_meta_by_name = ht_create(nr_timemap * 3 / 2);
+	timemap_name_by_number = ht_create(nr_timemap * 3 / 2);
+	for (size_t i = 0; i < nr_timemap; i++) {
+		struct timemap_entry *e = &timemap[i];
+		// When two entries have the same name, use the entry that was loaded first.
+		struct ht_slot *name_slot = ht_put(timemap_meta_by_name, e->name->text, &e->meta);
+		if (name_slot->value != &e->meta)
+			continue;
+
+		int number;
+		if (sscanf(e->name->text, "%d", &number) != 1)
+			continue;
+		// When two names start with the same number, use the name that is first in name order.
+		struct ht_slot *number_slot = ht_put_int(timemap_name_by_number, number, e->name);
+		struct string *first = number_slot->value;
+		if (strcmp(e->name->text, first->text) < 0)
+			number_slot->value = e->name;
+	}
+}
+
+void audio_meta_load(void)
+{
+	if (config.bgi_path)
+		load_bgi(config.bgi_path);
+	if (config.wai_path)
+		load_wai(config.wai_path);
+}
+
+void audio_meta_load_timemap(void)
+{
+	if (timemap_meta_by_name)
+		return;
+	load_timemap(ASSET_SOUND, "timemap_sound");
+	load_timemap(ASSET_VOICE, "timemap_voice");
+	index_timemap();
+}
+
+const struct audio_meta *audio_meta_get_by_number(enum asset_type type, int no)
+{
+	if (type == ASSET_BGM) {
+		for (int i = 0; i < nr_bgi; i++)
+			if (bgi_entries[i].no == no)
+				return &bgi_entries[i].meta;
+	} else if (type == ASSET_SOUND && no > 0 && no <= nr_wai) {
+		return &wai_meta[no - 1];
+	}
+	return NULL;
+}
+
+const struct audio_meta *audio_meta_get_by_name(const char *name)
+{
+	if (!timemap_meta_by_name)
 		return NULL;
-	return &wai_data[no];
+	return ht_get(timemap_meta_by_name, name, NULL);
+}
+
+struct string *audio_meta_get_sound_name_by_number(int number)
+{
+	if (!timemap_name_by_number)
+		return NULL;
+	return ht_get_int(timemap_name_by_number, number, NULL);
 }
