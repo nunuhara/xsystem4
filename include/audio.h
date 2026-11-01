@@ -22,6 +22,7 @@
 #define AUDIO_NO_METADATA -1
 
 struct archive_data;
+struct string;
 
 void audio_init(void);
 void audio_reset(void);
@@ -29,6 +30,36 @@ void audio_update(void);
 bool audio_play_sound(int sound_no);
 // Takes ownership of dfile.
 bool audio_play_archive_data(struct archive_data *dfile);
+
+bool audio_id_exists(int id);
+bool audio_prepare(int id, struct string *name, bool streaming);
+bool audio_unprepare(int id);
+bool audio_play(int id);
+bool audio_stop(int id);
+bool audio_is_playing(int id);
+bool audio_set_loop_count(int id, int count);
+int audio_get_loop_count(int id);
+bool audio_pause(int id);
+bool audio_restart(int id);
+bool audio_is_paused(int id);
+bool audio_fade(int id, int time, float volume, bool stop, int curve);
+bool audio_stop_fade(int id);
+bool audio_is_fading(int id);
+bool audio_seek(int id, int milliseconds);
+int audio_get_pos(int id);
+int audio_get_length(int id);
+int audio_get_group(int id);
+
+bool audio_se_exists(int se_id);
+bool audio_se_set_params(int se_id, int play_span, bool multi_play);
+bool audio_se_play(int se_id, struct string *name);
+bool audio_se_stop(int se_id);
+bool audio_se_is_playing(int se_id);
+
+bool audio_exists_by_name(struct string *name);
+int audio_get_length_by_name(struct string *name);
+int audio_get_group_by_name(struct string *name);
+float audio_get_group_volume(int group);
 
 bool wav_exists(int no);
 bool bgm_exists(int no);
