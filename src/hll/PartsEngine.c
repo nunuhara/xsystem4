@@ -99,6 +99,12 @@ static void PartsEngine_AddComponentMotionPos(int parts_no, float begin_x, float
 			begin_t, end_t, curve_name);
 }
 
+// Evenicle: return type changed from int to float
+static float PartsEngine_GetLayoutBoxReturnSize_float(int parts_no)
+{
+	return PE_GetLayoutBoxReturnSize(parts_no);
+}
+
 static void PartsEngine_add_construction_process(union vm_value *ints,
 		union vm_value *floats, union vm_value *strings)
 {
@@ -307,6 +313,10 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		REQUIRE_INTS(2);
 		ints[1].i = PE_parts_get_absolute_z(ints[0].i);
 		return 1;
+	case 46:  // int PARTS_GetAbsoluteMaxZ(int number)
+		REQUIRE_INTS(2);
+		ints[1].i = PE_parts_get_absolute_max_z(ints[0].i);
+		return 1;
 	case 48:  // void PARTS_SetLockInputState(int number, bool lock)
 		REQUIRE_INTS(2);
 		PE_parts_set_lock_input_state(ints[0].i, !!ints[1].i);
@@ -349,6 +359,11 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		}
 		return 1;
 	}
+	case 158:  // void SetFlatUpdateSpeedRate(int parts_no, float rate, int state)
+		REQUIRE_INTS(2);
+		REQUIRE_FLOATS(1);
+		PE_SetFlatUpdateSpeedRate(ints[0].i, floats[0].f, ints[1].i);
+		return 1;
 	case 162:  // AddConstructProcess(ArrayInt[32], ArrayFloat[2], ArrayString[2])
 		REQUIRE_INTS(32);
 		REQUIRE_FLOATS(2);
@@ -893,7 +908,74 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_TODO_EXPORT(Parts_IsPartsPixelDecide, PartsEngine_Parts_IsPartsPixelDecide),
 	    HLL_EXPORT(Parts_IsCursorIn, PE_IsCursorIn),
 	    HLL_TODO_EXPORT(SaveParts, PartsEngine_SaveParts),
-	    HLL_TODO_EXPORT(LoadParts, PartsEngine_LoadParts)
+	    HLL_TODO_EXPORT(LoadParts, PartsEngine_LoadParts),
+	    // Evenicle
+	    HLL_TODO_EXPORT(GetActiveParts, PartsEngine_GetActiveParts),
+	    HLL_TODO_EXPORT(SetClickMissSoundName, PartsEngine_SetClickMissSoundName),
+	    HLL_TODO_EXPORT(GetClickMissSoundName, PartsEngine_GetClickMissSoundName),
+	    HLL_TODO_EXPORT(AddComponentMotionAddColor, PartsEngine_AddComponentMotionAddColor),
+	    HLL_TODO_EXPORT(AddComponentMotionMulColor, PartsEngine_AddComponentMotionMulColor),
+	    HLL_TODO_EXPORT(Parts_SetSoundName, PartsEngine_Parts_SetSoundName),
+	    HLL_TODO_EXPORT(Parts_GetSoundName, PartsEngine_Parts_GetSoundName),
+	    HLL_TODO_EXPORT(Parts_SetPosForRate, PartsEngine_Parts_SetPosForRate),
+	    HLL_TODO_EXPORT(Parts_IsPosForRate, PartsEngine_Parts_IsPosForRate),
+	    HLL_TODO_EXPORT(SetButtonFlatName, PartsEngine_SetButtonFlatName),
+	    HLL_TODO_EXPORT(GetButtonFlatName, PartsEngine_GetButtonFlatName),
+	    HLL_TODO_EXPORT(SetCheckBoxFlatName, PartsEngine_SetCheckBoxFlatName),
+	    HLL_TODO_EXPORT(GetCheckBoxFlatName, PartsEngine_GetCheckBoxFlatName),
+	    HLL_TODO_EXPORT(SetVScrollbarFlatName, PartsEngine_SetVScrollbarFlatName),
+	    HLL_TODO_EXPORT(GetVScrollbarFlatName, PartsEngine_GetVScrollbarFlatName),
+	    HLL_TODO_EXPORT(SetHScrollbarFlatName, PartsEngine_SetHScrollbarFlatName),
+	    HLL_TODO_EXPORT(GetHScrollbarFlatName, PartsEngine_GetHScrollbarFlatName),
+	    HLL_TODO_EXPORT(SetTextBoxBGColor, PartsEngine_SetTextBoxBGColor),
+	    HLL_TODO_EXPORT(GetTextBoxBGR, PartsEngine_GetTextBoxBGR),
+	    HLL_TODO_EXPORT(GetTextBoxBGG, PartsEngine_GetTextBoxBGG),
+	    HLL_TODO_EXPORT(GetTextBoxBGB, PartsEngine_GetTextBoxBGB),
+	    HLL_TODO_EXPORT(SetTextBoxReadOnlyBGColor, PartsEngine_SetTextBoxReadOnlyBGColor),
+	    HLL_TODO_EXPORT(GetTextBoxReadOnlyBGR, PartsEngine_GetTextBoxReadOnlyBGR),
+	    HLL_TODO_EXPORT(GetTextBoxReadOnlyBGG, PartsEngine_GetTextBoxReadOnlyBGG),
+	    HLL_TODO_EXPORT(GetTextBoxReadOnlyBGB, PartsEngine_GetTextBoxReadOnlyBGB),
+	    HLL_TODO_EXPORT(SetTextBoxFrameColor, PartsEngine_SetTextBoxFrameColor),
+	    HLL_TODO_EXPORT(GetTextBoxFrameR, PartsEngine_GetTextBoxFrameR),
+	    HLL_TODO_EXPORT(GetTextBoxFrameG, PartsEngine_GetTextBoxFrameG),
+	    HLL_TODO_EXPORT(GetTextBoxFrameB, PartsEngine_GetTextBoxFrameB),
+	    HLL_TODO_EXPORT(SetOpenTextBoxIME, PartsEngine_SetOpenTextBoxIME),
+	    HLL_TODO_EXPORT(IsOpenTextBoxIME, PartsEngine_IsOpenTextBoxIME),
+	    HLL_TODO_EXPORT(SetMultiTextBoxReadOnly, PartsEngine_SetMultiTextBoxReadOnly),
+	    HLL_TODO_EXPORT(IsMultiTextBoxReadOnly, PartsEngine_IsMultiTextBoxReadOnly),
+	    HLL_TODO_EXPORT(SetMultiTextBoxBGColor, PartsEngine_SetMultiTextBoxBGColor),
+	    HLL_TODO_EXPORT(GetMultiTextBoxBGR, PartsEngine_GetMultiTextBoxBGR),
+	    HLL_TODO_EXPORT(GetMultiTextBoxBGG, PartsEngine_GetMultiTextBoxBGG),
+	    HLL_TODO_EXPORT(GetMultiTextBoxBGB, PartsEngine_GetMultiTextBoxBGB),
+	    HLL_TODO_EXPORT(SetMultiTextBoxReadOnlyBGColor, PartsEngine_SetMultiTextBoxReadOnlyBGColor),
+	    HLL_TODO_EXPORT(GetMultiTextBoxReadOnlyBGR, PartsEngine_GetMultiTextBoxReadOnlyBGR),
+	    HLL_TODO_EXPORT(GetMultiTextBoxReadOnlyBGG, PartsEngine_GetMultiTextBoxReadOnlyBGG),
+	    HLL_TODO_EXPORT(GetMultiTextBoxReadOnlyBGB, PartsEngine_GetMultiTextBoxReadOnlyBGB),
+	    HLL_TODO_EXPORT(SetMultiTextBoxFrameColor, PartsEngine_SetMultiTextBoxFrameColor),
+	    HLL_TODO_EXPORT(GetMultiTextBoxFrameR, PartsEngine_GetMultiTextBoxFrameR),
+	    HLL_TODO_EXPORT(GetMultiTextBoxFrameG, PartsEngine_GetMultiTextBoxFrameG),
+	    HLL_TODO_EXPORT(GetMultiTextBoxFrameB, PartsEngine_GetMultiTextBoxFrameB),
+	    HLL_TODO_EXPORT(SetLayoutBoxReturnSizeForRate, PartsEngine_SetLayoutBoxReturnSizeForRate),
+	    HLL_TODO_EXPORT(IsLayoutBoxReturnSizeForRate, PartsEngine_IsLayoutBoxReturnSizeForRate),
+	    HLL_TODO_EXPORT(Parts_SetTextShowTime, PartsEngine_Parts_SetTextShowTime),
+	    HLL_TODO_EXPORT(Parts_GetTextShowTime, PartsEngine_Parts_GetTextShowTime),
+	    HLL_TODO_EXPORT(Parts_SetTextPos, PartsEngine_Parts_SetTextPos),
+	    HLL_TODO_EXPORT(Parts_GetTextPos, PartsEngine_Parts_GetTextPos),
+	    HLL_TODO_EXPORT(Parts_SetTextEnableTag, PartsEngine_Parts_SetTextEnableTag),
+	    HLL_TODO_EXPORT(Parts_IsTextEnableTag, PartsEngine_Parts_IsTextEnableTag),
+	    HLL_TODO_EXPORT(Parts_SetRubyFont, PartsEngine_Parts_SetRubyFont),
+	    HLL_TODO_EXPORT(Parts_GetRubyFont, PartsEngine_Parts_GetRubyFont),
+	    HLL_TODO_EXPORT(Parts_SetRubyCharSpace, PartsEngine_Parts_SetRubyCharSpace),
+	    HLL_TODO_EXPORT(Parts_GetRubyCharSpace, PartsEngine_Parts_GetRubyCharSpace),
+	    HLL_TODO_EXPORT(Parts_JumpFlatLabel, PartsEngine_Parts_JumpFlatLabel),
+	    HLL_TODO_EXPORT(Parts_PlaySound, PartsEngine_Parts_PlaySound),
+	    HLL_TODO_EXPORT(ClearBackScene, PartsEngine_ClearBackScene),
+	    HLL_TODO_EXPORT(SetFontColorForBackScene, PartsEngine_SetFontColorForBackScene),
+	    HLL_TODO_EXPORT(SetMulColorForBackScene, PartsEngine_SetMulColorForBackScene),
+	    HLL_TODO_EXPORT(SetAlphaForBackScene, PartsEngine_SetAlphaForBackScene),
+	    HLL_TODO_EXPORT(SetShowForBackScene, PartsEngine_SetShowForBackScene),
+	    HLL_TODO_EXPORT(SaveBackScene, PartsEngine_SaveBackScene),
+	    HLL_TODO_EXPORT(LoadBackScene, PartsEngine_LoadBackScene)
 	    );
 
 static struct ain_hll_function *get_fun(int libno, const char *name)
@@ -922,6 +1004,19 @@ static void PartsEngine_PreLink(void)
 	if (fun && fun->nr_arguments == 5) {
 		static_library_replace(&lib_PartsEngine, "Update",
 				PartsEngine_Update_Pascha3PC);
+	}
+	fun = get_fun(libno, "AddMotionSound");
+	if (fun && fun->nr_arguments == 2 && fun->arguments[0].type.data == AIN_STRING) {
+		static_library_replace(&lib_PartsEngine, "AddMotionSound", NULL);
+	}
+	fun = get_fun(libno, "SetLayoutBoxReturn");
+	if (fun && fun->nr_arguments == 3 && fun->arguments[2].type.data == AIN_FLOAT) {
+		static_library_replace(&lib_PartsEngine, "SetLayoutBoxReturn", NULL);
+	}
+	fun = get_fun(libno, "GetLayoutBoxReturnSize");
+	if (fun && fun->return_type.data == AIN_FLOAT) {
+		static_library_replace(&lib_PartsEngine, "GetLayoutBoxReturnSize",
+				PartsEngine_GetLayoutBoxReturnSize_float);
 	}
 	if (get_fun(libno, "AddController")) {
 		PE_enable_multi_controller();

@@ -324,6 +324,7 @@ struct parts_flat {
 	bool stopped;
 	bool needs_advance;
 	unsigned elapsed;
+	float update_speed_rate;
 	int end_frame;
 	int pending_seek_delta;
 	struct flat_layer_state *root_state;

@@ -334,6 +334,7 @@ bool parts_flat_load(struct parts *parts, struct parts_flat *f, struct string *f
 	f->name = string_dup(filename);
 	f->stopped = false;
 	f->elapsed = 0;
+	f->update_speed_rate = 1.0f;
 	f->end_frame = flat_compute_max_frame(
 			f->flat->timelines, f->flat->nr_timelines) - 1;
 	f->root_state = flat_layer_state_new(f->flat->nr_timelines);
@@ -423,7 +424,7 @@ bool parts_flat_update(struct parts_flat *f, int passed_time)
 	if (f->stopped)
 		return false;
 
-	f->elapsed += passed_time;
+	f->elapsed += (int)(passed_time * f->update_speed_rate);
 	int delta = (int)((int64_t)f->elapsed * f->flat->hdr.fps / 1000);
 	if (!delta)
 		return false;
@@ -1041,4 +1042,13 @@ int PE_GetPartsFlatEndFrame(int parts_no, int state)
 	struct parts *parts = parts_get(parts_no);
 	struct parts_flat *f = parts_get_flat(parts, state);
 	return f->flat ? f->end_frame : -1;
+}
+
+void PE_SetFlatUpdateSpeedRate(int parts_no, float rate, int state)
+{
+	if (!parts_state_valid(--state))
+		return;
+
+	struct parts_flat *f = parts_get_flat(parts_get(parts_no), state);
+	f->update_speed_rate = rate;
 }

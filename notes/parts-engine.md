@@ -455,6 +455,7 @@ Identical
 ### Signature Changes
 
 * AddMotionSound
+* GetLayoutBoxReturnSize
 * Parts\_ChangeFlatSound
 * SetLayoutBoxReturn
 
@@ -467,7 +468,6 @@ Identical
 * Parts\_IsPosForRate
 * Parts\_IsTextEnableTag
 * SaveBackScene
-* GetLayoutBoxReturnSize
 * GetActiveParts
 * GetMultiTextBoxBGB
 * GetMultiTextBoxBGG
@@ -484,9 +484,9 @@ Identical
 * GetTextBoxFrameB
 * GetTextBoxFrameG
 * GetTextBoxFrameR
-* GetTextBoxReadOnlyB
-* GetTextBoxReadOnlyG
-* GetTextBoxReadOnlyR
+* GetTextBoxReadOnlyBGB
+* GetTextBoxReadOnlyBGG
+* GetTextBoxReadOnlyBGR
 * Parts\_GetRubyCharSpace
 * Parts\_GetTextPos
 * Parts\_GetTextShowTime
@@ -513,7 +513,7 @@ Identical
 * SetButtonFlatName
 * SetCheckBoxFlatName
 * SetClickMissSoundName
-* SetFontColorForBackscene
+* SetFontColorForBackScene
 * SetHScrollbarFlatName
 * SetLayoutBoxReturnSizeForRate
 * SetMulColorForBackScene
@@ -543,8 +543,7 @@ Identical
 * GetClickMissSoundNumber
 * GetHScrollbarClickSoundNumber
 * GetHScrollbarOnCursorSoundNumber
-* GetLayoutBoxReturnSize
-* GetVScrollBarClickSoundNumber
+* GetVScrollbarClickSoundNumber
 * GetVScrollbarOnCursorSoundNumber
 * Parts\_GetSoundNumber
 * CloseTextBoxIME

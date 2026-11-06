@@ -119,8 +119,8 @@ bool PE_SetPartsCGDetectionSize(int parts_no, struct string *cg_name, int state)
 bool PE_Save(struct page **buffer);
 bool PE_SaveWithoutHideParts(struct page **buffer);
 bool PE_Load(struct page **buffer);
-int PE_AddController(int index);
-void PE_RemoveController(struct page **erase_number_list, int index);
+int PE_AddController(int controller_id);
+void PE_RemoveController(struct page **erase_number_list, int controller_id);
 bool PE_CreateParts3DLayerPluginID(int parts_no, int state);
 int PE_GetParts3DLayerPluginID(int parts_no, int state);
 bool PE_ReleaseParts3DLayerPluginID(int parts_no, int state);
@@ -139,6 +139,7 @@ int PE_get_movie_sprite(int parts_no, int state);
 float PE_parts_get_absolute_x(int parts_no);
 float PE_parts_get_absolute_y(int parts_no);
 int PE_parts_get_absolute_z(int parts_no);
+int PE_parts_get_absolute_max_z(int parts_no);
 void PE_parts_set_lock_input_state(int parts_no, bool lock);
 
 // construction.c
@@ -293,6 +294,7 @@ bool PE_StopPartsFlat(int parts_no, int state);
 bool PE_StartPartsFlat(int parts_no, int state);
 bool PE_GoFramePartsFlat(int parts_no, int frame_no, int state);
 int PE_GetPartsFlatEndFrame(int parts_no, int state);
+void PE_SetFlatUpdateSpeedRate(int parts_no, float rate, int state);
 
 // layoutbox.c
 void PE_SetLayoutBoxLayoutType(int parts_no, int type);
