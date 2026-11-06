@@ -332,6 +332,94 @@ bool PE_AddCopyTextToPartsConstructionProcess(int parts_no, int x, int y, struct
 			PARTS_CP_COPY_TEXT);
 }
 
+void PE_add_construct_process(int parts_no, int state, const struct parts_cp_command *cmd)
+{
+	switch (cmd->type) {
+	case PARTS_CP_CMD_CREATE:
+		PE_AddCreateToPartsConstructionProcess(parts_no, cmd->dw, cmd->dh, state);
+		break;
+	case PARTS_CP_CMD_CREATE_PIXEL_ONLY:
+		PE_AddCreatePixelOnlyToPartsConstructionProcess(parts_no, cmd->dw, cmd->dh, state);
+		break;
+	case PARTS_CP_CMD_CREATE_CG:
+		PE_AddCreateCGToProcess(parts_no, cmd->cg_name, state);
+		break;
+	case PARTS_CP_CMD_FILL:
+		PE_AddFillToPartsConstructionProcess(parts_no,
+				cmd->dx, cmd->dy, cmd->dw, cmd->dh, cmd->r, cmd->g, cmd->b, state);
+		break;
+	case PARTS_CP_CMD_FILL_ALPHA_COLOR:
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no,
+				cmd->dx, cmd->dy, cmd->dw, cmd->dh, cmd->r, cmd->g, cmd->b, cmd->a, state);
+		break;
+	case PARTS_CP_CMD_FILL_AMAP:
+		PE_AddFillAMapToPartsConstructionProcess(parts_no,
+				cmd->dx, cmd->dy, cmd->dw, cmd->dh, cmd->a, state);
+		break;
+	case PARTS_CP_CMD_FILL_WITH_ALPHA:
+		PE_AddFillWithAlphaToPartsConstructionProcess(parts_no,
+				cmd->dx, cmd->dy, cmd->dw, cmd->dh, cmd->r, cmd->g, cmd->b, cmd->a, state);
+		break;
+	case PARTS_CP_CMD_DRAW_TEXT:
+		PE_AddDrawTextToPartsConstructionProcess(parts_no,
+				cmd->dx, cmd->dy, cmd->text, cmd->font_type, cmd->font_size,
+				cmd->font_r, cmd->font_g, cmd->font_b, cmd->bold_weight,
+				cmd->edge_r, cmd->edge_g, cmd->edge_b, cmd->edge_weight,
+				cmd->char_space, cmd->line_space, state);
+		break;
+	case PARTS_CP_CMD_COPY_TEXT:
+		PE_AddCopyTextToPartsConstructionProcess(parts_no,
+				cmd->dx, cmd->dy, cmd->text, cmd->font_type, cmd->font_size,
+				cmd->font_r, cmd->font_g, cmd->font_b, cmd->bold_weight,
+				cmd->edge_r, cmd->edge_g, cmd->edge_b, cmd->edge_weight,
+				cmd->char_space, cmd->line_space, state);
+		break;
+	case PARTS_CP_CMD_FILL_GRADATION_HORIZON:
+		WARNING("AddConstructProcess: FillGradationHorizon unimplemented");
+		break;
+	case PARTS_CP_CMD_DRAW_RECT:
+		PE_AddDrawRectToPartsConstructionProcess(parts_no,
+				cmd->dx, cmd->dy, cmd->dw, cmd->dh, cmd->r, cmd->g, cmd->b, state);
+		break;
+	case PARTS_CP_CMD_CUT_CG_BLEND:
+		PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cmd->cg_name,
+				cmd->dx, cmd->dy, cmd->dw, cmd->dh, cmd->sx, cmd->sy, cmd->dw, cmd->dh,
+				cmd->interp_type, state);
+		break;
+	case PARTS_CP_CMD_CUT_CG_COPY:
+		PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cmd->cg_name,
+				cmd->dx, cmd->dy, cmd->dw, cmd->dh, cmd->sx, cmd->sy, cmd->dw, cmd->dh,
+				cmd->interp_type, state);
+		break;
+	case PARTS_CP_CMD_CUT_CG_SCALE_BLEND:
+		PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cmd->cg_name,
+				cmd->dx, cmd->dy, cmd->dw, cmd->dh, cmd->sx, cmd->sy, cmd->sw, cmd->sh,
+				cmd->interp_type, state);
+		break;
+	case PARTS_CP_CMD_CUT_CG_SCALE_COPY:
+		PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cmd->cg_name,
+				cmd->dx, cmd->dy, cmd->dw, cmd->dh, cmd->sx, cmd->sy, cmd->sw, cmd->sh,
+				cmd->interp_type, state);
+		break;
+	case PARTS_CP_CMD_GRAY_FILTER:
+		PE_AddGrayFilterToPartsConstructionProcess(parts_no,
+				cmd->dx, cmd->dy, cmd->dw, cmd->dh, cmd->full_size, state);
+		break;
+	case PARTS_CP_CMD_ADD_FILTER:
+		WARNING("AddConstructProcess: AddFilter unimplemented");
+		break;
+	case PARTS_CP_CMD_MUL_FILTER:
+		WARNING("AddConstructProcess: MulFilter unimplemented");
+		break;
+	case PARTS_CP_CMD_DRAW_LINE:
+		WARNING("AddConstructProcess: DrawLine unimplemented");
+		break;
+	default:
+		WARNING("AddConstructProcess: unknown command %d", cmd->type);
+		break;
+	}
+}
+
 static bool build_create(struct parts *parts, struct parts_construction_process *cproc,
 		struct parts_cp_create *op)
 {
