@@ -64,9 +64,9 @@ void PE_SetLayoutBoxLayoutType(int parts_no, int type)
 int PE_GetLayoutBoxLayoutType(int parts_no)
 {
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[0].type != PARTS_LAYOUT_BOX)
+	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
 		return PARTS_LAYOUT_FREE;
-	return parts->states[0].layout_box.layout_type;
+	return parts->sprites[0].layout_box.layout_type;
 }
 
 void PE_SetLayoutBoxReturn(int parts_no, bool return_flag, int return_size)
@@ -81,17 +81,17 @@ void PE_SetLayoutBoxReturn(int parts_no, bool return_flag, int return_size)
 bool PE_IsLayoutBoxReturn(int parts_no)
 {
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[0].type != PARTS_LAYOUT_BOX)
+	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
 		return false;
-	return parts->states[0].layout_box.wrap;
+	return parts->sprites[0].layout_box.wrap;
 }
 
 int PE_GetLayoutBoxReturnSize(int parts_no)
 {
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[0].type != PARTS_LAYOUT_BOX)
+	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
 		return 0;
-	return parts->states[0].layout_box.wrap_size;
+	return parts->sprites[0].layout_box.wrap_size;
 }
 
 void PE_SetLayoutBoxAlign(int parts_no, int align)
@@ -107,9 +107,9 @@ void PE_SetLayoutBoxAlign(int parts_no, int align)
 int PE_GetLayoutBoxAlign(int parts_no)
 {
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[0].type != PARTS_LAYOUT_BOX)
+	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
 		return 0;
-	return parts->states[0].layout_box.align;
+	return parts->sprites[0].layout_box.align;
 }
 
 void PE_set_layoutbox_padding(int parts_no, int top, int bottom, int left, int right)
@@ -126,46 +126,46 @@ void PE_set_layoutbox_padding(int parts_no, int top, int bottom, int left, int r
 int PE_get_layoutbox_padding_top(int parts_no)
 {
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[0].type != PARTS_LAYOUT_BOX)
+	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
 		return 0;
-	return parts->states[0].layout_box.padding_top;
+	return parts->sprites[0].layout_box.padding_top;
 }
 
 int PE_get_layoutbox_padding_bottom(int parts_no)
 {
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[0].type != PARTS_LAYOUT_BOX)
+	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
 		return 0;
-	return parts->states[0].layout_box.padding_bottom;
+	return parts->sprites[0].layout_box.padding_bottom;
 }
 
 int PE_get_layoutbox_padding_left(int parts_no)
 {
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[0].type != PARTS_LAYOUT_BOX)
+	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
 		return 0;
-	return parts->states[0].layout_box.padding_left;
+	return parts->sprites[0].layout_box.padding_left;
 }
 
 int PE_get_layoutbox_padding_right(int parts_no)
 {
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[0].type != PARTS_LAYOUT_BOX)
+	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
 		return 0;
-	return parts->states[0].layout_box.padding_right;
+	return parts->sprites[0].layout_box.padding_right;
 }
 
 static void parts_get_layout_size(struct parts *parts, int *w, int *h)
 {
-	struct parts_state *state = &parts->states[parts->state];
-	if (state->type == PARTS_FLAT && state->flat.flat) {
+	struct parts_sprite *sprite = &parts->sprites[parts->state];
+	if (sprite->type == PARTS_SPRITE_FLAT && sprite->flat.flat) {
 		// The layout size of Flat is specified in the header, and this may
 		// differ from the hitbox size.
-		*w = state->flat.flat->hdr.width;
-		*h = state->flat.flat->hdr.height;
+		*w = sprite->flat.flat->hdr.width;
+		*h = sprite->flat.flat->hdr.height;
 	} else {
-		*w = state->common.w;
-		*h = state->common.h;
+		*w = sprite->common.w;
+		*h = sprite->common.h;
 	}
 }
 
@@ -247,9 +247,9 @@ static void parts_layout_calc_size_vertical(struct parts_layout_box *lb, struct 
 
 void parts_do_layout(struct parts *parts)
 {
-	if (parts->states[0].type != PARTS_LAYOUT_BOX)
+	if (parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
 		return;
-	struct parts_layout_box *lb = &parts->states[0].layout_box;
+	struct parts_layout_box *lb = &parts->sprites[0].layout_box;
 	if (lb->layout_type == PARTS_LAYOUT_FREE)
 		return;
 

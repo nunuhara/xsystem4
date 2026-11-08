@@ -157,7 +157,7 @@ static SDL_Rect pact_surface_rect(struct buffer *r)
 
 static void activity_set_surface(struct parts *p, int state, SDL_Rect rect)
 {
-	parts_set_surface_area(p, &p->states[state].common, rect.x, rect.y, rect.w, rect.h);
+	parts_set_surface_area(p, &p->sprites[state].common, rect.x, rect.y, rect.w, rect.h);
 }
 
 static void activity_set_cg(struct parts *p, int state, const char *name)
@@ -249,7 +249,7 @@ static void pact_sprite_rect(struct buffer *r, struct parts *p, int state)
 	SDL_Rect surface = pact_surface_rect(r);
 	if (!p)
 		return;
-	parts_state_reset(&p->states[state], PARTS_RECT_DETECTION);
+	parts_sprite_reset(&p->sprites[state], PARTS_SPRITE_RECT_DETECTION);
 	activity_set_surface(p, state, surface);
 }
 
@@ -373,7 +373,7 @@ static bool pact_sprite_construction(struct buffer *r, struct parts *p, int stat
 	}
 	SDL_Rect surface = pact_surface_rect(r);
 	if (p) {
-		parts_build_construction_process(p, &p->states[state].cproc);
+		parts_build_construction_process(p, &p->sprites[state].cproc);
 		activity_set_surface(p, state, surface);
 	}
 	return true;

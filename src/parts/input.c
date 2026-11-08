@@ -43,7 +43,7 @@ static struct parts *drop_target = NULL;
 
 static bool parts_hittest(struct parts *parts, int state, Point pos)
 {
-	Rectangle hitbox = parts->states[state].common.hitbox;
+	Rectangle hitbox = parts->sprites[state].common.hitbox;
 	if (parts->parent) {
 		hitbox.x += parts->parent->global.pos.x;
 		hitbox.y += parts->parent->global.pos.y;

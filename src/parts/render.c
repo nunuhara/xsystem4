@@ -85,7 +85,7 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 
 	struct parts *clipper = alpha_clipper ? parts_try_get(alpha_clipper) : NULL;
 	if (clipper) {
-		struct parts_common *c_common = &clipper->states[clipper->state].common;
+		struct parts_common *c_common = &clipper->sprites[clipper->state].common;
 
 		// Calculate the inverse of the clipper's world matrix.
 		mat4 clip_mw = GLM_MAT4_IDENTITY_INIT;
@@ -602,33 +602,33 @@ void parts_render(struct parts *parts)
 	}
 
 	// render
-	struct parts_state *state = &parts->states[parts->state];
-	switch (state->type) {
-	case PARTS_UNINITIALIZED:
-	case PARTS_RECT_DETECTION:
-	case PARTS_LAYOUT_BOX:
+	struct parts_sprite *sprite = &parts->sprites[parts->state];
+	switch (sprite->type) {
+	case PARTS_SPRITE_NONE:
+	case PARTS_SPRITE_RECT_DETECTION:
+	case PARTS_SPRITE_LAYOUT_BOX:
 		break;
-	case PARTS_CG:
-	case PARTS_ANIMATION:
-	case PARTS_NUMERAL:
-	case PARTS_HGAUGE:
-	case PARTS_VGAUGE:
-	case PARTS_CONSTRUCTION_PROCESS:
-	case PARTS_MOVIE:
-		if (state->common.texture.handle)
-			parts_render_cg(parts, &state->common);
+	case PARTS_SPRITE_CG:
+	case PARTS_SPRITE_ANIMATION:
+	case PARTS_SPRITE_NUMERAL:
+	case PARTS_SPRITE_HGAUGE:
+	case PARTS_SPRITE_VGAUGE:
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS:
+	case PARTS_SPRITE_MOVIE:
+		if (sprite->common.texture.handle)
+			parts_render_cg(parts, &sprite->common);
 		break;
-	case PARTS_TEXT:
-		parts_render_text(parts, &state->text);
+	case PARTS_SPRITE_TEXT:
+		parts_render_text(parts, &sprite->text);
 		break;
-	case PARTS_FLASH:
-		parts_render_flash(parts, &state->flash);
+	case PARTS_SPRITE_FLASH:
+		parts_render_flash(parts, &sprite->flash);
 		break;
-	case PARTS_FLAT:
-		parts_render_flat(parts, &state->flat);
+	case PARTS_SPRITE_FLAT:
+		parts_render_flat(parts, &sprite->flat);
 		break;
-	case PARTS_3DLAYER:
-		parts_render_3dlayer(parts, &state->layer3d);
+	case PARTS_SPRITE_3DLAYER:
+		parts_render_3dlayer(parts, &sprite->layer3d);
 		break;
 	}
 }
@@ -651,7 +651,7 @@ void parts_engine_render(possibly_unused struct sprite *_)
 	}
 }
 
-void parts_sprite_render(struct sprite *sp)
+void parts_sp_render(struct sprite *sp)
 {
 	parts_render((struct parts*)sp);
 }

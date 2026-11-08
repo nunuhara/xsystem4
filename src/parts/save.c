@@ -422,100 +422,100 @@ static void load_parts_layout_box(struct iarray_reader *r, struct parts_layout_b
 	lb->padding_right = iarray_read(r);
 }
 
-static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
+static void save_parts_sprite(struct iarray_writer *w, struct parts_sprite *sprite)
 {
-	iarray_write(w, state->type);
-	iarray_write(w, state->common.w);
-	iarray_write(w, state->common.h);
-	iarray_write_point(w, &state->common.origin_offset);
-	iarray_write_rectangle(w, &state->common.hitbox);
-	iarray_write_rectangle(w, &state->common.surface_area);
-	switch (state->type) {
-	case PARTS_UNINITIALIZED:
-	case PARTS_MOVIE:
-	case PARTS_RECT_DETECTION:
+	iarray_write(w, sprite->type);
+	iarray_write(w, sprite->common.w);
+	iarray_write(w, sprite->common.h);
+	iarray_write_point(w, &sprite->common.origin_offset);
+	iarray_write_rectangle(w, &sprite->common.hitbox);
+	iarray_write_rectangle(w, &sprite->common.surface_area);
+	switch (sprite->type) {
+	case PARTS_SPRITE_NONE:
+	case PARTS_SPRITE_MOVIE:
+	case PARTS_SPRITE_RECT_DETECTION:
 		break;
-	case PARTS_3DLAYER:
-		save_parts_3dlayer(w, &state->layer3d);
+	case PARTS_SPRITE_3DLAYER:
+		save_parts_3dlayer(w, &sprite->layer3d);
 		break;
-	case PARTS_CG:
-		save_parts_cg(w, &state->cg);
+	case PARTS_SPRITE_CG:
+		save_parts_cg(w, &sprite->cg);
 		break;
-	case PARTS_TEXT:
-		save_parts_text(w, &state->text);
+	case PARTS_SPRITE_TEXT:
+		save_parts_text(w, &sprite->text);
 		break;
-	case PARTS_ANIMATION:
-		save_parts_animation(w, &state->anim);
+	case PARTS_SPRITE_ANIMATION:
+		save_parts_animation(w, &sprite->anim);
 		break;
-	case PARTS_NUMERAL:
-		save_parts_numeral(w, &state->num);
+	case PARTS_SPRITE_NUMERAL:
+		save_parts_numeral(w, &sprite->num);
 		break;
-	case PARTS_HGAUGE:
-	case PARTS_VGAUGE:
-		save_parts_gauge(w, &state->gauge);
+	case PARTS_SPRITE_HGAUGE:
+	case PARTS_SPRITE_VGAUGE:
+		save_parts_gauge(w, &sprite->gauge);
 		break;
-	case PARTS_CONSTRUCTION_PROCESS:
-		save_parts_construction_process(w, &state->cproc);
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS:
+		save_parts_construction_process(w, &sprite->cproc);
 		break;
-	case PARTS_FLASH:
-		save_parts_flash(w, &state->flash);
+	case PARTS_SPRITE_FLASH:
+		save_parts_flash(w, &sprite->flash);
 		break;
-	case PARTS_FLAT:
-		save_parts_flat(w, &state->flat);
+	case PARTS_SPRITE_FLAT:
+		save_parts_flat(w, &sprite->flat);
 		break;
-	case PARTS_LAYOUT_BOX:
-		save_parts_layout_box(w, &state->layout_box);
+	case PARTS_SPRITE_LAYOUT_BOX:
+		save_parts_layout_box(w, &sprite->layout_box);
 		break;
 	}
 }
 
-static void load_parts_state(struct iarray_reader *r, struct parts *parts,
-		struct parts_state *state, int version)
+static void load_parts_sprite(struct iarray_reader *r, struct parts *parts,
+		struct parts_sprite *sprite, int version)
 {
-	parts_state_reset(state, iarray_read(r));
-	state->common.w = iarray_read(r);
-	state->common.h = iarray_read(r);
-	iarray_read_point(r, &state->common.origin_offset);
-	iarray_read_rectangle(r, &state->common.hitbox);
-	iarray_read_rectangle(r, &state->common.surface_area);
-	switch (state->type) {
-	case PARTS_UNINITIALIZED:
-	case PARTS_MOVIE:
-	case PARTS_RECT_DETECTION:
+	parts_sprite_reset(sprite, iarray_read(r));
+	sprite->common.w = iarray_read(r);
+	sprite->common.h = iarray_read(r);
+	iarray_read_point(r, &sprite->common.origin_offset);
+	iarray_read_rectangle(r, &sprite->common.hitbox);
+	iarray_read_rectangle(r, &sprite->common.surface_area);
+	switch (sprite->type) {
+	case PARTS_SPRITE_NONE:
+	case PARTS_SPRITE_MOVIE:
+	case PARTS_SPRITE_RECT_DETECTION:
 		break;
-	case PARTS_3DLAYER:
+	case PARTS_SPRITE_3DLAYER:
 		if (version > 5)
-			load_parts_3dlayer(r, &state->layer3d, version);
+			load_parts_3dlayer(r, &sprite->layer3d, version);
 		break;
-	case PARTS_CG:
-		load_parts_cg(r, parts, &state->cg);
+	case PARTS_SPRITE_CG:
+		load_parts_cg(r, parts, &sprite->cg);
 		break;
-	case PARTS_TEXT:
-		load_parts_text(r, parts, &state->text);
+	case PARTS_SPRITE_TEXT:
+		load_parts_text(r, parts, &sprite->text);
 		break;
-	case PARTS_ANIMATION:
-		load_parts_animation(r, parts, &state->anim);
+	case PARTS_SPRITE_ANIMATION:
+		load_parts_animation(r, parts, &sprite->anim);
 		break;
-	case PARTS_NUMERAL:
-		load_parts_numeral(r, parts, &state->num);
+	case PARTS_SPRITE_NUMERAL:
+		load_parts_numeral(r, parts, &sprite->num);
 		break;
-	case PARTS_HGAUGE:
-		load_parts_gauge(r, parts, &state->gauge, false);
+	case PARTS_SPRITE_HGAUGE:
+		load_parts_gauge(r, parts, &sprite->gauge, false);
 		break;
-	case PARTS_VGAUGE:
-		load_parts_gauge(r, parts, &state->gauge, true);
+	case PARTS_SPRITE_VGAUGE:
+		load_parts_gauge(r, parts, &sprite->gauge, true);
 		break;
-	case PARTS_CONSTRUCTION_PROCESS:
-		load_parts_construction_process(r, parts, &state->cproc, version);
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS:
+		load_parts_construction_process(r, parts, &sprite->cproc, version);
 		break;
-	case PARTS_FLASH:
-		load_parts_flash(r, parts, &state->flash);
+	case PARTS_SPRITE_FLASH:
+		load_parts_flash(r, parts, &sprite->flash);
 		break;
-	case PARTS_FLAT:
-		load_parts_flat(r, parts, &state->flat);
+	case PARTS_SPRITE_FLAT:
+		load_parts_flat(r, parts, &sprite->flat);
 		break;
-	case PARTS_LAYOUT_BOX:
-		load_parts_layout_box(r, &state->layout_box);
+	case PARTS_SPRITE_LAYOUT_BOX:
+		load_parts_layout_box(r, &sprite->layout_box);
 		break;
 	}
 }
@@ -597,7 +597,7 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	iarray_write(w, parts->no);
 	iarray_write(w, parts->state);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		save_parts_state(w, &parts->states[i]);
+		save_parts_sprite(w, &parts->sprites[i]);
 	}
 
 	save_parts_params(w, &parts->local);
@@ -642,7 +642,7 @@ static void load_parts(struct iarray_reader *r, int version)
 	struct parts *parts = parts_get(no);
 	parts->state = iarray_read(r);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		load_parts_state(r, parts, &parts->states[i], version);
+		load_parts_sprite(r, parts, &parts->sprites[i], version);
 	}
 
 	load_parts_params(r, &parts->local, version);

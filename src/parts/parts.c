@@ -59,8 +59,8 @@ static void parts_init(struct parts *parts)
 	parts->sp.z = 1;
 	parts->sp.has_pixel = true;
 	parts->sp.has_alpha = true;
-	parts->sp.render = parts_sprite_render;
-	parts->sp.to_json = parts_sprite_to_json;
+	parts->sp.render = parts_sp_render;
+	parts->sp.to_json = parts_sp_to_json;
 	parts->local = PARTS_PARAMS_INITIALIZER(1);
 	parts->global = PARTS_PARAMS_INITIALIZER(1);
 	parts->delegate_index = -1;
@@ -96,7 +96,7 @@ static void dirty_list_remove(struct parts *parts)
 		TAILQ_REMOVE(&dirty_list, parts, dirty_list_entry);
 }
 
-static int parts_get_sprite_z(struct parts *parts)
+static int parts_get_sp_z(struct parts *parts)
 {
 	if (!parts_multi_controller)
 		return parts->global.z;
@@ -104,7 +104,7 @@ static int parts_get_sprite_z(struct parts *parts)
 	return parts->controller_no;
 }
 
-static int parts_get_sprite_z2(struct parts *parts)
+static int parts_get_sp_z2(struct parts *parts)
 {
 	if (!parts_multi_controller)
 		return 0;
@@ -113,14 +113,14 @@ static int parts_get_sprite_z2(struct parts *parts)
 
 static void parts_list_insert(struct parts *parts)
 {
-	int z = parts_get_sprite_z(parts);
-	int z2 = parts_get_sprite_z2(parts);
+	int z = parts_get_sp_z(parts);
+	int z2 = parts_get_sp_z2(parts);
 	parts->sp.z = z;
 	parts->sp.z2 = z2;
 	struct parts *p;
 	PARTS_LIST_FOREACH(p) {
-		int pz = parts_get_sprite_z(p);
-		int pz2 = parts_get_sprite_z2(p);
+		int pz = parts_get_sp_z(p);
+		int pz2 = parts_get_sp_z2(p);
 		if (pz > z || (pz == z && pz2 > z2)) {
 			TAILQ_INSERT_BEFORE(p, parts, parts_list_entry);
 			goto done;
@@ -172,62 +172,62 @@ bool parts_exists(int parts_no)
 	return !!ht_get_int(parts_table, parts_no, NULL);
 }
 
-static void parts_state_free(struct parts_state *state)
+static void parts_sprite_free(struct parts_sprite *sprite)
 {
-	switch (state->type) {
-	case PARTS_UNINITIALIZED:
-	case PARTS_RECT_DETECTION:
-	case PARTS_LAYOUT_BOX:
+	switch (sprite->type) {
+	case PARTS_SPRITE_NONE:
+	case PARTS_SPRITE_RECT_DETECTION:
+	case PARTS_SPRITE_LAYOUT_BOX:
 		break;
-	case PARTS_CG:
-		gfx_delete_texture(&state->common.texture);
-		if (state->cg.name)
-			free_string(state->cg.name);
+	case PARTS_SPRITE_CG:
+		gfx_delete_texture(&sprite->common.texture);
+		if (sprite->cg.name)
+			free_string(sprite->cg.name);
 		break;
-	case PARTS_TEXT:
-		parts_text_free(&state->text);
+	case PARTS_SPRITE_TEXT:
+		parts_text_free(&sprite->text);
 		break;
-	case PARTS_ANIMATION:
-		for (unsigned i = 0; i < state->anim.nr_frames; i++) {
-			gfx_delete_texture(&state->anim.frames[i]);
+	case PARTS_SPRITE_ANIMATION:
+		for (unsigned i = 0; i < sprite->anim.nr_frames; i++) {
+			gfx_delete_texture(&sprite->anim.frames[i]);
 		}
-		free(state->anim.frames);
-		if (state->anim.cg_name)
-			free_string(state->anim.cg_name);
+		free(sprite->anim.frames);
+		if (sprite->anim.cg_name)
+			free_string(sprite->anim.cg_name);
 		break;
-	case PARTS_NUMERAL:
-		gfx_delete_texture(&state->common.texture);
+	case PARTS_SPRITE_NUMERAL:
+		gfx_delete_texture(&sprite->common.texture);
 		break;
-	case PARTS_HGAUGE:
-	case PARTS_VGAUGE:
-		gfx_delete_texture(&state->common.texture);
-		gfx_delete_texture(&state->gauge.cg);
+	case PARTS_SPRITE_HGAUGE:
+	case PARTS_SPRITE_VGAUGE:
+		gfx_delete_texture(&sprite->common.texture);
+		gfx_delete_texture(&sprite->gauge.cg);
 		break;
-	case PARTS_CONSTRUCTION_PROCESS:
-		gfx_delete_texture(&state->common.texture);
-		parts_clear_construction_process(&state->cproc);
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS:
+		gfx_delete_texture(&sprite->common.texture);
+		parts_clear_construction_process(&sprite->cproc);
 		break;
-	case PARTS_FLASH:
-		parts_flash_free(&state->flash);
+	case PARTS_SPRITE_FLASH:
+		parts_flash_free(&sprite->flash);
 		break;
-	case PARTS_FLAT:
-		parts_flat_free(&state->flat);
+	case PARTS_SPRITE_FLAT:
+		parts_flat_free(&sprite->flat);
 		break;
-	case PARTS_MOVIE:
+	case PARTS_SPRITE_MOVIE:
 		// The texture is owned by the SACT sprite.
-		state->common.texture.handle = 0;
-		if (state->movie.sprite_no >= 0)
-			sact_SP_Delete(state->movie.sprite_no);
+		sprite->common.texture.handle = 0;
+		if (sprite->movie.sprite_no >= 0)
+			sact_SP_Delete(sprite->movie.sprite_no);
 		break;
-	case PARTS_3DLAYER:
-		state->common.texture.handle = 0;
-		if (state->layer3d.plugin >= 0)
-			ReignEngine_ReleasePlugin(state->layer3d.plugin);
-		if (state->layer3d.sprite_no >= 0)
-			sact_SP_Delete(state->layer3d.sprite_no);
+	case PARTS_SPRITE_3DLAYER:
+		sprite->common.texture.handle = 0;
+		if (sprite->layer3d.plugin >= 0)
+			ReignEngine_ReleasePlugin(sprite->layer3d.plugin);
+		if (sprite->layer3d.sprite_no >= 0)
+			sact_SP_Delete(sprite->layer3d.sprite_no);
 		break;
 	}
-	memset(state, 0, sizeof(struct parts_state));
+	memset(sprite, 0, sizeof(struct parts_sprite));
 }
 
 static struct text_style default_text_style = {
@@ -247,141 +247,141 @@ static struct text_style default_text_style = {
 	.font_size = NULL
 };
 
-void parts_state_reset(struct parts_state *state, enum parts_type type)
+void parts_sprite_reset(struct parts_sprite *sprite, enum parts_sprite_type type)
 {
-	parts_state_free(state);
-	state->type = type;
+	parts_sprite_free(sprite);
+	sprite->type = type;
 	switch (type) {
-	case PARTS_TEXT:
-		state->text.ts = default_text_style;
+	case PARTS_SPRITE_TEXT:
+		sprite->text.ts = default_text_style;
 		break;
-	case PARTS_NUMERAL:
-		state->num.length = 1;
-		state->num.font_no = -1;
+	case PARTS_SPRITE_NUMERAL:
+		sprite->num.length = 1;
+		sprite->num.font_no = -1;
 		break;
-	case PARTS_CONSTRUCTION_PROCESS:
-		TAILQ_INIT(&state->cproc.ops);
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS:
+		TAILQ_INIT(&sprite->cproc.ops);
 		break;
-	case PARTS_HGAUGE:
-	case PARTS_VGAUGE:
-		state->gauge.cg_no = -1;
-		state->gauge.rate = 0.0f;
+	case PARTS_SPRITE_HGAUGE:
+	case PARTS_SPRITE_VGAUGE:
+		sprite->gauge.cg_no = -1;
+		sprite->gauge.rate = 0.0f;
 		break;
-	case PARTS_3DLAYER:
-		state->layer3d.plugin = -1;
-		state->layer3d.sprite_no = -1;
+	case PARTS_SPRITE_3DLAYER:
+		sprite->layer3d.plugin = -1;
+		sprite->layer3d.sprite_no = -1;
 		break;
-	case PARTS_UNINITIALIZED:
-	case PARTS_CG:
-	case PARTS_ANIMATION:
-	case PARTS_FLASH:
-	case PARTS_FLAT:
-	case PARTS_RECT_DETECTION:
+	case PARTS_SPRITE_NONE:
+	case PARTS_SPRITE_CG:
+	case PARTS_SPRITE_ANIMATION:
+	case PARTS_SPRITE_FLASH:
+	case PARTS_SPRITE_FLAT:
+	case PARTS_SPRITE_RECT_DETECTION:
 		break;
-	case PARTS_MOVIE:
-		state->movie.sprite_no = -1;
+	case PARTS_SPRITE_MOVIE:
+		sprite->movie.sprite_no = -1;
 		break;
-	case PARTS_LAYOUT_BOX:
-		state->layout_box.layout_type = PARTS_LAYOUT_VERTICAL;
-		state->layout_box.align = 1;
+	case PARTS_SPRITE_LAYOUT_BOX:
+		sprite->layout_box.layout_type = PARTS_LAYOUT_VERTICAL;
+		sprite->layout_box.align = 1;
 		break;
 	}
 }
 
 struct parts_cg *parts_get_cg(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_CG) {
-		parts_state_reset(&parts->states[state], PARTS_CG);
+	if (parts->sprites[state].type != PARTS_SPRITE_CG) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_CG);
 	}
-	return &parts->states[state].cg;
+	return &parts->sprites[state].cg;
 }
 
 struct parts_text *parts_get_text(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_TEXT) {
-		parts_state_reset(&parts->states[state], PARTS_TEXT);
+	if (parts->sprites[state].type != PARTS_SPRITE_TEXT) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_TEXT);
 	}
-	return &parts->states[state].text;
+	return &parts->sprites[state].text;
 }
 
 struct parts_animation *parts_get_animation(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_ANIMATION) {
-		parts_state_reset(&parts->states[state], PARTS_ANIMATION);
+	if (parts->sprites[state].type != PARTS_SPRITE_ANIMATION) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_ANIMATION);
 	}
-	return &parts->states[state].anim;
+	return &parts->sprites[state].anim;
 }
 
 struct parts_numeral *parts_get_numeral(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_NUMERAL) {
-		parts_state_reset(&parts->states[state], PARTS_NUMERAL);
+	if (parts->sprites[state].type != PARTS_SPRITE_NUMERAL) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_NUMERAL);
 	}
-	return &parts->states[state].num;
+	return &parts->sprites[state].num;
 }
 
 struct parts_gauge *parts_get_hgauge(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_HGAUGE) {
-		parts_state_reset(&parts->states[state], PARTS_HGAUGE);
+	if (parts->sprites[state].type != PARTS_SPRITE_HGAUGE) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_HGAUGE);
 	}
-	return &parts->states[state].gauge;
+	return &parts->sprites[state].gauge;
 }
 
 struct parts_gauge *parts_get_vgauge(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_VGAUGE) {
-		parts_state_reset(&parts->states[state], PARTS_VGAUGE);
+	if (parts->sprites[state].type != PARTS_SPRITE_VGAUGE) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_VGAUGE);
 	}
-	return &parts->states[state].gauge;
+	return &parts->sprites[state].gauge;
 }
 
 struct parts_construction_process *parts_get_construction_process(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_CONSTRUCTION_PROCESS) {
-		parts_state_reset(&parts->states[state], PARTS_CONSTRUCTION_PROCESS);
+	if (parts->sprites[state].type != PARTS_SPRITE_CONSTRUCTION_PROCESS) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_CONSTRUCTION_PROCESS);
 	}
-	return &parts->states[state].cproc;
+	return &parts->sprites[state].cproc;
 }
 
 struct parts_flash *parts_get_flash(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_FLASH) {
-		parts_state_reset(&parts->states[state], PARTS_FLASH);
+	if (parts->sprites[state].type != PARTS_SPRITE_FLASH) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_FLASH);
 	}
-	return &parts->states[state].flash;
+	return &parts->sprites[state].flash;
 }
 
 struct parts_flat *parts_get_flat(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_FLAT) {
-		parts_state_reset(&parts->states[state], PARTS_FLAT);
+	if (parts->sprites[state].type != PARTS_SPRITE_FLAT) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_FLAT);
 	}
-	return &parts->states[state].flat;
+	return &parts->sprites[state].flat;
 }
 
 struct parts_movie *parts_get_movie(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_MOVIE) {
-		parts_state_reset(&parts->states[state], PARTS_MOVIE);
+	if (parts->sprites[state].type != PARTS_SPRITE_MOVIE) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_MOVIE);
 	}
-	return &parts->states[state].movie;
+	return &parts->sprites[state].movie;
 }
 
 struct parts_layout_box *parts_get_layout_box(struct parts *parts)
 {
-	if (parts->states[0].type != PARTS_LAYOUT_BOX) {
-		parts_state_reset(&parts->states[0], PARTS_LAYOUT_BOX);
+	if (parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX) {
+		parts_sprite_reset(&parts->sprites[0], PARTS_SPRITE_LAYOUT_BOX);
 	}
-	return &parts->states[0].layout_box;
+	return &parts->sprites[0].layout_box;
 }
 
 struct parts_3dlayer *parts_get_3dlayer(struct parts *parts, int state)
 {
-	if (parts->states[state].type != PARTS_3DLAYER) {
-		parts_state_reset(&parts->states[state], PARTS_3DLAYER);
+	if (parts->sprites[state].type != PARTS_SPRITE_3DLAYER) {
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_3DLAYER);
 	}
-	return &parts->states[state].layer3d;
+	return &parts->sprites[state].layer3d;
 }
 
 static Point calculate_offset(int mode, int w, int h)
@@ -431,7 +431,7 @@ static void parts_common_recalculate_hitbox(struct parts *parts, struct parts_co
 void parts_recalculate_hitbox(struct parts *parts)
 {
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		parts_common_recalculate_hitbox(parts, &parts->states[i].common);
+		parts_common_recalculate_hitbox(parts, &parts->sprites[i].common);
 	}
 }
 
@@ -917,11 +917,11 @@ bool parts_numeral_set_number(struct parts *parts, struct parts_numeral *num, in
 	return parts_numeral_update(parts, num);
 }
 
-void parts_set_state(struct parts *parts, enum parts_state_type state)
+void parts_set_state(struct parts *parts, enum parts_state state)
 {
 	if (parts->lock_input_state)
 		return;
-	while (state > PARTS_STATE_DEFAULT && parts->states[state].type == PARTS_UNINITIALIZED)
+	while (state > PARTS_STATE_DEFAULT && parts->sprites[state].type == PARTS_SPRITE_NONE)
 		state--;
 	if (parts->state != state) {
 		parts->state = state;
@@ -960,15 +960,15 @@ static bool parts_animation_update(struct parts_animation *anim, int passed_time
 static void parts_update_loop(struct parts *parts, int passed_time)
 {
 	bool dirty = false;
-	switch (parts->states[parts->state].type) {
-	case PARTS_ANIMATION:
-		dirty = parts_animation_update(&parts->states[parts->state].anim, passed_time);
+	switch (parts->sprites[parts->state].type) {
+	case PARTS_SPRITE_ANIMATION:
+		dirty = parts_animation_update(&parts->sprites[parts->state].anim, passed_time);
 		break;
-	case PARTS_FLASH:
-		dirty = parts_flash_update(&parts->states[parts->state].flash, passed_time);
+	case PARTS_SPRITE_FLASH:
+		dirty = parts_flash_update(&parts->sprites[parts->state].flash, passed_time);
 		break;
-	case PARTS_FLAT:
-		dirty = parts_flat_update(&parts->states[parts->state].flat, passed_time);
+	case PARTS_SPRITE_FLAT:
+		dirty = parts_flat_update(&parts->sprites[parts->state].flat, passed_time);
 		break;
 	default:
 		break;
@@ -995,7 +995,7 @@ void parts_release(int parts_no)
 	parts_input_reset_drag(parts);
 	parts_clear_motion(parts);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		parts_state_free(&parts->states[i]);
+		parts_sprite_free(&parts->sprites[i]);
 	}
 
 	// break parent/child relationships
@@ -1104,8 +1104,8 @@ static void parts_update_component(struct parts *parts)
 {
 	parts_combine_params(parts->parent ? &parts->parent->global : &root_params,
 			&parts->local, &parts->global);
-	if (parts_get_sprite_z(parts) != parts->sp.z
-			|| parts_get_sprite_z2(parts) != parts->sp.z2) {
+	if (parts_get_sp_z(parts) != parts->sp.z
+			|| parts_get_sp_z2(parts) != parts->sp.z2) {
 		parts_list_resort(parts);
 	}
 
@@ -1131,7 +1131,7 @@ void parts_set_parent(struct parts *parts, struct parts *parent)
 	parts->pending_parent = -1;
 
 	// if parent is layout box, mark it dirty so that it can re-layout its children
-	if (parent->states[0].type == PARTS_LAYOUT_BOX)
+	if (parent->sprites[0].type == PARTS_SPRITE_LAYOUT_BOX)
 		parts_component_dirty(parent);
 }
 
@@ -1204,7 +1204,7 @@ bool PE_SetPartsCG(int parts_no, struct string *cg_name, int sprite_deform, int 
 	struct parts *parts = parts_get(parts_no);
 	parts->sprite_deform = sprite_deform;
 	if (!cg_name || *(cg_name->text) == '\0') {
-		parts_state_reset(&parts->states[state], PARTS_CG);
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_CG);
 		parts_dirty(parts);
 		return true;
 	}
@@ -1221,7 +1221,7 @@ bool PE_SetPartsCG_by_index(int parts_no, int cg_no, int sprite_deform, int stat
 	struct parts *parts = parts_get(parts_no);
 	parts->sprite_deform = sprite_deform;
 	if (!cg_no) {
-		parts_state_reset(&parts->states[state], PARTS_CG);
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_CG);
 		parts_dirty(parts);
 		return true;
 	}
@@ -1240,7 +1240,7 @@ bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_name,
 	struct parts *parts = parts_get(parts_no);
 	parts->sprite_deform = sprite_deform;
 	if (!cg_name) {
-		parts_state_reset(&parts->states[state], PARTS_CG);
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_CG);
 		parts_dirty(parts);
 		return true;
 	}
@@ -1786,14 +1786,14 @@ int PE_GetPartsWidth(int parts_no, int state)
 {
 	if (!parts_state_valid(--state))
 		return 0;
-	return parts_get(parts_no)->states[state].common.w;
+	return parts_get(parts_no)->sprites[state].common.w;
 }
 
 int PE_GetPartsHeight(int parts_no, int state)
 {
 	if (!parts_state_valid(--state))
 		return 0;
-	return parts_get(parts_no)->states[state].common.h;
+	return parts_get(parts_no)->sprites[state].common.h;
 }
 
 int PE_GetPartsUpperLeftPosX(int parts_no, int state)
@@ -1801,7 +1801,7 @@ int PE_GetPartsUpperLeftPosX(int parts_no, int state)
 	if (!parts_state_valid(--state))
 		return 0;
 	struct parts *parts = parts_get(parts_no);
-	int x = parts->states[state].common.hitbox.x;
+	int x = parts->sprites[state].common.hitbox.x;
 	if (parts->parent)
 		x += parts->parent->global.pos.x;
 	return x;
@@ -1812,7 +1812,7 @@ int PE_GetPartsUpperLeftPosY(int parts_no, int state)
 	if (!parts_state_valid(--state))
 		return 0;
 	struct parts *parts = parts_get(parts_no);
-	int y = parts->states[state].common.hitbox.y;
+	int y = parts->sprites[state].common.hitbox.y;
 	if (parts->parent)
 		y += parts->parent->global.pos.y;
 	return y;
@@ -2024,25 +2024,25 @@ void PE_SetComponentType(int parts_no, int type, int state)
 	if (!parts_state_valid(--state))
 		return;
 	struct parts *parts = parts_get(parts_no);
-	enum parts_type pt = PARTS_UNINITIALIZED;
+	enum parts_sprite_type pt = PARTS_SPRITE_NONE;
 	switch (type) {
-	case 8:  pt = PARTS_LAYOUT_BOX; break;
-	case 11: pt = PARTS_CG; break;
-	case 12: pt = PARTS_ANIMATION; break;
-	case 13: pt = PARTS_TEXT; break;
-	case 14: pt = PARTS_HGAUGE; break;
-	case 15: pt = PARTS_VGAUGE; break;
-	case 16: pt = PARTS_NUMERAL; break;
-	case 17: pt = PARTS_RECT_DETECTION; break;
-	case 18: pt = PARTS_CONSTRUCTION_PROCESS; break;
-	case 20: pt = PARTS_FLAT; break;
-	case 21: pt = PARTS_3DLAYER; break;
-	case 22: pt = PARTS_MOVIE; break;
+	case 8:  pt = PARTS_SPRITE_LAYOUT_BOX; break;
+	case 11: pt = PARTS_SPRITE_CG; break;
+	case 12: pt = PARTS_SPRITE_ANIMATION; break;
+	case 13: pt = PARTS_SPRITE_TEXT; break;
+	case 14: pt = PARTS_SPRITE_HGAUGE; break;
+	case 15: pt = PARTS_SPRITE_VGAUGE; break;
+	case 16: pt = PARTS_SPRITE_NUMERAL; break;
+	case 17: pt = PARTS_SPRITE_RECT_DETECTION; break;
+	case 18: pt = PARTS_SPRITE_CONSTRUCTION_PROCESS; break;
+	case 20: pt = PARTS_SPRITE_FLAT; break;
+	case 21: pt = PARTS_SPRITE_3DLAYER; break;
+	case 22: pt = PARTS_SPRITE_MOVIE; break;
 	default:
 		VM_ERROR("unknown component type %d", type);
 	}
-	if (parts->states[state].type != pt)
-		parts_state_reset(&parts->states[state], pt);
+	if (parts->sprites[state].type != pt)
+		parts_sprite_reset(&parts->sprites[state], pt);
 }
 
 int PE_GetComponentType(int parts_no, int state)
@@ -2053,25 +2053,25 @@ int PE_GetComponentType(int parts_no, int state)
 	if (!parts)
 		return -1;
 
-	switch (parts->states[state].type) {
-	case PARTS_LAYOUT_BOX: return 8;
-	case PARTS_UNINITIALIZED:  // defaluts to CG
-	case PARTS_CG:
+	switch (parts->sprites[state].type) {
+	case PARTS_SPRITE_LAYOUT_BOX: return 8;
+	case PARTS_SPRITE_NONE:  // defaluts to CG
+	case PARTS_SPRITE_CG:
 		return 11;
-	case PARTS_ANIMATION: return 12;
-	case PARTS_TEXT: return 13;
-	case PARTS_HGAUGE: return 14;
-	case PARTS_VGAUGE: return 15;
-	case PARTS_NUMERAL: return 16;
-	case PARTS_RECT_DETECTION: return 17;
-	case PARTS_CONSTRUCTION_PROCESS: return 18;
-	case PARTS_FLAT: return 20;
-	case PARTS_3DLAYER: return 21;
-	case PARTS_MOVIE: return 22;
-	case PARTS_FLASH:
+	case PARTS_SPRITE_ANIMATION: return 12;
+	case PARTS_SPRITE_TEXT: return 13;
+	case PARTS_SPRITE_HGAUGE: return 14;
+	case PARTS_SPRITE_VGAUGE: return 15;
+	case PARTS_SPRITE_NUMERAL: return 16;
+	case PARTS_SPRITE_RECT_DETECTION: return 17;
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS: return 18;
+	case PARTS_SPRITE_FLAT: return 20;
+	case PARTS_SPRITE_3DLAYER: return 21;
+	case PARTS_SPRITE_MOVIE: return 22;
+	case PARTS_SPRITE_FLASH:
 		break;
 	}
-	VM_ERROR("unsupported component type %d", parts->states[state].type);
+	VM_ERROR("unsupported component type %d", parts->sprites[state].type);
 }
 
 bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state)
@@ -2081,9 +2081,9 @@ bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state)
 	struct parts *parts = parts_try_get(parts_no);
 	if (!parts)
 		return false;
-	if (parts->states[state].type != PARTS_RECT_DETECTION)
-		parts_state_reset(&parts->states[state], PARTS_RECT_DETECTION);
-	parts_set_dims(parts, &parts->states[state].common, w, h);
+	if (parts->sprites[state].type != PARTS_SPRITE_RECT_DETECTION)
+		parts_sprite_reset(&parts->sprites[state], PARTS_SPRITE_RECT_DETECTION);
+	parts_set_dims(parts, &parts->sprites[state].common, w, h);
 	return true;
 }
 
@@ -2258,10 +2258,10 @@ int PE_get_movie_sprite(int parts_no, int state)
 		return -1;
 
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[state].type != PARTS_MOVIE)
+	if (!parts || parts->sprites[state].type != PARTS_SPRITE_MOVIE)
 		return -1;
 
-	return parts->states[state].movie.sprite_no;
+	return parts->sprites[state].movie.sprite_no;
 }
 
 bool parts_3dlayer_create_plugin(struct parts_3dlayer *l)
@@ -2307,9 +2307,9 @@ int PE_GetParts3DLayerPluginID(int parts_no, int state)
 	if (!parts_state_valid(--state))
 		return -1;
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[state].type != PARTS_3DLAYER)
+	if (!parts || parts->sprites[state].type != PARTS_SPRITE_3DLAYER)
 		return -1;
-	return parts->states[state].layer3d.plugin;
+	return parts->sprites[state].layer3d.plugin;
 }
 
 bool PE_ReleaseParts3DLayerPluginID(int parts_no, int state)
@@ -2317,9 +2317,9 @@ bool PE_ReleaseParts3DLayerPluginID(int parts_no, int state)
 	if (!parts_state_valid(--state))
 		return false;
 	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->states[state].type != PARTS_3DLAYER)
+	if (!parts || parts->sprites[state].type != PARTS_SPRITE_3DLAYER)
 		return false;
-	struct parts_3dlayer *l = &parts->states[state].layer3d;
+	struct parts_3dlayer *l = &parts->sprites[state].layer3d;
 	if (l->plugin < 0)
 		return false;
 	ReignEngine_ReleasePlugin(l->plugin);

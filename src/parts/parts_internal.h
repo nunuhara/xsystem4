@@ -29,7 +29,7 @@ struct string;
 struct hash_table;
 
 // NOTE: actual value is +1
-enum parts_state_type {
+enum parts_state {
 	PARTS_STATE_DEFAULT = 0,
 	PARTS_STATE_HOVERED = 1,
 	PARTS_STATE_CLICKED = 2,
@@ -93,22 +93,24 @@ struct parts_text_line {
 	float width;
 };
 
-enum parts_type {
-	PARTS_UNINITIALIZED,
-	PARTS_CG,
-	PARTS_TEXT,
-	PARTS_ANIMATION,
-	PARTS_NUMERAL,
-	PARTS_HGAUGE,
-	PARTS_VGAUGE,
-	PARTS_CONSTRUCTION_PROCESS,
-	PARTS_FLASH,
-	PARTS_FLAT,
-	PARTS_MOVIE,
-	PARTS_RECT_DETECTION,
-	PARTS_LAYOUT_BOX,
-	PARTS_3DLAYER,
-#define PARTS_NR_TYPES (PARTS_3DLAYER+1)
+// A sprite is the content of one state of a parts. Each state of a parts can
+// have a different sprite type.
+enum parts_sprite_type {
+	PARTS_SPRITE_NONE,
+	PARTS_SPRITE_CG,
+	PARTS_SPRITE_TEXT,
+	PARTS_SPRITE_ANIMATION,
+	PARTS_SPRITE_NUMERAL,
+	PARTS_SPRITE_HGAUGE,
+	PARTS_SPRITE_VGAUGE,
+	PARTS_SPRITE_CONSTRUCTION_PROCESS,
+	PARTS_SPRITE_FLASH,
+	PARTS_SPRITE_FLAT,
+	PARTS_SPRITE_MOVIE,
+	PARTS_SPRITE_RECT_DETECTION,
+	PARTS_SPRITE_LAYOUT_BOX,
+	PARTS_SPRITE_3DLAYER,
+#define PARTS_NR_SPRITE_TYPES (PARTS_SPRITE_3DLAYER+1)
 };
 
 struct parts_common {
@@ -368,8 +370,8 @@ struct parts_3dlayer {
 	int sprite_no; // SACT sprite used as render target
 };
 
-struct parts_state {
-	enum parts_type type;
+struct parts_sprite {
+	enum parts_sprite_type type;
 	union {
 		struct parts_common common;
 		struct parts_cg cg;
@@ -401,9 +403,11 @@ struct parts_params {
 };
 
 struct parts {
+	// The entry of the parts in the scene. It must be the first member. It is
+	// not related to sprites[].
 	struct sprite sp;
-	enum parts_state_type state;
-	struct parts_state states[PARTS_NR_STATES];
+	enum parts_state state;
+	struct parts_sprite sprites[PARTS_NR_STATES];
 	TAILQ_ENTRY(parts) parts_list_entry;
 	TAILQ_ENTRY(parts) child_list_entry;
 	TAILQ_ENTRY(parts) dirty_list_entry;
@@ -478,7 +482,7 @@ void parts_set_scale_x(struct parts *parts, float mag);
 void parts_set_scale_y(struct parts *parts, float mag);
 void parts_set_rotation_z(struct parts *parts, float rot);
 void parts_set_alpha(struct parts *parts, int alpha);
-void parts_set_state(struct parts *parts, enum parts_state_type state);
+void parts_set_state(struct parts *parts, enum parts_state state);
 void parts_set_parent(struct parts *parts, struct parts *parent);
 void parts_release(int parts_no);
 void parts_release_all(void);
@@ -492,7 +496,7 @@ extern int parts_nr_numeral_fonts;
 void parts_list_resort(struct parts *parts);
 void parts_component_dirty(struct parts *parts);
 void parts_recalculate_hitbox(struct parts *parts);
-void parts_state_reset(struct parts_state *state, enum parts_type type);
+void parts_sprite_reset(struct parts_sprite *sprite, enum parts_sprite_type type);
 bool parts_cg_set(struct parts *parts, struct parts_cg *cg, struct string *cg_name);
 bool parts_cg_set_by_index(struct parts *parts, struct parts_cg *cg, int cg_no);
 void parts_text_append(struct parts *parts, struct parts_text *t, struct string *text);
@@ -519,7 +523,7 @@ void parts_render_update(void);
 void parts_engine_dirty(void);
 void parts_engine_clean(void);
 void parts_dirty(struct parts *parts);
-void parts_sprite_render(struct sprite *sp);
+void parts_sp_render(struct sprite *sp);
 void parts_render(struct parts *parts);
 void parts_render_family(struct parts *parts);
 
@@ -631,7 +635,7 @@ void parts_do_layout(struct parts *parts);
 struct sprite;
 void parts_debug_init(void);
 cJSON *parts_engine_to_json(struct sprite *sp, bool verbose);
-cJSON *parts_sprite_to_json(struct sprite *sp, bool verbose);
+cJSON *parts_sp_to_json(struct sprite *sp, bool verbose);
 
 static inline bool parts_state_valid(int state)
 {
