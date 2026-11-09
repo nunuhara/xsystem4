@@ -27,12 +27,19 @@
 
 #define PARTS_MSG_MAX_VARS 4
 
+enum parts_msg_var_type {
+	PARTS_MSG_VAR_NONE = 0,
+	PARTS_MSG_VAR_INT = 1,
+	PARTS_MSG_VAR_BOOL = 3,
+};
+
 struct parts_message {
 	STAILQ_ENTRY(parts_message) entry;
 	int parts_no;
 	int delegate_index;
 	int type;
 	int variables[PARTS_MSG_MAX_VARS];
+	enum parts_msg_var_type variable_types[PARTS_MSG_MAX_VARS];
 	int nr_variables;
 };
 
@@ -59,6 +66,9 @@ void parts_msg_push(struct parts* parts, int type, const char *fmt, ...)
 		}
 		switch (*p) {
 		case 'i':
+		case 'b':
+			msg->variable_types[msg->nr_variables] =
+				*p == 'b' ? PARTS_MSG_VAR_BOOL : PARTS_MSG_VAR_INT;
 			msg->variables[msg->nr_variables++] = va_arg(ap, int);
 			break;
 		default:
@@ -112,20 +122,19 @@ int PE_GetMessageVariableCount(void)
 	return msg ? msg->nr_variables : 0;
 }
 
-int PE_GetMessageVariableType(possibly_unused int index)
+int PE_GetMessageVariableType(int index)
 {
-	// In the current implementation, all variables are integers.
-	return 1;
+	struct parts_message *msg = STAILQ_FIRST(&msg_queue);
+	if (!msg || index < 0 || index >= msg->nr_variables)
+		return PARTS_MSG_VAR_NONE;
+	return msg->variable_types[index];
 }
 
 int PE_GetMessageVariableInt(int index)
 {
-	struct parts_message *msg = STAILQ_FIRST(&msg_queue);
-	if (!msg)
+	if (PE_GetMessageVariableType(index) != PARTS_MSG_VAR_INT)
 		return 0;
-	if (index < 0 || index >= msg->nr_variables)
-		return 0;
-	return msg->variables[index];
+	return STAILQ_FIRST(&msg_queue)->variables[index];
 }
 
 float PE_GetMessageVariableFloat(possibly_unused int index)
@@ -133,9 +142,11 @@ float PE_GetMessageVariableFloat(possibly_unused int index)
 	return 0.0f;
 }
 
-bool PE_GetMessageVariableBool(possibly_unused int index)
+bool PE_GetMessageVariableBool(int index)
 {
-	return false;
+	if (PE_GetMessageVariableType(index) != PARTS_MSG_VAR_BOOL)
+		return false;
+	return STAILQ_FIRST(&msg_queue)->variables[index];
 }
 
 void PE_GetMessageVariableString(possibly_unused int index, struct string **out)

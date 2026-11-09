@@ -591,9 +591,7 @@ static void parts_render_flash(struct parts *parts, struct parts_flash *f)
 
 void parts_render(struct parts *parts)
 {
-	if (!parts->global.show)
-		return;
-	if (parts->message_window && !parts_message_window_show)
+	if (!parts_is_visible(parts))
 		return;
 	if (parts->linked_to >= 0) {
 		struct parts *link_parts = parts_get(parts->linked_to);

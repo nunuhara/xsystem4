@@ -431,13 +431,17 @@ static bool pact_sprite(struct buffer *r, struct parts *p, int state)
 	}
 }
 
-static void pact_button(struct buffer *r, struct parts *p)
+static void pact_button(struct buffer *r, struct parts *p, bool checkbox)
 {
-	struct parts_button *button = parts_get_button(p);
-	struct parts_button_style *s = &button->style;
+	struct parts_button *button = checkbox ? NULL : parts_get_button(p);
+	struct parts_checkbox *cb = checkbox ? parts_get_checkbox(p) : NULL;
+	struct parts_button_style *s = checkbox ? &cb->style : &button->style;
 	s->w = buffer_read_int32(r);
 	s->h = buffer_read_int32(r);
-	button->enabled = buffer_read_u8(r);
+	if (checkbox)
+		cb->checked = buffer_read_u8(r);
+	else
+		button->enabled = buffer_read_u8(r);
 	s->r = buffer_read_int32(r);
 	s->g = buffer_read_int32(r);
 	s->b = buffer_read_int32(r);
@@ -454,9 +458,14 @@ static void pact_button(struct buffer *r, struct parts *p)
 	s->flat_name = pact_string(r);
 	s->text = pact_string(r);
 	s->text_align = buffer_read_int32(r);
+	if (checkbox)
+		cb->button_mode = buffer_read_u8(r);
 	s->font.font_spacing = buffer_read_int32(r);
 	s->line_space = buffer_read_int32(r);
-	parts_button_rebuild(p);
+	if (checkbox)
+		parts_checkbox_rebuild(p);
+	else
+		parts_button_rebuild(p);
 }
 
 static void pact_layoutbox(struct buffer *r, struct parts *p)
@@ -491,10 +500,8 @@ static bool pact_component(struct buffer *r, struct parts *p, int *component_typ
 	int type = *component_type = buffer_read_int32(r);
 	switch (type) {
 	case PACT_COMPONENT_BUTTON:
-		pact_button(r, p);
-		return true;
 	case PACT_COMPONENT_CHECKBOX:
-		pact_skip(r, "iibiiiiiiiiffiiisssibii");
+		pact_button(r, p, type == PACT_COMPONENT_CHECKBOX);
 		return true;
 	case PACT_COMPONENT_VSCROLLBAR:
 	case PACT_COMPONENT_HSCROLLBAR:
@@ -685,6 +692,7 @@ static bool activity_restore_links(struct activity *a)
 		if (link_numbers[PACT_LINK_ON_CURSOR_SHOW])
 			PE_SetOnCursorShowLinkPartsNumber(entry->number,
 					link_numbers[PACT_LINK_ON_CURSOR_SHOW]);
+		p->checkbox_show_link = link_numbers[PACT_LINK_CHECKBOX_SHOW];
 	}
 	return true;
 }

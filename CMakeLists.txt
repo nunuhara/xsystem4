@@ -100,6 +100,7 @@ target_sources(xsystem4 PRIVATE
 
   src/parts/activity.c
   src/parts/button.c
+  src/parts/checkbox.c
   src/parts/construction.c
   src/parts/debug.c
   src/parts/flash.c

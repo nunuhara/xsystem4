@@ -70,7 +70,8 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		int passed_time, bool *hover_consumed, bool *click_consumed)
 {
 	// Always use DEFAULT state hitbox regardless of the current display state.
-	bool is_hovered = parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos)
+	bool is_hovered = parts_is_visible(parts)
+		&& parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos)
 		&& !*hover_consumed;
 
 	bool was_hovered = parts->is_hovered;
@@ -160,6 +161,10 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 					"iii", cur_pos.x, cur_pos.y, VK_LBUTTON);
 		parts_msg_push(parts, PARTS_MSG_KEY_UP, "i", VK_LBUTTON);
 	}
+	// A checkbox toggles on left-button release while hovered.
+	if (parts->type == PARTS_TYPE_CHECKBOX && prev_clicking && !cur_clicking
+			&& click_down_parts == parts->no)
+		parts_checkbox_click(parts, cur_pos);
 }
 
 void PE_UpdateInputState(int passed_time)

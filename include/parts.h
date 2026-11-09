@@ -341,6 +341,11 @@ void PE_SetButtonSize(int parts_no, int width, int height);
 void PE_SetButtonEnable(int parts_no, bool enabled);
 void PE_SetButtonText(int parts_no, struct string *text);
 
+// checkbox.c
+void PE_CheckBoxChecked(int parts_no, bool checked);
+bool PE_IsCheckBoxChecked(int parts_no);
+void PE_SetCheckBoxColor(int parts_no, int r, int g, int b);
+
 // layoutbox.c
 void PE_SetLayoutBoxLayoutType(int parts_no, int type);
 int PE_GetLayoutBoxLayoutType(int parts_no);

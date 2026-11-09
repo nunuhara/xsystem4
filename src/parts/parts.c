@@ -285,6 +285,20 @@ void parts_sprite_reset(struct parts_sprite *sprite, enum parts_sprite_type type
 	}
 }
 
+bool parts_is_visible(struct parts *parts)
+{
+	if (!parts->global.show)
+		return false;
+	for (struct parts *p = parts; p; p = p->parent) {
+		if (p->message_window && !parts_message_window_show)
+			return false;
+		struct parts *link = p->checkbox_show_link ? parts_try_get(p->checkbox_show_link) : NULL;
+		if (link && link->type == PARTS_TYPE_CHECKBOX && !link->widget.checkbox->checked)
+			return false;
+	}
+	return true;
+}
+
 // If the parts is a widget, the parts stops being a widget.
 struct parts_sprite *parts_get_sprite(struct parts *parts, int state,
 		enum parts_sprite_type type)
@@ -1983,6 +1997,7 @@ int PE_GetInputState(int parts_no)
 	case PARTS_TYPE_SPRITE:
 		break;
 	case PARTS_TYPE_BUTTON:
+	case PARTS_TYPE_CHECKBOX:
 		state = parts->is_hovered ? PARTS_STATE_HOVERED : PARTS_STATE_DEFAULT;
 		break;
 	default:
@@ -2000,6 +2015,7 @@ void PE_SetComponentType(int parts_no, int type, int state)
 	enum parts_sprite_type pt = PARTS_SPRITE_NONE;
 	switch (type) {
 	case PARTS_TYPE_BUTTON:
+	case PARTS_TYPE_CHECKBOX:
 	case PARTS_TYPE_LAYOUTBOX:
 		parts_set_type(parts, type);
 		return;

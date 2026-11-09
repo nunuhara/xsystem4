@@ -402,10 +402,12 @@ struct parts_params {
 // has one set of data for all display states, not a sprite for each state.
 enum parts_type {
 	PARTS_TYPE_BUTTON = 0,
+	PARTS_TYPE_CHECKBOX = 1,
 	PARTS_TYPE_LAYOUTBOX = 8,
 	PARTS_TYPE_SPRITE = 10,
 };
 
+// Appearance shared by buttons and checkboxes.
 struct parts_button_style {
 	int w, h;
 	int r, g, b;
@@ -422,6 +424,12 @@ struct parts_button {
 	bool enabled;
 };
 
+struct parts_checkbox {
+	struct parts_button_style style;
+	bool checked;
+	bool button_mode;  // Looks like a button.
+};
+
 struct parts {
 	// The entry of the parts in the scene. It must be the first member. It is
 	// not related to sprites[].
@@ -429,8 +437,11 @@ struct parts {
 	enum parts_type type;
 	union {
 		struct parts_button *button;
+		struct parts_checkbox *checkbox;
 		struct parts_layoutbox *layoutbox;
 	} widget;
+	// If nonzero, this parts is hidden while that checkbox parts is unchecked.
+	int checkbox_show_link;
 	enum parts_state state;
 	// If type is not PARTS_TYPE_SPRITE, the widget owns the sprites and
 	// keeps its rendered images in them.
@@ -524,6 +535,7 @@ extern int parts_nr_numeral_fonts;
 void parts_list_resort(struct parts *parts);
 void parts_component_dirty(struct parts *parts);
 void parts_recalculate_hitbox(struct parts *parts);
+bool parts_is_visible(struct parts *parts);
 void parts_sprite_reset(struct parts_sprite *sprite, enum parts_sprite_type type);
 bool parts_cg_set(struct parts *parts, struct parts_cg *cg, struct string *cg_name);
 bool parts_cg_set_by_index(struct parts *parts, struct parts_cg *cg, int cg_no);
@@ -555,9 +567,11 @@ void parts_type_reset(struct parts *parts, enum parts_type type,
 		enum parts_sprite_type sprite_type);
 void parts_set_type(struct parts *parts, enum parts_type type);
 
+// True for checkboxes also.
 static inline bool parts_is_button(struct parts *parts)
 {
-	return parts->type == PARTS_TYPE_BUTTON;
+	return parts->type == PARTS_TYPE_BUTTON
+		|| parts->type == PARTS_TYPE_CHECKBOX;
 }
 
 // button.c
@@ -580,6 +594,13 @@ void parts_button_style_draw_text(Texture *t, struct parts_button_style *s, int 
 struct parts_button *parts_get_button(struct parts *parts);
 void parts_button_free(struct parts_button *b);
 void parts_button_rebuild(struct parts *parts);
+
+// checkbox.c
+struct parts_checkbox *parts_get_checkbox(struct parts *parts);
+void parts_checkbox_free(struct parts_checkbox *c);
+void parts_checkbox_rebuild(struct parts *parts);
+void parts_checkbox_set_checked(struct parts *parts, bool checked);
+void parts_checkbox_click(struct parts *parts, Point pos);
 
 // render.c
 void parts_render_init(void);
@@ -617,6 +638,7 @@ enum parts_message_type {
 	PARTS_MSG_KEY_TRIGGER    = 14,
 	PARTS_MSG_KEY_DOWN       = 15,
 	PARTS_MSG_KEY_UP         = 17,
+	PARTS_MSG_CHANGED        = 22,
 };
 
 void parts_msg_push(struct parts* parts, int type, const char *fmt, ...);

@@ -639,6 +639,22 @@ static void load_parts_button(struct iarray_reader *r, struct parts *parts)
 	parts_button_rebuild(parts);
 }
 
+static void save_parts_checkbox(struct iarray_writer *w, struct parts_checkbox *c)
+{
+	save_parts_button_style(w, &c->style);
+	iarray_write(w, c->checked);
+	iarray_write(w, c->button_mode);
+}
+
+static void load_parts_checkbox(struct iarray_reader *r, struct parts *parts)
+{
+	struct parts_checkbox *c = parts_get_checkbox(parts);
+	load_parts_button_style(r, &c->style);
+	c->checked = iarray_read(r);
+	c->button_mode = iarray_read(r);
+	parts_checkbox_rebuild(parts);
+}
+
 static void save_parts_widget(struct iarray_writer *w, struct parts *parts)
 {
 	iarray_write(w, parts->type);
@@ -647,6 +663,9 @@ static void save_parts_widget(struct iarray_writer *w, struct parts *parts)
 		break;
 	case PARTS_TYPE_BUTTON:
 		save_parts_button(w, parts->widget.button);
+		break;
+	case PARTS_TYPE_CHECKBOX:
+		save_parts_checkbox(w, parts->widget.checkbox);
 		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		save_parts_layoutbox(w, parts->widget.layoutbox);
@@ -662,6 +681,9 @@ static void load_parts_widget(struct iarray_reader *r, struct parts *parts)
 		break;
 	case PARTS_TYPE_BUTTON:
 		load_parts_button(r, parts);
+		break;
+	case PARTS_TYPE_CHECKBOX:
+		load_parts_checkbox(r, parts);
 		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		load_parts_layoutbox(r, parts_get_layoutbox(parts));
@@ -713,6 +735,7 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	}
 
 	iarray_write_at(w, motion_count_pos, motion_count);
+	iarray_write(w, parts->checkbox_show_link);
 	save_parts_widget(w, parts);
 }
 
@@ -758,8 +781,10 @@ static void load_parts(struct iarray_reader *r, int version)
 		parts_add_motion(parts, motion);
 	}
 
-	if (version >= 8)
+	if (version >= 8) {
+		parts->checkbox_show_link = iarray_read(r);
 		load_parts_widget(r, parts);
+	}
 
 	parts_list_resort(parts);
 	parts_component_dirty(parts);

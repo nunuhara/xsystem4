@@ -61,6 +61,7 @@ xsystem4 = [version_h,
 
             'parts/activity.c',
             'parts/button.c',
+            'parts/checkbox.c',
             'parts/construction.c',
             'parts/debug.c',
             'parts/flash.c',
