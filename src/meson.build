@@ -60,6 +60,7 @@ xsystem4 = [version_h,
             'dungeon/tes.c',
 
             'parts/activity.c',
+            'parts/button.c',
             'parts/construction.c',
             'parts/debug.c',
             'parts/flash.c',

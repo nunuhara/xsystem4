@@ -14,21 +14,56 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "system4.h"
+#include "system4/string.h"
+#include "system4/utfsjis.h"
 #include "parts.h"
 #include "parts_internal.h"
+
+// Replace each UTF-8 string in `strs` with a new CP932 string. The function
+// does not free the old strings.
+void parts_utf2sjis_array(const char **strs, int n)
+{
+	for (int i = 0; i < n; i++)
+		strs[i] = utf2sjis(strs[i], 0);
+}
+
+const char *parts_widget_look_suffix(int look)
+{
+	static const char *suffixes[PARTS_NR_LOOKS] = { "／通常", "／オン", "／ダウン", "／無効" };
+	static bool converted;
+	if (!converted) {
+		parts_utf2sjis_array(suffixes, PARTS_NR_LOOKS);
+		converted = true;
+	}
+	return suffixes[look];
+}
+
+struct string *parts_widget_resource_name(struct string *base, const char *infix,
+		const char *suffix)
+{
+	struct string *name = string_dup(base);
+	string_append_cstr(&name, infix, strlen(infix));
+	string_append_cstr(&name, suffix, strlen(suffix));
+	return name;
+}
 
 void parts_widget_free(struct parts *parts)
 {
 	switch (parts->type) {
 	case PARTS_TYPE_SPRITE:
 		return;
+	case PARTS_TYPE_BUTTON:
+		parts_button_free(parts->widget.button);
+		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		free(parts->widget.layoutbox);
 		break;
 	}
 	parts->type = PARTS_TYPE_SPRITE;
-	parts->widget.layoutbox = NULL;
+	memset(&parts->widget, 0, sizeof(parts->widget));
 }
 
 void parts_type_reset(struct parts *parts, enum parts_type type,
@@ -46,6 +81,9 @@ void parts_set_type(struct parts *parts, enum parts_type type)
 {
 	switch (type) {
 	case PARTS_TYPE_SPRITE:
+		break;
+	case PARTS_TYPE_BUTTON:
+		parts_get_button(parts);
 		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		parts_get_layoutbox(parts);

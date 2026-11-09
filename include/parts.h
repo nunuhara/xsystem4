@@ -336,6 +336,11 @@ bool PE_GoFramePartsFlat(int parts_no, int frame_no, int state);
 int PE_GetPartsFlatEndFrame(int parts_no, int state);
 void PE_SetFlatUpdateSpeedRate(int parts_no, float rate, int state);
 
+// button.c
+void PE_SetButtonSize(int parts_no, int width, int height);
+void PE_SetButtonEnable(int parts_no, bool enabled);
+void PE_SetButtonText(int parts_no, struct string *text);
+
 // layoutbox.c
 void PE_SetLayoutBoxLayoutType(int parts_no, int type);
 int PE_GetLayoutBoxLayoutType(int parts_no);

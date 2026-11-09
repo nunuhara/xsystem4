@@ -112,7 +112,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		return;
 	}
 
-	bool click_eligible = parts->clickable || !parts->pass_cursor;
+	bool click_eligible = parts_is_button(parts) || parts->clickable || !parts->pass_cursor;
 	if (!click_eligible || *click_consumed) {
 		if (!was_hovered)
 			audio_play_sound(parts->on_cursor_sound);
@@ -148,13 +148,16 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	}
 
 	// click event: only if the click down event had same parts number
-	if (parts->clickable && prev_clicking && !cur_clicking
+	if ((parts_is_button(parts) || parts->clickable) && prev_clicking && !cur_clicking
 			&& click_down_parts == parts->no) {
 		audio_play_sound(parts->on_click_sound);
-		clicked_parts = parts->no;
+		// Button widgets do not publish their click numbers through GetClickNumber.
+		if (!parts_is_button(parts))
+			clicked_parts = parts->no;
 
-		parts_msg_push(parts, PARTS_MSG_MOUSE_CLICK,
-				"iii", cur_pos.x, cur_pos.y, VK_LBUTTON);
+		if (parts->type != PARTS_TYPE_BUTTON || parts->widget.button->enabled)
+			parts_msg_push(parts, PARTS_MSG_MOUSE_CLICK,
+					"iii", cur_pos.x, cur_pos.y, VK_LBUTTON);
 		parts_msg_push(parts, PARTS_MSG_KEY_UP, "i", VK_LBUTTON);
 	}
 }

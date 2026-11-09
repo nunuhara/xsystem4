@@ -592,11 +592,61 @@ static struct parts_motion *load_parts_motion(struct iarray_reader *r)
 	return motion;
 }
 
+static void save_parts_button_style(struct iarray_writer *w, struct parts_button_style *s)
+{
+	iarray_write(w, s->w);
+	iarray_write(w, s->h);
+	iarray_write(w, s->r);
+	iarray_write(w, s->g);
+	iarray_write(w, s->b);
+	iarray_write_text_style(w, &s->font);
+	iarray_write_string(w, s->cg_name);
+	iarray_write_string(w, s->flat_name);
+	iarray_write_string(w, s->text);
+	iarray_write(w, s->text_align);
+	iarray_write(w, s->line_space);
+}
+
+static void load_parts_button_style(struct iarray_reader *r, struct parts_button_style *s)
+{
+	s->w = iarray_read(r);
+	s->h = iarray_read(r);
+	s->r = iarray_read(r);
+	s->g = iarray_read(r);
+	s->b = iarray_read(r);
+	iarray_read_text_style(r, &s->font);
+	free_string(s->cg_name);
+	free_string(s->flat_name);
+	free_string(s->text);
+	s->cg_name = iarray_read_string(r);
+	s->flat_name = iarray_read_string(r);
+	s->text = iarray_read_string(r);
+	s->text_align = iarray_read(r);
+	s->line_space = iarray_read(r);
+}
+
+static void save_parts_button(struct iarray_writer *w, struct parts_button *b)
+{
+	save_parts_button_style(w, &b->style);
+	iarray_write(w, b->enabled);
+}
+
+static void load_parts_button(struct iarray_reader *r, struct parts *parts)
+{
+	struct parts_button *b = parts_get_button(parts);
+	load_parts_button_style(r, &b->style);
+	b->enabled = iarray_read(r);
+	parts_button_rebuild(parts);
+}
+
 static void save_parts_widget(struct iarray_writer *w, struct parts *parts)
 {
 	iarray_write(w, parts->type);
 	switch (parts->type) {
 	case PARTS_TYPE_SPRITE:
+		break;
+	case PARTS_TYPE_BUTTON:
+		save_parts_button(w, parts->widget.button);
 		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		save_parts_layoutbox(w, parts->widget.layoutbox);
@@ -609,6 +659,9 @@ static void load_parts_widget(struct iarray_reader *r, struct parts *parts)
 	int type = iarray_read(r);
 	switch (type) {
 	case PARTS_TYPE_SPRITE:
+		break;
+	case PARTS_TYPE_BUTTON:
+		load_parts_button(r, parts);
 		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		load_parts_layoutbox(r, parts_get_layoutbox(parts));

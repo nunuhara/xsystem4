@@ -202,6 +202,14 @@ static SDL_Color pact_color(struct buffer *r)
 	return (SDL_Color){red, green, blue, 255};
 }
 
+static SDL_Color pact_color_bgr(struct buffer *r)
+{
+	int blue = buffer_read_int32(r);
+	int green = buffer_read_int32(r);
+	int red = buffer_read_int32(r);
+	return (SDL_Color){red, green, blue, 255};
+}
+
 static struct pact_text_decoration pact_decoration(struct buffer *r)
 {
 	struct pact_text_decoration d;
@@ -423,6 +431,34 @@ static bool pact_sprite(struct buffer *r, struct parts *p, int state)
 	}
 }
 
+static void pact_button(struct buffer *r, struct parts *p)
+{
+	struct parts_button *button = parts_get_button(p);
+	struct parts_button_style *s = &button->style;
+	s->w = buffer_read_int32(r);
+	s->h = buffer_read_int32(r);
+	button->enabled = buffer_read_u8(r);
+	s->r = buffer_read_int32(r);
+	s->g = buffer_read_int32(r);
+	s->b = buffer_read_int32(r);
+	s->font.face = buffer_read_int32(r);
+	s->font.size = buffer_read_int32(r);
+	s->font.color = pact_color_bgr(r);
+	s->font.bold_width = buffer_read_float(r);
+	text_style_set_edge_width(&s->font, buffer_read_float(r));
+	s->font.edge_color = pact_color_bgr(r);
+	free_string(s->cg_name);
+	free_string(s->flat_name);
+	free_string(s->text);
+	s->cg_name = pact_string(r);
+	s->flat_name = pact_string(r);
+	s->text = pact_string(r);
+	s->text_align = buffer_read_int32(r);
+	s->font.font_spacing = buffer_read_int32(r);
+	s->line_space = buffer_read_int32(r);
+	parts_button_rebuild(p);
+}
+
 static void pact_layoutbox(struct buffer *r, struct parts *p)
 {
 	struct parts_layoutbox *l = parts_get_layoutbox(p);
@@ -454,9 +490,8 @@ static bool pact_component(struct buffer *r, struct parts *p, int *component_typ
 {
 	int type = *component_type = buffer_read_int32(r);
 	switch (type) {
-	// GUI components are not implemented.
 	case PACT_COMPONENT_BUTTON:
-		pact_skip(r, "iibiiiiiiiiffiiisssiii");
+		pact_button(r, p);
 		return true;
 	case PACT_COMPONENT_CHECKBOX:
 		pact_skip(r, "iibiiiiiiiiffiiisssibii");
