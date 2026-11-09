@@ -111,6 +111,7 @@ target_sources(xsystem4 PRIVATE
   src/parts/render.c
   src/parts/text.c
   src/parts/save.c
+  src/parts/widget.c
 
   src/hll/ACXLoader.c
   src/hll/ADVSYS.c

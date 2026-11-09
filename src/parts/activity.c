@@ -35,8 +35,8 @@ enum pact_component_type {
 	PACT_COMPONENT_VSCROLLBAR = 2,
 	PACT_COMPONENT_HSCROLLBAR = 3,
 	PACT_COMPONENT_MULTILINE_TEXT = 7,
-	PACT_COMPONENT_LAYOUT_BOX = 8,
-	PACT_COMPONENT_RADIO_BOX = 9,
+	PACT_COMPONENT_LAYOUTBOX = 8,
+	PACT_COMPONENT_RADIOBOX = 9,
 	PACT_COMPONENT_SPRITE = 10,
 };
 
@@ -249,7 +249,7 @@ static void pact_sprite_rect(struct buffer *r, struct parts *p, int state)
 	SDL_Rect surface = pact_surface_rect(r);
 	if (!p)
 		return;
-	parts_sprite_reset(&p->sprites[state], PARTS_SPRITE_RECT_DETECTION);
+	parts_get_sprite(p, state, PARTS_SPRITE_RECT_DETECTION);
 	activity_set_surface(p, state, surface);
 }
 
@@ -423,9 +423,9 @@ static bool pact_sprite(struct buffer *r, struct parts *p, int state)
 	}
 }
 
-static void pact_layout_box(struct buffer *r, struct parts *p)
+static void pact_layoutbox(struct buffer *r, struct parts *p)
 {
-	struct parts_layout_box *l = parts_get_layout_box(p);
+	struct parts_layoutbox *l = parts_get_layoutbox(p);
 	l->layout_type = buffer_read_int32(r);
 	l->wrap = buffer_read_u8(r);
 	l->wrap_size = buffer_read_float(r);
@@ -468,10 +468,10 @@ static bool pact_component(struct buffer *r, struct parts *p, int *component_typ
 	case PACT_COMPONENT_MULTILINE_TEXT:
 		pact_skip(r, "iiiiiiiffiiibsiiiiiiiiiiiiiiisii");
 		return true;
-	case PACT_COMPONENT_LAYOUT_BOX:
-		pact_layout_box(r, p);
+	case PACT_COMPONENT_LAYOUTBOX:
+		pact_layoutbox(r, p);
 		return true;
-	case PACT_COMPONENT_RADIO_BOX:
+	case PACT_COMPONENT_RADIOBOX:
 		pact_skip_int_list(r);  // radio member numbers (unused for .pact)
 		return true;
 	case PACT_COMPONENT_SPRITE:
@@ -559,7 +559,7 @@ static bool pact_part(struct buffer *r, struct activity_part *part)
 	int component_type;
 	if (!pact_component(r, p, &component_type))
 		return false;
-	if (component_type == PACT_COMPONENT_RADIO_BOX)
+	if (component_type == PACT_COMPONENT_RADIOBOX)
 		pact_skip_names(r);  // radio members
 	parts_component_dirty(p);
 	parts_dirty(p);

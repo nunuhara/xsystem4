@@ -606,7 +606,6 @@ void parts_render(struct parts *parts)
 	switch (sprite->type) {
 	case PARTS_SPRITE_NONE:
 	case PARTS_SPRITE_RECT_DETECTION:
-	case PARTS_SPRITE_LAYOUT_BOX:
 		break;
 	case PARTS_SPRITE_CG:
 	case PARTS_SPRITE_ANIMATION:

@@ -17,10 +17,30 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "system4.h"
 #include "system4/flat.h"
 
 #include "parts.h"
 #include "parts_internal.h"
+
+struct parts_layoutbox *parts_get_layoutbox(struct parts *parts)
+{
+	if (parts->type == PARTS_TYPE_LAYOUTBOX)
+		return parts->widget.layoutbox;
+	parts_type_reset(parts, PARTS_TYPE_LAYOUTBOX, PARTS_SPRITE_NONE);
+	struct parts_layoutbox *lb = parts->widget.layoutbox = xcalloc(1, sizeof(*lb));
+	lb->layout_type = PARTS_LAYOUT_VERTICAL;
+	lb->align = 1;
+	return lb;
+}
+
+static struct parts_layoutbox *find_layoutbox(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts || parts->type != PARTS_TYPE_LAYOUTBOX)
+		return NULL;
+	return parts->widget.layoutbox;
+}
 
 void PE_SetComponentMargin(int parts_no, int top, int bottom, int left, int right)
 {
@@ -54,7 +74,7 @@ int PE_GetComponentMarginRight(int parts_no)
 void PE_SetLayoutBoxLayoutType(int parts_no, int type)
 {
 	struct parts *parts = parts_get(parts_no);
-	struct parts_layout_box *lb = parts_get_layout_box(parts);
+	struct parts_layoutbox *lb = parts_get_layoutbox(parts);
 	if (lb->layout_type != type) {
 		lb->layout_type = type;
 		parts_component_dirty(parts);
@@ -63,16 +83,14 @@ void PE_SetLayoutBoxLayoutType(int parts_no, int type)
 
 int PE_GetLayoutBoxLayoutType(int parts_no)
 {
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
-		return PARTS_LAYOUT_FREE;
-	return parts->sprites[0].layout_box.layout_type;
+	struct parts_layoutbox *lb = find_layoutbox(parts_no);
+	return lb ? lb->layout_type : PARTS_LAYOUT_FREE;
 }
 
 void PE_SetLayoutBoxReturn(int parts_no, bool return_flag, int return_size)
 {
 	struct parts *parts = parts_get(parts_no);
-	struct parts_layout_box *lb = parts_get_layout_box(parts);
+	struct parts_layoutbox *lb = parts_get_layoutbox(parts);
 	lb->wrap = return_flag;
 	lb->wrap_size = return_size;
 	parts_component_dirty(parts);
@@ -80,24 +98,20 @@ void PE_SetLayoutBoxReturn(int parts_no, bool return_flag, int return_size)
 
 bool PE_IsLayoutBoxReturn(int parts_no)
 {
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
-		return false;
-	return parts->sprites[0].layout_box.wrap;
+	struct parts_layoutbox *lb = find_layoutbox(parts_no);
+	return lb ? lb->wrap : false;
 }
 
 int PE_GetLayoutBoxReturnSize(int parts_no)
 {
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
-		return 0;
-	return parts->sprites[0].layout_box.wrap_size;
+	struct parts_layoutbox *lb = find_layoutbox(parts_no);
+	return lb ? lb->wrap_size : 0;
 }
 
 void PE_SetLayoutBoxAlign(int parts_no, int align)
 {
 	struct parts *parts = parts_get(parts_no);
-	struct parts_layout_box *lb = parts_get_layout_box(parts);
+	struct parts_layoutbox *lb = parts_get_layoutbox(parts);
 	if (lb->align != align) {
 		lb->align = align;
 		parts_component_dirty(parts);
@@ -106,16 +120,14 @@ void PE_SetLayoutBoxAlign(int parts_no, int align)
 
 int PE_GetLayoutBoxAlign(int parts_no)
 {
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
-		return 0;
-	return parts->sprites[0].layout_box.align;
+	struct parts_layoutbox *lb = find_layoutbox(parts_no);
+	return lb ? lb->align : 0;
 }
 
 void PE_set_layoutbox_padding(int parts_no, int top, int bottom, int left, int right)
 {
 	struct parts *parts = parts_get(parts_no);
-	struct parts_layout_box *lb = parts_get_layout_box(parts);
+	struct parts_layoutbox *lb = parts_get_layoutbox(parts);
 	lb->padding_top = top;
 	lb->padding_bottom = bottom;
 	lb->padding_left = left;
@@ -125,34 +137,26 @@ void PE_set_layoutbox_padding(int parts_no, int top, int bottom, int left, int r
 
 int PE_get_layoutbox_padding_top(int parts_no)
 {
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
-		return 0;
-	return parts->sprites[0].layout_box.padding_top;
+	struct parts_layoutbox *lb = find_layoutbox(parts_no);
+	return lb ? lb->padding_top : 0;
 }
 
 int PE_get_layoutbox_padding_bottom(int parts_no)
 {
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
-		return 0;
-	return parts->sprites[0].layout_box.padding_bottom;
+	struct parts_layoutbox *lb = find_layoutbox(parts_no);
+	return lb ? lb->padding_bottom : 0;
 }
 
 int PE_get_layoutbox_padding_left(int parts_no)
 {
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
-		return 0;
-	return parts->sprites[0].layout_box.padding_left;
+	struct parts_layoutbox *lb = find_layoutbox(parts_no);
+	return lb ? lb->padding_left : 0;
 }
 
 int PE_get_layoutbox_padding_right(int parts_no)
 {
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts || parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
-		return 0;
-	return parts->sprites[0].layout_box.padding_right;
+	struct parts_layoutbox *lb = find_layoutbox(parts_no);
+	return lb ? lb->padding_right : 0;
 }
 
 static void parts_get_layout_size(struct parts *parts, int *w, int *h)
@@ -188,7 +192,7 @@ static int align_offset_y(int align, int total_h)
 }
 
 // Calculates the total size of a horizontal layout box by summing child widths per row.
-static void parts_layout_calc_size_horizontal(struct parts_layout_box *lb, struct parts *parts,
+static void parts_layout_calc_size_horizontal(struct parts_layoutbox *lb, struct parts *parts,
 		int *out_w, int *out_h)
 {
 	int row_w = 0, max_row_w = 0, max_row_h = 0, total_h = 0;
@@ -217,7 +221,7 @@ static void parts_layout_calc_size_horizontal(struct parts_layout_box *lb, struc
 }
 
 // Calculates the total size of a vertical layout box by summing child heights per column.
-static void parts_layout_calc_size_vertical(struct parts_layout_box *lb, struct parts *parts,
+static void parts_layout_calc_size_vertical(struct parts_layoutbox *lb, struct parts *parts,
 		int *out_w, int *out_h)
 {
 	int col_h = 0, max_col_h = 0, max_col_w = 0, total_w = 0;
@@ -247,9 +251,9 @@ static void parts_layout_calc_size_vertical(struct parts_layout_box *lb, struct 
 
 void parts_do_layout(struct parts *parts)
 {
-	if (parts->sprites[0].type != PARTS_SPRITE_LAYOUT_BOX)
+	if (parts->type != PARTS_TYPE_LAYOUTBOX)
 		return;
-	struct parts_layout_box *lb = &parts->sprites[0].layout_box;
+	struct parts_layoutbox *lb = parts->widget.layoutbox;
 	if (lb->layout_type == PARTS_LAYOUT_FREE)
 		return;
 

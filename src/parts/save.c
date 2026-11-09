@@ -25,7 +25,10 @@
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 7
+#define CURRENT_SAVE_VERSION 8
+
+// Old save data can store a layout box as this sprite type.
+#define LEGACY_SPRITE_LAYOUTBOX 12
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -398,7 +401,7 @@ static void load_parts_3dlayer(struct iarray_reader *r, struct parts_3dlayer *l,
 	RE_plugin_deserialize(RE_get_plugin(l->plugin), r, version);
 }
 
-static void save_parts_layout_box(struct iarray_writer *w, struct parts_layout_box *lb)
+static void save_parts_layoutbox(struct iarray_writer *w, struct parts_layoutbox *lb)
 {
 	iarray_write(w, lb->layout_type);
 	iarray_write(w, lb->wrap);
@@ -410,7 +413,7 @@ static void save_parts_layout_box(struct iarray_writer *w, struct parts_layout_b
 	iarray_write(w, lb->padding_right);
 }
 
-static void load_parts_layout_box(struct iarray_reader *r, struct parts_layout_box *lb)
+static void load_parts_layoutbox(struct iarray_reader *r, struct parts_layoutbox *lb)
 {
 	lb->layout_type = iarray_read(r);
 	lb->wrap = iarray_read(r);
@@ -463,16 +466,16 @@ static void save_parts_sprite(struct iarray_writer *w, struct parts_sprite *spri
 	case PARTS_SPRITE_FLAT:
 		save_parts_flat(w, &sprite->flat);
 		break;
-	case PARTS_SPRITE_LAYOUT_BOX:
-		save_parts_layout_box(w, &sprite->layout_box);
-		break;
 	}
 }
 
 static void load_parts_sprite(struct iarray_reader *r, struct parts *parts,
 		struct parts_sprite *sprite, int version)
 {
-	parts_sprite_reset(sprite, iarray_read(r));
+	int type = iarray_read(r);
+	if (type == LEGACY_SPRITE_LAYOUTBOX)
+		VM_ERROR("layout box sprite in save data is not supported");
+	parts_sprite_reset(sprite, type);
 	sprite->common.w = iarray_read(r);
 	sprite->common.h = iarray_read(r);
 	iarray_read_point(r, &sprite->common.origin_offset);
@@ -513,9 +516,6 @@ static void load_parts_sprite(struct iarray_reader *r, struct parts *parts,
 		break;
 	case PARTS_SPRITE_FLAT:
 		load_parts_flat(r, parts, &sprite->flat);
-		break;
-	case PARTS_SPRITE_LAYOUT_BOX:
-		load_parts_layout_box(r, &sprite->layout_box);
 		break;
 	}
 }
@@ -592,6 +592,32 @@ static struct parts_motion *load_parts_motion(struct iarray_reader *r)
 	return motion;
 }
 
+static void save_parts_widget(struct iarray_writer *w, struct parts *parts)
+{
+	iarray_write(w, parts->type);
+	switch (parts->type) {
+	case PARTS_TYPE_SPRITE:
+		break;
+	case PARTS_TYPE_LAYOUTBOX:
+		save_parts_layoutbox(w, parts->widget.layoutbox);
+		break;
+	}
+}
+
+static void load_parts_widget(struct iarray_reader *r, struct parts *parts)
+{
+	int type = iarray_read(r);
+	switch (type) {
+	case PARTS_TYPE_SPRITE:
+		break;
+	case PARTS_TYPE_LAYOUTBOX:
+		load_parts_layoutbox(r, parts_get_layoutbox(parts));
+		break;
+	default:
+		VM_ERROR("invalid saved widget type %d", type);
+	}
+}
+
 static void save_parts(struct iarray_writer *w, struct parts *parts)
 {
 	iarray_write(w, parts->no);
@@ -634,6 +660,7 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	}
 
 	iarray_write_at(w, motion_count_pos, motion_count);
+	save_parts_widget(w, parts);
 }
 
 static void load_parts(struct iarray_reader *r, int version)
@@ -677,6 +704,9 @@ static void load_parts(struct iarray_reader *r, int version)
 		struct parts_motion *motion = load_parts_motion(r);
 		parts_add_motion(parts, motion);
 	}
+
+	if (version >= 8)
+		load_parts_widget(r, parts);
 
 	parts_list_resort(parts);
 	parts_component_dirty(parts);

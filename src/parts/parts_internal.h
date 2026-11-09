@@ -94,22 +94,21 @@ struct parts_text_line {
 };
 
 // A sprite is the content of one state of a parts. Each state of a parts can
-// have a different sprite type.
+// have a different sprite type. Save data stores these values.
 enum parts_sprite_type {
-	PARTS_SPRITE_NONE,
-	PARTS_SPRITE_CG,
-	PARTS_SPRITE_TEXT,
-	PARTS_SPRITE_ANIMATION,
-	PARTS_SPRITE_NUMERAL,
-	PARTS_SPRITE_HGAUGE,
-	PARTS_SPRITE_VGAUGE,
-	PARTS_SPRITE_CONSTRUCTION_PROCESS,
-	PARTS_SPRITE_FLASH,
-	PARTS_SPRITE_FLAT,
-	PARTS_SPRITE_MOVIE,
-	PARTS_SPRITE_RECT_DETECTION,
-	PARTS_SPRITE_LAYOUT_BOX,
-	PARTS_SPRITE_3DLAYER,
+	PARTS_SPRITE_NONE = 0,
+	PARTS_SPRITE_CG = 1,
+	PARTS_SPRITE_TEXT = 2,
+	PARTS_SPRITE_ANIMATION = 3,
+	PARTS_SPRITE_NUMERAL = 4,
+	PARTS_SPRITE_HGAUGE = 5,
+	PARTS_SPRITE_VGAUGE = 6,
+	PARTS_SPRITE_CONSTRUCTION_PROCESS = 7,
+	PARTS_SPRITE_FLASH = 8,
+	PARTS_SPRITE_FLAT = 9,
+	PARTS_SPRITE_MOVIE = 10,
+	PARTS_SPRITE_RECT_DETECTION = 11,
+	PARTS_SPRITE_3DLAYER = 13,
 #define PARTS_NR_SPRITE_TYPES (PARTS_SPRITE_3DLAYER+1)
 };
 
@@ -347,13 +346,7 @@ enum parts_layout_type {
 	PARTS_LAYOUT_HORIZONTAL = 2,
 };
 
-// In AliceSoft's PartsEngine implementation, LayoutBox is a component type
-// that is NOT per-state. We store it per-state for uniformity with other
-// component types, but parts_get_layout_box() and all code in layoutbox.c
-// operate on states[0] only. This is safe as long as game scripts never
-// convert a LayoutBox parts to/from another component type.
-struct parts_layout_box {
-	struct parts_common common;
+struct parts_layoutbox {
 	enum parts_layout_type layout_type;
 	bool wrap;
 	int wrap_size;
@@ -383,7 +376,6 @@ struct parts_sprite {
 		struct parts_flash flash;
 		struct parts_flat flat;
 		struct parts_movie movie;
-		struct parts_layout_box layout_box;
 		struct parts_3dlayer layer3d;
 	};
 };
@@ -402,10 +394,21 @@ struct parts_params {
 	int alpha_clipper_parts_no;
 };
 
+// A parts of a type other than PARTS_TYPE_SPRITE is a widget. A widget
+// has one set of data for all display states, not a sprite for each state.
+enum parts_type {
+	PARTS_TYPE_LAYOUTBOX = 8,
+	PARTS_TYPE_SPRITE = 10,
+};
+
 struct parts {
 	// The entry of the parts in the scene. It must be the first member. It is
 	// not related to sprites[].
 	struct sprite sp;
+	enum parts_type type;
+	union {
+		struct parts_layoutbox *layoutbox;
+	} widget;
 	enum parts_state state;
 	struct parts_sprite sprites[PARTS_NR_STATES];
 	TAILQ_ENTRY(parts) parts_list_entry;
@@ -463,6 +466,8 @@ extern bool parts_multi_controller;
 
 struct parts *parts_try_get(int parts_no);
 struct parts *parts_get(int parts_no);
+struct parts_sprite *parts_get_sprite(struct parts *parts, int state,
+		enum parts_sprite_type type);
 struct parts_cg *parts_get_cg(struct parts *parts, int state);
 struct parts_text *parts_get_text(struct parts *parts, int state);
 struct parts_animation *parts_get_animation(struct parts *parts, int state);
@@ -473,7 +478,6 @@ struct parts_construction_process *parts_get_construction_process(struct parts *
 struct parts_flash *parts_get_flash(struct parts *parts, int state);
 struct parts_flat *parts_get_flat(struct parts *parts, int state);
 struct parts_movie *parts_get_movie(struct parts *parts, int state);
-struct parts_layout_box *parts_get_layout_box(struct parts *parts);
 struct parts_3dlayer *parts_get_3dlayer(struct parts *parts, int state);
 void parts_set_pos(struct parts *parts, Point pos);
 void parts_set_global_pos(Point pos);
@@ -516,6 +520,12 @@ bool parts_3dlayer_create_plugin(struct parts_3dlayer *l);
 void parts_text_free(struct parts_text *t);
 struct string *parts_text_line_get(struct parts_text_line *line);
 struct string *parts_text_get(struct parts_text *t);
+
+// widget.c
+void parts_widget_free(struct parts *parts);
+void parts_type_reset(struct parts *parts, enum parts_type type,
+		enum parts_sprite_type sprite_type);
+void parts_set_type(struct parts *parts, enum parts_type type);
 
 // render.c
 void parts_render_init(void);
@@ -629,6 +639,7 @@ void parts_flat_emitter_resolve_layer(
 		struct flat_emitter_layer_effective *out);
 
 // layoutbox.c
+struct parts_layoutbox *parts_get_layoutbox(struct parts *parts);
 void parts_do_layout(struct parts *parts);
 
 // debug.c
