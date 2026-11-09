@@ -61,6 +61,10 @@ void parts_widget_free(struct parts *parts)
 	case PARTS_TYPE_CHECKBOX:
 		parts_checkbox_free(parts->widget.checkbox);
 		break;
+	case PARTS_TYPE_VSCROLLBAR:
+	case PARTS_TYPE_HSCROLLBAR:
+		parts_scrollbar_free(parts->widget.scrollbar);
+		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		free(parts->widget.layoutbox);
 		break;
@@ -94,6 +98,10 @@ void parts_set_type(struct parts *parts, enum parts_type type)
 	case PARTS_TYPE_CHECKBOX:
 		parts_get_checkbox(parts);
 		break;
+	case PARTS_TYPE_VSCROLLBAR:
+	case PARTS_TYPE_HSCROLLBAR:
+		parts_get_scrollbar(parts, type == PARTS_TYPE_HSCROLLBAR);
+		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		parts_get_layoutbox(parts);
 		break;
@@ -101,4 +109,16 @@ void parts_set_type(struct parts *parts, enum parts_type type)
 		parts_get_radiobox(parts);
 		break;
 	}
+}
+
+void parts_widget_update(struct parts *parts)
+{
+	if (parts_is_scrollbar(parts))
+		parts_scrollbar_update(parts);
+}
+
+void parts_widget_end_input(struct parts *parts)
+{
+	if (parts_is_scrollbar(parts))
+		parts_scrollbar_reset_input(parts);
 }

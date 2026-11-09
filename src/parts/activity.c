@@ -469,6 +469,24 @@ static void pact_button(struct buffer *r, struct parts *p, bool checkbox)
 		parts_button_rebuild(p);
 }
 
+static void pact_scrollbar(struct buffer *r, struct parts *p, bool horizontal)
+{
+	struct parts_scrollbar *s = parts_get_scrollbar(p, horizontal);
+	s->length = buffer_read_int32(r);
+	s->thickness = buffer_read_int32(r);
+	s->leading = buffer_read_int32(r);
+	s->trailing = buffer_read_int32(r);
+	s->total_size = buffer_read_int32(r);
+	s->view_size = buffer_read_int32(r);
+	s->pos = buffer_read_int32(r);
+	s->rate = buffer_read_float(r);
+	s->move_size = buffer_read_int32(r);
+	free_string(s->cg_name);
+	s->cg_name = pact_string(r);
+	buffer_skip_string(r); // Flat-backed scrollbar rendering is not implemented.
+	parts_scrollbar_rebuild(p);
+}
+
 static void pact_layoutbox(struct buffer *r, struct parts *p)
 {
 	struct parts_layoutbox *l = parts_get_layoutbox(p);
@@ -506,7 +524,7 @@ static bool pact_component(struct buffer *r, struct parts *p, int *component_typ
 		return true;
 	case PACT_COMPONENT_VSCROLLBAR:
 	case PACT_COMPONENT_HSCROLLBAR:
-		pact_skip(r, "iiiiiiifiss");
+		pact_scrollbar(r, p, type == PACT_COMPONENT_HSCROLLBAR);
 		return true;
 	case PACT_COMPONENT_MULTILINE_TEXT:
 		pact_skip(r, "iiiiiiiffiiibsiiiiiiiiiiiiiiisii");

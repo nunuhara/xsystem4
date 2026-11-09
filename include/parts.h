@@ -346,6 +346,24 @@ void PE_CheckBoxChecked(int parts_no, bool checked);
 bool PE_IsCheckBoxChecked(int parts_no);
 void PE_SetCheckBoxColor(int parts_no, int r, int g, int b);
 
+// scrollbar.c
+void PE_SetVScrollbarTotalSize(int parts_no, int size);
+void PE_SetHScrollbarTotalSize(int parts_no, int size);
+void PE_SetVScrollbarViewSize(int parts_no, int size);
+void PE_SetHScrollbarViewSize(int parts_no, int size);
+void PE_SetVScrollbarScrollPos(int parts_no, int pos);
+void PE_SetHScrollbarScrollPos(int parts_no, int pos);
+void PE_SetVScrollbarScrollRate(int parts_no, float rate);
+void PE_SetHScrollbarScrollRate(int parts_no, float rate);
+int PE_GetVScrollbarViewSize(int parts_no);
+int PE_GetHScrollbarViewSize(int parts_no);
+int PE_GetVScrollbarScrollPos(int parts_no);
+int PE_GetHScrollbarScrollPos(int parts_no);
+float PE_GetVScrollbarScrollRate(int parts_no);
+float PE_GetHScrollbarScrollRate(int parts_no);
+int PE_GetVScrollbarMoveSizeByButton(int parts_no);
+int PE_GetHScrollbarMoveSizeByButton(int parts_no);
+
 // layoutbox.c
 void PE_SetLayoutBoxLayoutType(int parts_no, int type);
 int PE_GetLayoutBoxLayoutType(int parts_no);

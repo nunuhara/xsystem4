@@ -84,6 +84,13 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	if (parts->linked_from >= 0 && is_hovered != was_hovered) {
 		parts_dirty(parts_get(parts->linked_from));
 	}
+	if (parts_is_scrollbar(parts)) {
+		bool trigger = parts_began_click && cur_clicking && !prev_clicking && !*click_consumed;
+		parts_scrollbar_mouse(parts, cur_pos, cur_clicking, trigger, is_hovered, passed_time);
+		if (trigger && is_hovered)
+			*click_consumed = true;
+		return;
+	}
 
 	if (!parts_began_click)
 		return;
@@ -332,6 +339,10 @@ void PE_BeginInput(void)
 void PE_EndInput(void)
 {
 	parts_began_click = false;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		parts_widget_end_input(parts);
+	}
 	clicked_parts = 0;
 	drag_state_reset();
 }

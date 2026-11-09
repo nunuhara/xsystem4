@@ -112,6 +112,7 @@ target_sources(xsystem4 PRIVATE
   src/parts/parts.c
   src/parts/radiobox.c
   src/parts/render.c
+  src/parts/scrollbar.c
   src/parts/text.c
   src/parts/save.c
   src/parts/widget.c

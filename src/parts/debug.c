@@ -366,6 +366,28 @@ static cJSON *parts_motion_to_json(struct parts_motion *motion)
 	return obj;
 }
 
+static cJSON *parts_scrollbar_to_json(struct parts_scrollbar *s, bool verbose)
+{
+	cJSON *obj = cJSON_CreateObject();
+	if (s->horizontal) {
+		cJSON_AddItemToObjectCS(obj, "size", wh_to_json(s->length, s->thickness, verbose));
+		cJSON_AddNumberToObject(obj, "left_width", s->leading);
+		cJSON_AddNumberToObject(obj, "right_width", s->trailing);
+	} else {
+		cJSON_AddItemToObjectCS(obj, "size", wh_to_json(s->thickness, s->length, verbose));
+		cJSON_AddNumberToObject(obj, "up_height", s->leading);
+		cJSON_AddNumberToObject(obj, "down_height", s->trailing);
+	}
+	cJSON_AddNumberToObject(obj, "total_size", s->total_size);
+	cJSON_AddNumberToObject(obj, "view_size", s->view_size);
+	cJSON_AddNumberToObject(obj, "scroll_pos", s->pos);
+	cJSON_AddNumberToObject(obj, "scroll_rate", s->rate);
+	cJSON_AddNumberToObject(obj, "move_size_by_button", s->move_size);
+	cJSON_AddSjisToObject(obj, "cg_name", s->cg_name->text);
+	cJSON_AddNumberToObject(obj, "thumb_length", s->thumb_length);
+	return obj;
+}
+
 cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 {
 	static const char *state_names[PARTS_NR_STATES] = {
@@ -408,6 +430,9 @@ cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 		cJSON_AddNumberToObject(obj, "linked_from", parts->linked_from);
 	cJSON_AddNumberToObject(obj, "draw_filter", parts->draw_filter);
 	cJSON_AddBoolToObject(obj, "message_window", parts->message_window);
+	if (parts_is_scrollbar(parts))
+		cJSON_AddItemToObjectCS(obj, parts->widget.scrollbar->horizontal ? "hscrollbar" : "vscrollbar",
+				parts_scrollbar_to_json(parts->widget.scrollbar, verbose));
 	if (parts->type == PARTS_TYPE_LAYOUTBOX) {
 		cJSON *lb = cJSON_CreateObject();
 		cJSON_AddNumberToObject(lb, "layout_type", parts->widget.layoutbox->layout_type);
@@ -490,7 +515,10 @@ static void parts_list_print(struct parts *parts, int indent)
 	indent_message(indent, parts->local.show ? "+ " : "- ");
 	sys_message("parts %d ", parts->no);
 	struct parts_sprite *sprite = &parts->sprites[parts->state];
-	if (parts->type == PARTS_TYPE_LAYOUTBOX) {
+	if (parts_is_scrollbar(parts)) {
+		struct parts_scrollbar *s = parts->widget.scrollbar;
+		sys_message("(%cscrollbar pos=%d/%d)", s->horizontal ? 'h' : 'v', s->pos, s->total_size);
+	} else if (parts->type == PARTS_TYPE_LAYOUTBOX) {
 		sys_message("(layoutbox type=%d)", parts->widget.layoutbox->layout_type);
 	} else switch (sprite->type) {
 	case PARTS_SPRITE_NONE:

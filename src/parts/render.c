@@ -155,22 +155,25 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
 	glm_translate(mw_transform, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
 
+	// A scrollbar texture can be larger than the part.
+	float w = parts_is_scrollbar(parts) ? common->texture.w : common->w;
+	float h = parts_is_scrollbar(parts) ? common->texture.h : common->h;
 	switch (parts->sprite_deform) {
 	// Flip horizontally
 	case 1:
-		glm_translate(mw_transform, (vec3){ common->w, 0.0f, 0.0f });
-		glm_scale(mw_transform, (vec3){ -common->w, common->h, 1.0f });
+		glm_translate(mw_transform, (vec3){ w, 0.0f, 0.0f });
+		glm_scale(mw_transform, (vec3){ -w, h, 1.0f });
 		break;
 	// Flip vertically
 	case 2:
-		glm_translate(mw_transform, (vec3){ 0.0f, common->h, 0.0f });
-		glm_scale(mw_transform, (vec3){ common->w, -common->h, 1.0f });
+		glm_translate(mw_transform, (vec3){ 0.0f, h, 0.0f });
+		glm_scale(mw_transform, (vec3){ w, -h, 1.0f });
 		break;
 	default:
 		WARNING("Invalid sprite_deform: %d", parts->sprite_deform);
 	// No deform
 	case 0:
-		glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
+		glm_scale(mw_transform, (vec3){ w, h, 1.0 });
 		break;
 	}
 

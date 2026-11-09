@@ -655,6 +655,37 @@ static void load_parts_checkbox(struct iarray_reader *r, struct parts *parts)
 	parts_checkbox_rebuild(parts);
 }
 
+static void save_parts_scrollbar(struct iarray_writer *w, struct parts_scrollbar *s)
+{
+	iarray_write(w, s->length);
+	iarray_write(w, s->thickness);
+	iarray_write(w, s->leading);
+	iarray_write(w, s->trailing);
+	iarray_write(w, s->total_size);
+	iarray_write(w, s->view_size);
+	iarray_write(w, s->pos);
+	iarray_write_float(w, s->rate);
+	iarray_write(w, s->move_size);
+	iarray_write_string(w, s->cg_name);
+}
+
+static void load_parts_scrollbar(struct iarray_reader *r, struct parts *parts, bool horizontal)
+{
+	struct parts_scrollbar *s = parts_get_scrollbar(parts, horizontal);
+	s->length = iarray_read(r);
+	s->thickness = iarray_read(r);
+	s->leading = iarray_read(r);
+	s->trailing = iarray_read(r);
+	s->total_size = iarray_read(r);
+	s->view_size = iarray_read(r);
+	s->pos = iarray_read(r);
+	s->rate = iarray_read_float(r);
+	s->move_size = iarray_read(r);
+	free_string(s->cg_name);
+	s->cg_name = iarray_read_string(r);
+	parts_scrollbar_rebuild(parts);
+}
+
 static void save_parts_radiobox(struct iarray_writer *w, struct parts_radiobox *box)
 {
 	iarray_write(w, box->count);
@@ -684,6 +715,10 @@ static void save_parts_widget(struct iarray_writer *w, struct parts *parts)
 	case PARTS_TYPE_CHECKBOX:
 		save_parts_checkbox(w, parts->widget.checkbox);
 		break;
+	case PARTS_TYPE_VSCROLLBAR:
+	case PARTS_TYPE_HSCROLLBAR:
+		save_parts_scrollbar(w, parts->widget.scrollbar);
+		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		save_parts_layoutbox(w, parts->widget.layoutbox);
 		break;
@@ -704,6 +739,10 @@ static void load_parts_widget(struct iarray_reader *r, struct parts *parts)
 		break;
 	case PARTS_TYPE_CHECKBOX:
 		load_parts_checkbox(r, parts);
+		break;
+	case PARTS_TYPE_VSCROLLBAR:
+	case PARTS_TYPE_HSCROLLBAR:
+		load_parts_scrollbar(r, parts, type == PARTS_TYPE_HSCROLLBAR);
 		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		load_parts_layoutbox(r, parts_get_layoutbox(parts));
