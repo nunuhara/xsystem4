@@ -404,6 +404,7 @@ enum parts_type {
 	PARTS_TYPE_BUTTON = 0,
 	PARTS_TYPE_CHECKBOX = 1,
 	PARTS_TYPE_LAYOUTBOX = 8,
+	PARTS_TYPE_RADIOBOX = 9,
 	PARTS_TYPE_SPRITE = 10,
 };
 
@@ -430,6 +431,12 @@ struct parts_checkbox {
 	bool button_mode;  // Looks like a button.
 };
 
+struct parts_radiobox {
+	int count;
+	int *members;
+	bool updating;
+};
+
 struct parts {
 	// The entry of the parts in the scene. It must be the first member. It is
 	// not related to sprites[].
@@ -438,6 +445,7 @@ struct parts {
 	union {
 		struct parts_button *button;
 		struct parts_checkbox *checkbox;
+		struct parts_radiobox *radiobox;
 		struct parts_layoutbox *layoutbox;
 	} widget;
 	// If nonzero, this parts is hidden while that checkbox parts is unchecked.
@@ -601,6 +609,11 @@ void parts_checkbox_free(struct parts_checkbox *c);
 void parts_checkbox_rebuild(struct parts *parts);
 void parts_checkbox_set_checked(struct parts *parts, bool checked);
 void parts_checkbox_click(struct parts *parts, Point pos);
+
+// radiobox.c
+struct parts_radiobox *parts_get_radiobox(struct parts *parts);
+void parts_radiobox_free(struct parts_radiobox *box);
+void parts_radiobox_member_changed(struct parts *member, bool checked);
 
 // render.c
 void parts_render_init(void);

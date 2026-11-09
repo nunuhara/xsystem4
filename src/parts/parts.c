@@ -2017,6 +2017,7 @@ void PE_SetComponentType(int parts_no, int type, int state)
 	case PARTS_TYPE_BUTTON:
 	case PARTS_TYPE_CHECKBOX:
 	case PARTS_TYPE_LAYOUTBOX:
+	case PARTS_TYPE_RADIOBOX:
 		parts_set_type(parts, type);
 		return;
 	case 11: pt = PARTS_SPRITE_CG; break;

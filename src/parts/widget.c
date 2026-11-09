@@ -64,6 +64,9 @@ void parts_widget_free(struct parts *parts)
 	case PARTS_TYPE_LAYOUTBOX:
 		free(parts->widget.layoutbox);
 		break;
+	case PARTS_TYPE_RADIOBOX:
+		parts_radiobox_free(parts->widget.radiobox);
+		break;
 	}
 	parts->type = PARTS_TYPE_SPRITE;
 	memset(&parts->widget, 0, sizeof(parts->widget));
@@ -93,6 +96,9 @@ void parts_set_type(struct parts *parts, enum parts_type type)
 		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		parts_get_layoutbox(parts);
+		break;
+	case PARTS_TYPE_RADIOBOX:
+		parts_get_radiobox(parts);
 		break;
 	}
 }

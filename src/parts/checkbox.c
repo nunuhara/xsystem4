@@ -125,11 +125,16 @@ void parts_checkbox_rebuild(struct parts *parts)
 void parts_checkbox_set_checked(struct parts *parts, bool checked)
 {
 	struct parts_checkbox *cb = parts_get_checkbox(parts);
-	if (cb->checked == checked)
+	bool old = cb->checked;
+	if (old == checked)
 		return;
 	cb->checked = checked;
 	parts_checkbox_rebuild(parts);
-	parts_msg_push(parts, PARTS_MSG_CHANGED, "b", checked);
+	// Radio selection runs before the changed event, and can change the
+	// checked state again.
+	parts_radiobox_member_changed(parts, checked);
+	if (old != cb->checked)
+		parts_msg_push(parts, PARTS_MSG_CHANGED, "b", checked);
 }
 
 void parts_checkbox_click(struct parts *parts, Point pos)

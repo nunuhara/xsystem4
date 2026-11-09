@@ -655,6 +655,23 @@ static void load_parts_checkbox(struct iarray_reader *r, struct parts *parts)
 	parts_checkbox_rebuild(parts);
 }
 
+static void save_parts_radiobox(struct iarray_writer *w, struct parts_radiobox *box)
+{
+	iarray_write(w, box->count);
+	for (int i = 0; i < box->count; i++)
+		iarray_write(w, box->members[i]);
+}
+
+static void load_parts_radiobox(struct iarray_reader *r, struct parts *parts)
+{
+	struct parts_radiobox *box = parts_get_radiobox(parts);
+	free(box->members);
+	box->count = iarray_read(r);
+	box->members = box->count > 0 ? xcalloc(box->count, sizeof(*box->members)) : NULL;
+	for (int i = 0; i < box->count; i++)
+		box->members[i] = iarray_read(r);
+}
+
 static void save_parts_widget(struct iarray_writer *w, struct parts *parts)
 {
 	iarray_write(w, parts->type);
@@ -669,6 +686,9 @@ static void save_parts_widget(struct iarray_writer *w, struct parts *parts)
 		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		save_parts_layoutbox(w, parts->widget.layoutbox);
+		break;
+	case PARTS_TYPE_RADIOBOX:
+		save_parts_radiobox(w, parts->widget.radiobox);
 		break;
 	}
 }
@@ -687,6 +707,9 @@ static void load_parts_widget(struct iarray_reader *r, struct parts *parts)
 		break;
 	case PARTS_TYPE_LAYOUTBOX:
 		load_parts_layoutbox(r, parts_get_layoutbox(parts));
+		break;
+	case PARTS_TYPE_RADIOBOX:
+		load_parts_radiobox(r, parts);
 		break;
 	default:
 		VM_ERROR("invalid saved widget type %d", type);

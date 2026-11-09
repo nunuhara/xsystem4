@@ -110,6 +110,7 @@ target_sources(xsystem4 PRIVATE
   src/parts/message.c
   src/parts/motion.c
   src/parts/parts.c
+  src/parts/radiobox.c
   src/parts/render.c
   src/parts/text.c
   src/parts/save.c

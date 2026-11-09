@@ -70,6 +70,7 @@ struct activity_part {
 	int number;  // assigned at load time, not read from the .pact file
 	struct activity_names children;
 	const char *links[PACT_NR_LINKS];
+	struct activity_names radio_members;
 };
 
 struct activity_intent {
@@ -515,6 +516,7 @@ static bool pact_component(struct buffer *r, struct parts *p, int *component_typ
 		return true;
 	case PACT_COMPONENT_RADIOBOX:
 		pact_skip_int_list(r);  // radio member numbers (unused for .pact)
+		parts_get_radiobox(p);
 		return true;
 	case PACT_COMPONENT_SPRITE:
 		return pact_sprite_component(r, p);
@@ -602,7 +604,7 @@ static bool pact_part(struct buffer *r, struct activity_part *part)
 	if (!pact_component(r, p, &component_type))
 		return false;
 	if (component_type == PACT_COMPONENT_RADIOBOX)
-		pact_skip_names(r);  // radio members
+		part->radio_members = pact_names(r);
 	parts_component_dirty(p);
 	parts_dirty(p);
 	return true;
@@ -667,6 +669,25 @@ static int activity_part_number(struct activity *a, const char *name)
 	return part ? part->number : 0;
 }
 
+static bool activity_restore_radiobox(struct activity *a, struct activity_part *entry)
+{
+	int count = entry->radio_members.count;
+	if (!count)
+		return true;
+	int *members = xcalloc(count, sizeof(*members));
+	for (int i = 0; i < count; i++) {
+		members[i] = activity_part_number(a, entry->radio_members.values[i]);
+		if (!members[i]) {
+			free(members);
+			return false;
+		}
+	}
+	struct parts_radiobox *box = parts_get_radiobox(parts_get(entry->number));
+	box->count = count;
+	box->members = members;
+	return true;
+}
+
 static bool activity_restore_links(struct activity *a)
 {
 	for (int i = 0; i < a->nr_parts; i++) {
@@ -693,6 +714,8 @@ static bool activity_restore_links(struct activity *a)
 			PE_SetOnCursorShowLinkPartsNumber(entry->number,
 					link_numbers[PACT_LINK_ON_CURSOR_SHOW]);
 		p->checkbox_show_link = link_numbers[PACT_LINK_CHECKBOX_SHOW];
+		if (!activity_restore_radiobox(a, entry))
+			return false;
 	}
 	return true;
 }
@@ -722,8 +745,10 @@ static bool activity_deserialize(struct activity *a, struct buffer *r)
 
 static void activity_free(struct activity *a)
 {
-	for (int i = 0; i < a->nr_parts; i++)
+	for (int i = 0; i < a->nr_parts; i++) {
 		free(a->parts[i].children.values);
+		free(a->parts[i].radio_members.values);
+	}
 	for (int i = 0; i < a->nr_intents; i++)
 		free(a->intents[i].destinations.values);
 	for (int i = 0; i < a->nr_functions; i++) {
