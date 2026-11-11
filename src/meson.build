@@ -59,6 +59,7 @@ xsystem4 = [version_h,
             'dungeon/skybox.c',
             'dungeon/tes.c',
 
+            'parts/activity.c',
             'parts/construction.c',
             'parts/debug.c',
             'parts/flash.c',

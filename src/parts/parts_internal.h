@@ -479,6 +479,7 @@ void parts_set_scale_y(struct parts *parts, float mag);
 void parts_set_rotation_z(struct parts *parts, float rot);
 void parts_set_alpha(struct parts *parts, int alpha);
 void parts_set_state(struct parts *parts, enum parts_state_type state);
+void parts_set_parent(struct parts *parts, struct parts *parent);
 void parts_release(int parts_no);
 void parts_release_all(void);
 void parts_set_surface_area(struct parts *parts, struct parts_common *common, int x, int y, int w, int h);

@@ -108,125 +108,38 @@ static float PartsEngine_GetLayoutBoxReturnSize_float(int parts_no)
 static void PartsEngine_add_construction_process(union vm_value *ints,
 		union vm_value *floats, union vm_value *strings)
 {
-	int parts_no    = ints[0].i;
-	int state       = ints[1].i;
-	int command     = ints[2].i;
-	int interp_type = ints[3].i;
-	int sx          = ints[4].i;
-	int sy          = ints[5].i;
-	int sw          = ints[6].i;
-	int sh          = ints[7].i;
-	int dx          = ints[8].i;
-	int dy          = ints[9].i;
-	int dw          = ints[12].i;
-	int dh          = ints[13].i;
-	int r           = ints[14].i;
-	int g           = ints[15].i;
-	int b           = ints[16].i;
-	int a           = ints[17].i;
-	// int r2       = ints[18].i;
-	// int g2       = ints[19].i;
-	// int b2       = ints[20].i;
-	int char_space  = ints[21].i;
-	int line_space  = ints[22].i;
-	int font_type   = ints[23].i;
-	int font_size   = ints[24].i;
-	int font_r      = ints[25].i;
-	int font_g      = ints[26].i;
-	int font_b      = ints[27].i;
-	int edge_r      = ints[28].i;
-	int edge_g      = ints[29].i;
-	int edge_b      = ints[30].i;
-	int full_size   = ints[31].i;
-	float bold_weight = floats[0].f;
-	float edge_weight = floats[1].f;
-	struct string *text    = heap_get_string(strings[0].i);
-	struct string *cg_name = heap_get_string(strings[1].i);
-
-	switch (command) {
-	case 0:  // CASConstructionProcess::SetCreate
-		PE_AddCreateToPartsConstructionProcess(parts_no, dw, dh, state);
-		break;
-	case 1:  // CASConstructionProcess::SetCreatePixelOnly
-		PE_AddCreatePixelOnlyToPartsConstructionProcess(parts_no, dw, dh, state);
-		break;
-	case 2:  // CASConstructionProcess::SetCreateCG
-		PE_AddCreateCGToProcess(parts_no, cg_name, state);
-		break;
-	case 3:  // CASConstructionProcess::SetFill
-		PE_AddFillToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, r, g, b, state);
-		break;
-	case 4:  // CASConstructionProcess::SetFillAlphaColor
-		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, r, g, b, a, state);
-		break;
-	case 5:  // CASConstructionProcess::SetFillAMap
-		PE_AddFillAMapToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, a, state);
-		break;
-	case 6:  // CASConstructionProcess::SetFillWithAlpha
-		PE_AddFillWithAlphaToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, r, g, b, a, state);
-		break;
-	case 7:  // CASConstructionProcess::SetDrawText
-		PE_AddDrawTextToPartsConstructionProcess(parts_no,
-				dx, dy, text, font_type, font_size,
-				font_r, font_g, font_b, bold_weight,
-				edge_r, edge_g, edge_b, edge_weight,
-				char_space, line_space, state);
-		break;
-	case 8:  // CASConstructionProcess::SetCopyText
-		PE_AddCopyTextToPartsConstructionProcess(parts_no,
-				dx, dy, text, font_type, font_size,
-				font_r, font_g, font_b, bold_weight,
-				edge_r, edge_g, edge_b, edge_weight,
-				char_space, line_space, state);
-		break;
-	case 9:  // CASConstructionProcess::SetFillGradationHorizon
-		WARNING("AddConstructProcess: FillGradationHorizon unimplemented");
-		break;
-	case 10:  // CASConstructionProcess::SetDrawRect
-		PE_AddDrawRectToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, r, g, b, state);
-		break;
-	case 11:  // CASConstructionProcess::SetCutCGBlend (equal scale)
-		PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
-				dx, dy, dw, dh, sx, sy, dw, dh,
-				interp_type, state);
-		break;
-	case 12:  // CASConstructionProcess::SetCutCGCopy (equal scale)
-		PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
-				dx, dy, dw, dh, sx, sy, dw, dh,
-				interp_type, state);
-		break;
-	case 13:  // CASConstructionProcess::SetCutCGScaleBlend
-		PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
-				dx, dy, dw, dh, sx, sy, sw, sh,
-				interp_type, state);
-		break;
-	case 14:  // CASConstructionProcess::SetCutCGScaleCopy
-		PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
-				dx, dy, dw, dh, sx, sy, sw, sh,
-				interp_type, state);
-		break;
-	case 15:  // CASConstructionProcess::SetGrayFilter
-		PE_AddGrayFilterToPartsConstructionProcess(parts_no,
-				dx, dy, dw, dh, full_size, state);
-		break;
-	case 16:  // CASConstructionProcess::SetAddFilter
-		WARNING("AddConstructProcess: AddFilter unimplemented");
-		break;
-	case 17:  // CASConstructionProcess::SetMulFilter
-		WARNING("AddConstructProcess: MulFilter unimplemented");
-		break;
-	case 18:  // CASConstructionProcess::SetDrawLine
-		WARNING("AddConstructProcess: DrawLine unimplemented");
-		break;
-	default:
-		WARNING("AddConstructProcess: unknown command %d", command);
-		break;
-	}
+	struct parts_cp_command cmd = {
+		.type        = ints[2].i,
+		.interp_type = ints[3].i,
+		.sx          = ints[4].i,
+		.sy          = ints[5].i,
+		.sw          = ints[6].i,
+		.sh          = ints[7].i,
+		.dx          = ints[8].i,
+		.dy          = ints[9].i,
+		.dw          = ints[12].i,
+		.dh          = ints[13].i,
+		.r           = ints[14].i,
+		.g           = ints[15].i,
+		.b           = ints[16].i,
+		.a           = ints[17].i,
+		.char_space  = ints[21].i,
+		.line_space  = ints[22].i,
+		.font_type   = ints[23].i,
+		.font_size   = ints[24].i,
+		.font_r      = ints[25].i,
+		.font_g      = ints[26].i,
+		.font_b      = ints[27].i,
+		.edge_r      = ints[28].i,
+		.edge_g      = ints[29].i,
+		.edge_b      = ints[30].i,
+		.full_size   = ints[31].i,
+		.bold_weight = floats[0].f,
+		.edge_weight = floats[1].f,
+		.text        = heap_get_string(strings[0].i),
+		.cg_name     = heap_get_string(strings[1].i),
+	};
+	PE_add_construct_process(ints[0].i, ints[1].i, &cmd);
 }
 
 // Rance9 predates the layer functions at func_id 3-5.  Use the numbering from
@@ -298,6 +211,97 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 		REQUIRE_INTS(2);
 		REQUIRE_STRINGS(1);
 		ints[1].i = PE_save_thumbnail(heap_get_string(strings[0].i), ints[0].i);
+		return 1;
+	case 10:  // bool Activity_IsLoaded(string Name)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_is_loaded(heap_get_string(strings[0].i));
+		return 1;
+	case 15:  // int Activity_NumofParts(string Name)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_numof_parts(heap_get_string(strings[0].i));
+		return 1;
+	case 16:  // bool Activity_GetParts(int Index, string Name, ref string PartsName, ref int Number)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(3);
+		ints[2].i = PE_activity_get_parts(heap_get_string(strings[0].i), ints[0].i,
+				&heap[strings[1].i].s, &ints[1].i);
+		return 1;
+	case 17:  // bool Activity_IsExistPartsByName(string Name, string PartsName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_is_exist_parts_by_name(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 18:  // bool Activity_IsExistPartsByNumber(string Name, int Number)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(2);
+		ints[1].i = PE_activity_is_exist_parts_by_number(heap_get_string(strings[0].i),
+				ints[0].i);
+		return 1;
+	case 19:  // int Activity_GetPartsNumber(string Name, string PartsName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_get_parts_number(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 20:  // string Activity_GetPartsName(string Name, int Number)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		PE_activity_get_parts_name(heap_get_string(strings[0].i), ints[0].i,
+				&heap[strings[1].i].s);
+		return 1;
+	case 21:  // Activity_ReadFile(string Name, string FileName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_read_file(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 23:  // bool Activity_IsExistFile(string FileName)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_is_exist_file(heap_get_string(strings[0].i));
+		return 1;
+	case 26:  // bool Activity_IsExistIntentData(string Name, string PartsName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_is_exist_intent_data(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 27:  // int Activity_NumofIntentDataDestination(string Name, string PartsName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_numof_intent_data_destination(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 28:  // string Activity_GetIntentDataDestination(int Index, string Name, string PartsName)
+		REQUIRE_STRINGS(3);
+		REQUIRE_INTS(1);
+		PE_activity_get_intent_data_destination(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i), ints[0].i, &heap[strings[2].i].s);
+		return 1;
+	case 29:  // int Activity_GetIntentDataType(string Name, string PartsName)
+		REQUIRE_STRINGS(2);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_get_intent_data_type(heap_get_string(strings[0].i),
+				heap_get_string(strings[1].i));
+		return 1;
+	case 31:  // string Activity_GetFunc(string Name, string PartsName, int State, string MapID)
+		REQUIRE_STRINGS(4);
+		REQUIRE_INTS(1);
+		PE_activity_get_func(heap_get_string(strings[0].i), heap_get_string(strings[1].i),
+				ints[0].i, heap_get_string(strings[2].i), &heap[strings[3].i].s);
+		return 1;
+	case 41:  // int Activity_NumofEndKey(string Name)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(1);
+		ints[0].i = PE_activity_numof_end_key(heap_get_string(strings[0].i));
+		return 1;
+	case 42:  // int Activity_GetEndKey(string Name, int Index)
+		REQUIRE_STRINGS(1);
+		REQUIRE_INTS(2);
+		ints[1].i = PE_activity_get_end_key(heap_get_string(strings[0].i), ints[0].i);
 		return 1;
 	case 43:  // float PARTS_GetAbsoluteX(int number)
 		REQUIRE_INTS(1);
@@ -571,7 +575,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(Parts_SetThumbnailMode, PE_SetThumbnailMode),
 	    HLL_EXPORT(GetClickNumber, PE_GetClickPartsNumber),
 	    HLL_EXPORT(StopSoundWithoutSystemSound, PartsEngine_StopSoundWithoutSystemSound),
-	    HLL_TODO_EXPORT(ReleaseActivity, PartsEngine_ReleaseActivity),
+	    HLL_EXPORT(ReleaseActivity, PE_ReleaseActivity),
 	    HLL_TODO_EXPORT(CrateActivityBinary, PartsEngine_CrateActivityBinary),
 	    HLL_TODO_EXPORT(ReadActivityBinary, PartsEngine_ReadActivityBinary),
 	    HLL_EXPORT(ReleaseMessage, PE_ReleaseMessage),

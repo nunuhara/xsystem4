@@ -1122,6 +1122,19 @@ static void parts_update_component(struct parts *parts)
 	}
 }
 
+void parts_set_parent(struct parts *parts, struct parts *parent)
+{
+	if (parts->parent)
+		TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
+	parts->parent = parent;
+	TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
+	parts->pending_parent = -1;
+
+	// if parent is layout box, mark it dirty so that it can re-layout its children
+	if (parent->states[0].type == PARTS_LAYOUT_BOX)
+		parts_component_dirty(parent);
+}
+
 void PE_UpdateComponent(possibly_unused int passed_time)
 {
 	// After loading a save, the game script may compute a negative time delta
@@ -1137,17 +1150,8 @@ void PE_UpdateComponent(possibly_unused int passed_time)
 
 		// update parent
 		struct parts *parent;
-		if (parts->pending_parent >= 0 && (parent = parts_try_get(parts->pending_parent))) {
-			if (parts->parent) {
-				TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
-			}
-			parts->parent = parent;
-			TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
-
-			// if parent is layout box, mark it dirty so that it can re-layout its children
-			if (parent->states[0].type == PARTS_LAYOUT_BOX)
-				parts_component_dirty(parent);
-		}
+		if (parts->pending_parent >= 0 && (parent = parts_try_get(parts->pending_parent)))
+			parts_set_parent(parts, parent);
 		// TODO: should the child be orphaned if it already has a parent and an invalid
 		//       parent no is given?
 		parts->pending_parent = -1;
