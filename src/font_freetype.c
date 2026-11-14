@@ -181,7 +181,8 @@ static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint3
 		return false;
 	}
 
-	glyph->advance = half_width ? size->size / 2 : size->size;
+	// Use the font's own advance, so proportional fonts don't overlap
+	glyph->advance = font->font->glyph->advance.x / 64.f;
 	return true;
 }
 
