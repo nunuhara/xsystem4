@@ -63,6 +63,7 @@ struct config config = {
 	.echo = false,
 	.text_x_scale = 1.0,
 	.manual_text_x_scale = false,
+	.proportional_text = false,
 	.save_format = SAVE_FORMAT_RSM,
 	.msgskip_delay = 0,
 
@@ -209,6 +210,8 @@ static void read_user_config_file(const char *path, const char *basedir)
 				config.manual_text_x_scale = true;
 				config.text_x_scale = f;
 			}
+		} else if (!strcmp(ini[i].name->text, "font-proportional")) {
+			config.proportional_text = ini_boolean(&ini[i]);
 		} else if (!strcmp(ini[i].name->text, "msgskip-delay")) {
 			config.msgskip_delay = ini_integer(&ini[i]);
 			if (config.msgskip_delay < 0) {
@@ -397,6 +400,7 @@ static void usage(void)
 	puts("        --font-gothic    Specify the path to the gothic font to use (path[:index] for .ttc)");
 	puts("        --font-fnl       Specify the path to a .fnl font library to use");
 	puts("        --font-x-scale   Specify the x scale for text rendering (1.0 = default scale)");
+	puts("        --font-proportional  Use the font's own glyph widths instead of fixed-width spacing");
 	puts("    -j, --joypad         Enable joypad");
 	puts("        --msgskip-delay  Specify the delay in ms to add when skipping messages with CTRL");
 	puts("        --save-folder    Override save folder location");
@@ -429,6 +433,7 @@ enum {
 	LOPT_FONT_GOTHIC,
 	LOPT_FONT_FNL,
 	LOPT_FONT_X_SCALE,
+	LOPT_FONT_PROPORTIONAL,
 	LOPT_JOYPAD,
 	LOPT_MSGSKIP_DELAY,
 	LOPT_SAVE_FOLDER,
@@ -473,6 +478,7 @@ int main(int argc, char *argv[])
 			{ "font-gothic",   required_argument, 0, LOPT_FONT_GOTHIC },
 			{ "font-fnl",      required_argument, 0, LOPT_FONT_FNL },
 			{ "font-x-scale",  required_argument, 0, LOPT_FONT_X_SCALE },
+			{ "font-proportional", no_argument,   0, LOPT_FONT_PROPORTIONAL },
 			{ "joypad",        optional_argument, 0, LOPT_JOYPAD },
 			{ "msgskip-delay", required_argument, 0, LOPT_MSGSKIP_DELAY },
 			{ "save-folder",   required_argument, 0, LOPT_SAVE_FOLDER },
@@ -527,6 +533,9 @@ int main(int argc, char *argv[])
 				config.manual_text_x_scale = false;
 				config.text_x_scale = 1.0;
 			}
+			break;
+		case LOPT_FONT_PROPORTIONAL:
+			config.proportional_text = true;
 			break;
 		case 'j':
 		case LOPT_JOYPAD:
