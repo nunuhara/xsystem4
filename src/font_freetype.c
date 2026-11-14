@@ -181,7 +181,12 @@ static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint3
 		return false;
 	}
 
-	glyph->advance = half_width ? size->size / 2 : size->size;
+	// Text is fixed-width by default (see 6addc80). With font-proportional
+	// enabled, use the font's own advance so proportional fonts don't overlap.
+	if (config.proportional_text)
+		glyph->advance = font->font->glyph->advance.x / 64.f;
+	else
+		glyph->advance = half_width ? size->size / 2 : size->size;
 	return true;
 }
 
