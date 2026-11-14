@@ -175,6 +175,25 @@ float gfx_size_char(struct text_style *ts, const char *ch)
 	return w * ts->scale_x;
 }
 
+/*
+ * Like gfx_size_char, but also large enough to contain the rendered glyph.
+ * Glyphs in proportional fonts can be wider than their nominal size (e.g.
+ * 'M' or 'W' in a non-monospace font is wider than size/2).
+ */
+float gfx_size_char_extent(struct text_style *ts, const char *ch)
+{
+	float w = gfx_size_char(ts, ch);
+	struct font_size *size = text_style_font_size(ts);
+	uint32_t code = char_to_code(ch, size->font->charmap);
+	struct glyph *glyph = font_get_glyph(size, code, gfx_int_to_font_weight(ts->weight));
+	if (!glyph)
+		return w;
+	float glyph_w = glyph->rect.w * config.text_x_scale;
+	if (gfx_text_advance_edges)
+		glyph_w += ts->edge_left + ts->edge_right + ceilf(ts->bold_width)*2;
+	return max(w, glyph_w * ts->scale_x);
+}
+
 float gfx_size_text(struct text_style *ts, const char *text)
 {
 	struct font_size *size = text_style_font_size(ts);
