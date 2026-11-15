@@ -158,10 +158,11 @@ static void parts_update_with_motion(struct parts *parts, struct parts_motion *m
 		break;
 	case PARTS_MOTION_CG: {
 		int i = motion_calculate_i(motion, motion_t);
+		struct parts_cg *cg = parts_get_cg(parts, parts->state);
 		if (i == 0) {
-			parts_state_reset(&parts->states[parts->state], PARTS_CG);
+			parts_sprite_reset(&parts->sprites[parts->state], PARTS_SPRITE_CG);
 		} else {
-			parts_cg_set_by_index(parts, parts_get_cg(parts, parts->state), i);
+			parts_cg_set_by_index(parts, cg, i);
 		}
 		break;
 	}

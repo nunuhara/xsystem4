@@ -885,13 +885,13 @@ static void cmd_xsystem4_renderParts(cJSON *args, cJSON *resp)
 	parts_render_family(parts);
 	gfx_reset_framebuffer(GL_FRAMEBUFFER, fbo);
 
-	struct parts_common *state = &parts->states[parts->state].common;
+	struct parts_common *common = &parts->sprites[parts->state].common;
 	// draw bounds
 	draw_rectangle(&t, (Color){255,0,0}, (Rectangle) {
-		parts->global.pos.x + state->origin_offset.x,
-		parts->global.pos.y + state->origin_offset.y,
-		state->w,
-		state->h
+		parts->global.pos.x + common->origin_offset.x,
+		parts->global.pos.y + common->origin_offset.y,
+		common->w,
+		common->h
 	});
 	// draw origin
 	draw_rectangle(&t, (Color){0,255,0}, (Rectangle) {
@@ -920,7 +920,7 @@ static void cmd_xsystem4_partsTexture(cJSON *args, cJSON *resp)
 		return;
 	}
 
-	Texture *t = &parts->states[parts->state].common.texture;
+	Texture *t = &parts->sprites[parts->state].common.texture;
 
 	cJSON *body;
 	cJSON_AddItemToObjectCS(resp, "body", body = cJSON_CreateObject());

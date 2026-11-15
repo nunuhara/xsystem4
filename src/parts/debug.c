@@ -214,71 +214,67 @@ static void parts_movie_to_json(struct parts_movie *movie, cJSON *out, bool verb
 	cJSON_AddNumberToObject(out, "sprite_no", movie->sprite_no);
 }
 
-static cJSON *parts_state_to_json(struct parts_state *state, bool verbose)
+static cJSON *parts_sprite_to_json(struct parts_sprite *sprite, bool verbose)
 {
-	static const char *state_types[PARTS_NR_TYPES] = {
-		[PARTS_UNINITIALIZED] = "uninitialized",
-		[PARTS_CG] = "cg",
-		[PARTS_TEXT] = "text",
-		[PARTS_ANIMATION] = "animation",
-		[PARTS_NUMERAL] = "numeral",
-		[PARTS_HGAUGE] = "hgauge",
-		[PARTS_VGAUGE] = "vgauge",
-		[PARTS_CONSTRUCTION_PROCESS] = "construction_process",
-		[PARTS_FLASH] = "flash",
-		[PARTS_FLAT] = "flat"
+	static const char *sprite_types[PARTS_NR_SPRITE_TYPES] = {
+		[PARTS_SPRITE_NONE] = "uninitialized",
+		[PARTS_SPRITE_CG] = "cg",
+		[PARTS_SPRITE_TEXT] = "text",
+		[PARTS_SPRITE_ANIMATION] = "animation",
+		[PARTS_SPRITE_NUMERAL] = "numeral",
+		[PARTS_SPRITE_HGAUGE] = "hgauge",
+		[PARTS_SPRITE_VGAUGE] = "vgauge",
+		[PARTS_SPRITE_CONSTRUCTION_PROCESS] = "construction_process",
+		[PARTS_SPRITE_FLASH] = "flash",
+		[PARTS_SPRITE_FLAT] = "flat"
 	};
 	const char *type = "invalid";
-	if (state->type >= 0 && state->type < PARTS_NR_TYPES)
-		type = state_types[state->type];
+	if (sprite->type >= 0 && sprite->type < PARTS_NR_SPRITE_TYPES)
+		type = sprite_types[sprite->type];
 
 	cJSON *obj = cJSON_CreateObject();
 	cJSON_AddStringToObject(obj, "type", type);
-	cJSON_AddItemToObjectCS(obj, "size", wh_to_json(state->common.w, state->common.h, verbose));
-	cJSON_AddItemToObjectCS(obj, "origin_offset", point_to_json(&state->common.origin_offset, verbose));
-	cJSON_AddItemToObjectCS(obj, "hitbox", rectangle_to_json(&state->common.hitbox, verbose));
-	cJSON_AddItemToObjectCS(obj, "surface_area", rectangle_to_json(&state->common.surface_area, verbose));
+	cJSON_AddItemToObjectCS(obj, "size", wh_to_json(sprite->common.w, sprite->common.h, verbose));
+	cJSON_AddItemToObjectCS(obj, "origin_offset", point_to_json(&sprite->common.origin_offset, verbose));
+	cJSON_AddItemToObjectCS(obj, "hitbox", rectangle_to_json(&sprite->common.hitbox, verbose));
+	cJSON_AddItemToObjectCS(obj, "surface_area", rectangle_to_json(&sprite->common.surface_area, verbose));
 
-	switch (state->type) {
-	case PARTS_UNINITIALIZED:
+	switch (sprite->type) {
+	case PARTS_SPRITE_NONE:
 		break;
-	case PARTS_CG:
-		parts_cg_to_json(&state->cg, obj, verbose);
+	case PARTS_SPRITE_CG:
+		parts_cg_to_json(&sprite->cg, obj, verbose);
 		break;
-	case PARTS_TEXT:
-		parts_text_to_json(&state->text, obj, verbose);
+	case PARTS_SPRITE_TEXT:
+		parts_text_to_json(&sprite->text, obj, verbose);
 		break;
-	case PARTS_ANIMATION:
-		parts_animation_to_json(&state->anim, obj, verbose);
+	case PARTS_SPRITE_ANIMATION:
+		parts_animation_to_json(&sprite->anim, obj, verbose);
 		break;
-	case PARTS_NUMERAL:
-		parts_numeral_to_json(&state->num, obj, verbose);
+	case PARTS_SPRITE_NUMERAL:
+		parts_numeral_to_json(&sprite->num, obj, verbose);
 		break;
-	case PARTS_HGAUGE:
-	case PARTS_VGAUGE:
-		parts_gauge_to_json(&state->gauge, obj, verbose);
+	case PARTS_SPRITE_HGAUGE:
+	case PARTS_SPRITE_VGAUGE:
+		parts_gauge_to_json(&sprite->gauge, obj, verbose);
 		break;
-	case PARTS_CONSTRUCTION_PROCESS:
-		parts_construction_process_to_json(&state->cproc, obj, verbose);
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS:
+		parts_construction_process_to_json(&sprite->cproc, obj, verbose);
 		break;
-	case PARTS_FLASH:
-		parts_flash_to_json(&state->flash, obj, verbose);
+	case PARTS_SPRITE_FLASH:
+		parts_flash_to_json(&sprite->flash, obj, verbose);
 		break;
-	case PARTS_FLAT:
-		parts_flat_to_json(&state->flat, obj, verbose);
+	case PARTS_SPRITE_FLAT:
+		parts_flat_to_json(&sprite->flat, obj, verbose);
 		break;
-	case PARTS_MOVIE:
-		parts_movie_to_json(&state->movie, obj, verbose);
+	case PARTS_SPRITE_MOVIE:
+		parts_movie_to_json(&sprite->movie, obj, verbose);
 		break;
-	case PARTS_RECT_DETECTION:
+	case PARTS_SPRITE_RECT_DETECTION:
 		break;
-	case PARTS_LAYOUT_BOX:
-		cJSON_AddNumberToObject(obj, "layout_type", state->layout_box.layout_type);
-		cJSON_AddNumberToObject(obj, "align", state->layout_box.align);
-		break;
-	case PARTS_3DLAYER:
-		cJSON_AddNumberToObject(obj, "plugin", state->layer3d.plugin);
-		cJSON_AddNumberToObject(obj, "sprite_no", state->layer3d.sprite_no);
+	case PARTS_SPRITE_3DLAYER:
+		cJSON_AddNumberToObject(obj, "plugin", sprite->layer3d.plugin);
+		cJSON_AddNumberToObject(obj, "sprite_no", sprite->layer3d.sprite_no);
 		break;
 	}
 
@@ -370,6 +366,28 @@ static cJSON *parts_motion_to_json(struct parts_motion *motion)
 	return obj;
 }
 
+static cJSON *parts_scrollbar_to_json(struct parts_scrollbar *s, bool verbose)
+{
+	cJSON *obj = cJSON_CreateObject();
+	if (s->horizontal) {
+		cJSON_AddItemToObjectCS(obj, "size", wh_to_json(s->length, s->thickness, verbose));
+		cJSON_AddNumberToObject(obj, "left_width", s->leading);
+		cJSON_AddNumberToObject(obj, "right_width", s->trailing);
+	} else {
+		cJSON_AddItemToObjectCS(obj, "size", wh_to_json(s->thickness, s->length, verbose));
+		cJSON_AddNumberToObject(obj, "up_height", s->leading);
+		cJSON_AddNumberToObject(obj, "down_height", s->trailing);
+	}
+	cJSON_AddNumberToObject(obj, "total_size", s->total_size);
+	cJSON_AddNumberToObject(obj, "view_size", s->view_size);
+	cJSON_AddNumberToObject(obj, "scroll_pos", s->pos);
+	cJSON_AddNumberToObject(obj, "scroll_rate", s->rate);
+	cJSON_AddNumberToObject(obj, "move_size_by_button", s->move_size);
+	cJSON_AddSjisToObject(obj, "cg_name", s->cg_name->text);
+	cJSON_AddNumberToObject(obj, "thumb_length", s->thumb_length);
+	return obj;
+}
+
 cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 {
 	static const char *state_names[PARTS_NR_STATES] = {
@@ -386,9 +404,9 @@ cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 	obj = cJSON_CreateObject();
 	cJSON_AddNumberToObject(obj, "no", parts->no);
 	cJSON_AddStringToObject(obj, "state", state);
-	cJSON_AddItemToObjectCS(obj, "default", parts_state_to_json(&parts->states[PARTS_STATE_DEFAULT], verbose));
-	cJSON_AddItemToObjectCS(obj, "hovered", parts_state_to_json(&parts->states[PARTS_STATE_HOVERED], verbose));
-	cJSON_AddItemToObjectCS(obj, "clicked", parts_state_to_json(&parts->states[PARTS_STATE_CLICKED], verbose));
+	cJSON_AddItemToObjectCS(obj, "default", parts_sprite_to_json(&parts->sprites[PARTS_STATE_DEFAULT], verbose));
+	cJSON_AddItemToObjectCS(obj, "hovered", parts_sprite_to_json(&parts->sprites[PARTS_STATE_HOVERED], verbose));
+	cJSON_AddItemToObjectCS(obj, "clicked", parts_sprite_to_json(&parts->sprites[PARTS_STATE_CLICKED], verbose));
 	cJSON_AddItemToObjectCS(obj, "local", parts_params_to_json(&parts->local, verbose));
 	cJSON_AddItemToObjectCS(obj, "global", parts_params_to_json(&parts->global, verbose));
 	if (parts_multi_controller)
@@ -412,6 +430,15 @@ cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 		cJSON_AddNumberToObject(obj, "linked_from", parts->linked_from);
 	cJSON_AddNumberToObject(obj, "draw_filter", parts->draw_filter);
 	cJSON_AddBoolToObject(obj, "message_window", parts->message_window);
+	if (parts_is_scrollbar(parts))
+		cJSON_AddItemToObjectCS(obj, parts->widget.scrollbar->horizontal ? "hscrollbar" : "vscrollbar",
+				parts_scrollbar_to_json(parts->widget.scrollbar, verbose));
+	if (parts->type == PARTS_TYPE_LAYOUTBOX) {
+		cJSON *lb = cJSON_CreateObject();
+		cJSON_AddNumberToObject(lb, "layout_type", parts->widget.layoutbox->layout_type);
+		cJSON_AddNumberToObject(lb, "align", parts->widget.layoutbox->align);
+		cJSON_AddItemToObjectCS(obj, "layoutbox", lb);
+	}
 
 	cJSON_AddItemToObjectCS(obj, "motions", motions = cJSON_CreateArray());
 	struct parts_motion *motion;
@@ -431,7 +458,7 @@ cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 	return obj;
 }
 
-cJSON *parts_sprite_to_json(struct sprite *sp, bool verbose)
+cJSON *parts_sp_to_json(struct sprite *sp, bool verbose)
 {
 	cJSON *ent = scene_sprite_to_json(sp, verbose);
 	cJSON_AddItemToObjectCS(ent, "parts", parts_to_json((struct parts*)sp, false, verbose));
@@ -487,36 +514,41 @@ static void parts_list_print(struct parts *parts, int indent)
 {
 	indent_message(indent, parts->local.show ? "+ " : "- ");
 	sys_message("parts %d ", parts->no);
-	struct parts_state *state = &parts->states[parts->state];
-	switch (state->type) {
-	case PARTS_UNINITIALIZED:
+	struct parts_sprite *sprite = &parts->sprites[parts->state];
+	if (parts_is_scrollbar(parts)) {
+		struct parts_scrollbar *s = parts->widget.scrollbar;
+		sys_message("(%cscrollbar pos=%d/%d)", s->horizontal ? 'h' : 'v', s->pos, s->total_size);
+	} else if (parts->type == PARTS_TYPE_LAYOUTBOX) {
+		sys_message("(layoutbox type=%d)", parts->widget.layoutbox->layout_type);
+	} else switch (sprite->type) {
+	case PARTS_SPRITE_NONE:
 		sys_message("(uninitialized)");
 		break;
-	case PARTS_CG:
-		if (state->cg.name)
-			sys_message("(cg %s)", display_sjis0(state->cg.name->text));
+	case PARTS_SPRITE_CG:
+		if (sprite->cg.name)
+			sys_message("(cg %s)", display_sjis0(sprite->cg.name->text));
 		else
-			sys_message("(cg %d)", state->cg.no);
+			sys_message("(cg %d)", sprite->cg.no);
 		break;
-	case PARTS_TEXT:
+	case PARTS_SPRITE_TEXT:
 		sys_message("(text)"); // TODO? store actual text and print it here
 		break;
-	case PARTS_ANIMATION:
-		sys_message("(animation %d+%d)", state->anim.start_no, state->anim.nr_frames);
+	case PARTS_SPRITE_ANIMATION:
+		sys_message("(animation %d+%d)", sprite->anim.start_no, sprite->anim.nr_frames);
 		break;
-	case PARTS_NUMERAL:
-		sys_message("(numeral %d)", state->num.font_no);
+	case PARTS_SPRITE_NUMERAL:
+		sys_message("(numeral %d)", sprite->num.font_no);
 		break;
-	case PARTS_HGAUGE:
+	case PARTS_SPRITE_HGAUGE:
 		sys_message("(hgauge)"); // TODO? store rate and cg and print them here
 		break;
-	case PARTS_VGAUGE:
+	case PARTS_SPRITE_VGAUGE:
 		sys_message("(vgauge)");
 		break;
-	case PARTS_CONSTRUCTION_PROCESS: {
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS: {
 		sys_message("(construction process:");
 		struct parts_cp_op *op;
-		TAILQ_FOREACH(op, &state->cproc.ops, entry) {
+		TAILQ_FOREACH(op, &sprite->cproc.ops, entry) {
 			switch (op->type) {
 			case PARTS_CP_CREATE:
 				sys_message(" create");
@@ -562,23 +594,20 @@ static void parts_list_print(struct parts *parts, int indent)
 		sys_message(")");
 		break;
 	}
-	case PARTS_FLASH:
-		sys_message("(flash %s)", display_sjis0(state->flash.name->text));
+	case PARTS_SPRITE_FLASH:
+		sys_message("(flash %s)", display_sjis0(sprite->flash.name->text));
 		break;
-	case PARTS_FLAT:
-		sys_message("(flat %s)", state->flat.name ? display_sjis0(state->flat.name->text) : "(null)");
+	case PARTS_SPRITE_FLAT:
+		sys_message("(flat %s)", sprite->flat.name ? display_sjis0(sprite->flat.name->text) : "(null)");
 		break;
-	case PARTS_MOVIE:
-		sys_message("(movie sp=%d)", state->movie.sprite_no);
+	case PARTS_SPRITE_MOVIE:
+		sys_message("(movie sp=%d)", sprite->movie.sprite_no);
 		break;
-	case PARTS_RECT_DETECTION:
+	case PARTS_SPRITE_RECT_DETECTION:
 		sys_message("(rect_detection)");
 		break;
-	case PARTS_LAYOUT_BOX:
-		sys_message("(layout_box type=%d)", state->layout_box.layout_type);
-		break;
-	case PARTS_3DLAYER:
-		sys_message("(3dlayer plugin=%d sp=%d)", state->layer3d.plugin, state->layer3d.sprite_no);
+	case PARTS_SPRITE_3DLAYER:
+		sys_message("(3dlayer plugin=%d sp=%d)", sprite->layer3d.plugin, sprite->layer3d.sprite_no);
 		break;
 	}
 
@@ -605,13 +634,13 @@ static void parts_cmd_parts_save(unsigned nr_args, char **args)
 	if (!parts)
 		return;
 
-	if (!parts->states[parts->state].common.texture.handle) {
+	if (!parts->sprites[parts->state].common.texture.handle) {
 		DBG_ERROR("parts texture not initialized");
 		return;
 	}
 
 	// TODO: infer format from extension
-	gfx_save_texture(&parts->states[parts->state].common.texture, args[1], ALCG_PNG);
+	gfx_save_texture(&parts->sprites[parts->state].common.texture, args[1], ALCG_PNG);
 }
 
 static void parts_cmd_parts_render(unsigned nr_args, char **args)
@@ -620,7 +649,7 @@ static void parts_cmd_parts_render(unsigned nr_args, char **args)
 	if (!parts)
 		return;
 
-	if (!parts->states[parts->state].common.texture.handle) {
+	if (!parts->sprites[parts->state].common.texture.handle) {
 		DBG_ERROR("parts texture not initialized");
 		return;
 	}

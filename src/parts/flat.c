@@ -753,7 +753,7 @@ void parts_flat_emitter_resolve_layer(
 // Compute the alignment origin offset (1-9 phone keypad layout).
 void parts_flat_align_offset(int align, int w, int h, vec2 out)
 {
-	if (align < 1 || align > 9) {
+	if (!parts_align_valid(align)) {
 		glm_vec2_zero(out);
 		return;
 	}
@@ -786,7 +786,7 @@ bool parts_flat_emitter_get_align_offset(struct parts_flat *f, int emitter_lib_i
 		return false;
 
 	int align = em->particle_align;
-	if (align < 1 || align > 9) align = 5;
+	if (!parts_align_valid(align)) align = PARTS_ALIGN_CENTER;
 	parts_flat_align_offset(align, tex->w, tex->h, out);
 	return true;
 }

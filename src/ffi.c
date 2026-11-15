@@ -119,7 +119,7 @@ static bool gui_engine_should_trace(struct ain_hll_function *f, union vm_value *
 		struct parts *p = parts_try_get(args[0]->i);
 		if (!p)
 			return true;
-		Rectangle *r = &p->states[args[5]->i].common.surface_area;
+		Rectangle *r = &p->sprites[args[5]->i].common.surface_area;
 		return args[1]->i != r->x || args[2]->i != r->y
 			|| args[3]->i != r->w || args[4]->i != r->h;
 	}

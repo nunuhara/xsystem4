@@ -35,8 +35,8 @@ enum pact_component_type {
 	PACT_COMPONENT_VSCROLLBAR = 2,
 	PACT_COMPONENT_HSCROLLBAR = 3,
 	PACT_COMPONENT_MULTILINE_TEXT = 7,
-	PACT_COMPONENT_LAYOUT_BOX = 8,
-	PACT_COMPONENT_RADIO_BOX = 9,
+	PACT_COMPONENT_LAYOUTBOX = 8,
+	PACT_COMPONENT_RADIOBOX = 9,
 	PACT_COMPONENT_SPRITE = 10,
 };
 
@@ -70,6 +70,7 @@ struct activity_part {
 	int number;  // assigned at load time, not read from the .pact file
 	struct activity_names children;
 	const char *links[PACT_NR_LINKS];
+	struct activity_names radio_members;
 };
 
 struct activity_intent {
@@ -157,7 +158,7 @@ static SDL_Rect pact_surface_rect(struct buffer *r)
 
 static void activity_set_surface(struct parts *p, int state, SDL_Rect rect)
 {
-	parts_set_surface_area(p, &p->states[state].common, rect.x, rect.y, rect.w, rect.h);
+	parts_set_surface_area(p, &p->sprites[state].common, rect.x, rect.y, rect.w, rect.h);
 }
 
 static void activity_set_cg(struct parts *p, int state, const char *name)
@@ -199,6 +200,14 @@ static SDL_Color pact_color(struct buffer *r)
 	int red = buffer_read_int32(r);
 	int green = buffer_read_int32(r);
 	int blue = buffer_read_int32(r);
+	return (SDL_Color){red, green, blue, 255};
+}
+
+static SDL_Color pact_color_bgr(struct buffer *r)
+{
+	int blue = buffer_read_int32(r);
+	int green = buffer_read_int32(r);
+	int red = buffer_read_int32(r);
 	return (SDL_Color){red, green, blue, 255};
 }
 
@@ -249,7 +258,7 @@ static void pact_sprite_rect(struct buffer *r, struct parts *p, int state)
 	SDL_Rect surface = pact_surface_rect(r);
 	if (!p)
 		return;
-	parts_state_reset(&p->states[state], PARTS_RECT_DETECTION);
+	parts_get_sprite(p, state, PARTS_SPRITE_RECT_DETECTION);
 	activity_set_surface(p, state, surface);
 }
 
@@ -373,7 +382,7 @@ static bool pact_sprite_construction(struct buffer *r, struct parts *p, int stat
 	}
 	SDL_Rect surface = pact_surface_rect(r);
 	if (p) {
-		parts_build_construction_process(p, &p->states[state].cproc);
+		parts_build_construction_process(p, &p->sprites[state].cproc);
 		activity_set_surface(p, state, surface);
 	}
 	return true;
@@ -423,9 +432,64 @@ static bool pact_sprite(struct buffer *r, struct parts *p, int state)
 	}
 }
 
-static void pact_layout_box(struct buffer *r, struct parts *p)
+static void pact_button(struct buffer *r, struct parts *p, bool checkbox)
 {
-	struct parts_layout_box *l = parts_get_layout_box(p);
+	struct parts_button *button = checkbox ? NULL : parts_get_button(p);
+	struct parts_checkbox *cb = checkbox ? parts_get_checkbox(p) : NULL;
+	struct parts_button_style *s = checkbox ? &cb->style : &button->style;
+	s->w = buffer_read_int32(r);
+	s->h = buffer_read_int32(r);
+	if (checkbox)
+		cb->checked = buffer_read_u8(r);
+	else
+		button->enabled = buffer_read_u8(r);
+	s->r = buffer_read_int32(r);
+	s->g = buffer_read_int32(r);
+	s->b = buffer_read_int32(r);
+	s->font.face = buffer_read_int32(r);
+	s->font.size = buffer_read_int32(r);
+	s->font.color = pact_color_bgr(r);
+	s->font.bold_width = buffer_read_float(r);
+	text_style_set_edge_width(&s->font, buffer_read_float(r));
+	s->font.edge_color = pact_color_bgr(r);
+	free_string(s->cg_name);
+	free_string(s->flat_name);
+	free_string(s->text);
+	s->cg_name = pact_string(r);
+	s->flat_name = pact_string(r);
+	s->text = pact_string(r);
+	s->text_align = buffer_read_int32(r);
+	if (checkbox)
+		cb->button_mode = buffer_read_u8(r);
+	s->font.font_spacing = buffer_read_int32(r);
+	s->line_space = buffer_read_int32(r);
+	if (checkbox)
+		parts_checkbox_rebuild(p);
+	else
+		parts_button_rebuild(p);
+}
+
+static void pact_scrollbar(struct buffer *r, struct parts *p, bool horizontal)
+{
+	struct parts_scrollbar *s = parts_get_scrollbar(p, horizontal);
+	s->length = buffer_read_int32(r);
+	s->thickness = buffer_read_int32(r);
+	s->leading = buffer_read_int32(r);
+	s->trailing = buffer_read_int32(r);
+	s->total_size = buffer_read_int32(r);
+	s->view_size = buffer_read_int32(r);
+	s->pos = buffer_read_int32(r);
+	s->rate = buffer_read_float(r);
+	s->move_size = buffer_read_int32(r);
+	free_string(s->cg_name);
+	s->cg_name = pact_string(r);
+	buffer_skip_string(r); // Flat-backed scrollbar rendering is not implemented.
+	parts_scrollbar_rebuild(p);
+}
+
+static void pact_layoutbox(struct buffer *r, struct parts *p)
+{
+	struct parts_layoutbox *l = parts_get_layoutbox(p);
 	l->layout_type = buffer_read_int32(r);
 	l->wrap = buffer_read_u8(r);
 	l->wrap_size = buffer_read_float(r);
@@ -454,25 +518,23 @@ static bool pact_component(struct buffer *r, struct parts *p, int *component_typ
 {
 	int type = *component_type = buffer_read_int32(r);
 	switch (type) {
-	// GUI components are not implemented.
 	case PACT_COMPONENT_BUTTON:
-		pact_skip(r, "iibiiiiiiiiffiiisssiii");
-		return true;
 	case PACT_COMPONENT_CHECKBOX:
-		pact_skip(r, "iibiiiiiiiiffiiisssibii");
+		pact_button(r, p, type == PACT_COMPONENT_CHECKBOX);
 		return true;
 	case PACT_COMPONENT_VSCROLLBAR:
 	case PACT_COMPONENT_HSCROLLBAR:
-		pact_skip(r, "iiiiiiifiss");
+		pact_scrollbar(r, p, type == PACT_COMPONENT_HSCROLLBAR);
 		return true;
 	case PACT_COMPONENT_MULTILINE_TEXT:
 		pact_skip(r, "iiiiiiiffiiibsiiiiiiiiiiiiiiisii");
 		return true;
-	case PACT_COMPONENT_LAYOUT_BOX:
-		pact_layout_box(r, p);
+	case PACT_COMPONENT_LAYOUTBOX:
+		pact_layoutbox(r, p);
 		return true;
-	case PACT_COMPONENT_RADIO_BOX:
+	case PACT_COMPONENT_RADIOBOX:
 		pact_skip_int_list(r);  // radio member numbers (unused for .pact)
+		parts_get_radiobox(p);
 		return true;
 	case PACT_COMPONENT_SPRITE:
 		return pact_sprite_component(r, p);
@@ -559,8 +621,8 @@ static bool pact_part(struct buffer *r, struct activity_part *part)
 	int component_type;
 	if (!pact_component(r, p, &component_type))
 		return false;
-	if (component_type == PACT_COMPONENT_RADIO_BOX)
-		pact_skip_names(r);  // radio members
+	if (component_type == PACT_COMPONENT_RADIOBOX)
+		part->radio_members = pact_names(r);
 	parts_component_dirty(p);
 	parts_dirty(p);
 	return true;
@@ -625,6 +687,25 @@ static int activity_part_number(struct activity *a, const char *name)
 	return part ? part->number : 0;
 }
 
+static bool activity_restore_radiobox(struct activity *a, struct activity_part *entry)
+{
+	int count = entry->radio_members.count;
+	if (!count)
+		return true;
+	int *members = xcalloc(count, sizeof(*members));
+	for (int i = 0; i < count; i++) {
+		members[i] = activity_part_number(a, entry->radio_members.values[i]);
+		if (!members[i]) {
+			free(members);
+			return false;
+		}
+	}
+	struct parts_radiobox *box = parts_get_radiobox(parts_get(entry->number));
+	box->count = count;
+	box->members = members;
+	return true;
+}
+
 static bool activity_restore_links(struct activity *a)
 {
 	for (int i = 0; i < a->nr_parts; i++) {
@@ -650,6 +731,9 @@ static bool activity_restore_links(struct activity *a)
 		if (link_numbers[PACT_LINK_ON_CURSOR_SHOW])
 			PE_SetOnCursorShowLinkPartsNumber(entry->number,
 					link_numbers[PACT_LINK_ON_CURSOR_SHOW]);
+		p->checkbox_show_link = link_numbers[PACT_LINK_CHECKBOX_SHOW];
+		if (!activity_restore_radiobox(a, entry))
+			return false;
 	}
 	return true;
 }
@@ -679,8 +763,10 @@ static bool activity_deserialize(struct activity *a, struct buffer *r)
 
 static void activity_free(struct activity *a)
 {
-	for (int i = 0; i < a->nr_parts; i++)
+	for (int i = 0; i < a->nr_parts; i++) {
 		free(a->parts[i].children.values);
+		free(a->parts[i].radio_members.values);
+	}
 	for (int i = 0; i < a->nr_intents; i++)
 		free(a->intents[i].destinations.values);
 	for (int i = 0; i < a->nr_functions; i++) {
