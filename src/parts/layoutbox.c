@@ -30,7 +30,7 @@ struct parts_layoutbox *parts_get_layoutbox(struct parts *parts)
 	parts_type_reset(parts, PARTS_TYPE_LAYOUTBOX, PARTS_SPRITE_NONE);
 	struct parts_layoutbox *lb = parts->widget.layoutbox = xcalloc(1, sizeof(*lb));
 	lb->layout_type = PARTS_LAYOUT_VERTICAL;
-	lb->align = 1;
+	lb->align = PARTS_ALIGN_TOP_LEFT;
 	return lb;
 }
 
@@ -173,24 +173,6 @@ static void parts_get_layout_size(struct parts *parts, int *w, int *h)
 	}
 }
 
-static int align_offset_x(int align, int total_w)
-{
-	switch (align) {
-	case 2: case 5: case 8: return -(total_w / 2);
-	case 3: case 6: case 9: return -total_w;
-	default: return 0;
-	}
-}
-
-static int align_offset_y(int align, int total_h)
-{
-	switch (align) {
-	case 4: case 5: case 6: return -(total_h / 2);
-	case 7: case 8: case 9: return -total_h;
-	default: return 0;
-	}
-}
-
 // Calculates the total size of a horizontal layout box by summing child widths per row.
 static void parts_layout_calc_size_horizontal(struct parts_layoutbox *lb, struct parts *parts,
 		int *out_w, int *out_h)
@@ -269,15 +251,10 @@ void parts_do_layout(struct parts *parts)
 	bool is_top    = (align == 1 || align == 2 || align == 3);
 	bool is_bottom = (align == 7 || align == 8 || align == 9);
 
-	int origin_x = align_offset_x(parts->origin_mode, total_w);
-	int origin_y = align_offset_y(parts->origin_mode, total_h);
-	int align_x = align_offset_x(align, total_w);
-	int align_y = align_offset_y(align, total_h);
-
 	int start_x = (is_left ? lb->padding_left : -lb->padding_right)
-		+ (origin_x - align_x);
+		+ parts_align_x(align, total_w) - parts_align_x(parts->origin_mode, total_w);
 	int start_y = (is_top ? lb->padding_top : -lb->padding_bottom)
-		+ (origin_y - align_y);
+		+ parts_align_y(align, total_h) - parts_align_y(parts->origin_mode, total_h);
 
 	int x_dir = is_right ? -1 : 1;
 	int y_dir = is_bottom ? -1 : 1;

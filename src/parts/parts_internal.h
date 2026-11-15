@@ -653,4 +653,36 @@ static inline bool parts_state_valid(int state)
 	return state >= 0 && state <= 2;
 }
 
+enum parts_align {
+	PARTS_ALIGN_TOP_LEFT = 1,
+	PARTS_ALIGN_TOP_CENTER,
+	PARTS_ALIGN_TOP_RIGHT,
+	PARTS_ALIGN_MIDDLE_LEFT,
+	PARTS_ALIGN_CENTER,
+	PARTS_ALIGN_MIDDLE_RIGHT,
+	PARTS_ALIGN_BOTTOM_LEFT,
+	PARTS_ALIGN_BOTTOM_CENTER,
+	PARTS_ALIGN_BOTTOM_RIGHT,
+};
+
+static inline bool parts_align_valid(int mode)
+{
+	return mode >= PARTS_ALIGN_TOP_LEFT && mode <= PARTS_ALIGN_BOTTOM_RIGHT;
+}
+
+static inline int parts_align_part(int index, int len)
+{
+	return index == 0 ? 0 : index == 1 ? len / 2 : len;
+}
+
+static inline int parts_align_x(int mode, int len)
+{
+	return parts_align_valid(mode) ? parts_align_part((mode - 1) % 3, len) : 0;
+}
+
+static inline int parts_align_y(int mode, int len)
+{
+	return parts_align_valid(mode) ? parts_align_part((mode - 1) / 3, len) : 0;
+}
+
 #endif /* SYSTEM4_PARTS_INTERNAL_H */
