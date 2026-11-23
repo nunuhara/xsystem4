@@ -1615,6 +1615,9 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case S_GETPART: {
 		int len = stack_pop().i; // length
 		int i = stack_pop().i; // index
+		// Since Sys43VM, a negative end position means copying through the end.
+		if (AIN_VERSION_GTE(ain, 6, 1) && len < -max(i, 0))
+			len = INT32_MAX;
 		struct string *s = string_copy(stack_peek_string(0), i, len);
 		heap_unref(stack_pop().i);
 		stack_push_string(s);

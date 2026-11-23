@@ -45,6 +45,10 @@ void test_strings(void)
 	test_string("\"ab‚ ‚¢‚¤\".GetPart(1, 3)", (s = "ab‚ ‚¢‚¤", s.GetPart(1, 3)), "b‚ ‚¢");
 	test_string("\"ab‚ ‚¢‚¤\".GetPart(-1, 3)", (s = "ab‚ ‚¢‚¤", s.GetPart(-1, 3)), "ab‚ ");
 	test_string("\"ab‚ ‚¢‚¤\".GetPart(2, 16)", (s = "ab‚ ‚¢‚¤", s.GetPart(2, 16)), "‚ ‚¢‚¤");
+	// Sys43VM only.
+	// test_string("\"abcde\".GetPart(0, -1)", (s = "abcde", s.GetPart(0, -1)), "abcde");
+	// test_string("\"abcde\".GetPart(2, -1)", (s = "abcde", s.GetPart(2, -1)), "");
+	// test_string("\"abcde\".GetPart(2, -3)", (s = "abcde", s.GetPart(2, -3)), "cde");
 	// S_PUSHBACK2
 	test_string("\"\".PushBack('a')", (s = "", s.PushBack('a'), s), "a");
 	test_string("\"‚ \".PushBack('a')", (s = "‚ ", s.PushBack('a'), s), "‚ a");
