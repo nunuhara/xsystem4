@@ -43,7 +43,7 @@ static struct parts *drop_target = NULL;
 
 static bool parts_hittest(struct parts *parts, int state, Point pos)
 {
-	Rectangle hitbox = parts->states[state].common.hitbox;
+	Rectangle hitbox = parts->sprites[state].common.hitbox;
 	if (parts->parent) {
 		hitbox.x += parts->parent->global.pos.x;
 		hitbox.y += parts->parent->global.pos.y;
@@ -70,7 +70,8 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		int passed_time, bool *hover_consumed, bool *click_consumed)
 {
 	// Always use DEFAULT state hitbox regardless of the current display state.
-	bool is_hovered = parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos)
+	bool is_hovered = parts_is_visible(parts)
+		&& parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos)
 		&& !*hover_consumed;
 
 	bool was_hovered = parts->is_hovered;
@@ -82,6 +83,13 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 
 	if (parts->linked_from >= 0 && is_hovered != was_hovered) {
 		parts_dirty(parts_get(parts->linked_from));
+	}
+	if (parts_is_scrollbar(parts)) {
+		bool trigger = parts_began_click && cur_clicking && !prev_clicking && !*click_consumed;
+		parts_scrollbar_mouse(parts, cur_pos, cur_clicking, trigger, is_hovered, passed_time);
+		if (trigger && is_hovered)
+			*click_consumed = true;
+		return;
 	}
 
 	if (!parts_began_click)
@@ -112,7 +120,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		return;
 	}
 
-	bool click_eligible = parts->clickable || !parts->pass_cursor;
+	bool click_eligible = parts_is_button(parts) || parts->clickable || !parts->pass_cursor;
 	if (!click_eligible || *click_consumed) {
 		if (!was_hovered)
 			audio_play_sound(parts->on_cursor_sound);
@@ -148,15 +156,22 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	}
 
 	// click event: only if the click down event had same parts number
-	if (parts->clickable && prev_clicking && !cur_clicking
+	if ((parts_is_button(parts) || parts->clickable) && prev_clicking && !cur_clicking
 			&& click_down_parts == parts->no) {
 		audio_play_sound(parts->on_click_sound);
-		clicked_parts = parts->no;
+		// Button widgets do not publish their click numbers through GetClickNumber.
+		if (!parts_is_button(parts))
+			clicked_parts = parts->no;
 
-		parts_msg_push(parts, PARTS_MSG_MOUSE_CLICK,
-				"iii", cur_pos.x, cur_pos.y, VK_LBUTTON);
+		if (parts->type != PARTS_TYPE_BUTTON || parts->widget.button->enabled)
+			parts_msg_push(parts, PARTS_MSG_MOUSE_CLICK,
+					"iii", cur_pos.x, cur_pos.y, VK_LBUTTON);
 		parts_msg_push(parts, PARTS_MSG_KEY_UP, "i", VK_LBUTTON);
 	}
+	// A checkbox toggles on left-button release while hovered.
+	if (parts->type == PARTS_TYPE_CHECKBOX && prev_clicking && !cur_clicking
+			&& click_down_parts == parts->no)
+		parts_checkbox_click(parts, cur_pos);
 }
 
 void PE_UpdateInputState(int passed_time)
@@ -324,6 +339,10 @@ void PE_BeginInput(void)
 void PE_EndInput(void)
 {
 	parts_began_click = false;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		parts_widget_end_input(parts);
+	}
 	clicked_parts = 0;
 	drag_state_reset();
 }

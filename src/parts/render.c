@@ -85,7 +85,7 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 
 	struct parts *clipper = alpha_clipper ? parts_try_get(alpha_clipper) : NULL;
 	if (clipper) {
-		struct parts_common *c_common = &clipper->states[clipper->state].common;
+		struct parts_common *c_common = &clipper->sprites[clipper->state].common;
 
 		// Calculate the inverse of the clipper's world matrix.
 		mat4 clip_mw = GLM_MAT4_IDENTITY_INIT;
@@ -155,22 +155,25 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
 	glm_translate(mw_transform, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
 
+	// A scrollbar texture can be larger than the part.
+	float w = parts_is_scrollbar(parts) ? common->texture.w : common->w;
+	float h = parts_is_scrollbar(parts) ? common->texture.h : common->h;
 	switch (parts->sprite_deform) {
 	// Flip horizontally
 	case 1:
-		glm_translate(mw_transform, (vec3){ common->w, 0.0f, 0.0f });
-		glm_scale(mw_transform, (vec3){ -common->w, common->h, 1.0f });
+		glm_translate(mw_transform, (vec3){ w, 0.0f, 0.0f });
+		glm_scale(mw_transform, (vec3){ -w, h, 1.0f });
 		break;
 	// Flip vertically
 	case 2:
-		glm_translate(mw_transform, (vec3){ 0.0f, common->h, 0.0f });
-		glm_scale(mw_transform, (vec3){ common->w, -common->h, 1.0f });
+		glm_translate(mw_transform, (vec3){ 0.0f, h, 0.0f });
+		glm_scale(mw_transform, (vec3){ w, -h, 1.0f });
 		break;
 	default:
 		WARNING("Invalid sprite_deform: %d", parts->sprite_deform);
 	// No deform
 	case 0:
-		glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
+		glm_scale(mw_transform, (vec3){ w, h, 1.0 });
 		break;
 	}
 
@@ -591,9 +594,7 @@ static void parts_render_flash(struct parts *parts, struct parts_flash *f)
 
 void parts_render(struct parts *parts)
 {
-	if (!parts->global.show)
-		return;
-	if (parts->message_window && !parts_message_window_show)
+	if (!parts_is_visible(parts))
 		return;
 	if (parts->linked_to >= 0) {
 		struct parts *link_parts = parts_get(parts->linked_to);
@@ -602,33 +603,32 @@ void parts_render(struct parts *parts)
 	}
 
 	// render
-	struct parts_state *state = &parts->states[parts->state];
-	switch (state->type) {
-	case PARTS_UNINITIALIZED:
-	case PARTS_RECT_DETECTION:
-	case PARTS_LAYOUT_BOX:
+	struct parts_sprite *sprite = &parts->sprites[parts->state];
+	switch (sprite->type) {
+	case PARTS_SPRITE_NONE:
+	case PARTS_SPRITE_RECT_DETECTION:
 		break;
-	case PARTS_CG:
-	case PARTS_ANIMATION:
-	case PARTS_NUMERAL:
-	case PARTS_HGAUGE:
-	case PARTS_VGAUGE:
-	case PARTS_CONSTRUCTION_PROCESS:
-	case PARTS_MOVIE:
-		if (state->common.texture.handle)
-			parts_render_cg(parts, &state->common);
+	case PARTS_SPRITE_CG:
+	case PARTS_SPRITE_ANIMATION:
+	case PARTS_SPRITE_NUMERAL:
+	case PARTS_SPRITE_HGAUGE:
+	case PARTS_SPRITE_VGAUGE:
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS:
+	case PARTS_SPRITE_MOVIE:
+		if (sprite->common.texture.handle)
+			parts_render_cg(parts, &sprite->common);
 		break;
-	case PARTS_TEXT:
-		parts_render_text(parts, &state->text);
+	case PARTS_SPRITE_TEXT:
+		parts_render_text(parts, &sprite->text);
 		break;
-	case PARTS_FLASH:
-		parts_render_flash(parts, &state->flash);
+	case PARTS_SPRITE_FLASH:
+		parts_render_flash(parts, &sprite->flash);
 		break;
-	case PARTS_FLAT:
-		parts_render_flat(parts, &state->flat);
+	case PARTS_SPRITE_FLAT:
+		parts_render_flat(parts, &sprite->flat);
 		break;
-	case PARTS_3DLAYER:
-		parts_render_3dlayer(parts, &state->layer3d);
+	case PARTS_SPRITE_3DLAYER:
+		parts_render_3dlayer(parts, &sprite->layer3d);
 		break;
 	}
 }
@@ -651,7 +651,7 @@ void parts_engine_render(possibly_unused struct sprite *_)
 	}
 }
 
-void parts_sprite_render(struct sprite *sp)
+void parts_sp_render(struct sprite *sp)
 {
 	parts_render((struct parts*)sp);
 }

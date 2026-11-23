@@ -99,6 +99,8 @@ target_sources(xsystem4 PRIVATE
   src/dungeon/tes.c
 
   src/parts/activity.c
+  src/parts/button.c
+  src/parts/checkbox.c
   src/parts/construction.c
   src/parts/debug.c
   src/parts/flash.c
@@ -108,9 +110,12 @@ target_sources(xsystem4 PRIVATE
   src/parts/message.c
   src/parts/motion.c
   src/parts/parts.c
+  src/parts/radiobox.c
   src/parts/render.c
+  src/parts/scrollbar.c
   src/parts/text.c
   src/parts/save.c
+  src/parts/widget.c
 
   src/hll/ACXLoader.c
   src/hll/ADVSYS.c

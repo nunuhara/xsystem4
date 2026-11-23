@@ -29,12 +29,16 @@ struct string;
 struct hash_table;
 
 // NOTE: actual value is +1
-enum parts_state_type {
+enum parts_state {
 	PARTS_STATE_DEFAULT = 0,
 	PARTS_STATE_HOVERED = 1,
 	PARTS_STATE_CLICKED = 2,
 #define PARTS_NR_STATES 3
 };
+
+// A widget look is a parts_state value or PARTS_LOOK_DISABLED.
+#define PARTS_LOOK_DISABLED PARTS_NR_STATES
+#define PARTS_NR_LOOKS (PARTS_NR_STATES + 1)
 
 enum parts_motion_type {
 	PARTS_MOTION_POS,
@@ -93,22 +97,23 @@ struct parts_text_line {
 	float width;
 };
 
-enum parts_type {
-	PARTS_UNINITIALIZED,
-	PARTS_CG,
-	PARTS_TEXT,
-	PARTS_ANIMATION,
-	PARTS_NUMERAL,
-	PARTS_HGAUGE,
-	PARTS_VGAUGE,
-	PARTS_CONSTRUCTION_PROCESS,
-	PARTS_FLASH,
-	PARTS_FLAT,
-	PARTS_MOVIE,
-	PARTS_RECT_DETECTION,
-	PARTS_LAYOUT_BOX,
-	PARTS_3DLAYER,
-#define PARTS_NR_TYPES (PARTS_3DLAYER+1)
+// A sprite is the content of one state of a parts. Each state of a parts can
+// have a different sprite type. Save data stores these values.
+enum parts_sprite_type {
+	PARTS_SPRITE_NONE = 0,
+	PARTS_SPRITE_CG = 1,
+	PARTS_SPRITE_TEXT = 2,
+	PARTS_SPRITE_ANIMATION = 3,
+	PARTS_SPRITE_NUMERAL = 4,
+	PARTS_SPRITE_HGAUGE = 5,
+	PARTS_SPRITE_VGAUGE = 6,
+	PARTS_SPRITE_CONSTRUCTION_PROCESS = 7,
+	PARTS_SPRITE_FLASH = 8,
+	PARTS_SPRITE_FLAT = 9,
+	PARTS_SPRITE_MOVIE = 10,
+	PARTS_SPRITE_RECT_DETECTION = 11,
+	PARTS_SPRITE_3DLAYER = 13,
+#define PARTS_NR_SPRITE_TYPES (PARTS_SPRITE_3DLAYER+1)
 };
 
 struct parts_common {
@@ -345,13 +350,7 @@ enum parts_layout_type {
 	PARTS_LAYOUT_HORIZONTAL = 2,
 };
 
-// In AliceSoft's PartsEngine implementation, LayoutBox is a component type
-// that is NOT per-state. We store it per-state for uniformity with other
-// component types, but parts_get_layout_box() and all code in layoutbox.c
-// operate on states[0] only. This is safe as long as game scripts never
-// convert a LayoutBox parts to/from another component type.
-struct parts_layout_box {
-	struct parts_common common;
+struct parts_layoutbox {
 	enum parts_layout_type layout_type;
 	bool wrap;
 	int wrap_size;
@@ -368,8 +367,8 @@ struct parts_3dlayer {
 	int sprite_no; // SACT sprite used as render target
 };
 
-struct parts_state {
-	enum parts_type type;
+struct parts_sprite {
+	enum parts_sprite_type type;
 	union {
 		struct parts_common common;
 		struct parts_cg cg;
@@ -381,7 +380,6 @@ struct parts_state {
 		struct parts_flash flash;
 		struct parts_flat flat;
 		struct parts_movie movie;
-		struct parts_layout_box layout_box;
 		struct parts_3dlayer layer3d;
 	};
 };
@@ -400,10 +398,99 @@ struct parts_params {
 	int alpha_clipper_parts_no;
 };
 
+// A parts of a type other than PARTS_TYPE_SPRITE is a widget. A widget
+// has one set of data for all display states, not a sprite for each state.
+enum parts_type {
+	PARTS_TYPE_BUTTON = 0,
+	PARTS_TYPE_CHECKBOX = 1,
+	PARTS_TYPE_VSCROLLBAR = 2,
+	PARTS_TYPE_HSCROLLBAR = 3,
+	PARTS_TYPE_LAYOUTBOX = 8,
+	PARTS_TYPE_RADIOBOX = 9,
+	PARTS_TYPE_SPRITE = 10,
+};
+
+// Appearance shared by buttons and checkboxes.
+struct parts_button_style {
+	int w, h;
+	int r, g, b;
+	struct text_style font;
+	struct string *cg_name;
+	struct string *flat_name;
+	struct string *text;
+	int text_align;
+	int line_space;
+};
+
+struct parts_button {
+	struct parts_button_style style;
+	bool enabled;
+};
+
+struct parts_checkbox {
+	struct parts_button_style style;
+	bool checked;
+	bool button_mode;  // Looks like a button.
+};
+
+struct parts_radiobox {
+	int count;
+	int *members;
+	bool updating;
+};
+
+enum parts_scrollbar_region {
+	PARTS_SCROLLBAR_NONE,
+	PARTS_SCROLLBAR_LEADING,
+	PARTS_SCROLLBAR_TRAILING,
+	PARTS_SCROLLBAR_THUMB,
+	PARTS_SCROLLBAR_TRACK,
+};
+
+struct parts_scrollbar {
+	bool horizontal;
+	int length;
+	int thickness;
+	int leading;
+	int trailing;
+	int total_size;
+	int view_size;
+	int pos;
+	int move_size;
+	float rate;
+	struct string *cg_name;
+	Texture buttons[2][PARTS_NR_LOOKS];  // leading, trailing
+	Texture thumb[PARTS_NR_STATES];
+	Texture track;
+	int thumb_length;
+	enum parts_scrollbar_region hover;
+	enum parts_scrollbar_region pressed;
+	int press_offset;
+	int repeat_time;
+	float press_rate;
+	int notified_pos;
+	float notified_rate;
+	bool needs_compose;
+};
+
 struct parts {
+	// The entry of the parts in the scene. It must be the first member. It is
+	// not related to sprites[].
 	struct sprite sp;
-	enum parts_state_type state;
-	struct parts_state states[PARTS_NR_STATES];
+	enum parts_type type;
+	union {
+		struct parts_button *button;
+		struct parts_checkbox *checkbox;
+		struct parts_scrollbar *scrollbar;
+		struct parts_radiobox *radiobox;
+		struct parts_layoutbox *layoutbox;
+	} widget;
+	// If nonzero, this parts is hidden while that checkbox parts is unchecked.
+	int checkbox_show_link;
+	enum parts_state state;
+	// If type is not PARTS_TYPE_SPRITE, the widget owns the sprites and
+	// keeps its rendered images in them.
+	struct parts_sprite sprites[PARTS_NR_STATES];
 	TAILQ_ENTRY(parts) parts_list_entry;
 	TAILQ_ENTRY(parts) child_list_entry;
 	TAILQ_ENTRY(parts) dirty_list_entry;
@@ -459,6 +546,8 @@ extern bool parts_multi_controller;
 
 struct parts *parts_try_get(int parts_no);
 struct parts *parts_get(int parts_no);
+struct parts_sprite *parts_get_sprite(struct parts *parts, int state,
+		enum parts_sprite_type type);
 struct parts_cg *parts_get_cg(struct parts *parts, int state);
 struct parts_text *parts_get_text(struct parts *parts, int state);
 struct parts_animation *parts_get_animation(struct parts *parts, int state);
@@ -469,7 +558,6 @@ struct parts_construction_process *parts_get_construction_process(struct parts *
 struct parts_flash *parts_get_flash(struct parts *parts, int state);
 struct parts_flat *parts_get_flat(struct parts *parts, int state);
 struct parts_movie *parts_get_movie(struct parts *parts, int state);
-struct parts_layout_box *parts_get_layout_box(struct parts *parts);
 struct parts_3dlayer *parts_get_3dlayer(struct parts *parts, int state);
 void parts_set_pos(struct parts *parts, Point pos);
 void parts_set_global_pos(Point pos);
@@ -478,7 +566,7 @@ void parts_set_scale_x(struct parts *parts, float mag);
 void parts_set_scale_y(struct parts *parts, float mag);
 void parts_set_rotation_z(struct parts *parts, float rot);
 void parts_set_alpha(struct parts *parts, int alpha);
-void parts_set_state(struct parts *parts, enum parts_state_type state);
+void parts_set_state(struct parts *parts, enum parts_state state);
 void parts_set_parent(struct parts *parts, struct parts *parent);
 void parts_release(int parts_no);
 void parts_release_all(void);
@@ -492,7 +580,8 @@ extern int parts_nr_numeral_fonts;
 void parts_list_resort(struct parts *parts);
 void parts_component_dirty(struct parts *parts);
 void parts_recalculate_hitbox(struct parts *parts);
-void parts_state_reset(struct parts_state *state, enum parts_type type);
+bool parts_is_visible(struct parts *parts);
+void parts_sprite_reset(struct parts_sprite *sprite, enum parts_sprite_type type);
 bool parts_cg_set(struct parts *parts, struct parts_cg *cg, struct string *cg_name);
 bool parts_cg_set_by_index(struct parts *parts, struct parts_cg *cg, int cg_no);
 void parts_text_append(struct parts *parts, struct parts_text *t, struct string *text);
@@ -513,15 +602,82 @@ void parts_text_free(struct parts_text *t);
 struct string *parts_text_line_get(struct parts_text_line *line);
 struct string *parts_text_get(struct parts_text *t);
 
+// widget.c
+void parts_utf2sjis_array(const char **strs, int n);
+const char *parts_widget_look_suffix(int look);
+struct string *parts_widget_resource_name(struct string *base, const char *infix,
+		const char *suffix);
+void parts_widget_free(struct parts *parts);
+void parts_type_reset(struct parts *parts, enum parts_type type,
+		enum parts_sprite_type sprite_type);
+void parts_set_type(struct parts *parts, enum parts_type type);
+void parts_widget_update(struct parts *parts);
+void parts_widget_end_input(struct parts *parts);
+
+// True for checkboxes also.
+static inline bool parts_is_button(struct parts *parts)
+{
+	return parts->type == PARTS_TYPE_BUTTON
+		|| parts->type == PARTS_TYPE_CHECKBOX;
+}
+
+static inline bool parts_is_scrollbar(struct parts *parts)
+{
+	return parts->type == PARTS_TYPE_VSCROLLBAR
+		|| parts->type == PARTS_TYPE_HSCROLLBAR;
+}
+
+// button.c
+enum parts_button_resource {
+	PARTS_BUTTON_FLAT,
+	PARTS_BUTTON_CG,
+	PARTS_BUTTON_GENERATED,
+};
+void parts_button_style_init(struct parts_button_style *s, int w, int h);
+void parts_button_style_free(struct parts_button_style *s);
+enum parts_button_resource parts_button_style_load(struct parts *parts, int state,
+		struct parts_button_style *s, const char *infix, int look);
+void parts_button_style_draw_background(struct parts *parts, int state,
+		struct parts_button_style *s, int look);
+void parts_button_style_draw_label(Texture *t, struct parts_button_style *s, bool pressed);
+void parts_button_style_measure_text(struct parts_button_style *s, int *width, int *height,
+		int *line_height);
+void parts_button_style_draw_text(Texture *t, struct parts_button_style *s, int x, int y,
+		int line_height, bool blend);
+struct parts_button *parts_get_button(struct parts *parts);
+void parts_button_free(struct parts_button *b);
+void parts_button_rebuild(struct parts *parts);
+
+// checkbox.c
+struct parts_checkbox *parts_get_checkbox(struct parts *parts);
+void parts_checkbox_free(struct parts_checkbox *c);
+void parts_checkbox_rebuild(struct parts *parts);
+void parts_checkbox_set_checked(struct parts *parts, bool checked);
+void parts_checkbox_click(struct parts *parts, Point pos);
+
+// radiobox.c
+struct parts_radiobox *parts_get_radiobox(struct parts *parts);
+void parts_radiobox_free(struct parts_radiobox *box);
+void parts_radiobox_member_changed(struct parts *member, bool checked);
+
 // render.c
 void parts_render_init(void);
 void parts_render_update(void);
 void parts_engine_dirty(void);
 void parts_engine_clean(void);
 void parts_dirty(struct parts *parts);
-void parts_sprite_render(struct sprite *sp);
+void parts_sp_render(struct sprite *sp);
 void parts_render(struct parts *parts);
 void parts_render_family(struct parts *parts);
+
+// scrollbar.c
+struct parts_scrollbar *parts_get_scrollbar(struct parts *parts, bool horizontal);
+void parts_scrollbar_free(struct parts_scrollbar *s);
+void parts_scrollbar_rebuild(struct parts *parts);
+void parts_scrollbar_update(struct parts *parts);
+void parts_scrollbar_mouse(struct parts *parts, Point pos, bool down,
+		bool trigger, bool hovered, int passed_time);
+void parts_scrollbar_reset_input(struct parts *parts);
 
 // motion.c
 void parts_clear_motion(struct parts *parts);
@@ -549,6 +705,8 @@ enum parts_message_type {
 	PARTS_MSG_KEY_TRIGGER    = 14,
 	PARTS_MSG_KEY_DOWN       = 15,
 	PARTS_MSG_KEY_UP         = 17,
+	PARTS_MSG_SCROLL         = 20,
+	PARTS_MSG_CHANGED        = 22,
 };
 
 void parts_msg_push(struct parts* parts, int type, const char *fmt, ...);
@@ -625,17 +783,50 @@ void parts_flat_emitter_resolve_layer(
 		struct flat_emitter_layer_effective *out);
 
 // layoutbox.c
+struct parts_layoutbox *parts_get_layoutbox(struct parts *parts);
 void parts_do_layout(struct parts *parts);
 
 // debug.c
 struct sprite;
 void parts_debug_init(void);
 cJSON *parts_engine_to_json(struct sprite *sp, bool verbose);
-cJSON *parts_sprite_to_json(struct sprite *sp, bool verbose);
+cJSON *parts_sp_to_json(struct sprite *sp, bool verbose);
 
 static inline bool parts_state_valid(int state)
 {
 	return state >= 0 && state <= 2;
+}
+
+enum parts_align {
+	PARTS_ALIGN_TOP_LEFT = 1,
+	PARTS_ALIGN_TOP_CENTER,
+	PARTS_ALIGN_TOP_RIGHT,
+	PARTS_ALIGN_MIDDLE_LEFT,
+	PARTS_ALIGN_CENTER,
+	PARTS_ALIGN_MIDDLE_RIGHT,
+	PARTS_ALIGN_BOTTOM_LEFT,
+	PARTS_ALIGN_BOTTOM_CENTER,
+	PARTS_ALIGN_BOTTOM_RIGHT,
+};
+
+static inline bool parts_align_valid(int mode)
+{
+	return mode >= PARTS_ALIGN_TOP_LEFT && mode <= PARTS_ALIGN_BOTTOM_RIGHT;
+}
+
+static inline int parts_align_part(int index, int len)
+{
+	return index == 0 ? 0 : index == 1 ? len / 2 : len;
+}
+
+static inline int parts_align_x(int mode, int len)
+{
+	return parts_align_valid(mode) ? parts_align_part((mode - 1) % 3, len) : 0;
+}
+
+static inline int parts_align_y(int mode, int len)
+{
+	return parts_align_valid(mode) ? parts_align_part((mode - 1) / 3, len) : 0;
 }
 
 #endif /* SYSTEM4_PARTS_INTERNAL_H */

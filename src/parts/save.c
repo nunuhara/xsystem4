@@ -25,7 +25,10 @@
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 7
+#define CURRENT_SAVE_VERSION 8
+
+// Old save data can store a layout box as this sprite type.
+#define LEGACY_SPRITE_LAYOUTBOX 12
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -398,7 +401,7 @@ static void load_parts_3dlayer(struct iarray_reader *r, struct parts_3dlayer *l,
 	RE_plugin_deserialize(RE_get_plugin(l->plugin), r, version);
 }
 
-static void save_parts_layout_box(struct iarray_writer *w, struct parts_layout_box *lb)
+static void save_parts_layoutbox(struct iarray_writer *w, struct parts_layoutbox *lb)
 {
 	iarray_write(w, lb->layout_type);
 	iarray_write(w, lb->wrap);
@@ -410,7 +413,7 @@ static void save_parts_layout_box(struct iarray_writer *w, struct parts_layout_b
 	iarray_write(w, lb->padding_right);
 }
 
-static void load_parts_layout_box(struct iarray_reader *r, struct parts_layout_box *lb)
+static void load_parts_layoutbox(struct iarray_reader *r, struct parts_layoutbox *lb)
 {
 	lb->layout_type = iarray_read(r);
 	lb->wrap = iarray_read(r);
@@ -422,100 +425,97 @@ static void load_parts_layout_box(struct iarray_reader *r, struct parts_layout_b
 	lb->padding_right = iarray_read(r);
 }
 
-static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
+static void save_parts_sprite(struct iarray_writer *w, struct parts_sprite *sprite)
 {
-	iarray_write(w, state->type);
-	iarray_write(w, state->common.w);
-	iarray_write(w, state->common.h);
-	iarray_write_point(w, &state->common.origin_offset);
-	iarray_write_rectangle(w, &state->common.hitbox);
-	iarray_write_rectangle(w, &state->common.surface_area);
-	switch (state->type) {
-	case PARTS_UNINITIALIZED:
-	case PARTS_MOVIE:
-	case PARTS_RECT_DETECTION:
+	iarray_write(w, sprite->type);
+	iarray_write(w, sprite->common.w);
+	iarray_write(w, sprite->common.h);
+	iarray_write_point(w, &sprite->common.origin_offset);
+	iarray_write_rectangle(w, &sprite->common.hitbox);
+	iarray_write_rectangle(w, &sprite->common.surface_area);
+	switch (sprite->type) {
+	case PARTS_SPRITE_NONE:
+	case PARTS_SPRITE_MOVIE:
+	case PARTS_SPRITE_RECT_DETECTION:
 		break;
-	case PARTS_3DLAYER:
-		save_parts_3dlayer(w, &state->layer3d);
+	case PARTS_SPRITE_3DLAYER:
+		save_parts_3dlayer(w, &sprite->layer3d);
 		break;
-	case PARTS_CG:
-		save_parts_cg(w, &state->cg);
+	case PARTS_SPRITE_CG:
+		save_parts_cg(w, &sprite->cg);
 		break;
-	case PARTS_TEXT:
-		save_parts_text(w, &state->text);
+	case PARTS_SPRITE_TEXT:
+		save_parts_text(w, &sprite->text);
 		break;
-	case PARTS_ANIMATION:
-		save_parts_animation(w, &state->anim);
+	case PARTS_SPRITE_ANIMATION:
+		save_parts_animation(w, &sprite->anim);
 		break;
-	case PARTS_NUMERAL:
-		save_parts_numeral(w, &state->num);
+	case PARTS_SPRITE_NUMERAL:
+		save_parts_numeral(w, &sprite->num);
 		break;
-	case PARTS_HGAUGE:
-	case PARTS_VGAUGE:
-		save_parts_gauge(w, &state->gauge);
+	case PARTS_SPRITE_HGAUGE:
+	case PARTS_SPRITE_VGAUGE:
+		save_parts_gauge(w, &sprite->gauge);
 		break;
-	case PARTS_CONSTRUCTION_PROCESS:
-		save_parts_construction_process(w, &state->cproc);
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS:
+		save_parts_construction_process(w, &sprite->cproc);
 		break;
-	case PARTS_FLASH:
-		save_parts_flash(w, &state->flash);
+	case PARTS_SPRITE_FLASH:
+		save_parts_flash(w, &sprite->flash);
 		break;
-	case PARTS_FLAT:
-		save_parts_flat(w, &state->flat);
-		break;
-	case PARTS_LAYOUT_BOX:
-		save_parts_layout_box(w, &state->layout_box);
+	case PARTS_SPRITE_FLAT:
+		save_parts_flat(w, &sprite->flat);
 		break;
 	}
 }
 
-static void load_parts_state(struct iarray_reader *r, struct parts *parts,
-		struct parts_state *state, int version)
+static void load_parts_sprite(struct iarray_reader *r, struct parts *parts,
+		struct parts_sprite *sprite, int version)
 {
-	parts_state_reset(state, iarray_read(r));
-	state->common.w = iarray_read(r);
-	state->common.h = iarray_read(r);
-	iarray_read_point(r, &state->common.origin_offset);
-	iarray_read_rectangle(r, &state->common.hitbox);
-	iarray_read_rectangle(r, &state->common.surface_area);
-	switch (state->type) {
-	case PARTS_UNINITIALIZED:
-	case PARTS_MOVIE:
-	case PARTS_RECT_DETECTION:
+	int type = iarray_read(r);
+	if (type == LEGACY_SPRITE_LAYOUTBOX)
+		VM_ERROR("layout box sprite in save data is not supported");
+	parts_sprite_reset(sprite, type);
+	sprite->common.w = iarray_read(r);
+	sprite->common.h = iarray_read(r);
+	iarray_read_point(r, &sprite->common.origin_offset);
+	iarray_read_rectangle(r, &sprite->common.hitbox);
+	iarray_read_rectangle(r, &sprite->common.surface_area);
+	switch (sprite->type) {
+	case PARTS_SPRITE_NONE:
+	case PARTS_SPRITE_MOVIE:
+	case PARTS_SPRITE_RECT_DETECTION:
 		break;
-	case PARTS_3DLAYER:
+	case PARTS_SPRITE_3DLAYER:
 		if (version > 5)
-			load_parts_3dlayer(r, &state->layer3d, version);
+			load_parts_3dlayer(r, &sprite->layer3d, version);
 		break;
-	case PARTS_CG:
-		load_parts_cg(r, parts, &state->cg);
+	case PARTS_SPRITE_CG:
+		load_parts_cg(r, parts, &sprite->cg);
 		break;
-	case PARTS_TEXT:
-		load_parts_text(r, parts, &state->text);
+	case PARTS_SPRITE_TEXT:
+		load_parts_text(r, parts, &sprite->text);
 		break;
-	case PARTS_ANIMATION:
-		load_parts_animation(r, parts, &state->anim);
+	case PARTS_SPRITE_ANIMATION:
+		load_parts_animation(r, parts, &sprite->anim);
 		break;
-	case PARTS_NUMERAL:
-		load_parts_numeral(r, parts, &state->num);
+	case PARTS_SPRITE_NUMERAL:
+		load_parts_numeral(r, parts, &sprite->num);
 		break;
-	case PARTS_HGAUGE:
-		load_parts_gauge(r, parts, &state->gauge, false);
+	case PARTS_SPRITE_HGAUGE:
+		load_parts_gauge(r, parts, &sprite->gauge, false);
 		break;
-	case PARTS_VGAUGE:
-		load_parts_gauge(r, parts, &state->gauge, true);
+	case PARTS_SPRITE_VGAUGE:
+		load_parts_gauge(r, parts, &sprite->gauge, true);
 		break;
-	case PARTS_CONSTRUCTION_PROCESS:
-		load_parts_construction_process(r, parts, &state->cproc, version);
+	case PARTS_SPRITE_CONSTRUCTION_PROCESS:
+		load_parts_construction_process(r, parts, &sprite->cproc, version);
 		break;
-	case PARTS_FLASH:
-		load_parts_flash(r, parts, &state->flash);
+	case PARTS_SPRITE_FLASH:
+		load_parts_flash(r, parts, &sprite->flash);
 		break;
-	case PARTS_FLAT:
-		load_parts_flat(r, parts, &state->flat);
-		break;
-	case PARTS_LAYOUT_BOX:
-		load_parts_layout_box(r, &state->layout_box);
+	case PARTS_SPRITE_FLAT:
+		load_parts_flat(r, parts, &sprite->flat);
 		break;
 	}
 }
@@ -592,12 +592,175 @@ static struct parts_motion *load_parts_motion(struct iarray_reader *r)
 	return motion;
 }
 
+static void save_parts_button_style(struct iarray_writer *w, struct parts_button_style *s)
+{
+	iarray_write(w, s->w);
+	iarray_write(w, s->h);
+	iarray_write(w, s->r);
+	iarray_write(w, s->g);
+	iarray_write(w, s->b);
+	iarray_write_text_style(w, &s->font);
+	iarray_write_string(w, s->cg_name);
+	iarray_write_string(w, s->flat_name);
+	iarray_write_string(w, s->text);
+	iarray_write(w, s->text_align);
+	iarray_write(w, s->line_space);
+}
+
+static void load_parts_button_style(struct iarray_reader *r, struct parts_button_style *s)
+{
+	s->w = iarray_read(r);
+	s->h = iarray_read(r);
+	s->r = iarray_read(r);
+	s->g = iarray_read(r);
+	s->b = iarray_read(r);
+	iarray_read_text_style(r, &s->font);
+	free_string(s->cg_name);
+	free_string(s->flat_name);
+	free_string(s->text);
+	s->cg_name = iarray_read_string(r);
+	s->flat_name = iarray_read_string(r);
+	s->text = iarray_read_string(r);
+	s->text_align = iarray_read(r);
+	s->line_space = iarray_read(r);
+}
+
+static void save_parts_button(struct iarray_writer *w, struct parts_button *b)
+{
+	save_parts_button_style(w, &b->style);
+	iarray_write(w, b->enabled);
+}
+
+static void load_parts_button(struct iarray_reader *r, struct parts *parts)
+{
+	struct parts_button *b = parts_get_button(parts);
+	load_parts_button_style(r, &b->style);
+	b->enabled = iarray_read(r);
+	parts_button_rebuild(parts);
+}
+
+static void save_parts_checkbox(struct iarray_writer *w, struct parts_checkbox *c)
+{
+	save_parts_button_style(w, &c->style);
+	iarray_write(w, c->checked);
+	iarray_write(w, c->button_mode);
+}
+
+static void load_parts_checkbox(struct iarray_reader *r, struct parts *parts)
+{
+	struct parts_checkbox *c = parts_get_checkbox(parts);
+	load_parts_button_style(r, &c->style);
+	c->checked = iarray_read(r);
+	c->button_mode = iarray_read(r);
+	parts_checkbox_rebuild(parts);
+}
+
+static void save_parts_scrollbar(struct iarray_writer *w, struct parts_scrollbar *s)
+{
+	iarray_write(w, s->length);
+	iarray_write(w, s->thickness);
+	iarray_write(w, s->leading);
+	iarray_write(w, s->trailing);
+	iarray_write(w, s->total_size);
+	iarray_write(w, s->view_size);
+	iarray_write(w, s->pos);
+	iarray_write_float(w, s->rate);
+	iarray_write(w, s->move_size);
+	iarray_write_string(w, s->cg_name);
+}
+
+static void load_parts_scrollbar(struct iarray_reader *r, struct parts *parts, bool horizontal)
+{
+	struct parts_scrollbar *s = parts_get_scrollbar(parts, horizontal);
+	s->length = iarray_read(r);
+	s->thickness = iarray_read(r);
+	s->leading = iarray_read(r);
+	s->trailing = iarray_read(r);
+	s->total_size = iarray_read(r);
+	s->view_size = iarray_read(r);
+	s->pos = iarray_read(r);
+	s->rate = iarray_read_float(r);
+	s->move_size = iarray_read(r);
+	free_string(s->cg_name);
+	s->cg_name = iarray_read_string(r);
+	parts_scrollbar_rebuild(parts);
+}
+
+static void save_parts_radiobox(struct iarray_writer *w, struct parts_radiobox *box)
+{
+	iarray_write(w, box->count);
+	for (int i = 0; i < box->count; i++)
+		iarray_write(w, box->members[i]);
+}
+
+static void load_parts_radiobox(struct iarray_reader *r, struct parts *parts)
+{
+	struct parts_radiobox *box = parts_get_radiobox(parts);
+	free(box->members);
+	box->count = iarray_read(r);
+	box->members = box->count > 0 ? xcalloc(box->count, sizeof(*box->members)) : NULL;
+	for (int i = 0; i < box->count; i++)
+		box->members[i] = iarray_read(r);
+}
+
+static void save_parts_widget(struct iarray_writer *w, struct parts *parts)
+{
+	iarray_write(w, parts->type);
+	switch (parts->type) {
+	case PARTS_TYPE_SPRITE:
+		break;
+	case PARTS_TYPE_BUTTON:
+		save_parts_button(w, parts->widget.button);
+		break;
+	case PARTS_TYPE_CHECKBOX:
+		save_parts_checkbox(w, parts->widget.checkbox);
+		break;
+	case PARTS_TYPE_VSCROLLBAR:
+	case PARTS_TYPE_HSCROLLBAR:
+		save_parts_scrollbar(w, parts->widget.scrollbar);
+		break;
+	case PARTS_TYPE_LAYOUTBOX:
+		save_parts_layoutbox(w, parts->widget.layoutbox);
+		break;
+	case PARTS_TYPE_RADIOBOX:
+		save_parts_radiobox(w, parts->widget.radiobox);
+		break;
+	}
+}
+
+static void load_parts_widget(struct iarray_reader *r, struct parts *parts)
+{
+	int type = iarray_read(r);
+	switch (type) {
+	case PARTS_TYPE_SPRITE:
+		break;
+	case PARTS_TYPE_BUTTON:
+		load_parts_button(r, parts);
+		break;
+	case PARTS_TYPE_CHECKBOX:
+		load_parts_checkbox(r, parts);
+		break;
+	case PARTS_TYPE_VSCROLLBAR:
+	case PARTS_TYPE_HSCROLLBAR:
+		load_parts_scrollbar(r, parts, type == PARTS_TYPE_HSCROLLBAR);
+		break;
+	case PARTS_TYPE_LAYOUTBOX:
+		load_parts_layoutbox(r, parts_get_layoutbox(parts));
+		break;
+	case PARTS_TYPE_RADIOBOX:
+		load_parts_radiobox(r, parts);
+		break;
+	default:
+		VM_ERROR("invalid saved widget type %d", type);
+	}
+}
+
 static void save_parts(struct iarray_writer *w, struct parts *parts)
 {
 	iarray_write(w, parts->no);
 	iarray_write(w, parts->state);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		save_parts_state(w, &parts->states[i]);
+		save_parts_sprite(w, &parts->sprites[i]);
 	}
 
 	save_parts_params(w, &parts->local);
@@ -634,6 +797,8 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	}
 
 	iarray_write_at(w, motion_count_pos, motion_count);
+	iarray_write(w, parts->checkbox_show_link);
+	save_parts_widget(w, parts);
 }
 
 static void load_parts(struct iarray_reader *r, int version)
@@ -642,7 +807,7 @@ static void load_parts(struct iarray_reader *r, int version)
 	struct parts *parts = parts_get(no);
 	parts->state = iarray_read(r);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		load_parts_state(r, parts, &parts->states[i], version);
+		load_parts_sprite(r, parts, &parts->sprites[i], version);
 	}
 
 	load_parts_params(r, &parts->local, version);
@@ -676,6 +841,11 @@ static void load_parts(struct iarray_reader *r, int version)
 	for (int i = 0; i < motion_count; i++) {
 		struct parts_motion *motion = load_parts_motion(r);
 		parts_add_motion(parts, motion);
+	}
+
+	if (version >= 8) {
+		parts->checkbox_show_link = iarray_read(r);
+		load_parts_widget(r, parts);
 	}
 
 	parts_list_resort(parts);
