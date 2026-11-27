@@ -37,6 +37,7 @@
 #include "vm/page.h"
 #include "dungeon/dungeon.h"
 #include "xsystem4.h"
+#include "modifier.h"
 
 static enum sprite_engine_type engine_type = UNINITIALIZED_SPRITE_ENGINE;
 static struct sact_sprite **sprites = NULL;
@@ -97,6 +98,36 @@ struct sact_sprite *sact_try_get_sprite(int sp)
 	return sprites[sp];
 }
 
+static void sact_on_gl_reset(void *user)
+{
+	(void)user;
+	if (!sprites)
+		return;
+	if (sprites[-1]) {
+		Texture *ms = gfx_main_surface();
+		sprites[-1]->texture = *ms;
+		gfx_remap_texture(&sprites[-1]->text.texture);
+		sprite_dirty(sprites[-1]);
+	}
+	for (int i = 0; i < nr_sprites; i++) {
+		struct sact_sprite *sp = sprites[i];
+		if (!sp)
+			continue;
+		bool had_cg = sp->cg_no > 0;
+		bool remap_ok = gfx_remap_texture(&sp->texture);
+		gfx_remap_texture(&sp->text.texture);
+		if (!remap_ok && had_cg) {
+			struct cg *cg = asset_cg_load(sp->cg_no);
+			if (cg) {
+				gfx_init_texture_with_cg(&sp->texture, cg);
+				cg_free(cg);
+			}
+		}
+		sprite_dirty(sp);
+	}
+	scene_dirty();
+}
+
 int sact_init(possibly_unused int cg_cache_size, enum sprite_engine_type engine)
 {
 	if (engine_type != UNINITIALIZED_SPRITE_ENGINE) {
@@ -129,6 +160,7 @@ int sact_init(possibly_unused int cg_cache_size, enum sprite_engine_type engine)
 	else
 		sprite_init_sact();
 
+	gfx_register_reset_callback(sact_on_gl_reset, NULL);
 	return 1;
 }
 
@@ -148,6 +180,27 @@ void sact_ModuleFini(void)
 	audio_reset();
 }
 
+#if defined(ALICEHUB_IOS)
+void sact_end_session(void)
+{
+	if (sprites) {
+		sact_SP_DeleteAll();
+		if (sprites[-1]) {
+			// The main surface owns its texture.
+			sprites[-1]->texture = (Texture){0};
+			sprite_free(sprites[-1]);
+			free(sprites[-1]);
+		}
+		free(sprites - 1);
+	}
+	sprites = NULL;
+	nr_sprites = 0;
+	engine_type = UNINITIALIZED_SPRITE_ENGINE;
+	view_mode = 0;
+	use_power2_texture = false;
+}
+#endif
+
 //int SACT2_Error(struct string *err);
 HLL_WARN_UNIMPLEMENTED(0, int, SACT2, WP_GetSP, int sp);
 
@@ -156,9 +209,10 @@ int sact_WP_SetSP(int sp_no)
 	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp)
 		return 0;
-	if (!sp->texture.handle)
+	Texture *tex = sprite_get_texture(sp);
+	if (!tex || !tex->handle)
 		return 0;
-	return scene_set_wp_texture(&sp->texture);
+	return scene_set_wp_texture(tex);
 }
 
 int sact_GetScreenWidth(void)
@@ -178,12 +232,22 @@ int sact_GetMainSurfaceNumber(void)
 
 int sact_Update(void)
 {
+	static uint32_t s_last_idle_mod_ms = 0;
 	handle_events();
 	sprite_call_plugins();
 	if (scene_is_dirty) {
 		scene_render();
-		gfx_swap();
 		scene_is_dirty = false;
+		gfx_swap();
+		gfx_mark_frame_presented();
+		s_last_idle_mod_ms = SDL_GetTicks();
+	} else {
+		gfx_clear_frame_presented();
+		uint32_t now = SDL_GetTicks();
+		if (now - s_last_idle_mod_ms >= 30) {
+			s_last_idle_mod_ms = now;
+			modifier_on_frame();
+		}
 	}
 	return 1;
 }
@@ -194,9 +258,13 @@ int sact_Effect(int type, int time, possibly_unused int key)
 	if (!effect_init(type))
 		return 0;
 	scene_render();
+	if (time <= 0) {
+		effect_fini();
+		return 1;
+	}
 
 	uint32_t t = SDL_GetTicks() - start;
-	while (t < time) {
+	while (t < (uint32_t)time) {
 		effect_update((float)t / (float)time);
 		uint32_t t2 = SDL_GetTicks() - start;
 		if (t2 < t + 16) {
@@ -216,21 +284,28 @@ HLL_WARN_UNIMPLEMENTED(1, int, SACT2, EffectSetMask, int cg);
 
 void sact_QuakeScreen(int amp_x, int amp_y, int time, int key)
 {
+	(void)key;
+	if (time <= 0)
+		return;
+
 	Texture tex;
 	scene_render();
 	gfx_copy_main_surface(&tex);
 
 	Texture *dst = gfx_main_surface();
+	int ax = abs(amp_x);
+	int ay = abs(amp_y);
 
 	for (int i = 0; i < time; i+= 16) {
 		float rate = 1.0f - ((float)i / (float)time);
-		int delta_x = amp_x ? (rand() % amp_x - amp_x/2) * rate : 0;
-		int delta_y = amp_y ? (rand() % amp_y - amp_y/2) * rate : 0;
+		int delta_x = ax ? (int)((rand() % ax - ax/2) * rate) : 0;
+		int delta_y = ay ? (int)((rand() % ay - ay/2) * rate) : 0;
 		gfx_clear();
 		gfx_copy(dst, delta_x, delta_y, &tex, 0, 0, dst->w, dst->h);
 		gfx_swap();
 		SDL_Delay(16);
 	}
+	gfx_delete_texture(&tex);
 }
 
 //void SACT2_QUAKE_SET_CROSS(int amp_x, int amp_y);
@@ -238,6 +313,7 @@ void sact_QuakeScreen(int amp_x, int amp_y, int time, int key)
 
 int sact_SP_GetUnuseNum(int min)
 {
+	min = max(1, min);
 	for (int i = min; i < nr_sprites; i++) {
 		if (!sprites[i])
 			return i;
@@ -260,6 +336,8 @@ int sact_SP_Count(void)
 
 int sact_SP_Enum(struct page **array)
 {
+	if (!array || !*array)
+		return 0;
 	int count = 0;
 	int size = (*array)->nr_vars;
 	for (int i = 0; i < nr_sprites && count < size; i++) {
@@ -296,9 +374,12 @@ int sact_SP_SetCG2X(int sp_no, int cg_no)
 
 int sact_SP_SetCGFromFile(int sp_no, struct string *filename)
 {
+	if (!filename) return 0;
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
-	char *path = gamedir_path(filename->text);
+	char *path = gamedir_path_icase(filename->text);
+	if (!path)
+		path = gamedir_path(filename->text);
 	int r = sprite_set_cg_from_file(sp, path);
 	free(path);
 	return r;
@@ -306,6 +387,7 @@ int sact_SP_SetCGFromFile(int sp_no, struct string *filename)
 
 int sact_SP_SaveCG(int sp_no, struct string *filename)
 {
+	if (!filename) return 0;
 	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return 0;
 	char *path = gamedir_path(filename->text);
@@ -338,6 +420,20 @@ int sact_SP_CreateCustom(int sp_no)
 	if (!sp) return 0;
 	sprite_init_custom(sp);
 	return true;
+}
+
+int sact_SP_CreateCopy(int dst_no, int src_no)
+{
+	struct sact_sprite *src = sact_try_get_sprite(src_no);
+	if (!src)
+		return 0;
+	if (dst_no == src_no)
+		return 1;
+	struct sact_sprite *dst = sact_get_sprite(dst_no);
+	if (!dst)
+		return 0;
+	sprite_init_copy(dst, src);
+	return 1;
 }
 
 int sact_SP_Delete(int sp_no)
@@ -575,6 +671,8 @@ int _sact_SP_TextDraw(int sp_no, struct string *text, struct text_style *ts)
 
 int sact_SP_TextDraw(int sp_no, struct string *text, struct page *_tm)
 {
+	if (!text || !_tm || _tm->type != STRUCT_PAGE || _tm->nr_vars < 13)
+		return 0;
 	struct text_style ts;
 	sact_text_metrics_to_text_style(&ts, _tm->values);
 	_sact_SP_TextDraw(sp_no, text, &ts);
@@ -687,6 +785,8 @@ int sact_SP_IsPtInRect(int sp_no, int x, int y)
 
 int sact_CG_GetMetrics(int cg_no, struct page **page)
 {
+	if (!page || !*page || (*page)->type != STRUCT_PAGE || (*page)->nr_vars < 7)
+		return 0;
 	union vm_value *cgm = (*page)->values;
 	struct cg_metrics metrics;
 	if (!asset_cg_get_metrics(cg_no, &metrics))
@@ -732,7 +832,9 @@ void sact_IntToZenkaku(struct string **s, int value, int figures, int zero_pad)
 	int i;
 	char buf[512];
 
-	string_clear(*s);
+	if (!s)
+		return;
+	string_clear_ref(s);
 	i = int_to_cstr(buf, 512, value, figures, zero_pad, true);
 	string_append_cstr(s, buf, i);
 }
@@ -742,7 +844,9 @@ void sact_IntToHankaku(struct string **s, int value, int figures, int zero_pad)
 	int i;
 	char buf[512];
 
-	string_clear(*s);
+	if (!s)
+		return;
+	string_clear_ref(s);
 	i = int_to_cstr(buf, 512, value, figures, zero_pad, false);
 	string_append_cstr(s, buf, i);
 }
@@ -774,22 +878,28 @@ int sact_Joypad_IsKeyDown(int num, int key)
 	return joy_key_is_down(key);
 }
 
-//int SACT2_Joypad_GetNumof(void);
-HLL_WARN_UNIMPLEMENTED( , void, SACT2, JoypadQuake_Set, int num, int type, int magnitude);
+int sact_Joypad_GetNumof(void)
+{
+	handle_events();
+	return joy_get_num_controllers();
+}
+
+void sact_JoypadQuake_Set(int num, int type, int magnitude)
+{
+	(void)type;
+	joy_rumble(num, magnitude, 250);
+}
 
 bool sact_Joypad_GetAnalogStickStatus(int num, int type, float *degree, float *power)
 {
+	handle_events();
 	return joy_get_stick_status(num, type, degree, power);
 }
 
-bool sact_Joypad_GetDigitalStickStatus(int num, int type, bool *left, bool *right, bool *up, bool *down)
+bool sact_Joypad_GetDigitalStickStatus(int num, int type, int *left, int *right, int *up, int *down)
 {
-	//hll_unimplemented_warning(SACT2, Joypad_GetDigitalStickStatus);
-	*left  = false;
-	*right = false;
-	*up    = false;
-	*down  = false;
-	return 1;
+	handle_events();
+	return joy_get_digital_stick_status(num, type, left, right, up, down);
 }
 
 int sact_Key_ClearFlag(void)
@@ -839,7 +949,19 @@ void sact_CG_BlendAMapBin(int dst, int dx, int dy, int src, int sx, int sy, int 
 }
 
 //void SACT2_Debug_Pause(void);
-//void SACT2_Debug_GetFuncStack(struct string **s, int nest);
+HLL_QUIET_UNIMPLEMENTED(, void, SACT2, Debug_GetFuncStack, struct string **s, int nest);
+
+static int sact_Sound_PrepareFromFile(int ch, struct string *filename)
+{
+	if (!filename || !filename->size)
+		return 0;
+	char *path = gamedir_path_icase(filename->text);
+	if (!path)
+		path = gamedir_path(filename->text);
+	int r = wav_prepare_from_file(ch, path);
+	free(path);
+	return r;
+}
 
 int sact_SP_SetBrightness(int sp_no, int brightness)
 {
@@ -938,8 +1060,8 @@ HLL_WARN_UNIMPLEMENTED(0, int, SACT2, Music_AnalyzeSampleData, struct page **l, 
 	    HLL_EXPORT(Mouse_GetWheel, mouse_get_wheel), \
 	    HLL_EXPORT(Joypad_ClearKeyDownFlag, sact_Joypad_ClearKeyDownFlag), \
 	    HLL_EXPORT(Joypad_IsKeyDown, sact_Joypad_IsKeyDown), \
-	    HLL_TODO_EXPORT(Joypad_GetNumof, SACT2_Joypad_GetNumof), \
-	    HLL_EXPORT(JoypadQuake_Set, SACT2_JoypadQuake_Set), \
+	    HLL_EXPORT(Joypad_GetNumof, sact_Joypad_GetNumof), \
+	    HLL_EXPORT(JoypadQuake_Set, sact_JoypadQuake_Set), \
 	    HLL_EXPORT(Joypad_GetAnalogStickStatus, sact_Joypad_GetAnalogStickStatus), \
 	    HLL_EXPORT(Joypad_GetDigitalStickStatus, sact_Joypad_GetDigitalStickStatus), \
 	    HLL_EXPORT(Key_ClearFlag, sact_Key_ClearFlag), \
@@ -1002,13 +1124,13 @@ HLL_WARN_UNIMPLEMENTED(0, int, SACT2, Music_AnalyzeSampleData, struct page **l, 
 	    HLL_EXPORT(Sound_GetVolume, wav_get_volume), \
 	    HLL_EXPORT(Sound_GetTimeLength, wav_get_time_length), \
 	    HLL_EXPORT(Sound_GetGroupNum, wav_get_group_num), \
-	    HLL_TODO_EXPORT(Sound_PrepareFromFile, SACT2_Sound_PrepareFromFile), \
+	    HLL_EXPORT(Sound_PrepareFromFile, sact_Sound_PrepareFromFile), \
 	    HLL_EXPORT(System_GetDate, get_date), \
 	    HLL_EXPORT(System_GetTime, get_time), \
 	    HLL_TODO_EXPORT(CG_RotateRGB, SACT2_CG_RotateRGB), \
 	    HLL_EXPORT(CG_BlendAMapBin, sact_CG_BlendAMapBin), \
 	    HLL_TODO_EXPORT(Debug_Pause, SACT2_Debug_Pause), \
-	    HLL_TODO_EXPORT(Debug_GetFuncStack, SACT2_Debug_GetFuncStack), \
+	    HLL_EXPORT(Debug_GetFuncStack, SACT2_Debug_GetFuncStack), \
 	    HLL_EXPORT(SP_GetAMapValue, sact_SP_GetAMapValue), \
 	    HLL_EXPORT(SP_GetPixelValue, sact_SP_GetPixelValue), \
 	    HLL_EXPORT(SP_SetBrightness, sact_SP_SetBrightness), \
@@ -1074,7 +1196,7 @@ void sact_DX_SetUsePower2Texture(bool use)
 	HLL_EXPORT(SetVolumeMixerBGMGroupNum, SACTDX_SetVolumeMixerBGMGroupNum), \
 	HLL_EXPORT(Sound_GetGroupNumFromDataNum, wav_get_group_num_from_data_num), \
 	HLL_EXPORT(SP_DeleteAll, sact_SP_DeleteAll),	\
-	HLL_TODO_EXPORT(SP_CreateCopy, SACTDX_SP_CreateCopy),	\
+	HLL_EXPORT(SP_CreateCopy, sact_SP_CreateCopy),	\
 	HLL_TODO_EXPORT(Joypad_GetAnalogStickStatus, SACTDX_Joypad_GetAnalogStickStatus), \
 	HLL_TODO_EXPORT(GetDigitalStickStatus, SACTDX_GetDigitalStickStatus), \
 	HLL_EXPORT(Key_ClearFlagNoCtrl, sact_Key_ClearFlagNoCtrl), \

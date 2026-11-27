@@ -84,26 +84,25 @@ static void init_monster(struct monster *m)
 	m->draw_shadow = true;
 }
 
-static bool parse_monster_info(char *text)
+static char *skip_space_and_comments(char *text)
+{
+	for (;;) {
+		while (isspace((unsigned char)*text))
+			text++;
+		if (text[0] != '/' || text[1] != '/')
+			return text;
+		char *newline = strchr(text, '\n');
+		text = newline ? newline + 1 : text + strlen(text);
+	}
+}
+
+static bool parse_monster_info(char *text, bool dialogue_gbk)
 {
 	struct monster *current_monster = NULL;
 	struct motion *current_motion = NULL;
 
 	for (;;) {
-		// Skip whitespaces and comments
-		for (;;) {
-			while (isspace(*text))
-				text++;
-			if (text[0] == '/' && text[1] == '/') {
-				char *newline = strchr(text, '\n');
-				if (newline)
-					text = newline + 1;
-				else
-					text += strlen(text);
-			} else {
-				break;
-			}
-		}
+		text = skip_space_and_comments(text);
 
 #define MATCH(fmt, ...) len = 0, sscanf(text, fmt " %n", ##__VA_ARGS__, &len), text += len, len
 #define STRING_BUF_SIZE 64
@@ -125,7 +124,7 @@ static bool parse_monster_info(char *text)
 				init_monster(current_monster);
 			} else {
 				char *eol = strchr(text, '\n');
-				*eol = '\0';
+				if (eol) *eol = '\0';
 				WARNING("Parse error in toplevel, near: \"%s\"", text);
 				return false;
 			}
@@ -144,7 +143,7 @@ static bool parse_monster_info(char *text)
 				}
 				current_motion = &current_monster->motions[n];
 			} else if (MATCH("名前 = " QUOTED_STRING, string_buf)) {
-				current_monster->name = utf2sjis(string_buf, 0);
+				current_monster->name = utf2cjk(string_buf, 0, dialogue_gbk);
 			} else if (MATCH("データ = " QUOTED_STRING, string_buf)) {
 				current_monster->poly_name = utf2sjis(string_buf, 0);
 			} else if (MATCH("スケール = %f", &f)) {
@@ -163,7 +162,7 @@ static bool parse_monster_info(char *text)
 				current_monster->wear_effect_name = utf2sjis(string_buf, 0);
 			} else {
 				char *eol = strchr(text, '\n');
-				*eol = '\0';
+				if (eol) *eol = '\0';
 				WARNING("Parse error in monster, near: \"%s\"", text);
 				return false;
 			}
@@ -176,7 +175,7 @@ static bool parse_monster_info(char *text)
 			} else if (MATCH("}")) {
 				current_motion = NULL;
 			} else if (MATCH("名前 = " QUOTED_STRING, string_buf)) {
-				current_motion->name = utf2sjis(string_buf, 0);
+				current_motion->name = utf2cjk(string_buf, 0, dialogue_gbk);
 			} else if (MATCH("データ = " QUOTED_STRING, string_buf)) {
 				current_motion->data_name = utf2sjis(string_buf, 0);
 // XXX: sscanf doesn't match this string on Windows for some reason...
@@ -196,7 +195,7 @@ static bool parse_monster_info(char *text)
 				current_motion->effect_name = utf2sjis(string_buf, 0);
 			} else {
 				char *eol = strchr(text, '\n');
-				*eol = '\0';
+				if (eol) *eol = '\0';
 				WARNING("Parse error in motion, near: \"%s\"", text);
 				return false;
 			}
@@ -223,13 +222,24 @@ static bool MonsterInfo_Load(struct string *filename)
 		return false;
 	}
 
-	// We could parse the SJIS text directly, but convert it to UTF-8 for code
-	// clarity.
+	// Resource metadata can remain Shift-JIS in a GBK dialogue translation.
+	// Identify its encoding from the first grammar token ("モンスター"), and
+	// keep returned model/motion identifiers in the resource's own encoding.
+	// Do not let this change the encoding used by subsequent game dialogue.
 	char *sjis_text = xmalloc(dfile->size + 1);
 	memcpy(sjis_text, dfile->data, dfile->size);
 	sjis_text[dfile->size] = '\0';
+	const char *first = skip_space_and_comments(sjis_text);
+	const char sjis_header[] = "\x83\x82\x83\x93\x83\x58\x83\x5e\x81\x5b";
+	const char gbk_header[] = "\xa5\xe2\xa5\xf3\xa5\xb9\xa5\xbf\xa9\x60";
+	bool dialogue_gbk = use_gbk;
+	if (!strncmp(first, sjis_header, sizeof(sjis_header) - 1))
+		use_gbk = false;
+	else if (!strncmp(first, gbk_header, sizeof(gbk_header) - 1))
+		use_gbk = true;
 	char *text = sjis2utf(sjis_text, dfile->size);
-	bool ok = parse_monster_info(text);
+	bool ok = parse_monster_info(text, dialogue_gbk);
+	use_gbk = dialogue_gbk;
 	free(text);
 	free(sjis_text);
 	archive_free_data(dfile);

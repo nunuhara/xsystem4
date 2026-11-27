@@ -75,9 +75,12 @@ struct dgn *dgn_new(uint32_t size_x, uint32_t size_y, uint32_t size_z)
 
 struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 {
+	if (!data || size < 60)
+		return NULL;
+
 	struct buffer r;
 	buffer_init(&r, data, size);
-	if (strncmp(buffer_strdata(&r), "DUGN", 4))
+	if (memcmp(r.buf + r.index, "DUGN", 4) != 0)
 		return NULL;
 	buffer_skip(&r, 4);
 
@@ -85,11 +88,21 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 	uint32_t size_x = buffer_read_int32(&r);
 	uint32_t size_y = buffer_read_int32(&r);
 	uint32_t size_z = buffer_read_int32(&r);
+	if (!size_x || !size_y || !size_z ||
+	    size_x > 4096 || size_y > 4096 || size_z > 4096 ||
+	    (uint64_t)size_x * size_y * size_z > 4ULL * 1024 * 1024) {
+		WARNING("dgn_parse: invalid dungeon dimensions (%u, %u, %u)", size_x, size_y, size_z);
+		return NULL;
+	}
 	buffer_skip(&r, 40);
 
 	struct dgn *dgn = dgn_new(size_x, size_y, size_z);
 	int nr_cells = dgn_nr_cells(dgn);
 	for (int i = 0; i < nr_cells; i++) {
+		if (buffer_remaining(&r) < 35 * 4) {
+			dgn_free(dgn);
+			return NULL;
+		}
 		struct dgn_cell *cell = &dgn->cells[i];
 
 		cell->floor = buffer_read_int32(&r);
@@ -123,11 +136,24 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 		cell->west_event = buffer_read_int32(&r);
 		// Skip (int32, string) pairs
 		for (int j = 0; j < 6; j++) {
+			if (buffer_remaining(&r) < 5) {
+				dgn_free(dgn);
+				return NULL;
+			}
 			buffer_skip(&r, 4);
-			buffer_skip(&r, strlen(buffer_strdata(&r)) + 1);
+			const uint8_t *nul = memchr(r.buf + r.index, 0, buffer_remaining(&r));
+			if (!nul) {
+				dgn_free(dgn);
+				return NULL;
+			}
+			buffer_skip(&r, (nul - (r.buf + r.index)) + 1);
 		}
 		if (for_draw_field) {
 			if (version >= 9) {
+				if (buffer_remaining(&r) < 9 * 4) {
+					dgn_free(dgn);
+					return NULL;
+				}
 				cell->north_door_lock = buffer_read_int32(&r);
 				cell->west_door_lock = buffer_read_int32(&r);
 				cell->south_door_lock = buffer_read_int32(&r);
@@ -139,6 +165,10 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 				cell->walked = buffer_read_int32(&r);
 			}
 			if (version >= 11) {
+				if (buffer_remaining(&r) < 8 * 4) {
+					dgn_free(dgn);
+					return NULL;
+				}
 				cell->polyobj_index = buffer_read_int32(&r);
 				cell->polyobj_scale = buffer_read_float(&r);
 				cell->polyobj_rotation_y = buffer_read_float(&r);
@@ -149,10 +179,18 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 				cell->polyobj_position_z = buffer_read_float(&r);
 			}
 		} else {
+			if (buffer_remaining(&r) < 2 * 4) {
+				dgn_free(dgn);
+				return NULL;
+			}
 			buffer_skip(&r, 4);  // unknown
 			cell->battle_background = buffer_read_int32(&r);
 			if (version != DGN_VER_GALZOO) {
 				continue;
+			}
+			if (buffer_remaining(&r) < 13 * 4) {
+				dgn_free(dgn);
+				return NULL;
 			}
 			cell->polyobj_index = buffer_read_int32(&r);
 			cell->polyobj_scale = buffer_read_float(&r);
@@ -169,7 +207,7 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 			buffer_skip(&r, 4);  // unknown
 		}
 	}
-	if (buffer_read_u8(&r) != 0) {
+	if (buffer_remaining(&r) < 5 || buffer_read_u8(&r) != 0) {
 		dgn_free(dgn);
 		return NULL;
 	}
@@ -177,9 +215,13 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 	if (has_pvs) {
 		dgn->pvs = xcalloc(nr_cells, sizeof(struct packed_pvs));
 		for (int i = 0; i < nr_cells; i++) {
+			if (buffer_remaining(&r) < 4) {
+				dgn_free(dgn);
+				return NULL;
+			}
 			struct packed_pvs *pvs = &dgn->pvs[i];
 			int32_t len = buffer_read_int32(&r);
-			if (len % 8 != 4) {
+			if (len < 4 || len % 8 != 4 || (size_t)len > buffer_remaining(&r)) {
 				WARNING("dgn_parse: unexpected PVS length");
 				dgn_free(dgn);
 				return NULL;
@@ -195,6 +237,13 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 			for (int j = 0; j < pvs->nr_run_lengths; j++) {
 				int32_t invisible = buffer_read_int32(&r);
 				int32_t visible = buffer_read_int32(&r);
+				if (invisible < 0 || visible < 0 ||
+				    invisible > nr_cells - total ||
+				    visible > nr_cells - total - invisible) {
+					WARNING("dgn_parse: bad PVS");
+					dgn_free(dgn);
+					return NULL;
+				}
 				pvs->run_lengths[j].invisible_cells = invisible;
 				pvs->run_lengths[j].visible_cells = visible;
 				pvs->nr_visible_cells += visible;
@@ -207,6 +256,10 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 			}
 		}
 	}
+	if (buffer_remaining(&r) < 6 * 4) {
+		dgn_free(dgn);
+		return NULL;
+	}
 	dgn->sphere_theta[0] = buffer_read_float(&r);
 	dgn->sphere_theta[1] = buffer_read_float(&r);
 	dgn->sphere_theta[2] = buffer_read_float(&r);
@@ -214,6 +267,10 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 	dgn->sphere_color_bottom = buffer_read_float(&r);
 	buffer_skip(&r, 4);  // unknown
 	if (for_draw_field && version >= 10) {
+		if (buffer_remaining(&r) < 3 * 4) {
+			dgn_free(dgn);
+			return NULL;
+		}
 		dgn->back_color_r = buffer_read_int32(&r);
 		dgn->back_color_g = buffer_read_int32(&r);
 		dgn->back_color_b = buffer_read_int32(&r);
@@ -223,6 +280,8 @@ struct dgn *dgn_parse(uint8_t *data, size_t size, bool for_draw_field)
 
 void dgn_free(struct dgn *dgn)
 {
+	if (!dgn)
+		return;
 	int nr_cells = dgn_nr_cells(dgn);
 
 	for (int i = 0; i < nr_cells; i++) {
@@ -254,6 +313,8 @@ struct dgn_cell *dgn_cell_at(struct dgn *dgn, uint32_t x, uint32_t y, uint32_t z
 
 int dgn_calc_conquer(struct dgn *dgn)
 {
+	if (!dgn)
+		return 0;
 	int nr_cells = dgn_nr_cells(dgn);
 	int enterable = 0;
 	int walked = 0;
@@ -264,6 +325,8 @@ int dgn_calc_conquer(struct dgn *dgn)
 		if (dgn->cells[i].walked)
 			walked++;
 	}
+	if (enterable == 0)
+		return 0;
 	return walked * 100 / enterable;
 }
 

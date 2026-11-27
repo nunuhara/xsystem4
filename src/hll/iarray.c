@@ -36,10 +36,10 @@ void iarray_init_writer(struct iarray_writer *w, const char *header)
 	w->size = 0;
 	if (header) {
 		while (*header) {
-			w->data[w->size++] = *header;
+			iarray_write(w, (uint8_t)*header);
 			header++;
 		}
-		w->data[w->size++] = 0;
+		iarray_write(w, 0);
 	}
 }
 
@@ -79,13 +79,17 @@ void iarray_write_float(struct iarray_writer *w, float data)
 
 void iarray_write_string(struct iarray_writer *w, struct string *s)
 {
-	for (char *p = s->text; *p ;p++) {
-		if (SJIS_2BYTE(*p)) {
+	if (!s) {
+		iarray_write(w, 0);
+		return;
+	}
+	for (const char *p = s->text; *p; p++) {
+		if (SJIS_2BYTE(*p) && p[1] != '\0') {
 			int c = (uint8_t)p[0] | ((uint8_t)p[1] << 8);
 			iarray_write(w, c);
 			p++;
 		} else {
-			iarray_write(w, *p);
+			iarray_write(w, (uint8_t)*p);
 		}
 	}
 	iarray_write(w, 0);

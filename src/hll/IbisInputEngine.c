@@ -24,8 +24,11 @@ bool IbisInputEngine_Mouse_MovePosImmediately(int x, int y)
 	return true;
 }
 
+static bool hide_cursor_by_game = false;
+static bool IbisInputEngine_Mouse_IsHideCursorByGame(void) { return hide_cursor_by_game; }
 bool IbisInputEngine_Mouse_HideCursorByGame(bool hide)
 {
+	hide_cursor_by_game = hide;
 	return mouse_show_cursor(!hide);
 }
 
@@ -35,26 +38,32 @@ HLL_QUIET_UNIMPLEMENTED(, void, IbisInputEngine, Mouse_HideByStepMessage);
 
 static void IbisInputEngine_Joystick_ClearCaptureFlag(void)
 {
-	// TODO
+	joy_clear_flag();
 }
 
-//int IbisInputEngine_Joystick_GetNumofDevice(void);
-HLL_WARN_UNIMPLEMENTED(0, int,  IbisInputEngine, Joystick_GetNumofDevice);
+static int IbisInputEngine_Joystick_GetNumofDevice(void)
+{
+	handle_events();
+	return joy_get_num_controllers();
+}
 
 bool IbisInputEngine_Joystick_IsKeyDown(int DeviceNumber, int JoystickCode)
 {
-	// TODO
-	return false;
+	handle_events();
+	return joy_is_button_down(DeviceNumber, JoystickCode);
 }
 
-//float IbisInputEngine_Joystick_GetAxis(int DeviceNumber, int AxisType);
-HLL_WARN_UNIMPLEMENTED(0.0, float, IbisInputEngine, Joystick_GetAxis, int dev, int axis);
+static float IbisInputEngine_Joystick_GetAxis(int DeviceNumber, int AxisType)
+{
+	handle_events();
+	return joy_get_axis_value(DeviceNumber, AxisType);
+}
 
 HLL_LIBRARY(IbisInputEngine,
 	    HLL_EXPORT(Mouse_GetPos, sact_Mouse_GetPos),
 	    HLL_EXPORT(Mouse_MovePosImmediately, IbisInputEngine_Mouse_MovePosImmediately),
 	    HLL_EXPORT(Mouse_HideCursorByGame, IbisInputEngine_Mouse_HideCursorByGame),
-	    HLL_TODO_EXPORT(Mouse_IsHideCursorByGame, IbisInputEngine_Mouse_IsHideCursorByGame),
+	    HLL_EXPORT(Mouse_IsHideCursorByGame, IbisInputEngine_Mouse_IsHideCursorByGame),
 	    HLL_EXPORT(Mouse_HideByStepMessage, IbisInputEngine_Mouse_HideByStepMessage),
 	    HLL_EXPORT(MouseWheel_ClearCount, mouse_clear_wheel),
 	    HLL_EXPORT(MouseWheel_GetCount, mouse_get_wheel),

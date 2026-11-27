@@ -104,6 +104,7 @@ static void MsgLogViewer_ConvertFromMsgLogManager(possibly_unused int msg_log_ma
 }
 
 HLL_LIBRARY(MsgLogViewer,
+	    HLL_EXPORT(_ModuleFini, MsgLogViewer_Clear),
 	    HLL_EXPORT(Numof, MsgLogViewer_Numof),
 	    HLL_EXPORT(Clear, MsgLogViewer_Clear),
 	    HLL_EXPORT(Add, MsgLogViewer_Add),

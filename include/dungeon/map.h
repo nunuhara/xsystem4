@@ -23,6 +23,7 @@ struct dungeon_map;
 struct dungeon_map *dungeon_map_create(enum draw_dungeon_version version);
 void dungeon_map_free(struct dungeon_map *map);
 void dungeon_map_init(struct dungeon_context *ctx);
+void dungeon_map_on_gl_reset(struct dungeon_context *ctx);
 void dungeon_map_update_cell(struct dungeon_context *ctx, int x, int y, int z);
 
 void dungeon_map_draw(int surface, int sprite);

@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <limits.h>
 #include <cglm/cglm.h>
 
@@ -33,7 +34,8 @@ static inline float randf(void)
 static void parse_error(const char *msg, char *input)
 {
 	char *eol = strchr(input, '\n');
-	*eol = '\0';
+	if (eol)
+		*eol = '\0';
 	WARNING("Parse error: %s Near: \"%s\"", msg, input);
 }
 
@@ -98,7 +100,7 @@ static char *parse_quoted_string(char **ptext)
 	}
 	*p = '\0';
 	*ptext = p + 1;
-	return utf2sjis(text, 0);
+	return utf2cjk(text, 0, false);
 }
 
 #define MATCH(fmt, ...) (len = 0, sscanf(text, fmt " %n", ##__VA_ARGS__, &len), text += len, len)
@@ -199,6 +201,7 @@ static struct particle_position *parse_position(char **ptext)
 	char string_buf[STRING_BUF_SIZE];
 	for (int i = 0; i < NR_PARTICLE_POSITION_UNITS; i++) {
 		struct particle_position_unit *unit = &epos->units[i];
+		string_buf[0] = '\0';
 		if (MATCH("なし")) {
 			unit->type = PARTICLE_POS_UNIT_NONE;
 		} else if (MATCH("絶対位置( %f , %f , %f )", &x, &y, &z)) {
@@ -210,7 +213,7 @@ static struct particle_position *parse_position(char **ptext)
 				   MATCH("ボーン[ %d , \"\" , %f , %f , %f ]", &n, &x, &y, &z)) {
 			unit->type = PARTICLE_POS_UNIT_BONE;
 			unit->bone.target_index = n;
-			unit->bone.name = utf2sjis(string_buf, 0);
+			unit->bone.name = utf2cjk(string_buf, 0, false);
 			unit->bone.offset[0] = x;
 			unit->bone.offset[1] = y;
 			unit->bone.offset[2] = -z;
@@ -271,7 +274,7 @@ static struct pae *parse_pae(char *text)
 			} else if (MATCH("オブジェクト " QUOTED_STRING " = {", string_buf)) {
 				pae->objects = xrealloc_array(pae->objects, pae->nr_objects, pae->nr_objects + 1, sizeof(struct pae_object));
 				current_object = &pae->objects[pae->nr_objects++];
-				current_object->name = utf2sjis(string_buf, 0);
+				current_object->name = utf2cjk(string_buf, 0, false);
 				// Default values.
 				current_object->move_type = PARTICLE_MOVE_LINEAR;
 				current_object->texture_anime_frame = 1.0;
@@ -284,7 +287,7 @@ static struct pae *parse_pae(char *text)
 			// Object context
 			if (!*text) {
 				WARNING("unexpected EOF");
-				return false;
+				goto err;
 			} else if (MATCH("}")) {
 				current_object = NULL;
 			} else if (MATCH("種類 = " KEYWORD, string_buf)) {
@@ -351,7 +354,7 @@ static struct pae *parse_pae(char *text)
 				if (current_object->blend_type < 0)
 					goto err;
 			} else if (MATCH("テクスチャアニメフレーム = %f", &f)) {
-				current_object->texture_anime_frame = f;
+				current_object->texture_anime_frame = f > 0.0f ? f : 1.0f;
 			} else if (MATCH("テクスチャアニメ時間 = %d", &n)) {
 				current_object->texture_anime_time = n;
 			} else if (MATCH("ポリゴン = ")) {
@@ -463,43 +466,57 @@ static void load_textures(struct pae *effect, struct archive *aar)
 			if (ht_get(effect->textures, name, NULL))
 				continue;  // already loaded.
 
-			struct archive_data *dfile = RE_get_aar_entry(aar, effect->path, name, ".bmp");
-			if (!dfile)
-				dfile = RE_get_aar_entry(aar, effect->path, name, ".tga");
-			if (!dfile) {
+			static const char *pae_exts[] = { ".bmp", ".tga" };
+			bool has_alpha = false;
+			GLuint texture = RE_load_aar_texture(aar, effect->path, name, pae_exts, 2, &has_alpha);
+			if (!texture) {
 				WARNING("cannot load texture %s\\%s", effect->path, name);
 				continue;
 			}
-			struct cg *cg = cg_load_data(dfile);
-			if (!cg) {
-				WARNING("cg_load_data failed: %s", dfile->name);
-				archive_free_data(dfile);
-				continue;
-			}
-			archive_free_data(dfile);
-
-			GLuint texture;
-			glGenTextures(1, &texture);
-			glBindTexture(GL_TEXTURE_2D, texture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-			glGenerateMipmap(GL_TEXTURE_2D);
-			glBindTexture(GL_TEXTURE_2D, 0);
-
 			struct billboard_texture *bt = xcalloc(1, sizeof(struct billboard_texture));
 			bt->texture = texture;
-			bt->has_alpha = cg->metrics.has_alpha;
+			bt->has_alpha = has_alpha;
 			ht_put(effect->textures, name, bt);
-			cg_free(cg);
 		}
+	}
+}
+
+struct pae_tex_reset_ctx {
+	struct pae *pae;
+	struct archive *aar;
+};
+
+static void reset_pae_texture_cb(struct ht_slot *slot, void *data)
+{
+	struct pae_tex_reset_ctx *rc = data;
+	struct billboard_texture *bt = slot->value;
+	if (!bt)
+		return;
+	bt->texture = 0;
+	if (!rc->aar || !rc->pae || !rc->pae->path || !slot->key)
+		return;
+	static const char *pae_exts[] = { ".bmp", ".tga" };
+	bt->texture = RE_load_aar_texture(rc->aar, rc->pae->path, slot->key, pae_exts, 2, &bt->has_alpha);
+}
+
+void pae_reset_gl(struct pae *pae, struct archive *aar, enum RE_plugin_version version)
+{
+	if (!pae)
+		return;
+	if (pae->textures) {
+		struct pae_tex_reset_ctx rc = { .pae = pae, .aar = aar };
+		ht_foreach(pae->textures, reset_pae_texture_cb, &rc);
+	}
+	for (int i = 0; i < pae->nr_objects; i++) {
+		if (pae->objects[i].model)
+			model_reset_gl(pae->objects[i].model, aar, version);
 	}
 }
 
 static struct RE_instance *get_target(struct RE_instance *inst, int index)
 {
+	if (!inst || !inst->plugin || index < 0 || index >= RE_NR_INSTANCE_TARGETS)
+		return NULL;
 	int target_id = inst->target[index];
 	if (target_id < 0 || target_id >= inst->plugin->nr_instances)
 		return NULL;
@@ -630,10 +647,9 @@ static void init_particle_instances(struct particle_object *po)
 	}
 }
 
-struct pae *pae_load(struct archive *aar, const char *path)
+struct pae *pae_load(struct archive *aar, const char *path, enum RE_plugin_version version)
 {
-	const char *basename = strrchr(path, '\\');
-	basename = basename ? basename + 1 : path;
+	const char *basename = RE_path_basename(path);
 
 	struct archive_data *dfile = RE_get_aar_entry(aar, path, basename, ".pae");
 	if (!dfile) {
@@ -650,9 +666,9 @@ struct pae *pae_load(struct archive *aar, const char *path)
 	}
 	sjis_text[dfile->size] = '\0';
 
-	// We could parse the SJIS text directly, but convert it to UTF-8 for code
-	// clarity.
-	char *text = sjis2utf(sjis_text, dfile->size);
+	// .pae files in 3D archives are Shift-JIS even in GBK-patched releases;
+	// decode explicitly as Shift-JIS rather than using the game text charset.
+	char *text = cjk2utf(sjis_text, dfile->size, false);
 	free(sjis_text);
 	struct pae *pae = parse_pae(text);
 	free(text);
@@ -671,7 +687,7 @@ struct pae *pae_load(struct archive *aar, const char *path)
 		if (po->polygon_name && *po->polygon_name) {
 			char *pol_path = xmalloc(strlen(path) + strlen(po->polygon_name) + 2);
 			sprintf(pol_path, "%s\\%s", path, po->polygon_name);
-			po->model = model_load(aar, pol_path);
+			po->model = model_load(aar, pol_path, version);
 			free(pol_path);
 		}
 	}
@@ -713,6 +729,8 @@ static void particle_position_free(struct particle_position *pos)
 
 void pae_free(struct pae *pae)
 {
+	if (!pae)
+		return;
 	for (int i = 0; i < pae->nr_objects; i++) {
 		struct pae_object *po = &pae->objects[i];
 		free(po->name);
@@ -732,8 +750,10 @@ void pae_free(struct pae *pae)
 		if (po->model)
 			model_free(po->model);
 	}
-	ht_foreach_value(pae->textures, free_billboard_texture);
-	ht_free(pae->textures);
+	if (pae->textures) {
+		ht_foreach_value(pae->textures, free_billboard_texture);
+		ht_free(pae->textures);
+	}
 	free(pae->objects);
 	free(pae->path);
 	free(pae);
@@ -751,6 +771,11 @@ void particle_effect_free(struct particle_effect *effect)
 
 void pae_calc_frame_range(struct pae *pae, struct motion *motion)
 {
+	if (!pae || pae->nr_objects <= 0) {
+		motion->frame_begin = motion->loop_frame_begin = 0;
+		motion->frame_end = motion->loop_frame_end = 0;
+		return;
+	}
 	int begin_frame = INT_MAX;
 	int end_frame = INT_MIN;
 	for (int i = 0; i < pae->nr_objects; i++) {

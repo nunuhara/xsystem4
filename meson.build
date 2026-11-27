@@ -33,6 +33,8 @@ gles = dependency('glesv2', version : '>=3', required: get_option('opengles'))
 if gles.found()
     gl_deps = [gles]
     add_project_arguments('-DUSE_GLES', language : 'c')
+elif host_machine.system() == 'darwin'
+    gl_deps = [dependency('appleframeworks', modules : 'OpenGL')]
 else
     gl = dependency('GL')
     glew = dependency('glew')

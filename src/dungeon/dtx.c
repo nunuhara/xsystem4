@@ -31,20 +31,39 @@
 
 struct dtx *dtx_parse(uint8_t *data, size_t size)
 {
+	if (!data || size < 16) {
+		WARNING("dtx_parse: truncated DTX file");
+		return NULL;
+	}
 	struct buffer r;
 	buffer_init(&r, data, size);
-	if (strncmp(buffer_strdata(&r), "DTEX", 4)) {
+	if (memcmp(buffer_strdata(&r), "DTEX", 4)) {
 		WARNING("dtx_parse: not a DTX file");
 		return NULL;
 	}
 	buffer_skip(&r, 4);
 
+	int version = buffer_read_int32(&r);
+	int nr_rows = buffer_read_int32(&r);
+	int nr_columns = buffer_read_int32(&r);
+	if (nr_rows < 0 || nr_columns < 0 ||
+	    (nr_rows > 0 && (size_t)nr_columns > (size / 4) / (size_t)nr_rows) ||
+	    (uint64_t)nr_rows * (uint64_t)nr_columns > 1000000) {
+		WARNING("dtx_parse: invalid dimensions %dx%d", nr_rows, nr_columns);
+		return NULL;
+	}
+
 	struct dtx *dtx = xcalloc(1, sizeof(struct dtx));
-	dtx->version = buffer_read_int32(&r);
-	dtx->nr_rows = buffer_read_int32(&r);
-	dtx->nr_columns = buffer_read_int32(&r);
-	dtx->entries = xcalloc(dtx->nr_rows * dtx->nr_columns, sizeof(struct dtx_entry));
+	dtx->version = version;
+	dtx->nr_rows = nr_rows;
+	dtx->nr_columns = nr_columns;
+	dtx->entries = xcalloc((size_t)dtx->nr_rows * (size_t)dtx->nr_columns, sizeof(struct dtx_entry));
 	for (int i = 0; i < dtx->nr_rows; i++) {
+		if (buffer_remaining(&r) < 4) {
+			WARNING("dtx_parse: truncated row header");
+			dtx_free(dtx);
+			return NULL;
+		}
 		int nr_items = buffer_read_int32(&r);
 		if (nr_items != dtx->nr_columns) {
 			WARNING("dtx_parse: unexpected number of items");
@@ -52,13 +71,23 @@ struct dtx *dtx_parse(uint8_t *data, size_t size)
 			return NULL;
 		}
 		for (int j = 0; j < nr_items; j++) {
-			uint32_t size = buffer_read_int32(&r);
-			if (!size)
+			if (buffer_remaining(&r) < 4) {
+				WARNING("dtx_parse: truncated entry size");
+				dtx_free(dtx);
+				return NULL;
+			}
+			uint32_t entry_size = buffer_read_int32(&r);
+			if (!entry_size)
 				continue;
-			uint8_t *data = xmalloc(size);
-			buffer_read_bytes(&r, data, size);
-			dtx->entries[i * nr_items + j].size = size;
-			dtx->entries[i * nr_items + j].data = data;
+			if (entry_size > buffer_remaining(&r)) {
+				WARNING("dtx_parse: entry size %u exceeds remaining %zu", entry_size, buffer_remaining(&r));
+				dtx_free(dtx);
+				return NULL;
+			}
+			uint8_t *entry_data = xmalloc(entry_size);
+			buffer_read_bytes(&r, entry_data, entry_size);
+			dtx->entries[(size_t)i * (size_t)nr_items + (size_t)j].size = entry_size;
+			dtx->entries[(size_t)i * (size_t)nr_items + (size_t)j].data = entry_data;
 		}
 	}
 	return dtx;
@@ -77,7 +106,9 @@ void dtx_free(struct dtx *dtx)
 
 struct cg *dtx_create_cg(struct dtx *dtx, enum dtx_texture_type type, int index)
 {
-	int row;
+	if (!dtx)
+		return NULL;
+	int row = 0;
 	switch (dtx->version) {
 	case 0:
 		switch (type) {
@@ -112,8 +143,10 @@ struct cg *dtx_create_cg(struct dtx *dtx, enum dtx_texture_type type, int index)
 		default: return NULL;
 		}
 		break;
+	default:
+		return NULL;
 	}
-	if (row >= dtx->nr_rows || index < 0 || index >= dtx->nr_columns)
+	if (row < 0 || row >= dtx->nr_rows || index < 0 || index >= dtx->nr_columns)
 		return NULL;
 	struct dtx_entry *entry = &dtx->entries[row * dtx->nr_columns + index];
 	if (!entry->data)
@@ -131,7 +164,7 @@ struct dtx *dtx_load_from_dtl(const char *path, uint32_t seed)
 		goto err;
 	}
 	char header[12];
-	if (fread(header, sizeof(header), 1, fp) != 1 || strcmp(header, "DTL"))
+	if (fread(header, sizeof(header), 1, fp) != 1 || memcmp(header, "DTL\0", 4))
 		goto err;
 	uint32_t version = LittleEndian_getDW((uint8_t*)header, 4);
 	uint32_t index_size = LittleEndian_getDW((uint8_t*)header, 8);
@@ -141,18 +174,30 @@ struct dtx *dtx_load_from_dtl(const char *path, uint32_t seed)
 	if (fread(index_buf, index_size * 4, 1, fp) != 1)
 		goto err;
 
-	// Randomly select an index based on the seed.
-	struct mtrand43 mt;
-	mtrand43_init(&mt, seed);
-	for (;;) {
-		int index = mtrand43_genrand(&mt) % (index_size - 1) + 1;
-		uint32_t offset = LittleEndian_getDW(index_buf, index * 4);
-		if (offset) {
-			if (fseek(fp, offset, SEEK_SET))
-				goto err;
+	bool has_valid_offset = false;
+	for (uint32_t i = 1; i < index_size; i++) {
+		if (LittleEndian_getDW(index_buf, i * 4) != 0) {
+			has_valid_offset = true;
 			break;
 		}
 	}
+	if (!has_valid_offset)
+		goto err;
+
+	// Randomly select an index based on the seed.
+	struct mtrand43 mt;
+	mtrand43_init(&mt, seed);
+	uint32_t selected_offset = 0;
+	for (int tries = 0; tries < 65536; tries++) {
+		int index = mtrand43_genrand(&mt) % (index_size - 1) + 1;
+		uint32_t offset = LittleEndian_getDW(index_buf, index * 4);
+		if (offset) {
+			selected_offset = offset;
+			break;
+		}
+	}
+	if (!selected_offset || fseek(fp, selected_offset, SEEK_SET))
+		goto err;
 
 	dtx = xcalloc(1, sizeof(struct dtx));
 	dtx->version = DTX_VERSION_DTL;

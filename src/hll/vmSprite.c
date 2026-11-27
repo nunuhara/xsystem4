@@ -495,7 +495,7 @@ static void vmSprite_DrawEffect(int effect, int time)
 
 		uint64_t t2 = SDL_GetTicks64() - start;
 		if (t2 < t + 16) {
-			SDL_Delay(t + 16 - t2);
+			gfx_android_delay(t + 16 - t2);
 			t += 16;
 		} else {
 			t = t2;

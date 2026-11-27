@@ -128,7 +128,9 @@ static void vmAnime_Draw(int handle, int return_)
 		gfx_delete_texture(&src);
 		cg_free(cg);
 		gfx_swap();
-		SDL_Delay(start_time + (i + 1) * anime->interval - SDL_GetTicks64());
+		int64_t remaining = (int64_t)(start_time + (i + 1) * anime->interval) - (int64_t)SDL_GetTicks64();
+		if (remaining > 0)
+			gfx_android_delay((Uint32)remaining);
 	}
 	if (return_) {
 		gfx_copy(dst, 0, 0, &old, 0, 0, old.w, old.h);

@@ -18,6 +18,8 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 #include <cglm/cglm.h>
 #include "gfx/gl.h"
 #include "system4.h"
@@ -58,6 +60,51 @@ struct dungeon_context *dungeon_get_context(int surface)
 	return (struct dungeon_context *)sp->plugin;
 }
 
+static void init_depth_buffer(struct dungeon_context *ctx, int width, int height)
+{
+	if (width <= 0 || height <= 0) {
+		ctx->depth_buffer = 0;
+		return;
+	}
+	glGenRenderbuffers(1, &ctx->depth_buffer);
+	glBindRenderbuffer(GL_RENDERBUFFER, ctx->depth_buffer);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+}
+
+static GLuint *load_event_textures(int *nr_textures_out);
+
+static void dungeon_context_on_gl_reset(void *user)
+{
+	struct dungeon_context *ctx = user;
+	if (!ctx)
+		return;
+	int w = ctx->texture.w;
+	int h = ctx->texture.h;
+	if (!gfx_remap_texture(&ctx->texture) && w > 0 && h > 0)
+		gfx_init_texture_rgba(&ctx->texture, w, h, (SDL_Color){0, 0, 0, 255});
+	ctx->depth_buffer = 0;
+	if (w > 0 && h > 0)
+		init_depth_buffer(ctx, w, h);
+	dungeon_map_on_gl_reset(ctx);
+
+	if (!ctx->renderer || !ctx->dtx)
+		return;
+	int nr_event_textures = 0;
+	GLuint *event_textures = NULL;
+	if (dungeon_renderer_has_event_textures(ctx->renderer))
+		event_textures = load_event_textures(&nr_event_textures);
+	struct polyobj *po = NULL;
+	if (ctx->version == DRAW_DUNGEON_14) {
+		char *polyobj_path = gamedir_path("Data/PolyObj.lin");
+		po = polyobj_load(polyobj_path);
+		free(polyobj_path);
+	}
+	dungeon_renderer_reset_gl(ctx->renderer, ctx->dtx, event_textures, nr_event_textures, po);
+	if (po)
+		polyobj_free(po);
+}
+
 struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version, int width, int height)
 {
 	struct dungeon_context *ctx = xcalloc_aligned(1, struct dungeon_context);
@@ -67,24 +114,28 @@ struct dungeon_context *dungeon_context_create(enum draw_dungeon_version version
 	ctx->plugin.to_json = dungeon_to_json;
 	ctx->version = version;
 
-	gfx_init_texture_blank(&ctx->texture, width, height);
-	glGenRenderbuffers(1, &ctx->depth_buffer);
-	glBindRenderbuffer(GL_RENDERBUFFER, ctx->depth_buffer);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-	glm_perspective(GLM_PIf / 3.f, (float)width / height, 0.5f, 100.f, ctx->proj_transform);
+	if (width > 0 && height > 0) {
+		gfx_init_texture_rgba(&ctx->texture, width, height, (SDL_Color){0, 0, 0, 255});
+		init_depth_buffer(ctx, width, height);
+	} else {
+		ctx->texture.w = width;
+		ctx->texture.h = height;
+	}
+	glm_perspective(GLM_PIf / 3.f, (width > 0 && height > 0) ? (float)width / height : 1.0f, 0.5f, 100.f, ctx->proj_transform);
 
 	ctx->map = dungeon_map_create(version);
 
 	if (version == DRAW_FIELD) {
 		ctx->characters = xcalloc(DRAWFIELD_NR_CHARACTERS, sizeof(struct drawfield_character));
 	}
+	gfx_register_reset_callback(dungeon_context_on_gl_reset, ctx);
 	return ctx;
 }
 
 static void dungeon_context_free(struct draw_plugin *plugin)
 {
 	struct dungeon_context *ctx = (struct dungeon_context *)plugin;
+	gfx_unregister_reset_callback(dungeon_context_on_gl_reset, ctx);
 	if (ctx->dgn)
 		dgn_free(ctx->dgn);
 	if (ctx->dtx)
@@ -119,42 +170,98 @@ static GLuint *load_event_textures(int *nr_textures_out)
 	if (!alk)
 		return NULL;
 
+	static const uint8_t fallback_pixel[4] = { 0, 0, 0, 0 };
 	GLuint *textures = xcalloc(alk->nr_files, sizeof(GLuint));
 	glGenTextures(alk->nr_files, textures);
+	glActiveTexture(GL_TEXTURE0);
 	for (int i = 0; i < alk->nr_files; i++) {
+		struct cg *cg = NULL;
 		struct archive_data *dfile = archive_get(&alk->ar, i);
-		if (!dfile)
-			continue;
-		struct cg *cg = cg_load_data(dfile);
-		archive_free_data(dfile);
-		if (!cg) {
-			WARNING("Event.alk: cannot load cg %d", i);
-			continue;
+		if (dfile) {
+			cg = cg_load_data(dfile);
+			archive_free_data(dfile);
+			if (!cg)
+				WARNING("Event.alk: cannot load cg %d", i);
 		}
 		glBindTexture(GL_TEXTURE_2D, textures[i]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glGenerateMipmap(GL_TEXTURE_2D);
+		if (cg && cg->metrics.w > 0 && cg->metrics.h > 0 && cg->pixels) {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glGenerateMipmap(GL_TEXTURE_2D);
+		} else {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, fallback_pixel);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		}
 		glBindTexture(GL_TEXTURE_2D, 0);
-		cg_free(cg);
+		if (cg)
+			cg_free(cg);
 	}
 	*nr_textures_out = alk->nr_files;
 	archive_free(&alk->ar);
 	return textures;
 }
 
+static char *dungeon_data_path(void)
+{
+	char *dir_path = gamedir_path_icase("Data");
+	if (!dir_path)
+		return gamedir_path("Data/DungeonData.dlf");
+	char *path = path_join(dir_path, "DungeonData.dlf");
+	char *canonical = path_get_icase(path);
+	if (canonical) {
+		free(path);
+		free(dir_path);
+		return canonical;
+	}
+	UDIR *dir = opendir_utf8(dir_path);
+	char *best = NULL;
+	char *name;
+	while (dir && (name = readdir_utf8(dir))) {
+		const char *suffix = name;
+		if (!strncasecmp(name, "DungeonData(", 12)) {
+			suffix = name + 12;
+			while (*suffix >= '0' && *suffix <= '9')
+				suffix++;
+			if (suffix > name + 12 && !strcasecmp(suffix, ").dlf")) {
+				char *candidate = path_join(dir_path, name);
+				if (file_exists(candidate) && !is_directory(candidate)
+						&& (!best || strcmp(candidate, best) < 0)) {
+					free(best);
+					best = candidate;
+				} else {
+					free(candidate);
+				}
+			}
+		}
+		free(name);
+	}
+	if (dir)
+		closedir_utf8(dir);
+	free(dir_path);
+	if (!best)
+		return path;
+	free(path);
+	return best;
+}
+
 bool dungeon_load(struct dungeon_context *ctx, int num)
 {
 	struct polyobj *polyobj = NULL;
+
+	if (!ctx || num < 0)
+		return false;
 
 	if (ctx->loaded)
 		VM_ERROR("Dungeon is already loaded");
 
 	if (ctx->version == DRAW_DUNGEON_1) {
-		char *path = gamedir_path("Data/DungeonData.dlf");
+		char *path = dungeon_data_path();
 		int error = ARCHIVE_SUCCESS;
 		struct archive *dlf = (struct archive *)dlf_open(path, MMAP_IF_64BIT, &error);
 		if (error == ARCHIVE_FILE_ERROR) {
@@ -189,7 +296,7 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 		free(dtl_path);
 	} else if (ctx->version == DRAW_DUNGEON_14) {
 		char buf[100];
-		sprintf(buf, "Data/map%02d.dgn", num);
+		snprintf(buf, sizeof(buf), "Data/map%02d.dgn", num);
 		char *path = gamedir_path(buf);
 
 		size_t len;
@@ -227,13 +334,18 @@ bool dungeon_load(struct dungeon_context *ctx, int num)
 
 	if (!ctx->dgn || !ctx->dtx) {
 		WARNING("Cannot load dungeon %d", num);
+		if (polyobj)
+			polyobj_free(polyobj);
 		return false;
 	}
 
 	int nr_event_textures;
 	GLuint *event_textures = load_event_textures(&nr_event_textures);
-	if (!event_textures)
+	if (!event_textures) {
+		if (polyobj)
+			polyobj_free(polyobj);
 		return false;
+	}
 
 	ctx->renderer = dungeon_renderer_create(ctx->version, num, ctx->dtx, event_textures, nr_event_textures, polyobj);
 
@@ -335,7 +447,7 @@ void dungeon_set_camera(int surface, float x, float y, float z, float angle, flo
 void dungeon_set_perspective(int surface, int width, int height, float near, float far, float deg)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
+	if (!ctx || height <= 0)
 		return;
 
 	float aspect = (float)width / height;
@@ -380,13 +492,20 @@ static void model_view_matrix(struct dungeon_context *ctx, mat4 mv_out)
 static void dungeon_render(struct sact_sprite *sp)
 {
 	struct dungeon_context *ctx = (struct dungeon_context *)sp->plugin;
-	if (!ctx->loaded || !ctx->draw_enabled)
+	if (!ctx || !ctx->loaded || !ctx->draw_enabled || !ctx->dgn || !ctx->renderer)
+		return;
+	if (ctx->texture.w <= 0 || ctx->texture.h <= 0 || !ctx->texture.handle || !ctx->depth_buffer)
 		return;
 
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, &ctx->texture, 0, 0, ctx->texture.w, ctx->texture.h);
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, ctx->depth_buffer);
-	if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		ERROR("Incomplete framebuffer");
+	GLenum fb_status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+	if (fb_status != GL_FRAMEBUFFER_COMPLETE) {
+		WARNING("DrawDungeon: incomplete framebuffer (0x%x); skipping frame", fb_status);
+		glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
+		gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+		return;
+	}
 
 	glClearColor(ctx->dgn->back_color_r / 255.f, ctx->dgn->back_color_g / 255.f, ctx->dgn->back_color_b / 255.f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -407,8 +526,10 @@ static void dungeon_render(struct sact_sprite *sp)
 		dgn_y = ctx->player_pos[1];
 		dgn_z = ctx->player_pos[2];
 	}
-	int nr_cells;
-	struct dgn_cell **cells = dgn_get_visible_cells(ctx->dgn, dgn_x, dgn_y, dgn_z, &nr_cells);
+	int nr_cells = 0;
+	struct dgn_cell **cells = NULL;
+	if (dgn_is_in_map(ctx->dgn, dgn_x, dgn_y, dgn_z))
+		cells = dgn_get_visible_cells(ctx->dgn, dgn_x, dgn_y, dgn_z, &nr_cells);
 	dungeon_renderer_render(ctx->renderer, cells, nr_cells, ctx->characters, view_transform, ctx->proj_transform);
 
 	glDisable(GL_DEPTH_TEST);
@@ -446,7 +567,7 @@ static void neighbor_reveal(struct dungeon_context *ctx, int x, int y, int z)
 void dungeon_set_walked(int surface, int x, int y, int z, int flag)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
+	if (!ctx || !ctx->dgn)
 		return;
 	if (!dgn_is_in_map(ctx->dgn, x, y, z))
 		return;  // avoid VM_ERROR in Pastel Chime Continue
@@ -470,7 +591,7 @@ void dungeon_set_walked(int surface, int x, int y, int z, int flag)
 void dungeon_set_walked_all(int surface)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx)
+	if (!ctx || !ctx->dgn)
 		return;
 	int nr_cells = dgn_nr_cells(ctx->dgn);
 	for (struct dgn_cell *c = ctx->dgn->cells; c < ctx->dgn->cells + nr_cells; c++) {
@@ -489,7 +610,7 @@ void dungeon_set_walked_all(int surface)
 int dungeon_get_walked(int surface, int x, int y, int z)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || !ctx->dgn)
+	if (!ctx || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z))
 		return 0;
 	return dgn_cell_at(ctx->dgn, x, y, z)->walked;
 }
@@ -531,9 +652,69 @@ enum {
 	WALK_DATA_BROKEN = -2,
 };
 
-// When the map is not found, *end is set to the offset after the last map.
-static int dd1_find_walk_data(struct page *array, int map_no, struct dgn *dgn, int *end)
+// Number of cells of the map record at ptr, or -1 if it is not a valid record.
+static int dd1_walk_record_cells(struct page *array, int ptr)
 {
+	if (ptr < 0 || array->nr_vars - ptr < 4)
+		return -1;
+	int sx = array->values[ptr + 1].i;
+	int sy = array->values[ptr + 2].i;
+	int sz = array->values[ptr + 3].i;
+	if (sx <= 0 || sy <= 0 || sz <= 0)
+		return -1;
+	uint64_t cells = (uint64_t)sx * (uint64_t)sy * (uint64_t)sz;
+	if (cells > (uint64_t)(array->nr_vars - ptr - 4))
+		return -1;
+	return (int)cells;
+}
+
+/*
+ * Older AliceHub builds appended a new map at the end of the array, after the
+ * original engine's padding, so it could not be read back. Move such a map
+ * (the last one, ending exactly at the end of the array) back to the end of
+ * the previous map.
+ */
+static void dd1_fix_legacy_walk_data(struct page **page)
+{
+	struct page *array = *page;
+	if (!array || array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT ||
+	    array->array.rank != 1 || array->nr_vars < 2 || array->values[0].i != 0)
+		return;
+	int nr_maps = array->values[1].i;
+	if (nr_maps < 2)
+		return;
+	int ptr = 2;
+	for (int i = 0; i < nr_maps - 1; i++) {
+		int nr_cells = dd1_walk_record_cells(array, ptr);
+		if (nr_cells < 0)
+			return;
+		ptr += 4 + nr_cells;
+	}
+	if (dd1_walk_record_cells(array, ptr) >= 0)
+		return;
+	for (int p = ptr + 1; p <= array->nr_vars - 4 && array->values[p - 1].i == 0; p++) {
+		int nr_cells = dd1_walk_record_cells(array, p);
+		if (nr_cells < 0 || p + 4 + nr_cells != array->nr_vars)
+			continue;
+		WARNING("DrawDungeon: recovering walk data of map %d saved after padding",
+			array->values[p].i);
+		memmove(&array->values[ptr], &array->values[p], (4 + nr_cells) * sizeof(union vm_value));
+		union vm_value dim = { .i = ptr + 4 + nr_cells };
+		*page = realloc_array(array, 1, &dim, AIN_ARRAY_INT, 0, false);
+		return;
+	}
+}
+
+/*
+ * *end is set to the offset after the last intact map and *nr_intact to the
+ * number of maps before it, or -1 and 0 when the header itself is broken.
+ * The original DrawDungeon.dll leaves unused padding after the last map, so
+ * the data of a new map goes to *end, not to the end of the array.
+ */
+static int dd1_find_walk_data(struct page *array, int map_no, struct dgn *dgn, int *end, int *nr_intact)
+{
+	*end = -1;
+	*nr_intact = 0;
 	if (!array)
 		return WALK_DATA_BROKEN;
 	if (array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->array.rank != 1)
@@ -543,40 +724,47 @@ static int dd1_find_walk_data(struct page *array, int map_no, struct dgn *dgn, i
 	if (array->nr_vars < 2 || array->values[ptr++].i != 0)
 		return WALK_DATA_BROKEN;
 	int nr_maps = array->values[ptr++].i;
+	if (nr_maps < 0)
+		return WALK_DATA_BROKEN;
+	*end = ptr;
 
 	for (int i = 0; i < nr_maps; i++) {
-		if (array->nr_vars < ptr + 4)
+		int nr_cells = dd1_walk_record_cells(array, ptr);
+		if (nr_cells < 0)
 			return WALK_DATA_BROKEN;
-		int no = array->values[ptr].i;
-		uint32_t size_x = array->values[ptr + 1].i;
-		uint32_t size_y = array->values[ptr + 2].i;
-		uint32_t size_z = array->values[ptr + 3].i;
-		int nr_cells = size_x * size_y * size_z;
-		if (no == map_no) {
-			if (size_x != dgn->size_x || size_y != dgn->size_y || size_z != dgn->size_z)
-				return WALK_DATA_BROKEN;
-			if (ptr + 4 + nr_cells > array->nr_vars)
+		if (array->values[ptr].i == map_no) {
+			if ((uint32_t)array->values[ptr + 1].i != dgn->size_x ||
+			    (uint32_t)array->values[ptr + 2].i != dgn->size_y ||
+			    (uint32_t)array->values[ptr + 3].i != dgn->size_z)
 				return WALK_DATA_BROKEN;
 			return ptr;
 		}
 		ptr += 4 + nr_cells;
+		*end = ptr;
+		*nr_intact = i + 1;
 	}
-	if (ptr > array->nr_vars)
-		return WALK_DATA_BROKEN;
-	*end = ptr;
 	return WALK_DATA_NOT_FOUND;
 }
 
 static bool dd1_load_walk_data(struct dungeon_context *ctx, int map, struct page **page)
 {
+	if (!page)
+		return false;
 	struct page *array = *page;
-
 	if (!array)
 		return true;  // no walk data is not an error
-	int end;
-	int offset = dd1_find_walk_data(array, map, ctx->dgn, &end);
+	dd1_fix_legacy_walk_data(page);
+	array = *page;
+
+	int end, nr_intact;
+	int offset = dd1_find_walk_data(array, map, ctx->dgn, &end, &nr_intact);
+	if (offset == WALK_DATA_BROKEN) {
+		// SaveWalkData repairs it.
+		WARNING("DrawDungeon.LoadWalkData: ignoring broken walk data for map %d", map);
+		return true;
+	}
 	if (offset < 0)
-		return offset != WALK_DATA_BROKEN;
+		return true;
 
 	offset += 4;
 	int nr_cells = dgn_nr_cells(ctx->dgn);
@@ -591,9 +779,12 @@ static bool dd1_load_walk_data(struct dungeon_context *ctx, int map, struct page
 
 static bool dd2_load_walk_data(struct dungeon_context *ctx, struct page **page)
 {
+	if (!page)
+		return false;
 	int nr_cells = dgn_nr_cells(ctx->dgn);
 	struct page *array = *page;
-	if (!array || array->nr_vars != 5 + nr_cells) {
+	if (!array || array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT ||
+	    array->array.rank != 1 || array->nr_vars != 5 + nr_cells) {
 		WARNING("DrawDungeon2.LoadWalkData: invalid array size");
 		return false;
 	}
@@ -620,7 +811,7 @@ static bool dd2_load_walk_data(struct dungeon_context *ctx, struct page **page)
 bool dungeon_load_walk_data(int surface, int map, struct page **page)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || !ctx->dgn)
+	if (!ctx || !ctx->dgn || !page)
 		return false;
 	switch (ctx->version) {
 	case DRAW_DUNGEON_1:
@@ -636,16 +827,21 @@ bool dungeon_load_walk_data(int surface, int map, struct page **page)
 
 static bool dd1_save_walk_data(struct dungeon_context *ctx, int map, struct page **page)
 {
+	if (!page)
+		return false;
+	dd1_fix_legacy_walk_data(page);
 	struct page *array = *page;
 	int nr_cells = dgn_nr_cells(ctx->dgn);
 
-	int end;
-	int offset = dd1_find_walk_data(array, map, ctx->dgn, &end);
-	if (offset == WALK_DATA_NOT_FOUND) {
+	int end, nr_intact;
+	int offset = dd1_find_walk_data(array, map, ctx->dgn, &end, &nr_intact);
+	if (offset == WALK_DATA_NOT_FOUND || (offset == WALK_DATA_BROKEN && end >= 0)) {
+		if (offset == WALK_DATA_BROKEN)
+			WARNING("Discarding broken walk data after %d intact maps", nr_intact);
 		offset = end;
 		union vm_value dim = { .i = offset + 4 + nr_cells };
 		*page = array = realloc_array(array, 1, &dim, AIN_ARRAY_INT, 0, false);
-		array->values[1].i += 1;
+		array->values[1].i = nr_intact + 1;
 	} else if (offset == WALK_DATA_BROKEN) {
 		if (array)
 			WARNING("Discarding broken walk data");
@@ -666,10 +862,13 @@ static bool dd1_save_walk_data(struct dungeon_context *ctx, int map, struct page
 
 static bool dd2_save_walk_data(struct dungeon_context *ctx, struct page **page)
 {
+	if (!page)
+		return false;
 	struct page *array = *page;
 	int nr_cells = dgn_nr_cells(ctx->dgn);
 
-	if (!array || array->nr_vars != 5 + nr_cells) {
+	if (!array || array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT ||
+	    array->array.rank != 1 || array->nr_vars != 5 + nr_cells) {
 		WARNING("DrawDungeon2.SaveWalkData: invalid array size");
 		return false;
 	}
@@ -688,7 +887,7 @@ static bool dd2_save_walk_data(struct dungeon_context *ctx, struct page **page)
 bool dungeon_save_walk_data(int surface, int map, struct page **page)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || !ctx->dgn)
+	if (!ctx || !ctx->dgn || !page)
 		return false;
 	switch (ctx->version) {
 	case DRAW_DUNGEON_1:

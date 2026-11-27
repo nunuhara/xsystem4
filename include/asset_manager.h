@@ -18,6 +18,7 @@
 #define SYSTEM4_ASSET_MANAGER_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 struct archive_data;
 struct cg;
@@ -38,6 +39,8 @@ enum asset_type {
 const char *asset_strtype(enum asset_type type);
 void asset_manager_init(void);
 bool asset_manager_load_archive(enum asset_type type, const char *archive_name);
+void asset_foreach_file(enum asset_type type,
+		void (*callback)(struct archive_data *data, void *user), void *user);
 bool asset_exists(enum asset_type type, int no);
 bool asset_exists_by_name(enum asset_type type, const char *name, int *id_out);
 struct archive_data *asset_get(enum asset_type type, int no);
@@ -45,6 +48,8 @@ struct archive_data *asset_get_by_name(enum asset_type type, const char *name, i
 
 struct cg *asset_cg_load(int no);
 struct cg *asset_cg_load_by_name(const char *name, int *id_out);
+bool asset_cg_supports_name(void);
+uint64_t asset_cg_archive_gen(void);
 bool asset_cg_get_metrics(int no, struct cg_metrics *metrics);
 bool asset_cg_get_metrics_by_name(const char *name, struct cg_metrics *metrics);
 

@@ -36,6 +36,8 @@ struct drawfield_character {
 };
 
 struct dungeon_renderer *dungeon_renderer_create(enum draw_dungeon_version version, int num, struct dtx *dtx, GLuint *event_textures, int nr_event_textures, struct polyobj *po);
+bool dungeon_renderer_has_event_textures(const struct dungeon_renderer *r);
+void dungeon_renderer_reset_gl(struct dungeon_renderer *r, struct dtx *dtx, GLuint *event_textures, int nr_event_textures, struct polyobj *po);
 void dungeon_renderer_free(struct dungeon_renderer *r);
 void dungeon_renderer_render(struct dungeon_renderer *r, struct dgn_cell **cells, int nr_cells, struct drawfield_character *characters, mat4 view_transform, mat4 proj_transform);
 void dungeon_renderer_enable_event_markers(struct dungeon_renderer *r, bool enable);
@@ -47,5 +49,6 @@ void dungeon_renderer_set_raster_amp(struct dungeon_renderer *r, float amp);
 void dungeon_renderer_enable_lightmap(struct dungeon_renderer *r, bool enable);
 bool dungeon_renderer_get_draw_obj_flag(struct dungeon_renderer *r, int type);
 void dungeon_renderer_set_draw_obj_flag(struct dungeon_renderer *r, int type, bool flag);
+void dungeon_renderer_set_sky_texture_set(struct dungeon_renderer *r, struct dtx *dtx, int set);
 
 #endif /* SYSTEM4_DUNGEON_RENDERER_H */

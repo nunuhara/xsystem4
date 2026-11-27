@@ -32,11 +32,11 @@ vec3 get_pixel(vec2 old_xy, vec2 new_xy) {
 	// influence of old color is described by: C_old = (1-t)^2
 	// influence of new color increases linearly: C_new = t
 	// the resulting blend is not normalized
-	vec3 old = texture(old, old_xy).rgb;
-	vec3 new = texture(tex, new_xy).rgb;
+	vec3 old_col = texture(old, old_xy).rgb;
+	vec3 new_col = texture(tex, new_xy).rgb;
 	float old_weight = (1.0 - progress) * (1.0 - progress);
 	float new_weight = progress;
-	return (old * old_weight + new * new_weight);
+	return (old_col * old_weight + new_col * new_weight);
 }
 
 float triangle(float f) {

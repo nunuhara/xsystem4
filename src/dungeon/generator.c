@@ -315,9 +315,19 @@ struct dgn *dgn_generate_drawdungeon2(int level)
 // Set pathfinding_cost for each cell on the shortest path to the exit cell
 void dgn_paint_step(struct dgn *dgn, int start_x, int start_y)
 {
+	if (!dgn || dgn->size_y == 0)
+		return;
+
 	int nr_cells = dgn_nr_cells(dgn);
 	for (int i = 0; i < nr_cells; i++) {
 		dgn->cells[i].pathfinding_cost = -1;
+	}
+
+	if (start_x < 0 || start_x >= DD2_MAP_WIDTH || (uint32_t)start_x >= dgn->size_x ||
+	    start_y < 0 || start_y >= DD2_MAP_HEIGHT || (uint32_t)start_y >= dgn->size_z ||
+	    dgn->exit_x < 0 || dgn->exit_x >= DD2_MAP_WIDTH || (uint32_t)dgn->exit_x >= dgn->size_x ||
+	    dgn->exit_y < 0 || dgn->exit_y >= DD2_MAP_HEIGHT || (uint32_t)dgn->exit_y >= dgn->size_z) {
+		return;
 	}
 
 	// BFS.
@@ -342,7 +352,8 @@ void dgn_paint_step(struct dgn *dgn, int start_x, int start_y)
 		for (int i = 0; i < 4; i++) {
 			int nx = cx + dx_offsets[i];
 			int ny = cy + dy_offsets[i];
-			if (nx >= 0 && nx < DD2_MAP_WIDTH && ny >= 0 && ny < DD2_MAP_HEIGHT &&
+			if (nx >= 0 && nx < DD2_MAP_WIDTH && (uint32_t)nx < dgn->size_x &&
+			    ny >= 0 && ny < DD2_MAP_HEIGHT && (uint32_t)ny < dgn->size_z &&
 			    !dist[nx][ny] && dgn->cells[dgn_cell_index(dgn, nx, 0, ny)].floor >= 0) {
 				dist[nx][ny] = dist[cx][cy] + 1;
 				prev[nx][ny].x = cx;

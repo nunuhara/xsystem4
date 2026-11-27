@@ -436,9 +436,11 @@ static void Gpx2Plus_SetFontSize(int size)
 static void Gpx2Plus_SetFontName(struct string *name)
 {
 	char *u = sjis2utf(name->text, name->size);
-	if (!strcmp(u, "ＭＳ ゴシック"))
+	if (!strcmp(u, "ＭＳ ゴシック") || !strcasecmp(u, "MS Gothic")
+			|| !strcmp(u, "黑体") || !strcmp(u, "黒体") || !strcasecmp(u, "SimHei"))
 		gfx_set_font_face(FONT_GOTHIC);
-	else if (!strcmp(u, "ＭＳ 明朝"))
+	else if (!strcmp(u, "ＭＳ 明朝") || !strcasecmp(u, "MS Mincho")
+			|| !strcmp(u, "宋体") || !strcasecmp(u, "SimSun"))
 		gfx_set_font_face(FONT_MINCHO);
 	else
 		WARNING("Unknown font name '%s'", display_utf0(u));
@@ -748,7 +750,25 @@ static int Gpx2Plus_EffectCopy(int effect, int wx, int wy,
 	return 1;
 }
 
+static void Gpx2Plus_ModuleFini(void)
+{
+	if (surfaces) {
+		for (int i = 0; i < nr_surfaces; i++) {
+			if (surfaces[i])
+				free_surface(surfaces[i]);
+		}
+		free(surfaces);
+		surfaces = NULL;
+	}
+	nr_surfaces = 0;
+	free(msgbuf.text);
+	msgbuf.text = NULL;
+	msgbuf.len = 0;
+	msgbuf.cap = 0;
+}
+
 HLL_LIBRARY(Gpx2Plus,
+			HLL_EXPORT(_ModuleFini, Gpx2Plus_ModuleFini),
 			HLL_EXPORT(Init, Gpx2Plus_Init),
 			HLL_EXPORT(Create, Gpx2Plus_Create),
 			HLL_EXPORT(CreatePixelOnly, Gpx2Plus_CreatePixelOnly),

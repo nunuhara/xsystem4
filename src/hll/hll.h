@@ -38,6 +38,7 @@ void static_library_replace(struct static_library *lib, const char *name, void *
 	}
 
 #define HLL_EXPORT(fname, funptr) { .name = #fname, .fun = funptr }
+#define HLL_OVERLOAD(fname, resolver) { .name = #fname, .resolve = resolver }
 #define HLL_TODO_EXPORT(fname, funptr) { .name = #fname, .fun = NULL }
 
 #define HLL_LIBRARY(lname, ...)				\

@@ -115,13 +115,19 @@ vec3 hable(vec3 v)
 	float a = tonemap_param.z, b = tonemap_param.w;
 	float c = tonemap_param2.x, d = tonemap_param2.y;
 	float e = tonemap_param2.z, f = tonemap_param2.w;
-	return ((v * (a * v + c * b) + d * e) / (v * (a * v + b) + d * f)) - e / f;
+	if (abs(f) <= 1e-6)
+		return v;
+	vec3 denom = v * (a * v + b) + d * f;
+	denom = mix(denom, vec3(1.0), lessThan(abs(denom), vec3(1e-6)));
+	return ((v * (a * v + c * b) + d * e) / denom) - e / f;
 }
 
 vec3 tone_map(vec3 color)
 {
 	vec3 curr = hable(color * tonemap_param.x);
 	vec3 white = hable(vec3(tonemap_param.y));
+	if (any(lessThan(abs(white), vec3(1e-6))))
+		return color;
 	return curr / white;
 }
 #endif
@@ -156,16 +162,21 @@ in float blend_weight;
 in vec2 blend_tex_coord;
 out vec4 frag_color;
 
+vec3 safe_normalize(vec3 v, vec3 fallback) {
+	float len = length(v);
+	return len > 1e-6 ? v / len : fallback;
+}
+
 void main() {
 	vec3 norm;
 	if (use_normal_map) {
 		// NOTE: TT3's shader doesn't normalize this vector.
 		norm = texture(normal_texture, tex_coord).rgb * 2.0 - 1.0;
 	} else {
-		norm = normalize(normal);
+		norm = safe_normalize(normal, vec3(0.0, 0.0, 1.0));
 	}
 
-	vec3 view_dir = normalize(eye - frag_pos);
+	vec3 view_dir = safe_normalize(eye - frag_pos, vec3(0.0, 0.0, 1.0));
 	vec3 frag_rgb = global_ambient + instance_ambient;
 
 	// Diffuse lighting
@@ -191,7 +202,9 @@ void main() {
 	// Specular lighting
 	if (any(greaterThan(specular_color, vec3(0.0)))) {
 		vec3 reflect_dir = reflect(specular_dir, norm);
-		float specular = pow(max(dot(view_dir, reflect_dir), 0.0), specular_shininess);
+		float spec_dot = max(dot(view_dir, reflect_dir), 0.0);
+		float specular = (specular_shininess > 0.0 && spec_dot > 0.0)
+			? pow(spec_dot, specular_shininess) : 0.0;
 		if (use_specular_map) {
 			specular *= texture(specular_texture, tex_coord).r;
 		}
@@ -203,13 +216,16 @@ void main() {
 	// Rim lighting
 	if (rim_exponent > 0.0) {
 		// Normal map is not used here.
-		vec3 n = use_normal_map ? vec3(0.0, 0.0, 1.0) : normalize(normal);
-		frag_rgb += pow(1.0 - max(dot(n, view_dir), 0.0), rim_exponent) * rim_color;
+		vec3 n = use_normal_map ? vec3(0.0, 0.0, 1.0) : safe_normalize(normal, vec3(0.0, 0.0, 1.0));
+		float rim = 1.0 - max(dot(n, view_dir), 0.0);
+		if (rim > 0.0)
+			frag_rgb += pow(rim, rim_exponent) * rim_color;
 	}
 
 	// Fog
 	if (fog_type == FOG_LINEAR) {
-		float fog_factor = clamp((dist - fog_near) / (fog_far - fog_near), 0.0, 1.0);
+		float fog_denom = fog_far - fog_near;
+		float fog_factor = abs(fog_denom) > 1e-6 ? clamp((dist - fog_near) / fog_denom, 0.0, 1.0) : 0.0;
 		frag_rgb = mix(frag_rgb, fog_color, fog_factor);
 	}
 #endif
@@ -221,7 +237,7 @@ void main() {
 #endif
 
 	// Shadow mapping
-	if (shadow_darkness > 0.0) {
+	if (shadow_darkness > 0.0 && abs(shadow_frag_pos.w) > 1e-6) {
 		vec3 shadow_coords = shadow_frag_pos.xyz / shadow_frag_pos.w * 0.5 + 0.5;
 		shadow_coords.z = min(1.0, shadow_coords.z - shadow_bias);
 		// PCF with 9 samples.

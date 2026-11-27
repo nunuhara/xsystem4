@@ -245,7 +245,7 @@ static int vmDrawMsg_Draw(int handle)
 		}
 		s += skiplen;
 	}
-	string_clear(dm->text);
+	string_clear_ref(&dm->text);
 	return 0;
 }
 

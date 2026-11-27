@@ -15,6 +15,7 @@
  */
 
 #include <limits.h>
+#include <math.h>
 #include <cglm/cglm.h>
 
 #include "system4.h"
@@ -25,8 +26,6 @@
 #include "asset_manager.h"
 #include "reign.h"
 #include "sact.h"
-
-#define BONE_TRANSFORMS_BINDING 0
 
 // TODO: Respect RE_plugin.shadow_map_resolution_level
 #define SHADOW_WIDTH 512
@@ -40,6 +39,7 @@ enum {
 	NORMAL_TEXTURE_UNIT,
 	SHADOW_TEXTURE_UNIT,
 	BLEND_TEXTURE_UNIT,
+	BONE_TEXTURE_UNIT,
 };
 
 enum {
@@ -61,7 +61,7 @@ enum draw_phase {
 	DRAW_TRANSPARENT,
 };
 
-static GLuint load_shader(const char *vertex_shader_path, const char *fragment_shader_path)
+static GLuint load_shader(const char *vertex_shader_path, const char *fragment_shader_path, enum RE_plugin_version version)
 {
 	char defines[256];
 	snprintf(defines, sizeof(defines),
@@ -72,7 +72,7 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 			 RE_REIGN_PLUGIN,
 			 RE_TAPIR_PLUGIN,
 			 RE_SEAL_PLUGIN,
-			 re_plugin_version);
+			 version);
 	GLuint program = glCreateProgram();
 	GLuint vertex_shader = gfx_load_shader_file(vertex_shader_path, GL_VERTEX_SHADER, defines);
 	GLuint fragment_shader = gfx_load_shader_file(fragment_shader_path, GL_FRAGMENT_SHADER, defines);
@@ -94,6 +94,10 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 	glBindAttribLocation(program, VATTR_BLEND_UV, "vertex_blend_uv");
 
 	glLinkProgram(program);
+	glDetachShader(program, vertex_shader);
+	glDetachShader(program, fragment_shader);
+	glDeleteShader(vertex_shader);
+	glDeleteShader(fragment_shader);
 
 	GLint link_success;
 	glGetProgramiv(program, GL_LINK_STATUS, &link_success);
@@ -104,35 +108,54 @@ static GLuint load_shader(const char *vertex_shader_path, const char *fragment_s
 		glGetProgramInfoLog(program, len, NULL, infolog);
 		ERROR("Failed to link shader %s, %s: %s", vertex_shader_path, fragment_shader_path, infolog);
 	}
+	GLint bone_texture = glGetUniformLocation(program, "bone_texture");
+	if (bone_texture >= 0) {
+		glUseProgram(program);
+		glUniform1i(bone_texture, BONE_TEXTURE_UNIT);
+		glUseProgram(0);
+	}
 	return program;
 }
 
-static void init_shadow_renderer(struct shadow_renderer *sr)
+static void bind_bone_texture(GLuint texture)
 {
-	GLint orig_fbo;
-	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &orig_fbo);
+	glActiveTexture(GL_TEXTURE0 + BONE_TEXTURE_UNIT);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glActiveTexture(GL_TEXTURE0);
+}
 
-	sr->program = load_shader("shaders/reign_shadow.v.glsl", "shaders/reign_shadow.f.glsl");
+static void init_shadow_renderer(struct shadow_renderer *sr, enum RE_plugin_version version)
+{
+	GLint orig_draw_fbo = 0, orig_read_fbo = 0;
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &orig_draw_fbo);
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &orig_read_fbo);
+
+	sr->program = load_shader("shaders/reign_shadow.v.glsl", "shaders/reign_shadow.f.glsl", version);
 	sr->local_transform = glGetUniformLocation(sr->program, "local_transform");
 	sr->view_transform = glGetUniformLocation(sr->program, "view_transform");
 	sr->has_bones = glGetUniformLocation(sr->program, "has_bones");
-	GLuint bone_transforms = glGetUniformBlockIndex(sr->program, "BoneTransforms");
-	glUniformBlockBinding(sr->program, bone_transforms, BONE_TRANSFORMS_BINDING);
 
 	glGenFramebuffers(1, &sr->fbo);
 	glGenTextures(1, &sr->texture);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, sr->texture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
 	glBindFramebuffer(GL_FRAMEBUFFER, sr->fbo);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sr->texture, 0);
-	glDrawBuffers(0, NULL);
+	GLenum none = GL_NONE;
+	glDrawBuffers(1, &none);
 	glReadBuffer(GL_NONE);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, orig_fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)orig_draw_fbo);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)orig_read_fbo);
 }
 
 static void destroy_shadow_renderer(struct shadow_renderer *sr)
@@ -142,20 +165,18 @@ static void destroy_shadow_renderer(struct shadow_renderer *sr)
 	glDeleteProgram(sr->program);
 }
 
-static void init_outline_renderer(struct outline_renderer *or)
+static void init_outline_renderer(struct outline_renderer *or, enum RE_plugin_version version)
 {
-	if (re_plugin_version < RE_TAPIR_PLUGIN) {
+	if (version < RE_TAPIR_PLUGIN) {
 		or->program = 0;
 		return;
 	}
-	or->program = load_shader("shaders/reign_outline.v.glsl", "shaders/reign_outline.f.glsl");
+	or->program = load_shader("shaders/reign_outline.v.glsl", "shaders/reign_outline.f.glsl", version);
 	or->local_transform = glGetUniformLocation(or->program, "local_transform");
 	or->view_transform = glGetUniformLocation(or->program, "view_transform");
 	or->proj_transform = glGetUniformLocation(or->program, "proj_transform");
 	or->normal_transform = glGetUniformLocation(or->program, "normal_transform");
 	or->has_bones = glGetUniformLocation(or->program, "has_bones");
-	GLuint bone_transforms = glGetUniformBlockIndex(or->program, "BoneTransforms");
-	glUniformBlockBinding(or->program, bone_transforms, BONE_TRANSFORMS_BINDING);
 	or->outline_color = glGetUniformLocation(or->program, "outline_color");
 	or->outline_thickness = glGetUniformLocation(or->program, "outline_thickness");
 }
@@ -226,11 +247,9 @@ static void destroy_billboard_mesh(struct RE_renderer *r)
 	glDeleteBuffers(1, &r->billboard_instance_attr_buffer);
 }
 
-struct RE_renderer *RE_renderer_new(void)
+static void init_renderer_gl_resources(struct RE_renderer *r)
 {
-	struct RE_renderer *r = xcalloc(1, sizeof(struct RE_renderer));
-
-	r->program = load_shader("shaders/reign.v.glsl", "shaders/reign.f.glsl");
+	r->program = load_shader("shaders/reign.v.glsl", "shaders/reign.f.glsl", r->version);
 	r->view_transform = glGetUniformLocation(r->program, "view_transform");
 	r->texture = glGetUniformLocation(r->program, "tex");
 	r->local_transform = glGetUniformLocation(r->program, "local_transform");
@@ -238,8 +257,6 @@ struct RE_renderer *RE_renderer_new(void)
 	r->normal_transform = glGetUniformLocation(r->program, "normal_transform");
 	r->alpha_mod = glGetUniformLocation(r->program, "alpha_mod");
 	r->has_bones = glGetUniformLocation(r->program, "has_bones");
-	GLuint bone_transforms = glGetUniformBlockIndex(r->program, "BoneTransforms");
-	glUniformBlockBinding(r->program, bone_transforms, BONE_TRANSFORMS_BINDING);
 	r->global_ambient = glGetUniformLocation(r->program, "global_ambient");
 	r->instance_ambient = glGetUniformLocation(r->program, "instance_ambient");
 	r->diffuse_mod = glGetUniformLocation(r->program, "diffuse_mod");
@@ -293,12 +310,101 @@ struct RE_renderer *RE_renderer_new(void)
 
 	glGenRenderbuffers(1, &r->depth_buffer);
 
-	init_shadow_renderer(&r->shadow);
-	init_outline_renderer(&r->outline);
+	init_shadow_renderer(&r->shadow, r->version);
+	init_outline_renderer(&r->outline, r->version);
 	init_billboard_mesh(r);
+}
+
+GLuint RE_create_texture_from_cg(struct cg *cg, GLint wrap, bool *has_alpha_out)
+{
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	if (has_alpha_out)
+		*has_alpha_out = cg->metrics.has_alpha;
+	return texture;
+}
+
+static struct billboard_texture *create_billboard_texture(struct cg *cg);
+
+static void reload_billboard_texture_no_cb(struct ht_slot *slot, void *data)
+{
+	(void)data;
+	struct billboard_texture *bt = slot->value;
+	if (!bt)
+		return;
+	bt->texture = 0;
+	struct cg *cg = asset_cg_load(slot->ikey);
+	if (!cg)
+		return;
+	bt->texture = RE_create_texture_from_cg(cg, GL_CLAMP_TO_EDGE, &bt->has_alpha);
+	cg_free(cg);
+}
+
+static void reload_billboard_texture_path_cb(struct ht_slot *slot, void *data)
+{
+	struct archive *aar = data;
+	struct billboard_texture *bt = slot->value;
+	if (!bt)
+		return;
+	bt->texture = 0;
+	if (!aar || !slot->key)
+		return;
+	struct archive_data *dfile = archive_get_by_name(aar, slot->key);
+	if (!dfile)
+		return;
+	struct cg *cg = cg_load_data(dfile);
+	archive_free_data(dfile);
+	if (!cg)
+		return;
+	bt->texture = RE_create_texture_from_cg(cg, GL_CLAMP_TO_EDGE, &bt->has_alpha);
+	cg_free(cg);
+}
+
+void RE_renderer_reload_billboard_textures_by_path(struct RE_renderer *r, struct archive *aar)
+{
+	if (!r || !r->billboard_textures_by_path)
+		return;
+	ht_foreach(r->billboard_textures_by_path, reload_billboard_texture_path_cb, aar);
+}
+
+static void re_renderer_on_gl_reset(void *user)
+{
+	struct RE_renderer *r = user;
+	if (!r)
+		return;
+	r->program = 0;
+	r->depth_buffer = 0;
+	memset(&r->shadow, 0, sizeof(r->shadow));
+	memset(&r->outline, 0, sizeof(r->outline));
+	r->billboard_particle_vao = 0;
+	r->billboard_particle_attr_buffer = 0;
+	r->billboard_instance_vao = 0;
+	r->billboard_instance_attr_buffer = 0;
+	init_renderer_gl_resources(r);
+	if (r->viewport_width > 0 && r->viewport_height > 0)
+		RE_renderer_set_viewport_size(r, r->viewport_width, r->viewport_height);
+	if (r->billboard_textures_by_no)
+		ht_foreach(r->billboard_textures_by_no, reload_billboard_texture_no_cb, NULL);
+}
+
+struct RE_renderer *RE_renderer_new(enum RE_plugin_version version)
+{
+	struct RE_renderer *r = xcalloc(1, sizeof(struct RE_renderer));
+	r->version = version;
+	init_renderer_gl_resources(r);
 	r->billboard_textures_by_no = ht_create(256);
 	r->billboard_textures_by_path = ht_create(256);
 	r->last_frame_timestamp = SDL_GetTicks();
+	gfx_register_reset_callback(re_renderer_on_gl_reset, r);
 	return r;
 }
 
@@ -307,23 +413,14 @@ void RE_renderer_set_viewport_size(struct RE_renderer *r, int width, int height)
 	r->viewport_width = width;
 	r->viewport_height = height;
 	glBindRenderbuffer(GL_RENDERBUFFER, r->depth_buffer);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 }
 
 static struct billboard_texture *create_billboard_texture(struct cg *cg)
 {
 	struct billboard_texture *bt = xcalloc(1, sizeof(struct billboard_texture));
-	glGenTextures(1, &bt->texture);
-	glBindTexture(GL_TEXTURE_2D, bt->texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glGenerateMipmap(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	bt->has_alpha = cg->metrics.has_alpha;
+	bt->texture = RE_create_texture_from_cg(cg, GL_CLAMP_TO_EDGE, &bt->has_alpha);
 	return bt;
 }
 
@@ -372,6 +469,7 @@ static void free_billboard_texture(void *value)
 
 void RE_renderer_free(struct RE_renderer *r)
 {
+	gfx_unregister_reset_callback(re_renderer_on_gl_reset, r);
 	glDeleteProgram(r->program);
 	glDeleteRenderbuffers(1, &r->depth_buffer);
 	ht_foreach_value(r->billboard_textures_by_no, free_billboard_texture);
@@ -447,8 +545,9 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 	if ((phase == DRAW_OPAQUE && all_transparent) || (phase == DRAW_TRANSPARENT && all_opaque))
 		return;
 
-	int mat_tex_index[model->nr_materials];
-	mpr_build_mat_tex_index(model, inst, mpr, frame, mat_tex_index);
+	int mat_tex_index[model->nr_materials > 0 ? model->nr_materials : 1];
+	if (model->nr_materials > 0)
+		mpr_build_mat_tex_index(model, inst, mpr, frame, mat_tex_index);
 
 	if (inst->local_transform_needs_update)
 		RE_instance_update_local_transform(inst);
@@ -465,11 +564,13 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
-		if (mesh->hidden)
+		if (mesh->hidden || RE_instance_is_mesh_hidden(inst, i))
+			continue;
+		if (mesh->material < 0 || mesh->material >= model->nr_materials)
 			continue;
 		struct material *material = &model->materials[mesh->material];
 
-		const struct mpr_track_set *mt = mpr ? mpr->mesh_tracks[i] : NULL;
+		const struct mpr_track_set *mt = (mpr && i < mpr->nr_meshes) ? mpr->mesh_tracks[i] : NULL;
 		struct mpr_modulation mesh_mod;
 		mpr_evaluate_mesh(mt, frame, &obj_mod, &mesh_mod);
 		if (mesh_mod.alpha <= 0.0f)
@@ -491,7 +592,7 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 
 		bool nolighting = is_nolighting(inst->plugin, mesh);
 		int fog_type = inst->plugin->fog_type;
-		if (!inst->plugin->fog_mode || (re_plugin_version == RE_REIGN_PLUGIN && nolighting)) {
+		if (!inst->plugin->fog_mode || (inst->plugin->version == RE_REIGN_PLUGIN && nolighting)) {
 			fog_type = RE_FOG_NONE;
 		}
 		glUniform1i(r->fog_type, fog_type);
@@ -523,8 +624,9 @@ static void render_model(struct RE_instance *inst, struct RE_renderer *r, enum d
 
 		glActiveTexture(GL_TEXTURE0 + COLOR_TEXTURE_UNIT);
 		int tex_index = mat_tex_index[mesh->material];
-		int animation_index = tex_index < material->nr_color_maps ? tex_index : 0;
-		glBindTexture(GL_TEXTURE_2D, material->color_maps[animation_index]);
+		int animation_index = (tex_index >= 0 && tex_index < material->nr_color_maps) ? tex_index : 0;
+		GLuint color_tex = (material->color_maps && material->nr_color_maps > 0) ? material->color_maps[animation_index] : 0;
+		glBindTexture(GL_TEXTURE_2D, color_tex);
 		glUniform1i(r->texture, COLOR_TEXTURE_UNIT);
 
 		if (draw_shadow && should_draw_shadow(mesh, material))
@@ -618,7 +720,7 @@ static void render_skinned_model(struct RE_instance *inst, struct RE_renderer *r
 
 	if (model->nr_bones > 0 && inst->motion) {
 		glUniform1i(r->has_bones, GL_TRUE);
-		glBindBufferBase(GL_UNIFORM_BUFFER, BONE_TRANSFORMS_BINDING, inst->bone_transforms_ubo);
+		bind_bone_texture(inst->bone_transforms_texture);
 	} else {
 		glUniform1i(r->has_bones, GL_FALSE);
 	}
@@ -652,7 +754,7 @@ static void reset_draw_uniforms(struct RE_renderer *r, struct RE_plugin *plugin)
 
 static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, mat4 view_mat, enum draw_phase phase)
 {
-	if (!inst->draw)
+	if (!inst->draw || !inst->motion)
 		return;
 	int frame = inst->motion->current_frame;
 	struct billboard_texture *bt;
@@ -719,7 +821,7 @@ static void render_billboard(struct RE_instance *inst, struct RE_renderer *r, ma
 static void render_billboard_particles(struct RE_renderer *r, struct RE_instance *inst, struct particle_object *po, float frame)
 {
 	struct pae_object *pae_obj = po->pae_obj;
-	if (pae_obj->nr_textures == 0)
+	if (pae_obj->nr_textures <= 0)
 		return;
 
 	glUniform1i(r->diffuse_type, DIFFUSE_EMISSIVE);
@@ -734,7 +836,11 @@ static void render_billboard_particles(struct RE_renderer *r, struct RE_instance
 		if (frame < pi->begin_frame || pi->end_frame <= frame)
 			continue;
 
-		int step = (int)((frame - pi->begin_frame) / pae_obj->texture_anime_frame);
+		int step = pae_obj->texture_anime_frame > 0.0f
+			? (int)((frame - pi->begin_frame) / pae_obj->texture_anime_frame)
+			: 0;
+		if (step < 0)
+			step = 0;
 		struct billboard_texture *bt = ht_get(inst->effect->pae->textures, pae_obj->textures[step % pae_obj->nr_textures], NULL);
 		if (!bt)
 			continue;
@@ -746,9 +852,11 @@ static void render_billboard_particles(struct RE_renderer *r, struct RE_instance
 		glUniform1f(r->alpha_mod, alpha);
 
 		mat4 local_transform;
+		mat3 normal_transform;
 		particle_object_calc_local_transform(inst, po, pi, frame, local_transform);
+		glm_mat4_pick3(local_transform, normal_transform);
 		glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, local_transform[0]);
-		glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, local_transform[0]);
+		glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, normal_transform[0]);
 
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	}
@@ -777,19 +885,23 @@ static void render_polygon_particles(struct RE_renderer *r, struct RE_instance *
 		glUniform1f(r->alpha_mod, alpha);
 
 		mat4 local_transform;
+		mat3 normal_transform;
 		particle_object_calc_local_transform(inst, po, pi, frame, local_transform);
+		glm_mat4_pick3(local_transform, normal_transform);
 		glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, local_transform[0]);
-		glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, local_transform[0]);
+		glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, normal_transform[0]);
 
 		for (int i = 0; i < model->nr_meshes; i++) {
 			struct mesh *mesh = &model->meshes[i];
+			if (mesh->hidden || mesh->material < 0 || mesh->material >= model->nr_materials)
+				continue;
 			struct material *material = &model->materials[mesh->material];
 			glUniform4f(r->uv_tiling,
 				material->uv_tiling[0], material->uv_tiling[1],
 				material->blend_uv_tiling[0], material->blend_uv_tiling[1]);
 
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, material->color_maps[0]);
+			glBindTexture(GL_TEXTURE_2D, (material->color_maps && material->nr_color_maps > 0) ? material->color_maps[0] : 0);
 			glUniform1i(r->texture, 0);
 
 			glBindVertexArray(mesh->vao);
@@ -838,9 +950,11 @@ static void render_s3de_billboard_particles(struct RE_renderer *r, struct RE_ins
 		if (!s3de_billboard_world_transform(inst, obj, st, p, frame, camera_rot, world))
 			continue;
 
+		mat3 normal_transform;
+		glm_mat4_pick3(world, normal_transform);
 		glUniform1f(r->alpha_mod, alpha);
 		glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, world[0]);
-		glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, world[0]);
+		glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, normal_transform[0]);
 
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	}
@@ -880,12 +994,16 @@ static void render_s3de_polygon_particles(struct RE_renderer *r, struct RE_insta
 		if (!s3de_mesh_world_transform(inst, obj, st, p, frame, camera_rot, camera_pos, world))
 			continue;
 
+		mat3 normal_transform;
+		glm_mat4_pick3(world, normal_transform);
 		glUniform1f(r->alpha_mod, alpha);
 		glUniformMatrix4fv(r->local_transform, 1, GL_FALSE, world[0]);
-		glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, world[0]);
+		glUniformMatrix3fv(r->normal_transform, 1, GL_FALSE, normal_transform[0]);
 
 		for (int j = 0; j < model->nr_meshes; j++) {
 			struct mesh *mesh = &model->meshes[j];
+			if (mesh->hidden || mesh->material < 0 || mesh->material >= model->nr_materials)
+				continue;
 			bool is_transparent = mesh->is_transparent || alpha < 1.0f;
 			if (phase != (is_transparent ? DRAW_TRANSPARENT : DRAW_OPAQUE))
 				continue;
@@ -895,7 +1013,7 @@ static void render_s3de_polygon_particles(struct RE_renderer *r, struct RE_insta
 				material->blend_uv_tiling[0], material->blend_uv_tiling[1]);
 
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, material->color_maps[0]);
+			glBindTexture(GL_TEXTURE_2D, (material->color_maps && material->nr_color_maps > 0) ? material->color_maps[0] : 0);
 			glUniform1i(r->texture, 0);
 			glBindVertexArray(mesh->vao);
 
@@ -929,7 +1047,11 @@ static int cmp_s3de_obj(const void *lhs, const void *rhs)
 
 static void render_s3de_effect(struct RE_instance *inst, struct RE_renderer *r, enum draw_phase phase)
 {
-	if (!inst->s3de_effect || !inst->draw)
+	if (!inst->s3de_effect || !inst->draw || !inst->motion)
+		return;
+
+	struct s3de *s = inst->s3de_effect->s3de;
+	if (!s || s->nr_objects <= 0)
 		return;
 
 	if (inst->local_transform_needs_update)
@@ -945,8 +1067,6 @@ static void render_s3de_effect(struct RE_instance *inst, struct RE_renderer *r, 
 	RE_calc_view_matrix(&inst->plugin->camera, NULL, view_mat);
 	mat3 camera_rot;
 	glm_mat4_pick3t(view_mat, camera_rot);
-
-	struct s3de *s = inst->s3de_effect->s3de;
 
 	// Sort objects by their emitter's world-space distance to the camera.
 	// The transparent phase draws back-to-front, the opaque phase draws
@@ -1002,7 +1122,7 @@ static void render_s3de_effect(struct RE_instance *inst, struct RE_renderer *r, 
 static void render_particle_effect(struct RE_instance *inst, struct RE_renderer *r, enum draw_phase phase)
 {
 	// NOTE: inst->draw flag has no effect for particle effects.
-	if (!inst->effect || phase == DRAW_OPAQUE)
+	if (!inst->effect || !inst->motion || phase == DRAW_OPAQUE)
 		return;
 
 	glUniform3fv(r->instance_ambient, 1, inst->ambient);
@@ -1090,10 +1210,29 @@ static bool calc_shadow_light_transform(struct RE_plugin *plugin, mat4 dest)
 		struct RE_instance *inst = plugin->instances[i];
 		if (!inst || !inst->draw || !inst->make_shadow || !inst->model)
 			continue;
+		vec4 sphere;
+		if (inst->bounding_sphere[3] > 0.0f && isfinite(inst->bounding_sphere[3])) {
+			glm_vec4_copy(inst->bounding_sphere, sphere);
+		} else {
+			vec3 aabb[2];
+			memcpy(aabb, inst->model->aabb, sizeof(aabb));
+			if (aabb[0][0] > aabb[1][0] || aabb[0][1] > aabb[1][1] || aabb[0][2] > aabb[1][2])
+				continue;
+			if (inst->local_transform_needs_update)
+				RE_instance_update_local_transform(inst);
+			glm_aabb_transform(aabb, inst->local_transform, aabb);
+			vec3 center;
+			glm_aabb_center(aabb, center);
+			float r = glm_aabb_radius(aabb);
+			if (r <= 0.0f || !isfinite(r))
+				continue;
+			glm_vec3_copy(center, sphere);
+			sphere[3] = r;
+		}
 		if (bounding_sphere[3] > 0.0f)
-			merge_spheres(inst->bounding_sphere, bounding_sphere, bounding_sphere);
+			merge_spheres(sphere, bounding_sphere, bounding_sphere);
 		else
-			glm_vec4_copy(inst->bounding_sphere, bounding_sphere);
+			glm_vec4_copy(sphere, bounding_sphere);
 	}
 
 	float radius = bounding_sphere[3] * 1.2f;  // Add some padding.
@@ -1117,12 +1256,14 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 	}
 
 	struct RE_renderer *r = plugin->renderer;
-	GLint orig_fbo, orig_viewport[4];
-	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &orig_fbo);
+	GLint orig_draw_fbo = 0, orig_read_fbo = 0, orig_viewport[4];
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &orig_draw_fbo);
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &orig_read_fbo);
 	glGetIntegerv(GL_VIEWPORT, orig_viewport);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, r->shadow.fbo);
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	glDepthMask(GL_TRUE);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glUseProgram(r->shadow.program);
 
@@ -1136,25 +1277,30 @@ static void render_shadow_map(struct RE_plugin *plugin, mat4 light_space_transfo
 		if (!inst || !inst->draw || !inst->make_shadow || !inst->model)
 			continue;
 		struct model *model = inst->model;
-		if (model->nr_bones > 0) {
+		if (inst->type == RE_ITYPE_SKINNED && model->nr_bones > 0 && inst->motion) {
 			glUniform1i(r->shadow.has_bones, GL_TRUE);
-			glBindBufferBase(GL_UNIFORM_BUFFER, BONE_TRANSFORMS_BINDING, inst->bone_transforms_ubo);
+			bind_bone_texture(inst->bone_transforms_texture);
 		} else {
 			glUniform1i(r->shadow.has_bones, GL_FALSE);
 		}
 		glUniformMatrix4fv(r->shadow.local_transform, 1, GL_FALSE, inst->local_transform[0]);
 		for (int j = 0; j < model->nr_meshes; j++) {
 			struct mesh *mesh = &model->meshes[j];
-			if (mesh->flags & MESH_NOMAKESHADOW)
+			if ((mesh->flags & MESH_NOMAKESHADOW) || mesh->hidden || RE_instance_is_mesh_hidden(inst, j))
 				continue;
 			glBindVertexArray(mesh->vao);
-			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+			if (mesh->nr_indices > 0)
+				glDrawElements(GL_TRIANGLES, mesh->nr_indices, GL_UNSIGNED_SHORT, NULL);
+			else
+				glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 		}
 		glBindVertexArray(0);
 	}
 
 	glDisable(GL_DEPTH_TEST);
-	glBindFramebuffer(GL_FRAMEBUFFER, orig_fbo);
+	glUseProgram(0);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)orig_draw_fbo);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)orig_read_fbo);
 	glViewport(orig_viewport[0], orig_viewport[1], orig_viewport[2], orig_viewport[3]);
 }
 
@@ -1171,7 +1317,7 @@ static void render_outlines(struct RE_plugin *plugin, mat4 view_transform)
 
 	// SealEngine ignores the per-mesh edge parameters from .opr and uses
 	// a single plugin-wide edge length and color.
-	bool seal_edge = re_plugin_version >= RE_SEAL_PLUGIN;
+	bool seal_edge = plugin->version >= RE_SEAL_PLUGIN;
 	if (seal_edge) {
 		glUniform3fv(or->outline_color, 1, plugin->edge_color);
 		float thickness = plugin->edge_length * (1.f - plugin->edge_reduction_rate);
@@ -1181,14 +1327,12 @@ static void render_outlines(struct RE_plugin *plugin, mat4 view_transform)
 	glCullFace(GL_FRONT);
 	for (int i = 0; i < plugin->nr_instances; i++) {
 		struct RE_instance *inst = plugin->instances[i];
-		if (!inst || !inst->draw)
-			continue;
-		if (!inst->draw_edge)
+		if (!inst || !inst->draw || !inst->draw_edge || !inst->model)
 			continue;
 		struct model *model = inst->model;
-		if (inst->model && model->nr_bones > 0) {
+		if (inst->type == RE_ITYPE_SKINNED && model->nr_bones > 0 && inst->motion) {
 			glUniform1i(or->has_bones, GL_TRUE);
-			glBindBufferBase(GL_UNIFORM_BUFFER, BONE_TRANSFORMS_BINDING, inst->bone_transforms_ubo);
+			bind_bone_texture(inst->bone_transforms_texture);
 		} else {
 			glUniform1i(or->has_bones, GL_FALSE);
 		}
@@ -1196,14 +1340,17 @@ static void render_outlines(struct RE_plugin *plugin, mat4 view_transform)
 		glUniformMatrix3fv(or->normal_transform, 1, GL_FALSE, inst->normal_transform[0]);
 		for (int j = 0; j < model->nr_meshes; j++) {
 			struct mesh *mesh = &model->meshes[j];
-			if (mesh->flags & MESH_NO_EDGE)
+			if ((mesh->flags & MESH_NO_EDGE) || mesh->hidden || RE_instance_is_mesh_hidden(inst, j))
 				continue;
 			if (!seal_edge) {
 				glUniform3fv(or->outline_color, 1, mesh->outline_color);
 				glUniform1f(or->outline_thickness, mesh->outline_thickness);
 			}
 			glBindVertexArray(mesh->vao);
-			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+			if (mesh->nr_indices > 0)
+				glDrawElements(GL_TRIANGLES, mesh->nr_indices, GL_UNSIGNED_SHORT, NULL);
+			else
+				glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 		}
 		glBindVertexArray(0);
 	}
@@ -1223,7 +1370,7 @@ static void render_back_cg(struct texture *dst, struct RE_back_cg *bcg, struct R
 static void setup_light_scattering(struct RE_plugin *plugin)
 {
 	struct RE_renderer *r = plugin->renderer;
-	if (re_plugin_version >= RE_SEAL_PLUGIN) {
+	if (plugin->version >= RE_SEAL_PLUGIN) {
 		const float *lp = plugin->light_params;
 		glUniform4f(r->ls_params, lp[SEAL_LP_LS_BETA_R], lp[SEAL_LP_LS_BETA_M],
 			lp[SEAL_LP_LS_G], lp[SEAL_LP_LS_DISTANCE]);
@@ -1246,7 +1393,10 @@ static void setup_hemisphere_light(struct RE_plugin *plugin)
 	vec3 hemi_dir = {
 		-lp[SEAL_LP_HEMI_VEC], -lp[SEAL_LP_HEMI_VEC + 1], lp[SEAL_LP_HEMI_VEC + 2]
 	};
-	glm_vec3_normalize(hemi_dir);
+	if (glm_vec3_norm2(hemi_dir) > 1e-12f)
+		glm_vec3_normalize(hemi_dir);
+	else
+		glm_vec3_copy((vec3){ 0.0f, 1.0f, 0.0f }, hemi_dir);
 	glUniform3fv(r->hemi_light_dir, 1, hemi_dir);
 	glUniform3fv(r->hemi_sky_color, 1, &lp[SEAL_LP_HEMI_SKY_COLOR]);
 	glUniform3fv(r->hemi_mid_color, 1, &lp[SEAL_LP_HEMI_MID_COLOR]);
@@ -1303,7 +1453,7 @@ static void setup_lights(struct RE_plugin *plugin)
 		glUniform3fv(r->dir_lights[light_index].globe_diffuse, 1, zero);
 	}
 
-	if (re_plugin_version >= RE_SEAL_PLUGIN)
+	if (plugin->version >= RE_SEAL_PLUGIN)
 		setup_hemisphere_light(plugin);
 }
 
@@ -1352,6 +1502,19 @@ void RE_update_model(struct RE_plugin *plugin)
 	r->last_frame_timestamp = timestamp;
 }
 
+static void reset_default_vertex_attribs(void)
+{
+	glVertexAttrib3f(VATTR_NORMAL, 0.0f, 0.0f, 1.0f);
+	glVertexAttrib2f(VATTR_UV, 0.0f, 0.0f);
+	glVertexAttribI4i(VATTR_BONE_INDEX, -1, -1, -1, -1);
+	glVertexAttrib4f(VATTR_BONE_WEIGHT, 0.0f, 0.0f, 0.0f, 0.0f);
+	glVertexAttrib2f(VATTR_LIGHT_UV, 0.0f, 0.0f);
+	glVertexAttrib4f(VATTR_COLOR, 1.0f, 1.0f, 1.0f, 1.0f);
+	glVertexAttrib4f(VATTR_TANGENT, 1.0f, 0.0f, 0.0f, 1.0f);
+	glVertexAttrib1f(VATTR_BLEND_WEIGHT, 0.0f);
+	glVertexAttrib2f(VATTR_BLEND_UV, 0.0f, 0.0f);
+}
+
 void RE_render(struct sact_sprite *sp)
 {
 	struct RE_plugin *plugin = (struct RE_plugin *)sp->plugin;
@@ -1359,8 +1522,24 @@ void RE_render(struct sact_sprite *sp)
 	if (!r || plugin->suspended)
 		return;
 
+	reset_default_vertex_attribs();
+
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = plugin->instances[i];
+		if (!inst)
+			continue;
+		if (inst->local_transform_needs_update)
+			RE_instance_update_local_transform(inst);
+		if (inst->type == RE_ITYPE_SKINNED && inst->motion && inst->bones_dirty)
+			RE_instance_sync_bones(inst);
+	}
+
 	sprite_dirty(sp);
 	struct texture *texture = sprite_get_texture(sp);
+	if (!texture || texture->w <= 0 || texture->h <= 0 || !texture->handle || !r->depth_buffer) {
+		WARNING("Skipping 3D render with incomplete target texture/depth buffer");
+		return;
+	}
 
 	mat4 shadow_transform;
 	if (plugin->shadow_mode)
@@ -1370,8 +1549,13 @@ void RE_render(struct sact_sprite *sp)
 
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, texture, 0, 0, texture->w, texture->h);
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, r->depth_buffer);
-	if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		ERROR("Incomplete framebuffer");
+	GLenum fbo_status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+	if (fbo_status != GL_FRAMEBUFFER_COMPLETE) {
+		WARNING("Incomplete 3D framebuffer: 0x%x", fbo_status);
+		glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
+		gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+		return;
+	}
 
 	glClearColor(0.f, 0.f, 0.f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1381,6 +1565,8 @@ void RE_render(struct sact_sprite *sp)
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
 		render_back_cg(texture, &plugin->back_cg[i], r);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	glViewport(0, 0, texture->w, texture->h);
+	reset_default_vertex_attribs();
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -1420,7 +1606,7 @@ void RE_render(struct sact_sprite *sp)
 	glEnable(GL_BLEND);
 
 	setup_lights(plugin);
-	if (re_plugin_version >= RE_SEAL_PLUGIN)
+	if (plugin->version >= RE_SEAL_PLUGIN)
 		setup_tone_mapping(plugin);
 
 	// Sort instances by z-order.
@@ -1455,6 +1641,7 @@ void RE_render(struct sact_sprite *sp)
 	glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glActiveTexture(GL_TEXTURE0);
 }
 
 struct height_detector {
@@ -1464,32 +1651,58 @@ struct height_detector {
 
 struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r, struct model *model)
 {
-	struct height_detector *hd = xcalloc(1, sizeof(struct height_detector));
+	if (!r || !model)
+		return NULL;
 	vec3 aabb[2];
 	memcpy(aabb, model->aabb, sizeof(aabb));
+	if (aabb[0][0] > aabb[1][0] || aabb[0][1] > aabb[1][1] || aabb[0][2] > aabb[1][2])
+		return NULL;
+
+	struct height_detector *hd = xcalloc(1, sizeof(struct height_detector));
 	// Add some Y padding.
-	aabb[0][1] -= 1.0;
-	aabb[1][1] += 1.0;
+	aabb[0][1] -= 1.0f;
+	aabb[1][1] += 1.0f;
 	memcpy(hd->aabb, aabb, sizeof(aabb));
 
 	// Set up an orthographic projection matrix looking down the instance from
 	// right above.
 	mat4 view_matrix, proj_matrix;
 	glm_mat4_identity(view_matrix);
-	glm_rotate_x(view_matrix, glm_rad(90.0), view_matrix);
+	glm_rotate_x(view_matrix, glm_rad(90.0f), view_matrix);
 	glm_aabb_transform(aabb, view_matrix, aabb);
 	glm_ortho_aabb(aabb, proj_matrix);
 
-	GLint orig_fbo, orig_viewport[4];
-	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &orig_fbo);
+	GLint orig_draw_fbo = 0, orig_read_fbo = 0, orig_viewport[4];
+	GLint orig_active_tex = GL_TEXTURE0, orig_program = 0, orig_depth_func = GL_LESS;
+	GLboolean orig_cull = glIsEnabled(GL_CULL_FACE);
+	GLboolean orig_scissor = glIsEnabled(GL_SCISSOR_TEST);
+	GLboolean orig_blend = glIsEnabled(GL_BLEND);
+	GLboolean orig_depth_test = glIsEnabled(GL_DEPTH_TEST);
+	GLboolean orig_depth_mask = GL_TRUE;
+	GLboolean orig_color_mask[4] = { GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE };
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &orig_draw_fbo);
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &orig_read_fbo);
 	glGetIntegerv(GL_VIEWPORT, orig_viewport);
+	glGetIntegerv(GL_ACTIVE_TEXTURE, &orig_active_tex);
+	glGetIntegerv(GL_CURRENT_PROGRAM, &orig_program);
+	glGetIntegerv(GL_DEPTH_FUNC, &orig_depth_func);
+	glGetBooleanv(GL_DEPTH_WRITEMASK, &orig_depth_mask);
+	glGetBooleanv(GL_COLOR_WRITEMASK, orig_color_mask);
 
-	// Since OpenGL ES does not allow reading from depth textures, create a
-	// color texture and render depth values into it.
-	GLuint color_texture;
+	// Since OpenGL ES does not allow reading from depth textures, create an
+	// unsigned integer color texture and render quantized depth values into it.
+	GLuint color_texture = 0;
 	glGenTextures(1, &color_texture);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, color_texture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, r->shadow.fbo);
 	GLenum draw_buffers[1] = { GL_COLOR_ATTACHMENT0 };
@@ -1497,65 +1710,111 @@ struct height_detector *RE_renderer_create_height_detector(struct RE_renderer *r
 	glReadBuffer(GL_COLOR_ATTACHMENT0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture, 0);
 
+	GLenum fbo_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (fbo_status != GL_FRAMEBUFFER_COMPLETE) {
+		WARNING("Incomplete height detector framebuffer: 0x%x", fbo_status);
+		free(hd);
+		hd = NULL;
+		goto restore;
+	}
+
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_SCISSOR_TEST);
+	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
+	glDepthFunc(GL_LESS);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+	GLuint zero[4] = { 0, 0, 0, 0 };
+	glClearBufferuiv(GL_COLOR, 0, zero);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glUseProgram(r->shadow.program);
 	glUniformMatrix4fv(r->shadow.local_transform, 1, GL_FALSE, view_matrix[0]);
 	glUniformMatrix4fv(r->shadow.view_transform, 1, GL_FALSE, proj_matrix[0]);
 	glUniform1i(r->shadow.has_bones, GL_FALSE);
 
-	// Bone transforms are not used, but we still need to bind a UBO.
-	GLuint bone_transforms_ubo;
-	glGenBuffers(1, &bone_transforms_ubo);
-	glBindBuffer(GL_UNIFORM_BUFFER, bone_transforms_ubo);
-	glBufferData(GL_UNIFORM_BUFFER, MAX_BONES * sizeof(mat3x4), NULL, GL_STATIC_DRAW);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, BONE_TRANSFORMS_BINDING, bone_transforms_ubo);
-
-	glEnable(GL_DEPTH_TEST);
-
 	// Render the model.
 	for (int i = 0; i < model->nr_meshes; i++) {
 		struct mesh *mesh = &model->meshes[i];
+		if ((mesh->flags & MESH_NO_HEIGHT_DETECTION) || mesh->hidden)
+			continue;
 		glBindVertexArray(mesh->vao);
-		glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
+		if (mesh->nr_indices > 0)
+			glDrawElements(GL_TRIANGLES, mesh->nr_indices, GL_UNSIGNED_SHORT, NULL);
+		else
+			glDrawArrays(GL_TRIANGLES, 0, mesh->nr_vertices);
 	}
 	glBindVertexArray(0);
 	glFinish();
 
-	hd->buf = xmalloc(SHADOW_WIDTH * SHADOW_HEIGHT * sizeof(GLushort));
-	glReadPixels(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT, GL_RED_INTEGER, GL_UNSIGNED_SHORT, hd->buf);
+	// OpenGL ES 3.0.6 Table 4.5 only guarantees (GL_RGBA_INTEGER, GL_UNSIGNED_INT)
+	// for unsigned-integer color buffer readback; unpack the R channel to uint16.
+	size_t nr_pixels = (size_t)SHADOW_WIDTH * SHADOW_HEIGHT;
+	hd->buf = xcalloc(nr_pixels, sizeof(GLushort));
+	GLuint *rgba_buf = xcalloc(nr_pixels * 4, sizeof(GLuint));
+	glReadPixels(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT, GL_RGBA_INTEGER, GL_UNSIGNED_INT, rgba_buf);
+	for (size_t i = 0; i < nr_pixels; i++)
+		hd->buf[i] = (GLushort)rgba_buf[i * 4];
+	free(rgba_buf);
 
-	glDisable(GL_DEPTH_TEST);
-	glDrawBuffers(0, NULL);
+restore:
+	if (orig_cull) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
+	if (orig_scissor) glEnable(GL_SCISSOR_TEST); else glDisable(GL_SCISSOR_TEST);
+	if (orig_blend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
+	if (orig_depth_test) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+	glDepthMask(orig_depth_mask);
+	glDepthFunc((GLenum)orig_depth_func);
+	glColorMask(orig_color_mask[0], orig_color_mask[1], orig_color_mask[2], orig_color_mask[3]);
+	glUseProgram((GLuint)orig_program);
+	GLenum none = GL_NONE;
+	glDrawBuffers(1, &none);
 	glReadBuffer(GL_NONE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
-	glBindFramebuffer(GL_FRAMEBUFFER, orig_fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)orig_draw_fbo);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)orig_read_fbo);
 	glViewport(orig_viewport[0], orig_viewport[1], orig_viewport[2], orig_viewport[3]);
 
-	glDeleteBuffers(1, &bone_transforms_ubo);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	glDeleteTextures(1, &color_texture);
+	glActiveTexture((GLenum)orig_active_tex);
 	return hd;
 }
 
 void RE_renderer_free_height_detector(struct height_detector *hd)
 {
+	if (!hd)
+		return;
 	free(hd->buf);
 	free(hd);
 }
 
 bool RE_renderer_detect_height(struct height_detector *hd, float x, float z, float *y_out)
 {
+	if (!hd || !hd->buf)
+		return false;
 	float minx = hd->aabb[0][0];
 	float maxx = hd->aabb[1][0];
 	float miny = hd->aabb[0][1];
 	float maxy = hd->aabb[1][1];
 	float minz = hd->aabb[0][2];
 	float maxz = hd->aabb[1][2];
+	if (maxx <= minx || maxz <= minz)
+		return false;
 	if (x < minx || x > maxx || z < minz || z > maxz)
 		return false;
 	int px = glm_percent(minx, maxx, x) * SHADOW_WIDTH;
 	int pz = glm_percent(maxz, minz, z) * SHADOW_HEIGHT;
+	if (px < 0)
+		px = 0;
+	else if (px >= SHADOW_WIDTH)
+		px = SHADOW_WIDTH - 1;
+	if (pz < 0)
+		pz = 0;
+	else if (pz >= SHADOW_HEIGHT)
+		pz = SHADOW_HEIGHT - 1;
 	GLushort val = hd->buf[pz * SHADOW_WIDTH + px];
 	if (!val)
 		return false;

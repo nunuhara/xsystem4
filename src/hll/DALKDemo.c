@@ -337,6 +337,8 @@ static int dalkdemo_main_menu()
 
 static void DALKDemo_Release(void)
 {
+	if (!dd)
+		return;
 	for (int i = 0; i < DD_CG_MAX; i++) {
 		gfx_delete_texture(&dd->tex[i]);
 	}
@@ -347,6 +349,7 @@ static void DALKDemo_Release(void)
 
 static int DALKDemo_Init(possibly_unused void *imainsystem)
 {
+	DALKDemo_Release();
 	char *alk_path = gamedir_path("daDemo.alk");
 	int error = ARCHIVE_SUCCESS;
 	struct alk_archive *alk = alk_open(alk_path, MMAP_IF_64BIT, &error);
@@ -364,6 +367,7 @@ static int DALKDemo_Init(possibly_unused void *imainsystem)
 		struct archive_data *dfile = archive_get(&alk->ar, i);
 		if (!dfile) {
 			WARNING("daDemo.alk: cannot load CG %d", i);
+			archive_free(&alk->ar);
 			DALKDemo_Release();
 			return 0;
 		}
@@ -371,6 +375,7 @@ static int DALKDemo_Init(possibly_unused void *imainsystem)
 		archive_free_data(dfile);
 		if (!cg) {
 			WARNING("daDemo.alk: cannot decode CG %d", i);
+			archive_free(&alk->ar);
 			DALKDemo_Release();
 			return 0;
 		}
@@ -408,6 +413,7 @@ static int DALKDemo_Run2(void)
 }
 
 HLL_LIBRARY(DALKDemo,
+	    HLL_EXPORT(_ModuleFini, DALKDemo_Release),
 	    HLL_EXPORT(Init, DALKDemo_Init),
 	    HLL_EXPORT(Run, DALKDemo_Run),
 	    HLL_EXPORT(Run2, DALKDemo_Run2),

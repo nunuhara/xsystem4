@@ -95,6 +95,8 @@ enum text_render_mode {
 	RENDER_BLENDED,
 	RENDER_PMAP,
 	RENDER_AMAP,
+	RENDER_BLEND_ALPHA,
+	RENDER_ALPHA_ONLY,
 };
 
 struct text_render_metrics {
@@ -133,7 +135,15 @@ extern bool gfx_text_advance_edges;
 
 void gfx_font_init(void);
 void ft_font_init(void);
-struct font *ft_font_load(const char *spec);
+struct font *ft_font_load(const char *path);
+#if defined(ALICEHUB_IOS)
+void ft_font_set_fallback(struct font *font, struct font *fallback);
+void ft_font_free(struct font *font);
+void ft_font_fini(void);
+void fnl_font_free(struct font *font);
+void gfx_font_size_fini(struct font_size *size);
+void gfx_font_fini(void);
+#endif
 struct font *fnl_font_load(struct fnl *lib, unsigned index);
 
 bool gfx_set_font(enum font_face face, unsigned int size);
@@ -155,11 +165,15 @@ SDL_Color gfx_get_font_color(void);
 void gfx_set_font_name(const char *name);
 
 struct font_size *gfx_font_get_size(unsigned face, float size);
+int gfx_get_fnl_substitute_y_pad(unsigned face, float size);
 enum font_weight gfx_int_to_font_weight(int weight);
 float _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm);
 
 int gfx_render_text(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend);
 float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_style *ts, bool blend);
+float gfx_render_text_mode(Texture *dst, float x, int y, char *msg, struct text_style *ts, enum text_render_mode mode);
+float gfx_render_text_edge_only(Texture *dst, float x, int y, char *msg, struct text_style *ts);
+float gfx_render_text_core_only(Texture *dst, float x, int y, char *msg, struct text_style *ts);
 void gfx_render_dash_text(Texture *dst, struct text_style *ts);
 void gfx_draw_text_to_amap(Texture *dst, int x, int y, char *text);
 void gfx_draw_text_to_pmap(Texture *dst, int x, int y, char *text);

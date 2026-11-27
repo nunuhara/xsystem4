@@ -98,7 +98,8 @@ static void free_tag_list(struct swf_tag *tags)
 			free_place_object((struct swf_tag_place_object *)tag);
 			break;
 		default:
-			ERROR("unknown tag %d", tag->type);
+			free(tag);
+			break;
 		}
 		tag = next;
 	}
@@ -276,8 +277,10 @@ static struct swf_tag_define_bits_lossless *parse_define_bits_lossless(struct bu
 	// Only 32-bit RGB/ARGB images are supported.
 	if (tag->format != 5)
 		ERROR("DefineBitsLossless: unsupported format %d", tag->format);
+	if ((size_t)tag->width > SIZE_MAX / 4 / (tag->height ? (size_t)tag->height : 1))
+		ERROR("DefineBitsLossless: dimensions overflow");
 
-	size_t len = 4 * tag->width * tag->height;
+	size_t len = (size_t)4 * (size_t)tag->width * (size_t)tag->height;
 	uint8_t *pixels = xmalloc(len);
 	if (!zlib_decompress_exact(pixels, len, r->buf + r->index, buffer_remaining(r)))
 		ERROR("DefineBitsLossless: broken bitmap data");
@@ -468,11 +471,25 @@ static struct swf_tag_do_action *parse_do_action(struct buffer *r);
 
 static struct swf_tag *parse_tag(struct buffer *r)
 {
+	if (buffer_remaining(r) < 2) {
+		r->index = r->size;
+		return create_simple_tag(TAG_END);
+	}
 	uint16_t code_and_len = buffer_read_u16(r);
 	int type = code_and_len >> 6;
 	uint32_t len = code_and_len & 0x3f;
-	if (len == 0x3f)
-		len = buffer_read_int32(r);
+	if (len == 0x3f) {
+		if (buffer_remaining(r) < 4) {
+			r->index = r->size;
+			return create_simple_tag(TAG_END);
+		}
+		int32_t long_len = buffer_read_int32(r);
+		if (long_len < 0)
+			ERROR("SWF tag %d negative length %d", type, long_len);
+		len = (uint32_t)long_len;
+	}
+	if (len > buffer_remaining(r))
+		ERROR("SWF tag %d truncated (%u > %zu)", type, len, buffer_remaining(r));
 
 	struct buffer rr;
 	buffer_init(&rr, r->buf + r->index, len);
@@ -513,7 +530,7 @@ static struct swf_tag *parse_tag(struct buffer *r)
 
 static struct swf_tag *parse_tag_list(struct buffer *r)
 {
-	struct swf_tag *head;
+	struct swf_tag *head = NULL;
 	struct swf_tag **tag_ptr = &head;
 	while (buffer_remaining(r) > 0) {
 		struct swf_tag *tag = parse_tag(r);
@@ -580,7 +597,11 @@ static struct swf_action *parse_action(struct buffer *r)
 	if (code < 0x80)
 		return create_simple_action(code);
 
+	if (buffer_remaining(r) < 2)
+		ERROR("SWF action 0x%x missing length", code);
 	uint16_t len = buffer_read_u16(r);
+	if (len > buffer_remaining(r))
+		ERROR("SWF action 0x%x truncated (%u > %zu)", code, len, buffer_remaining(r));
 	struct buffer rr;
 	buffer_init(&rr, r->buf + r->index, len);
 	buffer_skip(r, len);
@@ -613,6 +634,8 @@ static struct swf_tag_do_action *parse_do_action(struct buffer *r)
 
 struct swf *swf_load(uint8_t *data, size_t size)
 {
+	if (!data || size < 8)
+		return NULL;
 	struct buffer r;
 	buffer_init(&r, data, size);
 	if (!buffer_check_bytes(&r, "FWS", 3))
@@ -620,7 +643,7 @@ struct swf *swf_load(uint8_t *data, size_t size)
 	struct swf *swf = xcalloc(1, sizeof(struct swf));
 	swf->version = buffer_read_u8(&r);
 	swf->file_length = buffer_read_int32(&r);
-	if (swf->file_length != r.size) {
+	if (swf->file_length < 8 || (size_t)swf->file_length != r.size) {
 		free(swf);
 		return NULL;
 	}
@@ -643,7 +666,7 @@ struct swf *aff_load(uint8_t *data, size_t size)
 	//   uint32 version;  // 1
 	//   uint32 size;     // file size
 	//   uint32 unknown;  // 0x4d2
-	if (size < 16 ||
+	if (!data || size < 24 ||
 	    memcmp(data, "AFF", 4) ||
 	    LittleEndian_getDW(data, 4) != 1 ||
 	    (size_t)LittleEndian_getDW(data, 8) != size ||
@@ -655,13 +678,18 @@ struct swf *aff_load(uint8_t *data, size_t size)
 	size -= 16;
 	uint8_t *buf = xmalloc(size);
 	memcpy(buf, data + 16, size);
-	for (int i = 0; i < 0x40; i++) {
+	size_t xor_len = size < 0x40 ? size : 0x40;
+	for (size_t i = 0; i < xor_len; i++) {
 		buf[i] ^= aff_mask[i & 0xf];
 	}
 
 	// decompress
 	if (!memcmp(buf, "CWS", 3)) {
 		uint32_t raw_size = LittleEndian_getDW(buf, 4);
+		if (raw_size < 8) {
+			free(buf);
+			return NULL;
+		}
 		uint8_t *raw = xmalloc(raw_size);
 		memcpy(raw, buf, 8);
 		raw[0] = 'F';

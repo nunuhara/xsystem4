@@ -111,8 +111,10 @@ static FILE *mad_open(struct string *filename, struct MADHeader *header)
 static bool mad_read_header(struct string *filename, struct MADHeader *header)
 {
 	FILE *fp = mad_open(filename, header);
+	if (!fp)
+		return false;
 	fclose(fp);
-	return fp != NULL;
+	return true;
 }
 
 static int MADLoader_Open(struct string *filename)

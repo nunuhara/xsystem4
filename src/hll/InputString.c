@@ -14,7 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
-#include <SDL.h>
+#include <string.h>
 
 #include "system4.h"
 #include "system4/ain.h"
@@ -26,11 +26,13 @@
 #include "gfx/gfx.h"
 #include "hll.h"
 #include "input.h"
+#include "parts_widgets.h"
 
 static int font_size;
 static int font_weight;
 static Point pos;
 static bool has_editing_text;
+static bool ime_open = false;
 static bool get_result_string_clears;
 
 static struct string *result;
@@ -44,7 +46,7 @@ static void InputString_ClearResultString(void)
 
 static struct string *InputString_GetResultString(void)
 {
-	struct string *s = string_ref(result);
+	struct string *s = result ? string_ref(result) : string_ref(&EMPTY_STRING);
 	if (get_result_string_clears)
 		InputString_ClearResultString();
 	return s;
@@ -54,7 +56,7 @@ static void InputString_SetResultString(struct string *s)
 {
 	if (result)
 		free_string(result);
-	result = string_ref(s);
+	result = s ? string_ref(s) : string_ref(&EMPTY_STRING);
 }
 
 static void InputString_SetFont(int nSize, possibly_unused struct string *pIName, int nWeight)
@@ -81,7 +83,9 @@ static void InputString_End(void)
 
 static void handle_input(const char *text)
 {
-	char *u = utf2sjis(text, 0);
+	if (!result)
+		result = string_ref(&EMPTY_STRING);
+	char *u = mai_utf2sjis(text, 0);
 	string_append_cstr(&result, u, strlen(u));
 	free(u);
 	has_editing_text = false;
@@ -103,30 +107,28 @@ static void handle_key(int code)
 
 static void InputString_OpenIME(void)
 {
-	register_input_handler(handle_input);
-	register_editing_handler(handle_editing);
-	register_key_handler(handle_key);
+	static const struct input_text_handlers handlers = { handle_input, handle_editing, handle_key };
 	has_editing_text = false;
-	SDL_StartTextInput();
+	ime_open = true;
+	input_set_legacy_text_handlers(&handlers);
 }
 
 static void InputString_CloseIME(void)
 {
-	SDL_StopTextInput();
+	ime_open = false;
 	has_editing_text = false;
-	clear_input_handler();
-	clear_editing_handler();
-	clear_key_handler();
+	input_set_legacy_text_handlers(NULL);
 }
 
+static bool InputString_IsOpenIME(void) { return ime_open; }
 static bool InputString_Inputs(void)
 {
-	return has_editing_text;
+	return ime_open ? has_editing_text : PE_IsTextBoxComposing();
 }
 
 static bool InputString_Converts(void)
 {
-	return has_editing_text;
+	return InputString_Inputs();
 }
 
 static void InputString_PreLink(void)
@@ -141,14 +143,30 @@ static void InputString_PreLink(void)
 	}
 }
 
+static void InputString_ModuleFini(void)
+{
+	InputString_CloseIME();
+	if (result) {
+		free_string(result);
+		result = NULL;
+	}
+	font_size = 0;
+	font_weight = 0;
+	pos = (Point){ 0, 0 };
+	get_result_string_clears = false;
+}
+
 HLL_LIBRARY(InputString,
+	    HLL_EXPORT(_ModuleFini, InputString_ModuleFini),
 	    HLL_EXPORT(_PreLink, InputString_PreLink),
+	    HLL_EXPORT(_ModuleFini, InputString_ModuleFini),
 	    HLL_EXPORT(SetFont, InputString_SetFont),
 	    HLL_EXPORT(SetPos, InputString_SetPos),
 	    HLL_EXPORT(Begin, InputString_Begin),
 	    HLL_EXPORT(End, InputString_End),
 	    HLL_EXPORT(OpenIME, InputString_OpenIME),
 	    HLL_EXPORT(CloseIME, InputString_CloseIME),
+	    HLL_EXPORT(IsOpenIME, InputString_IsOpenIME),
 	    HLL_EXPORT(GetResultString, InputString_GetResultString),
 	    HLL_EXPORT(ClearResultString, InputString_ClearResultString),
 	    HLL_EXPORT(SetResultString, InputString_SetResultString),

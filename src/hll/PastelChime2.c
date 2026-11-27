@@ -1477,7 +1477,7 @@ static bool PastelChime2_Field_CalcMove(
 
 	// Find the closest collision.
 	float closest_hit_dist_sq = FLT_MAX;
-	struct line_segment closest_slide_line;
+	struct line_segment closest_slide_line = {0};
 	struct line_segment move_seg = {{old_x, old_y}, {*new_x, *new_y}};
 
 	for (int i = 0; i < nr_segments; i++) {
@@ -1628,7 +1628,7 @@ static void PastelChime2_Field_UpdateEnemyPos(int delta_time, struct page **dung
 #define SHOULD_NOT_CLOSE_EAST  (1 << 7)
 
 static void PastelChime2_Field_UpdateDoors(
-	bool *open_out, bool *close_out, int *open_tex_out, int *close_tex_out,
+	int *open_out, int *close_out, int *open_tex_out, int *close_tex_out,
 	float fx1, float fy1, float fz1,
 	float fx2, float fy2, float fz2,
 	float fx3, float fy3, float fz3,
@@ -1713,8 +1713,8 @@ static void PastelChime2_Field_UpdateDoors(
 	}
 
 	// Pass 2: Iterate through the bounding box and update door states.
-	*open_out = false;
-	*close_out = false;
+	*open_out = 0;
+	*close_out = 0;
 	*open_tex_out = 0;
 	*close_tex_out = 0;
 	for (int z = min_pos[2] - 1; z <= max_pos[2] + 1; z++) {
@@ -1734,25 +1734,25 @@ static void PastelChime2_Field_UpdateDoors(
 				if (flags[flag_index] & SHOULD_OPEN_NORTH && cell->north_door_angle == 0.f) {
 					cell->north_door_angle = DOOR_OPEN_ANGLE;
 					dgn_cell_at(ctx->dgn, x, y, z + 1)->south_door_angle = -DOOR_OPEN_ANGLE;
-					*open_out = true;
+					*open_out = 1;
 					*open_tex_out = cell->north_door;
 				}
 				if (flags[flag_index] & SHOULD_OPEN_WEST && cell->west_door_angle == 0.f) {
 					cell->west_door_angle = DOOR_OPEN_ANGLE;
 					dgn_cell_at(ctx->dgn, x - 1, y, z)->east_door_angle = -DOOR_OPEN_ANGLE;
-					*open_out = true;
+					*open_out = 1;
 					*open_tex_out = cell->west_door;
 				}
 				if (flags[flag_index] & SHOULD_OPEN_SOUTH && cell->south_door_angle == 0.f) {
 					cell->south_door_angle = DOOR_OPEN_ANGLE;
 					dgn_cell_at(ctx->dgn, x, y, z - 1)->north_door_angle = -DOOR_OPEN_ANGLE;
-					*open_out = true;
+					*open_out = 1;
 					*open_tex_out = cell->south_door;
 				}
 				if (flags[flag_index] & SHOULD_OPEN_EAST && cell->east_door_angle == 0.f) {
 					cell->east_door_angle = DOOR_OPEN_ANGLE;
 					dgn_cell_at(ctx->dgn, x + 1, y, z)->west_door_angle = -DOOR_OPEN_ANGLE;
-					*open_out = true;
+					*open_out = 1;
 					*open_tex_out = cell->east_door;
 				}
 
@@ -1762,7 +1762,7 @@ static void PastelChime2_Field_UpdateDoors(
 				    cell->north_door_angle != 0.f) {
 					cell->north_door_angle = 0.f;
 					dgn_cell_at(ctx->dgn, x, y, z + 1)->south_door_angle = 0.f;
-					*close_out = true;
+					*close_out = 1;
 					*close_tex_out = cell->north_door;
 				}
 				if (!(flags[flag_index] & SHOULD_NOT_CLOSE_WEST) &&
@@ -1770,7 +1770,7 @@ static void PastelChime2_Field_UpdateDoors(
 				    cell->west_door_angle != 0.f) {
 					cell->west_door_angle = 0.f;
 					dgn_cell_at(ctx->dgn, x - 1, y, z)->east_door_angle = 0.f;
-					*close_out = true;
+					*close_out = 1;
 					*close_tex_out = cell->west_door;
 				}
 				if (!(flags[flag_index] & SHOULD_NOT_CLOSE_SOUTH) &&
@@ -1778,7 +1778,7 @@ static void PastelChime2_Field_UpdateDoors(
 				    cell->south_door_angle != 0.f) {
 					cell->south_door_angle = 0.f;
 					dgn_cell_at(ctx->dgn, x, y, z - 1)->north_door_angle = 0.f;
-					*close_out = true;
+					*close_out = 1;
 					*close_tex_out = cell->south_door;
 				}
 				if (!(flags[flag_index] & SHOULD_NOT_CLOSE_EAST) &&
@@ -1786,7 +1786,7 @@ static void PastelChime2_Field_UpdateDoors(
 				    cell->east_door_angle != 0.f) {
 					cell->east_door_angle = 0.f;
 					dgn_cell_at(ctx->dgn, x + 1, y, z)->west_door_angle = 0.f;
-					*close_out = true;
+					*close_out = 1;
 					*close_tex_out = cell->east_door;
 				}
 			}
@@ -2004,7 +2004,14 @@ static bool PastelChime2_File_CreateDummy(struct string *file_name)
 	return r;
 }
 
+static void PastelChime2_ModuleFini(void)
+{
+	PastelChime2_Field_ClearPlayerMoveQueue();
+	draw_field_sprite_number = 0;
+}
+
 HLL_LIBRARY(PastelChime2,
+	    HLL_EXPORT(_ModuleFini, PastelChime2_ModuleFini),
 	    HLL_EXPORT(InitPastelChime2, PastelChime2_InitPastelChime2),
 	    HLL_EXPORT(DungeonDataSave, PastelChime2_DungeonDataSave),
 	    HLL_EXPORT(DungeonDataLoad, PastelChime2_DungeonDataLoad),

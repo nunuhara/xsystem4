@@ -21,6 +21,7 @@
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "vm/v12.h"
 
 #define NR_CACHES 8
 #define CACHE_SIZE 64
@@ -49,17 +50,21 @@ struct page_cache page_cache[NR_CACHES];
 
 struct page *_alloc_page(int nr_vars)
 {
+	if (unlikely(nr_vars < 0 || (size_t)nr_vars > (SIZE_MAX - sizeof(struct page)) / sizeof(union vm_value)))
+		VM_ERROR("Invalid page allocation size: %d", nr_vars);
 	int cache_nr = nr_vars - 1;
 	if (cache_nr >= 0 && cache_nr < NR_CACHES && page_cache[cache_nr].cached) {
 		struct page *page = page_cache[cache_nr].pages[--page_cache[cache_nr].cached];
 		memset(page->values, 0, sizeof(union vm_value) * nr_vars);
 		return page;
 	}
-	return xcalloc(1, sizeof(struct page) + sizeof(union vm_value) * nr_vars);
+	return xcalloc(1, sizeof(struct page) + sizeof(union vm_value) * (size_t)nr_vars);
 }
 
 void free_page(struct page *page)
 {
+	if (!page)
+		return;
 	int cache_no = page->nr_vars - 1;
 	if (cache_no < 0 || cache_no >= NR_CACHES || page_cache[cache_no].cached >= CACHE_SIZE) {
 		free(page);
@@ -74,7 +79,124 @@ struct page *alloc_page(enum page_type type, int type_index, int nr_vars)
 	page->type = type;
 	page->index = type_index;
 	page->nr_vars = nr_vars;
+	memset(&page->array, 0, sizeof(page->array));
+	if (type == LOCAL_PAGE) {
+		page->local.struct_ptr = -1;
+		page->local.parent_page = -1;
+	}
 	return page;
+}
+
+int ain_type_slot_width(const struct ain_type *type)
+{
+	if (!type)
+		return 1;
+	switch (type->data) {
+	case AIN_IFACE:
+	case AIN_IFACE_WRAP:
+	case AIN_REF_OPTION:
+	case AIN_REF_INT:
+	case AIN_REF_FLOAT:
+	case AIN_REF_BOOL:
+	case AIN_REF_LONG_INT:
+	case AIN_REF_ENUM:
+	case AIN_REF_FUNC_TYPE:
+		return 2;
+	case AIN_WRAP:
+		if (ain && ain->version < 14)
+			return 2;
+		if (!type->array_type)
+			return 1;
+		switch (type->array_type->data) {
+		case AIN_STRING:
+		case AIN_STRUCT:
+		case AIN_ARRAY:
+		case AIN_DELEGATE:
+		case AIN_ARRAY_TYPE:
+			return 1;
+		default:
+			return 2;
+		}
+	case AIN_OPTION:
+		return (type->array_type ? ain_type_slot_width(type->array_type) : 1) + 1;
+	default:
+		return 1;
+	}
+}
+
+int ain_return_type_width(const struct ain_type *type)
+{
+	if (!type || type->data == AIN_VOID)
+		return 0;
+	return ain_type_slot_width(type);
+}
+
+bool ain_option_inner_is_value_heap(const struct ain_type *inner)
+{
+	if (!inner)
+		return false;
+	switch (inner->data) {
+	case AIN_STRING:
+	case AIN_STRUCT:
+	case AIN_ARRAY:
+	case AIN_DELEGATE:
+	case AIN_ARRAY_TYPE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool ain_option_inner_is_ref_heap(const struct ain_type *inner)
+{
+	if (!inner)
+		return false;
+	switch (inner->data) {
+	case AIN_WRAP:
+		return ain && ain->version >= 14;
+	case AIN_IFACE:
+	case AIN_IFACE_WRAP:
+	case AIN_REF_OPTION:
+	case AIN_REF_TYPE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+union vm_value variable_initval_typed(const struct ain_type *type)
+{
+	if (ain->version >= 11 && type->data == AIN_ARRAY)
+		return vm_int(heap_alloc_page(v12_array_new(type->array_type, 0, false)));
+	return variable_initval(type->data);
+}
+
+int variable_init_typed(union vm_value *dst, const struct ain_type *type, bool alloc_structs, bool init_structs)
+{
+	if (!type) {
+		dst[0].i = 0;
+		return 1;
+	}
+	int w = ain_type_slot_width(type);
+	if (type->data == AIN_OPTION) {
+		for (int k = 0; k < w - 1; k++)
+			dst[k].i = -1;
+		dst[w - 1].i = 1;
+		return w;
+	}
+	if (type->data == AIN_STRUCT) {
+		if (init_structs)
+			create_struct(type->struc, &dst[0]);
+		else if (alloc_structs)
+			dst[0].i = alloc_struct(type->struc);
+		else
+			dst[0].i = -1;
+		return 1;
+	}
+	dst[0] = variable_initval_typed(type);
+	for (int k = 1; k < w; k++)
+		dst[k].i = 0;
+	return w;
 }
 
 union vm_value variable_initval(enum ain_data_type type)
@@ -86,9 +208,15 @@ union vm_value variable_initval(enum ain_data_type type)
 		heap[slot].s = string_ref(&EMPTY_STRING);
 		return (union vm_value) { .i = slot };
 	case AIN_STRUCT:
+	case AIN_IFACE:
+	case AIN_IFACE_WRAP:
+	case AIN_WRAP:
+	case AIN_OPTION:
+	case AIN_REF_OPTION:
 	case AIN_REF_TYPE:
 		return (union vm_value) { .i = -1 };
 	case AIN_ARRAY_TYPE:
+	case AIN_ARRAY:
 	case AIN_DELEGATE:
 		slot = heap_alloc_slot(VM_PAGE);
 		heap_set_page(slot, NULL);
@@ -101,12 +229,20 @@ union vm_value variable_initval(enum ain_data_type type)
 void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor)
 {
 	switch (type) {
+	case AIN_WRAP:
+		if (!ain || ain->version < 14)
+			break;
+		// fallthrough
 	case AIN_STRING:
 	case AIN_STRUCT:
 	case AIN_DELEGATE:
 	case AIN_ARRAY_TYPE:
+	case AIN_ARRAY:
+	case AIN_IFACE:
+	case AIN_IFACE_WRAP:
+	case AIN_REF_OPTION:
 	case AIN_REF_TYPE:
-		if (v.i == -1)
+		if (v.i < 0)
 			break;
 		if (call_dtor)
 			heap_unref(v.i);
@@ -116,6 +252,53 @@ void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor)
 	default:
 		break;
 	}
+}
+
+void page_var_fini(struct page *page, int varno, bool call_dtor)
+{
+	const struct ain_type *t = variable_full_type(page, varno);
+	if (t && t->data == AIN_OPTION) {
+		int w = ain_type_slot_width(t);
+		if (varno + w - 1 < page->nr_vars && page->values[varno + w - 1].i == 0 && t->array_type) {
+			variable_fini(page->values[varno], t->array_type->data, call_dtor);
+		}
+		return;
+	}
+	variable_fini(page->values[varno], variable_type(page, varno, NULL, NULL), call_dtor);
+}
+
+int elem_value_fini(const union vm_value *vals, const struct ain_type *type, bool call_dtor)
+{
+	if (!type)
+		return 1;
+	int w = ain_type_slot_width(type);
+	if (type->data == AIN_OPTION) {
+		if (vals[w - 1].i == 0 && type->array_type)
+			variable_fini(vals[0], type->array_type->data, call_dtor);
+		return w;
+	}
+	variable_fini(vals[0], type->data, call_dtor);
+	return w;
+}
+
+int elem_value_copy(union vm_value *dst, const union vm_value *src, const struct ain_type *type)
+{
+	if (!type) {
+		dst[0] = src[0];
+		return 1;
+	}
+	int w = ain_type_slot_width(type);
+	if (type->data == AIN_OPTION) {
+		for (int k = 0; k < w; k++)
+			dst[k] = src[k];
+		if (src[w - 1].i == 0 && type->array_type)
+			dst[0] = vm_copy(src[0], type->array_type->data);
+		return w;
+	}
+	dst[0] = vm_copy(src[0], type->data);
+	for (int k = 1; k < w; k++)
+		dst[k] = src[k];
+	return w;
 }
 
 enum ain_data_type array_type(enum ain_data_type type)
@@ -151,8 +334,32 @@ enum ain_data_type array_type(enum ain_data_type type)
 	}
 }
 
+const struct ain_type *variable_full_type(struct page *page, int varno)
+{
+	static const struct ain_type void_type = { .data = AIN_VOID, .struc = -1 };
+	switch (page->type) {
+	case GLOBAL_PAGE: return &ain->globals[varno].type;
+	case LOCAL_PAGE: return &ain->functions[page->index].vars[varno].type;
+	case STRUCT_PAGE: return &ain->structures[page->index].members[varno].type;
+	case ARRAY_PAGE:
+		if (page->a_type == AIN_ARRAY) {
+			int stride = ain_type_slot_width(&page->array.element_type);
+			if (stride > 1 && (varno % stride) != 0)
+				return &void_type;
+			return &page->array.element_type;
+		}
+	default: return NULL;
+	}
+}
+
 enum ain_data_type variable_type(struct page *page, int varno, int *struct_type, int *array_rank)
 {
+	if (page->type == ARRAY_PAGE && page->a_type == AIN_ARRAY) {
+		const struct ain_type *type = variable_full_type(page, varno);
+		if (struct_type) *struct_type = type->struc;
+		if (array_rank) *array_rank = type->rank;
+		return type->data;
+	}
 	switch (page->type) {
 	case GLOBAL_PAGE:
 		if (struct_type)
@@ -179,9 +386,8 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 			*array_rank = page->array.rank - 1;
 		return page->array.rank > 1 ? page->a_type : array_type(page->a_type);
 	case DELEGATE_PAGE:
-		// XXX: we return void here because objects in a delegate page aren't
-		//      reference counted
-		return AIN_VOID;
+		// Object bindings are weak; an escaped lambda owns its lexical scope.
+		return ain->version >= 11 && varno % 4 == 3 ? AIN_REF_INT : AIN_VOID;
 	}
 	return AIN_VOID;
 }
@@ -195,8 +401,10 @@ void variable_set(struct page *page, int varno, enum ain_data_type type, union v
 void delete_page_vars(struct page *page)
 {
 	for (int i = page->nr_vars - 1; i >= 0; i--) {
-		variable_fini(page->values[i], variable_type(page, i, NULL, NULL), true);
+		page_var_fini(page, i, true);
 	}
+	if (page->type == LOCAL_PAGE && page->local.parent_page >= 0)
+		heap_unref(page->local.parent_page);
 }
 
 void delete_page(int slot)
@@ -206,7 +414,15 @@ void delete_page(int slot)
 		return;
 	if (page->type == STRUCT_PAGE) {
 		delete_struct(page->index, slot);
+		if (!page_index_valid(slot))
+			return;
+		if (heap[slot].exiting && heap[slot].ref > 1)
+			return;
+		page = heap[slot].page;
+		if (!page)
+			return;
 	}
+	heap_set_page(slot, NULL);
 	delete_page_vars(page);
 	free_page(page);
 }
@@ -219,10 +435,21 @@ struct page *copy_page(struct page *src)
 	if (!src)
 		return NULL;
 	struct page *dst = alloc_page(src->type, src->index, src->nr_vars);
-	dst->array = src->array;
+	if (src->type == ARRAY_PAGE) {
+		dst->array = src->array;
+	} else if (src->type == LOCAL_PAGE) {
+		dst->local = src->local;
+		heap_ref(src->local.parent_page);
+	}
 
 	for (int i = 0; i < src->nr_vars; i++) {
-		dst->values[i] = vm_copy(src->values[i], variable_type(src, i, NULL, NULL));
+		const struct ain_type *t = variable_full_type(src, i);
+		if (t && t->data == AIN_OPTION) {
+			int w = elem_value_copy(&dst->values[i], &src->values[i], t);
+			i += w - 1;
+		} else {
+			dst->values[i] = vm_copy(src->values[i], variable_type(src, i, NULL, NULL));
+		}
 	}
 	return dst;
 }
@@ -232,19 +459,75 @@ int alloc_struct(int no)
 	struct ain_struct *s = &ain->structures[no];
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(STRUCT_PAGE, no, s->nr_members));
+	bool prealloc_structs = ain->version < 14;
 	for (int i = 0; i < s->nr_members; i++) {
-		if (s->members[i].type.data == AIN_STRUCT) {
-			heap[slot].page->values[i].i = alloc_struct(s->members[i].type.struc);
-		} else {
-			heap[slot].page->values[i] = variable_initval(s->members[i].type.data);
+		if (i == 0 && s->nr_vmethods > 0 && s->members[0].type.data == AIN_ARRAY
+				&& s->members[0].type.array_type
+				&& s->members[0].type.array_type->data == AIN_INT) {
+			struct page *vt = v12_array_new(s->members[0].type.array_type, s->nr_vmethods, false);
+			for (int v = 0; v < s->nr_vmethods; v++)
+				vt->values[v].i = s->vmethods[v];
+			heap[slot].page->values[0].i = heap_alloc_page(vt);
+			continue;
 		}
+		int w = variable_init_typed(&heap[slot].page->values[i], &s->members[i].type, prealloc_structs, false);
+		i += w - 1;
 	}
 	return slot;
+}
+
+static struct ain *page_init2_cached_ain = NULL;
+static int *page_init2_fns = NULL;
+static int page_init2_cached_nr = 0;
+
+void page_end_session(void)
+{
+	free(page_init2_fns);
+	page_init2_fns = NULL;
+	page_init2_cached_ain = NULL;
+	page_init2_cached_nr = 0;
+}
+
+static int get_struct_member_init_fn(int no)
+{
+	if (!ain)
+		return -1;
+	if (page_init2_cached_ain != ain || page_init2_cached_nr != ain->nr_structures) {
+		free(page_init2_fns);
+		page_init2_cached_ain = ain;
+		page_init2_cached_nr = ain->nr_structures;
+		page_init2_fns = xmalloc(sizeof(int) * max(page_init2_cached_nr, 1));
+		for (int i = 0; i < page_init2_cached_nr; i++)
+			page_init2_fns[i] = -2;
+	}
+	if (no < 0 || no >= page_init2_cached_nr)
+		return -1;
+	if (page_init2_fns[no] == -2) {
+		size_t len = strlen(ain->structures[no].name);
+		char *buf = xmalloc(len + 3);
+		memcpy(buf, ain->structures[no].name, len);
+		buf[len] = '@';
+		buf[len + 1] = '2';
+		buf[len + 2] = '\0';
+		page_init2_fns[no] = ain_get_function(ain, buf);
+		free(buf);
+	}
+	return page_init2_fns[no];
 }
 
 void init_struct(int no, int slot)
 {
 	struct ain_struct *s = &ain->structures[no];
+	if (ain->version >= 14) {
+		if (s->constructor > 0) {
+			vm_call(s->constructor, slot);
+		} else {
+			int fn2 = get_struct_member_init_fn(no);
+			if (fn2 > 0)
+				vm_call(fn2, slot);
+		}
+		return;
+	}
 	for (int i = 0; i < s->nr_members; i++) {
 		if (s->members[i].type.data == AIN_STRUCT) {
 			init_struct(s->members[i].type.struc, heap[slot].page->values[i].i);
@@ -292,6 +575,15 @@ struct page *alloc_array(int rank, union vm_value *dimensions, enum ain_data_typ
 
 	data_type = unref_array_type(data_type);
 	enum ain_data_type type = array_type(data_type);
+	if (ain && ain->version >= 11 && rank == 1) {
+		struct ain_type elem = {
+			.data = type,
+			.struc = struct_type,
+			.rank = 0,
+			.array_type = NULL,
+		};
+		return v12_array_new(&elem, max(0, dimensions->i), init_structs);
+	}
 	struct page *page = alloc_page(ARRAY_PAGE, data_type, max(0, dimensions->i));
 	page->array.struct_type = struct_type;
 	page->array.rank = rank;
@@ -316,7 +608,23 @@ struct page *realloc_array(struct page *src, int rank, union vm_value *dimension
 {
 	if (rank < 1)
 		VM_ERROR("Tried to allocate 0-rank array");
-	if (!src && !dimensions->i)
+	if (src && src->type == ARRAY_PAGE && src->a_type == AIN_ARRAY && rank == 1) {
+		int width = ain_type_slot_width(&src->array.element_type);
+		int old_count = src->nr_vars / width;
+		int new_count = max(0, dimensions->i);
+		struct page *page = alloc_page(ARRAY_PAGE, AIN_ARRAY, new_count * width);
+		page->array = src->array;
+		int keep = min(new_count, old_count) * width;
+		memcpy(page->values, src->values, keep * sizeof(*page->values));
+		for (int i = src->nr_vars - 1; i >= keep; i--)
+			page_var_fini(src, i, true);
+		free_page(src);
+		for (int i = keep / width; i < new_count; i++) {
+			variable_init_typed(&page->values[i * width], &page->array.element_type, false, init_structs);
+		}
+		return page;
+	}
+	if (!src && (!ain || ain->version < 11 || rank > 1) && !dimensions->i)
 		return NULL;
 	if (!src)
 		return alloc_array(rank, dimensions, data_type, struct_type, init_structs);
@@ -370,7 +678,10 @@ int array_numof(struct page *page, int rank)
 	if (rank == 1) {
 		return page->nr_vars;
 	}
-	return array_numof(heap[page->values[0].i].page, rank - 1);
+	if (page->nr_vars <= 0)
+		return 0;
+	int slot = page->values[0].i;
+	return array_numof(page_index_valid(slot) ? heap[slot].page : NULL, rank - 1);
 }
 
 static bool array_index_ok(struct page *array, int i)
@@ -428,6 +739,16 @@ int array_fill(struct page *dst, int dst_i, int n, union vm_value v)
 
 struct page *array_pushback(struct page *dst, union vm_value v, enum ain_data_type data_type, int struct_type)
 {
+	if (dst && dst->type == ARRAY_PAGE && dst->a_type == AIN_ARRAY) {
+		if (dst->array.element_type.data != array_type(data_type))
+			VM_ERROR("HLL array output has the wrong element type");
+		struct page *next = alloc_page(ARRAY_PAGE, AIN_ARRAY, dst->nr_vars + 1);
+		next->array = dst->array;
+		memcpy(next->values, dst->values, dst->nr_vars * sizeof(*dst->values));
+		next->values[dst->nr_vars] = v;
+		free_page(dst);
+		return next;
+	}
 	if (dst) {
 		if (dst->type != ARRAY_PAGE)
 			VM_ERROR("Not an array");
@@ -545,57 +866,96 @@ struct sortable {
 };
 
 static int current_sort_function;
+static int current_sort_object = -1;
+static enum ain_data_type current_sort_elem_type;
+
+static enum ain_data_type page_array_elem_type(const struct page *page)
+{
+	if (page->a_type == AIN_ARRAY)
+		return page->array.element_type.data;
+	return page->array.rank > 1 ? page->a_type : array_type(page->a_type);
+}
+
+static union vm_value prepare_compare_arg(int fno, int arg_idx, union vm_value val, enum ain_data_type elem_type)
+{
+	enum ain_data_type param_type = elem_type;
+	if (ain && fno >= 0 && fno < ain->nr_functions && arg_idx >= 0 && arg_idx < ain->functions[fno].nr_args) {
+		param_type = ain->functions[fno].vars[arg_idx].type.data;
+	}
+	switch (param_type) {
+	case AIN_STRING:
+	case AIN_STRUCT:
+	case AIN_DELEGATE:
+	case AIN_ARRAY_TYPE:
+	case AIN_ARRAY:
+		return vm_copy(val, param_type);
+	default:
+		return val;
+	}
+}
 
 static int array_compare_custom(const void *_a, const void *_b)
 {
 	const struct sortable *a = _a;
 	const struct sortable *b = _b;
-	stack_push(a->v);
-	stack_push(b->v);
-	vm_call(current_sort_function, -1);
+	bool is_bool_pred = ain && current_sort_function >= 0 && current_sort_function < ain->nr_functions
+		&& ain->functions[current_sort_function].return_type.data == AIN_BOOL;
+	stack_push(prepare_compare_arg(current_sort_function, 0, a->v, current_sort_elem_type));
+	stack_push(prepare_compare_arg(current_sort_function, 1, b->v, current_sort_elem_type));
+	vm_call(current_sort_function, current_sort_object);
 	int d = stack_pop().i;
+	if (is_bool_pred) {
+		if (d)
+			return -1;
+		stack_push(prepare_compare_arg(current_sort_function, 0, b->v, current_sort_elem_type));
+		stack_push(prepare_compare_arg(current_sort_function, 1, a->v, current_sort_elem_type));
+		vm_call(current_sort_function, current_sort_object);
+		if (stack_pop().i)
+			return 1;
+		return a->index - b->index;
+	}
 	return d ? d : a->index - b->index;
 }
 
-static int array_compare_custom_string(const void *_a, const void *_b)
-{
-	const struct sortable *a = _a;
-	const struct sortable *b = _b;
-	stack_push(vm_string_ref(heap_get_string(a->v.i)));
-	stack_push(vm_string_ref(heap_get_string(b->v.i)));
-	vm_call(current_sort_function, -1);
-	int d = stack_pop().i;
-	return d ? d : a->index - b->index;
-}
-
-void array_sort(struct page *page, int compare_fno)
+void array_sort(struct page *page, int compare_fno, int compare_obj)
 {
 	if (!page)
 		return;
 
+	enum ain_data_type elem_type = page_array_elem_type(page);
 	if (compare_fno) {
 		struct sortable *values = xcalloc(page->nr_vars, sizeof(struct sortable));
 		for (int i = 0; i < page->nr_vars; i++) {
 			values[i].v = page->values[i];
 			values[i].index = i;
 		}
+		int prev_fn = current_sort_function;
+		int prev_obj = current_sort_object;
+		enum ain_data_type prev_elem = current_sort_elem_type;
 		current_sort_function = compare_fno;
-		qsort(values, page->nr_vars, sizeof(struct sortable),
-			page->a_type == AIN_ARRAY_STRING ? array_compare_custom_string : array_compare_custom);
+		current_sort_object = compare_obj;
+		current_sort_elem_type = elem_type;
+		qsort(values, page->nr_vars, sizeof(struct sortable), array_compare_custom);
+		current_sort_function = prev_fn;
+		current_sort_object = prev_obj;
+		current_sort_elem_type = prev_elem;
 		for (int i = 0; i < page->nr_vars; i++) {
 			page->values[i] = values[i].v;
 		}
 		free(values);
 	} else {
-		switch (page->a_type) {
-		case AIN_ARRAY_INT:
-		case AIN_ARRAY_LONG_INT:
+		switch (elem_type) {
+		case AIN_INT:
+		case AIN_LONG_INT:
+		case AIN_BOOL:
+		case AIN_ENUM:
+		case AIN_ENUM2:
 			qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_int);
 			break;
-		case AIN_ARRAY_FLOAT:
+		case AIN_FLOAT:
 			qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_float);
 			break;
-		case AIN_ARRAY_STRING:
+		case AIN_STRING:
 			qsort(page->values, page->nr_vars, sizeof(union vm_value), array_compare_string);
 			break;
 		default:
@@ -609,10 +969,20 @@ static int current_sort_member;
 static int array_compare_member(const void *_a, const void *_b)
 {
 	const struct sortable *a = _a;
-	const struct sortable *b = _b;
+	const struct sortable *b = _a == _b ? _a : _b;
 	int32_t a_i = heap_get_page(a->v.i)->values[current_sort_member].i;
 	int32_t b_i = heap_get_page(b->v.i)->values[current_sort_member].i;
 	int d = (a_i > b_i) - (a_i < b_i);
+	return d ? d : a->index - b->index;
+}
+
+static int array_compare_member_float(const void *_a, const void *_b)
+{
+	const struct sortable *a = _a;
+	const struct sortable *b = _b;
+	float a_f = heap_get_page(a->v.i)->values[current_sort_member].f;
+	float b_f = heap_get_page(b->v.i)->values[current_sort_member].f;
+	int d = (a_f > b_f) - (a_f < b_f);
 	return d ? d : a->index - b->index;
 }
 
@@ -630,8 +1000,10 @@ void array_sort_mem(struct page *page, int member_no)
 {
 	if (!page)
 		return;
-	if (page->type != ARRAY_PAGE || array_type(page->a_type) != AIN_STRUCT)
+	if (page->type != ARRAY_PAGE || page_array_elem_type(page) != AIN_STRUCT)
 		VM_ERROR("A_SORT_MEM called on something other than an array of structs");
+	if (page->array.struct_type < 0 || page->array.struct_type >= ain->nr_structures)
+		VM_ERROR("A_SORT_MEM called on array with invalid struct_type");
 
 	struct ain_struct *s = &ain->structures[page->array.struct_type];
 	if (member_no < 0 || member_no >= s->nr_members)
@@ -642,28 +1014,33 @@ void array_sort_mem(struct page *page, int member_no)
 		values[i].v = page->values[i];
 		values[i].index = i;
 	}
+	int prev_member = current_sort_member;
 	current_sort_member = member_no;
 	if (s->members[member_no].type.data == AIN_STRING)
 		qsort(values, page->nr_vars, sizeof(struct sortable), array_compare_member_string);
+	else if (s->members[member_no].type.data == AIN_FLOAT)
+		qsort(values, page->nr_vars, sizeof(struct sortable), array_compare_member_float);
 	else
 		qsort(values, page->nr_vars, sizeof(struct sortable), array_compare_member);
+	current_sort_member = prev_member;
 	for (int i = 0; i < page->nr_vars; i++) {
 		page->values[i] = values[i].v;
 	}
 	free(values);
 }
 
-int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno)
+int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno, int compare_obj)
 {
 	if (!page)
 		return -1;
 
 	start = max(start, 0);
 	end = min(end, page->nr_vars);
+	enum ain_data_type elem_type = page_array_elem_type(page);
 
 	// if no compare function given, compare integer/string values
 	if (!compare_fno) {
-		if (array_type(page->a_type) == AIN_STRING) {
+		if (elem_type == AIN_STRING) {
 			struct string *v_str = heap_get_string(v.i);
 			for (int i = start; i < end; i++) {
 				if (!strcmp(v_str->text, heap_get_string(page->values[i].i)->text))
@@ -679,9 +1056,9 @@ int array_find(struct page *page, int start, int end, union vm_value v, int comp
 	}
 
 	for (int i = start; i < end; i++) {
-		stack_push(v);
-		stack_push(page->values[i]);
-		vm_call(compare_fno, -1);
+		stack_push(prepare_compare_arg(compare_fno, 0, v, elem_type));
+		stack_push(prepare_compare_arg(compare_fno, 1, page->values[i], elem_type));
+		vm_call(compare_fno, compare_obj);
 		if (stack_pop().i)
 			return i;
 	}
@@ -701,14 +1078,25 @@ void array_reverse(struct page *page)
 	}
 }
 
+int delegate_stride(void)
+{
+	return ain->version >= 11 ? 4 : 3;
+}
+
 struct page *delegate_new_from_method(int obj, int fun)
 {
 	if (fun < 1)
 		return alloc_page(DELEGATE_PAGE, 0, 0);
-	struct page *page = alloc_page(DELEGATE_PAGE, 0, 3);
+	int width = delegate_stride();
+	struct page *page = alloc_page(DELEGATE_PAGE, 0, width);
 	page->values[0].i = obj;
 	page->values[1].i = fun;
 	page->values[2].i = heap_get_seq(obj);
+	heap_mark_delegate_target(obj);
+	if (width == 4) {
+		page->values[3].i = vm_capture_environment(fun);
+		heap_ref(page->values[3].i);
+	}
 	return page;
 }
 
@@ -716,7 +1104,7 @@ bool delegate_contains(struct page *dst, int obj, int fun)
 {
 	if (!dst)
 		return false;
-	for (int i = 0; i < dst->nr_vars; i += 3) {
+	for (int i = 0; i < dst->nr_vars; i += delegate_stride()) {
 		if (dst->values[i].i == obj &&
 		    dst->values[i+1].i == fun &&
 		    dst->values[i+2].i == heap_get_seq(obj))
@@ -727,21 +1115,57 @@ bool delegate_contains(struct page *dst, int obj, int fun)
 
 struct page *delegate_append(struct page *dst, int obj, int fun)
 {
+	return delegate_append_captured(dst, obj, fun, fun > 0 ? vm_capture_environment(fun) : -1);
+}
+
+struct page *delegate_append_captured(struct page *dst, int obj, int fun, int environment)
+{
 	if (fun < 1)
 		return dst;
 	if (!dst)
-		return delegate_new_from_method(obj, fun);
+		dst = alloc_page(DELEGATE_PAGE, 0, 0);
 	if (dst->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
-	if (delegate_contains(dst, obj, fun))
+	int width = delegate_stride();
+	for (int i = 0; i < dst->nr_vars; i += width) {
+		if (dst->values[i].i != obj || dst->values[i+1].i != fun
+				|| dst->values[i+2].i != heap_get_seq(obj)) continue;
+		// The same method occupies one multicast entry. Adding it again
+		// replaces its lexical environment with that of the new binding.
+		if (width == 4 && dst->values[i+3].i != environment) {
+			int old = dst->values[i+3].i;
+			heap_ref(environment);
+			dst->values[i+3].i = environment;
+			if (old >= 0) heap_unref(old);
+		}
 		return dst;
-
-	dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * (dst->nr_vars + 3));
+	}
+	dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * (dst->nr_vars + width));
 	dst->values[dst->nr_vars+0].i = obj;
 	dst->values[dst->nr_vars+1].i = fun;
 	dst->values[dst->nr_vars+2].i = heap_get_seq(obj);
-	dst->nr_vars += 3;
+	heap_mark_delegate_target(obj);
+	if (width == 4) {
+		dst->values[dst->nr_vars+3].i = environment;
+		heap_ref(environment);
+	}
+	dst->nr_vars += width;
 	return dst;
+}
+
+static void delegate_remove_at(struct page *page, int offset)
+{
+	int width = delegate_stride();
+	int index = offset / width;
+	int environment = width == 4 ? page->values[offset + 3].i : -1;
+	memmove(page->values + offset, page->values + offset + width,
+		(page->nr_vars - offset - width) * sizeof(*page->values));
+	page->nr_vars -= width;
+	if (index < page->delegate.cursor)
+		page->delegate.cursor--;
+	if (index < page->delegate.end)
+		page->delegate.end--;
+	if (environment >= 0) heap_unref(environment);
 }
 
 int delegate_numof(struct page *page)
@@ -752,18 +1176,14 @@ int delegate_numof(struct page *page)
 		VM_ERROR("Not a delegate");
 
 	// garbage collection
-	for (int i = 0; i < page->nr_vars; i += 3) {
+	int width = delegate_stride();
+	for (int i = 0; i < page->nr_vars; i += width) {
 		if (heap_get_seq(page->values[i].i) != page->values[i+2].i) {
-			for (int j = i+3; j < page->nr_vars; j += 3) {
-				page->values[j-3].i = page->values[j+0].i;
-				page->values[j-2].i = page->values[j+1].i;
-				page->values[j-1].i = page->values[j+2].i;
-			}
-			page->nr_vars -= 3;
-			i -= 3;
+			delegate_remove_at(page, i);
+			i -= width;
 		}
 	}
-	return page->nr_vars / 3;
+	return page->nr_vars / width;
 }
 
 void delegate_erase(struct page *page, int obj, int fun)
@@ -772,14 +1192,9 @@ void delegate_erase(struct page *page, int obj, int fun)
 		return;
 	if (page->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
-	for (int i = 0; i < page->nr_vars; i += 3) {
+	for (int i = 0; i < page->nr_vars; i += delegate_stride()) {
 		if (page->values[i].i == obj && page->values[i+1].i == fun) {
-			for (int j = i+3; j < page->nr_vars; j += 3) {
-				page->values[j-3].i = page->values[j+0].i;
-				page->values[j-2].i = page->values[j+1].i;
-				page->values[j-1].i = page->values[j+2].i;
-			}
-			page->nr_vars -= 3;
+			delegate_remove_at(page, i);
 			break;
 		}
 	}
@@ -792,9 +1207,11 @@ struct page *delegate_plusa(struct page *dst, struct page *add)
 	if ((dst && dst->type != DELEGATE_PAGE) || add->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
 
-	for (int i = 0; i < add->nr_vars; i += 3) {
+	int width = delegate_stride();
+	for (int i = 0; i < add->nr_vars; i += width) {
 		if (heap_get_seq(add->values[i].i) == add->values[i+2].i)
-			dst = delegate_append(dst, add->values[i].i, add->values[i+1].i);
+			dst = delegate_append_captured(dst, add->values[i].i, add->values[i+1].i,
+				width == 4 ? add->values[i+3].i : -1);
 	}
 	return dst;
 }
@@ -808,7 +1225,7 @@ struct page *delegate_minusa(struct page *dst, struct page *minus)
 	if (dst->type != DELEGATE_PAGE || minus->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
 
-	for (int i = 0; i < minus->nr_vars; i += 3) {
+	for (int i = 0; i < minus->nr_vars; i += delegate_stride()) {
 		if (heap_get_seq(minus->values[i].i) == minus->values[i+2].i)
 			delegate_erase(dst, minus->values[i].i, minus->values[i+1].i);
 	}
@@ -822,34 +1239,29 @@ struct page *delegate_clear(struct page *page)
 		return NULL;
 	if (page->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
-	for (int i = 0; i < page->nr_vars; i += 3) {
-		page->values[i].i = -1;
-		page->values[i+1].i = -1;
-		page->values[i+2].i = 0;
-	}
+	while (page->nr_vars) delegate_remove_at(page, page->nr_vars - delegate_stride());
 	page->index = 0;
+	page->delegate.cursor = 0;
+	page->delegate.end = 0;
 	page->nr_vars = 0;
 	return page;
 }
 
-bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out)
+bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out, int *environment_out)
 {
 	if (!page)
 		return false;
 	if (page->type != DELEGATE_PAGE)
 		VM_ERROR("Not a delegate");
-	while (i*3 < page->nr_vars) {
-		if (heap_get_seq(page->values[i*3].i) == page->values[i*3+2].i) {
-			*obj_out = page->values[i*3].i;
-			*fun_out = page->values[i*3+1].i;
+	int width = delegate_stride();
+	while (i * width < page->nr_vars) {
+		if (heap_get_seq(page->values[i*width].i) == page->values[i*width+2].i) {
+			*obj_out = page->values[i*width].i;
+			*fun_out = page->values[i*width+1].i;
+			*environment_out = width == 4 ? page->values[i*width+3].i : -1;
 			return true;
 		}
-		for (int j = (i + 1) * 3; j < page->nr_vars; j += 3) {
-			page->values[j-3].i = page->values[j+0].i;
-			page->values[j-2].i = page->values[j+1].i;
-			page->values[j-1].i = page->values[j+2].i;
-		}
-		page->nr_vars -= 3;
+		delegate_remove_at(page, i * width);
 	}
 	return false;
 }

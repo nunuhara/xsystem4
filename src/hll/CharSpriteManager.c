@@ -145,14 +145,14 @@ static void charsprite_manager_free(struct charsprite_manager *csm)
 
 void CharSpriteManager_Clear(void)
 {
-	for (unsigned i = 0; i < chars.size; i++) {
-		CharSpriteManager_ReleaseHandle(i);
-	}
+	charsprite_manager_free(&chars);
+	charsprite_manager_free(&load_chars);
+	loaded = false;
 }
 
 static int extract_sjis_char(char *src, char *dst)
 {
-	if (SJIS_2BYTE(*src)) {
+	if (SJIS_2BYTE(*src) && src[1] != '\0') {
 		dst[0] = src[0];
 		dst[1] = src[1];
 		dst[2] = '\0';
@@ -226,6 +226,9 @@ bool CharSpriteManager_Save(struct page **iarray)
 	// 1   <- show
 	// 2000 <- handle + 2000
 
+	if (!iarray)
+		return false;
+
 	struct iarray_writer w;
 	iarray_init_writer(&w, "CSM");
 	iarray_write(&w, 0); // version?
@@ -279,16 +282,17 @@ bool CharSpriteManager_Load(struct page **data)
 {
 	struct charsprite_manager csm = {0};
 
-	if (!(*data))
+	if (!data || !(*data))
 		return false;
 
 	struct iarray_reader r;
-	iarray_init_reader(&r, *data, "CSM");
-	if (iarray_read(&r))
+	if (!iarray_init_reader(&r, *data, "CSM"))
+		return false;
+	if (iarray_read(&r) || r.error)
 		return false;
 
 	int nr_handles = iarray_read(&r);
-	if (nr_handles < 0 || nr_handles > 100000)
+	if (r.error || nr_handles < 0 || nr_handles > 100000)
 		goto error;
 
 	csm.size = nr_handles;
@@ -329,15 +333,14 @@ bool CharSpriteManager_Load(struct page **data)
 
 		// insert charsprite into array
 		int handle = iarray_read(&r) - 2000;
-		if (handle < 0 || (unsigned)handle >= csm.size || csm.sprites[handle]) {
+		if (r.error || handle < 0 || (unsigned)handle >= csm.size || csm.sprites[handle]) {
+			if (cs->ch)
+				free_string(cs->ch);
 			sprite_free(&cs->sp);
 			free(cs);
 			goto error;
 		}
 		csm.sprites[handle] = cs;
-
-		if (r.error)
-			goto error;
 	}
 
 	// initialize free list

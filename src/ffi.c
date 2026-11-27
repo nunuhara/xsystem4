@@ -20,10 +20,12 @@
 #include <string.h>
 #include <ffi.h>
 #include "system4/ain.h"
+#include "system4/string.h"
 #include "system4/utfsjis.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "vm/v12.h"
 #include "xsystem4.h"
 
 #define HLL_MAX_ARGS 64
@@ -34,18 +36,49 @@ struct hll_function {
 	unsigned int nr_args;
 	ffi_type **args;
 	ffi_type *return_type;
+	bool warned_unimplemented;
 };
 
 static struct hll_function **libraries = NULL;
+static volatile int current_hll_libno = -1;
+static volatile int current_hll_fno = -1;
+static volatile int last_hll_libno = -1;
+static volatile int last_hll_fno = -1;
+
+void vm_get_last_hll_call(const char **lib_name, const char **func_name)
+{
+	int libno = current_hll_libno >= 0 ? current_hll_libno : last_hll_libno;
+	int fno = current_hll_libno >= 0 ? current_hll_fno : last_hll_fno;
+	if (ain && libno >= 0 && libno < ain->nr_libraries) {
+		*lib_name = ain->libraries[libno].name;
+		if (fno >= 0 && fno < ain->libraries[libno].nr_functions) {
+			*func_name = ain->libraries[libno].functions[fno].name;
+			return;
+		}
+		*func_name = NULL;
+		return;
+	}
+	*lib_name = NULL;
+	*func_name = NULL;
+}
 
 bool library_exists(int libno)
 {
-	return libraries[libno];
+	if (!ain || libno < 0 || libno >= ain->nr_libraries)
+		return false;
+	if (v12_builtin_library(ain->libraries[libno].name))
+		return true;
+	return libraries && libraries[libno];
 }
 
 bool library_function_exists(int libno, int fno)
 {
-	return libraries[libno] && libraries[libno][fno].fun;
+	if (!ain || libno < 0 || libno >= ain->nr_libraries ||
+	    fno < 0 || fno >= ain->libraries[libno].nr_functions)
+		return false;
+	if (v12_builtin_library(ain->libraries[libno].name))
+		return true;
+	return libraries && libraries[libno] && libraries[libno][fno].fun;
 }
 
 /*
@@ -294,76 +327,230 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 
 void hll_call(int libno, int fno)
 {
+	if (unlikely(!ain || libno < 0 || libno >= ain->nr_libraries ||
+	             fno < 0 || fno >= ain->libraries[libno].nr_functions)) {
+		VM_ERROR("Invalid HLL call index: %d.%d", libno, fno);
+	}
+	int prev_hll_libno = current_hll_libno;
+	int prev_hll_fno = current_hll_fno;
+	current_hll_libno = libno;
+	current_hll_fno = fno;
+	last_hll_libno = libno;
+	last_hll_fno = fno;
+	const char *test_crash = getenv("XSYSTEM4_TEST_CRASH");
+	if (test_crash && *test_crash) {
+		if (!strcmp(test_crash, "vm_error")) {
+			VM_ERROR("Synthetic VM_ERROR crash test in %s.%s", ain->libraries[libno].name, ain->libraries[libno].functions[fno].name);
+		} else if (!strcmp(test_crash, "sigsegv")) {
+			volatile int *bad_ptr = (volatile int *)0xdead0000ULL;
+			*bad_ptr = 42;
+		}
+	}
+
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
-
-	if (!libraries[libno])
-		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
-
-	struct hll_function *fun = &libraries[libno][fno];
-	if (!fun->fun)
-		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
+	if (unlikely(f->nr_arguments < 0 || f->nr_arguments > HLL_MAX_ARGS)) {
+		VM_ERROR("Too many arguments to HLL function %s.%s: %d",
+			ain->libraries[libno].name, f->name, f->nr_arguments);
+	}
+	struct hll_function *fun = (libraries && libraries[libno]) ? &libraries[libno][fno] : NULL;
+	bool unimplemented = !fun || !fun->fun;
 
 	void *args[HLL_MAX_ARGS];
 	void *ptrs[HLL_MAX_ARGS];
+	// A native function may call back into AIN. Its popped arguments must
+	// survive reuse (or reallocation) of the VM stack until finalization.
+	union vm_value argument_values[HLL_MAX_ARGS];
+	uint64_t dummy_vals[HLL_MAX_ARGS];
 	// Copy reference arguments to the stack to protect against heap
 	// reallocation during HLL calls.
 	void *heap_ptrs[HLL_MAX_ARGS];
 	int heap_slots[HLL_MAX_ARGS];
+
+	for (int i = 0; i < f->nr_arguments; i++) {
+		heap_slots[i] = -1;
+		heap_ptrs[i] = NULL;
+		dummy_vals[i] = 0;
+	}
 
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
 		switch (f->arguments[i].type.data) {
 		case AIN_REF_INT:
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
-		case AIN_REF_FLOAT: {
+		case AIN_REF_FLOAT:
+		case AIN_REF_ENUM: {
 			// need to create pointer for immediate ref types
 			stack_ptr -= 2;
 			int pageno = stack[stack_ptr].i;
 			int varno  = stack[stack_ptr+1].i;
-			ptrs[i] = &heap[pageno].page->values[varno];
+			if (page_index_valid(pageno) && heap[pageno].page &&
+			    varno >= 0 && varno < heap[pageno].page->nr_vars) {
+				ptrs[i] = &heap[pageno].page->values[varno];
+			} else {
+				ptrs[i] = &dummy_vals[i];
+			}
 			args[i] = &ptrs[i];
 			break;
 		}
-		case AIN_STRING:
+		case AIN_STRING: {
 			stack_ptr--;
-			args[i] = &heap[stack[stack_ptr].i].s;
+			int s_slot = stack[stack_ptr].i;
+			if (string_index_valid(s_slot) && heap[s_slot].s) {
+				args[i] = &heap[s_slot].s;
+			} else {
+				stack[stack_ptr].i = -1;
+				heap_ptrs[i] = &EMPTY_STRING;
+				args[i] = &heap_ptrs[i];
+			}
 			break;
-		case AIN_REF_STRING:
+		}
+		case AIN_REF_STRING: {
 			stack_ptr--;
-			heap_slots[i] = stack[stack_ptr].i;
-			heap_ptrs[i] = heap[stack[stack_ptr].i].s;
+			int s_slot = stack[stack_ptr].i;
+			heap_slots[i] = s_slot;
+			heap_ptrs[i] = string_index_valid(s_slot) ? heap[s_slot].s : NULL;
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
 			break;
+		}
 		case AIN_STRUCT:
+		case AIN_DELEGATE:
 		case AIN_ARRAY_TYPE:
+		case AIN_ARRAY: {
 			stack_ptr--;
-			args[i] = &heap[stack[stack_ptr].i].page;
+			int p_slot = stack[stack_ptr].i;
+			if (page_index_valid(p_slot)) {
+				args[i] = &heap[p_slot].page;
+			} else {
+				stack[stack_ptr].i = -1;
+				heap_ptrs[i] = NULL;
+				args[i] = &heap_ptrs[i];
+			}
 			break;
+		}
 		case AIN_REF_STRUCT:
+		case AIN_REF_DELEGATE:
 		case AIN_REF_ARRAY_TYPE:
+		case AIN_REF_ARRAY: {
 			stack_ptr--;
-			heap_slots[i] = stack[stack_ptr].i;
-			heap_ptrs[i] = heap[stack[stack_ptr].i].page;
+			int p_slot = stack[stack_ptr].i;
+			heap_slots[i] = p_slot;
+			heap_ptrs[i] = page_index_valid(p_slot) ? heap[p_slot].page : NULL;
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
 			break;
+		}
+		case AIN_WRAP: {
+			enum ain_data_type inner = f->arguments[i].type.array_type
+				? f->arguments[i].type.array_type->data : AIN_INT;
+			switch (inner) {
+			case AIN_STRING: {
+				stack_ptr--;
+				int s_slot = stack[stack_ptr].i;
+				heap_slots[i] = s_slot;
+				heap_ptrs[i] = string_index_valid(s_slot) ? heap[s_slot].s : NULL;
+				ptrs[i] = &heap_ptrs[i];
+				args[i] = &ptrs[i];
+				break;
+			}
+			case AIN_STRUCT:
+			case AIN_ARRAY:
+			case AIN_DELEGATE:
+			case AIN_ARRAY_TYPE: {
+				stack_ptr--;
+				int p_slot = stack[stack_ptr].i;
+				heap_slots[i] = p_slot;
+				heap_ptrs[i] = page_index_valid(p_slot) ? heap[p_slot].page : NULL;
+				ptrs[i] = &heap_ptrs[i];
+				args[i] = &ptrs[i];
+				break;
+			}
+			default: {
+				stack_ptr -= 2;
+				int pageno = stack[stack_ptr].i;
+				int varno  = stack[stack_ptr+1].i;
+				if (page_index_valid(pageno) && heap[pageno].page &&
+				    varno >= 0 && varno < heap[pageno].page->nr_vars) {
+					ptrs[i] = &heap[pageno].page->values[varno];
+				} else {
+					ptrs[i] = &dummy_vals[i];
+				}
+				args[i] = &ptrs[i];
+				break;
+			}
+			}
+			break;
+		}
 		default:
 			stack_ptr--;
-			args[i] = &stack[stack_ptr];
+			args[i] = &argument_values[i];
 			break;
 		}
+		argument_values[i] = stack[stack_ptr];
 	}
 
-	union vm_value r;
+	union vm_value r = { .i = 0 };
+	if (unimplemented) {
+		bool should_warn = false;
+		if (fun) {
+			if (!fun->warned_unimplemented) {
+				fun->warned_unimplemented = true;
+				should_warn = true;
+			}
+		} else {
+			static uint64_t warned_null_pairs[128];
+			static size_t nr_warned_null_pairs = 0;
+			uint64_t key = ((uint64_t)(uint32_t)libno << 32) | (uint32_t)fno;
+			bool seen = false;
+			for (size_t i = 0; i < nr_warned_null_pairs; i++) {
+				if (warned_null_pairs[i] == key) {
+					seen = true;
+					break;
+				}
+			}
+			if (!seen && nr_warned_null_pairs < sizeof(warned_null_pairs) / sizeof(warned_null_pairs[0])) {
+				warned_null_pairs[nr_warned_null_pairs++] = key;
+				should_warn = true;
+			}
+		}
+		if (should_warn) {
+			WARNING("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
+		}
+		switch (f->return_type.data) {
+		case AIN_STRING:
+			r.ref = string_ref(&EMPTY_STRING);
+			break;
+		case AIN_ARRAY:
+			r.ref = (ain->version >= 11 && f->return_type.array_type)
+				? v12_array_new(f->return_type.array_type, 0, false) : NULL;
+			break;
+		case AIN_ARRAY_TYPE:
+			r.ref = NULL;
+			break;
+		case AIN_STRUCT:
+			r.i = alloc_struct(f->return_type.struc);
+			break;
+		case AIN_WRAP:
+		case AIN_REF_TYPE:
+			r.i = -1;
+			break;
+		case AIN_FLOAT:
+			r.f = 0.0f;
+			break;
+		default:
+			r.i = 0;
+			break;
+		}
+	} else {
 #ifdef TRACE_HLL
-	trace_hll_call(&ain->libraries[libno], f, fun, &r, args);
+		trace_hll_call(&ain->libraries[libno], f, fun, &r, args);
 #else
-	ffi_call(&fun->cif, (void*)fun->fun, &r, args);
+		ffi_call(&fun->cif, (void*)fun->fun, &r, args);
 #endif
+	}
 
 
-	for (int i = 0, j = 0; i < f->nr_arguments; i++, j++) {
+	for (int i = 0; i < f->nr_arguments; i++) {
 		// XXX: We don't increase the ref count when passing ref arguments to HLL
 		//      functions, so we need to avoid decreasing it via variable_fini
 		switch (f->arguments[i].type.data) {
@@ -371,15 +558,53 @@ void hll_call(int libno, int fno)
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
 		case AIN_REF_FLOAT:
-			j++;
+		case AIN_REF_ENUM:
 			break;
 		case AIN_REF_STRING:
-			heap[heap_slots[i]].s = heap_ptrs[i];
+			if (string_index_valid(heap_slots[i])) {
+				heap[heap_slots[i]].s = heap_ptrs[i] ? heap_ptrs[i] : string_ref(&EMPTY_STRING);
+			} else if (heap_ptrs[i]) {
+				free_string(heap_ptrs[i]);
+			}
 			break;
 		case AIN_REF_STRUCT:
+		case AIN_REF_DELEGATE:
 		case AIN_REF_ARRAY_TYPE:
-			heap[heap_slots[i]].page = heap_ptrs[i];
+		case AIN_REF_ARRAY:
+			if (page_index_valid(heap_slots[i])) {
+				heap_set_page(heap_slots[i], heap_ptrs[i]);
+			} else if (heap_ptrs[i]) {
+				delete_page_vars(heap_ptrs[i]);
+				free_page(heap_ptrs[i]);
+			}
 			break;
+		case AIN_WRAP: {
+			enum ain_data_type inner = f->arguments[i].type.array_type
+				? f->arguments[i].type.array_type->data : AIN_INT;
+			switch (inner) {
+			case AIN_STRING:
+				if (string_index_valid(heap_slots[i])) {
+					heap[heap_slots[i]].s = heap_ptrs[i] ? heap_ptrs[i] : string_ref(&EMPTY_STRING);
+				} else if (heap_ptrs[i]) {
+					free_string(heap_ptrs[i]);
+				}
+				break;
+			case AIN_STRUCT:
+			case AIN_ARRAY:
+			case AIN_DELEGATE:
+			case AIN_ARRAY_TYPE:
+				if (page_index_valid(heap_slots[i])) {
+					heap_set_page(heap_slots[i], heap_ptrs[i]);
+				} else if (heap_ptrs[i]) {
+					delete_page_vars(heap_ptrs[i]);
+					free_page(heap_ptrs[i]);
+				}
+				break;
+			default:
+				break;
+			}
+			break;
+		}
 		case AIN_REF_FUNC_TYPE:
 			break;
 		case AIN_ARRAY_TYPE:
@@ -388,7 +613,7 @@ void hll_call(int libno, int fno)
 				break;
 			// fallthrough
 		default:
-			variable_fini(stack[stack_ptr+j], f->arguments[i].type.data, false);
+			variable_fini(argument_values[i], f->arguments[i].type.data, false);
 			break;
 		}
 	}
@@ -399,19 +624,24 @@ void hll_call(int libno, int fno)
 		break;
 	case AIN_STRING:
 		slot = heap_alloc_slot(VM_STRING);
-		heap[slot].s = r.ref;
+		heap[slot].s = r.ref ? r.ref : string_ref(&EMPTY_STRING);
 		stack_push(slot);
 		break;
-	case AIN_BOOL:
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-		stack_push(*(bool*)&r);
-#pragma GCC diagnostic pop
+	case AIN_ARRAY:
+		stack_push(heap_alloc_page(r.ref));
 		break;
+	case AIN_BOOL: {
+		uint8_t b = 0;
+		memcpy(&b, &r, sizeof(b));
+		stack_push(b != 0);
+		break;
+	}
 	default:
 		stack_push(r);
 		break;
 	}
+	current_hll_libno = prev_hll_libno;
+	current_hll_fno = prev_hll_fno;
 }
 
 extern struct static_library lib_ACXLoader;
@@ -424,6 +654,7 @@ extern struct static_library lib_AliceLogo3;
 extern struct static_library lib_AliceLogo4;
 extern struct static_library lib_AliceLogo5;
 extern struct static_library lib_AnteaterADVEngine;
+extern struct static_library lib_AnteaterADVLogList;
 extern struct static_library lib_Array;
 extern struct static_library lib_BanMisc;
 extern struct static_library lib_Bitarray;
@@ -441,6 +672,7 @@ extern struct static_library lib_DALKDemo;
 extern struct static_library lib_DALKEDemo;
 extern struct static_library lib_Data;
 extern struct static_library lib_DataFile;
+extern struct static_library lib_Dialog;
 extern struct static_library lib_Discord;
 extern struct static_library lib_DrawDungeon;
 extern struct static_library lib_DrawDungeon2;
@@ -459,16 +691,25 @@ extern struct static_library lib_DrawSimpleText;
 extern struct static_library lib_DrawSnow;
 extern struct static_library lib_File;
 extern struct static_library lib_File2;
+extern struct static_library lib_ADVEngine;
+extern struct static_library lib_FileDialog;
 extern struct static_library lib_FileOperation;
+extern struct static_library lib_Clipboard;
+extern struct static_library lib_EXWriter;
+extern struct static_library lib_TextFile;
+extern struct static_library lib_TextFileWriter;
 extern struct static_library lib_FillAngle;
 extern struct static_library lib_GoatGUIEngine;
 extern struct static_library lib_Gpx2Plus;
 extern struct static_library lib_GUIEngine;
+extern struct static_library lib_HashMap;
 extern struct static_library lib_HTTPDownloader;
 extern struct static_library lib_IbisInputEngine;
 extern struct static_library lib_InputDevice;
 extern struct static_library lib_InputString;
+extern struct static_library lib_InstallInfo;
 extern struct static_library lib_KiwiSoundEngine;
+extern struct static_library lib_KiwiSoundEngine_v12;
 extern struct static_library lib_LoadCG;
 extern struct static_library lib_MADLoader;
 extern struct static_library lib_MainEXFile;
@@ -491,6 +732,7 @@ extern struct static_library lib_P3SquareSprite;
 extern struct static_library lib_PassRegister;
 extern struct static_library lib_PastelChime2;
 extern struct static_library lib_PartsEngine;
+extern struct static_library lib_PCInfo;
 extern struct static_library lib_PixelRestore;
 extern struct static_library lib_PlayDemo;
 extern struct static_library lib_PlayMovie;
@@ -504,8 +746,10 @@ extern struct static_library lib_SoundFilePlayer;
 extern struct static_library lib_StoatSpriteEngine;
 extern struct static_library lib_StretchHelper;
 extern struct static_library lib_SystemService;
+extern struct static_library lib_Sys43VM;
 extern struct static_library lib_SystemServiceEx;
 extern struct static_library lib_TapirEngine;
+extern struct static_library lib_TextSurfaceManager;
 extern struct static_library lib_Timer;
 extern struct static_library lib_Toushin3Loader;
 extern struct static_library lib_vmAnime;
@@ -547,6 +791,7 @@ static struct static_library *static_libraries[] = {
 	&lib_AliceLogo4,
 	&lib_AliceLogo5,
 	&lib_AnteaterADVEngine,
+	&lib_AnteaterADVLogList,
 	&lib_Array,
 	&lib_BanMisc,
 	&lib_Bitarray,
@@ -564,6 +809,7 @@ static struct static_library *static_libraries[] = {
 	&lib_DALKEDemo,
 	&lib_Data,
 	&lib_DataFile,
+	&lib_Dialog,
 	&lib_Discord,
 	&lib_DrawDungeon,
 	&lib_DrawDungeon2,
@@ -582,15 +828,23 @@ static struct static_library *static_libraries[] = {
 	&lib_DrawSnow,
 	&lib_File,
 	&lib_File2,
+	&lib_ADVEngine,
+	&lib_FileDialog,
 	&lib_FileOperation,
+	&lib_Clipboard,
+	&lib_EXWriter,
+	&lib_TextFile,
+	&lib_TextFileWriter,
 	&lib_FillAngle,
 	&lib_GoatGUIEngine,
 	&lib_Gpx2Plus,
 	&lib_GUIEngine,
+	&lib_HashMap,
 	&lib_HTTPDownloader,
 	&lib_IbisInputEngine,
 	&lib_InputDevice,
 	&lib_InputString,
+	&lib_InstallInfo,
 	&lib_KiwiSoundEngine,
 	&lib_LoadCG,
 	&lib_MADLoader,
@@ -614,6 +868,7 @@ static struct static_library *static_libraries[] = {
 	&lib_PassRegister,
 	&lib_PastelChime2,
 	&lib_PartsEngine,
+	&lib_PCInfo,
 	&lib_PixelRestore,
 	&lib_PlayDemo,
 	&lib_PlayMovie,
@@ -627,8 +882,10 @@ static struct static_library *static_libraries[] = {
 	&lib_StoatSpriteEngine,
 	&lib_StretchHelper,
 	&lib_SystemService,
+	&lib_Sys43VM,
 	&lib_SystemServiceEx,
 	&lib_TapirEngine,
+	&lib_TextSurfaceManager,
 	&lib_Timer,
 	&lib_Toushin3Loader,
 	&lib_vmAnime,
@@ -661,6 +918,20 @@ static struct static_library *static_libraries[] = {
 	NULL
 };
 
+static struct static_library *find_static_library(const char *name)
+{
+	if (!strcmp(name, "KiwiSoundEngine")) {
+		if (ain->version >= 12)
+			return &lib_KiwiSoundEngine_v12;
+		int libno = ain_get_library(ain, "KiwiSoundEngine");
+		if (libno >= 0 && ain_get_library_function(ain, libno, "Prepare") >= 0)
+			return &lib_KiwiSoundEngine_v12;
+	}
+	for (int j = 0; static_libraries[j]; j++)
+		if (!strcmp(name, static_libraries[j]->name)) return static_libraries[j];
+	return NULL;
+}
+
 static ffi_type *ain_to_ffi_type(enum ain_data_type type)
 {
 	switch (type) {
@@ -668,6 +939,8 @@ static ffi_type *ain_to_ffi_type(enum ain_data_type type)
 		return &ffi_type_void;
 	case AIN_INT:
 	case AIN_BOOL:
+	case AIN_ENUM:
+	case AIN_ENUM2:
 		return &ffi_type_sint32;
 	case AIN_LONG_INT:
 		return &ffi_type_sint64;
@@ -678,11 +951,13 @@ static ffi_type *ain_to_ffi_type(enum ain_data_type type)
 	case AIN_FUNC_TYPE:
 	case AIN_DELEGATE:
 	case AIN_ARRAY_TYPE:
+	case AIN_ARRAY:
 	case AIN_REF_TYPE:
+	case AIN_WRAP:
 	case AIN_IMAIN_SYSTEM: // ???
 		return &ffi_type_pointer;
 	default:
-		ERROR("Unhandled type in HLL function: %s", ain_strtype(ain, type, -1));
+		ERROR("Unhandled type in HLL function: %d", type);
 	}
 }
 
@@ -709,16 +984,17 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 	struct hll_function *dst = xcalloc(ainlib->nr_functions, sizeof(struct hll_function));
 
 	for (int i = 0; i < ainlib->nr_functions; i++) {
+		if (ainlib->functions[i].nr_arguments < 0 || ainlib->functions[i].nr_arguments > HLL_MAX_ARGS)
+			ERROR("Too many arguments to library function: %s", ainlib->functions[i].name);
 		for (int j = 0; lib->functions[j].name; j++) {
 			if (!strcmp(ainlib->functions[i].name, lib->functions[j].name)) {
-				link_static_library_function(&dst[i], &ainlib->functions[i], lib->functions[j].fun);
+				struct static_hll_function *entry = &lib->functions[j];
+				void *function = entry->resolve ? entry->resolve(&ainlib->functions[i]) : entry->fun;
+				if (function)
+					link_static_library_function(&dst[i], &ainlib->functions[i], function);
 				break;
 			}
 		}
-		if (!dst[i].fun)
-			;//WARNING("Unimplemented library function: %s.%s", ainlib->name, ainlib->functions[i].name);
-		else if (ainlib->functions[i].nr_arguments >= HLL_MAX_ARGS)
-			ERROR("Too many arguments to library function: %s", ainlib->functions[i].name);
 	}
 
 	return dst;
@@ -737,12 +1013,12 @@ static void library_run(struct static_library *lib, const char *name)
 static void library_run_all(const char *name)
 {
 	for (int i = 0; i < ain->nr_libraries; i++) {
-		for (int j = 0; static_libraries[j]; j++) {
-			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
-				library_run(static_libraries[j], name);
-				break;
-			}
-		}
+		// These signatures contain generic and callback types handled directly
+		// by the VM, not by the C FFI.
+		if (v12_builtin_library(ain->libraries[i].name))
+			continue;
+		struct static_library *library = find_static_library(ain->libraries[i].name);
+		if (library) library_run(library, name);
 	}
 }
 
@@ -754,18 +1030,52 @@ static void link_libraries(void)
 	libraries = xcalloc(ain->nr_libraries, sizeof(struct hll_function*));
 
 	for (int i = 0; i < ain->nr_libraries; i++) {
-		for (int j = 0; static_libraries[j]; j++) {
-			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
-				libraries[i] = link_static_library(&ain->libraries[i], static_libraries[j]);
-				break;
-			}
-		}
+		if (v12_builtin_library(ain->libraries[i].name))
+			continue;
+		struct static_library *library = find_static_library(ain->libraries[i].name);
+		if (library) libraries[i] = link_static_library(&ain->libraries[i], library);
 		if (!libraries[i])
 			WARNING("Unimplemented library: %s", ain->libraries[i].name);
 	}
 }
 
 bool libraries_initialized = false;
+
+#if defined(ALICEHUB_IOS)
+struct hll_replacement {
+	struct static_hll_function *entry;
+	struct static_hll_function original;
+	struct hll_replacement *next;
+};
+static struct hll_replacement *replacements;
+
+void unlink_libraries(void)
+{
+	if (libraries) {
+		for (int i = 0; i < ain->nr_libraries; i++) {
+			if (!libraries[i])
+				continue;
+			for (int j = 0; j < ain->libraries[i].nr_functions; j++)
+				free(libraries[i][j].args);
+			free(libraries[i]);
+		}
+		free(libraries);
+		libraries = NULL;
+	}
+	while (replacements) {
+		struct hll_replacement *replacement = replacements;
+		replacements = replacement->next;
+		*replacement->entry = replacement->original;
+		free(replacement);
+	}
+}
+#endif
+
+void link_libraries_for_audit(void)
+{
+	library_run_all("_PreLink");
+	link_libraries();
+}
 
 void init_libraries(void)
 {
@@ -777,15 +1087,24 @@ void init_libraries(void)
 
 void exit_libraries(void)
 {
-	if (libraries_initialized)
+	if (libraries_initialized) {
+		libraries_initialized = false;
 		library_run_all("_ModuleFini");
+	}
 }
+
 
 void static_library_replace(struct static_library *lib, const char *name, void *fun)
 {
 	for (int i = 0; lib->functions[i].name; i++) {
 		if (!strcmp(lib->functions[i].name, name)) {
+#if defined(ALICEHUB_IOS)
+			struct hll_replacement *replacement = xmalloc(sizeof(*replacement));
+			*replacement = (struct hll_replacement){ &lib->functions[i], lib->functions[i], replacements };
+			replacements = replacement;
+#endif
 			lib->functions[i].fun = fun;
+			lib->functions[i].resolve = NULL;
 			return;
 		}
 	}

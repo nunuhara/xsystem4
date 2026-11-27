@@ -23,18 +23,26 @@
 
 struct tes *tes_parse(uint8_t *data, size_t size)
 {
+	if (!data || size < 16)
+		return NULL;
 	struct buffer r;
 	buffer_init(&r, data, size);
 	if (memcmp(buffer_strdata(&r), "TES\0\0\0\0\0", 8))
 		return NULL;
 	buffer_skip(&r, 8);
 
+	int nr_columns = buffer_read_int32(&r);
+	int nr_rows = buffer_read_int32(&r);
+	if (nr_columns < 0 || nr_rows < 0 ||
+	    (nr_rows > 0 && (size_t)nr_columns > (buffer_remaining(&r) / 4) / (size_t)nr_rows)) {
+		return NULL;
+	}
+	size_t nr_items = (size_t)nr_rows * (size_t)nr_columns;
 	struct tes *tes = xcalloc(1, sizeof(struct tes));
-	tes->nr_columns = buffer_read_int32(&r);
-	tes->nr_rows = buffer_read_int32(&r);
-	int nr_items = tes->nr_rows * tes->nr_columns;
+	tes->nr_columns = nr_columns;
+	tes->nr_rows = nr_rows;
 	tes->entries = xcalloc(nr_items, sizeof(int));
-	for (int i = 0; i < nr_items; i++)
+	for (size_t i = 0; i < nr_items; i++)
 		tes->entries[i] = buffer_read_int32(&r);
 	return tes;
 }

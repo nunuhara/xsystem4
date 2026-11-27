@@ -33,7 +33,7 @@ enum page_type {
 	DELEGATE_PAGE,
 };
 
-#define NR_PAGE_TYPES (ARRAY_PAGE+1)
+#define NR_PAGE_TYPES (DELEGATE_PAGE+1)
 
 /*
  * A page is an ordered collection of variables. Pages are used to implement
@@ -51,7 +51,7 @@ enum page_type {
  * whole array is NOT contiguous in memory).
  *
  * Delegates: each delegate object is backed by a page storing (object,
- * function, seq) triples.
+ * function, seq) triples. v11+ adds a fourth, owning environment reference.
  */
 struct page {
 	enum page_type type;
@@ -70,12 +70,19 @@ struct page {
 		// local-specific metadata
 		struct {
 			int struct_ptr;
+			int parent_page;
 		} local;
 		// array-specific metadata
 		struct {
 			int struct_type;
 			int rank;
+			struct ain_type element_type;
 		} array;
+		// delegate-specific metadata
+		struct {
+			int cursor;
+			int end;
+		} delegate;
 	};
 	int nr_vars;
 	union vm_value values[];
@@ -102,12 +109,23 @@ static inline void _page_set_var(struct page *page, int i, union vm_value v)
 #define page_set_var(page, i, v) _page_set_var(page, i, vm_value_cast(v))
 
 // variables
+int ain_type_slot_width(const struct ain_type *type);
+int ain_return_type_width(const struct ain_type *type);
+bool ain_option_inner_is_value_heap(const struct ain_type *inner);
+bool ain_option_inner_is_ref_heap(const struct ain_type *inner);
 union vm_value variable_initval(enum ain_data_type type);
+union vm_value variable_initval_typed(const struct ain_type *type);
+int variable_init_typed(union vm_value *dst, const struct ain_type *type, bool alloc_structs, bool init_structs);
+const struct ain_type *variable_full_type(struct page *page, int varno);
 void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor);
+void page_var_fini(struct page *page, int varno, bool call_dtor);
+int elem_value_fini(const union vm_value *vals, const struct ain_type *type, bool call_dtor);
+int elem_value_copy(union vm_value *dst, const union vm_value *src, const struct ain_type *type);
 enum ain_data_type variable_type(struct page *page, int varno, int *struct_type, int *array_rank);
 void variable_set(struct page *page, int varno, enum ain_data_type type, union vm_value val);
 
 // pages
+void page_end_session(void);
 struct page *alloc_page(enum page_type type, int type_index, int nr_vars);
 void free_page(struct page *page);
 struct page *copy_page(struct page *page);
@@ -131,9 +149,9 @@ struct page *array_pushback(struct page *dst, union vm_value v, enum ain_data_ty
 struct page *array_popback(struct page *dst);
 struct page *array_erase(struct page *page, int i, bool *success);
 struct page *array_insert(struct page *page, int i, union vm_value v, enum ain_data_type data_type, int struct_type);
-void array_sort(struct page *page, int compare_fno);
+void array_sort(struct page *page, int compare_fno, int compare_obj);
 void array_sort_mem(struct page *page, int member_no);
-int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno);
+int array_find(struct page *page, int start, int end, union vm_value v, int compare_fno, int compare_obj);
 void array_reverse(struct page *page);
 
 // delegates
@@ -142,9 +160,11 @@ int delegate_numof(struct page *page);
 bool delegate_contains(struct page *dst, int obj, int fun);
 void delegate_erase(struct page *page, int obj, int fun);
 struct page *delegate_append(struct page *dst, int obj, int fun);
+struct page *delegate_append_captured(struct page *dst, int obj, int fun, int environment);
 struct page *delegate_plusa(struct page *dst, struct page *add);
 struct page *delegate_minusa(struct page *dst, struct page *minus);
 struct page *delegate_clear(struct page *page);
-bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out);
+int delegate_stride(void);
+bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out, int *environment_out);
 
 #endif /* SYSTEM4_PAGE_H */

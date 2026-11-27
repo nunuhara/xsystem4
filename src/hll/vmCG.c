@@ -23,9 +23,13 @@
 #include "vmSurface.h"
 
 HLL_QUIET_UNIMPLEMENTED( , void, vmCG, New, void);
-//int vmCG_Release(void);
 HLL_WARN_UNIMPLEMENTED( , void, vmCG, SetType, int type);
 //int vmCG_EnumHandle(void);
+
+static int vmCG_Release(void)
+{
+	return 1;
+}
 
 static int vmCG_Exist(int num)
 {
@@ -75,7 +79,7 @@ static int vmCG_Trans(int surface, int x, int y, int num)
 
 HLL_LIBRARY(vmCG,
 	    HLL_EXPORT(New, vmCG_New),
-	    HLL_TODO_EXPORT(Release, vmCG_Release),
+	    HLL_EXPORT(Release, vmCG_Release),
 	    HLL_EXPORT(SetType, vmCG_SetType),
 	    HLL_TODO_EXPORT(EnumHandle, vmCG_EnumHandle),
 	    HLL_EXPORT(Exist, vmCG_Exist),

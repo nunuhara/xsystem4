@@ -95,7 +95,7 @@ struct text_style text_sprite_ts = {
 
 static int extract_sjis_char(char *src, char *dst)
 {
-	if (SJIS_2BYTE(*src)) {
+	if (SJIS_2BYTE(*src) && src[1] != '\0') {
 		dst[0] = src[0];
 		dst[1] = src[1];
 		dst[2] = '\0';
@@ -108,7 +108,7 @@ static int extract_sjis_char(char *src, char *dst)
 
 bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 {
-	if (text->size < 1)
+	if (!text || text->size < 1)
 		return false;
 
 	char s[3];
@@ -119,6 +119,8 @@ bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 	//      E.g. a size 64 letter "H" is reported as 32 pixels tall.
 	//      Probably doesn't matter...?
 	struct sact_sprite *sp = sact_create_sprite(sp_no, w, h, 0, 0, 0, 0);
+	if (!sp)
+		return false;
 	sprite_get_texture(sp); // XXX: force initialization of texture
 	gfx_render_text(&sp->texture, 0.0f, 0, s, &text_sprite_ts, false);
 	sprite_dirty(sp);
@@ -165,6 +167,8 @@ void StoatSpriteEngine_SP_SetTextSpriteEdgeColor(int r, int g, int b)
 bool StoatSpriteEngine_SP_SetDashTextSprite(int sp_no, int width, int height)
 {
 	struct sact_sprite *sp = sact_create_sprite(sp_no, width, height, 0, 0, 0, 0);
+	if (!sp)
+		return false;
 	sprite_get_texture(sp); // XXX: force initialization of texture
 	gfx_render_dash_text(&sp->texture, &text_sprite_ts);
 	sprite_dirty(sp);
@@ -313,16 +317,6 @@ static void multisprite_reset_cg(struct multisprite *sp)
 	sp->cg_dirty = true;
 }
 
-static int StoatSpriteEngine_Init(void *imain_system, int cg_cache_size)
-{
-	sact_init(cg_cache_size, STOAT_SPRITE_ENGINE);
-	for (int i = 0; i < NR_SP_TYPES; i++) {
-		sp_types[i].nr_sprites = 16;
-		sp_types[i].sprites = xcalloc(16, sizeof(struct multisprite*));
-	}
-	return 1;
-}
-
 static void multisprite_clear(void)
 {
 	for (int t = 0; t < NR_SP_TYPES; t++) {
@@ -330,7 +324,22 @@ static void multisprite_clear(void)
 			multisprite_free(sp_types[t].sprites[no]);
 			sp_types[t].sprites[no] = NULL;
 		}
+		free(sp_types[t].sprites);
+		sp_types[t].sprites = NULL;
+		sp_types[t].nr_sprites = 0;
 	}
+}
+
+static int StoatSpriteEngine_Init(void *imain_system, int cg_cache_size)
+{
+	(void)imain_system;
+	multisprite_clear();
+	sact_init(cg_cache_size, STOAT_SPRITE_ENGINE);
+	for (int i = 0; i < NR_SP_TYPES; i++) {
+		sp_types[i].nr_sprites = 16;
+		sp_types[i].sprites = xcalloc(16, sizeof(struct multisprite*));
+	}
+	return 1;
 }
 
 static void StoatSpriteEngine_ModuleFini(void)
@@ -403,6 +412,8 @@ static bool StoatSpriteEngine_MultiSprite_SetCG(int type, int n, int cg_no)
 		return true;
 
 	struct multisprite *ms = multisprite_get(type, n);
+	if (!ms)
+		return false;
 	ms->cg = cg_no;
 	ms->cg_dirty = true;
 	return true;
@@ -475,12 +486,14 @@ static bool StoatSpriteEngine_MultiSprite_SetText(int type, int n, struct string
 {
 	if (type != 5)
 		return true;
+	if (!text)
+		return false;
 
 	struct multisprite *ms = multisprite_get(type, n);
 	if (!ms) return false;
 
-	int w = text->size * (ms->ts.size/2);
-	int h = ms->ts.size;
+	int w = max(1, (int)(text->size * (ms->ts.size/2)));
+	int h = max(1, (int)ms->ts.size);
 	sprite_init_color(&ms->sp, w, h, 0, 0, 0, 0);
 	sprite_get_texture(&ms->sp); // XXX: force initialization of texture
 	gfx_render_text(&ms->sp.texture, 0.0f, 0, text->text, &ms->ts, false);
@@ -608,6 +621,8 @@ static bool StoatSpriteEngine_MultiSprite_ResetDefaultPos(int type, int n)
 
 static bool StoatSpriteEngine_MultiSprite_ResetAllDefaultPos(int type)
 {
+	if (type < 0 || type >= NR_SP_TYPES)
+		return false;
 	for (int i = 0; i < sp_types[type].nr_sprites; i++) {
 		if (sp_types[type].sprites[i]) {
 			sp_types[type].sprites[i]->pos = sp_types[type].sprites[i]->default_pos;
@@ -688,26 +703,30 @@ static int StoatSpriteEngine_MultiSprite_GetMaxMoveTotalTime(void)
 
 static void multisprite_set_move_current_time(struct multisprite *ms, int time)
 {
-	if (!time || time <= ms->move.begin_wait_time) {
+	if (time <= ms->move.begin_wait_time) {
 		ms->pos = ms->move.start;
+		ms->alpha = ms->move.start_alpha;
 		return;
 	}
 
 	// adjust for begin wait
 	time -= ms->move.begin_wait_time;
 
-	if (time >= ms->move.time) {
+	if (ms->move.time <= 0 || time >= ms->move.time) {
 		ms->pos = ms->move.end;
+		ms->alpha = ms->move.end_alpha;
 		return;
 	}
 
-	// calculate (x,y) at time/move_time
+	// calculate (x,y,alpha) at time/move_time
 	int d_x = ms->move.end.x - ms->move.start.x;
 	int d_y = ms->move.end.y - ms->move.start.y;
+	int d_a = ms->move.end_alpha - ms->move.start_alpha;
 	double percent = (double)time / ms->move.time;
 	// TODO: acceleration
 	ms->pos.x = ms->move.start.x + (d_x * percent);
 	ms->pos.y = ms->move.start.y + (d_y * percent);
+	ms->alpha = ms->move.start_alpha + (d_a * percent);
 }
 
 static void StoatSpriteEngine_MultiSprite_SetAllMoveCurrentTime(int time)
@@ -729,6 +748,7 @@ static void StoatSpriteEngine_MultiSprite_EndAllMove(void)
 			struct multisprite *ms = sp_types[i].sprites[j];
 			if (ms && ms->moving) {
 				ms->pos = ms->move.end;
+				ms->alpha = ms->move.end_alpha;
 				ms->moving = false;
 			}
 		}
@@ -752,6 +772,8 @@ HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, MultiSprite_Rebuild);
 
 static bool StoatSpriteEngine_MultiSprite_Encode(struct page **data)
 {
+	if (!data)
+		return false;
 	struct iarray_writer out;
 	iarray_init_writer(&out, "MSP");
 
@@ -821,6 +843,8 @@ static bool StoatSpriteEngine_MultiSprite_Encode(struct page **data)
 
 static bool StoatSpriteEngine_MultiSprite_Decode(struct page **data)
 {
+	if (!data || !*data)
+		return false;
 	struct iarray_reader in;
 	if (!iarray_init_reader(&in, *data, "MSP")) {
 		WARNING("MultiSprite_Decode: invalid data");
@@ -830,10 +854,16 @@ static bool StoatSpriteEngine_MultiSprite_Decode(struct page **data)
 	multisprite_clear();
 
 	int nr_sprites = iarray_read(&in);
+	if (nr_sprites < 0 || in.error)
+		return false;
 	for (int i = 0; i < nr_sprites; i++) {
 		int type = iarray_read(&in);
 		int no = iarray_read(&in);
+		if (in.error || no > 65536)
+			return false;
 		struct multisprite *sp = multisprite_get(type, no);
+		if (!sp)
+			return false;
 		sp->z = iarray_read(&in);
 		sp->pos.x = iarray_read(&in);
 		sp->pos.y = iarray_read(&in);
@@ -872,6 +902,8 @@ static bool StoatSpriteEngine_MultiSprite_Decode(struct page **data)
 		sp->ts.edge_right = iarray_read(&in);
 		sp->ts.edge_down = iarray_read(&in);
 		sp->ts.font_spacing = iarray_read(&in);
+		if (in.error)
+			return false;
 	}
 
 	return !in.error;
@@ -898,12 +930,21 @@ static bool config_sleep_by_inactive_window = false;
 
 void StoatSpriteEngine_SYSTEM_SetConfigSleepByInactiveWindow(bool on)
 {
+#ifdef __ANDROID__
+	(void)on;
+	config_sleep_by_inactive_window = false;
+#else
 	config_sleep_by_inactive_window = !!on;
+#endif
 }
 
 bool StoatSpriteEngine_SYSTEM_GetConfigSleepByInactiveWindow(void)
 {
+#ifdef __ANDROID__
+	return false;
+#else
 	return config_sleep_by_inactive_window;
+#endif
 }
 
 static bool read_message_skipping = false;
@@ -1100,7 +1141,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(SP_GetPixelValue, sact_SP_GetPixelValue),
 	    HLL_EXPORT(SP_SetBrightness, sact_SP_SetBrightness),
 	    HLL_EXPORT(SP_GetBrightness, sact_SP_GetBrightness),
-	    HLL_TODO_EXPORT(SP_CreateCopy, SACTDX_SP_CreateCopy),
+	    HLL_EXPORT(SP_CreateCopy, sact_SP_CreateCopy),
 	    HLL_TODO_EXPORT(Joypad_GetAnalogStickStatus, SACTDX_Joypad_GetAnalogStickStatus),
 	    HLL_TODO_EXPORT(GetDigitalStickStatus, SACTDX_GetDigitalStickStatus),
 	    HLL_TODO_EXPORT(FFT_rdft, SACTDX_FFT_rdft),

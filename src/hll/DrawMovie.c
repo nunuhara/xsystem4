@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <math.h>
+#include "system4/ain.h"
 #include "system4/string.h"
 
 #include "hll.h"
@@ -89,7 +91,24 @@ static void DrawMovie2_UpdateVolume(void)
 
 HLL_QUIET_UNIMPLEMENTED(, void, DrawMovie3, UpdateVolume, bool IsMuteByInactiveWindow);
 
+static void DrawMovie3_UpdateVolume_float(float volume)
+{
+	if (volume < 0.0f)
+		volume = 0.0f;
+	if (volume > 1.0f)
+		volume = 1.0f;
+	DrawMovie_SetVolume((int)lroundf(volume * 100.0f));
+}
+
+static void *DrawMovie3_ResolveUpdateVolume(const struct ain_hll_function *f)
+{
+	if (f->nr_arguments == 1 && f->arguments[0].type.data == AIN_FLOAT)
+		return DrawMovie3_UpdateVolume_float;
+	return DrawMovie3_UpdateVolume;
+}
+
 HLL_LIBRARY(DrawMovie,
+	    HLL_EXPORT(_ModuleFini, DrawMovie_Release),
 	    HLL_EXPORT(Release, DrawMovie_Release),
 	    HLL_EXPORT(Load, DrawMovie_Load),
 	    HLL_EXPORT(Run, DrawMovie_Run),
@@ -100,6 +119,7 @@ HLL_LIBRARY(DrawMovie,
 	);
 
 HLL_LIBRARY(DrawMovie2,
+	    HLL_EXPORT(_ModuleFini, DrawMovie_Release),
 	    HLL_EXPORT(Release, DrawMovie_Release),
 	    HLL_EXPORT(Load, DrawMovie_Load),
 	    HLL_EXPORT(Run, DrawMovie_Run),
@@ -112,12 +132,13 @@ HLL_LIBRARY(DrawMovie2,
 	);
 
 HLL_LIBRARY(DrawMovie3,
+	    HLL_EXPORT(_ModuleFini, DrawMovie_Release),
 	    HLL_EXPORT(Release, DrawMovie_Release),
 	    HLL_EXPORT(Load, DrawMovie_Load),
 	    HLL_EXPORT(Run, DrawMovie_Run),
 	    HLL_EXPORT(Draw, DrawMovie_Draw),
 	    HLL_EXPORT(SetInnerVolume, DrawMovie2_SetInnerVolume),
-	    HLL_EXPORT(UpdateVolume, DrawMovie3_UpdateVolume),
+	    HLL_OVERLOAD(UpdateVolume, DrawMovie3_ResolveUpdateVolume),
 	    HLL_EXPORT(IsEnd, DrawMovie_IsEnd),
 	    HLL_EXPORT(GetCount, DrawMovie_GetCount)
 	);

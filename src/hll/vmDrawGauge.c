@@ -58,7 +58,7 @@ static int vmDrawGauge_Open(int cg_no, int origin, int phase)
 	cg_free(cg);
 
 	struct vm_surface *sf = vm_surface_create(w, h);
-	gfx_init_texture_blank(&sf->texture, w, h);
+	gfx_init_texture_rgba(&sf->texture, w, h, (SDL_Color){0, 0, 0, 0});
 	dg->surface = sf->no;
 
 	return handle;

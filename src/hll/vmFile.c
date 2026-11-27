@@ -375,18 +375,39 @@ static bool wildcard_match(const char *pat, const char *s)
 	const char *star = strchr(pat, '*');
 	if (!star)
 		return !strcmp(pat, s);
-	return !strncmp(pat, s, star - pat) && !strcmp(star + 1, s + strlen(s) - strlen(star + 1));
+	size_t pre = (size_t)(star - pat);
+	size_t suf = strlen(star + 1);
+	size_t slen = strlen(s);
+	if (slen < pre + suf)
+		return false;
+	return !strncmp(pat, s, pre) && !strcmp(star + 1, s + slen - suf);
 }
 
 static int vmFile_Find(struct string *wild_string, struct string **fname_out, int *count)
 {
+	char *mem_match = NULL;
+	int mem_rc = savedir_memory_find(wild_string->text, count, &mem_match);
+	if (mem_rc >= 0) {
+		if (mem_rc > 0 && mem_match) {
+			if (*fname_out)
+				free_string(*fname_out);
+			*fname_out = cstr_to_string(mem_match);
+		}
+		free(mem_match);
+		return mem_rc;
+	}
+
 	int found = 0;
 	char *wild_path = savedir_path(wild_string->text);
 	UDIR *dir = opendir_utf8(path_dirname(wild_path));
 	if (dir) {
 		char *d_name;
 		const char *pattern = path_basename(wild_path);
-		for (int i = 0; !found && (d_name = readdir_utf8(dir)) != NULL; i++) {
+		for (int i = 0; !found && (d_name = readdir_utf8(dir)) != NULL; ) {
+			if (savedir_is_memory_save_path(d_name)) {
+				free(d_name);
+				continue;
+			}
 			if (i >= *count) {
 				*count = i;
 				if (wildcard_match(pattern, d_name)) {
@@ -396,6 +417,7 @@ static int vmFile_Find(struct string *wild_string, struct string **fname_out, in
 					found = 1;
 				}
 			}
+			i++;
 			free(d_name);
 		}
 		closedir_utf8(dir);

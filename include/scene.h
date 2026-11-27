@@ -56,6 +56,7 @@ int scene_set_wp_color(int r, int g, int b);
 int scene_set_wp_texture(struct texture *tex);
 void scene_set_sprite_z(struct sprite *sp, int z);
 void scene_set_sprite_z2(struct sprite *sp, int z, int z2);
+bool scene_sprite_check_z_order(struct sprite *sp, int z, int z2);
 
 void scene_print(void);
 cJSON *scene_to_json(bool verbose);

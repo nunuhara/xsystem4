@@ -132,7 +132,7 @@ static struct rea *rea_open(const char *path)
 	rea->fp = file_open_utf8(path, "rb");
 	if (!rea->fp) {
 		WARNING("Failed to open file '%s': %s", display_utf0(path), strerror(errno));
-		return NULL;
+		goto err;
 	}
 
 	char header[32];
@@ -178,16 +178,16 @@ static bool rea_read_entry(struct rea_entry *entry, struct rea *rea)
 	uint8_t buf[8];
 	if (!inflate_stream_read(buf, 4, rea->index_stream))
 		return false;
-	int name_len = LittleEndian_getDW(buf, 0);
-	if (name_len > REA_ENTRY_NAME_MAX)
+	int32_t name_len = LittleEndian_getDW(buf, 0);
+	if (name_len < 0 || name_len > REA_ENTRY_NAME_MAX)
 		return false;
-	if (!inflate_stream_read(entry->name, name_len, rea->index_stream))
+	if (name_len > 0 && !inflate_stream_read(entry->name, name_len, rea->index_stream))
 		return false;
 	entry->name[name_len] = '\0';
 	if (!inflate_stream_read(buf, 8, rea->index_stream))
 		return false;
 	entry->offset = LittleEndian_getDW(buf, 0);
-	entry->length = LittleEndian_getDW(buf, 0);
+	entry->length = LittleEndian_getDW(buf, 4);
 	return true;
 }
 
@@ -198,11 +198,26 @@ static struct inflate_stream *rea_open_entry(struct rea_entry *entry, struct rea
 	return inflate_stream_new(rea->fp, entry->length);
 }
 
+static char *file2_resolve_path(const char *sjis_path, bool for_write)
+{
+	if (!config.game_dir)
+		return unix_path(sjis_path);
+	if (!for_write) {
+		char *path = gamedir_path_icase(sjis_path);
+		if (path)
+			return path;
+	}
+	return gamedir_path(sjis_path);
+}
+
 static bool file2_open(struct string *filename, const char *mode)
 {
+	if (!filename)
+		return false;
 	if (current_file) {
 		WARNING("Previously opened file wasn't closed");
 		fclose(current_file);
+		current_file = NULL;
 	}
 	if (current_stream) {
 		WARNING("Previously opened archive wasn't closed");
@@ -210,7 +225,8 @@ static bool file2_open(struct string *filename, const char *mode)
 		current_stream = NULL;
 	}
 
-	char *path = unix_path(filename->text);
+	bool for_write = mode && mode[0] == 'w';
+	char *path = file2_resolve_path(filename->text, for_write);
 	current_file = file_open_utf8(path, mode);
 	if (!current_file) {
 		WARNING("Failed to open file '%s': %s", display_utf0(path), strerror(errno));
@@ -272,10 +288,12 @@ static bool File2_OpenArchiveForRead(struct string *archive_name, struct string 
 		current_stream = NULL;
 	}
 
+	if (!archive_name || !filename)
+		return false;
 	char *fname = xmalloc(strlen(archive_name->text) + 5);
 	strcpy(fname, archive_name->text);
 	strcat(fname, ".rea");
-	char *archive_path = gamedir_path(fname);
+	char *archive_path = file2_resolve_path(fname, false);
 	free(fname);
 
 	struct rea *rea = rea_open(archive_path);
@@ -391,7 +409,20 @@ static bool File2_ReadString(struct string **str)
 	return true;
 }
 
+static void File2_ModuleFini(void)
+{
+	if (current_file) {
+		fclose(current_file);
+		current_file = NULL;
+	}
+	if (current_stream) {
+		inflate_stream_free(current_stream);
+		current_stream = NULL;
+	}
+}
+
 HLL_LIBRARY(File2,
+	    HLL_EXPORT(_ModuleFini, File2_ModuleFini),
 	    HLL_EXPORT(OpenForWrite, File2_OpenForWrite),
 	    HLL_EXPORT(OpenForRead, File2_OpenForRead),
 	    HLL_EXPORT(OpenArchiveForRead, File2_OpenArchiveForRead),

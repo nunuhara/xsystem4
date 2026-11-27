@@ -102,7 +102,8 @@ static struct draw_numeral_plugin *get_draw_numeral_plugin(int surface)
 static void DrawNumeral_free(struct draw_plugin *plugin_)
 {
 	struct draw_numeral_plugin *plugin = (struct draw_numeral_plugin *)plugin_;
-	plugin->cg_set->refcnt--;
+	if (cg_table && plugin->cg_set)
+		plugin->cg_set->refcnt--;
 	free(plugin);
 }
 
@@ -112,10 +113,10 @@ static void DrawNumeral_render(struct sact_sprite *sp)
 
 	struct texture *dst = gfx_main_surface();
 
-	char buf[10];
+	char buf[16];
 	snprintf(buf, sizeof(buf), plugin->format, plugin->value);
 	for (int i = 0; buf[i]; i++) {
-		if (buf[i] == ' ')
+		if (buf[i] < '0' || buf[i] > '9')
 			continue;
 		int digit = buf[i] - '0';
 		Texture *t = &plugin->cg_set->texture[digit];
@@ -214,7 +215,27 @@ static int DrawNumeral_GetSingleWidth(int sp_no)
 	return plugin->cg_set->texture[0].w;
 }
 
+static void free_cg_entry(void *val)
+{
+	struct cg_entry *entry = val;
+	if (!entry)
+		return;
+	for (int i = 0; i < 10; i++)
+		gfx_delete_texture(&entry->texture[i]);
+	free(entry);
+}
+
+static void DrawNumeral_ModuleFini(void)
+{
+	if (cg_table) {
+		ht_foreach_value(cg_table, free_cg_entry);
+		ht_free_int(cg_table);
+		cg_table = NULL;
+	}
+}
+
 HLL_LIBRARY(DrawNumeral,
+	    HLL_EXPORT(_ModuleFini, DrawNumeral_ModuleFini),
 	    HLL_EXPORT(LoadCG, DrawNumeral_LoadCG),
 	    HLL_EXPORT(UnloadCG, DrawNumeral_UnloadCG),
 	    HLL_EXPORT(Register, DrawNumeral_Register),

@@ -23,6 +23,7 @@
 #include "system4/aar.h"
 #include "system4/cg.h"
 #include "system4/hashtable.h"
+#include "system4/utfsjis.h"
 
 #include "3d_internal.h"
 #include "reign.h"
@@ -59,37 +60,58 @@ struct vertex_blend {
 	GLfloat blend_uv[2];
 };
 
-static bool is_transparent_mesh(const struct pol_mesh *mesh)
+static bool is_transparent_mesh(const struct pol_mesh *mesh, enum RE_plugin_version version)
 {
-	if (re_plugin_version == RE_REIGN_PLUGIN)
+	if (version == RE_REIGN_PLUGIN)
 		return !(mesh->flags & MESH_SPRITE);
 	else
 		return mesh->flags & MESH_ALPHA;
 }
 
-static bool is_transparent_material(const struct pol_material *material)
+static bool is_transparent_material(const struct pol_material *material, enum RE_plugin_version version)
 {
-	if (re_plugin_version == RE_REIGN_PLUGIN)
+	if (version == RE_REIGN_PLUGIN)
 		return !(material->flags & MATERIAL_SPRITE);
 	else
 		return material->flags & MATERIAL_ALPHA;
 }
 
+const char *RE_path_basename(const char *path)
+{
+	const char *base = path;
+	for (const uint8_t *p = (const uint8_t *)path; *p; p++) {
+		if (SJIS_2BYTE(*p) && p[1]) {
+			p++;
+			continue;
+		}
+		if (*p == '/' || *p == '\\')
+			base = (const char *)(p + 1);
+	}
+	return base;
+}
+
 struct archive_data *RE_get_aar_entry(struct archive *aar, const char *dir, const char *name, const char *ext)
 {
 	char *path = xmalloc(strlen(dir) + strlen(name) + strlen(ext) + 2);
-	sprintf(path, "%s\\%s%s", dir, name, ext);
+	if (dir && *dir)
+		sprintf(path, "%s\\%s%s", dir, name, ext);
+	else
+		sprintf(path, "%s%s", name, ext);
 	struct archive_data *dfile = archive_get_by_name(aar, path);
 	free(path);
 	return dfile;
 }
 
-static GLuint load_texture(struct archive *aar, const char *path, const char *name, bool *has_alpha_out)
+GLuint RE_load_aar_texture(struct archive *aar, const char *dir, const char *name, const char **exts, int nr_exts, bool *has_alpha_out)
 {
-	struct archive_data *dfile = RE_get_aar_entry(aar, path, name, "");
-	if (!dfile) {
-		return 0;
+	struct archive_data *dfile = NULL;
+	for (int i = 0; i < nr_exts; i++) {
+		dfile = RE_get_aar_entry(aar, dir, name, exts[i]);
+		if (dfile)
+			break;
 	}
+	if (!dfile)
+		return 0;
 	struct cg *cg = cg_load_data(dfile);
 	if (!cg) {
 		WARNING("cg_load_data failed: %s", dfile->name);
@@ -98,20 +120,15 @@ static GLuint load_texture(struct archive *aar, const char *path, const char *na
 	}
 	archive_free_data(dfile);
 
-	GLuint texture;
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glGenerateMipmap(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	if (has_alpha_out)
-		*has_alpha_out = cg->metrics.has_alpha;
+	GLuint texture = RE_create_texture_from_cg(cg, GL_REPEAT, has_alpha_out);
 	cg_free(cg);
 	return texture;
+}
+
+static GLuint load_texture(struct archive *aar, const char *path, const char *name, bool *has_alpha_out)
+{
+	static const char *empty_ext[] = { "" };
+	return RE_load_aar_texture(aar, path, name, empty_ext, 1, has_alpha_out);
 }
 
 static GLuint *load_texture_list(struct archive *aar, const char *path, const char *name, int *nr_textures_out, bool *has_alpha_out)
@@ -143,17 +160,26 @@ static GLuint *load_texture_list(struct archive *aar, const char *path, const ch
 	return textures;
 }
 
-static bool init_material(struct material *material, struct pol_material *m, struct amt *amt, struct archive *aar, const char *path)
+static void clear_material_gl_handles(struct material *material)
 {
-	material->flags = m->flags;
-	glm_vec2_copy(m->uv_tiling, material->uv_tiling);
-	glm_vec2_one(material->blend_uv_tiling);
-	if (!m->textures[COLOR_MAP]) {
-		WARNING("No color texture");
+	free(material->color_maps);
+	material->color_maps = NULL;
+	material->nr_color_maps = 0;
+	material->specular_map = 0;
+	material->alpha_map = 0;
+	material->light_map = 0;
+	material->normal_map = 0;
+	material->blend_texture = 0;
+}
+
+static bool reload_material_textures(struct material *material, struct pol_material *m, struct archive *aar, const char *path, bool *has_alpha_out)
+{
+	if (!m->textures[COLOR_MAP])
 		return false;
-	}
-	bool has_alpha;
+	bool has_alpha = false;
 	material->color_maps = load_texture_list(aar, path, m->textures[COLOR_MAP], &material->nr_color_maps, &has_alpha);
+	if (has_alpha_out)
+		*has_alpha_out = has_alpha;
 	if (!material->color_maps)
 		return false;
 
@@ -170,8 +196,23 @@ static bool init_material(struct material *material, struct pol_material *m, str
 		material->light_map = load_texture(aar, path, m->textures[LIGHT_MAP], NULL);
 	if (m->textures[NORMAL_MAP])
 		material->normal_map = load_texture(aar, path, m->textures[NORMAL_MAP], NULL);
+	return true;
+}
 
-	material->is_transparent = (has_alpha || material->alpha_map) && is_transparent_material(m);
+static bool init_material(struct material *material, struct pol_material *m, struct amt *amt, struct archive *aar, const char *path, enum RE_plugin_version version)
+{
+	material->flags = m->flags;
+	glm_vec2_copy(m->uv_tiling, material->uv_tiling);
+	glm_vec2_one(material->blend_uv_tiling);
+	if (!m->textures[COLOR_MAP]) {
+		WARNING("No color texture");
+		return false;
+	}
+	bool has_alpha = false;
+	if (!reload_material_textures(material, m, aar, path, &has_alpha))
+		return false;
+
+	material->is_transparent = (has_alpha || material->alpha_map) && is_transparent_material(m, version);
 	material->shadow_darkness = 1.0f;
 
 	struct amt_material *amt_m = amt ? amt_find_material(amt, m->name) : NULL;
@@ -227,8 +268,10 @@ static void sort_and_normalize_bone_weights(struct pol_vertex *v)
 	for (uint32_t i = 0; i < v->nr_weights && i < NR_WEIGHTS; i++) {
 		total += v->weights[i].weight;
 	}
-	for (uint32_t i = 0; i < v->nr_weights && i < NR_WEIGHTS; i++) {
-		v->weights[i].weight /= total;
+	if (total > 0.0f) {
+		for (uint32_t i = 0; i < v->nr_weights && i < NR_WEIGHTS; i++) {
+			v->weights[i].weight /= total;
+		}
 	}
 }
 
@@ -279,8 +322,22 @@ static void *buf_alloc(uint8_t **ptr, int size)
 	return p;
 }
 
-static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_group_index, int material)
+struct mesh_vertex_layout {
+	bool has_light_map;
+	bool has_vertex_colors;
+	bool has_normal_map;
+	bool has_bones;
+	bool has_blend;
+	GLsizei stride;
+	int nr_vertices;
+	void *buffer;
+};
+
+static bool build_pol_mesh_vertex_buffer(struct model *model, struct pol_mesh *m, uint32_t material_group_index, int material, struct mesh_vertex_layout *out)
 {
+	if (material < 0 || material >= model->nr_materials || !model->materials[material].color_maps)
+		return false;
+
 	bool has_light_map = m->light_uvs && model->materials[material].light_map;
 	bool has_vertex_colors = m->nr_colors > 0 || m->nr_alphas > 0;
 	bool has_normal_map = model->materials[material].normal_map != 0;
@@ -363,34 +420,30 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 
 	if (nr_vertices == 0) {
 		free(buffer);
-		return;
+		return false;
 	}
-	model->meshes = xrealloc_array(model->meshes, model->nr_meshes, model->nr_meshes + 1, sizeof(struct mesh));
-	struct mesh *mesh = &model->meshes[model->nr_meshes++];
-	mesh->name = xstrdup(m->name);
-	mesh->flags = m->flags;
-	mesh->material = material;
-	if (re_plugin_version == RE_REIGN_PLUGIN)
-		mesh->is_transparent = model->materials[material].is_transparent && is_transparent_mesh(m);
-	else
-		mesh->is_transparent = model->materials[material].is_transparent || is_transparent_mesh(m);
-	if (mesh->is_transparent)
-		model->has_transparent_mesh = true;
-	mesh->outline_color[0] = m->edge_color.r / 255.f;
-	mesh->outline_color[1] = m->edge_color.g / 255.f;
-	mesh->outline_color[2] = m->edge_color.b / 255.f;
-	mesh->outline_thickness = m->edge_size ? m->edge_size : DEFAULT_OUTLINE_THICKNESS;
-	glm_vec2_copy(m->uv_scroll, mesh->uv_scroll);
-	glm_vec3_copy(m->specular_color, mesh->specular_color);
-	mesh->specular_power = m->specular_power;
-	mesh->nr_vertices = nr_vertices;
+	*out = (struct mesh_vertex_layout){
+		.has_light_map = has_light_map,
+		.has_vertex_colors = has_vertex_colors,
+		.has_normal_map = has_normal_map,
+		.has_bones = has_bones,
+		.has_blend = has_blend,
+		.stride = stride,
+		.nr_vertices = nr_vertices,
+		.buffer = buffer,
+	};
+	return true;
+}
 
+static void upload_mesh_vertex_buffer(struct mesh *mesh, const struct mesh_vertex_layout *vl)
+{
 	glGenVertexArrays(1, &mesh->vao);
 	glBindVertexArray(mesh->vao);
 	glGenBuffers(1, &mesh->attr_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, mesh->attr_buffer);
 
 	const uint8_t *base = (const uint8_t *)0;
+	GLsizei stride = vl->stride;
 	glEnableVertexAttribArray(VATTR_POS);
 	glVertexAttribPointer(VATTR_POS, 3, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, pos));
 	glEnableVertexAttribArray(VATTR_NORMAL);
@@ -398,7 +451,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 	glEnableVertexAttribArray(VATTR_UV);
 	glVertexAttribPointer(VATTR_UV, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_common, uv));
 	base += sizeof(struct vertex_common);
-	if (has_light_map) {
+	if (vl->has_light_map) {
 		glEnableVertexAttribArray(VATTR_LIGHT_UV);
 		glVertexAttribPointer(VATTR_LIGHT_UV, 2, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_light_uv, uv));
 		base += sizeof(struct vertex_light_uv);
@@ -406,7 +459,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 		glDisableVertexAttribArray(VATTR_LIGHT_UV);
 		glVertexAttrib2f(VATTR_LIGHT_UV, 0.0, 0.0);
 	}
-	if (has_vertex_colors) {
+	if (vl->has_vertex_colors) {
 		glEnableVertexAttribArray(VATTR_COLOR);
 		glVertexAttribPointer(VATTR_COLOR, 4, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_color, color));
 		base += sizeof(struct vertex_color);
@@ -414,7 +467,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 		glDisableVertexAttribArray(VATTR_COLOR);
 		glVertexAttrib4f(VATTR_COLOR, 1.0, 1.0, 1.0, 1.0);
 	}
-	if (has_normal_map) {
+	if (vl->has_normal_map) {
 		glEnableVertexAttribArray(VATTR_TANGENT);
 		glVertexAttribPointer(VATTR_TANGENT, 4, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_tangent, tangent));
 		base += sizeof(struct vertex_tangent);
@@ -422,7 +475,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 		glDisableVertexAttribArray(VATTR_TANGENT);
 		glVertexAttrib3f(VATTR_TANGENT, 1.0, 0.0, 0.0);
 	}
-	if (has_bones) {
+	if (vl->has_bones) {
 		glEnableVertexAttribArray(VATTR_BONE_INDEX);
 		glVertexAttribIPointer(VATTR_BONE_INDEX, NR_WEIGHTS, GL_INT, stride, base + offsetof(struct vertex_bones, bone_id));
 		glEnableVertexAttribArray(VATTR_BONE_WEIGHT);
@@ -434,7 +487,7 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 		glDisableVertexAttribArray(VATTR_BONE_WEIGHT);
 		glVertexAttrib4f(VATTR_BONE_WEIGHT, 0.0, 0.0, 0.0, 0.0);
 	}
-	if (has_blend) {
+	if (vl->has_blend) {
 		glEnableVertexAttribArray(VATTR_BLEND_WEIGHT);
 		glVertexAttribPointer(VATTR_BLEND_WEIGHT, 1, GL_FLOAT, GL_FALSE, stride, base + offsetof(struct vertex_blend, blend_weight));
 		glEnableVertexAttribArray(VATTR_BLEND_UV);
@@ -448,12 +501,47 @@ static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_
 	}
 	assert((intptr_t)base == stride);
 
-	glBufferData(GL_ARRAY_BUFFER, mesh->nr_vertices * stride, buffer, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vl->nr_vertices * stride, vl->buffer, GL_STATIC_DRAW);
 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
 
-	free(buffer);
+static void add_mesh(struct model *model, struct pol_mesh *m, uint32_t material_group_index, int material, enum RE_plugin_version version)
+{
+	struct mesh_vertex_layout vl;
+	if (!build_pol_mesh_vertex_buffer(model, m, material_group_index, material, &vl))
+		return;
+
+	model->meshes = xrealloc_array(model->meshes, model->nr_meshes, model->nr_meshes + 1, sizeof(struct mesh));
+	struct mesh *mesh = &model->meshes[model->nr_meshes++];
+	mesh->name = xstrdup(m->name);
+	mesh->flags = m->flags;
+	mesh->material = material;
+	if (version == RE_REIGN_PLUGIN)
+		mesh->is_transparent = model->materials[material].is_transparent && is_transparent_mesh(m, version);
+	else
+		mesh->is_transparent = model->materials[material].is_transparent || is_transparent_mesh(m, version);
+	if (mesh->is_transparent)
+		model->has_transparent_mesh = true;
+	mesh->outline_color[0] = m->edge_color.r / 255.f;
+	mesh->outline_color[1] = m->edge_color.g / 255.f;
+	mesh->outline_color[2] = m->edge_color.b / 255.f;
+	mesh->outline_thickness = m->edge_size ? m->edge_size : DEFAULT_OUTLINE_THICKNESS;
+	glm_vec2_copy(m->uv_scroll, mesh->uv_scroll);
+	glm_vec3_copy(m->specular_color, mesh->specular_color);
+	mesh->specular_power = m->specular_power;
+	mesh->nr_vertices = vl.nr_vertices;
+
+	upload_mesh_vertex_buffer(mesh, &vl);
+	free(vl.buffer);
+}
+
+static void clear_mesh_gl_handles(struct mesh *mesh)
+{
+	mesh->vao = 0;
+	mesh->attr_buffer = 0;
+	mesh->index_buffer = 0;
 }
 
 static void destroy_mesh(struct mesh *mesh)
@@ -498,12 +586,10 @@ static void destroy_bone(struct bone *bone)
 	free(bone->name);
 }
 
-struct model *model_load(struct archive *aar, const char *path)
+static struct pol *load_pol_with_opr(struct archive *aar, const char *path)
 {
-	const char *basename = strrchr(path, '\\');
-	basename = basename ? basename + 1 : path;
+	const char *basename = RE_path_basename(path);
 
-	// Load .POL file
 	struct archive_data *pol_file = RE_get_aar_entry(aar, path, basename, ".POL");
 	if (!pol_file) {
 		WARNING("%s\\%s.POL: not found", path, basename);
@@ -517,6 +603,84 @@ struct model *model_load(struct archive *aar, const char *path)
 	}
 	archive_free_data(pol_file);
 
+	struct archive_data *opr_file = RE_get_aar_entry(aar, path, basename, ".opr");
+	if (opr_file) {
+		opr_load(opr_file->data, opr_file->size, pol);
+		archive_free_data(opr_file);
+	}
+	struct archive_data *txtex_file = RE_archive_find_txtex(aar, path);
+	if (txtex_file) {
+		txtex_opr_load(txtex_file->data, txtex_file->size, pol);
+		archive_free_data(txtex_file);
+	}
+	return pol;
+}
+
+static void init_sphere_material_gl(struct material *material, const uint8_t color[4])
+{
+	material->color_maps = xmalloc(sizeof(GLuint));
+	material->nr_color_maps = 1;
+	glGenTextures(1, material->color_maps);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, material->color_maps[0]);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, color);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static void load_model_materials_from_pol(struct model *model, struct pol *pol, struct amt *amt, struct archive *aar, const char *path, enum RE_plugin_version version, const int *material_offsets, bool reset_only)
+{
+	for (uint32_t i = 0; i < pol->nr_materials; i++) {
+		if (pol->materials[i].nr_children == 0) {
+			int idx = material_offsets[i];
+			if (idx >= model->nr_materials)
+				continue;
+			if (reset_only)
+				reload_material_textures(&model->materials[idx], &pol->materials[i].m, aar, path, NULL);
+			else
+				init_material(&model->materials[idx], &pol->materials[i].m, amt, aar, path, version);
+			continue;
+		}
+		for (uint32_t j = 0; j < pol->materials[i].nr_children; j++) {
+			int idx = material_offsets[i] + j;
+			if (idx >= model->nr_materials)
+				continue;
+			struct pol_material_group *child = &pol->materials[i].children[j];
+			if (child->nr_children >= 2) {
+				bool ok = reset_only
+					? reload_material_textures(&model->materials[idx], &child->children[0].m, aar, path, NULL)
+					: init_material(&model->materials[idx], &child->children[0].m, amt, aar, path, version);
+				if (ok && child->children[1].m.textures[COLOR_MAP]) {
+					model->materials[idx].blend_texture =
+						load_texture(aar, path, child->children[1].m.textures[COLOR_MAP], NULL);
+					if (!reset_only) {
+						glm_vec2_copy(child->children[1].m.uv_tiling,
+							model->materials[idx].blend_uv_tiling);
+					}
+				}
+			} else {
+				if (reset_only)
+					reload_material_textures(&model->materials[idx], &child->m, aar, path, NULL);
+				else
+					init_material(&model->materials[idx], &child->m, amt, aar, path, version);
+			}
+		}
+	}
+}
+
+struct model *model_load(struct archive *aar, const char *path, enum RE_plugin_version version)
+{
+	struct pol *pol = load_pol_with_opr(aar, path);
+	if (!pol)
+		return NULL;
+
+	const char *basename = RE_path_basename(path);
+
 	// Load .amt file, if any
 	struct amt *amt = NULL;
 	struct archive_data *amt_file = RE_get_aar_entry(aar, path, basename, ".amt");
@@ -529,13 +693,6 @@ struct model *model_load(struct archive *aar, const char *path)
 
 	struct model *model = xcalloc(1, sizeof(struct model));
 	model->path = strdup(path);
-
-	// Load .opr file, if any
-	struct archive_data *opr_file = RE_get_aar_entry(aar, path, basename, ".opr");
-	if (opr_file) {
-		opr_load(opr_file->data, opr_file->size, pol);
-		archive_free_data(opr_file);
-	}
 
 	// Bones
 	if (pol->nr_bones > 0) {
@@ -562,30 +719,7 @@ struct model *model_load(struct archive *aar, const char *path)
 			model->nr_materials++;
 	}
 	model->materials = xcalloc(model->nr_materials, sizeof(struct material));
-	for (uint32_t i = 0; i < pol->nr_materials; i++) {
-		if (pol->materials[i].nr_children == 0) {
-			init_material(&model->materials[material_offsets[i]],
-				      &pol->materials[i].m, amt, aar, path);
-			continue;
-		}
-		for (uint32_t j = 0; j < pol->materials[i].nr_children; j++) {
-			struct pol_material_group *child = &pol->materials[i].children[j];
-			if (child->nr_children >= 2) {
-				// Group node: texture blending (base + blend)
-				init_material(&model->materials[material_offsets[i] + j],
-					      &child->children[0].m, amt, aar, path);
-				if (child->children[1].m.textures[COLOR_MAP]) {
-					model->materials[material_offsets[i] + j].blend_texture =
-						load_texture(aar, path, child->children[1].m.textures[COLOR_MAP], NULL);
-					glm_vec2_copy(child->children[1].m.uv_tiling,
-						model->materials[material_offsets[i] + j].blend_uv_tiling);
-				}
-			} else {
-				init_material(&model->materials[material_offsets[i] + j],
-					      &child->m, amt, aar, path);
-			}
-		}
-	}
+	load_model_materials_from_pol(model, pol, amt, aar, path, version, material_offsets, false);
 
 	// Meshes
 	struct pol_mesh **hd_meshes = xmalloc(pol->nr_meshes * sizeof(*hd_meshes));
@@ -602,14 +736,18 @@ struct model *model_load(struct archive *aar, const char *path)
 		}
 		if (pol->meshes[i]->flags & MESH_HEIGHT_DETECTION)
 			hd_meshes[nr_hd_meshes++] = pol->meshes[i];
+		if (pol->meshes[i]->material >= pol->nr_materials) {
+			WARNING("%s: mesh \"%s\" has out-of-range material %u", model->path, pol->meshes[i]->name, pol->meshes[i]->material);
+			continue;
+		}
 		struct pol_material_group *mg = &pol->materials[pol->meshes[i]->material];
 		int m_off = material_offsets[pol->meshes[i]->material];
 		if (mg->nr_children == 0) {
-			add_mesh(model, pol->meshes[i], 0, m_off);
+			add_mesh(model, pol->meshes[i], 0, m_off, version);
 			continue;
 		}
 		for (uint32_t j = 0; j < mg->nr_children; j++) {
-			add_mesh(model, pol->meshes[i], j, m_off + j);
+			add_mesh(model, pol->meshes[i], j, m_off + j, version);
 		}
 	}
 
@@ -677,12 +815,13 @@ static void init_sphere_mesh(struct mesh *mesh)
 	const int nr_indices = 3 * 2 * w_segments * (h_segments - 1);
 	GLushort *indices = xcalloc(nr_indices, sizeof(GLushort));
 	GLushort *pi = indices;
+	const int row_stride = w_segments + 1;
 	for (int y = 0; y < h_segments; y++) {
 		for (int x = 0; x < w_segments; x++) {
-			GLushort a = y * w_segments + x + 1;
-			GLushort b = y * w_segments + x;
-			GLushort c = (y + 1) * w_segments + x;
-			GLushort d = (y + 1) * w_segments + x + 1;
+			GLushort a = y * row_stride + x + 1;
+			GLushort b = y * row_stride + x;
+			GLushort c = (y + 1) * row_stride + x;
+			GLushort d = (y + 1) * row_stride + x + 1;
 			if (y > 0) {
 				*pi++ = a;
 				*pi++ = b;
@@ -735,25 +874,91 @@ struct model *model_create_sphere(int r, int g, int b, int a)
 	model->aabb[1][1] = 1.0f;
 	model->aabb[1][2] = 1.0f;
 
+	model->sphere_color[0] = r;
+	model->sphere_color[1] = g;
+	model->sphere_color[2] = b;
+	model->sphere_color[3] = a;
 	model->nr_materials = 1;
 	model->materials = xcalloc(1, sizeof(struct material));
 	struct material *material = &model->materials[0];
 	material->is_transparent = true;
 	glm_vec2_one(material->uv_tiling);
 	glm_vec2_one(material->blend_uv_tiling);
-	material->color_maps = xmalloc(sizeof(GLuint));
-	material->nr_color_maps = 1;
-	glGenTextures(1, material->color_maps);
-	glBindTexture(GL_TEXTURE_2D, material->color_maps[0]);
-	uint8_t pixel[4] = {r, g, b, a};
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	init_sphere_material_gl(material, model->sphere_color);
 	model->has_transparent_mesh = true;
 
 	return model;
 }
 
-static struct mot *mot_load(const char *name, struct model *model, struct archive *aar)
+static void reset_pol_mesh_gl(struct model *model, struct pol_mesh *m, uint32_t material_group_index, int material, int *mesh_idx)
+{
+	if (*mesh_idx >= model->nr_meshes)
+		return;
+	struct mesh_vertex_layout vl;
+	if (!build_pol_mesh_vertex_buffer(model, m, material_group_index, material, &vl))
+		return;
+	struct mesh *mesh = &model->meshes[(*mesh_idx)++];
+	clear_mesh_gl_handles(mesh);
+	upload_mesh_vertex_buffer(mesh, &vl);
+	free(vl.buffer);
+}
+
+void model_reset_gl(struct model *model, struct archive *aar, enum RE_plugin_version version)
+{
+	(void)version;
+	if (!model)
+		return;
+	for (int i = 0; i < model->nr_meshes; i++)
+		clear_mesh_gl_handles(&model->meshes[i]);
+	for (int i = 0; i < model->nr_materials; i++)
+		clear_material_gl_handles(&model->materials[i]);
+
+	if (!model->path) {
+		if (model->nr_meshes > 0)
+			init_sphere_mesh(&model->meshes[0]);
+		if (model->nr_materials > 0)
+			init_sphere_material_gl(&model->materials[0], model->sphere_color);
+		return;
+	}
+	if (!aar)
+		return;
+
+	struct pol *pol = load_pol_with_opr(aar, model->path);
+	if (!pol)
+		return;
+
+	int *material_offsets = xmalloc(pol->nr_materials * sizeof(int));
+	int total_materials = 0;
+	for (uint32_t i = 0; i < pol->nr_materials; i++) {
+		material_offsets[i] = total_materials;
+		if (pol->materials[i].nr_children)
+			total_materials += pol->materials[i].nr_children;
+		else
+			total_materials++;
+	}
+	load_model_materials_from_pol(model, pol, NULL, aar, model->path, version, material_offsets, true);
+
+	int mesh_idx = 0;
+	for (uint32_t i = 0; i < pol->nr_meshes; i++) {
+		if (!pol->meshes[i] || !strcmp(pol->meshes[i]->name, "collision"))
+			continue;
+		if (pol->meshes[i]->material >= pol->nr_materials)
+			continue;
+		struct pol_material_group *mg = &pol->materials[pol->meshes[i]->material];
+		int m_off = material_offsets[pol->meshes[i]->material];
+		if (mg->nr_children == 0) {
+			reset_pol_mesh_gl(model, pol->meshes[i], 0, m_off, &mesh_idx);
+			continue;
+		}
+		for (uint32_t j = 0; j < mg->nr_children; j++)
+			reset_pol_mesh_gl(model, pol->meshes[i], j, m_off + j, &mesh_idx);
+	}
+
+	free(material_offsets);
+	pol_free(pol);
+}
+
+static struct mot *mot_load(const char *name, struct model *model, struct archive *aar, enum RE_plugin_version version)
 {
 	struct archive_data *mot_file = RE_get_aar_entry(aar, model->path, name, ".MOT");
 	if (!mot_file) {
@@ -782,7 +987,7 @@ static struct mot *mot_load(const char *name, struct model *model, struct archiv
 	free(reordered);
 
 	// Load optional sidecar file.
-	if (re_plugin_version <= RE_TAPIR_PLUGIN) {
+	if (version <= RE_TAPIR_PLUGIN) {
 		struct archive_data *txa_file = RE_get_aar_entry(aar, model->path, name, ".txa");
 		if (txa_file) {
 			txa_load(txa_file->data, txa_file->size, mot);
@@ -793,6 +998,12 @@ static struct mot *mot_load(const char *name, struct model *model, struct archiv
 		if (mpr_file) {
 			mot->mpr = mpr_load(mpr_file->data, mpr_file->size, model);
 			archive_free_data(mpr_file);
+		} else {
+			struct archive_data *txtex_file = RE_archive_find_txtex(aar, model->path);
+			if (txtex_file) {
+				mot->mpr = mpr_load_txtex(txtex_file->data, txtex_file->size, model, name);
+				archive_free_data(txtex_file);
+			}
 		}
 	}
 
@@ -806,7 +1017,8 @@ struct motion *motion_load(const char *name, struct RE_instance *instance, struc
 		return NULL;
 	struct mot *mot = ht_get(model->mot_cache, name, NULL);
 	if (!mot) {
-		mot = mot_load(name, model, aar);
+		enum RE_plugin_version version = instance->plugin ? instance->plugin->version : RE_REIGN_PLUGIN;
+		mot = mot_load(name, model, aar, version);
 		if (!mot)
 			return NULL;
 		ht_put(model->mot_cache, name, mot);

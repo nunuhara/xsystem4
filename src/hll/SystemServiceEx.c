@@ -17,6 +17,8 @@
 #include "hll.h"
 #include "gfx/gfx.h"
 
+void system_service_sync_wait_vsync(bool wait_vsync);
+
 static int SystemServiceEx_GetOverlayPresent(void)
 {
 	return 0;
@@ -33,7 +35,7 @@ HLL_LIBRARY(SystemServiceEx,
 	    HLL_EXPORT(GetOverlayPresent, SystemServiceEx_GetOverlayPresent),
 	    HLL_EXPORT(GetOverlayActive, SystemServiceEx_GetOverlayActive),
 	    //HLL_EXPORT(UpdateMainSurface, SystemServiceEx_UpdateMainSurface),
-	    HLL_EXPORT(SetWaitVSync, gfx_set_wait_vsync)
+	    HLL_EXPORT(SetWaitVSync, system_service_sync_wait_vsync)
 	    //HLL_EXPORT(GetHasPresented, SystemServiceEx_GetHasPresented),
 	    //HLL_EXPORT(ClearHasPresented, SystemServiceEx_ClearHasPresented)
 	);

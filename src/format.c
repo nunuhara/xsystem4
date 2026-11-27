@@ -53,8 +53,7 @@ static int read_number(const char **_fmt)
 	int n = 0;
 	const char *fmt = *_fmt;
 	while (*fmt && *fmt >= '0' && *fmt <= '9') {
-		n *= 10;
-		n += *fmt - '0';
+		n = min(DIGIT_MAX, n * 10 + *fmt - '0');
 		fmt++;
 	}
 	*_fmt = fmt;
@@ -143,6 +142,9 @@ static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value 
 		break;
 	case FMT_FLOAT:
 		len = float_to_cstr(buf, DIGIT_MAX, arg.f, spec->padding, spec->zero_pad, spec->precision, spec->zenkaku);
+		// v12 fixed the old runtime's extra trailing F on full-width floats.
+		if (ain->version >= 12 && spec->zenkaku && len && buf[len - 1] == 'F')
+			buf[--len] = 0;
 		string_append_cstr(s, buf, len);
 		break;
 	case FMT_STRING: {
@@ -171,19 +173,35 @@ static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value 
 
 struct string *string_format(struct string *fmt, union vm_value arg, enum string_format_type type)
 {
+	struct string *out = NULL;
+	const char *begin = fmt->text;
 	for (const char *s = fmt->text; *s; s++) {
 		if (*s != '%')
 			continue;
+		if (s[1] == '%') {
+			if (!out) out = string_ref(&EMPTY_STRING);
+			string_append_cstr(&out, begin, s - begin + 1);
+			s++;
+			begin = s + 1;
+			continue;
+		}
 
-		size_t size = s - fmt->text;
+		size_t size = s - begin;
 		struct fmt_spec spec;
 		if (parse_fmt_spec(&s, &spec, type)) {
-			struct string *out = string_ref(&EMPTY_STRING);
-			string_append_cstr(&out, fmt->text, size);
+			if (!out) out = string_ref(&EMPTY_STRING);
+			string_append_cstr(&out, begin, size);
 			append_fmt(&out, &spec, arg);
+			// Only the prefix is scanned: later placeholders and %% stay literal.
 			string_append_cstr(&out, s, strlen(s));
 			return out;
 		}
+	}
+	if (type == STRFMT_STRING)
+		heap_unref(arg.i);
+	if (out) {
+		string_append_cstr(&out, begin, strlen(begin));
+		return out;
 	}
 	return string_ref(fmt);
 }

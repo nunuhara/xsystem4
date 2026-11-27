@@ -25,7 +25,9 @@
 #include "system4.h"
 #include "system4/aar.h"
 #include "system4/cg.h"
+#include "system4/ex.h"
 #include "system4/hashtable.h"
+#include "system4/string.h"
 #include "system4/utfsjis.h"
 
 #include "3d_internal.h"
@@ -62,7 +64,7 @@ static enum s3de_move_type parse_move_type(const char *s)
 
 static enum s3de_spawn_position_type parse_spawn_position_type(const char *s)
 {
-	if (!strcmp(s, "標準"))
+	if (!strcmp(s, "標準") || !strcmp(s, "标准"))
 		return S3DE_SPAWN_NORMAL;
 	if (!strcmp(s, "球"))
 		return S3DE_SPAWN_SPHERE;
@@ -74,7 +76,7 @@ static enum s3de_spawn_position_type parse_spawn_position_type(const char *s)
 
 static enum s3de_blend_type parse_blend_type(const char *s)
 {
-	if (!strcmp(s, "標準"))
+	if (!strcmp(s, "標準") || !strcmp(s, "标准"))
 		return S3DE_BLEND_NORMAL;
 	if (!strcmp(s, "加算"))
 		return S3DE_BLEND_ADDITIVE;
@@ -104,7 +106,7 @@ static enum s3de_direction_type parse_direction_type(const char *s)
 
 static enum s3de_posture_type parse_posture_type(const char *s)
 {
-	if (!strcmp(s, "なし"))
+	if (!strcmp(s, "なし") || !strcmp(s, "不用"))
 		return S3DE_POSE_NONE;
 	if (!strcmp(s, "カメラ"))
 		return S3DE_POSE_CAMERA;
@@ -120,7 +122,7 @@ static enum s3de_posture_type parse_posture_type(const char *s)
 
 static enum s3de_interp_type parse_interp_type(const char *s)
 {
-	if (!strcmp(s, "なし"))
+	if (!strcmp(s, "なし") || !strcmp(s, "不用"))
 		return S3DE_INTERP_NONE;
 	if (!strcmp(s, "線形"))
 		return S3DE_INTERP_LINEAR;
@@ -135,7 +137,7 @@ static enum s3de_interp_type parse_interp_type(const char *s)
 #define KEYWORD " %255[^, \t\r\n}]"
 #define QUOTED_STRING "\"%255[^\"]\""
 
-static char *parse_quoted_string(char **ptext)
+static char *parse_quoted_string(char **ptext, bool gbk)
 {
 	char *text = *ptext;
 
@@ -151,7 +153,7 @@ static char *parse_quoted_string(char **ptext)
 	}
 	*p = '\0';
 	*ptext = p + 1;
-	return utf2sjis(text, 0);
+	return utf2cjk(text, 0, gbk);
 }
 
 // range := float [',' float]
@@ -233,13 +235,13 @@ static int *parse_int_list(char **ptext, int *nr)
 
 // Parses a comma-separated list of quoted strings, storing the first non-empty
 // one in *out and skipping the rest. Rance 9 only uses the first name.
-static bool parse_texture_name(char **ptext, char **out)
+static bool parse_texture_name(char **ptext, char **out, bool gbk)
 {
 	char *text = *ptext;
 	int len;
 	char *result = NULL;
 	do {
-		char *s = parse_quoted_string(&text);
+		char *s = parse_quoted_string(&text, gbk);
 		if (!s) {
 			free(result);
 			return false;
@@ -360,7 +362,7 @@ err:
 	return false;
 }
 
-static struct s3de *parse_3de(char *text)
+static struct s3de *parse_3de(char *text, bool gbk)
 {
 	struct s3de *s = xcalloc(1, sizeof(struct s3de));
 	s->loop_start_frame = -1;
@@ -396,7 +398,7 @@ static struct s3de *parse_3de(char *text)
 				s->objects = xrealloc_array(s->objects, s->nr_objects,
 					s->nr_objects + 1, sizeof(struct s3de_object));
 				current = &s->objects[s->nr_objects++];
-				current->name = utf2sjis(buf, 0);
+				current->name = utf2cjk(buf, 0, gbk);
 				current->texture_anime_frame = 1.0f;
 			} else {
 				parse_error("unknown toplevel token.", text);
@@ -412,7 +414,7 @@ static struct s3de *parse_3de(char *text)
 
 		if (MATCH("}")) {
 			current = NULL;
-		} else if (MATCH("種類 = " KEYWORD, buf)) {
+		} else if (MATCH("種類 = " KEYWORD, buf) || MATCH("种类 = " KEYWORD, buf)) {
 			int v = parse_object_type(buf);
 			if (v < 0) goto err;
 			current->type = v;
@@ -429,7 +431,7 @@ static struct s3de *parse_3de(char *text)
 		} else if (MATCH("個数 = %d", &n)) {
 			current->particle_count = n;
 		} else if (MATCH("テクスチャ = ")) {
-			if (!parse_texture_name(&text, &current->texture)) goto err;
+			if (!parse_texture_name(&text, &current->texture, gbk)) goto err;
 		} else if (MATCH("ブレンドタイプ = " KEYWORD, buf)) {
 			int v = parse_blend_type(buf);
 			if (v < 0) goto err;
@@ -437,7 +439,7 @@ static struct s3de *parse_3de(char *text)
 		} else if (MATCH("テクスチャアニメフレーム = %f", &f)) {
 			current->texture_anime_frame = f;
 		} else if (MATCH("ポリゴン = ")) {
-			current->polygon_name = parse_quoted_string(&text);
+			current->polygon_name = parse_quoted_string(&text, gbk);
 			if (!current->polygon_name) goto err;
 		} else if (MATCH("フレーム参照 = " KEYWORD, buf)) {
 			// Every emitter in Rance 9 uses "エフェクト".
@@ -457,7 +459,7 @@ static struct s3de *parse_3de(char *text)
 			current->posture_type = v;
 		} else if (MATCH("ターゲット名 = ")) {
 			// Unused.
-			char *s = parse_quoted_string(&text);
+			char *s = parse_quoted_string(&text, gbk);
 			if (!s) goto err;
 			free(s);
 		} else if (MATCH("方向タイプ = " KEYWORD, buf)) {
@@ -491,12 +493,12 @@ static struct s3de *parse_3de(char *text)
 		else if (MATCH("自由落下 = %d", &n)) { current->free_fall = (n != 0); }
 		else if (MATCH("質量 = %f", &f)) { current->mass = f; }
 		else if (MATCH("空気抵抗係数 = %f", &f)) { current->air_resistance = f; }
-		else if (MATCH("開始Ｘ回転角度 = ")) { if (!parse_range(&text, &current->start_x_rotation)) goto err; }
-		else if (MATCH("終了Ｘ回転角度 = ")) { if (!parse_range(&text, &current->end_x_rotation)) goto err; }
-		else if (MATCH("開始Ｙ回転角度 = ")) { if (!parse_range(&text, &current->start_y_rotation)) goto err; }
-		else if (MATCH("終了Ｙ回転角度 = ")) { if (!parse_range(&text, &current->end_y_rotation)) goto err; }
-		else if (MATCH("開始Ｚ回転角度 = ")) { if (!parse_range(&text, &current->start_z_rotation)) goto err; }
-		else if (MATCH("終了Ｚ回転角度 = ")) { if (!parse_range(&text, &current->end_z_rotation)) goto err; }
+		else if (MATCH("開始Ｘ回転角度 = ") || MATCH("開始Ｘ回转角度 = ")) { if (!parse_range(&text, &current->start_x_rotation)) goto err; }
+		else if (MATCH("終了Ｘ回転角度 = ") || MATCH("終了Ｘ回转角度 = ")) { if (!parse_range(&text, &current->end_x_rotation)) goto err; }
+		else if (MATCH("開始Ｙ回転角度 = ") || MATCH("開始Ｙ回转角度 = ")) { if (!parse_range(&text, &current->start_y_rotation)) goto err; }
+		else if (MATCH("終了Ｙ回転角度 = ") || MATCH("終了Ｙ回转角度 = ")) { if (!parse_range(&text, &current->end_y_rotation)) goto err; }
+		else if (MATCH("開始Ｚ回転角度 = ") || MATCH("開始Ｚ回转角度 = ")) { if (!parse_range(&text, &current->start_z_rotation)) goto err; }
+		else if (MATCH("終了Ｚ回転角度 = ") || MATCH("終了Ｚ回转角度 = ")) { if (!parse_range(&text, &current->end_z_rotation)) goto err; }
 		else if (MATCH("Ｘ軸自転角度 = ")) { if (!parse_spin_angle(&text, &current->start_x_rotation, &current->end_x_rotation)) goto err; }
 		else if (MATCH("Ｙ軸自転角度 = ")) { if (!parse_spin_angle(&text, &current->start_y_rotation, &current->end_y_rotation)) goto err; }
 		else if (MATCH("Ｚ軸自転角度 = ")) { if (!parse_spin_angle(&text, &current->start_z_rotation, &current->end_z_rotation)) goto err; }
@@ -515,6 +517,7 @@ static struct s3de *parse_3de(char *text)
 		else if (MATCH("子移動方向タイプ = %d", &n)) { /* unused */ }
 		else if (MATCH("アップベクトルタイプ = %d", &n)) { /* unused */ }
 		else if (MATCH("停止フレーム = %d", &n)) { /* unused */ }
+		else if (MATCH("乱数の種 = %d", &n)) { /* unused */ }
 		else if (MATCH("アルファフェードインフレーム = ")) { if (!parse_range(&text, &current->alpha_fade_in_frame)) goto err; }
 		else if (MATCH("アルファフェードアウトフレーム = ")) { if (!parse_range(&text, &current->alpha_fade_out_frame)) goto err; }
 		else if (MATCH("ダメージ = ")) {
@@ -573,35 +576,49 @@ static void load_textures(struct s3de *s, struct archive *aar)
 		if (!name || ht_get(s->textures, name, NULL))
 			continue;
 
-		struct archive_data *dfile = RE_get_aar_entry(aar, s->path, name, ".png");
-		if (!dfile) {
+		static const char *s3de_exts[] = { ".png" };
+		bool has_alpha = false;
+		GLuint texture = RE_load_aar_texture(aar, s->path, name, s3de_exts, 1, &has_alpha);
+		if (!texture) {
 			WARNING("cannot load texture %s\\%s", s->path, name);
 			continue;
 		}
-		struct cg *cg = cg_load_data(dfile);
-		if (!cg) {
-			WARNING("cg_load_data failed: %s", dfile->name);
-			archive_free_data(dfile);
-			continue;
-		}
-		archive_free_data(dfile);
-
-		GLuint texture;
-		glGenTextures(1, &texture);
-		glBindTexture(GL_TEXTURE_2D, texture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cg->metrics.w, cg->metrics.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, cg->pixels);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glGenerateMipmap(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, 0);
-
 		struct billboard_texture *bt = xcalloc(1, sizeof(struct billboard_texture));
 		bt->texture = texture;
-		bt->has_alpha = cg->metrics.has_alpha;
+		bt->has_alpha = has_alpha;
 		ht_put(s->textures, name, bt);
-		cg_free(cg);
+	}
+}
+
+struct s3de_tex_reset_ctx {
+	struct s3de *s3de;
+	struct archive *aar;
+};
+
+static void reset_s3de_texture_cb(struct ht_slot *slot, void *data)
+{
+	struct s3de_tex_reset_ctx *rc = data;
+	struct billboard_texture *bt = slot->value;
+	if (!bt)
+		return;
+	bt->texture = 0;
+	if (!rc->aar || !rc->s3de || !rc->s3de->path || !slot->key)
+		return;
+	static const char *s3de_exts[] = { ".png" };
+	bt->texture = RE_load_aar_texture(rc->aar, rc->s3de->path, slot->key, s3de_exts, 1, &bt->has_alpha);
+}
+
+void s3de_reset_gl(struct s3de *s, struct archive *aar)
+{
+	if (!s)
+		return;
+	if (s->textures) {
+		struct s3de_tex_reset_ctx rc = { .s3de = s, .aar = aar };
+		ht_foreach(s->textures, reset_s3de_texture_cb, &rc);
+	}
+	for (int i = 0; i < s->nr_objects; i++) {
+		if (s->objects[i].model)
+			model_reset_gl(s->objects[i].model, aar, RE_SEAL_PLUGIN);
 	}
 }
 
@@ -612,16 +629,240 @@ static void load_polygons(struct s3de *s, struct archive *aar)
 		if (o->polygon_name && *o->polygon_name) {
 			char *pol_path = xmalloc(strlen(s->path) + strlen(o->polygon_name) + 2);
 			sprintf(pol_path, "%s\\%s", s->path, o->polygon_name);
-			o->model = model_load(aar, pol_path);
+			o->model = model_load(aar, pol_path, RE_SEAL_PLUGIN);
 			free(pol_path);
 		}
 	}
 }
 
+static float ex_val_float(const struct ex_value *v, float fallback)
+{
+	if (!v)
+		return fallback;
+	return v->type == EX_FLOAT ? v->f : (v->type == EX_INT ? (float)v->i : fallback);
+}
+
+static int ex_val_int(const struct ex_value *v, int fallback)
+{
+	if (!v)
+		return fallback;
+	return v->type == EX_INT ? v->i : (v->type == EX_FLOAT ? (int)v->f : fallback);
+}
+
+static void ex_read_range2(const struct ex_tree *t, const char *key, struct s3de_range *r)
+{
+	struct ex_value *v = RE_ex_field(t, key);
+	if (!v || v->type != EX_LIST || v->list->nr_items < 2)
+		return;
+	r->base = ex_val_float(ex_list_get(v->list, 0), r->base);
+	r->random = ex_val_float(ex_list_get(v->list, 1), r->random);
+}
+
+static void ex_read_range5(const struct ex_tree *t, const char *key,
+                           struct s3de_range *start, struct s3de_range *end)
+{
+	struct ex_value *v = RE_ex_field(t, key);
+	if (!v || v->type != EX_LIST || v->list->nr_items < 4)
+		return;
+	start->base   = ex_val_float(ex_list_get(v->list, 0), start->base);
+	start->random = ex_val_float(ex_list_get(v->list, 1), start->random);
+	end->base     = ex_val_float(ex_list_get(v->list, 2), end->base);
+	end->random   = ex_val_float(ex_list_get(v->list, 3), end->random);
+}
+
+static enum s3de_interp_type ex_map_interp(int raw)
+{
+	if (raw == 1)
+		return S3DE_INTERP_LINEAR;
+	if (raw == 2)
+		return S3DE_INTERP_SLERP;
+	return S3DE_INTERP_NONE;
+}
+
+static void ex_read_scalar_table(const struct ex_tree *t, const char *key,
+                                 struct s3de_scalar_entry **out, int *nr_out)
+{
+	struct ex_value *v = RE_ex_field(t, key);
+	if (!v || v->type != EX_TABLE || !v->t || v->t->nr_rows == 0 || v->t->nr_columns < 3)
+		return;
+	struct ex_table *tb = v->t;
+	struct s3de_scalar_entry *arr = xcalloc(tb->nr_rows, sizeof(*arr));
+	for (unsigned r = 0; r < tb->nr_rows; r++) {
+		arr[r].frame  = ex_val_int(&tb->rows[r][0], 0);
+		arr[r].interp = ex_map_interp(ex_val_int(&tb->rows[r][1], 1));
+		arr[r].value  = ex_val_float(&tb->rows[r][2], 0.0f);
+	}
+	*out = arr;
+	*nr_out = (int)tb->nr_rows;
+}
+
+static void ex_read_vec3_table(const struct ex_tree *t, const char *key,
+                               struct s3de_vec3_entry **out, int *nr_out)
+{
+	struct ex_value *v = RE_ex_field(t, key);
+	if (!v || v->type != EX_TABLE || !v->t || v->t->nr_rows == 0 || v->t->nr_columns < 5)
+		return;
+	struct ex_table *tb = v->t;
+	struct s3de_vec3_entry *arr = xcalloc(tb->nr_rows, sizeof(*arr));
+	for (unsigned r = 0; r < tb->nr_rows; r++) {
+		arr[r].frame  = ex_val_int(&tb->rows[r][0], 0);
+		arr[r].interp = ex_map_interp(ex_val_int(&tb->rows[r][1], 1));
+		arr[r].v[0]   = ex_val_float(&tb->rows[r][2], 0.0f);
+		arr[r].v[1]   = ex_val_float(&tb->rows[r][3], 0.0f);
+		arr[r].v[2]   = ex_val_float(&tb->rows[r][4], 0.0f);
+	}
+	*out = arr;
+	*nr_out = (int)tb->nr_rows;
+}
+
+static void ex_read_pos_table(const struct ex_tree *t, const char *key,
+                              struct s3de_position_entry **out, int *nr_out)
+{
+	struct ex_value *v = RE_ex_field(t, key);
+	if (!v || v->type != EX_TABLE || !v->t || v->t->nr_rows == 0 || v->t->nr_columns < 5)
+		return;
+	struct ex_table *tb = v->t;
+	struct s3de_position_entry *arr = xcalloc(tb->nr_rows, sizeof(*arr));
+	for (unsigned r = 0; r < tb->nr_rows; r++) {
+		arr[r].frame  = ex_val_int(&tb->rows[r][0], 0);
+		arr[r].interp = ex_map_interp(ex_val_int(&tb->rows[r][1], 1));
+		arr[r].pos[0] = ex_val_float(&tb->rows[r][2], 0.0f);
+		arr[r].pos[1] = ex_val_float(&tb->rows[r][3], 0.0f);
+		arr[r].pos[2] = -ex_val_float(&tb->rows[r][4], 0.0f);
+		if (tb->nr_columns >= 7) {
+			arr[r].spawn_radius    = ex_val_float(&tb->rows[r][5], 0.0f);
+			arr[r].spawn_angle_deg = ex_val_float(&tb->rows[r][6], 0.0f);
+		}
+	}
+	*out = arr;
+	*nr_out = (int)tb->nr_rows;
+}
+
+static struct s3de *parse_s3de_ex(const uint8_t *data, size_t size)
+{
+	struct ex *ex = ex_read(data, size);
+	if (!ex)
+		return NULL;
+	struct s3de *s = xcalloc(1, sizeof(struct s3de));
+	s->loop_start_frame = -1;
+	s->loop_end_frame = -1;
+
+	struct ex_value *v = RE_ex_block(ex, "ループ開始フレーム");
+	if (v && v->type == EX_INT)
+		s->loop_start_frame = v->i;
+	v = RE_ex_block(ex, "ループ終了フレーム");
+	if (v && v->type == EX_INT)
+		s->loop_end_frame = v->i;
+
+	struct ex_value *emitters = RE_ex_block(ex, "エミッタリスト");
+	if (emitters && emitters->type == EX_TREE && !emitters->tree->is_leaf && emitters->tree->nr_children > 0) {
+		s->nr_objects = (int)emitters->tree->nr_children;
+		s->objects = xcalloc(s->nr_objects, sizeof(struct s3de_object));
+		for (int i = 0; i < s->nr_objects; i++) {
+			struct ex_tree *c = &emitters->tree->children[i];
+			struct s3de_object *o = &s->objects[i];
+			o->texture_anime_frame = 1.0f;
+			o->start_size = o->end_size = (struct s3de_range){ 1.0f, 0.0f };
+			o->start_x_size = o->end_x_size = (struct s3de_range){ 1.0f, 0.0f };
+			o->start_y_size = o->end_y_size = (struct s3de_range){ 1.0f, 0.0f };
+			if (c->is_leaf)
+				continue;
+
+			const char *ename = RE_ex_sjis_str(c, "エミッタ名");
+			o->name = strdup(ename ? ename : (c->name ? c->name->text : ""));
+
+			int kind = 0, visible = 1, iv = 0;
+			float fv = 0.0f;
+			RE_ex_int(c, "種類", &kind);
+			RE_ex_int(c, "表示フラグ", &visible);
+			if (!visible || kind < 0 || kind > S3DE_OBJ_CAMERA) {
+				o->type = S3DE_OBJ_CAMERA;
+			} else {
+				o->type = (enum s3de_object_type)kind;
+				const char *tex = RE_ex_sjis_str(c, "テクスチャ");
+				if (tex && *tex)
+					o->texture = strdup(tex);
+				const char *pol = RE_ex_sjis_str(c, "ポリゴン");
+				if (pol && *pol)
+					o->polygon_name = strdup(pol);
+			}
+
+			if (RE_ex_int(c, "移動タイプ", &iv))
+				o->movement_type = iv == 1 ? S3DE_MOVE_BEZIER : S3DE_MOVE_LINEAR;
+			if (RE_ex_int(c, "生成位置タイプ", &iv)) {
+				if (iv == 1)
+					o->spawn_position_type = S3DE_SPAWN_SPHERE;
+				else if (iv == 2)
+					o->spawn_position_type = S3DE_SPAWN_HORIZONTAL;
+				else
+					o->spawn_position_type = S3DE_SPAWN_NORMAL;
+			}
+			struct ex_value *spawn_range = RE_ex_field(c, "生成範囲");
+			if (spawn_range && spawn_range->type == EX_LIST && spawn_range->list->nr_items > 0)
+				o->spawn_distance = ex_val_float(ex_list_get(spawn_range->list, 0), 0.0f);
+			if (RE_ex_int(c, "個数", &iv))
+				o->particle_count = iv;
+			if (RE_ex_int(c, "ブレンドタイプ", &iv))
+				o->blend_type = (iv == 1 || iv == 2 || iv == 4) ? S3DE_BLEND_ADDITIVE : S3DE_BLEND_NORMAL;
+			if (RE_ex_int(c, "エミッタ連動タイプ", &iv) && iv >= 0 && iv <= S3DE_LINK_MAX)
+				o->emitter_link_type = (enum s3de_emitter_link_type)iv;
+			if (RE_ex_int(c, "ソフトフォグエッジ", &iv))
+				o->soft_fog_edge = iv != 0;
+			if (RE_ex_int(c, "姿勢タイプ", &iv))
+				o->posture_type = (iv >= 0 && iv <= S3DE_POSE_FLY_AND_EMITTER_MOVE)
+					? (enum s3de_posture_type)iv : S3DE_POSE_CAMERA;
+			if (RE_ex_int(c, "方向タイプ", &iv) && iv >= 0 && iv <= S3DE_DIR_SPAWN)
+				o->direction_type = (enum s3de_direction_type)iv;
+			if (RE_ex_vec3(c, "方向", o->direction))
+				o->direction[2] = -o->direction[2];
+			if (RE_ex_float(c, "方向角度", &fv))
+				o->direction_angle = fv;
+
+			struct s3de_range life = { 0.0f, 0.0f };
+			ex_read_range2(c, "寿命", &life);
+			o->child_frame = (int)life.base;
+			o->child_frame_random = life.random;
+
+			ex_read_range5(c, "サイズ", &o->start_size, &o->end_size);
+			ex_read_range5(c, "Ｘサイズ", &o->start_x_size, &o->end_x_size);
+			ex_read_range5(c, "Ｙサイズ", &o->start_y_size, &o->end_y_size);
+			ex_read_range2(c, "オフセットＸ", &o->offset_x);
+			ex_read_range2(c, "オフセットＹ", &o->offset_y);
+			ex_read_range2(c, "オフセットＺ", &o->offset_z);
+			o->offset_z.base = -o->offset_z.base;
+			ex_read_range2(c, "速度", &o->speed);
+			ex_read_range2(c, "加速度", &o->acceleration);
+			ex_read_range2(c, "移動距離", &o->movement_distance);
+			ex_read_range2(c, "移動カーブ", &o->movement_curve);
+			if (RE_ex_int(c, "自由落下", &iv))
+				o->free_fall = iv != 0;
+			if (RE_ex_float(c, "質量", &fv))
+				o->mass = fv;
+			if (RE_ex_float(c, "空気抵抗係数", &fv))
+				o->air_resistance = fv;
+			ex_read_range5(c, "Ｘ回転角度", &o->start_x_rotation, &o->end_x_rotation);
+			ex_read_range5(c, "Ｙ回転角度", &o->start_y_rotation, &o->end_y_rotation);
+			ex_read_range5(c, "Ｚ回転角度", &o->start_z_rotation, &o->end_z_rotation);
+			ex_read_range2(c, "アルファフェードインフレーム", &o->alpha_fade_in_frame);
+			ex_read_range2(c, "アルファフェードアウトフレーム", &o->alpha_fade_out_frame);
+
+			ex_read_pos_table(c, "位置リスト", &o->position_list, &o->nr_position_entries);
+			ex_read_scalar_table(c, "サイズリスト", &o->size_list, &o->nr_size_entries);
+			ex_read_scalar_table(c, "Ｘサイズリスト", &o->x_size_list, &o->nr_x_size_entries);
+			ex_read_scalar_table(c, "Ｙサイズリスト", &o->y_size_list, &o->nr_y_size_entries);
+			ex_read_scalar_table(c, "アルファリスト", &o->alpha_list, &o->nr_alpha_entries);
+			ex_read_vec3_table(c, "回転リスト", &o->rotation_list, &o->nr_rotation_entries);
+			ex_read_vec3_table(c, "乗算カラーリスト", &o->multiply_color_list, &o->nr_multiply_color_entries);
+			ex_read_vec3_table(c, "加算カラーリスト", &o->additive_color_list, &o->nr_additive_color_entries);
+		}
+	}
+	ex_free(ex);
+	return s;
+}
+
 struct s3de *s3de_load(struct archive *aar, const char *path)
 {
-	const char *basename = strrchr(path, '\\');
-	basename = basename ? basename + 1 : path;
+	const char *basename = RE_path_basename(path);
 
 	struct archive_data *dfile = RE_get_aar_entry(aar, path, basename, ".3de");
 	if (!dfile) {
@@ -629,14 +870,24 @@ struct s3de *s3de_load(struct archive *aar, const char *path)
 		return NULL;
 	}
 
-	char *sjis_text = xmalloc(dfile->size + 1);
-	memcpy(sjis_text, dfile->data, dfile->size);
-	sjis_text[dfile->size] = '\0';
+	struct s3de *s = NULL;
+	if (RE_is_exf(dfile->data, dfile->size)) {
+		s = parse_s3de_ex(dfile->data, dfile->size);
+	} else {
+		char *sjis_text = xmalloc(dfile->size + 1);
+		memcpy(sjis_text, dfile->data, dfile->size);
+		sjis_text[dfile->size] = '\0';
 
-	char *text = sjis2utf(sjis_text, dfile->size);
-	free(sjis_text);
-	struct s3de *s = parse_3de(text);
-	free(text);
+		char *text = cjk2utf(sjis_text, dfile->size, false);
+		s = parse_3de(text, false);
+		free(text);
+		if (!s && sys4_text_is_gbk) {
+			text = cjk2utf(sjis_text, dfile->size, true);
+			s = parse_3de(text, true);
+			free(text);
+		}
+		free(sjis_text);
+	}
 	if (!s) {
 		WARNING("could not parse %s", dfile->name);
 		archive_free_data(dfile);
@@ -757,8 +1008,8 @@ static void interp_pos_bezier(struct s3de_position_entry *list, int n, float fra
 		// evaluate the Bezier curve.
 		if (frame < list[seg_end].frame || seg_end == n - 1) {
 			// For simplicity, t is mapped linearly within a segment.
-			float t = (frame - list[k].frame) /
-				  (float)(list[seg_end].frame - list[k].frame);
+			int denom = list[seg_end].frame - list[k].frame;
+			float t = denom > 0 ? (frame - list[k].frame) / (float)denom : 0.0f;
 			// De Casteljau's algorithm.
 			vec3 tmp[4];
 			for (int i = 0; i <= degree; i++)
@@ -785,13 +1036,14 @@ static void find_pos_segment(struct s3de_position_entry *list, int n, float fram
 	while (k + 1 < n && list[k + 1].frame <= frame)
 		k++;
 	*k_out = k;
-	if (list[k].interp == S3DE_INTERP_NONE) {
+	int denom = list[k + 1].frame - list[k].frame;
+	if (list[k].interp == S3DE_INTERP_NONE || denom <= 0) {
 		// t <- 0, so the caller can lerp unconditionally and naturally hold
 		// list[k]'s value.
 		*t_out = 0.0f;
 	} else {
 		// Linear interpolation.
-		*t_out = (frame - list[k].frame) / (float)(list[k + 1].frame - list[k].frame);
+		*t_out = (frame - list[k].frame) / (float)denom;
 	}
 }
 
@@ -1018,7 +1270,7 @@ static void init_particle(struct s3de_rng *rng, struct s3de_object *obj, int ind
 		? index / (float)(obj->particle_count - 1)
 		: 0.0f;
 	p->begin_frame = first_frame + t * (last_frame - first_frame);
-	p->end_frame = p->begin_frame + obj->child_frame;
+	p->end_frame = p->begin_frame + eval_range(rng, (struct s3de_range){ (float)obj->child_frame, obj->child_frame_random });
 
 	// Per-particle quad pivot offset.
 	p->offset_x = eval_range(rng, obj->offset_x);
@@ -1234,7 +1486,7 @@ static bool billboard_posture_basis(struct s3de_object *obj,
 	if (!particle_world_dir(p, inst_xform, dir_world))
 		return false;
 
-	vec3 right, up;
+	vec3 right = {0}, up = {0};
 	switch (obj->posture_type) {
 	case S3DE_POSE_MOVE_DIR:
 		glm_vec3_cross(camera_front, dir_world, right);
@@ -1261,6 +1513,7 @@ static bool billboard_posture_basis(struct s3de_object *obj,
 	}
 	case S3DE_POSE_NONE:
 	case S3DE_POSE_CAMERA:
+	default:
 		return false;
 	}
 
@@ -1278,7 +1531,7 @@ static bool mesh_posture_basis(struct s3de_object *obj,
 			     vec3 world_pos, vec3 camera_pos, vec3 camera_up,
 			     mat4 inst_xform, mat3 out_rot)
 {
-	vec3 right, up, forward;
+	vec3 right = {0}, up = {0}, forward = {0};
 
 	switch (obj->posture_type) {
 	case S3DE_POSE_CAMERA:
@@ -1459,8 +1712,7 @@ struct s3de_effect *s3de_effect_create(struct s3de *s, struct archive *aar)
 			init_particle(&rng, obj, j, &st->particles[j]);
 	}
 
-	const char *basename = strrchr(s->path, '\\');
-	basename = basename ? basename + 1 : s->path;
+	const char *basename = RE_path_basename(s->path);
 	struct archive_data *dfile = RE_get_aar_entry(aar, s->path, basename, ".wav");
 	if (dfile) {
 		int ch = wav_get_unused_channel();

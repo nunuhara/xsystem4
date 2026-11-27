@@ -64,12 +64,25 @@ uniform mat4 view_transform;
 uniform mat4 proj_transform;
 uniform mat3 normal_transform;
 
-const int MAX_BONES = 308;  // see 3d_internal.h
 const int NR_WEIGHTS = 4;
+const int MAX_BONES = 308;
 uniform bool has_bones;
-layout(std140) uniform BoneTransforms {
-	mat3x4 bone_matrices[MAX_BONES];  // transposed
-};
+// Bone matrices are stored in a texture rather than a uniform block, because
+// some GLES implementations (e.g. SwiftShader) count uniform block members
+// against GL_MAX_VERTEX_UNIFORM_VECTORS.
+uniform sampler2D bone_texture;  // 3 texels (columns of a transposed mat3x4) per bone
+
+mat3x4 bone_matrix(int i) {
+	return mat3x4(
+		texelFetch(bone_texture, ivec2(i * 3, 0), 0),
+		texelFetch(bone_texture, ivec2(i * 3 + 1, 0), 0),
+		texelFetch(bone_texture, ivec2(i * 3 + 2, 0), 0));
+}
+
+vec3 safe_normalize(vec3 v, vec3 fallback) {
+	float len = length(v);
+	return len > 1e-6 ? v / len : fallback;
+}
 
 uniform bool use_normal_map;
 
@@ -103,25 +116,32 @@ void main() {
 	mat3 normal_bone_transform = normal_transform;
 	if (has_bones) {
 		mat3x4 bone_transform = mat3x4(0.0);
+		float weight_sum = 0.0;
 		for (int i = 0; i < NR_WEIGHTS; i++) {
-			if (vertex_bone_index[i] >= 0) {
-				bone_transform += bone_matrices[vertex_bone_index[i]] * vertex_bone_weight[i];
+			int idx = vertex_bone_index[i];
+			float w = vertex_bone_weight[i];
+			if (idx >= 0 && idx < MAX_BONES && w > 0.0) {
+				bone_transform += bone_matrix(idx) * w;
+				weight_sum += w;
 			}
 		}
-		local_bone_transform *= mat4(
-			vec4(bone_transform[0].x, bone_transform[1].x, bone_transform[2].x, 0.0),
-			vec4(bone_transform[0].y, bone_transform[1].y, bone_transform[2].y, 0.0),
-			vec4(bone_transform[0].z, bone_transform[1].z, bone_transform[2].z, 0.0),
-			vec4(bone_transform[0].w, bone_transform[1].w, bone_transform[2].w, 1.0));
-		normal_bone_transform *= mat3(bone_transform);
+		if (weight_sum > 0.0) {
+			mat4 bone_mat4 = mat4(
+				vec4(bone_transform[0].x, bone_transform[1].x, bone_transform[2].x, 0.0),
+				vec4(bone_transform[0].y, bone_transform[1].y, bone_transform[2].y, 0.0),
+				vec4(bone_transform[0].z, bone_transform[1].z, bone_transform[2].z, 0.0),
+				vec4(bone_transform[0].w, bone_transform[1].w, bone_transform[2].w, 1.0));
+			local_bone_transform *= bone_mat4;
+			normal_bone_transform *= mat3(bone_mat4);
+		}
 	}
 
 	// World-space normal vector.
-	normal = normalize(normal_bone_transform * vertex_normal);
+	normal = safe_normalize(normal_bone_transform * vertex_normal, vec3(0.0, 0.0, 1.0));
 
-	mat3 TBN = mat3(1.0f);
+	mat3 TBN = mat3(1.0);
 	if (use_normal_map) {
-		vec3 tangent = normalize(normal_bone_transform * vertex_tangent.xyz);
+		vec3 tangent = safe_normalize(normal_bone_transform * vertex_tangent.xyz, vec3(1.0, 0.0, 0.0));
 		vec3 bitangent = cross(normal, tangent) * vertex_tangent.w;
 		TBN = transpose(mat3(tangent, bitangent, normal));
 	}
@@ -156,19 +176,26 @@ void main() {
 		float beta_r = ls_params.x;
 		float beta_m = ls_params.y;
 		float g = ls_params.z;
-		float distance = dist / ls_params.w;
+		float ls_dist = abs(ls_params.w) > 1e-6 ? ls_params.w : 1.0;
+		float distance = dist / ls_dist;
 
-		vec3 view_dir = normalize(camera_pos - vec3(world_pos));
-		float cos_theta = dot(view_dir, normalize(ls_light_dir));
+		vec3 view_dir = safe_normalize(camera_pos - vec3(world_pos), vec3(0.0, 0.0, 1.0));
+		float cos_theta = dot(view_dir, safe_normalize(ls_light_dir, vec3(0.0, 1.0, 0.0)));
 		// Note: `* PI` in the two assignments below should be `/ PI` (see the
 		// definitions of Rayleigh / Mie phase functions in [1]), but this is
 		// how TT3's shader works.
 		// [1] http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2012/10/ATI-LightScattering.pdf
 		float phase_r = 3.0 / 16.0 * PI * (1.0 + cos_theta * cos_theta);
-		float phase_m = 1.0 / 4.0 * PI * (1.0 - g) * (1.0 - g) / pow(1.0 + g * g - 2.0 * g * cos_theta, 1.5);
-		float f_ex = exp((beta_r + beta_m) * -distance);
-		ls_in = (phase_r * beta_r + phase_m * beta_m) / (beta_r + beta_m) * (1.0 - f_ex) * ls_sun_color;
+		float phase_m = 1.0 / 4.0 * PI * (1.0 - g) * (1.0 - g) / pow(max(1.0 + g * g - 2.0 * g * cos_theta, 1e-6), 1.5);
+		float beta_sum = beta_r + beta_m;
+		float f_ex = exp(beta_sum * -distance);
+		ls_in = abs(beta_sum) > 1e-6
+			? (phase_r * beta_r + phase_m * beta_m) / beta_sum * (1.0 - f_ex) * ls_sun_color
+			: vec3(0.0);
 		ls_ex = ls_light_color * f_ex;
+	} else {
+		ls_in = vec3(0.0);
+		ls_ex = vec3(1.0);
 	}
 #endif
 }

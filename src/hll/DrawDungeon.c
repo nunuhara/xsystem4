@@ -113,7 +113,11 @@ static bool DrawDungeon_IsSucceededLoading(int surface)
 	return ctx->loaded;
 }
 
-//float DrawDungeon_GetLoadingPercent(int surface);
+static float DrawDungeon_GetLoadingPercent(int surface)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	return (ctx && ctx->loaded) ? 100.0f : 0.0f;
+}
 
 static int DrawDungeon_LoadFromFile(int surface, struct string *file_name, int num)
 {
@@ -269,7 +273,13 @@ CELL_SETTER(DrawDungeon_SetTexDoorN, int, cell->north_door, true);
 CELL_SETTER(DrawDungeon_SetTexDoorW, int, cell->west_door, true);
 CELL_SETTER(DrawDungeon_SetTexDoorS, int, cell->south_door, true);
 CELL_SETTER(DrawDungeon_SetTexDoorE, int, cell->east_door, true);
-//void DrawDungeon_SetSkyTextureSet(int surface, int set);
+static void DrawDungeon_SetSkyTextureSet(int surface, int set)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	if (!ctx || !ctx->renderer)
+		return;
+	dungeon_renderer_set_sky_texture_set(ctx->renderer, ctx->dtx, set);
+}
 
 HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, SetDrawHalfFlag, int surface, int flag);
 HLL_QUIET_UNIMPLEMENTED(0, int,  DrawDungeon, GetDrawHalfFlag, int surface);
@@ -308,7 +318,7 @@ HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, RestartTimer, void);
 	HLL_EXPORT(BeginLoad, DrawDungeon_BeginLoad), \
 	HLL_EXPORT(IsLoading, DrawDungeon_IsLoading), \
 	HLL_EXPORT(IsSucceededLoading, DrawDungeon_IsSucceededLoading), \
-	HLL_TODO_EXPORT(GetLoadingPercent, DrawDungeon_GetLoadingPercent), \
+	HLL_EXPORT(GetLoadingPercent, DrawDungeon_GetLoadingPercent), \
 	HLL_EXPORT(LoadFromFile, DrawDungeon_LoadFromFile), \
 	HLL_EXPORT(LoadTexture, DrawDungeon_LoadTexture), \
 	HLL_TODO_EXPORT(LoadEventTexture, DrawDungeon_LoadEventTexture), \
@@ -390,7 +400,7 @@ HLL_QUIET_UNIMPLEMENTED( , void, DrawDungeon, RestartTimer, void);
 	HLL_EXPORT(SetTexDoorW, DrawDungeon_SetTexDoorW), \
 	HLL_EXPORT(SetTexDoorS, DrawDungeon_SetTexDoorS), \
 	HLL_EXPORT(SetTexDoorE, DrawDungeon_SetTexDoorE), \
-	HLL_TODO_EXPORT(SetSkyTextureSet, DrawDungeon_SetSkyTextureSet), \
+	HLL_EXPORT(SetSkyTextureSet, DrawDungeon_SetSkyTextureSet), \
 	HLL_EXPORT(DrawMap, dungeon_map_draw), \
 	HLL_EXPORT(SetMapAllViewFlag, dungeon_map_set_all_view), \
 	HLL_EXPORT(SetDrawMapFloor, dungeon_map_set_small_map_floor), \
@@ -501,16 +511,63 @@ HLL_LIBRARY(DrawDungeon14,
 	    HLL_EXPORT(SetDrawMapObjectFlag, DrawDungeon14_SetDrawMapObjectFlag)
 	    );
 
-//bool DrawField_BeginLoad(int nSurface, struct string *szFileName, int nNum);
-//bool DrawField_IsLoadEnd(int nSurface);
-//bool DrawField_StopLoad(int nSurface);
-//float DrawField_GetLoadPercent(int nSurface);
-//bool DrawField_IsLoadSucceeded(int nSurface);
-//bool DrawField_BeginLoadTexture(int nSurface, struct string *szFileName);
-//bool DrawField_IsLoadTextureEnd(int nSurface);
-//bool DrawField_StopLoadTexture(int nSurface);
-//float DrawField_GetLoadTexturePercent(int nSurface);
-//bool DrawField_IsLoadTextureSucceeded(int nSurface);
+static bool DrawField_BeginLoad(int surface, struct string *file_name, int num)
+{
+	return DrawDungeon_LoadFromFile(surface, file_name, num) != 0;
+}
+
+static bool DrawField_IsLoadEnd(int surface)
+{
+	(void)surface;
+	return true;
+}
+
+static bool DrawField_StopLoad(int surface)
+{
+	(void)surface;
+	return true;
+}
+
+static float DrawField_GetLoadPercent(int surface)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	return (ctx && ctx->dgn) ? 100.0f : 0.0f;
+}
+
+static bool DrawField_IsLoadSucceeded(int surface)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	return ctx && ctx->dgn != NULL;
+}
+
+static bool DrawField_BeginLoadTexture(int surface, struct string *file_name)
+{
+	return DrawDungeon_LoadTexture(surface, file_name) != 0;
+}
+
+static bool DrawField_IsLoadTextureEnd(int surface)
+{
+	(void)surface;
+	return true;
+}
+
+static bool DrawField_StopLoadTexture(int surface)
+{
+	(void)surface;
+	return true;
+}
+
+static float DrawField_GetLoadTexturePercent(int surface)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	return (ctx && ctx->dtx) ? 100.0f : 0.0f;
+}
+
+static bool DrawField_IsLoadTextureSucceeded(int surface)
+{
+	struct dungeon_context *ctx = dungeon_get_context(surface);
+	return ctx && ctx->dtx != NULL;
+}
 //void DrawField_UpdateTexture(int nSurface);
 //bool DrawField_GetDoorNAngle(int nSurface, int nX, int nY, int nZ, float *pfAngle);
 //bool DrawField_GetDoorWAngle(int nSurface, int nX, int nY, int nZ, float *pfAngle);
@@ -521,52 +578,56 @@ HLL_LIBRARY(DrawDungeon14,
 //bool DrawField_SetDoorSAngle(int nSurface, int nX, int nY, int nZ, float fAngle);
 //bool DrawField_SetDoorEAngle(int nSurface, int nX, int nY, int nZ, float fAngle);
 
-static void DrawField_SetDoorNLock(int surface, int x, int y, int z, int value)
+static bool DrawField_SetDoorNLock(int surface, int x, int y, int z, int value)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z))
-		return;
+		return false;
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z);
-	if (cell->north_door != -1) {
-		cell->north_door_lock = value;
-		dungeon_map_update_cell(ctx, x, y, z);
-	}
+	if (cell->north_door == -1)
+		return false;
+	cell->north_door_lock = value;
+	dungeon_map_update_cell(ctx, x, y, z);
+	return true;
 }
 
-static void DrawField_SetDoorWLock(int surface, int x, int y, int z, int value)
+static bool DrawField_SetDoorWLock(int surface, int x, int y, int z, int value)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z))
-		return;
+		return false;
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z);
-	if (cell->west_door != -1) {
-		cell->west_door_lock = value;
-		dungeon_map_update_cell(ctx, x, y, z);
-	}
+	if (cell->west_door == -1)
+		return false;
+	cell->west_door_lock = value;
+	dungeon_map_update_cell(ctx, x, y, z);
+	return true;
 }
 
-static void DrawField_SetDoorSLock(int surface, int x, int y, int z, int value)
+static bool DrawField_SetDoorSLock(int surface, int x, int y, int z, int value)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z))
-		return;
+		return false;
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z);
-	if (cell->south_door != -1) {
-		cell->south_door_lock = value;
-		dungeon_map_update_cell(ctx, x, y, z);
-	}
+	if (cell->south_door == -1)
+		return false;
+	cell->south_door_lock = value;
+	dungeon_map_update_cell(ctx, x, y, z);
+	return true;
 }
 
-static void DrawField_SetDoorELock(int surface, int x, int y, int z, int value)
+static bool DrawField_SetDoorELock(int surface, int x, int y, int z, int value)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
 	if (!ctx || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z))
-		return;
+		return false;
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z);
-	if (cell->east_door != -1) {
-		cell->east_door_lock = value;
-		dungeon_map_update_cell(ctx, x, y, z);
-	}
+	if (cell->east_door == -1)
+		return false;
+	cell->east_door_lock = value;
+	dungeon_map_update_cell(ctx, x, y, z);
+	return true;
 }
 
 static bool DrawField_GetDoorNLock(int surface, int x, int y, int z, int *lock)
@@ -774,16 +835,16 @@ HLL_LIBRARY(DrawField,
 	    HLL_EXPORT(LoadFromFile, DrawDungeon_LoadFromFile),
 	    HLL_EXPORT(LoadTexture, DrawDungeon_LoadTexture),
 	    HLL_TODO_EXPORT(LoadEventTexture, DrawDungeon_LoadEventTexture),
-	    HLL_TODO_EXPORT(BeginLoad, DrawField_BeginLoad),
-	    HLL_TODO_EXPORT(IsLoadEnd, DrawField_IsLoadEnd),
-	    HLL_TODO_EXPORT(StopLoad, DrawField_StopLoad),
-	    HLL_TODO_EXPORT(GetLoadPercent, DrawField_GetLoadPercent),
-	    HLL_TODO_EXPORT(IsLoadSucceeded, DrawField_IsLoadSucceeded),
-	    HLL_TODO_EXPORT(BeginLoadTexture, DrawField_BeginLoadTexture),
-	    HLL_TODO_EXPORT(IsLoadTextureEnd, DrawField_IsLoadTextureEnd),
-	    HLL_TODO_EXPORT(StopLoadTexture, DrawField_StopLoadTexture),
-	    HLL_TODO_EXPORT(GetLoadTexturePercent, DrawField_GetLoadTexturePercent),
-	    HLL_TODO_EXPORT(IsLoadTextureSucceeded, DrawField_IsLoadTextureSucceeded),
+	    HLL_EXPORT(BeginLoad, DrawField_BeginLoad),
+	    HLL_EXPORT(IsLoadEnd, DrawField_IsLoadEnd),
+	    HLL_EXPORT(StopLoad, DrawField_StopLoad),
+	    HLL_EXPORT(GetLoadPercent, DrawField_GetLoadPercent),
+	    HLL_EXPORT(IsLoadSucceeded, DrawField_IsLoadSucceeded),
+	    HLL_EXPORT(BeginLoadTexture, DrawField_BeginLoadTexture),
+	    HLL_EXPORT(IsLoadTextureEnd, DrawField_IsLoadTextureEnd),
+	    HLL_EXPORT(StopLoadTexture, DrawField_StopLoadTexture),
+	    HLL_EXPORT(GetLoadTexturePercent, DrawField_GetLoadTexturePercent),
+	    HLL_EXPORT(IsLoadTextureSucceeded, DrawField_IsLoadTextureSucceeded),
 	    HLL_TODO_EXPORT(UpdateTexture, DrawField_UpdateTexture),
 	    HLL_EXPORT(SetCamera, dungeon_set_camera),
 	    HLL_EXPORT(GetMapX, DrawDungeon_GetMapX),

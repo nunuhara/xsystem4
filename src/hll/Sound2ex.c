@@ -17,9 +17,10 @@
 #include "xsystem4.h"
 #include "hll.h"
 
-static void Sound2ex_PreloadSound(int no)
+static int Sound2ex_PreloadSound(int no)
 {
 	UNIMPLEMENTED("(%d)", no);
+	return 1;
 }
 
 HLL_LIBRARY(Sound2ex,

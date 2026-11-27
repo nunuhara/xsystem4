@@ -36,7 +36,7 @@ void main() {
 	// center of the screen
 	vec2 center = resolution * 0.5;
 	// size of each chunk
-	float chunk_size = floor(triangle(progress) * MAX_CHUNK);
+	float chunk_size = max(floor(triangle(progress) * MAX_CHUNK), 1.0);
 	// number of chunks in each screen quadrant (including partial chunks at edges)
 	vec2 chunks_per_quadrant = floor(center / chunk_size);
 	// offset from screen to edge of grid (negative or zero)

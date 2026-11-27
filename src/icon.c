@@ -612,8 +612,30 @@ static int nr_icons = 0;
 static SDL_Surface **icons = NULL;
 static struct cg **icon_cgs = NULL;
 
+void icon_fini(void)
+{
+	if (icons) {
+		for (int i = 0; i < nr_icons; i++) {
+			if (icons[i])
+				SDL_FreeSurface(icons[i]);
+		}
+		free(icons);
+		icons = NULL;
+	}
+	if (icon_cgs) {
+		for (int i = 0; i < nr_icons; i++) {
+			if (icon_cgs[i])
+				cg_free(icon_cgs[i]);
+		}
+		free(icon_cgs);
+		icon_cgs = NULL;
+	}
+	nr_icons = 0;
+}
+
 void read_icons(struct buffer *b, struct resource *root)
 {
+	icon_fini();
 	struct resource *icon = NULL;
 	struct resource *group_icon = NULL;
 	for (unsigned i = 0; i < root->nr_children; i++) {
@@ -623,6 +645,8 @@ void read_icons(struct buffer *b, struct resource *root)
 			group_icon = &root->children[i];
 		}
 	}
+	if (!icon || !group_icon)
+		return;
 
 	nr_icons = group_icon->nr_children;
 	icons = xcalloc(nr_icons, sizeof(struct SDL_Surface*));

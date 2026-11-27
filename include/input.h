@@ -134,26 +134,108 @@ enum sact_keycode {
 	VK_NR_KEYCODES
 };
 
+enum input_action_type {
+	INPUT_ACTION_NONE = 0,
+	INPUT_ACTION_VK = 1,
+	INPUT_ACTION_MOUSE_BTN = 2,
+	INPUT_ACTION_MOUSE_WHEEL = 3,
+	INPUT_ACTION_CTRL_TOGGLE = 4,
+	INPUT_ACTION_JOYPAD_BTN = 5,
+	INPUT_ACTION_COMBO = 6,
+	INPUT_ACTION_EMU_CMD = 7,
+};
+
+enum input_stick_mode {
+	STICK_MODE_NONE = 0,
+	STICK_MODE_MOUSE = 1,
+	STICK_MODE_ARROWS = 2,
+	STICK_MODE_WASD = 3,
+	STICK_MODE_WHEEL = 4,
+	STICK_MODE_JOYPAD = 5,
+};
+
+enum input_emu_cmd {
+	INPUT_EMU_TOGGLE_VPAD = 1,
+	INPUT_EMU_OPEN_MENU = 2,
+	INPUT_EMU_TOGGLE_CURSOR = 3,
+	INPUT_EMU_SCREENSHOT = 4,
+	INPUT_EMU_OPEN_EDITOR = 5,
+};
+
+enum input_pad_slot {
+	PAD_SLOT_A = 0,
+	PAD_SLOT_B = 1,
+	PAD_SLOT_X = 2,
+	PAD_SLOT_Y = 3,
+	PAD_SLOT_BACK = 4,
+	PAD_SLOT_GUIDE = 5,
+	PAD_SLOT_START = 6,
+	PAD_SLOT_L3 = 7,
+	PAD_SLOT_R3 = 8,
+	PAD_SLOT_LB = 9,
+	PAD_SLOT_RB = 10,
+	PAD_SLOT_DPAD_UP = 11,
+	PAD_SLOT_DPAD_DOWN = 12,
+	PAD_SLOT_DPAD_LEFT = 13,
+	PAD_SLOT_DPAD_RIGHT = 14,
+	PAD_SLOT_LT = 15,
+	PAD_SLOT_RT = 16,
+	NR_PAD_SLOTS = 17,
+};
+
 extern bool mouse_focus;
 extern bool keyboard_focus;
+
+void input_parts_poll_begin(bool allow_press);
+void input_notify_parts_poll(bool allow_press, bool clicking);
+void input_cancel_long_touch(void);
+void input_end_session(void);
+void input_reset_close_hook(void);
+void input_set_close_hook(bool enabled);
+bool input_get_close_hook(void);
+bool input_has_system_message(void);
+bool input_pop_system_message(int *message);
+void input_set_touch_ctrl_skip(bool enabled);
+bool input_get_touch_ctrl_skip(void);
+void input_set_long_press_ctrl(bool enabled);
+uint64_t input_get_touch_press_id(void);
+uint64_t input_take_long_touch_click_cancel(void);
 
 void handle_window_events(void);
 void handle_events(void);
 bool key_is_down(enum sact_keycode code);
 void key_clear_flag(bool no_ctrl);
+// Hold or release a key on behalf of the engine; survives the per-poll key rebuild.
+void key_set_injected(enum sact_keycode code, bool down);
 bool joy_key_is_down(uint8_t code);
 void joy_clear_flag(void);
+int joy_get_num_controllers(void);
+bool joy_is_button_down(int controller, int code);
+float joy_get_axis_value(int controller, int axis);
 bool joy_get_stick_status(int controller, int type, float *deg, float *pow);
+bool joy_get_digital_stick_status(int controller, int type, int *left, int *right, int *up, int *down);
+void joy_rumble(int controller, int magnitude, int duration_ms);
+void input_set_gamepad_config_json(const char *json);
+void input_set_virtual_stick(int stick_id, float x, float y);
+void input_set_virtual_dpad(int stick_mode, bool left, bool right, bool up, bool down);
+void input_set_virtual_button(int slot_id, int action_type, int code, int code2, bool toggle_mode, bool pressed);
+void input_clear_virtual_inputs(void);
+void input_set_android_pad_key(int device_id, int android_keycode, bool pressed);
+void input_set_android_pad_motion(int device_id, float lx, float ly, float rx, float ry,
+		float lt, float rt, float hat_x, float hat_y);
+char *input_get_controller_status_json(void);
+void input_reset_gamepad_cursor(bool visible);
 void mouse_get_pos(int *x, int *y);
 void mouse_set_pos(int x, int y);
 void mouse_get_wheel(int *forward, int *back);
 void mouse_clear_wheel(void);
 bool mouse_show_cursor(bool show);
-void register_input_handler(void(*handler)(const char*));
-void clear_input_handler(void);
-void register_editing_handler(void(*handler)(const char*, int, int));
-void clear_editing_handler(void);
-void register_key_handler(void(*handler)(int));
-void clear_key_handler(void);
+struct input_text_handlers {
+	void (*commit)(const char *);
+	void (*edit)(const char *, int, int);
+	void (*key)(int);
+};
+void input_set_legacy_text_handlers(const struct input_text_handlers *handlers);
+void input_set_parts_text_handlers(const struct input_text_handlers *handlers);
 
 #endif /* SYSTEM4_INPUT_H */

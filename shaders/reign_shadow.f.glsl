@@ -17,5 +17,5 @@
 out uvec4 frag_color;
 
 void main() {
-	frag_color.r = uint(gl_FragCoord.z * 65535.0);
+	frag_color = uvec4(uint(clamp(gl_FragCoord.z, 0.0, 1.0) * 65535.0), 0u, 0u, 1u);
 }

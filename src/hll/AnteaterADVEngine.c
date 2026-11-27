@@ -41,7 +41,7 @@ struct adv_log {
 };
 
 static bool enabled = true;
-static bool voice_by_name = false;
+static bool adv_string_voices = false;
 
 // A circular buffer of logs.
 #define LOG_BUFFER_SIZE 1000
@@ -63,14 +63,15 @@ static void free_log(struct adv_log *log)
 	for (unsigned i = 0; i < log->nr_lines; i++) {
 		free_string(log->lines[i]);
 	}
-	free(log->lines);
-	free(log->voices);
 	if (log->voice_names) {
 		for (unsigned i = 0; i < log->nr_voices; i++) {
-			free_string(log->voice_names[i]);
+			if (log->voice_names[i])
+				free_string(log->voice_names[i]);
 		}
 		free(log->voice_names);
 	}
+	free(log->lines);
+	free(log->voices);
 	log->nr_lines = 0;
 	log->lines = NULL;
 	log->nr_voices = 0;
@@ -147,6 +148,14 @@ void ADVLogList_AddVoice(int voice_no)
 	log->voices[log->nr_voices++] = voice_no;
 }
 
+static void ADVLogList_AddVoice_str(struct string *voice_name)
+{
+	if (!enabled) return;
+	struct adv_log *log = current_log();
+	log->voice_names = xrealloc_array(log->voice_names, log->nr_voices, log->nr_voices+1, sizeof(struct string*));
+	log->voice_names[log->nr_voices++] = voice_name ? string_dup(voice_name) : string_ref(&EMPTY_STRING);
+}
+
 void ADVLogList_SetEnable(bool on)
 {
 	enabled = on;
@@ -177,14 +186,22 @@ int ADVLogList_GetNumofADVLogText(int log_no)
 	return log_entry(log_no)->nr_lines;
 }
 
-void ADVLogList_GetADVLogText(int log_no, int line_no, struct string **text)
+static struct string *ADVLogList_GetADVLogText_value(int log_no, int line_no)
 {
 	struct adv_log *log = log_entry(log_no);
 	// NOTE: AnteaterADVEngine.dll segfaults on invalid index
 	if (line_no < 0 || (unsigned)line_no >= log->nr_lines)
 		VM_ERROR("Invalid line number: %d", line_no);
 
-	*text = string_ref(log->lines[line_no]);
+	return cjk_display_log_line(log->lines[line_no]);
+}
+
+void ADVLogList_GetADVLogText(int log_no, int line_no, struct string **text)
+{
+	struct string *line = ADVLogList_GetADVLogText_value(log_no, line_no);
+	if (*text)
+		free_string(*text);
+	*text = line;
 }
 
 int ADVLogList_GetNumofADVLogVoice(int log_no)
@@ -195,10 +212,28 @@ int ADVLogList_GetNumofADVLogVoice(int log_no)
 int ADVLogList_GetADVLogVoice(int log_no, int voice_no)
 {
 	struct adv_log *log = log_entry(log_no);
-	if (voice_no < 0 || (unsigned)voice_no >= log->nr_voices)
+	if (voice_no < 0 || (unsigned)voice_no >= log->nr_voices || !log->voices)
 		VM_ERROR("Invalid voice number: %d", voice_no);
 
 	return log->voices[voice_no];
+}
+
+static struct string *ADVLogList_GetADVLogVoice_value(int log_no, int voice_no)
+{
+	struct adv_log *log = log_entry(log_no);
+	if (voice_no < 0 || (unsigned)voice_no >= log->nr_voices || !log->voice_names)
+		return string_ref(&EMPTY_STRING);
+	return string_ref(log->voice_names[voice_no]);
+}
+
+static void ADVLogList_GetADVLogVoice_str(int log_no, int voice_no, struct string **voice_out)
+{
+	if (!voice_out)
+		return;
+	struct string *name = ADVLogList_GetADVLogVoice_value(log_no, voice_no);
+	if (*voice_out)
+		free_string(*voice_out);
+	*voice_out = name;
 }
 
 int ADVLogList_GetADVLogVoiceLast(int log_no)
@@ -228,21 +263,25 @@ bool ADVLogList_Save(struct page **iarray)
 	// encode log as array of integers
 	struct iarray_writer b;
 	iarray_init_writer(&b, "ADL");
-	iarray_write(&b, 0);
+	iarray_write(&b, adv_string_voices ? 2 : 0);
 	int nr_logs = ADVLogList_GetNumofADVLog();
 	iarray_write(&b, nr_logs);
 	for (unsigned i = 0; i < nr_logs; i++) {
 		struct adv_log *log = &logs[(log_first + i) % LOG_BUFFER_SIZE];
 		iarray_write(&b, log->nr_lines);
-		for (unsigned i = 0; i < log->nr_lines; i++) {
-			iarray_write_string(&b, log->lines[i]);
+		for (unsigned j = 0; j < log->nr_lines; j++) {
+			iarray_write_string(&b, log->lines[j]);
 		}
 		iarray_write(&b, log->nr_voices);
-		for (unsigned i = 0; i < log->nr_voices; i++) {
-			if (voice_by_name)
-				iarray_write_string(&b, log->voice_names[i]);
-			else
-				iarray_write(&b, log->voices[i]);
+		if (adv_string_voices) {
+			for (unsigned j = 0; j < log->nr_voices; j++) {
+				iarray_write_string(&b, log->voice_names && log->voice_names[j]
+					? log->voice_names[j] : &EMPTY_STRING);
+			}
+		} else {
+			for (unsigned j = 0; j < log->nr_voices; j++) {
+				iarray_write(&b, log->voices ? log->voices[j] : 0);
+			}
 		}
 	}
 	iarray_write(&b, 1);
@@ -262,8 +301,10 @@ bool ADVLogList_Load(struct page **data)
 	if (!(*data))
 		return false;
 	struct iarray_reader r;
-	iarray_init_reader(&r, *data, "ADL");
-	if (iarray_read(&r))
+	if (!iarray_init_reader(&r, *data, "ADL"))
+		return false;
+	int version = iarray_read(&r);
+	if (version != 0 && version != 2)
 		return false;
 
 	ADVLogList_Clear();
@@ -290,8 +331,8 @@ bool ADVLogList_Load(struct page **data)
 
 		free_log(log);
 		log->lines = xcalloc(nr_lines, sizeof(struct string*));
-		for (int i = 0; i < nr_lines; i++) {
-			log->lines[i] = iarray_read_string(&r);
+		for (int j = 0; j < nr_lines; j++) {
+			log->lines[j] = iarray_read_string(&r);
 		}
 		log->nr_lines = nr_lines;
 
@@ -301,15 +342,15 @@ bool ADVLogList_Load(struct page **data)
 			goto error;
 		}
 
-		if (voice_by_name) {
+		if (version == 2) {
 			log->voice_names = xcalloc(nr_voices, sizeof(struct string*));
-			for (int i = 0; i < nr_voices; i++) {
-				log->voice_names[i] = iarray_read_string(&r);
+			for (int j = 0; j < nr_voices; j++) {
+				log->voice_names[j] = iarray_read_string(&r);
 			}
 		} else {
 			log->voices = xcalloc(nr_voices, sizeof(int));
-			for (int i = 0; i < nr_voices; i++) {
-				log->voices[i] = iarray_read(&r);
+			for (int j = 0; j < nr_voices; j++) {
+				log->voices[j] = iarray_read(&r);
 			}
 		}
 		log->nr_voices = nr_voices;
@@ -331,14 +372,16 @@ static unsigned scene_last = 0;
 
 static int scene_struct_no(void)
 {
-	static int no = -1;
-	if (no < 0) {
-		char *s = utf2sjis("画面保管_t", 0);
-		no = ain_get_struct(ain, s);
-		free(s);
-		if (no < 0)
-			VM_ERROR("Missing definition for struct 画面保管_t");
-	}
+	// Translated text may use GBK while VM identifiers remain Shift-JIS.
+	// Look up 画面保管_t in the selected encoding, then the original encoding.
+	char sjis_name[] = "\x89\xe6\x96\xca\x95\xdb\x8a\xc7_t";
+	char gbk_name[] = "\xbb\xad\xc3\xe6\xb1\xa3\xb9\xdc_t";
+	int no = ain_get_struct(ain, use_gbk ? gbk_name : sjis_name);
+	if (no < 0 && use_gbk)
+		no = ain_get_struct(ain, sjis_name);
+	// Do not cache the index across different games in an embedded host.
+	if (no < 0)
+		VM_ERROR("Missing definition for struct 画面保管_t");
 	return no;
 }
 
@@ -497,6 +540,25 @@ static void AnteaterADVEngine_ModuleFini(void)
 {
 	ADVLogList_Clear();
 	ADVSceneKeeper_Clear();
+	enabled = true;
+	adv_string_voices = false;
+}
+
+static void AnteaterADVEngine_ADVLogList_AddText_val(struct string *text)
+{
+	if (!enabled || !text) return;
+	struct string **line = current_line(current_log());
+	string_append(line, text);
+}
+
+static void AnteaterADVEngine_ADVLogList_AddText_val_with_window(struct string *text, possibly_unused int window_no)
+{
+	AnteaterADVEngine_ADVLogList_AddText_val(text);
+}
+
+static void AnteaterADVEngine_ADVLogList_AddText_val_with_window_name(struct string *text, possibly_unused struct string *window_name)
+{
+	AnteaterADVEngine_ADVLogList_AddText_val(text);
 }
 
 static void AnteaterADVEngine_ADVLogList_AddText_with_window(struct string **text, possibly_unused int window_no)
@@ -504,29 +566,26 @@ static void AnteaterADVEngine_ADVLogList_AddText_with_window(struct string **tex
 	ADVLogList_AddText(text);
 }
 
-// Signature changes in Evenicle.
-static void AnteaterADVEngine_ADVLogList_AddText_by_value(struct string *text, int window_no)
+static bool returns_log_string(const struct ain_hll_function *fun)
 {
-	ADVLogList_AddText(&text);
+	return fun->return_type.data == AIN_STRING && fun->nr_arguments == 2
+		&& fun->arguments[0].type.data == AIN_INT && fun->arguments[1].type.data == AIN_INT;
 }
 
-static void AnteaterADVEngine_ADVLogList_AddVoice_by_name(struct string *voice)
+static void *resolve_log_text(const struct ain_hll_function *fun)
 {
-	if (!enabled) return;
-	struct adv_log *log = current_log();
-	log->voice_names = xrealloc_array(log->voice_names, log->nr_voices, log->nr_voices+1, sizeof(struct string*));
-	log->voice_names[log->nr_voices++] = string_ref(voice);
+	if (returns_log_string(fun))
+		return ADVLogList_GetADVLogText_value;
+	return ADVLogList_GetADVLogText;
 }
 
-static void AnteaterADVEngine_ADVLogList_GetADVLogVoice_by_name(int log_no, int voice_no, struct string **voice)
+static void *resolve_log_voice(const struct ain_hll_function *fun)
 {
-	struct adv_log *log = log_entry(log_no);
-	if (voice_no < 0 || (unsigned)voice_no >= log->nr_voices)
-		VM_ERROR("Invalid voice number: %d", voice_no);
-
-	if (*voice)
-		free_string(*voice);
-	*voice = string_ref(log->voice_names[voice_no]);
+	if (returns_log_string(fun))
+		return ADVLogList_GetADVLogVoice_value;
+	if (fun->nr_arguments == 3 && fun->arguments[2].type.data == AIN_REF_STRING)
+		return ADVLogList_GetADVLogVoice_str;
+	return ADVLogList_GetADVLogVoice;
 }
 
 HLL_LIBRARY(AnteaterADVEngine,
@@ -541,9 +600,9 @@ HLL_LIBRARY(AnteaterADVEngine,
 	    HLL_EXPORT(ADVLogList_IsEnable, ADVLogList_IsEnable),
 	    HLL_EXPORT(ADVLogList_GetNumofADVLog, ADVLogList_GetNumofADVLog),
 	    HLL_EXPORT(ADVLogList_GetNumofADVLogText, ADVLogList_GetNumofADVLogText),
-	    HLL_EXPORT(ADVLogList_GetADVLogText, ADVLogList_GetADVLogText),
+	    HLL_OVERLOAD(ADVLogList_GetADVLogText, resolve_log_text),
 	    HLL_EXPORT(ADVLogList_GetNumofADVLogVoice, ADVLogList_GetNumofADVLogVoice),
-	    HLL_EXPORT(ADVLogList_GetADVLogVoice, ADVLogList_GetADVLogVoice),
+	    HLL_OVERLOAD(ADVLogList_GetADVLogVoice, resolve_log_voice),
 	    HLL_EXPORT(ADVLogList_Save, ADVLogList_Save),
 	    HLL_EXPORT(ADVLogList_Load, ADVLogList_Load),
 	    HLL_EXPORT(ADVSceneKeeper_AddADVScene, ADVSceneKeeper_AddADVScene),
@@ -566,24 +625,27 @@ static void AnteaterADVEngine_PreLink(void)
 	int libno = ain_get_library(ain, "AnteaterADVEngine");
 	assert(libno >= 0);
 
+	adv_string_voices = false;
 	fun = get_fun(libno, "ADVLogList_AddText");
-	if (fun && fun->nr_arguments == 2) {
+	if (fun && fun->nr_arguments == 1 && fun->arguments[0].type.data == AIN_STRING) {
 		static_library_replace(&lib_AnteaterADVEngine, "ADVLogList_AddText",
-			fun->arguments[0].type.data == AIN_STRING
-			? (void*)AnteaterADVEngine_ADVLogList_AddText_by_value
-			: (void*)AnteaterADVEngine_ADVLogList_AddText_with_window);
+			AnteaterADVEngine_ADVLogList_AddText_val);
+	} else if (fun && fun->nr_arguments == 2) {
+		if (fun->arguments[0].type.data == AIN_STRING && fun->arguments[1].type.data == AIN_STRING) {
+			static_library_replace(&lib_AnteaterADVEngine, "ADVLogList_AddText",
+				AnteaterADVEngine_ADVLogList_AddText_val_with_window_name);
+		} else if (fun->arguments[0].type.data == AIN_STRING) {
+			static_library_replace(&lib_AnteaterADVEngine, "ADVLogList_AddText",
+				AnteaterADVEngine_ADVLogList_AddText_val_with_window);
+		} else {
+			static_library_replace(&lib_AnteaterADVEngine, "ADVLogList_AddText",
+				AnteaterADVEngine_ADVLogList_AddText_with_window);
+		}
 	}
 
 	fun = get_fun(libno, "ADVLogList_AddVoice");
 	if (fun && fun->nr_arguments == 1 && fun->arguments[0].type.data == AIN_STRING) {
-		static_library_replace(&lib_AnteaterADVEngine, "ADVLogList_AddVoice",
-			AnteaterADVEngine_ADVLogList_AddVoice_by_name);
-		voice_by_name = true;
-	}
-
-	fun = get_fun(libno, "ADVLogList_GetADVLogVoice");
-	if (fun && fun->nr_arguments == 3 && fun->arguments[2].type.data == AIN_REF_STRING) {
-		static_library_replace(&lib_AnteaterADVEngine, "ADVLogList_GetADVLogVoice",
-			AnteaterADVEngine_ADVLogList_GetADVLogVoice_by_name);
+		adv_string_voices = true;
+		static_library_replace(&lib_AnteaterADVEngine, "ADVLogList_AddVoice", ADVLogList_AddVoice_str);
 	}
 }

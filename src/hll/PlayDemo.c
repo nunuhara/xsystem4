@@ -14,17 +14,36 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include "system4/string.h"
 #include "hll.h"
 
-HLL_WARN_UNIMPLEMENTED(0, int, PlayDemo, Init, void *imainsystem);
-//int PlayDemo_Load(struct string *filename, int ch, int bgm);
-//int PlayDemo_Play(void);
-//void PlayDemo_SetCheckClick(int flag);
+/*
+ * Intentionally succeed (return 1) to gracefully skip OP/ED demo playback:
+ * returning 0 triggers blocking error popups (system.MsgBox) in Daibanchou.
+ */
+static int PlayDemo_Init(possibly_unused void *imainsystem)
+{
+	return 1;
+}
 
+static int PlayDemo_Load(possibly_unused struct string *filename, possibly_unused int ch,
+		possibly_unused int bgm)
+{
+	return 1;
+}
+
+static int PlayDemo_Play(void)
+{
+	return 1;
+}
+
+static void PlayDemo_SetCheckClick(possibly_unused int flag)
+{
+}
 
 HLL_LIBRARY(PlayDemo,
-			HLL_EXPORT(Init, PlayDemo_Init)
-			//HLL_EXPORT(Load, PlayDemo_Load),
-			//HLL_EXPORT(Play, PlayDemo_Play),
-			//HLL_EXPORT(SetCheckClick, PlayDemo_SetCheckClick)
-			);
+	    HLL_EXPORT(Init, PlayDemo_Init),
+	    HLL_EXPORT(Load, PlayDemo_Load),
+	    HLL_EXPORT(Play, PlayDemo_Play),
+	    HLL_EXPORT(SetCheckClick, PlayDemo_SetCheckClick)
+	    );

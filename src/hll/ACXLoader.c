@@ -30,8 +30,15 @@
 
 static struct acx *acx = NULL;
 
+static void ACXLoader_Release(void)
+{
+	acx_free(acx);
+	acx = NULL;
+}
+
 static bool ACXLoader_Load(struct string *filename)
 {
+	ACXLoader_Release();
 	int error = ACX_SUCCESS;
 	char *path = gamedir_path(filename->text);
 	acx = acx_load(path, &error);
@@ -54,12 +61,6 @@ static bool ACXLoader_Load(struct string *filename)
 	}
 	free(path);
 	return !!acx;
-}
-
-static void ACXLoader_Release(void)
-{
-	acx_free(acx);
-	acx = NULL;
 }
 
 static int ACXLoader_GetNumofLine(void)
@@ -122,6 +123,7 @@ static bool ACXLoader_GetDataStruct(int line, struct page **page)
 }
 
 HLL_LIBRARY(ACXLoader,
+	    HLL_EXPORT(_ModuleFini, ACXLoader_Release),
 	    HLL_EXPORT(Load, ACXLoader_Load),
 	    HLL_EXPORT(Release, ACXLoader_Release),
 	    HLL_EXPORT(GetNumofLine, ACXLoader_GetNumofLine),
@@ -165,6 +167,7 @@ static bool ACXLoaderP2_GetDataStringByKey(int key, int col, struct string **ptr
 }
 
 HLL_LIBRARY(ACXLoaderP2,
+	    HLL_EXPORT(_ModuleFini, ACXLoader_Release),
 	    HLL_EXPORT(Load, ACXLoader_Load),
 	    HLL_EXPORT(Release, ACXLoader_Release),
 	    HLL_EXPORT(GetNumofLine, ACXLoader_GetNumofLine),

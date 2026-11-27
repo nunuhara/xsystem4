@@ -57,6 +57,8 @@ static FILE *open_and_read_header(struct ts3m_header *header)
 	char *path = gamedir_path("Data/Toushin3Map.dat");
 	FILE *fp = file_open_utf8(path, "rb");
 	free(path);
+	if (!fp)
+		return NULL;
 
 	uint8_t buf[28];
 	if (fread(buf, sizeof buf, 1, fp) != 1)
@@ -338,7 +340,16 @@ static bool Toushin3Loader_GetFloat(float *data)
 
 //bool Toushin3Loader_GetString(struct string **pIString);  // unused
 
+static void Toushin3Loader_ModuleFini(void)
+{
+	Toushin3Loader_UnloadMapInfo();
+	Toushin3Loader_UnloadObjectInfo();
+	Toushin3Loader_UnloadBillboardInfo();
+	unload_ts3m_data();
+}
+
 HLL_LIBRARY(Toushin3Loader,
+	    HLL_EXPORT(_ModuleFini, Toushin3Loader_ModuleFini),
 	    HLL_EXPORT(LoadMapInfo, Toushin3Loader_LoadMapInfo),
 	    HLL_EXPORT(UnloadMapInfo, Toushin3Loader_UnloadMapInfo),
 	    HLL_EXPORT(GetMapInfoCount, Toushin3Loader_GetMapInfoCount),

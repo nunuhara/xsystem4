@@ -125,6 +125,13 @@ static void load_effect_shader(struct effect_shader *s)
 
 static void render_effect_shader(struct effect_shader *shader, Texture *dst, Texture *old, Texture *new, float progress)
 {
+	gfx_remap_texture(dst);
+	gfx_remap_texture(old);
+	gfx_remap_texture(new);
+	if (!dst->handle || !old->handle || !new->handle)
+		return;
+	if (!shader->s.program)
+		load_effect_shader(shader);
 	struct effect_data data = { .old = old, .new = new, .progress = progress };
 	mat4 world_transform = WORLD_TRANSFORM(new->w, new->h, 0, 0);
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
@@ -139,6 +146,7 @@ static void render_effect_shader(struct effect_shader *shader, Texture *dst, Tex
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, 0, 0,
 			dst->w, dst->h);
 	gfx_render(&job);
+	glActiveTexture(GL_TEXTURE0);
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 }
 
@@ -178,6 +186,20 @@ static struct effect_shader *effect_shaders[NR_EFFECTS] = {
 	[EFFECT_VWAVE_SCROLL_CROSSFADE] = &vwave_scroll_crossfade_shader,
 	[EFFECT_VWAVE_CROSSFADE] = &vwave_crossfade_shader,
 };
+
+void effect_renderer_fini(void)
+{
+	gfx_reset_view();
+	gfx_delete_texture(&effect.old);
+	gfx_delete_texture(&effect.view);
+	effect.on = false;
+	effect.type = 0;
+	for (int i = 0; i < NR_EFFECTS; i++) {
+		if (!effect_shaders[i]) continue;
+		glDeleteProgram(effect_shaders[i]->s.program);
+		effect_shaders[i]->s.program = 0;
+	}
+}
 
 static void effect_fadeout(Texture *dst, Texture *old, Texture *new, float rate)
 {
@@ -223,8 +245,10 @@ static void effect_zoom_rl(Texture *dst, Texture *old, Texture *new, float rate)
 
 static void effect_oscillate(Texture *dst, Texture *old, Texture *new, float rate)
 {
-	int delta_x = (rand() % (dst->w / 10) - (dst->w / 20)) * (1.0f - rate);
-	int delta_y = (rand() % (dst->h / 10) - (dst->h / 20)) * (1.0f - rate);;
+	int rx = dst->w / 10;
+	int ry = dst->h / 10;
+	int delta_x = rx > 0 ? (int)((rand() % rx - (dst->w / 20)) * (1.0f - rate)) : 0;
+	int delta_y = ry > 0 ? (int)((rand() % ry - (dst->h / 20)) * (1.0f - rate)) : 0;
 
 	gfx_copy(dst, 0, 0, old, 0, 0, dst->w, dst->h);
 	gfx_copy(dst, delta_x, delta_y, new, 0, 0, dst->w, dst->h);
@@ -283,8 +307,46 @@ static effect_fun effect_functions[NR_EFFECTS] = {
 	[EFFECT_ZOOM_IN_CROSSFADE] = effect_zoom_in_crossfade,
 };
 
+static bool effect_reset_registered = false;
+
+#if defined(ALICEHUB_IOS)
+void effect_end_session(void)
+{
+	effect_fini();
+	for (int i = 0; i < NR_EFFECTS; i++) {
+		if (effect_shaders[i])
+			effect_shaders[i]->s.program = 0;
+	}
+	effect_reset_registered = false;
+}
+#endif
+
+static void effect_on_gl_reset(void *user)
+{
+	(void)user;
+	for (int i = 0; i < NR_EFFECTS; i++) {
+		if (effect_shaders[i])
+			effect_shaders[i]->s.program = 0;
+	}
+	gfx_remap_texture(&effect.old);
+	gfx_remap_texture(&effect.view);
+}
+
+static void ensure_effect_reset_registered(void)
+{
+	if (!effect_reset_registered) {
+		gfx_register_reset_callback(effect_on_gl_reset, NULL);
+		effect_reset_registered = true;
+	}
+}
+
 void effect_update_texture(int type, Texture *dst, Texture *old, Texture *new, float rate)
 {
+	if (type <= 0 || type >= NR_EFFECTS) {
+		WARNING("Invalid or unknown effect: %d", type);
+		return;
+	}
+	ensure_effect_reset_registered();
 	if (effect_functions[type]) {
 		effect_functions[type](dst, old, new, rate);
 	} else {
@@ -308,6 +370,7 @@ int effect_init(enum effect type)
 		WARNING("Invalid or unknown effect: %d", type);
 		return 0;
 	}
+	ensure_effect_reset_registered();
 
 	if (effect_functions[type]) {
 		// nothing to do
@@ -354,6 +417,7 @@ int effect_update(float rate)
 	}
 
 	gfx_swap();
+	gfx_mark_frame_presented();
 	return 1;
 }
 

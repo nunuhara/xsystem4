@@ -14,6 +14,9 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <math.h>
+#include <string.h>
+
 #include "effect.h"
 #include "hll.h"
 #include "sact.h"
@@ -29,6 +32,8 @@ static struct {
 
 bool DrawEffect_Begin(int writeSurface, int wx, int wy, int destSurface, int dx, int dy, int srcSurface, int sx, int sy, int width, int height, int effect)
 {
+	if (effect <= 0 || effect >= NR_EFFECTS)
+		return false;
 	// Only support fullscreen effects
 	if (wx || wy || dx || dy || sx || sy || width != config.view_width || height != config.view_height)
 		return false;
@@ -53,7 +58,8 @@ void DrawEffect_Draw(int time, int totalTime)
 	Texture *dst_tex = sprite_get_texture(dst);
 	Texture *old_tex = sprite_get_texture(old);
 	Texture *new_tex = sprite_get_texture(new);
-	effect_update_texture(draw_effect.type, dst_tex, old_tex, new_tex, (float)time / (float)totalTime);
+	float rate = (totalTime > 0) ? fminf(1.0f, fmaxf(0.0f, (float)time / (float)totalTime)) : 1.0f;
+	effect_update_texture(draw_effect.type, dst_tex, old_tex, new_tex, rate);
 	sprite_dirty(dst);
 }
 
@@ -62,7 +68,13 @@ void DrawEffect_End(void)
 	draw_effect.on = false;
 }
 
+static void DrawEffect_ModuleFini(void)
+{
+	memset(&draw_effect, 0, sizeof(draw_effect));
+}
+
 HLL_LIBRARY(DrawEffect,
+	    HLL_EXPORT(_ModuleFini, DrawEffect_ModuleFini),
 	    HLL_EXPORT(Begin, DrawEffect_Begin),
 	    HLL_EXPORT(Draw, DrawEffect_Draw),
 	    HLL_EXPORT(End, DrawEffect_End)

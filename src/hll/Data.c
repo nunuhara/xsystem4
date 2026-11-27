@@ -15,6 +15,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include "system4/archive.h"
 #include "system4/buffer.h"
 #include "system4/little_endian.h"
@@ -111,7 +112,14 @@ static int Data_Read(struct page **page)
 	return 1;
 }
 
+static void Data_ModuleFini(void)
+{
+	free(reader.buf);
+	memset(&reader, 0, sizeof(reader));
+}
+
 HLL_LIBRARY(Data,
+	    HLL_EXPORT(_ModuleFini, Data_ModuleFini),
 	    HLL_EXPORT(Exist, Data_Exist),
 	    HLL_EXPORT(Open, Data_Open),
 	    HLL_EXPORT(Close, Data_Close),

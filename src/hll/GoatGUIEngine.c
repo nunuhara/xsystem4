@@ -33,6 +33,7 @@ static inline float rad2deg(float rad)
 }
 
 static void GoatGUIEngine_PreLink(void);
+bool PE_DeletePartsTopTextLine(int parts_no, int state);
 
 static void GoatGUIEngine_AddMotionHGaugeRate(int parts_no, int begin_numerator, int begin_denominator, int end_numerator, int end_denominator, int begin_t, int end_t)
 {
@@ -88,7 +89,7 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(SetLoopCG, PE_SetLoopCG),
 	    HLL_EXPORT(SetText, PE_SetText),
 	    HLL_EXPORT(AddPartsText, PE_AddPartsText),
-	    HLL_TODO_EXPORT(DeletePartsTopTextLine, PE_DeletePartsTopTextLine),
+	    HLL_EXPORT(DeletePartsTopTextLine, PE_DeletePartsTopTextLine),
 	    HLL_EXPORT(SetFont, PE_SetFont),
 	    HLL_EXPORT(SetPartsFontType, PE_SetPartsFontType),
 	    HLL_EXPORT(SetPartsFontSize, PE_SetPartsFontSize),
@@ -102,12 +103,12 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(SetHGaugeRate, PE_SetHGaugeRate_int),
 	    HLL_EXPORT(SetVGaugeCG, PE_SetVGaugeCG),
 	    HLL_EXPORT(SetVGaugeRate, PE_SetVGaugeRate_int),
-	    HLL_TODO_EXPORT(SetNumeralCG, PE_SetNumeralCG),
+	    HLL_EXPORT(SetNumeralCG, PE_SetNumeralCG),
 	    HLL_EXPORT(SetNumeralLinkedCGNumberWidthWidthList, PE_SetNumeralLinkedCGNumberWidthWidthList),
 	    HLL_EXPORT(SetNumeralNumber, PE_SetNumeralNumber),
 	    HLL_EXPORT(SetNumeralShowComma, PE_SetNumeralShowComma),
 	    HLL_EXPORT(SetNumeralSpace, PE_SetNumeralSpace),
-	    HLL_TODO_EXPORT(SetPartsRectangleDetectionSize, PE_SetPartsRectangleDetectionSize),
+	    HLL_EXPORT(SetPartsRectangleDetectionSize, PE_SetPartsRectangleDetectionSize),
 	    HLL_EXPORT(SetPartsFlash, PE_SetPartsFlash),
 	    HLL_EXPORT(IsPartsFlashEnd, PE_IsPartsFlashEnd),
 	    HLL_EXPORT(GetPartsFlashCurrentFrameNumber, PE_GetPartsFlashCurrentFrameNumber),
@@ -183,14 +184,14 @@ HLL_LIBRARY(GoatGUIEngine,
 	    HLL_EXPORT(StartPartsFlash, PE_StartPartsFlash),
 	    HLL_EXPORT(GoFramePartsFlash, PE_GoFramePartsFlash),
 	    HLL_EXPORT(GetPartsFlashEndFrame, PE_GetPartsFlashEndFrame),
-	    HLL_TODO_EXPORT(ClearPartsConstructionProcess, PE_ClearPartsConstructionProcess),
+	    HLL_EXPORT(ClearPartsConstructionProcess, PE_ClearPartsConstructionProcess),
 	    HLL_EXPORT(AddCreateToPartsConstructionProcess, PE_AddCreateToPartsConstructionProcess),
 	    HLL_EXPORT(AddCreatePixelOnlyToPartsConstructionProcess, PE_AddCreatePixelOnlyToPartsConstructionProcess),
 	    HLL_EXPORT(AddFillToPartsConstructionProcess, PE_AddFillToPartsConstructionProcess),
 	    HLL_EXPORT(AddFillAlphaColorToPartsConstructionProcess, PE_AddFillAlphaColorToPartsConstructionProcess),
 	    HLL_EXPORT(AddFillAMapToPartsConstructionProcess, PE_AddFillAMapToPartsConstructionProcess),
 	    HLL_EXPORT(AddFillWithAlphaToPartsConstructionProcess, PE_AddFillWithAlphaToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(AddFillGradationHorizonToPartsConstructionProcess, PE_AddFillGradationHorizonToPartsConstructionProcess),
+	    HLL_EXPORT(AddFillGradationHorizonToPartsConstructionProcess, PE_AddFillGradationHorizonToPartsConstructionProcess),
 	    HLL_EXPORT(AddDrawRectToPartsConstructionProcess, PE_AddDrawRectToPartsConstructionProcess),
 	    HLL_EXPORT(BuildPartsConstructionProcess, PE_BuildPartsConstructionProcess),
 	    HLL_EXPORT(AddDrawTextToPartsConstructionProcess, PE_AddDrawTextToPartsConstructionProcess));

@@ -165,6 +165,10 @@ static void vmGraph_CopyStretch(int surface, int dx, int dy, int d_width, int d_
 	if (!dst || !src)
 		return;
 
+	gfx_remap_texture(&dst->texture);
+	if (!gfx_remap_texture(&src->texture))
+		return;
+
 	// Use nearest neighbor interpolation to avoid magenta edges.
 	glBindTexture(GL_TEXTURE_2D, src->texture.handle);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -197,7 +201,7 @@ static int vmGraph_EffectCopy(int dx, int dy, int src_surface, int sx, int sy, i
 		effect_update((float)t / (float)total_time);
 		uint32_t t2 = SDL_GetTicks() - start;
 		if (t2 < t + 16) {
-			SDL_Delay(t + 16 - t2);
+			gfx_android_delay(t + 16 - t2);
 			t += 16;
 		} else {
 			t = t2;

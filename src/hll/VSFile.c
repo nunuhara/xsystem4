@@ -25,9 +25,11 @@
 #include "system4/utfsjis.h"
 
 #include "hll.h"
+#include "savedata.h"
 #include "xsystem4.h"
 
 static bool vs_read = false;
+static bool vs_from_gamedir = false;
 static FILE *vs_file = NULL;
 
 enum vsf_valuetype {
@@ -63,6 +65,8 @@ static bool vsf_read_type(enum vsf_valuetype type)
 	}
 
 	int c = fgetc(vs_file);
+	if (c == EOF)
+		return false;
 	if ((enum vsf_valuetype)c != type) {
 		ungetc(c, vs_file);
 		return false;
@@ -82,18 +86,45 @@ static bool vsf_write_type(enum vsf_valuetype type)
 
 static bool vsfile_open(struct string *filename, bool read)
 {
-	char *u = gamedir_path(filename->text);
+	if (!filename)
+		return false;
+	char *u = savedir_path(filename->text);
 	if (vs_file) {
 		WARNING("VSFile is already opened");
 		fclose(vs_file);
+		vs_file = NULL;
 	}
 	vs_read = read;
+	vs_from_gamedir = false;
+	if (!read) {
+		char *dir = path_dirname(u);
+		if (dir && *dir)
+			mkdir_p(dir);
+	}
 	vs_file = file_open_utf8(u, read ? "rb" : "wb");
+	if (!vs_file && read) {
+		char *gu = gamedir_path_icase(filename->text);
+		if (gu) {
+			vs_file = file_open_utf8(gu, "rb");
+			if (vs_file)
+				vs_from_gamedir = true;
+			free(gu);
+		}
+	}
 	if (!vs_file) {
 		WARNING("Failed to open '%s': %s", display_utf0(u), strerror(errno));
 	}
 	free(u);
 	return !!vs_file;
+}
+
+static void VSFile_ModuleFini(void)
+{
+	if (vs_file) {
+		fclose(vs_file);
+		vs_file = NULL;
+	}
+	vs_from_gamedir = false;
 }
 
 static bool VSFile_OpenForWrite(struct string *filename)
@@ -103,6 +134,7 @@ static bool VSFile_OpenForWrite(struct string *filename)
 	if (!vsf_write("VSF\0\0\0\0", 8)) {
 		fclose(vs_file);
 		vs_file = NULL;
+		vs_from_gamedir = false;
 		return false;
 	}
 	return true;
@@ -116,6 +148,7 @@ static bool VSFile_OpenForRead(struct string *filename)
 	if (!vsf_read(hdr, 8) || memcmp(hdr, "VSF\0\0\0\0", 8)) {
 		fclose(vs_file);
 		vs_file = NULL;
+		vs_from_gamedir = false;
 		return false;
 	}
 	return true;
@@ -129,12 +162,14 @@ static bool VSFile_Close(void)
 	} else {
 		WARNING("VSFILE is already closed");
 	}
+	vs_from_gamedir = false;
 	return true;
 }
 
 static bool VSFile_WriteByte(int data)
 {
-	vsf_write_type(VSF_BYTE);
+	if (!vsf_write_type(VSF_BYTE))
+		return false;
 
 	uint8_t b = data;
 	return vsf_write(&b, 1);
@@ -142,7 +177,8 @@ static bool VSFile_WriteByte(int data)
 
 static bool VSFile_WriteInt(int data)
 {
-	vsf_write_type(VSF_INT);
+	if (!vsf_write_type(VSF_INT))
+		return false;
 
 	uint8_t b[4];
 	LittleEndian_putDW(b, 0, data);
@@ -151,7 +187,8 @@ static bool VSFile_WriteInt(int data)
 
 static bool VSFile_WriteFloat(float data)
 {
-	vsf_write_type(VSF_FLOAT);
+	if (!vsf_write_type(VSF_FLOAT))
+		return false;
 
 	uint8_t b[4];
 	union {
@@ -165,18 +202,18 @@ static bool VSFile_WriteFloat(float data)
 
 static bool VSFile_WriteString(struct string *str)
 {
-	vsf_write_type(VSF_STRING);
-
-	if (fwrite(str->text, str->size+1, 1, vs_file) != 1) {
-		WARNING("fwrite failed: %s", strerror(errno));
+	if (!vsf_write_type(VSF_STRING))
 		return false;
-	}
-	return true;
+
+	const char *text = str ? str->text : "";
+	size_t len = str ? (size_t)str->size + 1 : 1;
+	return vsf_write(text, len);
 }
 
 static bool VSFile_ReadByte(int *data)
 {
-	vsf_read_type(VSF_BYTE);
+	if (!data || !vsf_read_type(VSF_BYTE))
+		return false;
 
 	uint8_t b;
 	if (!vsf_read(&b, 1))
@@ -187,7 +224,8 @@ static bool VSFile_ReadByte(int *data)
 
 static bool VSFile_ReadInt(int *data)
 {
-	vsf_read_type(VSF_INT);
+	if (!data || !vsf_read_type(VSF_INT))
+		return false;
 
 	uint8_t b[4];
 	if (!vsf_read(b, 4))
@@ -198,7 +236,8 @@ static bool VSFile_ReadInt(int *data)
 
 static bool VSFile_ReadFloat(float *data)
 {
-	vsf_read_type(VSF_FLOAT);
+	if (!data || !vsf_read_type(VSF_FLOAT))
+		return false;
 
 	uint8_t b[4];
 	union {
@@ -214,7 +253,8 @@ static bool VSFile_ReadFloat(float *data)
 
 static bool VSFile_ReadString(struct string **str)
 {
-	vsf_read_type(VSF_STRING);
+	if (!str || !vsf_read_type(VSF_STRING))
+		return false;
 
 	char b;
 	struct string *s = make_string("", 0);
@@ -228,6 +268,18 @@ static bool VSFile_ReadString(struct string **str)
 		string_append_cstr(&s, &b, 1);
 	}
 
+	// Only cross-encoding-convert strings read from SaveData (e.g. JP save imported into CN build).
+	// Read-only game data files opened from game_dir (e.g. Data/Parameter/*.dat) store raw engine lookup keys
+	// that must match VM strings verbatim without heuristic SJIS<->GBK rewriting.
+	if (!vs_from_gamedir && s->size > 0) {
+		int bias = save_text_gbk_bias(s->text);
+		if ((sys4_text_is_gbk && bias <= -12) || (!sys4_text_is_gbk && bias >= 12)) {
+			struct string *conv = save_decode_vm_string(s->text, s->size, !sys4_text_is_gbk);
+			free_string(s);
+			s = conv;
+		}
+	}
+
 	if (*str)
 		free_string(*str);
 	*str = s;
@@ -235,6 +287,7 @@ static bool VSFile_ReadString(struct string **str)
 }
 
 HLL_LIBRARY(VSFile,
+	    HLL_EXPORT(_ModuleFini, VSFile_ModuleFini),
 	    HLL_EXPORT(OpenForWrite, VSFile_OpenForWrite),
 	    HLL_EXPORT(OpenForRead, VSFile_OpenForRead),
 	    HLL_EXPORT(Close, VSFile_Close),

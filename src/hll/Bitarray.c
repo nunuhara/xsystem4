@@ -146,7 +146,16 @@ static void Bitarray_FreeAll(void)
 	}
 }
 
+static void Bitarray_ModuleFini(void)
+{
+	Bitarray_FreeAll();
+	free(arrays);
+	arrays = NULL;
+	nr_arrays = 0;
+}
+
 HLL_LIBRARY(Bitarray,
+			HLL_EXPORT(_ModuleFini, Bitarray_ModuleFini),
 			HLL_EXPORT(Create, Bitarray_Create),
 			// HLL_EXPORT(Resize, Bitarray_Resize),
 			HLL_EXPORT(Numof, Bitarray_Numof),

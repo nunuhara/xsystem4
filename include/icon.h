@@ -19,8 +19,10 @@
 
 #ifdef __ANDROID__
 #define icon_init()
+#define icon_fini()
 #else
 void icon_init(void);
+void icon_fini(void);
 #endif
 
 #endif /* SYSTEM4_ICON_H */

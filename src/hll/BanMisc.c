@@ -35,8 +35,22 @@
 
 static const uint8_t md11_signature[] = { 'M', 'D', 0x01, 0x01 };
 
+static char *banmisc_resolve_path(const char *sjis_path, bool for_write)
+{
+	if (!config.game_dir)
+		return unix_path(sjis_path);
+	if (!for_write) {
+		char *path = gamedir_path_icase(sjis_path);
+		if (path)
+			return path;
+	}
+	return gamedir_path(sjis_path);
+}
+
 static int BanMisc_SaveStruct(struct page *page, struct string *file_name)
 {
+	if (!file_name)
+		return 0;
 	// serialize
 	struct iarray_writer out;
 	iarray_init_writer(&out, NULL);
@@ -63,7 +77,12 @@ static int BanMisc_SaveStruct(struct page *page, struct string *file_name)
 	mt19937_xorcode(compressed, compressed_size, MD11_ENCRYPT_KEY);
 
 	// write
-	char *path = unix_path(file_name->text);
+	char *path = banmisc_resolve_path(file_name->text, true);
+	char *path_copy = xstrdup(path);
+	char *dir = path_dirname(path_copy);
+	if (dir && dir[0])
+		mkdir_p(dir);
+	free(path_copy);
 	bool ok = file_write(path, buf, MD11_HEADER_SIZE + compressed_size);
 	if (!ok) {
 		WARNING("Failed to write file '%s': %s", display_utf0(path), strerror(errno));
@@ -115,12 +134,14 @@ static struct page *load_md11(int struct_type, uint8_t *buf, size_t len)
 
 static int BanMisc_LoadStruct(struct page **_page, struct string *file_name)
 {
+	if (!file_name)
+		return 0;
 	struct page *page = *_page;
 	if (page->type != STRUCT_PAGE) {
 		VM_ERROR("BanMisc.LoadStruct of non-struct");
 	}
 
-	char *path = unix_path(file_name->text);
+	char *path = banmisc_resolve_path(file_name->text, false);
 	size_t len;
 	uint8_t *buf = file_read(path, &len);
 	free(path);

@@ -37,6 +37,8 @@ enum draw_method {
 typedef struct texture {
 	GLuint handle;
 	int w, h;
+	bool opaque;
+	uint32_t ctx_gen;
 } Texture;
 
 struct gfx_render_job;
@@ -47,8 +49,8 @@ typedef struct shader {
 	GLuint world_transform;
 	GLuint view_transform;
 	GLuint texture;
-	GLuint vertex_pos;
-	GLuint vertex_uv;
+	GLint vertex_pos;
+	GLint vertex_uv;
 	void (*prepare)(struct gfx_render_job *, void *);
 } Shader;
 
@@ -74,6 +76,7 @@ struct gfx_vertex {
 
 int gfx_init(void);
 void gfx_fini(void);
+void gfx_android_fini(void);
 
 Texture *gfx_main_surface(void);
 void gfx_set_window_logical_size(int w, int h);
@@ -82,6 +85,11 @@ bool gfx_is_fullscreen(void);
 void gfx_toggle_fullscreen(void);
 void gfx_update_screen_scale(void);
 void gfx_set_wait_vsync(bool wait);
+void gfx_reset_frame_pacer(void);
+void gfx_android_on_background(void);
+void gfx_android_on_foreground(void);
+void gfx_android_delay(Uint32 ms);
+bool gfx_android_consume_lifecycle_event(Uint32 event_type);
 float gfx_get_frame_rate(void);
 
 void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const char *fragment_shader_path);
@@ -92,6 +100,20 @@ void gfx_set_clear_color(int r, int g, int b, int a);
 void gfx_set_view_offset(int x, int y);
 void gfx_clear(void);
 void gfx_swap(void);
+void gfx_mark_frame_presented(void);
+void gfx_clear_frame_presented(void);
+bool gfx_consume_frame_presented(void);
+typedef void (*gfx_reset_callback)(void *user);
+void gfx_register_reset_callback(gfx_reset_callback cb, void *user);
+void gfx_unregister_reset_callback(gfx_reset_callback cb, void *user);
+GLuint gfx_remap_texture_handle(GLuint old_handle);
+bool gfx_remap_texture(struct texture *t);
+void gfx_prepare_context_backup(void);
+void gfx_release_context_backup(void);
+bool gfx_release_context_backup_if_ready(void);
+bool gfx_recover_gl_if_needed(void);
+void gfx_restore_window(void);
+void gfx_trace_resume(const char *phase);
 void gfx_set_view(struct texture *t);
 void gfx_reset_view(void);
 void gfx_prepare_job(struct gfx_render_job *job);
@@ -99,6 +121,7 @@ void gfx_run_job(struct gfx_render_job *job);
 void gfx_render(struct gfx_render_job *job);
 void _gfx_render_texture(struct shader *s, struct texture *t, Rectangle *r, void *data);
 void gfx_render_texture(struct texture *t, Rectangle *r);
+void _gfx_render_quadrilateral(struct shader *s, struct texture *t, struct gfx_vertex vertices[4], void *data);
 void gfx_render_quadrilateral(struct texture *t, struct gfx_vertex vertices[4]);
 
 // texture management
@@ -114,6 +137,9 @@ void gfx_copy_main_surface(struct texture *dst);
 void gfx_delete_texture(struct texture *t);
 GLuint gfx_set_framebuffer(GLenum target, Texture *t, int x, int y, int w, int h);
 void gfx_reset_framebuffer(GLenum target, GLuint fbo);
+void gfx_begin_draw_target(Texture *t);
+void gfx_end_draw_target(void);
+void gfx_flush_draw_target(Texture *t);
 SDL_Color gfx_get_pixel(Texture *t, int x, int y);
 void *gfx_get_pixels(Texture *t);
 int gfx_save_texture(Texture *t, const char *path, enum cg_type);
@@ -151,6 +177,7 @@ void gfx_fill_amap_over_border(Texture *dst, int x, int y, int w, int h, int alp
 void gfx_fill_amap_under_border(Texture *dst, int x, int y, int w, int h, int alpha, int border);
 void gfx_fill_amap_gradation_ud(Texture *dst, int x, int y, int w, int h, int up_a, int down_a);
 void gfx_fill_screen(Texture *dst, int x, int y, int w, int h, int r, int g, int b);
+void gfx_fill_add(Texture *dst, int x, int y, int w, int h, int r, int g, int b);
 void gfx_fill_multiply(Texture *dst, int x, int y, int w, int h, int r, int g, int b);
 void gfx_satur_dp_dpxsa(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_screen_da_daxsa(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
@@ -171,6 +198,7 @@ void gfx_copy_rot_zoom2(Texture *dst, float cx, float cy, Texture *src, float sc
 void gfx_copy_reverse_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_copy_reverse_UD(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
+void gfx_copy_reverse_amap_UD(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_copy_reverse_LR_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_copy_rotate_y(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag);
 void gfx_copy_rotate_y_use_amap(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag);
@@ -180,6 +208,7 @@ void gfx_copy_width_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int
 void gfx_copy_height_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur);
 void gfx_copy_amap_width_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur);
 void gfx_copy_amap_height_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur);
+void gfx_blur_rgb_to_fresh(Texture *dst, Texture *src, int blur, bool vertical);
 void gfx_copy_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_fill_with_alpha(Texture *dst, int x, int y, int w, int h, int r, int g, int b, int a);
 void gfx_copy_stretch_with_alpha_map(Texture *dst, int dx, int dy, int dw, int dh, Texture *src, int sx, int sy, int sw, int sh);
@@ -188,9 +217,24 @@ void gfx_copy_grayscale_with_alpha_map(Texture *dst, int dx, int dy, Texture *sr
 void gfx_copy_grayscale_reverse_LR_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
 void gfx_draw_line(Texture *dst, int x0, int y0, int x1, int y1, int r, int g, int b);
 void gfx_draw_line_to_amap(Texture *dst, int x0, int y0, int x1, int y1, int a);
+enum glyph_blend_mode {
+	GLYPH_COPY,
+	GLYPH_BLEND,
+	GLYPH_BLEND_ALPHA,
+	GLYPH_ALPHA_ONLY,
+};
+void gfx_draw_glyph_mode(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width, enum glyph_blend_mode mode);
 void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width, bool blend);
 void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, Rectangle glyph_pos, SDL_Color color, float scale_x);
 void gfx_draw_glyph_to_amap(Texture *dst, float dx, int dy, Texture *glyph, Rectangle glyph_pos, float scale_x);
 void gfx_draw_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertices[4]);
+void gfx_blend_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertices[4], int a);
+void gfx_blend_amap_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertices[4]);
+void gfx_blend_amap_alpha_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertices[4], int a);
+
+void gfx_blend_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h);
+void gfx_copy_stretch_blend_straight_alpha(Texture *dst, int dx, int dy, int dw, int dh,
+		Texture *src, int sx, int sy, int sw, int sh);
+void gfx_draw_shape_mask(Texture *dst, int dx, int dy, int w, int h, const uint8_t *cov, SDL_Color color, int mode);
 
 #endif /* SYSTEM4_SDL_CORE_H */

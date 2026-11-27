@@ -28,6 +28,7 @@
 #include "system4/zlib.h"
 
 #include "hll.h"
+#include "savedata.h"
 #include "xsystem4.h"
 
 /*
@@ -75,11 +76,25 @@ static int compare_string(const void *a, const void *b) {
     return strcmp(*(const char **)a, *(const char **)b);
 }
 
+static void free_register_entries(struct passregister *reg)
+{
+	free(reg->integers);
+	for (size_t i = 0; i < reg->nr_strings; i++) {
+		free(reg->strings[i]);
+	}
+	free(reg->strings);
+	reg->integers = NULL;
+	reg->strings = NULL;
+	reg->nr_integers = 0;
+	reg->nr_strings = 0;
+}
+
 static void write_register(unsigned handle)
 {
 	struct passregister *reg = registers + handle;
 
-	FILE *f = file_open_utf8(reg->filename, "wb");
+	char *tmp_path = NULL;
+	FILE *f = atomic_save_open(reg->filename, "wb", &tmp_path);
 	if (!f) {
 		WARNING("Failed to open PassRegister file: %s: %s", display_utf0(reg->filename), strerror(errno));
 		return;
@@ -103,35 +118,34 @@ static void write_register(unsigned handle)
 			raw_size, ZLIB_BEST_COMPRESSION);
 	if (!compressed_size) {
 		WARNING("Failed to compress PassRegister file: %s", display_utf0(reg->filename));
-		goto end;
+		free(compressed);
+		free(buf.buf);
+		atomic_save_abort(f, tmp_path);
+		return;
 	}
 	uint8_t header[PSR_HEADER_SIZE] = {'P', 'S', 'R', 0, 0, 0, 0, 0};
 	LittleEndian_putDW(header, 8, raw_size);
 	LittleEndian_putDW(header, 12, compressed_size);
-	if (fwrite(header, sizeof(header), 1, f) != 1 || fwrite(compressed, compressed_size, 1, f) != 1) {
-		WARNING("Failed to write PassRegister file: %s: %s", display_utf0(reg->filename), strerror(errno));
-		goto end;
-	}
-end:
+	bool write_ok = fwrite(header, sizeof(header), 1, f) == 1
+		&& fwrite(compressed, compressed_size, 1, f) == 1;
 	free(compressed);
 	free(buf.buf);
-	if (fclose(f)) {
+	if (!write_ok) {
+		WARNING("Failed to write PassRegister file: %s: %s", display_utf0(reg->filename), strerror(errno));
+		atomic_save_abort(f, tmp_path);
+		return;
+	}
+	if (!atomic_save_commit(f, reg->filename, tmp_path, false)) {
 		WARNING("Error writing to save file: %s: %s", display_utf0(reg->filename), strerror(errno));
-		goto end;
 	}
 }
-
-static cJSON *_type_check(const char *file, const char *func, int line, int type, cJSON *json)
-{
-	if (!json || json->type != type)
-		_vm_error("*ERROR*(%s:%s:%d): Invalid PassRegister save file", file, func, line);
-	return json;
-}
-
-#define type_check(type, json) _type_check(__FILE__, __func__, __LINE__, type, json)
 
 static void read_register_psr(struct passregister *reg, uint8_t *data, size_t data_len)
 {
+	if (data_len < PSR_HEADER_SIZE) {
+		WARNING("Broken PassRegister file");
+		return;
+	}
 	int version = LittleEndian_getDW(data, 4);
 	if (version != 0) {
 		WARNING("Unexpected PassRegister version %d", version);
@@ -139,27 +153,58 @@ static void read_register_psr(struct passregister *reg, uint8_t *data, size_t da
 	}
 	size_t raw_size = LittleEndian_getDW(data, 8);
 	size_t compressed_size = LittleEndian_getDW(data, 12);
-	if (PSR_HEADER_SIZE + compressed_size != data_len) {
+	if (compressed_size > data_len - PSR_HEADER_SIZE || PSR_HEADER_SIZE + compressed_size != data_len) {
 		WARNING("Broken PassRegister file");
 		return;
 	}
-	uint8_t *raw = xmalloc(raw_size);
+	uint8_t *raw = xmalloc(raw_size > 0 ? raw_size : 1);
 	if (!zlib_decompress_exact(raw, raw_size, data + PSR_HEADER_SIZE, compressed_size)) {
 		WARNING("PassRegister: failed to uncompress");
+		free(raw);
+		return;
+	}
+	if (raw_size < 8) {
+		WARNING("Broken PassRegister payload");
 		free(raw);
 		return;
 	}
 
 	struct buffer buf;
 	buffer_init(&buf, raw, raw_size);
-	reg->nr_integers = buffer_read_int32(&buf);
-	reg->integers = xcalloc(reg->nr_integers, sizeof(int));
+	uint32_t nr_ints = (uint32_t)buffer_read_int32(&buf);
+	if ((size_t)nr_ints > (raw_size - buf.index) / 4) {
+		WARNING("Broken PassRegister integer count");
+		free(raw);
+		return;
+	}
+	reg->nr_integers = nr_ints;
+	reg->integers = reg->nr_integers ? xcalloc(reg->nr_integers, sizeof(int)) : NULL;
 	for (size_t i = 0; i < reg->nr_integers; i++) {
 		reg->integers[i] = buffer_read_int32(&buf);
 	}
-	reg->nr_strings = buffer_read_int32(&buf);
-	reg->strings = xcalloc(reg->nr_strings, sizeof(char*));
+	if (buf.index + 4 > raw_size) {
+		WARNING("Broken PassRegister string section");
+		free_register_entries(reg);
+		free(raw);
+		return;
+	}
+	uint32_t nr_strs = (uint32_t)buffer_read_int32(&buf);
+	if ((size_t)nr_strs > raw_size - buf.index) {
+		WARNING("Broken PassRegister string count");
+		free_register_entries(reg);
+		free(raw);
+		return;
+	}
+	reg->nr_strings = nr_strs;
+	reg->strings = reg->nr_strings ? xcalloc(reg->nr_strings, sizeof(char*)) : NULL;
 	for (size_t i = 0; i < reg->nr_strings; i++) {
+		if (buf.index >= raw_size || !memchr(buf.buf + buf.index, 0, raw_size - buf.index)) {
+			WARNING("Broken PassRegister string entry");
+			reg->nr_strings = i;
+			free_register_entries(reg);
+			free(raw);
+			return;
+		}
 		reg->strings[i] = strdup(buffer_skip_string(&buf));
 	}
 
@@ -169,20 +214,43 @@ static void read_register_psr(struct passregister *reg, uint8_t *data, size_t da
 static void read_register_json(struct passregister *reg, char *data)
 {
 	// parse/validate JSON data
-	cJSON *obj = type_check(cJSON_Object, cJSON_Parse(data));
-	cJSON *integers = type_check(cJSON_Array, cJSON_GetObjectItem(obj, "integers"));
-	cJSON *strings = type_check(cJSON_Array, cJSON_GetObjectItem(obj, "strings"));
+	cJSON *obj = cJSON_Parse(data);
+	if (!cJSON_IsObject(obj)) {
+		WARNING("Broken PassRegister JSON file");
+		cJSON_Delete(obj);
+		return;
+	}
+	cJSON *integers = cJSON_GetObjectItem(obj, "integers");
+	cJSON *strings = cJSON_GetObjectItem(obj, "strings");
+	if (!cJSON_IsArray(integers) || !cJSON_IsArray(strings)) {
+		WARNING("Broken PassRegister JSON structure");
+		cJSON_Delete(obj);
+		return;
+	}
 
 	reg->nr_integers = cJSON_GetArraySize(integers);
-	reg->integers = xcalloc(reg->nr_integers, sizeof(int));
+	reg->integers = reg->nr_integers ? xcalloc(reg->nr_integers, sizeof(int)) : NULL;
 	for (size_t i = 0; i < reg->nr_integers; i++) {
-		cJSON *value = type_check(cJSON_Number, cJSON_GetArrayItem(integers, i));
+		cJSON *value = cJSON_GetArrayItem(integers, i);
+		if (!cJSON_IsNumber(value)) {
+			WARNING("Broken PassRegister JSON integer");
+			free_register_entries(reg);
+			cJSON_Delete(obj);
+			return;
+		}
 		reg->integers[i] = value->valueint;
 	}
 	reg->nr_strings = cJSON_GetArraySize(strings);
-	reg->strings = xcalloc(reg->nr_strings, sizeof(char*));
+	reg->strings = reg->nr_strings ? xcalloc(reg->nr_strings, sizeof(char*)) : NULL;
 	for (size_t i = 0; i < reg->nr_strings; i++) {
-		cJSON *value = type_check(cJSON_String, cJSON_GetArrayItem(strings, i));
+		cJSON *value = cJSON_GetArrayItem(strings, i);
+		if (!cJSON_IsString(value)) {
+			WARNING("Broken PassRegister JSON string");
+			reg->nr_strings = i;
+			free_register_entries(reg);
+			cJSON_Delete(obj);
+			return;
+		}
 		reg->strings[i] = strdup(cJSON_GetStringValue(value));
 	}
 
@@ -192,6 +260,7 @@ static void read_register_json(struct passregister *reg, char *data)
 static void read_register(unsigned handle, const char *filename)
 {
 	struct passregister *reg = registers + handle;
+	free_register_entries(reg);
 	free(reg->filename);
 	reg->filename = savedir_path(filename);
 
@@ -199,7 +268,7 @@ static void read_register(unsigned handle, const char *filename)
 	char *data = file_read(reg->filename, &data_len);
 	if (!data)
 		return;
-	if (!memcmp(data, "PSR", 4)) {
+	if (data_len >= 4 && !memcmp(data, "PSR", 4)) {
 		read_register_psr(reg, (uint8_t *)data, data_len);
 	} else {
 		// JSON format created by old versions of xsystem4
@@ -208,8 +277,10 @@ static void read_register(unsigned handle, const char *filename)
 	free(data);
 
 	// Make sure the arrays are sorted.
-	qsort(reg->integers, reg->nr_integers, sizeof(int), compare_int);
-	qsort(reg->strings, reg->nr_strings, sizeof(char*), compare_string);
+	if (reg->nr_integers > 1)
+		qsort(reg->integers, reg->nr_integers, sizeof(int), compare_int);
+	if (reg->nr_strings > 1)
+		qsort(reg->strings, reg->nr_strings, sizeof(char*), compare_string);
 }
 
 static bool PassRegister_SetFileName(int handle, struct string *filename)
@@ -227,6 +298,8 @@ static bool PassRegister_SetFileName(int handle, struct string *filename)
 static int *find_number(int handle, int n)
 {
 	struct passregister *reg = registers + handle;
+	if (!reg->nr_integers)
+		return NULL;
 	return bsearch(&n, reg->integers, reg->nr_integers, sizeof(int), compare_int);
 }
 
@@ -249,7 +322,16 @@ static bool PassRegister_RegistNumber(int handle, int n)
 static char **find_text(int handle, const char *text)
 {
 	struct passregister *reg = registers + handle;
-	return bsearch(&text, reg->strings, reg->nr_strings, sizeof(char*), compare_string);
+	if (!reg->nr_strings)
+		return NULL;
+	char **exact = bsearch(&text, reg->strings, reg->nr_strings, sizeof(char*), compare_string);
+	if (exact)
+		return exact;
+	for (size_t i = 0; i < reg->nr_strings; i++) {
+		if (save_symbols_equal(reg->strings[i], text))
+			return &reg->strings[i];
+	}
+	return NULL;
 }
 
 static bool PassRegister_RegistText(int handle, struct string *text)
@@ -293,6 +375,7 @@ static bool PassRegister_UnregistText(int handle, struct string *text)
 	char **found = find_text(handle, text->text);
 	if (found) {
 		int i = found - reg->strings;
+		free(*found);
 		reg->nr_strings--;
 		memmove(found, found + 1, (reg->nr_strings - i) * sizeof(char*));
 		write_register(handle);
@@ -309,12 +392,7 @@ static bool PassRegister_UnregistAll(int handle)
 	if (!reg->nr_integers && !reg->nr_strings)
 		return true;
 
-	free(reg->integers);
-	free(reg->strings);
-	reg->integers = NULL;
-	reg->strings = NULL;
-	reg->nr_integers = 0;
-	reg->nr_strings = 0;
+	free_register_entries(reg);
 	write_register(handle);
 	return true;
 }
@@ -337,11 +415,7 @@ static void PassRegister_fini(void)
 {
 	for (size_t i = 0; i < nr_registers; i++) {
 		free(registers[i].filename);
-		free(registers[i].integers);
-		for (size_t j = 0; j < registers[i].nr_strings; j++) {
-			free(registers[i].strings[j]);
-		}
-		free(registers[i].strings);
+		free_register_entries(&registers[i]);
 	}
 	free(registers);
 	registers = NULL;

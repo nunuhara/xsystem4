@@ -17,6 +17,7 @@
 #ifndef SYSTEM4_3D_3D_INTERNAL_H
 #define SYSTEM4_3D_3D_INTERNAL_H
 
+#include <string.h>
 #include <cglm/types.h>
 
 #include "system4/archive.h"
@@ -47,6 +48,7 @@ struct model {
 	struct collider *collider;
 	vec3 aabb[2];  // axis-aligned bounding box
 	bool has_transparent_mesh;
+	uint8_t sphere_color[4];
 };
 
 struct mesh {
@@ -142,6 +144,7 @@ struct outline_renderer {
 };
 
 struct RE_renderer {
+	enum RE_plugin_version version;
 	int viewport_width;
 	int viewport_height;
 	GLuint program;
@@ -226,22 +229,30 @@ extern enum RE_plugin_version re_plugin_version;
 
 struct RE_instance *RE_create_instance_at(struct RE_plugin *plugin, int index);
 void RE_instance_update_local_transform(struct RE_instance *inst);
+bool RE_instance_is_mesh_hidden(const struct RE_instance *inst, int mesh_index);
+
+struct cg;
 
 // model.c
 
-struct model *model_load(struct archive *aar, const char *path);
+struct model *model_load(struct archive *aar, const char *path, enum RE_plugin_version version);
+void model_reset_gl(struct model *model, struct archive *aar, enum RE_plugin_version version);
 void model_free(struct model *model);
 struct model *model_create_sphere(int r, int g, int b, int a);
+GLuint RE_load_aar_texture(struct archive *aar, const char *dir, const char *name, const char **exts, int nr_exts, bool *has_alpha_out);
 
 struct motion *motion_load(const char *name, struct RE_instance *instance, struct archive *aar);
 void motion_free(struct motion *motion);
 
+const char *RE_path_basename(const char *path);
 struct archive_data *RE_get_aar_entry(struct archive *aar, const char *dir, const char *name, const char *ext);
 
 // renderer.c
 
-struct RE_renderer *RE_renderer_new(void);
+GLuint RE_create_texture_from_cg(struct cg *cg, GLint wrap, bool *has_alpha_out);
+struct RE_renderer *RE_renderer_new(enum RE_plugin_version version);
 void RE_renderer_free(struct RE_renderer *r);
+void RE_renderer_reload_billboard_textures_by_path(struct RE_renderer *r, struct archive *aar);
 void RE_renderer_set_viewport_size(struct RE_renderer *r, int width, int height);
 bool RE_renderer_load_billboard_texture_by_no(struct RE_renderer *r, int cg_no);
 struct billboard_texture *RE_renderer_load_billboard_texture_by_path(struct RE_renderer *r, struct archive *aar, const char *path);
@@ -410,7 +421,8 @@ struct particle_instance {
 	float pitch_angle;
 };
 
-struct pae *pae_load(struct archive *aar, const char *path);
+struct pae *pae_load(struct archive *aar, const char *path, enum RE_plugin_version version);
+void pae_reset_gl(struct pae *pae, struct archive *aar, enum RE_plugin_version version);
 void pae_free(struct pae *pae);
 void pae_calc_frame_range(struct pae *pae, struct motion *motion);
 float pae_object_calc_alpha(struct pae_object *po, struct particle_instance *pi, float frame);
@@ -542,6 +554,7 @@ struct s3de_object {
 	float x_revolution_distance[2], y_revolution_distance[2], z_revolution_distance[2];
 
 	int child_frame;
+	float child_frame_random;
 	float texture_anime_frame;
 
 	struct s3de_range alpha_fade_in_frame, alpha_fade_out_frame;
@@ -579,6 +592,7 @@ struct s3de {
 };
 
 struct s3de *s3de_load(struct archive *aar, const char *path);
+void s3de_reset_gl(struct s3de *s, struct archive *aar);
 void s3de_free(struct s3de *s);
 
 struct s3de_particle {
@@ -806,7 +820,24 @@ void amt_free(struct amt *amt);
 struct amt_material *amt_find_material(struct amt *amt, const char *name);
 
 void opr_load(uint8_t *data, size_t size, struct pol *pol);
+void txtex_opr_load(uint8_t *data, size_t size, struct pol *pol);
 void txa_load(uint8_t *data, size_t size, struct mot *mot);
+
+struct ex;
+struct ex_tree;
+struct ex_value;
+static inline bool RE_is_exf(const uint8_t *buf, size_t size)
+{
+	return buf && size >= 12 && !memcmp(buf, "HEAD", 4) && !memcmp(buf + 8, "EXTF", 4);
+}
+struct ex_value *RE_ex_block(struct ex *ex, const char *utf8_key);
+struct ex_tree *RE_ex_child(const struct ex_tree *tree, const char *utf8_key);
+struct ex_value *RE_ex_field(const struct ex_tree *tree, const char *utf8_key);
+bool RE_ex_int(const struct ex_tree *tree, const char *utf8_key, int *out);
+bool RE_ex_float(const struct ex_tree *tree, const char *utf8_key, float *out);
+bool RE_ex_vec2(const struct ex_tree *tree, const char *utf8_key, vec2 out);
+bool RE_ex_vec3(const struct ex_tree *tree, const char *utf8_key, vec3 out);
+const char *RE_ex_sjis_str(const struct ex_tree *tree, const char *utf8_key);
 
 void lit_reset(float *out);
 bool lit_parse(uint8_t *data, size_t size, float *out);
@@ -843,6 +874,7 @@ struct mpr_modulation {
 };
 
 struct mpr *mpr_load(uint8_t *data, size_t size, struct model *model);
+struct mpr *mpr_load_txtex(uint8_t *data, size_t size, struct model *model, const char *motion_name);
 void mpr_free(struct mpr *mpr);
 void mpr_evaluate_object(const struct mpr *mpr, float frame,
 		struct RE_instance *inst, struct mpr_modulation *out);
@@ -863,10 +895,12 @@ struct collider {
 	uint32_t nr_edges;
 	vec3 *path_points;
 	uint32_t nr_path_points;
+	bool is_navmesh;
 };
 
 struct collider *collider_create(struct pol_mesh *mesh);
 struct collider *collider_create_raycast(struct pol_mesh **meshes, int nr_meshes);
+struct collider *collider_create_from_plugin(struct RE_plugin *plugin);
 void collider_free(struct collider *collider);
 bool collider_height(struct collider *collider, vec2 xz, float *h_out);
 bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out);

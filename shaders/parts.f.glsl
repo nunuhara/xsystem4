@@ -16,8 +16,6 @@
 
 uniform sampler2D tex;
 uniform float blend_rate;
-uniform vec2 bot_left;
-uniform vec2 top_right;
 uniform vec3 add_color;
 uniform vec3 multiply_color;
 uniform int draw_filter;
@@ -32,24 +30,17 @@ out vec4 frag_color;
 const int DRAW_FILTER_MULTIPLY = 2;
 const int DRAW_FILTER_SCREEN = 3;
 
-bool inside_rect(vec2 p, vec2 bl, vec2 tr) {
-	return all(greaterThanEqual(p, bl)) && all(lessThan(p, tr));
-}
-
 void main() {
-	vec2 size = vec2(textureSize(tex, 0));
-	if (!inside_rect(tex_coord, bot_left / size, top_right / size))
-		discard;
+	float clip_alpha = 1.0;
+	if (use_clipper != 0) {
+		if (clip_coord.x < 0.0 || clip_coord.y < 0.0 || clip_coord.x >= 1.0 || clip_coord.y >= 1.0)
+			discard;
+		clip_alpha = texture(clipper_tex, clip_coord).a;
+	}
 
 	vec4 tex_color = texture(tex, tex_coord);
-	vec3 mod_color = (tex_color.rgb + add_color) * multiply_color;
-	float alpha = tex_color.a * blend_rate;
-
-	if (use_clipper != 0) {
-		if (!inside_rect(clip_coord, vec2(0.0), vec2(1.0)))
-			discard;
-		alpha *= texture(clipper_tex, clip_coord).a;
-	}
+	vec3 mod_color = clamp(tex_color.rgb + add_color, 0.0, 1.0) * multiply_color;
+	float alpha = tex_color.a * blend_rate * clip_alpha;
 
 	if (draw_filter == DRAW_FILTER_MULTIPLY) {
 		// result = mix(dst, mod_color*dst, alpha), used with (GL_DST_COLOR, GL_ZERO)

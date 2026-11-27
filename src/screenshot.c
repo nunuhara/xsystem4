@@ -98,7 +98,15 @@ void screenshot_save(void)
 }
 
 #else
-#ifdef __ANDROID__
+#if defined(__SWITCH__)
+#include "hub/runtime_menu_engines.h"
+
+void screenshot_save(void)
+{
+	switch_menu4_screenshot();
+}
+
+#elif defined(__ANDROID__)
 
 void screenshot_save(void)
 {
@@ -135,16 +143,42 @@ static bool have_zenity(void)
 	return true;
 }
 
+static char *shell_quote_single(const char *s)
+{
+	size_t n = 2;
+	for (const char *p = s; *p; p++)
+		n += (*p == '\'') ? 4 : 1;
+	char *out = xmalloc(n + 1);
+	char *dst = out;
+	*dst++ = '\'';
+	for (const char *p = s; *p; p++) {
+		if (*p == '\'') {
+			memcpy(dst, "'\\''", 4);
+			dst += 4;
+		} else {
+			*dst++ = *p;
+		}
+	}
+	*dst++ = '\'';
+	*dst = '\0';
+	return out;
+}
+
 static char *zenity_get_filename(const char *dflt)
 {
-	char buf[PATH_MAX + 64];
-	snprintf(buf, sizeof(buf), "zenity --file-selection --filename=\"%s\" --save", dflt);
+	char *quoted = shell_quote_single(dflt ? dflt : "");
+	size_t cmd_len = strlen(quoted) + 64;
+	char *cmd = xmalloc(cmd_len);
+	snprintf(cmd, cmd_len, "zenity --file-selection --filename=%s --save", quoted);
+	free(quoted);
 
-	FILE *fp = popen(buf, "r");
+	FILE *fp = popen(cmd, "r");
+	free(cmd);
 	if (!fp)
 		return NULL;
 
 	// read filename
+	char buf[PATH_MAX + 64];
 	char *filename = fgets(buf, sizeof(buf), fp);
 	if (filename && *filename) {
 		filename = xstrdup(filename);
@@ -198,5 +232,5 @@ void screenshot_save(void)
 	free(name);
 }
 
-#endif // __ANDROID__
+#endif // __ANDROID__ || __SWITCH__
 #endif // _WIN32

@@ -21,6 +21,9 @@
 
 #include "system4.h"
 #include "system4/buffer.h"
+#include "system4/ex.h"
+#include "system4/string.h"
+#include "system4/utfsjis.h"
 
 #include "3d_internal.h"
 
@@ -83,6 +86,7 @@ static void parse_textures(struct buffer *r, int pol_version, struct pol_materia
 			uv_tiling[1] = buffer_read_float(r);
 		}
 		if ((unsigned)type < MAX_TEXTURE_TYPE) {
+			free(m->textures[type]);
 			m->textures[type] = filename;
 			if (type == COLOR_MAP)
 				glm_vec2_copy(uv_tiling, m->uv_tiling);
@@ -211,7 +215,7 @@ static void parse_triangle(struct buffer *r, struct pol_mesh *mesh, int triangle
 	read_direction(r, t->normals[1]);
 	read_direction(r, t->normals[2]);
 	t->material_group_index = buffer_read_int32(r);
-	if (t->material_group_index >= mg->nr_children)
+	if (!mg || t->material_group_index >= mg->nr_children)
 		t->material_group_index = 0;
 }
 
@@ -245,8 +249,8 @@ static struct pol_mesh *parse_mesh(struct buffer *r, const struct pol *pol)
 	mesh->name = read_cstring(r);
 	mesh->flags = parse_mesh_attributes(mesh->name);
 	mesh->material = buffer_read_int32(r);
-	if (mesh->material >= pol->nr_materials) {
-		WARNING("material index out of range (%d >= %d)", mesh->material, pol->nr_materials);
+	if (pol->nr_materials == 0 || mesh->material >= pol->nr_materials) {
+		WARNING("material index out of range (%d >= %u)", mesh->material, pol->nr_materials);
 		mesh->material = 0;
 	}
 
@@ -323,8 +327,9 @@ static struct pol_mesh *parse_mesh(struct buffer *r, const struct pol *pol)
 
 	mesh->nr_triangles = buffer_read_int32(r);
 	mesh->triangles = xcalloc(mesh->nr_triangles, sizeof(struct pol_triangle));
+	const struct pol_material_group *mg = pol->nr_materials > 0 ? &pol->materials[mesh->material] : NULL;
 	for (uint32_t i = 0; i < mesh->nr_triangles; i++) {
-		parse_triangle(r, mesh, i, &pol->materials[mesh->material]);
+		parse_triangle(r, mesh, i, mg);
 	}
 
 	if (pol->version == 1) {
@@ -371,6 +376,8 @@ static void destroy_bone(struct pol_bone *bone)
 
 struct pol *pol_parse(uint8_t *data, size_t size)
 {
+	if (!data || size < 4)
+		return NULL;
 	struct buffer r;
 	buffer_init(&r, data, size);
 	if (memcmp(buffer_strdata(&r), "POL\0", 4))
@@ -452,6 +459,8 @@ struct pol_bone *pol_find_bone(struct pol *pol, uint32_t id)
 
 struct mot *mot_parse(uint8_t *data, size_t size, const char *name)
 {
+	if (!data || size < 4)
+		return NULL;
 	struct buffer r;
 	buffer_init(&r, data, size);
 	if (memcmp(buffer_strdata(&r), "MOT\0", 4))
@@ -503,6 +512,8 @@ void mot_free(struct mot *mot)
 
 struct amt *amt_parse(uint8_t *data, size_t size)
 {
+	if (!data || size < 4)
+		return NULL;
 	struct buffer r;
 	buffer_init(&r, data, size);
 	if (memcmp(buffer_strdata(&r), "AMT\0", 4))
@@ -681,6 +692,204 @@ void opr_load(uint8_t *data, size_t size, struct pol *pol)
 		}
 	}
 	free(selected);
+}
+
+struct ex_value *RE_ex_block(struct ex *ex, const char *utf8_key)
+{
+	if (!ex || !utf8_key)
+		return NULL;
+	char *sjis = utf2cjk(utf8_key, 0, false);
+	struct ex_value *v = ex_get(ex, sjis);
+	free(sjis);
+	if (!v && sys4_text_is_gbk) {
+		char *gbk = utf2cjk(utf8_key, 0, true);
+		v = ex_get(ex, gbk);
+		free(gbk);
+	}
+	return v;
+}
+
+struct ex_tree *RE_ex_child(const struct ex_tree *tree, const char *utf8_key)
+{
+	if (!tree || tree->is_leaf || !utf8_key)
+		return NULL;
+	char *sjis = utf2cjk(utf8_key, 0, false);
+	for (unsigned i = 0; i < tree->nr_children; i++) {
+		if (tree->children[i].name && !strcmp(tree->children[i].name->text, sjis)) {
+			free(sjis);
+			return &tree->children[i];
+		}
+	}
+	free(sjis);
+	if (sys4_text_is_gbk) {
+		char *gbk = utf2cjk(utf8_key, 0, true);
+		for (unsigned i = 0; i < tree->nr_children; i++) {
+			if (tree->children[i].name && !strcmp(tree->children[i].name->text, gbk)) {
+				free(gbk);
+				return &tree->children[i];
+			}
+		}
+		free(gbk);
+	}
+	return NULL;
+}
+
+struct ex_value *RE_ex_field(const struct ex_tree *tree, const char *utf8_key)
+{
+	struct ex_tree *c = RE_ex_child(tree, utf8_key);
+	return (c && c->is_leaf) ? &c->leaf.value : NULL;
+}
+
+bool RE_ex_int(const struct ex_tree *tree, const char *utf8_key, int *out)
+{
+	struct ex_value *v = RE_ex_field(tree, utf8_key);
+	if (!v)
+		return false;
+	if (v->type == EX_INT) {
+		*out = v->i;
+		return true;
+	}
+	if (v->type == EX_FLOAT) {
+		*out = (int)v->f;
+		return true;
+	}
+	return false;
+}
+
+bool RE_ex_float(const struct ex_tree *tree, const char *utf8_key, float *out)
+{
+	struct ex_value *v = RE_ex_field(tree, utf8_key);
+	if (!v)
+		return false;
+	if (v->type == EX_FLOAT) {
+		*out = v->f;
+		return true;
+	}
+	if (v->type == EX_INT) {
+		*out = (float)v->i;
+		return true;
+	}
+	return false;
+}
+
+static bool ex_val_to_float(const struct ex_value *v, float *out)
+{
+	if (!v)
+		return false;
+	if (v->type == EX_FLOAT) {
+		*out = v->f;
+		return true;
+	}
+	if (v->type == EX_INT) {
+		*out = (float)v->i;
+		return true;
+	}
+	return false;
+}
+
+bool RE_ex_vec2(const struct ex_tree *tree, const char *utf8_key, vec2 out)
+{
+	struct ex_value *v = RE_ex_field(tree, utf8_key);
+	if (!v || v->type != EX_LIST || v->list->nr_items < 2)
+		return false;
+	float f0, f1;
+	if (!ex_val_to_float(ex_list_get(v->list, 0), &f0) ||
+	    !ex_val_to_float(ex_list_get(v->list, 1), &f1))
+		return false;
+	out[0] = f0;
+	out[1] = f1;
+	return true;
+}
+
+bool RE_ex_vec3(const struct ex_tree *tree, const char *utf8_key, vec3 out)
+{
+	struct ex_value *v = RE_ex_field(tree, utf8_key);
+	if (!v || v->type != EX_LIST || v->list->nr_items < 3)
+		return false;
+	float f0, f1, f2;
+	if (!ex_val_to_float(ex_list_get(v->list, 0), &f0) ||
+	    !ex_val_to_float(ex_list_get(v->list, 1), &f1) ||
+	    !ex_val_to_float(ex_list_get(v->list, 2), &f2))
+		return false;
+	out[0] = f0;
+	out[1] = f1;
+	out[2] = f2;
+	return true;
+}
+
+const char *RE_ex_sjis_str(const struct ex_tree *tree, const char *utf8_key)
+{
+	struct ex_value *v = RE_ex_field(tree, utf8_key);
+	return (v && v->type == EX_STRING && v->s) ? v->s->text : NULL;
+}
+
+void txtex_opr_load(uint8_t *data, size_t size, struct pol *pol)
+{
+	if (!RE_is_exf(data, size))
+		return;
+	struct ex *ex = ex_read(data, size);
+	if (!ex)
+		return;
+	struct ex_value *meshes_v = RE_ex_block(ex, "メッシュ追加データ");
+	if (!meshes_v || meshes_v->type != EX_TREE || meshes_v->tree->is_leaf) {
+		ex_free(ex);
+		return;
+	}
+	char *add_sjis = utf2cjk("加算合成", 0, false);
+	char *add2_sjis = utf2cjk("加算", 0, false);
+	char *add_gbk = sys4_text_is_gbk ? utf2cjk("加算合成", 0, true) : NULL;
+	char *add2_gbk = sys4_text_is_gbk ? utf2cjk("加算", 0, true) : NULL;
+	for (unsigned c = 0; c < meshes_v->tree->nr_children; c++) {
+		struct ex_tree *mn = &meshes_v->tree->children[c];
+		if (!mn->name || mn->is_leaf)
+			continue;
+		for (int i = 0; i < pol->nr_meshes; i++) {
+			struct pol_mesh *pm = pol->meshes[i];
+			if (!pm || !pm->name || strcmp(pm->name, mn->name->text) != 0)
+				continue;
+			int iv;
+			float fv;
+			if (RE_ex_int(mn, "アルファブレンディング", &iv) && iv)
+				pm->flags |= MESH_ALPHA;
+			if (RE_ex_int(mn, "ライティング", &iv) && !iv)
+				pm->flags |= MESH_NOLIGHTING;
+			if (RE_ex_int(mn, "両面レンダリング", &iv) && iv)
+				pm->flags |= MESH_BOTH;
+			if (RE_ex_int(mn, "Ｚバッファ書き込み", &iv) && !iv)
+				pm->flags |= MESH_NO_ZWRITE;
+			if (RE_ex_int(mn, "環境マッピング", &iv) && iv)
+				pm->flags |= MESH_ENVMAP;
+			if (RE_ex_int(mn, "シャドウ生成", &iv) && !iv)
+				pm->flags |= MESH_NOMAKESHADOW;
+			if (RE_ex_int(mn, "シャドウ描画", &iv) && !iv)
+				pm->flags |= MESH_NO_DRAWSHADOW;
+			if (RE_ex_int(mn, "スプライト抜き", &iv) && iv)
+				pm->flags |= MESH_SPRITE;
+			if (RE_ex_int(mn, "高さ当たり判定", &iv))
+				pm->flags |= iv ? MESH_HEIGHT_DETECTION : MESH_NO_HEIGHT_DETECTION;
+			if (RE_ex_int(mn, "加算合成", &iv) && iv)
+				pm->flags |= MESH_BLEND_ADDITIVE;
+			const char *bm_s = RE_ex_sjis_str(mn, "ブレンドモード");
+			int bm_i = 0;
+			if ((bm_s && (!strcmp(bm_s, add_sjis) || !strcmp(bm_s, add2_sjis) ||
+			              (add_gbk && !strcmp(bm_s, add_gbk)) || (add2_gbk && !strcmp(bm_s, add2_gbk)) ||
+			              !strcasecmp(bm_s, "Add"))) ||
+			    (RE_ex_int(mn, "ブレンドモード", &bm_i) && bm_i == 1))
+				pm->flags |= MESH_BLEND_ADDITIVE;
+			RE_ex_vec2(mn, "ＵＶ座標スクロール", pm->uv_scroll);
+			if (RE_ex_vec3(mn, "スペキュラ色", pm->specular_color))
+				pm->flags |= MESH_HAS_SPECULAR_COLOR;
+			if (RE_ex_float(mn, "スペキュラ強度", &fv)) {
+				pm->flags |= MESH_HAS_SPECULAR_POWER;
+				pm->specular_power = fv;
+			}
+		}
+	}
+	free(add_sjis);
+	free(add2_sjis);
+	free(add_gbk);
+	free(add2_gbk);
+	ex_free(ex);
 }
 
 void txa_load(uint8_t *data, size_t size, struct mot *mot)

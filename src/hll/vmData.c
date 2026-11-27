@@ -188,7 +188,13 @@ static void vmData_SeekString(int id, int size, int absolute)
 		buffer_skip_string(&obj->buf);
 }
 
+static void vmData_ModuleFini(void)
+{
+	vmData_Release();
+}
+
 HLL_LIBRARY(vmData,
+	    HLL_EXPORT(_ModuleFini, vmData_ModuleFini),
 	    HLL_EXPORT(New, vmData_New),
 	    HLL_EXPORT(Release, vmData_Release),
 	    HLL_EXPORT(SetType, vmData_SetType),

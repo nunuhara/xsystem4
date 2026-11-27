@@ -76,6 +76,7 @@ static void P3MapSprite_Delete(void)
 		gfx_delete_texture(&p3map.grid);
 	if (p3map.bg.handle)
 		gfx_delete_texture(&p3map.bg);
+	p3map.blend_rate = 0;
 }
 
 // Copies the map background and optionally blends the grid to a destination sprite.
@@ -113,6 +114,7 @@ static bool P3MapSprite_CopyMatrix(int dest_sprite, int dest_x, int dest_y, int 
 }
 
 HLL_LIBRARY(P3MapSprite,
+	    HLL_EXPORT(_ModuleFini, P3MapSprite_Delete),
 	    HLL_EXPORT(Create, P3MapSprite_Create),
 	    HLL_EXPORT(Delete, P3MapSprite_Delete),
 	    HLL_EXPORT(Copy, P3MapSprite_Copy),

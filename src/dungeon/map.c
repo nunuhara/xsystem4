@@ -99,18 +99,47 @@ struct dungeon_map *dungeon_map_create(enum draw_dungeon_version version)
 
 void dungeon_map_free(struct dungeon_map *map)
 {
+	if (!map)
+		return;
 	for (int i = 0; i < map->nr_textures; i++)
 		gfx_delete_texture(&map->textures[i]);
 	free(map->textures);
 	free(map);
 }
 
+void dungeon_map_on_gl_reset(struct dungeon_context *ctx)
+{
+	if (!ctx || !ctx->map || !ctx->map->textures)
+		return;
+	bool need_reinit = false;
+	for (int i = 0; i < ctx->map->nr_textures; i++) {
+		if (!gfx_remap_texture(&ctx->map->textures[i]))
+			need_reinit = true;
+	}
+	if (need_reinit && ctx->dgn) {
+		dungeon_map_init(ctx);
+		if (ctx->dgn->cells && ctx->map->textures) {
+			for (uint32_t y = 0; y < ctx->dgn->size_y; y++) {
+				if (y >= (uint32_t)ctx->map->nr_textures || !ctx->map->textures[y].handle)
+					continue;
+				for (uint32_t z = 0; z < ctx->dgn->size_z; z++) {
+					for (uint32_t x = 0; x < ctx->dgn->size_x; x++) {
+						struct dgn_cell *c = dgn_cell_at(ctx->dgn, x, y, z);
+						if (c && c->walked)
+							dungeon_map_reveal(ctx, (int)x, (int)y, (int)z, false);
+					}
+				}
+			}
+		}
+	}
+}
+
 void dungeon_map_init(struct dungeon_context *ctx)
 {
+	if (!ctx || !ctx->map || !ctx->dgn)
+		return;
 	struct dungeon_map *map = ctx->map;
 	struct dgn *dgn = ctx->dgn;
-	if (!map)
-		return;
 
 	if (map->textures) {
 		for (int i = 0; i < map->nr_textures; i++)
@@ -120,8 +149,8 @@ void dungeon_map_init(struct dungeon_context *ctx)
 	map->textures = xcalloc(dgn->size_y, sizeof(struct texture));
 	map->nr_textures = dgn->size_y;
 
-	int map_width;
-	int map_height;
+	int map_width = 0;
+	int map_height = 0;
 	switch (ctx->version) {
 	case DRAW_DUNGEON_1: {
 			// Calculate the bounding box on the XZ plane so that map is drawn in the
@@ -145,8 +174,13 @@ void dungeon_map_init(struct dungeon_context *ctx)
 			}
 			map_width = 32;
 			map_height = 32;
-			map->offset_x = (map_width - (max_x - min_x + 1)) / 2 - min_x;
-			map->offset_y = (map_height - (max_y - min_y)) / 2 - min_y;
+			if (min_x <= max_x && min_y <= max_y) {
+				map->offset_x = (map_width - (int)(max_x - min_x + 1)) / 2 - (int)min_x;
+				map->offset_y = (map_height - (int)(max_y - min_y)) / 2 - (int)min_y;
+			} else {
+				map->offset_x = 0;
+				map->offset_y = 0;
+			}
 		}
 		break;
 	case DRAW_DUNGEON_2:
@@ -165,6 +199,8 @@ void dungeon_map_init(struct dungeon_context *ctx)
 		map->offset_y = 0;
 		break;
 	}
+	if (map_width <= 0 || map_height <= 0 || map->grid_size <= 0)
+		return;
 	// Initial draw
 	for (uint32_t y = 0; y < dgn->size_y; y++) {
 		gfx_init_texture_rgba(&map->textures[y],
@@ -181,7 +217,8 @@ void dungeon_map_init(struct dungeon_context *ctx)
 
 void dungeon_map_reveal(struct dungeon_context *ctx, int x, int y, int z, bool from_walk_data)
 {
-	if (!ctx->map)
+	if (!ctx || !ctx->map || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z) ||
+	    y < 0 || y >= ctx->map->nr_textures)
 		return;
 	struct texture *dst = &ctx->map->textures[y];
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, x, y, z);
@@ -204,6 +241,7 @@ void dungeon_map_reveal(struct dungeon_context *ctx, int x, int y, int z, bool f
 	case DRAW_FIELD:
 		alpha = cell->floor == -1 ? 160 : 255;
 		gfx_fill_amap(dst, pos.x, pos.y, ctx->map->grid_size, ctx->map->grid_size, alpha);
+		break;
 	default:
 		break;
 	}
@@ -211,7 +249,8 @@ void dungeon_map_reveal(struct dungeon_context *ctx, int x, int y, int z, bool f
 
 void dungeon_map_hide(struct dungeon_context *ctx, int x, int y, int z)
 {
-	if (!ctx->map)
+	if (!ctx || !ctx->map || !ctx->dgn || !dgn_is_in_map(ctx->dgn, x, y, z) ||
+	    y < 0 || y >= ctx->map->nr_textures)
 		return;
 	struct texture *dst = &ctx->map->textures[y];
 	Point pos = texture_pos(ctx, x, z);
@@ -239,7 +278,8 @@ static void draw_symbol(struct dungeon_map *map, struct texture *dst, int x, int
 
 static void dd1_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, int dgn_z)
 {
-	if (!ctx->map)
+	if (!ctx || !ctx->map || !ctx->dgn || !dgn_is_in_map(ctx->dgn, dgn_x, dgn_y, dgn_z) ||
+	    dgn_y < 0 || dgn_y >= ctx->map->nr_textures)
 		return;
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, dgn_x, dgn_y, dgn_z);
 	struct texture *dst = &ctx->map->textures[dgn_y];
@@ -314,7 +354,8 @@ static void dd1_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, i
 
 static void dd2_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, int dgn_z)
 {
-	if (!ctx->map)
+	if (!ctx || !ctx->map || !ctx->dgn || !dgn_is_in_map(ctx->dgn, dgn_x, dgn_y, dgn_z) ||
+	    ctx->map->nr_textures <= 0)
 		return;
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, dgn_x, dgn_y, dgn_z);
 	struct texture *dst = &ctx->map->textures[0];
@@ -329,7 +370,8 @@ static void dd2_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, i
 
 static void df_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, int dgn_z)
 {
-	if (!ctx->map)
+	if (!ctx || !ctx->map || !ctx->dgn || !dgn_is_in_map(ctx->dgn, dgn_x, dgn_y, dgn_z) ||
+	    dgn_y < 0 || dgn_y >= ctx->map->nr_textures)
 		return;
 	struct dgn_cell *cell = dgn_cell_at(ctx->dgn, dgn_x, dgn_y, dgn_z);
 	struct texture *dst = &ctx->map->textures[dgn_y];
@@ -355,24 +397,24 @@ static void df_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, in
 
 	const SDL_Color door_colors[2] = {{0, 255, 0, 255}, {255, 0, 0, 255}};
 	if (cell->north_door >= 0) {
-		draw_hline(dst, x, y, CS / 2 - 1, door_colors[cell->north_door_lock]);
+		draw_hline(dst, x, y, CS / 2 - 1, door_colors[!!cell->north_door_lock]);
 		draw_hline(dst, x + CS / 2 - 1, y, 2, COLOR(0, 0, 0, 0));
-		draw_hline(dst, x + CS / 2 + 1, y, CS / 2 - 1, door_colors[cell->north_door_lock]);
+		draw_hline(dst, x + CS / 2 + 1, y, CS / 2 - 1, door_colors[!!cell->north_door_lock]);
 	}
 	if (cell->south_door >= 0) {
-		draw_hline(dst, x, y + CS - 1, CS / 2 - 1, door_colors[cell->south_door_lock]);
+		draw_hline(dst, x, y + CS - 1, CS / 2 - 1, door_colors[!!cell->south_door_lock]);
 		draw_hline(dst, x + CS / 2 - 1, y + CS - 1, 2, COLOR(0, 0, 0, 0));
-		draw_hline(dst, x + CS / 2 + 1, y + CS - 1, CS / 2 - 1, door_colors[cell->south_door_lock]);
+		draw_hline(dst, x + CS / 2 + 1, y + CS - 1, CS / 2 - 1, door_colors[!!cell->south_door_lock]);
 	}
 	if (cell->west_door >= 0) {
-		draw_vline(dst, x, y, CS / 2 - 1, door_colors[cell->west_door_lock]);
+		draw_vline(dst, x, y, CS / 2 - 1, door_colors[!!cell->west_door_lock]);
 		draw_vline(dst, x, y + CS / 2 - 1, 2, COLOR(0, 0, 0, 0));
-		draw_vline(dst, x, y + CS / 2 + 1, CS / 2 - 1, door_colors[cell->west_door_lock]);
+		draw_vline(dst, x, y + CS / 2 + 1, CS / 2 - 1, door_colors[!!cell->west_door_lock]);
 	}
 	if (cell->east_door >= 0) {
-		draw_vline(dst, x + CS - 1, y, CS / 2 - 1, door_colors[cell->east_door_lock]);
+		draw_vline(dst, x + CS - 1, y, CS / 2 - 1, door_colors[!!cell->east_door_lock]);
 		draw_vline(dst, x + CS - 1, y + CS / 2 - 1, 2, COLOR(0, 0, 0, 0));
-		draw_vline(dst, x + CS - 1, y + CS / 2 + 1, CS / 2 - 1, door_colors[cell->east_door_lock]);
+		draw_vline(dst, x + CS - 1, y + CS / 2 + 1, CS / 2 - 1, door_colors[!!cell->east_door_lock]);
 	}
 
 	if (cell->stairs_texture >= 0)
@@ -383,6 +425,8 @@ static void df_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, in
 
 void dungeon_map_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, int dgn_z)
 {
+	if (!ctx)
+		return;
 	switch (ctx->version) {
 	case DRAW_DUNGEON_1:
 		dd1_update_cell(ctx, dgn_x, dgn_y, dgn_z);
@@ -395,6 +439,7 @@ void dungeon_map_update_cell(struct dungeon_context *ctx, int dgn_x, int dgn_y, 
 		break;
 	case DRAW_FIELD:
 		df_update_cell(ctx, dgn_x, dgn_y, dgn_z);
+		break;
 	}
 }
 
@@ -419,7 +464,7 @@ static int player_symbol(struct dungeon_context *ctx)
 void dungeon_map_draw(int surface, int sprite)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || !ctx->map)
+	if (!ctx || !ctx->map || !ctx->dgn)
 		return;
 
 	if (ctx->version == DRAW_DUNGEON_2) {
@@ -431,13 +476,15 @@ void dungeon_map_draw(int surface, int sprite)
 	struct sact_sprite *sp = sact_get_sprite(sprite);
 	if (!sp)
 		VM_ERROR("DrawDungeon.DrawMap: invalid sprite %d", sprite);
-	sprite_dirty(sp);
-	struct texture *dst = sprite_get_texture(sp);
 
 	int level = ctx->map->small_map_floor;
 	if (level < 0)
 		level = ctx->player_pos[1];
+	if (level < 0 || level >= ctx->map->nr_textures)
+		return;
 
+	sprite_dirty(sp);
+	struct texture *dst = sprite_get_texture(sp);
 	struct texture *src = &ctx->map->textures[level];
 
 	const int CS = ctx->map->grid_size;
@@ -459,18 +506,20 @@ void dungeon_map_draw(int surface, int sprite)
 void dungeon_map_draw_lmap(int surface, int sprite)
 {
 	struct dungeon_context *ctx = dungeon_get_context(surface);
-	if (!ctx || !ctx->map)
+	if (!ctx || !ctx->map || !ctx->dgn)
 		return;
 	struct sact_sprite *sp = sact_get_sprite(sprite);
 	if (!sp)
 		VM_ERROR("DrawDungeon.DrawMap: invalid sprite %d", sprite);
-	sprite_dirty(sp);
-	struct texture *dst = sprite_get_texture(sp);
 
 	int level = ctx->map->large_map_floor;
 	if (level < 0)
 		level = ctx->player_pos[1];
+	if (level < 0 || level >= ctx->map->nr_textures)
+		return;
 
+	sprite_dirty(sp);
+	struct texture *dst = sprite_get_texture(sp);
 	struct texture *src = &ctx->map->textures[level];
 	gfx_copy_with_alpha_map(dst, 0, 0, src, 0, 0, src->w, src->h);
 
@@ -491,6 +540,8 @@ void dungeon_map_draw_lmap(int surface, int sprite)
 
 static void redraw_event_symbols(struct dungeon_context *ctx)
 {
+	if (!ctx || !ctx->dgn)
+		return;
 	int nr_cells = dgn_nr_cells(ctx->dgn);
 	for (struct dgn_cell *c = ctx->dgn->cells; c < ctx->dgn->cells + nr_cells; c++) {
 		if (c->floor_event)

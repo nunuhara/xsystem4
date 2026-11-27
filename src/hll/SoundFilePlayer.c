@@ -24,13 +24,27 @@
 
 static int channel = -1;
 
+static char *sound_file_resolve_path(const char *sjis_path)
+{
+	if (!config.game_dir)
+		return unix_path(sjis_path);
+	char *path = gamedir_path_icase(sjis_path);
+	if (!path)
+		path = gamedir_path(sjis_path);
+	return path;
+}
+
 static bool SoundFilePlayer_Load(struct string *file_name)
 {
-	if (channel >= 0)
+	if (!file_name)
+		return false;
+	if (channel >= 0) {
 		bgm_unprepare(channel);
+		channel = -1;
+	}
 
 	channel = bgm_get_unused_channel();
-	char *path = unix_path(file_name->text);
+	char *path = sound_file_resolve_path(file_name->text);
 	if (!bgm_prepare_from_file(channel, path)) {
 		WARNING("Cannot load %s", display_utf0(path));
 		channel = -1;
@@ -103,6 +117,7 @@ static bool SoundFilePlayer_IsFadeVolume(void)
 HLL_QUIET_UNIMPLEMENTED(true, bool, SoundFilePlayer, Update, void);
 
 HLL_LIBRARY(SoundFilePlayer,
+	    HLL_EXPORT(_ModuleFini, SoundFilePlayer_Release),
 	    HLL_EXPORT(Load, SoundFilePlayer_Load),
 	    HLL_EXPORT(Release, SoundFilePlayer_Release),
 	    HLL_EXPORT(Play, SoundFilePlayer_Play),

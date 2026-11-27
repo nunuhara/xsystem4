@@ -46,6 +46,8 @@ HLL_WARN_UNIMPLEMENTED( , void, OutputLog, Clear, int handle);
 HLL_WARN_UNIMPLEMENTED(0, int,  OutputLog, Save, int handle, struct string *filename);
 HLL_WARN_UNIMPLEMENTED(0, bool, OutputLog, EnableAutoSave, int handle, struct string *filename);
 HLL_WARN_UNIMPLEMENTED(0, bool, OutputLog, DisableAutoSave, int handle);
+static void OutputLog_BackupTab(void) {}
+static void OutputLog_RestoreTab(void) {}
 
 HLL_LIBRARY(OutputLog,
 	    HLL_EXPORT(Create, OutputLog_Create),
@@ -53,4 +55,6 @@ HLL_LIBRARY(OutputLog,
 	    HLL_EXPORT(Clear, OutputLog_Clear),
 	    HLL_EXPORT(Save, OutputLog_Save),
 	    HLL_EXPORT(EnableAutoSave, OutputLog_EnableAutoSave),
-	    HLL_EXPORT(DisableAutoSave, OutputLog_DisableAutoSave));
+	    HLL_EXPORT(DisableAutoSave, OutputLog_DisableAutoSave),
+	    HLL_EXPORT(BackupTab, OutputLog_BackupTab),
+	    HLL_EXPORT(RestoreTab, OutputLog_RestoreTab));

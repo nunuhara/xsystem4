@@ -4,7 +4,18 @@ cmake_minimum_required(VERSION 3.14)
 project(xsystem4 LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 
+# Apply to the engine and its fetched SDL/cglm shared libraries. Some NDK
+# toolchain modes ignore ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES.
+if(ANDROID)
+  add_link_options("LINKER:-z,max-page-size=16384")
+endif()
+
 include(FetchContent)
+if(ALICEHUB_IOS OR NINTENDO_SWITCH)
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  set(CGLM_SHARED OFF CACHE BOOL "" FORCE)
+  set(CGLM_STATIC ON CACHE BOOL "" FORCE)
+endif()
 
 FetchContent_Declare(
   cglm
@@ -20,12 +31,35 @@ set_target_properties(ffi PROPERTIES
 
 find_package(Freetype REQUIRED)
 find_package(SDL2 REQUIRED)
+if(NINTENDO_SWITCH AND CMAKE_STAGING_PREFIX)
+  list(PREPEND CMAKE_FIND_ROOT_PATH "${CMAKE_STAGING_PREFIX}")
+endif()
 find_package(SndFile REQUIRED)
+if(NOT SndFile_WITH_EXTERNAL_LIBS OR NOT SndFile_WITH_OPUS)
+  message(FATAL_ERROR "libsndfile must be built with Ogg Vorbis and Ogg Opus support")
+endif()
 find_package(ZLIB REQUIRED)
 
 add_subdirectory(subprojects/libsys4)
 
-add_library(xsystem4 SHARED)
+if(ALICEHUB_IOS)
+  enable_language(OBJC)
+  add_library(xsystem4 STATIC)
+  target_sources(xsystem4 PRIVATE ../ios/EnginePlatform.m)
+  set_source_files_properties(../ios/EnginePlatform.m PROPERTIES COMPILE_OPTIONS -fobjc-arc)
+  target_include_directories(xsystem4 PRIVATE ../ios)
+  target_compile_definitions(xsystem4 PRIVATE ALICEHUB_IOS SDL_MAIN_HANDLED)
+elseif(NINTENDO_SWITCH)
+  add_executable(xsystem4)
+  target_compile_definitions(xsystem4 PRIVATE ALICEHUB_SWITCH_XSYSTEM4 SDL_MAIN_HANDLED XSYS4_DATA_DIR="romfs:")
+  include(../cmake/switch/Packaging.cmake)
+  set(romfs "${CMAKE_CURRENT_BINARY_DIR}/romfs")
+  file(COPY fonts shaders DESTINATION "${romfs}")
+  alicehub_switch_package(xsystem4 "${romfs}")
+  target_sources(xsystem4 PRIVATE ../cmake/switch/hub/runtime_menu_system4.c)
+else()
+  add_library(xsystem4 SHARED)
+endif()
 
 target_compile_definitions(xsystem4 PRIVATE
   _DEFAULT_SOURCE
@@ -56,12 +90,15 @@ target_sources(xsystem4 PRIVATE
   src/font_fnl.c
   src/format.c
   src/hacks.c
+  src/escalayer_reboot_cn_ui.c
   src/heap.c
   src/icon.c
   src/id_pool.c
   src/input.c
   src/json.c
+  src/message_layout.c
   src/movie_plmpeg.c
+  src/modifier.c
   src/msgqueue.c
   src/page.c
   src/resume.c
@@ -75,6 +112,7 @@ target_sources(xsystem4 PRIVATE
   src/util.c
   src/video.c
   src/vm.c
+  src/vm_v12.c
 
   src/3d/collision.c
   src/3d/debug.c
@@ -85,7 +123,6 @@ target_sources(xsystem4 PRIVATE
   src/3d/reign.c
   src/3d/renderer.c
   src/3d/s3de.c
-  src/3d/save.c
 
   src/dungeon/dgn.c
   src/dungeon/dtx.c
@@ -99,8 +136,9 @@ target_sources(xsystem4 PRIVATE
   src/dungeon/tes.c
 
   src/parts/activity.c
-  src/parts/button.c
-  src/parts/checkbox.c
+  src/parts/widgets.c
+  src/parts/scrollbar.c
+  src/parts/message_window.c
   src/parts/construction.c
   src/parts/debug.c
   src/parts/flash.c
@@ -110,12 +148,10 @@ target_sources(xsystem4 PRIVATE
   src/parts/message.c
   src/parts/motion.c
   src/parts/parts.c
-  src/parts/radiobox.c
+  src/parts/texture.c
   src/parts/render.c
-  src/parts/scrollbar.c
   src/parts/text.c
   src/parts/save.c
-  src/parts/widget.c
 
   src/hll/ACXLoader.c
   src/hll/ADVSYS.c
@@ -126,6 +162,7 @@ target_sources(xsystem4 PRIVATE
   src/hll/AliceLogo4.c
   src/hll/AliceLogo5.c
   src/hll/AnteaterADVEngine.c
+  src/hll/AnteaterADVLogList.c
   src/hll/Array.c
   src/hll/BanMisc.c
   src/hll/Bitarray.c
@@ -162,15 +199,18 @@ target_sources(xsystem4 PRIVATE
   src/hll/GoatGUIEngine.c
   src/hll/Gpx2Plus.c
   src/hll/GUIEngine.c
+  src/hll/HashMap.c
   src/hll/HTTPDownloader.c
   src/hll/iarray.c
   src/hll/IbisInputEngine.c
   src/hll/InputDevice.c
   src/hll/InputString.c
   src/hll/KiwiSoundEngine.c
+  src/hll/KiwiSoundEngine_v12.c
   src/hll/LoadCG.c
   src/hll/MADLoader.c
   src/hll/MainEXFile.c
+  src/hll/MainEXFile_v12.c
   src/hll/MainSurface.c
   src/hll/MamanyoDemo.c
   src/hll/MamanyoSDemo.c
@@ -201,7 +241,9 @@ target_sources(xsystem4 PRIVATE
   src/hll/StoatSpriteEngine.c
   src/hll/StretchHelper.c
   src/hll/SystemService.c
+  src/hll/Sys43VM.c
   src/hll/SystemServiceEx.c
+  src/hll/TextSurfaceManager.c
   src/hll/Timer.c
   src/hll/Toushin3Loader.c
   src/hll/vmAnime.c
@@ -233,7 +275,18 @@ target_sources(xsystem4 PRIVATE
   )
 
 target_link_libraries(xsystem4 PRIVATE
-  m ZLIB::ZLIB SDL2::SDL2 Freetype::Freetype ffi GLESv3 cglm SndFile::sndfile sys4)
+  m ZLIB::ZLIB SDL2::SDL2 Freetype::Freetype ffi cglm SndFile::sndfile sys4)
+if(ALICEHUB_IOS)
+  target_link_libraries(xsystem4 PRIVATE "-framework OpenGLES")
+  install(TARGETS sys4 cglm)
+  install(FILES include/xsystem4_main.h include/modifier_api.h DESTINATION include)
+elseif(NINTENDO_SWITCH)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(SWITCH_GLES REQUIRED IMPORTED_TARGET glesv2)
+  target_link_libraries(xsystem4 PRIVATE PkgConfig::SWITCH_GLES EGL glapi drm_nouveau stdc++)
+else()
+  target_link_libraries(xsystem4 PRIVATE GLESv3)
+endif()
 
 target_compile_options(xsystem4 PRIVATE -Wno-unused-parameter)
 

@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <limits.h>
 #include <math.h>
 #include <SDL.h>
 #include "gfx/gl.h"
@@ -45,6 +46,8 @@ struct copy_data {
 	float r, g, b, a;
 	float threshold;
 	float threshold2;
+	GLuint dst_texture;
+	int blur_dx, blur_dy, blur_radius, blur_mode;
 };
 
 #define ROTATE_DATA(dst, _sx, _sy, _w, _h)		\
@@ -59,6 +62,9 @@ struct copy_data {
 	STRETCH_DATA(_dx, _dy, _w, _h, _sx, _sy, _w, _h)
 
 static struct copy_shader copy_shader;
+static Shader copy_straight_alpha_shader;
+static GLint copy_straight_alpha_dst;
+static GLint copy_straight_alpha_origin;
 static struct copy_shader copy_color_reverse_shader;
 static struct copy_shader copy_key_shader;
 static struct copy_shader copy_alpha_key_shader;
@@ -77,6 +83,16 @@ static struct copy_shader hitbox_noblend_shader;
 static struct copy_shader amap_saturate_shader;
 static struct copy_shader blend_rmap_color_shader;
 static struct copy_shader dilate_shader;
+
+struct box_blur_shader {
+	Shader s;
+	GLint rect_min;
+	GLint rect_max;
+	GLint blur_dir;
+	GLint blur_radius;
+	GLint blur_mode;
+};
+static struct box_blur_shader box_blur_shader;
 
 static void prepare_copy_shader(struct gfx_render_job *job, void *data)
 {
@@ -101,11 +117,154 @@ static void load_copy_shader(struct copy_shader *s, const char *v_path, const ch
 	s->s.prepare = prepare_copy_shader;
 }
 
+static void prepare_copy_straight_alpha_shader(possibly_unused struct gfx_render_job *job, void *data)
+{
+	struct copy_data *d = data;
+	glUniform1i(copy_straight_alpha_dst, 1);
+	glUniform2i(copy_straight_alpha_origin, d->dx, d->dy);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, d->dst_texture);
+	glActiveTexture(GL_TEXTURE0);
+}
+
+static const GLchar draw_glsl_preamble[] =
+#ifdef USE_GLES
+	"#version 300 es\n"
+	"precision highp float;\n"
+	"precision highp int;\n"
+	"precision highp sampler2D;\n";
+#else
+	"#version 140\n";
+#endif
+
+static const GLchar box_blur_vert_src[] =
+	"uniform mat4 world_transform;\n"
+	"uniform mat4 view_transform;\n"
+	"in vec4 vertex_pos;\n"
+	"in vec2 vertex_uv;\n"
+	"out vec2 tex_coord;\n"
+	"void main() {\n"
+	"\tgl_Position = view_transform * world_transform * vertex_pos;\n"
+	"\ttex_coord = vertex_uv;\n"
+	"}\n";
+
+static const GLchar box_blur_frag_src[] =
+	"uniform sampler2D tex;\n"
+	"uniform ivec2 rect_min;\n"
+	"uniform ivec2 rect_max;\n"
+	"uniform ivec2 blur_dir;\n"
+	"uniform int blur_radius;\n"
+	"uniform int blur_mode;\n"
+	"in vec2 tex_coord;\n"
+	"out vec4 frag_color;\n"
+	"void main() {\n"
+	"\tivec2 tex_size = textureSize(tex, 0);\n"
+	"\tivec2 base = ivec2(floor(tex_coord * vec2(tex_size)));\n"
+	"\tivec2 valid_min = max(rect_min, ivec2(0));\n"
+	"\tivec2 valid_max = min(rect_max, tex_size);\n"
+	"\tvec4 sum = vec4(0.0);\n"
+	"\tbool ortho_ok = (blur_dir.x != 0)\n"
+	"\t\t? (base.y >= valid_min.y && base.y < valid_max.y)\n"
+	"\t\t: (base.x >= valid_min.x && base.x < valid_max.x);\n"
+	"\tif (ortho_ok) {\n"
+	"\t\tint lo = (blur_dir.x != 0) ? max(-blur_radius, valid_min.x - base.x)\n"
+	"\t\t                           : max(-blur_radius, valid_min.y - base.y);\n"
+	"\t\tint hi = (blur_dir.x != 0) ? min(blur_radius, valid_max.x - 1 - base.x)\n"
+	"\t\t                           : min(blur_radius, valid_max.y - 1 - base.y);\n"
+	"\t\tfor (int i = lo; i <= hi; i++) {\n"
+	"\t\t\tsum += texelFetch(tex, base + blur_dir * i, 0);\n"
+	"\t\t}\n"
+	"\t}\n"
+	"\tvec4 blurred = sum / (float(blur_radius) * 2.0 + 1.0);\n"
+	"\tif (blur_mode == 1) {\n"
+	"\t\tfloat src_a = (base.x >= 0 && base.y >= 0 && base.x < tex_size.x && base.y < tex_size.y)\n"
+	"\t\t\t? texelFetch(tex, base, 0).a : 0.0;\n"
+	"\t\tfrag_color = vec4(blurred.rgb, src_a);\n"
+	"\t} else {\n"
+	"\t\tfrag_color = blurred;\n"
+	"\t}\n"
+	"}\n";
+
+static GLuint compile_inline_shader(const char *label, GLenum type, const GLchar *body)
+{
+	const GLchar *src[2] = { draw_glsl_preamble, body };
+	GLuint sh = glCreateShader(type);
+	glShaderSource(sh, 2, src, NULL);
+	glCompileShader(sh);
+	GLint ok = GL_FALSE;
+	glGetShaderiv(sh, GL_COMPILE_STATUS, &ok);
+	if (!ok) {
+		char log[512] = {0};
+		glGetShaderInfoLog(sh, sizeof(log) - 1, NULL, log);
+		ERROR("Failed to compile inline shader %s: %s", label, log);
+	}
+	return sh;
+}
+
+static GLint clamp_i64_to_glint(int64_t v)
+{
+	if (v < INT_MIN)
+		return INT_MIN;
+	if (v > INT_MAX)
+		return INT_MAX;
+	return (GLint)v;
+}
+
+static void prepare_box_blur_shader(possibly_unused struct gfx_render_job *job, void *data)
+{
+	struct copy_data *d = data;
+	glUniform2i(box_blur_shader.rect_min, d->sx, d->sy);
+	glUniform2i(box_blur_shader.rect_max,
+			clamp_i64_to_glint((int64_t)d->sx + d->w),
+			clamp_i64_to_glint((int64_t)d->sy + d->h));
+	glUniform2i(box_blur_shader.blur_dir, d->blur_dx, d->blur_dy);
+	glUniform1i(box_blur_shader.blur_radius, d->blur_radius);
+	glUniform1i(box_blur_shader.blur_mode, d->blur_mode);
+}
+
+static void load_box_blur_shader(void)
+{
+	GLuint program = glCreateProgram();
+	GLuint vs = compile_inline_shader("box_blur.v", GL_VERTEX_SHADER, box_blur_vert_src);
+	GLuint fs = compile_inline_shader("box_blur.f", GL_FRAGMENT_SHADER, box_blur_frag_src);
+	glAttachShader(program, vs);
+	glAttachShader(program, fs);
+	glLinkProgram(program);
+	glDetachShader(program, vs);
+	glDetachShader(program, fs);
+	glDeleteShader(vs);
+	glDeleteShader(fs);
+	GLint ok = GL_FALSE;
+	glGetProgramiv(program, GL_LINK_STATUS, &ok);
+	if (!ok) {
+		char log[512] = {0};
+		glGetProgramInfoLog(program, sizeof(log) - 1, NULL, log);
+		ERROR("Failed to link inline box_blur shader: %s", log);
+	}
+	box_blur_shader.s.program = program;
+	box_blur_shader.s.world_transform = glGetUniformLocation(program, "world_transform");
+	box_blur_shader.s.view_transform = glGetUniformLocation(program, "view_transform");
+	box_blur_shader.s.texture = glGetUniformLocation(program, "tex");
+	box_blur_shader.s.vertex_pos = glGetAttribLocation(program, "vertex_pos");
+	box_blur_shader.s.vertex_uv = glGetAttribLocation(program, "vertex_uv");
+	box_blur_shader.s.prepare = prepare_box_blur_shader;
+	box_blur_shader.rect_min = glGetUniformLocation(program, "rect_min");
+	box_blur_shader.rect_max = glGetUniformLocation(program, "rect_max");
+	box_blur_shader.blur_dir = glGetUniformLocation(program, "blur_dir");
+	box_blur_shader.blur_radius = glGetUniformLocation(program, "blur_radius");
+	box_blur_shader.blur_mode = glGetUniformLocation(program, "blur_mode");
+}
+
 // load shaders
-void gfx_draw_init(void)
+static void draw_load_shaders(void)
 {
 	// generic copy shader; discards fragments outside of a given rectangle
 	load_copy_shader(&copy_shader, "shaders/render.v.glsl", "shaders/copy.f.glsl");
+
+	gfx_load_shader(&copy_straight_alpha_shader, "shaders/render.v.glsl", "shaders/copy_straight_alpha.f.glsl");
+	copy_straight_alpha_shader.prepare = prepare_copy_straight_alpha_shader;
+	copy_straight_alpha_dst = glGetUniformLocation(copy_straight_alpha_shader.program, "dst_tex");
+	copy_straight_alpha_origin = glGetUniformLocation(copy_straight_alpha_shader.program, "dst_origin");
 
 	// copy shader which inverts colors
 	load_copy_shader(&copy_color_reverse_shader, "shaders/render.v.glsl", "shaders/copy_color_reverse.f.glsl");
@@ -159,11 +318,47 @@ void gfx_draw_init(void)
 
 	// shader that dilates every pixel (for bold/outline text rendering)
 	load_copy_shader(&dilate_shader, "shaders/render.v.glsl", "shaders/dilate.f.glsl");
+
+	// single-pass separable box blur shader
+	load_box_blur_shader();
+}
+
+static void draw_on_gl_reset(possibly_unused void *user)
+{
+	draw_load_shaders();
+}
+
+void gfx_draw_init(void)
+{
+	draw_load_shaders();
+	gfx_register_reset_callback(draw_on_gl_reset, NULL);
 }
 
 static void run_draw_shader(Shader *s, Texture *dst, Texture *src, mat4 mw_transform, mat4 wv_transform, struct copy_data *data)
 {
+	if (dst && !gfx_remap_texture(dst) && !dst->handle)
+		return;
+	if (src && !gfx_remap_texture(src) && !src->handle)
+		return;
+	if (data->vpw <= 0 || data->vph <= 0)
+		return;
+	int64_t sc_x0 = data->vpx;
+	int64_t sc_y0 = data->vpy;
+	int64_t sc_x1 = sc_x0 + data->vpw;
+	int64_t sc_y1 = sc_y0 + data->vph;
+	if (dst) {
+		if (sc_x0 < 0) sc_x0 = 0;
+		if (sc_y0 < 0) sc_y0 = 0;
+		if (sc_x1 > dst->w) sc_x1 = dst->w;
+		if (sc_y1 > dst->h) sc_y1 = dst->h;
+	}
+	if (sc_x1 <= sc_x0 || sc_y1 <= sc_y0)
+		return;
+	if (src && dst && src->handle && src->handle == dst->handle)
+		gfx_flush_draw_target(dst);
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, data->vpx, data->vpy, data->vpw, data->vph);
+	glEnable(GL_SCISSOR_TEST);
+	glScissor((GLint)sc_x0, (GLint)sc_y0, (GLsizei)(sc_x1 - sc_x0), (GLsizei)(sc_y1 - sc_y0));
 
 	struct gfx_render_job job = {
 		.shader = s,
@@ -175,16 +370,19 @@ static void run_draw_shader(Shader *s, Texture *dst, Texture *src, mat4 mw_trans
 	};
 	gfx_render(&job);
 
+	glDisable(GL_SCISSOR_TEST);
 	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 }
 
 static void _run_copy_shader(Shader *s, Texture *dst, Texture *src, GLfloat src_w, GLfloat src_h, struct copy_data *data)
 {
+	if (data->w <= 0 || data->h <= 0 || data->sw <= 0 || data->sh <= 0)
+		return;
 	GLfloat scale_x = (GLfloat)data->w / data->sw;
 	GLfloat scale_y = (GLfloat)data->h / data->sh;
 
 	mat4 mw_transform = MAT4(
-	     src_w * scale_x, 0,               0, -data->sx * scale_y,
+	     src_w * scale_x, 0,               0, -data->sx * scale_x,
 	     0,               src_h * scale_y, 0, -data->sy * scale_y,
 	     0,               0,               1, 0,
 	     0,               0,               0, 1);
@@ -201,9 +399,28 @@ static void run_copy_shader(Shader *s, Texture *dst, Texture *src, struct copy_d
 
 static void run_fill_shader(Shader *s, Texture *dst, struct copy_data *data)
 {
-	// NOTE: this differs from `run_copy_shader(s, dst, NULL, data)` in that
-	//       `dst` can be sampled in the shader
-	_run_copy_shader(s, dst, dst, data->w, data->h, data);
+	if (!dst || !dst->handle || data->w <= 0 || data->h <= 0)
+		return;
+	// Copy the target sub-region of `dst` into a temporary texture first so `dst`
+	// is never simultaneously bound as the draw FBO attachment and GL_TEXTURE0
+	// (avoiding GLES 3.0 feedback loops) and UVs map directly to `(dx, dy, w, h)`.
+	Texture tmp = {0};
+	if (data->dx < 0 || data->dy < 0 ||
+			(int64_t)data->dx + data->w > dst->w ||
+			(int64_t)data->dy + data->h > dst->h) {
+		gfx_init_texture_rgba(&tmp, data->w, data->h, (SDL_Color){0, 0, 0, 0});
+	} else {
+		gfx_init_texture_blank(&tmp, data->w, data->h);
+	}
+	glBindTexture(GL_TEXTURE_2D, tmp.handle);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
+	struct copy_data copy = COPY_DATA(0, 0, data->dx, data->dy, data->w, data->h);
+	run_copy_shader(&copy_shader.s, &tmp, dst, &copy);
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+	_run_copy_shader(s, dst, &tmp, data->w, data->h, data);
+	gfx_delete_texture(&tmp);
 }
 
 static void restore_blend_mode(void)
@@ -588,6 +805,20 @@ void gfx_fill_screen(Texture *dst, int x, int y, int w, int h, int r, int g, int
 	restore_blend_mode();
 }
 
+void gfx_fill_add(Texture *dst, int x, int y, int w, int h, int r, int g, int b)
+{
+	glBlendFuncSeparate(GL_ONE, GL_ONE, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(x, y, 0, 0, w, h);
+	data.r = r / 255.0;
+	data.g = g / 255.0;
+	data.b = b / 255.0;
+	data.a = 1.0;
+	run_copy_shader(&fill_shader.s, dst, NULL, &data);
+
+	restore_blend_mode();
+}
+
 void gfx_fill_multiply(Texture *dst, int x, int y, int w, int h, int r, int g, int b)
 {
 	glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
@@ -744,6 +975,10 @@ void gfx_copy_stretch_blend_amap_alpha(struct texture *dst, int dx, int dy, int 
 // FIXME: this doesn't work correctly when the src rectangle crosses the edge of the CG.
 static void copy_rot_zoom(Texture *dst, Texture *src, int sx, int sy, int w, int h, float rotate, float mag, Shader *shader)
 {
+	if (!dst || !src || dst->w <= 0 || dst->h <= 0 || w <= 0 || h <= 0)
+		return;
+	if (!gfx_remap_texture(dst) || !gfx_remap_texture(src))
+		return;
 	w = min(w, src->w - sx);
 	h = min(h, src->h - sy);
 	// 1. scale src vertices to texture size
@@ -787,6 +1022,8 @@ void gfx_copy_rot_zoom_use_amap(Texture *dst, Texture *src, int sx, int sy, int 
 
 void gfx_copy_rot_zoom2(Texture *dst, float cx, float cy, Texture *src, float scx, float scy, float rot, float mag)
 {
+	if (!dst || !src || dst->w <= 0 || dst->h <= 0)
+		return;
 	gfx_fill_amap(dst, 0, 0, dst->w, dst->h, 0);
 	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
 
@@ -812,6 +1049,8 @@ void gfx_copy_rot_zoom2(Texture *dst, float cx, float cy, Texture *src, float sc
 
 static void copy_rotate_y(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag, Shader *shader)
 {
+	if (!dst || !front || !back || dst->w <= 0 || dst->h <= 0)
+		return;
 	Texture *src = front;
 	vec3 scale = { src->w * mag, src->h * mag, 0 };
 	if (rot > 90.0 && rot <= 270.0) {
@@ -849,6 +1088,8 @@ void gfx_copy_rotate_y_use_amap(Texture *dst, Texture *front, Texture *back, int
 
 static void copy_rotate_x(Texture *dst, Texture *front, Texture *back, int sx, int sy, int w, int h, float rot, float mag, Shader *shader)
 {
+	if (!dst || !front || !back || dst->w <= 0 || dst->h <= 0)
+		return;
 	Texture *src = front;
 	float flip_y = 1.0;
 	rot = 360.0 - rot;
@@ -888,6 +1129,8 @@ void gfx_copy_rotate_x_use_amap(Texture *dst, Texture *front, Texture *back, int
 
 void gfx_copy_reverse_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
+	if (!dst || !src || w <= 0 || h <= 0)
+		return;
 	mat4 mw_transform = MAT4(
 	     -src->w, 0,      0, sx + w,
 	     0,       src->h, 0, -sy,
@@ -905,6 +1148,8 @@ void gfx_copy_reverse_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int
 
 void gfx_copy_reverse_UD(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
+	if (!dst || !src || w <= 0 || h <= 0)
+		return;
 	mat4 mw_transform = MAT4(
 	     src->w, 0,       0, -sx,
 	     0,      -src->h, 0, sy + h,
@@ -922,6 +1167,8 @@ void gfx_copy_reverse_UD(Texture *dst, int dx, int dy, Texture *src, int sx, int
 
 void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
+	if (!dst || !src || w <= 0 || h <= 0)
+		return;
 	mat4 mw_transform = MAT4(
 	     -src->w, 0,      0, sx + w,
 	     0,       src->h, 0, -sy,
@@ -937,8 +1184,29 @@ void gfx_copy_reverse_amap_LR(Texture *dst, int dx, int dy, Texture *src, int sx
 	restore_blend_mode();
 }
 
+void gfx_copy_reverse_amap_UD(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	if (!dst || !src || w <= 0 || h <= 0)
+		return;
+	mat4 mw_transform = MAT4(
+	     src->w, 0,       0, -sx,
+	     0,      -src->h, 0, sy + h,
+	     0,      0,       1, 0,
+	     0,      0,       0, 1);
+	mat4 wv_transform = WV_TRANSFORM(w, h);
+
+	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_draw_shader(&copy_shader.s, dst, src, mw_transform, wv_transform, &data);
+
+	restore_blend_mode();
+}
+
 void gfx_copy_reverse_LR_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
+	if (!dst || !src || w <= 0 || h <= 0)
+		return;
 	mat4 mw_transform = MAT4(
 	     -src->w, 0,      0, sx + w,
 	     0,       src->h, 0, -sy,
@@ -954,100 +1222,106 @@ void gfx_copy_reverse_LR_with_alpha_map(Texture *dst, int dx, int dy, Texture *s
 	restore_blend_mode();
 }
 
+static void run_box_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy,
+		int w, int h, int blur, int blur_dx, int blur_dy, bool amap)
+{
+	if (!dst || !src || w <= 0 || h <= 0)
+		return;
+	if ((!gfx_remap_texture(dst) && !dst->handle) || (!gfx_remap_texture(src) && !src->handle))
+		return;
+
+	Texture tmp = {0};
+	Texture *blur_src = src;
+	int blur_sx = sx;
+	int blur_sy = sy;
+	if (src->handle == dst->handle) {
+		int64_t cx0 = max((int64_t)sx, (int64_t)0);
+		int64_t cy0 = max((int64_t)sy, (int64_t)0);
+		int64_t cx1 = min((int64_t)sx + w, (int64_t)src->w);
+		int64_t cy1 = min((int64_t)sy + h, (int64_t)src->h);
+		if (cx1 <= cx0 || cy1 <= cy0)
+			return;
+		int cw = (int)(cx1 - cx0);
+		int ch = (int)(cy1 - cy0);
+		gfx_init_texture_blank(&tmp, cw, ch);
+		gfx_copy_with_alpha_map(&tmp, 0, 0, src, (int)cx0, (int)cy0, cw, ch);
+		blur_src = &tmp;
+		blur_sx = sx - (int)cx0;
+		blur_sy = sy - (int)cy0;
+	}
+
+	if (blur <= 0) {
+		if (amap)
+			gfx_copy_amap(dst, dx, dy, blur_src, blur_sx, blur_sy, w, h);
+		else
+			gfx_copy(dst, dx, dy, blur_src, blur_sx, blur_sy, w, h);
+		if (tmp.handle)
+			gfx_delete_texture(&tmp);
+		return;
+	}
+
+	if (amap)
+		glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
+	else
+		glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE);
+
+	struct copy_data data = COPY_DATA(dx, dy, blur_sx, blur_sy, w, h);
+	data.blur_dx = blur_dx;
+	data.blur_dy = blur_dy;
+	data.blur_radius = blur;
+	data.blur_mode = 0;
+	run_copy_shader(&box_blur_shader.s, dst, blur_src, &data);
+
+	if (tmp.handle)
+		gfx_delete_texture(&tmp);
+	restore_blend_mode();
+}
+
 void gfx_copy_width_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur)
 {
-	GLfloat f_rate = 1.0 / (blur * 2 + 1);
-	glBlendColor(f_rate, f_rate, f_rate, f_rate);
-
-	glBlendFuncSeparate(GL_CONSTANT_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
-
-	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
-	run_copy_shader(&copy_shader.s, dst, src, &data);
-
-	glBlendFuncSeparate(GL_CONSTANT_COLOR, GL_ONE, GL_ZERO, GL_ONE);
-
-	for (int i = 1; i <= blur; i++) {
-		struct copy_data data = COPY_DATA(dx, dy, sx + i, sy, w - i, h);
-		run_copy_shader(&copy_shader.s, dst, src, &data);
-	}
-	for (int i = 1; i <= blur; i++) {
-		struct copy_data data = COPY_DATA(dx + i, dy, sx, sy, w - i, h);
-		run_copy_shader(&copy_shader.s, dst, src, &data);
-	}
-
-	restore_blend_mode();
+	run_box_blur(dst, dx, dy, src, sx, sy, w, h, blur, 1, 0, false);
 }
 
 void gfx_copy_height_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur)
 {
-	GLfloat f_rate = 1.0 / (blur * 2 + 1);
-	glBlendColor(f_rate, f_rate, f_rate, f_rate);
-
-	glBlendFuncSeparate(GL_CONSTANT_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
-
-	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
-	run_copy_shader(&copy_shader.s, dst, src, &data);
-
-	glBlendFuncSeparate(GL_CONSTANT_COLOR, GL_ONE, GL_ZERO, GL_ONE);
-
-	for (int i = 1; i <= blur; i++) {
-		struct copy_data data = COPY_DATA(dx, dy, sx, sy + i, w, h - i);
-		run_copy_shader(&copy_shader.s, dst, src, &data);
-	}
-	for (int i = 1; i <= blur; i++) {
-		struct copy_data data = COPY_DATA(dx, dy + i, sx, sy, w, h - i);
-		run_copy_shader(&copy_shader.s, dst, src, &data);
-	}
-
-	restore_blend_mode();
+	run_box_blur(dst, dx, dy, src, sx, sy, w, h, blur, 0, 1, false);
 }
 
 void gfx_copy_amap_width_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur)
 {
-	GLfloat f_rate = 1.0 / (blur * 2 + 1);
-	glBlendColor(f_rate, f_rate, f_rate, f_rate);
-
-	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_CONSTANT_COLOR, GL_ZERO);
-
-	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
-	run_copy_shader(&copy_shader.s, dst, src, &data);
-
-	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_CONSTANT_COLOR, GL_ONE);
-
-	for (int i = 1; i <= blur; i++) {
-		struct copy_data data = COPY_DATA(dx, dy, sx + i, sy, w - i, h);
-		run_copy_shader(&copy_shader.s, dst, src, &data);
-	}
-	for (int i = 1; i <= blur; i++) {
-		struct copy_data data = COPY_DATA(dx + i, dy, sx, sy, w - i, h);
-		run_copy_shader(&copy_shader.s, dst, src, &data);
-	}
-
-	restore_blend_mode();
+	run_box_blur(dst, dx, dy, src, sx, sy, w, h, blur, 1, 0, true);
 }
 
 void gfx_copy_amap_height_blur(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h, int blur)
 {
-	GLfloat f_rate = 1.0 / (blur * 2 + 1);
-	glBlendColor(f_rate, f_rate, f_rate, f_rate);
+	run_box_blur(dst, dx, dy, src, sx, sy, w, h, blur, 0, 1, true);
+}
 
-	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_CONSTANT_COLOR, GL_ZERO);
-
-	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
-	run_copy_shader(&copy_shader.s, dst, src, &data);
-
-	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_CONSTANT_COLOR, GL_ONE);
-
-	for (int i = 1; i <= blur; i++) {
-		struct copy_data data = COPY_DATA(dx, dy, sx, sy + i, w, h - i);
-		run_copy_shader(&copy_shader.s, dst, src, &data);
+void gfx_blur_rgb_to_fresh(Texture *dst, Texture *src, int blur, bool vertical)
+{
+	if (!dst || !src || src->w <= 0 || src->h <= 0 || dst->w != src->w || dst->h != src->h)
+		return;
+	if ((!gfx_remap_texture(dst) && !dst->handle) || (!gfx_remap_texture(src) && !src->handle))
+		return;
+	if (src->handle == dst->handle) {
+		run_box_blur(dst, 0, 0, src, 0, 0, src->w, src->h, blur, vertical ? 0 : 1, vertical ? 1 : 0, false);
+		return;
 	}
-	for (int i = 1; i <= blur; i++) {
-		struct copy_data data = COPY_DATA(dx, dy + i, sx, sy, w, h - i);
-		run_copy_shader(&copy_shader.s, dst, src, &data);
+	if (blur <= 0) {
+		gfx_copy_with_alpha_map(dst, 0, 0, src, 0, 0, src->w, src->h);
+		return;
 	}
-
-	restore_blend_mode();
+	GLboolean was_blend = glIsEnabled(GL_BLEND);
+	if (was_blend)
+		glDisable(GL_BLEND);
+	struct copy_data data = COPY_DATA(0, 0, 0, 0, src->w, src->h);
+	data.blur_dx = vertical ? 0 : 1;
+	data.blur_dy = vertical ? 1 : 0;
+	data.blur_radius = blur;
+	data.blur_mode = 1;
+	run_copy_shader(&box_blur_shader.s, dst, src, &data);
+	if (was_blend)
+		glEnable(GL_BLEND);
 }
 
 void gfx_copy_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
@@ -1106,6 +1380,8 @@ void gfx_copy_grayscale_with_alpha_map(Texture *dst, int dx, int dy, Texture *sr
 
 void gfx_copy_grayscale_reverse_LR_with_alpha_map(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
 {
+	if (!dst || !src || w <= 0 || h <= 0)
+		return;
 	mat4 mw_transform = MAT4(
 	     -src->w, 0,      0, sx + w,
 	     0,       src->h, 0, -sy,
@@ -1123,6 +1399,8 @@ void gfx_copy_grayscale_reverse_LR_with_alpha_map(Texture *dst, int dx, int dy, 
 
 static void draw_line(Texture *dst, int x0, int y0, int x1, int y1, struct copy_data *data)
 {
+	if (!dst || dst->w <= 0 || dst->h <= 0)
+		return;
 	GLfloat w = dst->w;
 	GLfloat h = dst->h;
 
@@ -1175,6 +1453,8 @@ void gfx_draw_line_to_amap(Texture *dst, int x0, int y0, int x1, int y1, int a)
 
 void gfx_draw_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertices[4])
 {
+	if (!dst || !src)
+		return;
 	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ZERO, GL_ONE);
 	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, 0, 0, dst->w, dst->h);
 	gfx_render_quadrilateral(src, vertices);
@@ -1182,14 +1462,60 @@ void gfx_draw_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertic
 	restore_blend_mode();
 }
 
-// XXX: Not an actual DrawGraph function; used for rendering text
-void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width, bool blend)
+void gfx_blend_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertices[4], int a)
 {
-	if (blend) {
+	if (!dst || !src)
+		return;
+	glBlendFuncSeparate(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA, GL_ZERO, GL_ONE);
+	glBlendColor(0, 0, 0, a / 255.0);
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, 0, 0, dst->w, dst->h);
+	gfx_render_quadrilateral(src, vertices);
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	restore_blend_mode();
+}
+
+void gfx_blend_amap_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertices[4])
+{
+	if (!dst || !src)
+		return;
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, 0, 0, dst->w, dst->h);
+	gfx_render_quadrilateral(src, vertices);
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	restore_blend_mode();
+}
+
+void gfx_blend_amap_alpha_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertices[4], int a)
+{
+	if (!dst || !src)
+		return;
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	struct copy_data data = { .r = 1.0f, .g = 1.0f, .b = 1.0f, .a = a / 255.0f };
+	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, dst, 0, 0, dst->w, dst->h);
+	_gfx_render_quadrilateral(&blend_amap_alpha_bright_shader.s, src, vertices, &data);
+	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	restore_blend_mode();
+}
+
+// XXX: Not an actual DrawGraph function; used for rendering text
+void gfx_draw_glyph_mode(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width, enum glyph_blend_mode mode)
+{
+	switch (mode) {
+	case GLYPH_BLEND:
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-	} else {
+		break;
+	case GLYPH_COPY:
 		glBlendFunc(GL_ONE, GL_ZERO);
 		glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
+		break;
+	case GLYPH_BLEND_ALPHA:
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+		glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
+		break;
+	case GLYPH_ALPHA_ONLY:
+		glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ONE);
+		glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
+		break;
 	}
 
 	dx = roundf(dx);
@@ -1209,6 +1535,12 @@ void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color co
 	}
 
 	restore_blend_mode();
+}
+
+void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width, bool blend)
+{
+	gfx_draw_glyph_mode(dst, dx, dy, glyph, color, scale_x, bold_width,
+			blend ? GLYPH_BLEND : GLYPH_COPY);
 }
 
 void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, Rectangle glyph_pos, SDL_Color color, float scale_x)
@@ -1237,4 +1569,95 @@ void gfx_draw_glyph_to_amap(Texture *dst, float dx, int dy, Texture *glyph, Rect
 	glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ONE, GL_ZERO);
 	run_copy_shader(&blend_rmap_color_shader.s, dst, glyph, &data);
 	restore_blend_mode();
+}
+
+void gfx_copy_stretch_blend_straight_alpha(Texture *dst, int dx, int dy, int dw, int dh,
+		Texture *src, int sx, int sy, int sw, int sh)
+{
+	if (!dst || !dst->handle || dw <= 0 || dh <= 0 || sw <= 0 || sh <= 0)
+		return;
+
+	Texture under = {0};
+	if (dx < 0 || dy < 0 ||
+			(int64_t)dx + dw > dst->w ||
+			(int64_t)dy + dh > dst->h) {
+		gfx_init_texture_rgba(&under, dw, dh, (SDL_Color){0, 0, 0, 0});
+	} else {
+		gfx_init_texture_blank(&under, dw, dh);
+	}
+	gfx_copy_with_alpha_map(&under, 0, 0, dst, dx, dy, dw, dh);
+
+	glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
+	struct copy_data data = STRETCH_DATA(dx, dy, dw, dh, sx, sy, sw, sh);
+	data.dst_texture = under.handle;
+	run_copy_shader(&copy_straight_alpha_shader, dst, src, &data);
+	gfx_delete_texture(&under);
+	restore_blend_mode();
+}
+
+void gfx_blend_alpha(Texture *dst, int dx, int dy, Texture *src, int sx, int sy, int w, int h)
+{
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	struct copy_data data = COPY_DATA(dx, dy, sx, sy, w, h);
+	run_copy_shader(&copy_shader.s, dst, src, &data);
+	restore_blend_mode();
+}
+
+void gfx_draw_shape_mask(Texture *dst, int dx, int dy, int w, int h, const uint8_t *cov, SDL_Color color, int mode)
+{
+	if (!dst || (!gfx_remap_texture(dst) && !dst->handle) || w <= 0 || h <= 0 || !cov)
+		return;
+	size_t n = (size_t)w * h;
+	SDL_Color *pixels = xmalloc(n * sizeof(SDL_Color));
+	if (mode == 1 || mode == 2) {
+		for (size_t i = 0; i < n; i++) {
+			uint8_t c = cov[i];
+			pixels[i] = (SDL_Color){ c, c, c, c };
+		}
+	} else if (mode == 3 || mode == 4) {
+		for (size_t i = 0; i < n; i++) {
+			uint8_t eff = (uint8_t)((cov[i] * (int)color.a + 127) / 255);
+			pixels[i] = (SDL_Color){ color.r, color.g, color.b, eff };
+		}
+	} else {
+		for (size_t i = 0; i < n; i++) {
+			pixels[i] = (SDL_Color){ color.r, color.g, color.b, cov[i] };
+		}
+	}
+
+	Texture src;
+	gfx_init_texture_with_pixels(&src, w, h, pixels);
+	free(pixels);
+
+	struct copy_data data = COPY_DATA(dx, dy, 0, 0, w, h);
+	if (mode == 1) {
+		// WithAlpha: dst.rgba = mix(dst.rgba, color.rgba, cov)
+		glBlendFuncSeparate(GL_ZERO, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE_MINUS_SRC_ALPHA);
+		run_copy_shader(&copy_shader.s, dst, &src, &data);
+		if (color.r || color.g || color.b || color.a) {
+			glBlendColor(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+			glBlendFuncSeparate(GL_CONSTANT_COLOR, GL_ONE, GL_CONSTANT_ALPHA, GL_ONE);
+			run_copy_shader(&copy_shader.s, dst, &src, &data);
+		}
+	} else if (mode == 2) {
+		// AMap: dst.a = mix(dst.a, color.a, cov), dst.rgb unchanged
+		glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_ZERO, GL_ONE_MINUS_SRC_ALPHA);
+		run_copy_shader(&copy_shader.s, dst, &src, &data);
+		if (color.a) {
+			glBlendColor(0.0f, 0.0f, 0.0f, color.a / 255.0f);
+			glBlendFuncSeparate(GL_ZERO, GL_ONE, GL_CONSTANT_ALPHA, GL_ONE);
+			run_copy_shader(&copy_shader.s, dst, &src, &data);
+		}
+	} else if (mode == 4) {
+		// AlphaBlend: Porter-Duff src-over
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+		run_copy_shader(&copy_shader.s, dst, &src, &data);
+	} else {
+		// Mode 0 (RGB) & Mode 3 (Blend): blend RGB, preserve dst.a
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+		run_copy_shader(&copy_shader.s, dst, &src, &data);
+	}
+
+	restore_blend_mode();
+	gfx_delete_texture(&src);
 }

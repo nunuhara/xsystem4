@@ -27,7 +27,7 @@
 // The number of concurrent voices (channels) which are used to mix the audio.
 // If you need more, use a higher number by setting #define STS_MIXER_VOICE n before including this header.
 #ifndef STS_MIXER_VOICES
-#define STS_MIXER_VOICES      32
+#define STS_MIXER_VOICES      256
 #endif // STS_MIXER_VOICES
 
 // Defines the various audio formats. Note that they are all on system endianess.
@@ -107,6 +107,7 @@ typedef struct {
   float                     gain;             // the global gain (you can change it if you want to change to overall volume)
   unsigned int              frequency;        // the frequency for the output of mixed audio data
   int                       audio_format;     // the audio format for the output of mixed audio data
+  unsigned int              voice_count;      // one past the highest active voice
   sts_mixer_voice_t         voices[STS_MIXER_VOICES]; // holding all audio voices for this state
 } sts_mixer_t;
 
@@ -201,6 +202,8 @@ static void sts_mixer__reset_voice(sts_mixer_t* mixer, const int i) {
   voice->sample = 0;
   voice->stream = 0;
   voice->position = voice->gain = voice->pitch = voice->pan = 0.0f;
+  while (mixer->voice_count > 0 && mixer->voices[mixer->voice_count - 1].state == STS_MIXER_VOICE_STOPPED)
+    --mixer->voice_count;
 }
 
 
@@ -217,6 +220,7 @@ static int sts_mixer__find_free_voice(sts_mixer_t* mixer) {
 void sts_mixer_init(sts_mixer_t* mixer, unsigned int frequency, int audio_format) {
   int i;
 
+  mixer->voice_count = 0;
   for (i = 0; i < STS_MIXER_VOICES; ++i) sts_mixer__reset_voice(mixer, i);
   mixer->frequency = frequency;
   mixer->gain = 1.0f;
@@ -252,6 +256,7 @@ int sts_mixer_play_sample(sts_mixer_t* mixer, sts_mixer_sample_t* sample, float 
     voice->sample = sample;
     voice->stream = 0;
     voice->state = STS_MIXER_VOICE_PLAYING;
+    if ((unsigned int)i >= mixer->voice_count) mixer->voice_count = i + 1;
   }
   return i;
 }
@@ -269,6 +274,7 @@ int sts_mixer_play_stream(sts_mixer_t* mixer, sts_mixer_stream_t* stream, float 
     voice->sample = 0;
     voice->stream = stream;
     voice->state = STS_MIXER_VOICE_STREAMING;
+    if ((unsigned int)i >= mixer->voice_count) mixer->voice_count = i + 1;
   }
   return i;
 }
@@ -310,7 +316,7 @@ void sts_mixer_mix_audio(sts_mixer_t* mixer, void* output, unsigned int samples)
   advance = 1.0f / (float)mixer->frequency;
   for (; samples > 0; --samples) {
     left = right = 0.0f;
-    for (i = 0; i < STS_MIXER_VOICES; ++i) {
+    for (i = 0; i < mixer->voice_count; ++i) {
       voice = &mixer->voices[i];
       if (voice->state == STS_MIXER_VOICE_PLAYING) {
         position = (int)voice->position;
@@ -330,7 +336,7 @@ void sts_mixer_mix_audio(sts_mixer_t* mixer, void* output, unsigned int samples)
           position = 0;
         }
         // added in xsystem4: allow stopping stream via callback return value
-        if (status == STS_STREAM_COMPLETE) {
+        if (status == STS_STREAM_COMPLETE || voice->stream->sample.length <= 0) {
           sts_mixer_stop_voice(mixer, i);
         } else {
           left += sts_mixer__clamp_sample(sts_mixer__get_sample(&voice->stream->sample, position) * voice->gain);

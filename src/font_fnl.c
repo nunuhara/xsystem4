@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <math.h>
+
 #include "system4.h"
 #include "system4/fnl.h"
 #include "system4/hashtable.h"
@@ -55,6 +57,8 @@ struct font_fnl {
 static struct font_size *fnl_font_get_size(struct font *_font, float size)
 {
 	struct font_fnl *font = (struct font_fnl*)_font;
+	if (!font->nr_sizes)
+		return NULL;
 
 	float min_diff = 9999;
 	struct fnl_font_size *closest = &font->sizes[0];
@@ -71,6 +75,8 @@ static struct font_size *fnl_font_get_size(struct font *_font, float size)
 static struct font_size *fnl_font_get_size_round_down(struct font *_font, float size)
 {
 	struct font_fnl *font = (struct font_fnl*)_font;
+	if (!font->nr_sizes)
+		return NULL;
 
 	float min_diff = 9999;
 	struct fnl_font_size *closest = &font->sizes[0];
@@ -88,21 +94,27 @@ static struct font_size *fnl_font_get_size_round_down(struct font *_font, float 
 
 static float fnl_font_get_actual_size(struct font *font, float size)
 {
-	return fnl_font_get_size(font, size)->size;
+	struct font_size *fs = fnl_font_get_size(font, size);
+	return fs ? fs->size : size;
 }
 
 static float fnl_font_get_actual_size_round_down(struct font *font, float size)
 {
-	return fnl_font_get_size_round_down(font, size)->size;
+	struct font_size *fs = fnl_font_get_size_round_down(font, size);
+	return fs ? fs->size : size;
 }
 
 static struct fnl_bitmap_glyph *fnl_get_bitmap_glyph(struct fnl_bitmap_size *bitmap, unsigned index)
 {
+	if (index >= bitmap->nr_glyphs)
+		return NULL;
 	if (bitmap->glyphs[index])
 		return bitmap->glyphs[index];
 
 	struct fnl_glyph *glyph = &bitmap->face->glyphs[index];
 	uint8_t *data = fnl_glyph_data(bitmap->face->font->fnl, glyph);
+	if (!data)
+		return NULL;
 
 	const int glyph_w = fnl_glyph_stride(glyph) * 8;
 	const int glyph_h = bitmap->face->height;
@@ -114,9 +126,9 @@ static struct fnl_bitmap_glyph *fnl_get_bitmap_glyph(struct fnl_bitmap_size *bit
 	out->pixels = xcalloc(glyph_w, glyph_h);
 
 	// expand 1-bit bitmap to 8-bit
-	for (unsigned row = 0; row < glyph_h; row++) {
+	for (unsigned row = 0; row < (unsigned)glyph_h; row++) {
 		uint8_t *dst = out->pixels + ((glyph_h - 1) - row) * glyph_w;
-		for (unsigned col = 0; col < glyph->width; col++) {
+		for (unsigned col = 0; col < glyph->width && col < (unsigned)glyph_w; col++) {
 			unsigned i = row * glyph_w + col;
 			bool on = data[i/8] & (1 << (7 - i % 8));
 			dst[col] = on ? 255 : 0;
@@ -133,13 +145,17 @@ static struct fnl_bitmap_glyph *fnl_get_bitmap_glyph(struct fnl_bitmap_size *bit
 static bool fnl_font_get_glyph(struct font_size *_size, struct glyph *glyph, uint32_t code, enum font_weight weight)
 {
 	struct fnl_font_size *size = (struct fnl_font_size*)_size;
+	if (!size || !size->bitmap_size || size->denominator == 0)
+		return false;
 	unsigned index = fnl_char_to_index(code);
-	if (index > size->bitmap_size->nr_glyphs)
+	if (index >= size->bitmap_size->nr_glyphs)
 		return false;
 	if (!size->bitmap_size->face->glyphs[index].data_pos)
 		return false;
 
 	struct fnl_bitmap_glyph *fullsize = fnl_get_bitmap_glyph(size->bitmap_size, index);
+	if (!fullsize)
+		return false;
 	const unsigned block_width = fullsize->width / size->denominator;
 	const unsigned block_height = fullsize->height / size->denominator;
 	const unsigned width = block_width + GLYPH_BORDER_SIZE*2;
@@ -180,8 +196,10 @@ static bool fnl_font_get_glyph(struct font_size *_size, struct glyph *glyph, uin
 static float fnl_font_size_char(struct font_size *_size, uint32_t code)
 {
 	struct fnl_font_size *size = (struct fnl_font_size*)_size;
+	if (!size || !size->bitmap_size || size->denominator == 0)
+		return 0.0f;
 	unsigned index = fnl_char_to_index(code);
-	if (index > size->bitmap_size->nr_glyphs)
+	if (index >= size->bitmap_size->nr_glyphs)
 		return 0.0;
 	if (!size->bitmap_size->face->glyphs[index].data_pos)
 		return 0.0;
@@ -242,3 +260,27 @@ struct font *fnl_font_load(struct fnl *lib, unsigned index)
 
 	return &font->super;
 }
+
+#if defined(ALICEHUB_IOS)
+void fnl_font_free(struct font *base)
+{
+	if (!base)
+		return;
+	struct font_fnl *font = (struct font_fnl*)base;
+	for (unsigned i = 0; i < font->nr_sizes; i++)
+		gfx_font_size_fini(&font->sizes[i].super);
+	for (unsigned i = 0; i < font->nr_bitmap_sizes; i++) {
+		struct fnl_bitmap_size *bitmap = &font->bitmap_sizes[i];
+		for (unsigned j = 0; j < bitmap->nr_glyphs; j++) {
+			if (bitmap->glyphs[j]) {
+				free(bitmap->glyphs[j]->pixels);
+				free(bitmap->glyphs[j]);
+			}
+		}
+		free(bitmap->glyphs);
+	}
+	free(font->sizes);
+	free(font->bitmap_sizes);
+	free(font);
+}
+#endif

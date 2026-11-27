@@ -71,7 +71,7 @@ static int vmDrawNumber_Open(int cg_no, int kind, int figure, int space)
 	gfx_init_texture_with_cg(&dn->digits, cg);
 	cg_free(cg);
 	struct vm_surface *sf = vm_surface_create(width, height);
-	gfx_init_texture_blank(&sf->texture, width, height);
+	gfx_init_texture_rgba(&sf->texture, width, height, (SDL_Color){0, 0, 0, 0});
 	dn->surface = sf->no;
 	dn->kind = kind;
 	dn->figures = figure;

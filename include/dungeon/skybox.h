@@ -24,6 +24,8 @@ struct dtx;
 struct skybox;
 
 struct skybox *skybox_create(enum draw_dungeon_version version, struct dtx *dtx);
+void skybox_reset_gl(struct skybox *s, struct dtx *dtx);
+void skybox_set_texture_set(struct skybox *s, struct dtx *dtx, int set);
 void skybox_free(struct skybox *s);
 void skybox_render(struct skybox *s, const mat4 view_transform, const mat4 proj_transform);
 

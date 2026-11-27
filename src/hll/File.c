@@ -144,8 +144,40 @@ static void write_page(struct page *page)
 	}
 }
 
+static char *file_resolve_path(const char *sjis_path, bool for_write)
+{
+	if (!config.game_dir)
+		return unix_path(sjis_path);
+	if (!for_write) {
+		char *path = gamedir_path_icase(sjis_path);
+		if (path)
+			return path;
+	}
+	return gamedir_path(sjis_path);
+}
+
+static void File_ModuleFini(void)
+{
+	if (current_file) {
+		fclose(current_file);
+		current_file = NULL;
+	}
+	if (json_contents) {
+		free(json_contents);
+		json_contents = NULL;
+	}
+	json_cursor = 0;
+	if (contents.buf) {
+		free(contents.buf);
+		buffer_init(&contents, NULL, 0);
+	}
+	current_mode = 0;
+}
+
 static int File_Open(struct string *filename, int type)
 {
+	if (!filename)
+		return 0;
 	const char *mode;
 	if (type == FILE_READ) {
 		mode = "rb";
@@ -157,10 +189,10 @@ static int File_Open(struct string *filename, int type)
 	}
 	if (current_file) {
 		WARNING("Previously opened file wasn't closed");
-		fclose(current_file);
+		File_ModuleFini();
 	}
 
-	char *path = unix_path(filename->text);
+	char *path = file_resolve_path(filename->text, type == FILE_WRITE);
 	current_file = file_open_utf8(path, mode);
 	current_mode = type;
 	if (!current_file) {
@@ -304,8 +336,10 @@ struct tagSaveDate {
 
 static int File_GetTime(struct string *filename, struct page **page)
 {
+	if (!filename)
+		return 0;
 	ustat s;
-	char *path = unix_path(filename->text);
+	char *path = file_resolve_path(filename->text, false);
 	union vm_value *date = (*page)->values;
 
 	if (stat_utf8(path, &s) < 0) {
@@ -334,9 +368,12 @@ static int File_GetTime(struct string *filename, struct page **page)
 
 static int File_Delete(struct string *name)
 {
-	char *path = unix_path(name->text);
+	if (!name)
+		return 0;
+	char *path = file_resolve_path(name->text, false);
 	if (remove_utf8(path)) {
 		WARNING("remove: %s", strerror(errno));
+		free(path);
 		return 0;
 	}
 	free(path);
@@ -345,7 +382,9 @@ static int File_Delete(struct string *name)
 
 static int File_MakeDirectory(struct string *name)
 {
-	char *path = unix_path(name->text);
+	if (!name)
+		return 0;
+	char *path = file_resolve_path(name->text, true);
 	if (mkdir_p(path)) {
 		WARNING("mkdir_p: %s", strerror(errno));
 	}
@@ -353,16 +392,34 @@ static int File_MakeDirectory(struct string *name)
 	return 1;
 }
 
-//int File_Copy(struct string *src, struct string *dst);
+static int File_Copy(struct string *src, struct string *dst)
+{
+	if (!src || !dst)
+		return 0;
+	char *src_path = file_resolve_path(src->text, false);
+	char *dst_path = file_resolve_path(dst->text, true);
+	if (dst_path) {
+		char *dst_copy = xstrdup(dst_path);
+		char *dir = path_dirname(dst_copy);
+		if (dir && dir[0])
+			mkdir_p(dir);
+		free(dst_copy);
+	}
+	bool ok = src_path && dst_path && file_copy(src_path, dst_path);
+	free(src_path);
+	free(dst_path);
+	return ok ? 1 : 0;
+}
 //int File_SetFind(struct string *name);
 //int File_GetFind(struct string **name);
 
 HLL_LIBRARY(File,
+	    HLL_EXPORT(_ModuleFini, File_ModuleFini),
 	    HLL_EXPORT(Open, File_Open),
 	    HLL_EXPORT(Close, File_Close),
 	    HLL_EXPORT(Read, File_Read),
 	    HLL_EXPORT(Write, File_Write),
-	    //HLL_EXPORT(Copy, File_Copy),
+	    HLL_EXPORT(Copy, File_Copy),
 	    HLL_EXPORT(Delete, File_Delete),
 	    HLL_EXPORT(GetTime, File_GetTime),
 	    //HLL_EXPORT(SetFind, File_SetFind),

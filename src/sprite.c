@@ -41,6 +41,8 @@ bool sact_dirty = true;
 LIST_HEAD(listhead, sact_sprite) sprites_with_plugins =
 	LIST_HEAD_INITIALIZER(sprites_with_plugins);
 
+void RE_plugin_detach_sprite(struct draw_plugin *plugin);
+
 // XXX: sprites should typically be set to zero and then initialized with this
 //      function upon allocation.
 void sprite_init(struct sact_sprite *sp)
@@ -55,9 +57,13 @@ void sprite_free(struct sact_sprite *sp)
 	gfx_delete_texture(&sp->texture);
 	gfx_delete_texture(&sp->text.texture);
 	if (sp->plugin) {
-		if (sp->plugin->free)
-			sp->plugin->free(sp->plugin);
+		struct draw_plugin *plugin = sp->plugin;
+		sp->plugin = NULL;
 		LIST_REMOVE(sp, entry);
+		if (plugin->free)
+			plugin->free(plugin);
+		else if (plugin->name && !strcmp(plugin->name, "ReignEngine"))
+			RE_plugin_detach_sprite(plugin);
 	}
 	// restore to initial state
 	memset(sp, 0, sizeof(struct sact_sprite));
@@ -79,14 +85,32 @@ static struct sprite_shader {
 	GLuint blend_rate;
 	GLuint multiply_color;
 	GLuint add_color;
-	GLuint bot_left;
-	GLuint top_right;
+	GLuint draw_filter;
+	GLuint uv_rect;
 } sprite_shader = {0};
+
+void sprite_renderer_fini(void)
+{
+	glDeleteProgram(sprite_shader.s.program);
+	sprite_shader = (struct sprite_shader){0};
+}
+
+static enum {
+	SPRITE_SHADER_NONE,
+	SPRITE_SHADER_SACT,
+	SPRITE_SHADER_CHIPMUNK,
+} sprite_shader_mode = SPRITE_SHADER_NONE;
+
+struct sprite_render_data {
+	struct sact_sprite *sp;
+	float uv_rect[4];
+};
 
 static void prepare_sact_shader(struct gfx_render_job *job, void *data)
 {
 	struct sprite_shader *s = (struct sprite_shader*)job->shader;
-	struct sact_sprite *sp = (struct sact_sprite*)data;
+	struct sprite_render_data *rd = (struct sprite_render_data*)data;
+	struct sact_sprite *sp = rd->sp;
 	glUniform1f(s->blend_rate, sp->blend_rate / 255.0f);
 	glUniform3f(s->multiply_color,
 			sp->multiply_color.r / 255.0f,
@@ -97,7 +121,8 @@ static void prepare_sact_shader(struct gfx_render_job *job, void *data)
 static void prepare_chipmunk_shader(struct gfx_render_job *job, void *data)
 {
 	struct sprite_shader *s = (struct sprite_shader*)job->shader;
-	struct sact_sprite *sp = (struct sact_sprite*)data;
+	struct sprite_render_data *rd = (struct sprite_render_data*)data;
+	struct sact_sprite *sp = rd->sp;
 	glUniform1f(s->blend_rate, sp->blend_rate / 255.0f);
 	glUniform3f(s->multiply_color,
 			sp->multiply_color.r / 255.0f,
@@ -107,29 +132,65 @@ static void prepare_chipmunk_shader(struct gfx_render_job *job, void *data)
 			sp->add_color.r / 255.0f,
 			sp->add_color.g / 255.0f,
 			sp->add_color.b / 255.0f);
-
-	Rectangle r = sp->surface_area;
-	if (!r.w && !r.h) {
-		r = (Rectangle) { 0, 0, sp->rect.w, sp->rect.h };
-	}
-
-	glUniform2f(s->bot_left, r.x, r.y);
-	glUniform2f(s->top_right, r.x + r.w, r.y + r.h);
+	int filter = 0;
+	if (sp->draw_method == DRAW_METHOD_MULTIPLY)
+		filter = 2;
+	else if (sp->draw_method == DRAW_METHOD_SCREEN)
+		filter = 3;
+	glUniform1i(s->draw_filter, filter);
+	glUniform4fv(s->uv_rect, 1, rd->uv_rect);
 }
+
+static void sprite_load_sact_shader(void)
+{
+	gfx_load_shader(&sprite_shader.s, "shaders/render.v.glsl", "shaders/sprite.f.glsl");
+	sprite_shader.blend_rate = glGetUniformLocation(sprite_shader.s.program, "blend_rate");
+	sprite_shader.multiply_color = glGetUniformLocation(sprite_shader.s.program, "multiply_color");
+	sprite_shader.s.prepare = prepare_sact_shader;
+}
+
+static void sprite_load_chipmunk_shader(void)
+{
+	gfx_load_shader(&sprite_shader.s, "shaders/parts.v.glsl", "shaders/parts.f.glsl");
+	sprite_shader.blend_rate = glGetUniformLocation(sprite_shader.s.program, "blend_rate");
+	sprite_shader.multiply_color = glGetUniformLocation(sprite_shader.s.program, "multiply_color");
+	sprite_shader.add_color = glGetUniformLocation(sprite_shader.s.program, "add_color");
+	sprite_shader.draw_filter = glGetUniformLocation(sprite_shader.s.program, "draw_filter");
+	sprite_shader.uv_rect = glGetUniformLocation(sprite_shader.s.program, "uv_rect");
+	sprite_shader.s.prepare = prepare_chipmunk_shader;
+	glUseProgram(sprite_shader.s.program);
+	glUniform1i(glGetUniformLocation(sprite_shader.s.program, "use_clipper"), 0);
+	glUseProgram(0);
+}
+
+static void sprite_on_gl_reset(possibly_unused void *user)
+{
+	if (sprite_shader_mode == SPRITE_SHADER_SACT)
+		sprite_load_sact_shader();
+	else if (sprite_shader_mode == SPRITE_SHADER_CHIPMUNK)
+		sprite_load_chipmunk_shader();
+}
+
+#if defined(ALICEHUB_IOS)
+void sprite_end_session(void)
+{
+	sprite_shader = (struct sprite_shader){0};
+	sprite_shader_mode = SPRITE_SHADER_NONE;
+	sact_dirty = true;
+}
+#endif
 
 void sprite_init_sact(void)
 {
 	if (sprite_shader.s.prepare) {
 		if (sprite_shader.s.prepare != prepare_sact_shader) {
 			WARNING("mixed SACT2/ChipmunkSpriteEngine initialization");
-			return;
 		}
+		return;
 	}
-	gfx_load_shader(&sprite_shader.s, "shaders/render.v.glsl", "shaders/sprite.f.glsl");
-	sprite_shader.blend_rate = glGetUniformLocation(sprite_shader.s.program, "blend_rate");
-	sprite_shader.multiply_color = glGetUniformLocation(sprite_shader.s.program, "multiply_color");
-	sprite_shader.s.prepare = prepare_sact_shader;
-
+	sprite_shader_mode = SPRITE_SHADER_SACT;
+	sprite_load_sact_shader();
+	gfx_register_reset_callback(sprite_on_gl_reset, NULL);
 }
 
 void sprite_init_chipmunk(void)
@@ -141,16 +202,58 @@ void sprite_init_chipmunk(void)
 			return;
 		}
 	}
-	gfx_load_shader(&sprite_shader.s, "shaders/parts.v.glsl", "shaders/parts.f.glsl");
-	sprite_shader.blend_rate = glGetUniformLocation(sprite_shader.s.program, "blend_rate");
-	sprite_shader.multiply_color = glGetUniformLocation(sprite_shader.s.program, "multiply_color");
-	sprite_shader.add_color = glGetUniformLocation(sprite_shader.s.program, "add_color");
-	sprite_shader.bot_left = glGetUniformLocation(sprite_shader.s.program, "bot_left");
-	sprite_shader.top_right = glGetUniformLocation(sprite_shader.s.program, "top_right");
-	sprite_shader.s.prepare = prepare_chipmunk_shader;
-	glUseProgram(sprite_shader.s.program);
-	glUniform1i(glGetUniformLocation(sprite_shader.s.program, "use_clipper"), 0);
-	glUseProgram(0);
+	sprite_shader_mode = SPRITE_SHADER_CHIPMUNK;
+	sprite_load_chipmunk_shader();
+	gfx_register_reset_callback(sprite_on_gl_reset, NULL);
+}
+
+static void sprite_render_tex(struct sact_sprite *sp, struct texture *t)
+{
+	gfx_remap_texture(t);
+	if (!t || !t->handle || t->w <= 0 || t->h <= 0)
+		return;
+
+	struct sprite_render_data rd = {
+		.sp = sp,
+		.uv_rect = { 0.0f, 0.0f, 1.0f, 1.0f }
+	};
+
+	if (sprite_shader.s.prepare == prepare_chipmunk_shader
+			&& (sp->surface_area.w > 0 || sp->surface_area.h > 0)) {
+		int cx0 = max(0, sp->surface_area.x);
+		int cy0 = max(0, sp->surface_area.y);
+		int cx1 = min(t->w, sp->surface_area.x + sp->surface_area.w);
+		int cy1 = min(t->h, sp->surface_area.y + sp->surface_area.h);
+		if (cx1 <= cx0 || cy1 <= cy0)
+			return;
+		float cw = (float)(cx1 - cx0);
+		float ch = (float)(cy1 - cy0);
+		rd.uv_rect[0] = (float)cx0 / (float)t->w;
+		rd.uv_rect[1] = (float)cy0 / (float)t->h;
+		rd.uv_rect[2] = cw / (float)t->w;
+		rd.uv_rect[3] = ch / (float)t->h;
+		mat4 world_transform = WORLD_TRANSFORM(cw, ch,
+			sp->rect.x + cx0 - sp->surface_area.x,
+			sp->rect.y + cy0 - sp->surface_area.y);
+		mat4 view_transform = WV_TRANSFORM(config.view_width, config.view_height);
+		struct gfx_render_job job = {
+			.shader = &sprite_shader.s,
+			.shape = GFX_RECTANGLE,
+			.texture = t->handle,
+			.world_transform = world_transform[0],
+			.view_transform = view_transform[0],
+			.data = &rd
+		};
+		gfx_render(&job);
+		return;
+	}
+
+	Rectangle r = sp->rect;
+	if (sp->surface_area.x || sp->surface_area.y) {
+		r.x -= sp->surface_area.x;
+		r.y -= sp->surface_area.y;
+	}
+	_gfx_render_texture(&sprite_shader.s, t, &r, &rd);
 }
 
 static void sprite_render(struct sprite *_sp)
@@ -177,15 +280,9 @@ static void sprite_render(struct sprite *_sp)
 		break;
 	}
 
-	Rectangle r = sp->rect;
-	if (sp->surface_area.x || sp->surface_area.y) {
-		r.x -= sp->surface_area.x;
-		r.y -= sp->surface_area.y;
-	}
-
-	_gfx_render_texture(&sprite_shader.s, &sp->texture, &r, sp);
+	sprite_render_tex(sp, &sp->texture);
 	if (sp->text.texture.handle) {
-		_gfx_render_texture(&sprite_shader.s, &sp->text.texture, &r, sp);
+		sprite_render_tex(sp, &sp->text.texture);
 	}
 
 	if (sp->draw_method != DRAW_METHOD_NORMAL)
@@ -308,6 +405,41 @@ void sprite_init_color(struct sact_sprite *sp, int w, int h, int r, int g, int b
 	sp->sp.render = sprite_render;
 	sp->sp.to_json = _sprite_to_json;
 	sprite_dirty(sp);
+}
+
+void sprite_init_copy(struct sact_sprite *dst, struct sact_sprite *src)
+{
+	if (!dst || !src || dst == src)
+		return;
+	struct texture *src_tex = sprite_get_texture(src);
+	SDL_Color c = { 0, 0, 0, src->sp.has_alpha ? 0 : 255 };
+	sprite_bind_plugin(dst, NULL);
+	gfx_delete_texture(&dst->texture);
+	if (src->rect.w > 0 && src->rect.h > 0) {
+		if (src->sp.has_alpha)
+			gfx_init_texture_rgba(&dst->texture, src->rect.w, src->rect.h, c);
+		else
+			gfx_init_texture_rgb(&dst->texture, src->rect.w, src->rect.h, c);
+		if (src_tex && src_tex->handle) {
+			gfx_copy(&dst->texture, 0, 0, src_tex, 0, 0, src->rect.w, src->rect.h);
+			if (src->sp.has_alpha)
+				gfx_copy_amap(&dst->texture, 0, 0, src_tex, 0, 0, src->rect.w, src->rect.h);
+		}
+	}
+	dst->color = src->color;
+	dst->blend_rate = src->blend_rate;
+	dst->multiply_color = src->multiply_color;
+	dst->add_color = src->add_color;
+	dst->draw_method = src->draw_method;
+	dst->rect.w = src->rect.w;
+	dst->rect.h = src->rect.h;
+	dst->surface_area = src->surface_area;
+	dst->cg_no = src->cg_no;
+	dst->sp.has_pixel = src->sp.has_pixel;
+	dst->sp.has_alpha = src->sp.has_alpha;
+	dst->sp.render = sprite_render;
+	dst->sp.to_json = _sprite_to_json;
+	sprite_text_copy(dst, src);
 }
 
 void sprite_init_custom(struct sact_sprite *sp)
@@ -482,20 +614,28 @@ void sprite_get_pixel_value(struct sact_sprite *sp, int x, int y, int *r, int *g
 
 void sprite_bind_plugin(struct sact_sprite *sp, struct draw_plugin *plugin)
 {
-	if (!sp->plugin && plugin)
+	if (sp->plugin == plugin)
+		return;
+	struct draw_plugin *old = sp->plugin;
+	if (!old && plugin)
 		LIST_INSERT_HEAD(&sprites_with_plugins, sp, entry);
-	else if (sp->plugin && !plugin)
+	else if (old && !plugin)
 		LIST_REMOVE(sp, entry);
-	if (sp->plugin != plugin && sp->plugin && sp->plugin->free)
-		sp->plugin->free(sp->plugin);
 	sp->plugin = plugin;
+	if (old) {
+		if (old->free)
+			old->free(old);
+		else if (old->name && !strcmp(old->name, "ReignEngine"))
+			RE_plugin_detach_sprite(old);
+	}
 }
 
 void sprite_call_plugins(void)
 {
-	struct sact_sprite *sp;
-	LIST_FOREACH(sp, &sprites_with_plugins, entry) {
-		if (sp->plugin->update)
+	struct sact_sprite *sp, *next;
+	for (sp = LIST_FIRST(&sprites_with_plugins); sp; sp = next) {
+		next = LIST_NEXT(sp, entry);
+		if (sp->plugin && sp->plugin->update)
 			sp->plugin->update(sp);
 	}
 }

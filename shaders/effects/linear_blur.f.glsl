@@ -35,6 +35,8 @@ void main() {
 	// sin(PI*x)^4
 	float blur_size = pow(sin(PI * progress), 4.0); // (0..0.5..1) -> (0..1..0) [sine wave ^ 4]
 	float blur_half = (blur_size * resolution.x) / 2.0;
+	const int MAX_TAPS = 24;
+	float step_px = max(2.0, blur_half / float(MAX_TAPS));
 
         vec3 avg = vec3(0.0);
 	float count = 0.0;
@@ -42,7 +44,10 @@ void main() {
 	avg += get_pixel(p / resolution, fade_progress);
 	count++;
 
-        for (float i = 1.0; i <= blur_half; i += 2.0) {
+        for (int tap = 1; tap <= MAX_TAPS; tap++) {
+		float i = 1.0 + float(tap - 1) * step_px;
+		if (i > blur_half)
+			break;
 		avg += get_pixel(vec2(p.x + i, p.y) / resolution, fade_progress);
 		avg += get_pixel(vec2(p.x - i, p.y) / resolution, fade_progress);
 		count += 2.0;

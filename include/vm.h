@@ -22,6 +22,7 @@
 #include "system4.h"
 
 struct ain;
+struct ain_hll_function;
 enum ain_data_type;
 struct page;
 struct string;
@@ -29,6 +30,7 @@ struct string;
 // xsystem4-specific system calls (used for hacks)
 enum vm_extra_syscall {
 	VM_XSYS_KEY_IS_DOWN = 0x80000000,
+	VM_XSYS_FIT_RANCE03_MESSAGE,
 };
 
 // Non-heap values. Stored in pages and on the stack.
@@ -41,6 +43,7 @@ union vm_value {
 struct static_hll_function {
 	char *name;
 	void *fun;
+	void *(*resolve)(const struct ain_hll_function *);
 };
 
 struct static_library {
@@ -52,6 +55,7 @@ extern struct ain *ain;
 
 extern union vm_value *stack;
 extern int32_t stack_ptr;
+void vm_stack_ensure(size_t needed);
 
 static inline union vm_value _vm_id(union vm_value v)
 {
@@ -105,7 +109,8 @@ struct page *get_local_page(int frame_no);
 struct page *get_struct_page(int frame_no);
 
 int vm_string_ref(struct string *s);
-int vm_copy_page(struct page *page);
+int vm_copy_page(int source);
+int vm_capture_environment(int function);
 union vm_value vm_copy(union vm_value v, enum ain_data_type type);
 
 int vm_execute_ain(struct ain *program);
@@ -116,6 +121,7 @@ void vm_sleep(int ms);
 void hll_call(int libno, int fno);
 bool library_exists(int libno);
 bool library_function_exists(int libno, int fno);
+void link_libraries_for_audit(void);
 void init_libraries(void);
 void exit_libraries(void);
 
@@ -131,6 +137,8 @@ enum string_format_type {
 struct string *string_format(struct string *fmt, union vm_value arg, enum string_format_type type);
 
 void vm_stack_trace(void);
+size_t vm_format_stack_trace(char *buf, size_t size, bool safe_signal);
+void vm_get_last_hll_call(const char **lib_name, const char **func_name);
 _Noreturn void _vm_error(const char *fmt, ...);
 _Noreturn void vm_exit(int code);
 _Noreturn void vm_reset(void);
@@ -155,12 +163,20 @@ struct function_call {
 	uint32_t return_address;
 	int32_t page_slot;
 	int32_t struct_page;
+	bool has_struct_page;
 };
 
 extern struct function_call call_stack[4096];
 extern int32_t call_stack_ptr;
 
 extern size_t instr_ptr;
+extern bool dg_callbegin_pending;
+
+// Read the opcode at ADDR.
+static inline int16_t get_opcode(size_t addr)
+{
+	return LittleEndian_getW(ain->code, addr);
+}
 
 // Read argument N for the current instruction.
 static inline int32_t get_argument(int n)

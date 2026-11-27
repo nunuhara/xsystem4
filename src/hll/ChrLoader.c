@@ -75,13 +75,29 @@
 static char *chr_directory;
 static struct hash_table *chr_table;  // Caches decrypted .chr file data
 
-static bool is_enemy(uint8_t *data)
+struct chr_file {
+	uint8_t *data;
+	size_t size;
+};
+
+static void chr_file_free(void *value)
+{
+	struct chr_file *file = value;
+	if (!file)
+		return;
+	free(file->data);
+	free(file);
+}
+
+static bool is_enemy(const uint8_t *data)
 {
 	return !memcmp(data + 4, "Enmy", 4);
 }
 
-static uint8_t *chr_get(int id)
+static struct chr_file *chr_get(int id)
 {
+	if (!chr_table || !chr_directory)
+		return NULL;
 	struct ht_slot *slot = ht_put_int(chr_table, id, NULL);
 	if (slot->value)
 		return slot->value;
@@ -89,24 +105,39 @@ static uint8_t *chr_get(int id)
 	char buf[32];
 	snprintf(buf, sizeof(buf), "%s/%d.chr", chr_directory, id);
 	char *path = gamedir_path(buf);
-	size_t size;
+	size_t size = 0;
 	uint8_t *data = file_read(path, &size);
+	struct chr_file *file = NULL;
 	if (!data) {
 		// WARNING("Cannot load %s", path);
-	} else if (memcmp(data, "CHR", 4)) {
+	} else if (size < 8 || memcmp(data, "CHR", 4)) {
 		WARNING("%s: Wrong magic bytes", path);
 		free(data);
-		data = NULL;
 	} else {
 		mt19937_xorcode(data + 4, size - 4, 12753);
-		slot->value = data;
+		file = xmalloc(sizeof(*file));
+		file->data = data;
+		file->size = size;
+		slot->value = file;
 	}
 	free(path);
-	return data;
+	return file;
+}
+
+static void ChrLoader_ModuleFini(void)
+{
+	free(chr_directory);
+	chr_directory = NULL;
+	if (chr_table) {
+		ht_foreach_value(chr_table, chr_file_free);
+		ht_free_int(chr_table);
+		chr_table = NULL;
+	}
 }
 
 void chr_loader_init(const char *dir)
 {
+	ChrLoader_ModuleFini();
 	chr_directory = strdup(dir);
 	chr_table = ht_create(512);
 }
@@ -118,42 +149,55 @@ bool chr_loader_exists(int id)
 
 struct string *chr_loader_get_name(int id)
 {
-	uint8_t *data = chr_get(id);
-	if (!data)
+	struct chr_file *file = chr_get(id);
+	if (!file || file->size < 12)
 		return NULL;
+	uint8_t *data = file->data;
 
 	uint32_t offset = LittleEndian_getDW(data, 8);
 	offset += is_enemy(data) ? 88 : 120;
-	return cstr_to_string((char *)data + offset);
+	if (offset >= file->size)
+		return NULL;
+	size_t max_len = file->size - offset;
+	size_t len = strnlen((char *)data + offset, max_len);
+	return make_string((char *)data + offset, (unsigned int)len);
 }
 
 struct string *chr_loader_get_string(int id, int index)
 {
-	uint8_t *data = chr_get(id);
-	if (!data || is_enemy(data) || (unsigned)index >= 48)
+	struct chr_file *file = chr_get(id);
+	if (!file || is_enemy(file->data) || (unsigned)index >= 48)
+		return NULL;
+	size_t ofs_pos = 52 + (size_t)index * 4;
+	if (ofs_pos + 4 > file->size)
 		return NULL;
 
-	uint32_t offset = LittleEndian_getDW(data, 52 + index * 4);
-	if (!offset)
+	uint32_t offset = LittleEndian_getDW(file->data, ofs_pos);
+	if (!offset || offset >= file->size)
 		return NULL;
-	return cstr_to_string((char *)data + offset);
+	size_t max_len = file->size - offset;
+	size_t len = strnlen((char *)file->data + offset, max_len);
+	return make_string((char *)file->data + offset, (unsigned int)len);
 }
 
 int chr_loader_get_id(int id)
 {
-	uint8_t *data = chr_get(id);
-	if (!data)
+	struct chr_file *file = chr_get(id);
+	if (!file || file->size < 12)
 		return false;
 
-	uint32_t offset = LittleEndian_getDW(data, 8);
-	return LittleEndian_getDW(data, offset);
+	uint32_t offset = LittleEndian_getDW(file->data, 8);
+	if ((size_t)offset + 4 > file->size)
+		return false;
+	return LittleEndian_getDW(file->data, offset);
 }
 
 int chr_loader_get_status(int id, int type)
 {
-	uint8_t *data = chr_get(id);
-	if (!data)
+	struct chr_file *file = chr_get(id);
+	if (!file || file->size < 12)
 		return false;
+	uint8_t *data = file->data;
 
 	const int mine_indices[26] = {
 		 6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
@@ -170,7 +214,9 @@ int chr_loader_get_status(int id, int type)
 		return false;
 	}
 
-	uint32_t offset = LittleEndian_getDW(data, 8) + index * 4;
+	size_t offset = (size_t)LittleEndian_getDW(data, 8) + (size_t)index * 4;
+	if (offset + 4 > file->size)
+		return false;
 	return LittleEndian_getDW(data, offset);
 }
 
@@ -183,13 +229,16 @@ int chr_loader_get_blob_handle(int id, int index)
 
 void *chr_loader_get_blob(int blob_handle, size_t *size)
 {
+	if (size)
+		*size = 0;
 	if (!blob_handle)
 		return NULL;
 	int id = blob_handle >> 3;
 	int index = (blob_handle & 7) - 1;
-	uint8_t *data = chr_get(id);
-	if (!data || index < 0 || index > 4)
+	struct chr_file *file = chr_get(id);
+	if (!file || index < 0 || index > 4)
 		return NULL;
+	uint8_t *data = file->data;
 
 	size_t ofs_ofs;
 	size_t size_ofs;
@@ -210,12 +259,24 @@ void *chr_loader_get_blob(int blob_handle, size_t *size)
 			size_ofs = 28 + index * 4;
 		}
 	}
+	if (ofs_ofs + 4 > file->size || size_ofs + 4 > file->size)
+		return NULL;
 	size_t offset = LittleEndian_getDW(data, ofs_ofs);
-	*size = LittleEndian_getDW(data, size_ofs);
+	size_t blob_size = LittleEndian_getDW(data, size_ofs);
+	if (offset > file->size || blob_size > file->size - offset)
+		return NULL;
+	if (size)
+		*size = blob_size;
 	return data + offset;
 }
 
-static void chr_archive_free_data(struct archive_data *data) { /* no-op */ }
+static void chr_archive_free_data(struct archive_data *data)
+{
+	if (!data)
+		return;
+	free(data->data);
+	free(data);
+}
 
 static struct archive_ops chr_archive_ops = {
 	.free_data = chr_archive_free_data
@@ -230,9 +291,15 @@ struct archive_data *chr_loader_get_blob_as_archive_data(int blob_handle)
 	if (!data)
 		return NULL;
 
+	// Copy the blob so audio channels own their buffer independently of
+	// ChrLoader's cached .chr table across chr_loader_init / ModuleFini.
+	uint8_t *copy = xmalloc(size);
+	if (size > 0)
+		memcpy(copy, data, size);
+
 	struct archive_data *dfile = xcalloc(1, sizeof(struct archive_data));
 	dfile->size = size;
-	dfile->data = data;
+	dfile->data = copy;
 	dfile->archive = &chr_archive;
 	return dfile;
 }
@@ -249,9 +316,10 @@ static bool ChrLoader_LoadCG(int sprite, int x, int y, int id, int type)
 	if (!sp)
 		return false;
 
-	uint8_t *data = chr_get(id);
-	if (!data)
+	struct chr_file *file = chr_get(id);
+	if (!file)
 		return false;
+	uint8_t *data = file->data;
 
 	int index = -1;
 	switch (type) {
@@ -314,6 +382,7 @@ static bool ChrLoader_GetName(int id, struct string **name)
 }
 
 HLL_LIBRARY(ChrLoader,
+	    HLL_EXPORT(_ModuleFini, ChrLoader_ModuleFini),
 	    HLL_EXPORT(Init, ChrLoader_Init),
 	    HLL_EXPORT(LoadCG, ChrLoader_LoadCG),
 	    HLL_EXPORT(LoadWavFile, ChrLoader_LoadWavFile),

@@ -17,6 +17,7 @@
 uniform mat4 world_transform;
 uniform mat4 view_transform;
 uniform mat4 inv_clipper_transform;
+uniform vec4 uv_rect;
 
 in vec4 vertex_pos;
 in vec2 vertex_uv;
@@ -26,6 +27,6 @@ out vec2 clip_coord;
 void main() {
 	vec4 world_pos = world_transform * vertex_pos;
 	gl_Position = view_transform * world_pos;
-	tex_coord = vertex_uv;
+	tex_coord = uv_rect.xy + vertex_uv * uv_rect.zw;
 	clip_coord = (inv_clipper_transform * world_pos).xy;
 }

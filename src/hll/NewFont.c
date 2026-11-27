@@ -15,6 +15,7 @@
  */
 
 #include <math.h>
+#include <string.h>
 
 #include "gfx/font.h"
 #include "sact.h"
@@ -24,6 +25,7 @@
 #include "hll.h"
 
 static Point NewFont_cursor = { 0, 0 };
+static int NewFont_y_pad = 0;
 static struct text_render_metrics NewFont_metrics = {0};
 static struct text_render_metrics NewFont_shadow_metrics = {0};
 
@@ -36,6 +38,7 @@ static int NewFont_SetTextMetrics(struct page **_tm)
 	float edge_width = max(tm[6].i, max(tm[7].i, max(tm[8].i, tm[9].i)));
 	enum font_weight weight = gfx_int_to_font_weight(tm[4].i);
 	struct font_size *font_size = gfx_font_get_size(tm[5].i, tm[3].i);
+	NewFont_y_pad = gfx_get_fnl_substitute_y_pad(tm[5].i, tm[3].i);
 	NewFont_metrics = (struct text_render_metrics) {
 		.color = {
 			.r = tm[0].i,
@@ -113,7 +116,7 @@ static int NewFont_DrawChar(int sp_no, int c)
 	char text[3] = { c & 0xff, c >> 8, 0 };
 	struct texture *t = sprite_get_texture(sp);
 	NewFont_metrics.x = NewFont_cursor.x;
-	NewFont_metrics.y = NewFont_cursor.y;
+	NewFont_metrics.y = NewFont_cursor.y + NewFont_y_pad;
 	_gfx_render_text(t, text, &NewFont_metrics);
 	return 1;
 }
@@ -127,7 +130,7 @@ static int NewFont_DrawShadowChar(int sp_no, int c)
 	char text[3] = { c & 0xff, c >> 8, 0 };
 	struct texture *t = sprite_get_texture(sp);
 	NewFont_shadow_metrics.x = NewFont_cursor.x;
-	NewFont_shadow_metrics.y = NewFont_cursor.y;
+	NewFont_shadow_metrics.y = NewFont_cursor.y + NewFont_y_pad;
 	_gfx_render_text(t, text, &NewFont_shadow_metrics);
 	return 1;
 }
@@ -142,7 +145,16 @@ static int NewFont_MeasureChar(int c1, int c2)
 // XXX: not used
 //static void NewFont_MultiplyAlphaByOriginalImageAlpha(int dst_sp, int dst_x, int dst_y, int src_sp, int src_x, int src_y, int w, int h)
 
+static void NewFont_ModuleFini(void)
+{
+	NewFont_cursor = (Point){ 0, 0 };
+	NewFont_y_pad = 0;
+	memset(&NewFont_metrics, 0, sizeof(NewFont_metrics));
+	memset(&NewFont_shadow_metrics, 0, sizeof(NewFont_shadow_metrics));
+}
+
 HLL_LIBRARY(NewFont,
+	HLL_EXPORT(_ModuleFini, NewFont_ModuleFini),
 	HLL_TODO_EXPORT(AlphaComposite, NewFont_AlphaComposite),
 	HLL_EXPORT(SetTextMetrics, NewFont_SetTextMetrics),
 	HLL_EXPORT(SetTextX, NewFont_SetTextX),

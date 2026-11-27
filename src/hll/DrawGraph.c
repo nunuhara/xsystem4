@@ -50,7 +50,7 @@ static void DrawGraph_CopyBright(int dst, int dx, int dy, int src, int sx, int s
 
 static void DrawGraph_CopyAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
-	gfx_copy_amap(STEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+	gfx_copy_amap(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
 static void DrawGraph_CopySprite(int dst, int dx, int dy, int src, int sx, int sy, int w, int h, int r, int g, int b)
@@ -378,7 +378,10 @@ static void DrawGraph_CopyReverseAMapLR(int dst, int dx, int dy, int src, int sx
 	gfx_copy_reverse_amap_LR(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
 }
 
-//void DrawGraph_CopyReverseAMapUD(int dst, int dx, int dy, int src, int sx, int sy, int w, int h);
+static void DrawGraph_CopyReverseAMapUD(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
+{
+	gfx_copy_reverse_amap_UD(DTEX(dst), dx, dy, STEX(src), sx, sy, w, h);
+}
 
 static void DrawGraph_CopyReverseLRWithAMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
@@ -431,12 +434,7 @@ static bool DrawGraph_GetAlphaColor(int surface, int x, int y, int *a)
 
 //void DrawGraph_DrawPolygon(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2);
 //void DrawGraph_DrawColorPolygon(int dst, int tex, float x0, float y0, float z0, int r0, int g0, int b0, int a0, float x1, float y1, float z1, int r1, int g1, int b1, int a1, float x2, float y2, float z2, int r2, int g2, int b2, int a2);
-//void DrawGraph_DrawDeformedSprite(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3);
-//void DrawGraph_BlendDeformedSprite(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3, int rate);
-//void DrawGraph_BlendAMapDeformedSprite(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3);
-//void DrawGraph_BlendAMapAlphaDeformedSprite(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3, int rate);
-
-static void DrawGraph_DrawDeformedSpriteBilinear(int dst, int tex,
+static void DrawGraph_DrawDeformedSprite(int dst, int tex,
 	float x0, float y0, float z0, float u0, float v0,
 	float x1, float y1, float z1, float u1, float v1,
 	float x2, float y2, float z2, float u2, float v2,
@@ -451,7 +449,72 @@ static void DrawGraph_DrawDeformedSpriteBilinear(int dst, int tex,
 	gfx_draw_quadrilateral(DTEX(dst), STEX(tex), vertices);
 }
 
-//void DrawGraph_BlendAMapDeformedSpriteBilinear(int dst, int tex, float x0, float y0, float z0, float u0, float v0, float x1, float y1, float z1, float u1, float v1, float x2, float y2, float z2, float u2, float v2, float x3, float y3, float z3, float u3, float v3);
+static void DrawGraph_BlendDeformedSprite(int dst, int tex,
+	float x0, float y0, float z0, float u0, float v0,
+	float x1, float y1, float z1, float u1, float v1,
+	float x2, float y2, float z2, float u2, float v2,
+	float x3, float y3, float z3, float u3, float v3, int rate)
+{
+	struct gfx_vertex vertices[4] = {
+		{x0, y0, z0, 1.f, u0, v0},
+		{x1, y1, z1, 1.f, u1, v1},
+		{x2, y2, z2, 1.f, u2, v2},
+		{x3, y3, z3, 1.f, u3, v3}
+	};
+	gfx_blend_quadrilateral(DTEX(dst), STEX(tex), vertices, rate);
+}
+
+static void DrawGraph_BlendAMapDeformedSprite(int dst, int tex,
+	float x0, float y0, float z0, float u0, float v0,
+	float x1, float y1, float z1, float u1, float v1,
+	float x2, float y2, float z2, float u2, float v2,
+	float x3, float y3, float z3, float u3, float v3)
+{
+	struct gfx_vertex vertices[4] = {
+		{x0, y0, z0, 1.f, u0, v0},
+		{x1, y1, z1, 1.f, u1, v1},
+		{x2, y2, z2, 1.f, u2, v2},
+		{x3, y3, z3, 1.f, u3, v3}
+	};
+	gfx_blend_amap_quadrilateral(DTEX(dst), STEX(tex), vertices);
+}
+
+static void DrawGraph_BlendAMapAlphaDeformedSprite(int dst, int tex,
+	float x0, float y0, float z0, float u0, float v0,
+	float x1, float y1, float z1, float u1, float v1,
+	float x2, float y2, float z2, float u2, float v2,
+	float x3, float y3, float z3, float u3, float v3, int rate)
+{
+	struct gfx_vertex vertices[4] = {
+		{x0, y0, z0, 1.f, u0, v0},
+		{x1, y1, z1, 1.f, u1, v1},
+		{x2, y2, z2, 1.f, u2, v2},
+		{x3, y3, z3, 1.f, u3, v3}
+	};
+	gfx_blend_amap_alpha_quadrilateral(DTEX(dst), STEX(tex), vertices, rate);
+}
+
+static void DrawGraph_DrawDeformedSpriteBilinear(int dst, int tex,
+	float x0, float y0, float z0, float u0, float v0,
+	float x1, float y1, float z1, float u1, float v1,
+	float x2, float y2, float z2, float u2, float v2,
+	float x3, float y3, float z3, float u3, float v3)
+{
+	DrawGraph_DrawDeformedSprite(dst, tex,
+		x0, y0, z0, u0, v0, x1, y1, z1, u1, v1,
+		x2, y2, z2, u2, v2, x3, y3, z3, u3, v3);
+}
+
+static void DrawGraph_BlendAMapDeformedSpriteBilinear(int dst, int tex,
+	float x0, float y0, float z0, float u0, float v0,
+	float x1, float y1, float z1, float u1, float v1,
+	float x2, float y2, float z2, float u2, float v2,
+	float x3, float y3, float z3, float u3, float v3)
+{
+	DrawGraph_BlendAMapDeformedSprite(dst, tex,
+		x0, y0, z0, u0, v0, x1, y1, z1, u1, v1,
+		x2, y2, z2, u2, v2, x3, y3, z3, u3, v3);
+}
 
 static void DrawGraph_CopyWithAlphaMap(int dst, int dx, int dy, int src, int sx, int sy, int w, int h)
 {
@@ -558,7 +621,7 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(CopyReverseLR, DrawGraph_CopyReverseLR),
 	    HLL_EXPORT(CopyReverseUD, DrawGraph_CopyReverseUD),
 	    HLL_EXPORT(CopyReverseAMapLR, DrawGraph_CopyReverseAMapLR),
-	    //HLL_EXPORT(CopyReverseAMapUD, DrawGraph_CopyReverseAMapUD),
+	    HLL_EXPORT(CopyReverseAMapUD, DrawGraph_CopyReverseAMapUD),
 	    HLL_EXPORT(CopyReverseLRWithAMap, DrawGraph_CopyReverseLRWithAMap),
 	    HLL_TODO_EXPORT(CopyReverseUDWithAMap, DrawGraph_CopyReverseUDWithAMap),
 	    HLL_EXPORT(CopyWidthBlur, DrawGraph_CopyWidthBlur),
@@ -571,12 +634,12 @@ HLL_LIBRARY(DrawGraph,
 	    HLL_EXPORT(GetAlphaColor, DrawGraph_GetAlphaColor),
 	    //HLL_EXPORT(DrawPolygon, DrawGraph_DrawPolygon),
 	    //HLL_EXPORT(DrawColorPolygon, DrawGraph_DrawColorPolygon)
-	    HLL_TODO_EXPORT(DrawDeformedSprite, DrawGraph_DrawDeformedSprite),
-	    HLL_TODO_EXPORT(BlendDeformedSprite, DrawGraph_BlendDeformedSprite),
-	    HLL_TODO_EXPORT(BlendAMapDeformedSprite, DrawGraph_BlendAMapDeformedSprite),
-	    HLL_TODO_EXPORT(BlendAMapAlphaDeformedSprite, DrawGraph_BlendAMapAlphaDeformedSprite),
+	    HLL_EXPORT(DrawDeformedSprite, DrawGraph_DrawDeformedSprite),
+	    HLL_EXPORT(BlendDeformedSprite, DrawGraph_BlendDeformedSprite),
+	    HLL_EXPORT(BlendAMapDeformedSprite, DrawGraph_BlendAMapDeformedSprite),
+	    HLL_EXPORT(BlendAMapAlphaDeformedSprite, DrawGraph_BlendAMapAlphaDeformedSprite),
 	    HLL_EXPORT(DrawDeformedSpriteBilinear, DrawGraph_DrawDeformedSpriteBilinear),
-	    HLL_TODO_EXPORT(BlendAMapDeformedSpriteBilinear, DrawGraph_BlendAMapDeformedSpriteBilinear),
+	    HLL_EXPORT(BlendAMapDeformedSpriteBilinear, DrawGraph_BlendAMapDeformedSpriteBilinear),
 	    HLL_EXPORT(CopyWithAlphaMap, DrawGraph_CopyWithAlphaMap),
 	    HLL_EXPORT(FillWithAlpha, DrawGraph_FillWithAlpha),
 	    HLL_EXPORT(CopyStretchWithAlphaMap, DrawGraph_CopyStretchWithAlphaMap),

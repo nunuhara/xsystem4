@@ -26,8 +26,8 @@ HLL_QUIET_UNIMPLEMENTED( , void, vmDialog, Init, void *imainsystem);
 static int vmDialog_MsgBox(struct string *t_string, struct string *string, int type, possibly_unused int default_button)
 {
 	uint32_t flags = (type == 4) ? SDL_MESSAGEBOX_ERROR : 0;
-	char *title = sjis2utf(t_string->text, 0);
-	char *message = sjis2utf(string->text, 0);
+	char *title = cjk_dialog_text_to_utf8(t_string ? t_string->text : "", t_string ? t_string->size : 0);
+	char *message = cjk_dialog_text_to_utf8(string ? string->text : "", string ? string->size : 0);
 	SDL_ShowSimpleMessageBox(flags, title, message, NULL);
 	free(message);
 	free(title);
@@ -50,4 +50,85 @@ HLL_LIBRARY(vmDialog,
 	    HLL_TODO_EXPORT(SelectString, vmDialog_SelectString),
 	    HLL_TODO_EXPORT(InputOpenFile, vmDialog_InputOpenFile),
 	    HLL_TODO_EXPORT(InputSaveFile, vmDialog_InputSaveFile)
+	    );
+
+static int Dialog_MsgBox(struct string *title, struct string *msg, possibly_unused int button,
+		int icon, int default_button)
+{
+	return vmDialog_MsgBox(title, msg, icon, default_button);
+}
+
+/*
+ * xsystem4 has no blocking modal numeric/menu/text input dialogs (only
+ * SDL_ShowMessageBox for alerts and non-blocking IME for InputString/Parts).
+ */
+static int Dialog_InputNum(possibly_unused struct string *title, int min_val,
+		int max_val, int *num)
+{
+	if (num && min_val <= max_val) {
+		if (*num < min_val)
+			*num = min_val;
+		else if (*num > max_val)
+			*num = max_val;
+	}
+	return 0;
+}
+
+/*
+ * Preserve the caller's pre-filled default name (guaranteeing *msg is non-NULL
+ * and bounded by max_len on a multibyte character boundary) and return 1:
+ * returning 0 causes a 100% CPU infinite hang in Dungeons & Dolls
+ * (`while (!Dialog.InputMsg("あなたの名前は？", 8, name)) {}`).
+ */
+static int Dialog_InputMsg(possibly_unused struct string *title, int max_len,
+		struct string **msg)
+{
+	if (msg) {
+		if (!*msg) {
+			*msg = make_string("", 0);
+		} else if (max_len > 0 && (*msg)->size > max_len) {
+			const char *text = (*msg)->text;
+			int size = (*msg)->size;
+			int len = 0;
+			while (len < size) {
+				int step = (SJIS_2BYTE((uint8_t)text[len]) && len + 1 < size) ? 2 : 1;
+				if (len + step > max_len)
+					break;
+				len += step;
+			}
+			struct string *truncated = make_string(text, len);
+			free_string(*msg);
+			*msg = truncated;
+		}
+	}
+	return 1;
+}
+
+static int Dialog_MenuMsg(possibly_unused struct string *title, possibly_unused struct page **items,
+		int *num)
+{
+	if (num && *num < 0)
+		*num = 0;
+	return 0;
+}
+
+static int Dialog_LoadFile(possibly_unused struct string *title, possibly_unused struct string **file,
+		possibly_unused struct string *default_dir, possibly_unused struct string *filter)
+{
+	return 0;
+}
+
+static int Dialog_SaveFile(possibly_unused struct string *title, possibly_unused struct string **file,
+		possibly_unused struct string *default_dir, possibly_unused struct string *filter)
+{
+	return 0;
+}
+
+HLL_LIBRARY(Dialog,
+	    HLL_EXPORT(MsgBox, Dialog_MsgBox),
+	    HLL_EXPORT(InputNum, Dialog_InputNum),
+	    HLL_EXPORT(InputMsg, Dialog_InputMsg),
+	    HLL_EXPORT(MenuMsg, Dialog_MenuMsg),
+	    HLL_EXPORT(LoadFile, Dialog_LoadFile),
+	    HLL_EXPORT(SaveFile, Dialog_SaveFile)
 	    );

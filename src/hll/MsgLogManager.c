@@ -82,7 +82,20 @@ HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, Load, struct string *filename);
 HLL_WARN_UNIMPLEMENTED( , void, MsgLogManager, SetLineMax, int line_max);
 HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, GetInterface, void);
 
+static void MsgLogManager_ModuleFini(void)
+{
+	for (size_t i = 0; i < msg_log_i; i++) {
+		if (msg_log[i].data_type == MSG_LOG_STRING)
+			free_string(msg_log[i].s);
+	}
+	free(msg_log);
+	msg_log = NULL;
+	msg_log_size = 0;
+	msg_log_i = 0;
+}
+
 HLL_LIBRARY(MsgLogManager,
+	    HLL_EXPORT(_ModuleFini, MsgLogManager_ModuleFini),
 	    HLL_EXPORT(Numof, MsgLogManager_Numof),
 	    HLL_EXPORT(AddInt, MsgLogManager_AddInt),
 	    HLL_EXPORT(AddString, MsgLogManager_AddString),
