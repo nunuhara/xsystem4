@@ -2376,7 +2376,17 @@ static bool SealEngine_IsExistInstanceData(int plugin, int instance, struct stri
 }
 
 //bool SealEngine_GetInstanceName(int PluginNumber, int InstanceNumber, struct string **pIName);
-//bool SealEngine_GetInstancePos(int PluginNumber, int InstanceNumber, float *pX, float *pY, float *pZ);
+
+static bool SealEngine_GetInstancePos(int plugin, int instance, float *x, float *y, float *z)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	*x = ri->pos[0];
+	*y = ri->pos[1];
+	*z = -ri->pos[2];
+	return true;
+}
 
 static bool SealEngine_GetInstanceAngle(int plugin, int instance, float *angle)
 {
@@ -2651,7 +2661,7 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int Plugin
 	    HLL_TODO_EXPORT(SaveInstance, SealEngine_SaveInstance), \
 	    HLL_EXPORT(IsExistInstanceData, SealEngine_IsExistInstanceData), \
 	    HLL_TODO_EXPORT(GetInstanceName, SealEngine_GetInstanceName), \
-	    HLL_TODO_EXPORT(GetInstancePos, SealEngine_GetInstancePos), \
+	    HLL_EXPORT(GetInstancePos, SealEngine_GetInstancePos), \
 	    HLL_EXPORT(GetInstanceAngle, SealEngine_GetInstanceAngle), \
 	    HLL_EXPORT(GetInstanceAngleP, SealEngine_GetInstanceAngleP), \
 	    HLL_EXPORT(GetInstanceAngleB, SealEngine_GetInstanceAngleB), \
