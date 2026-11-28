@@ -820,19 +820,16 @@ bool RE_instance_optimize_path_line(struct RE_instance *inst)
 	return collider_optimize_path(inst->model->collider);
 }
 
-bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *inst, int mouse_x, int mouse_y, vec3 out)
+static void calc_eye_ray(struct RE_plugin *plugin, int view_x, int view_y, vec3 origin, vec3 direction)
 {
-	if (!inst || !inst->model || !inst->model->collider)
-		return false;
-
-	float ndc_x = 2.f * mouse_x / inst->plugin->renderer->viewport_width - 1.f;
-	float ndc_y = 1.f - 2.f * mouse_y / inst->plugin->renderer->viewport_height;
+	float ndc_x = 2.f * view_x / plugin->renderer->viewport_width - 1.f;
+	float ndc_y = 1.f - 2.f * view_y / plugin->renderer->viewport_height;
 	vec4 near = { ndc_x, ndc_y, -1.f, 1.f };
 	vec4 far  = { ndc_x, ndc_y,  1.f, 1.f };
 
 	mat4 inv_vp;
-	RE_calc_view_matrix(&inst->plugin->camera, NULL, inv_vp);
-	glm_mat4_mul(inst->plugin->proj_transform, inv_vp, inv_vp);
+	RE_calc_view_matrix(&plugin->camera, NULL, inv_vp);
+	glm_mat4_mul(plugin->proj_transform, inv_vp, inv_vp);
 	glm_mat4_inv(inv_vp, inv_vp);
 
 	glm_mat4_mulv(inv_vp, near, near);
@@ -840,12 +837,99 @@ bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *inst, in
 	glm_vec3_divs(near, near[3], near);
 	glm_vec3_divs(far, far[3], far);
 
-	vec3 origin, direction;
 	glm_vec3_copy(near, origin);
 	glm_vec3_sub(far, near, direction);
 	glm_vec3_normalize(direction);
+}
 
+bool RE_instance_calc_path_finder_intersect_eye_vec(struct RE_instance *inst, int mouse_x, int mouse_y, vec3 out)
+{
+	if (!inst || !inst->model || !inst->model->collider)
+		return false;
+
+	vec3 origin, direction;
+	calc_eye_ray(inst->plugin, mouse_x, mouse_y, origin, direction);
 	return collider_raycast(inst->model->collider, origin, direction, out);
+}
+
+float RE_plugin_calc_2d_detection_height(struct RE_plugin *plugin, float x, float z)
+{
+	if (!plugin)
+		return 0.f;
+
+	bool found = false;
+	float height = 0.f;
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = plugin->instances[i];
+		if (!inst || !inst->model || !inst->model->collider)
+			continue;
+		vec2 local_xz = { x - inst->pos[0], z - inst->pos[2] };
+		float h;
+		if (!collider_height(inst->model->collider, local_xz, &h))
+			continue;
+		h += inst->pos[1];
+		if (!found || h > height)
+			height = h;
+		found = true;
+	}
+	return height;
+}
+
+bool RE_plugin_calc_2d_detection(struct RE_plugin *plugin, vec3 start, vec3 end, float radius, vec3 out)
+{
+	if (!plugin)
+		return false;
+
+	glm_vec3_copy(start, out);
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = plugin->instances[i];
+		if (!inst || !inst->model || !inst->model->collider)
+			continue;
+		vec2 p0 = { start[0] - inst->pos[0], start[2] - inst->pos[2] };
+		// Use the first terrain containing the start point.
+		// FIXME: Moving between terrain instances is not supported.
+		float height;
+		if (!collider_height(inst->model->collider, p0, &height))
+			continue;
+		vec2 p1 = { end[0] - inst->pos[0], end[2] - inst->pos[2] };
+		vec2 p2;
+		if (check_collision(inst->model->collider, p0, p1, radius, p2)) {
+			out[0] = p2[0] + inst->pos[0];
+			out[2] = p2[1] + inst->pos[2];
+			out[1] = RE_plugin_calc_2d_detection_height(plugin, out[0], out[2]);
+		}
+		break;
+	}
+	return true;
+}
+
+bool RE_plugin_calc_2d_detection_intersect_eye_vector(struct RE_plugin *plugin, int view_x, int view_y, vec3 out)
+{
+	if (!plugin || !plugin->renderer
+			|| view_x < 0 || view_x >= plugin->renderer->viewport_width
+			|| view_y < 0 || view_y >= plugin->renderer->viewport_height)
+		return false;
+
+	vec3 origin, direction;
+	calc_eye_ray(plugin, view_x, view_y, origin, direction);
+	bool found = false;
+	float nearest = 0.f;
+	for (int i = 0; i < plugin->nr_instances; i++) {
+		struct RE_instance *inst = plugin->instances[i];
+		if (!inst || !inst->model || !inst->model->collider)
+			continue;
+		vec3 local_origin, hit;
+		glm_vec3_sub(origin, inst->pos, local_origin);
+		if (!collider_raycast(inst->model->collider, local_origin, direction, hit))
+			continue;
+		float distance = glm_vec3_distance2(local_origin, hit);
+		if (!found || distance < nearest) {
+			nearest = distance;
+			glm_vec3_add(hit, inst->pos, out);
+		}
+		found = true;
+	}
+	return found;
 }
 
 bool RE_plugin_transform_pos_to_view_pos(struct RE_plugin *plugin, float x, float y, float z, int *view_x, int *view_y)

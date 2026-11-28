@@ -255,7 +255,9 @@ bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, 
 		glm_vec2_copy(p0, good);
 		glm_vec2_copy(p1, bad);
 		float w = glm_vec2_distance(good, bad);
-		while (w > radius) {
+		// Radius zero is used to test paths. Bound the search even when the
+		// midpoint can no longer be represented distinctly from an endpoint.
+		for (int i = 0; i < 32 && w > radius; i++) {
 			vec2 mid;
 			glm_vec2_center(good, bad, mid);
 			if (find_triangle(collider, mid)) {
