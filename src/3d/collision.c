@@ -35,6 +35,7 @@ struct collider_triangle {
 struct collider_edge {
 	vec2 vertices[2];  // xz coordinates
 	vec2 aabb[2];
+	vec2 normal;  // unit vector that points away from the mesh
 };
 
 static struct collider_triangle *fill_triangles(struct collider_triangle *t, struct pol_mesh *mesh)
@@ -129,6 +130,13 @@ static void init_edges(struct collider *collider, struct pol_mesh *mesh)
 		edge->vertices[1][1] = mesh->vertices[v2].pos[2];
 		glm_vec2_minv(edge->vertices[0], edge->vertices[1], edge->aabb[0]);
 		glm_vec2_maxv(edge->vertices[0], edge->vertices[1], edge->aabb[1]);
+		struct collider_triangle *t = &collider->triangles[table[i] - 1];
+		vec2 to_center = { t->center[0] - edge->vertices[0][0], t->center[2] - edge->vertices[0][1] };
+		edge->normal[0] = edge->vertices[1][1] - edge->vertices[0][1];
+		edge->normal[1] = edge->vertices[0][0] - edge->vertices[1][0];
+		if (glm_vec2_dot(edge->normal, to_center) > 0.f)
+			glm_vec2_negate(edge->normal);
+		glm_vec2_normalize(edge->normal);
 		edge++;
 	}
 	assert(edge == collider->edges + nr_edges);
@@ -243,22 +251,37 @@ static bool segments_intersect(vec2 p0, vec2 p1, vec2 q0, vec2 q1)
 	return (t >= 0.f && t <= 1.f && u >= 0.f && u <= 1.f);
 }
 
-bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out)
+static bool placed_colliders_contain(struct placed_collider *colliders, int nr_colliders, int skip, vec2 xz)
 {
-	if (find_triangle(collider, p1)) {
+	for (int i = 0; i < nr_colliders; i++) {
+		if (i == skip)
+			continue;
+		vec2 local;
+		glm_vec2_sub(xz, colliders[i].offset, local);
+		if (find_triangle(colliders[i].collider, local))
+			return true;
+	}
+	return false;
+}
+
+bool check_collision_multi(struct placed_collider *colliders, int nr_colliders, vec2 p0, vec2 p1, float radius, vec2 out)
+{
+	if (placed_colliders_contain(colliders, nr_colliders, -1, p1)) {
 		glm_vec2_copy(p1, out);
 	} else {
-		if (!find_triangle(collider, p0))
+		if (!placed_colliders_contain(colliders, nr_colliders, -1, p0))
 			return false;
 		// Find a point on the "collision" mesh, using binary search.
 		vec2 good, bad;
 		glm_vec2_copy(p0, good);
 		glm_vec2_copy(p1, bad);
 		float w = glm_vec2_distance(good, bad);
-		while (w > radius) {
+		// Radius zero is used to test paths. Bound the search even when the
+		// midpoint can no longer be represented distinctly from an endpoint.
+		for (int i = 0; i < 32 && w > radius; i++) {
 			vec2 mid;
 			glm_vec2_center(good, bad, mid);
-			if (find_triangle(collider, mid)) {
+			if (placed_colliders_contain(colliders, nr_colliders, -1, mid)) {
 				glm_vec2_copy(mid, good);
 			} else {
 				glm_vec2_copy(mid, bad);
@@ -268,17 +291,33 @@ bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, 
 		glm_vec2_copy(good, out);
 	}
 
-	// Ensure that `out` is at least `radius` away from any boundary edge.
+	// Ensure that `out` is at least `radius` away from any boundary edge,
+	// except the edges where another collider continues the surface.
+	const float seam_tolerance = 0.01f;
 	vec2 aabb[2];
 	glm_vec2_subs(out, radius, aabb[0]);
 	glm_vec2_adds(out, radius, aabb[1]);
-	for (int i = 0; i < collider->nr_edges; i++) {
-		struct collider_edge *e = &collider->edges[i];
-		if (!glm_aabb2d_aabb(e->aabb, aabb))
-			continue;
-		vec2 q;
-		float sq_distance = distance2_point_to_segment(out, e->vertices[0], e->vertices[1], q);
-		if (sq_distance < radius * radius) {
+	for (int c = 0; c < nr_colliders; c++) {
+		struct collider *collider = colliders[c].collider;
+		float *offset = colliders[c].offset;
+		for (uint32_t i = 0; i < collider->nr_edges; i++) {
+			struct collider_edge *e = &collider->edges[i];
+			vec2 v0, v1, edge_aabb[2];
+			glm_vec2_add(e->vertices[0], offset, v0);
+			glm_vec2_add(e->vertices[1], offset, v1);
+			glm_vec2_add(e->aabb[0], offset, edge_aabb[0]);
+			glm_vec2_add(e->aabb[1], offset, edge_aabb[1]);
+			if (!glm_aabb2d_aabb(edge_aabb, aabb))
+				continue;
+			vec2 q;
+			float sq_distance = distance2_point_to_segment(out, v0, v1, q);
+			if (sq_distance >= radius * radius)
+				continue;
+			vec2 outside;
+			glm_vec2_copy(q, outside);
+			glm_vec2_muladds(e->normal, seam_tolerance, outside);
+			if (placed_colliders_contain(colliders, nr_colliders, c, outside))
+				continue;
 			// out = q + normalize(out - q) * radius
 			vec2 v;
 			glm_vec2_sub(out, q, v);
@@ -291,6 +330,12 @@ bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, 
 		}
 	}
 	return true;
+}
+
+bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out)
+{
+	struct placed_collider placed = { .collider = collider };
+	return check_collision_multi(&placed, 1, p0, p1, radius, out);
 }
 
 bool collider_raycast(struct collider *collider, vec3 origin, vec3 direction, vec3 out)

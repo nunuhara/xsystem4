@@ -2376,7 +2376,17 @@ static bool SealEngine_IsExistInstanceData(int plugin, int instance, struct stri
 }
 
 //bool SealEngine_GetInstanceName(int PluginNumber, int InstanceNumber, struct string **pIName);
-//bool SealEngine_GetInstancePos(int PluginNumber, int InstanceNumber, float *pX, float *pY, float *pZ);
+
+static bool SealEngine_GetInstancePos(int plugin, int instance, float *x, float *y, float *z)
+{
+	struct RE_instance *ri = get_instance(plugin, instance);
+	if (!ri)
+		return false;
+	*x = ri->pos[0];
+	*y = ri->pos[1];
+	*z = -ri->pos[2];
+	return true;
+}
 
 static bool SealEngine_GetInstanceAngle(int plugin, int instance, float *angle)
 {
@@ -2605,9 +2615,40 @@ static bool SealEngine_GetEdgeColor(int PluginNumber, float *ColorR, float *Colo
 	*ColorB = p->edge_color[2];
 	return true;
 }
-//bool SealEngine_Calc2DDetectionHeight(int PluginNumber, float X, float Z, float *Height);
-//bool SealEngine_Calc2DDetection(int PluginNumber, float X0, float Y0, float Z0, float X1, float Y1, float Z1, float Radius, float *X2, float *Y2, float *Z2);
-//bool SealEngine_Calc2DDetectionIntersectEyeVector(int PluginNumber, int ViewX, int ViewY, float *X, float *Y, float *Z);
+
+static bool SealEngine_Calc2DDetectionHeight(int plugin, float x, float z, float *height)
+{
+	struct RE_plugin *rp = RE_get_plugin(plugin);
+	if (!rp)
+		return false;
+	*height = RE_plugin_calc_2d_detection_height(rp, x, -z);
+	return true;
+}
+
+static bool SealEngine_Calc2DDetection(int plugin, float x0, float y0, float z0, float x1, float y1, float z1, float radius, float *x2, float *y2, float *z2)
+{
+	vec3 start = { x0, y0, -z0 };
+	vec3 end = { x1, y1, -z1 };
+	vec3 out;
+	if (!RE_plugin_calc_2d_detection(RE_get_plugin(plugin), start, end, radius, out))
+		return false;
+	*x2 = out[0];
+	*y2 = out[1];
+	*z2 = -out[2];
+	return true;
+}
+
+static bool SealEngine_Calc2DDetectionIntersectEyeVector(int plugin, int view_x, int view_y, float *x, float *y, float *z)
+{
+	vec3 out;
+	if (!RE_plugin_calc_2d_detection_intersect_eye_vector(RE_get_plugin(plugin), view_x, view_y, out))
+		return false;
+	*x = out[0];
+	*y = out[1];
+	*z = -out[2];
+	return true;
+}
+
 //bool SealEngine_FindPath(int PluginNumber, float StartX, float StartY, float StartZ, float GoalX, float GoalY, float GoalZ);
 //bool SealEngine_GetPathLine(int PluginNumber, struct page **pIXArray, struct page **pIYArray, struct page **pIZArray);
 //bool SealEngine_GetOptimizedPathLine(int PluginNumber, struct page **pIXArray, struct page **pIYArray, struct page **pIZArray);
@@ -2651,7 +2692,7 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int Plugin
 	    HLL_TODO_EXPORT(SaveInstance, SealEngine_SaveInstance), \
 	    HLL_EXPORT(IsExistInstanceData, SealEngine_IsExistInstanceData), \
 	    HLL_TODO_EXPORT(GetInstanceName, SealEngine_GetInstanceName), \
-	    HLL_TODO_EXPORT(GetInstancePos, SealEngine_GetInstancePos), \
+	    HLL_EXPORT(GetInstancePos, SealEngine_GetInstancePos), \
 	    HLL_EXPORT(GetInstanceAngle, SealEngine_GetInstanceAngle), \
 	    HLL_EXPORT(GetInstanceAngleP, SealEngine_GetInstanceAngleP), \
 	    HLL_EXPORT(GetInstanceAngleB, SealEngine_GetInstanceAngleB), \
@@ -2737,9 +2778,9 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int Plugin
 	    HLL_EXPORT(GetEdgeReductionRate, SealEngine_GetEdgeReductionRate), \
 	    HLL_EXPORT(SetEdgeColor, SealEngine_SetEdgeColor), \
 	    HLL_EXPORT(GetEdgeColor, SealEngine_GetEdgeColor), \
-	    HLL_TODO_EXPORT(Calc2DDetectionHeight, SealEngine_Calc2DDetectionHeight), \
-	    HLL_TODO_EXPORT(Calc2DDetection, SealEngine_Calc2DDetection), \
-	    HLL_TODO_EXPORT(Calc2DDetectionIntersectEyeVector, SealEngine_Calc2DDetectionIntersectEyeVector), \
+	    HLL_EXPORT(Calc2DDetectionHeight, SealEngine_Calc2DDetectionHeight), \
+	    HLL_EXPORT(Calc2DDetection, SealEngine_Calc2DDetection), \
+	    HLL_EXPORT(Calc2DDetectionIntersectEyeVector, SealEngine_Calc2DDetectionIntersectEyeVector), \
 	    HLL_TODO_EXPORT(FindPath, SealEngine_FindPath), \
 	    HLL_TODO_EXPORT(GetPathLine, SealEngine_GetPathLine), \
 	    HLL_TODO_EXPORT(GetOptimizedPathLine, SealEngine_GetOptimizedPathLine), \

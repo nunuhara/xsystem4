@@ -870,6 +870,13 @@ struct collider *collider_create_raycast(struct pol_mesh **meshes, int nr_meshes
 void collider_free(struct collider *collider);
 bool collider_height(struct collider *collider, vec2 xz, float *h_out);
 bool check_collision(struct collider *collider, vec2 p0, vec2 p1, float radius, vec2 out);
+
+struct placed_collider {
+	struct collider *collider;
+	vec2 offset;
+};
+
+bool check_collision_multi(struct placed_collider *colliders, int nr_colliders, vec2 p0, vec2 p1, float radius, vec2 out);
 bool collider_raycast(struct collider *collider, vec3 origin, vec3 direction, vec3 out);
 bool collider_find_path(struct collider *collider, vec3 start, vec3 goal, mat4 vp_transform);
 bool collider_optimize_path(struct collider *collider);
