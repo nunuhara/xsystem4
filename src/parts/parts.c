@@ -973,6 +973,10 @@ void parts_release(int parts_no)
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
 		parts_sprite_free(&parts->sprites[i]);
 	}
+	for (int i = 0; i < PARTS_NR_STATES; i++) {
+		if (parts->sound_names[i])
+			free_string(parts->sound_names[i]);
+	}
 
 	// break parent/child relationships
 	while (!TAILQ_EMPTY(&parts->children)) {

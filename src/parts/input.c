@@ -15,12 +15,16 @@
  */
 
 #include "system4.h"
+#include "system4/string.h"
 
 #include "asset_manager.h"
 #include "audio.h"
 #include "input.h"
 #include "xsystem4.h"
 #include "parts_internal.h"
+
+// Evenicle's PartsEngine plays all parts sounds through this SE ID.
+#define PARTS_SE_ID 3
 
 // true between calls to BeginClick and EndClick
 bool parts_began_click = false;
@@ -64,6 +68,13 @@ void parts_input_reset_drag(struct parts *parts)
 		drag_state_reset();
 	else if (parts == drop_target)
 		drop_target = NULL;
+}
+
+static void play_parts_sound(int sound_no, struct string *sound_name)
+{
+	audio_play_sound(sound_no);
+	if (sound_name && sound_name->size > 0)
+		audio_se_play(PARTS_SE_ID, sound_name);
 }
 
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking,
@@ -123,7 +134,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	bool click_eligible = parts_is_button(parts) || parts->clickable || !parts->pass_cursor;
 	if (!click_eligible || *click_consumed) {
 		if (!was_hovered)
-			audio_play_sound(parts->on_cursor_sound);
+			play_parts_sound(parts->on_cursor_sound, parts->sound_names[PARTS_STATE_HOVERED]);
 		parts_set_state(parts, PARTS_STATE_HOVERED);
 		return;
 	}
@@ -150,7 +161,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		parts_set_state(parts, PARTS_STATE_CLICKED);
 	} else {
 		if (!was_hovered) {
-			audio_play_sound(parts->on_cursor_sound);
+			play_parts_sound(parts->on_cursor_sound, parts->sound_names[PARTS_STATE_HOVERED]);
 		}
 		parts_set_state(parts, PARTS_STATE_HOVERED);
 	}
@@ -158,7 +169,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	// click event: only if the click down event had same parts number
 	if ((parts_is_button(parts) || parts->clickable) && prev_clicking && !cur_clicking
 			&& click_down_parts == parts->no) {
-		audio_play_sound(parts->on_click_sound);
+		play_parts_sound(parts->on_click_sound, parts->sound_names[PARTS_STATE_CLICKED]);
 		// Button widgets do not publish their click numbers through GetClickNumber.
 		if (!parts_is_button(parts))
 			clicked_parts = parts->no;
@@ -325,10 +336,26 @@ bool PE_SetPartsClickSoundNumber(int parts_no, int sound_no)
 	return true;
 }
 
+void PE_SetPartsSoundName(int parts_no, struct string *sound_name, int state)
+{
+	if (!parts_state_valid(--state))
+		return;
+	struct parts *parts = parts_get(parts_no);
+	if (parts->sound_names[state])
+		free_string(parts->sound_names[state]);
+	parts->sound_names[state] = string_ref(sound_name);
+}
+
 bool PE_SetClickMissSoundNumber(possibly_unused int sound_no)
 {
 	UNIMPLEMENTED("(%d)", sound_no);
 	return true;
+}
+
+void PE_SetClickMissSoundName(struct string *sound_name)
+{
+	if (sound_name->size > 0)
+		UNIMPLEMENTED("(%s)", display_sjis0(sound_name->text));
 }
 
 void PE_BeginInput(void)

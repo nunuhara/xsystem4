@@ -227,6 +227,8 @@ int PE_GetOnCursorShowLinkPartsNumber(int parts_no);
 bool PE_SetPartsOnCursorSoundNumber(int parts_no, int sound_no);
 bool PE_SetPartsClickSoundNumber(int parts_no, int sound_no);
 bool PE_SetClickMissSoundNumber(int sound_no);
+void PE_SetClickMissSoundName(struct string *sound_name);
+void PE_SetPartsSoundName(int parts_no, struct string *sound_name, int state);
 void PE_BeginInput(void);
 void PE_EndInput(void);
 int PE_GetClickPartsNumber(void);
@@ -283,6 +285,7 @@ void PE_AddMotionRotateZ_curve(int parts_no, float begin, float end, int begin_t
 		struct string *curve_name);
 void PE_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin_t, int end_t);
 void PE_AddMotionSound(int sound_no, int begin_t);
+void PE_AddMotionSound_by_name(struct string *sound_name, int begin_t);
 void PE_AddWholeMotionVibrationSize(int begin_w, int begin_h, int begin_t, int end_t);
 void PE_BeginMotion(void);
 void PE_EndMotion(void);

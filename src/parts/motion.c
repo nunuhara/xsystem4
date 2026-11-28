@@ -241,7 +241,10 @@ static void parts_update_all_motion(void)
 			break;
 		if (sound->played)
 			continue;
-		audio_play_sound(sound->sound_no);
+		if (sound->sound_name)
+			audio_play_sound_by_name(sound->sound_name->text);
+		else
+			audio_play_sound(sound->sound_no);
 		sound->played = true;
 	}
 }
@@ -278,6 +281,8 @@ static void parts_fini_all_motion(void)
 	while (!TAILQ_EMPTY(&sound_motion_list)) {
 		struct sound_motion *motion = TAILQ_FIRST(&sound_motion_list);
 		TAILQ_REMOVE(&sound_motion_list, motion, entry);
+		if (motion->sound_name)
+			free_string(motion->sound_name);
 		free(motion);
 	}
 }
@@ -480,12 +485,8 @@ void PE_AddWholeMotionVibrationSize(int begin_w, int begin_h, int begin_t, int e
 	parts_motion_list_add(&global_motion_list, motion);
 }
 
-void PE_AddMotionSound(int sound_no, int begin_t)
+static void parts_add_sound_motion(struct sound_motion *m)
 {
-	struct sound_motion *m = xcalloc(1, sizeof(struct sound_motion));
-	m->sound_no = sound_no;
-	m->begin_time = begin_t;
-
 	struct sound_motion *p;
 	TAILQ_FOREACH(p, &sound_motion_list, entry) {
 		if (p->begin_time > m->begin_time) {
@@ -496,6 +497,22 @@ void PE_AddMotionSound(int sound_no, int begin_t)
 	TAILQ_INSERT_TAIL(&sound_motion_list, m, entry);
 	if (m->begin_time > motion_end_t)
 		motion_end_t = m->begin_time;
+}
+
+void PE_AddMotionSound(int sound_no, int begin_t)
+{
+	struct sound_motion *m = xcalloc(1, sizeof(struct sound_motion));
+	m->sound_no = sound_no;
+	m->begin_time = begin_t;
+	parts_add_sound_motion(m);
+}
+
+void PE_AddMotionSound_by_name(struct string *sound_name, int begin_t)
+{
+	struct sound_motion *m = xcalloc(1, sizeof(struct sound_motion));
+	m->sound_name = string_ref(sound_name);
+	m->begin_time = begin_t;
+	parts_add_sound_motion(m);
 }
 
 void PE_BeginMotion(void)

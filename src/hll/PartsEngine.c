@@ -915,11 +915,11 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_TODO_EXPORT(LoadParts, PartsEngine_LoadParts),
 	    // Evenicle
 	    HLL_TODO_EXPORT(GetActiveParts, PartsEngine_GetActiveParts),
-	    HLL_TODO_EXPORT(SetClickMissSoundName, PartsEngine_SetClickMissSoundName),
+	    HLL_EXPORT(SetClickMissSoundName, PE_SetClickMissSoundName),
 	    HLL_TODO_EXPORT(GetClickMissSoundName, PartsEngine_GetClickMissSoundName),
 	    HLL_TODO_EXPORT(AddComponentMotionAddColor, PartsEngine_AddComponentMotionAddColor),
 	    HLL_TODO_EXPORT(AddComponentMotionMulColor, PartsEngine_AddComponentMotionMulColor),
-	    HLL_TODO_EXPORT(Parts_SetSoundName, PartsEngine_Parts_SetSoundName),
+	    HLL_EXPORT(Parts_SetSoundName, PE_SetPartsSoundName),
 	    HLL_TODO_EXPORT(Parts_GetSoundName, PartsEngine_Parts_GetSoundName),
 	    HLL_TODO_EXPORT(Parts_SetPosForRate, PartsEngine_Parts_SetPosForRate),
 	    HLL_TODO_EXPORT(Parts_IsPosForRate, PartsEngine_Parts_IsPosForRate),
@@ -1011,7 +1011,7 @@ static void PartsEngine_PreLink(void)
 	}
 	fun = get_fun(libno, "AddMotionSound");
 	if (fun && fun->nr_arguments == 2 && fun->arguments[0].type.data == AIN_STRING) {
-		static_library_replace(&lib_PartsEngine, "AddMotionSound", NULL);
+		static_library_replace(&lib_PartsEngine, "AddMotionSound", PE_AddMotionSound_by_name);
 	}
 	fun = get_fun(libno, "SetLayoutBoxReturn");
 	if (fun && fun->nr_arguments == 3 && fun->arguments[2].type.data == AIN_FLOAT) {
